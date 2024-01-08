@@ -1,3 +1,4 @@
+import math
 from unittest.mock import MagicMock
 
 import pytest
@@ -30,7 +31,7 @@ def test_llm_evaluator_evaluate_outputs_label_when_model_produces_expected_outpu
         use_function_calling_if_available=False,
     )
     assert label == "relevant"
-    assert score == 1
+    assert math.isclose(score, 1.0)
     assert explanation is None
 
 
@@ -47,7 +48,7 @@ def test_llm_evaluator_evaluate_outputs_not_parseable_when_model_produces_unexpe
         use_function_calling_if_available=False,
     )
     assert label == NOT_PARSABLE
-    assert score is None
+    assert math.isclose(score, 0.0)
     assert explanation is None
 
 
@@ -66,7 +67,7 @@ def test_llm_evaluator_evaluate_outputs_label_and_explanation_when_model_produce
         use_function_calling_if_available=False,
     )
     assert label == "relevant"
-    assert score == 1
+    assert math.isclose(score, 1.0)
     assert "A very good explanation" in explanation
 
 
@@ -85,7 +86,7 @@ def test_llm_evaluator_evaluate_outputs_not_parseable_and_raw_response_when_outp
         use_function_calling_if_available=False,
     )
     assert label == NOT_PARSABLE
-    assert score is None
+    assert math.isclose(score, 0.0)
     assert "EXPLANATION: A very good explanation" 'LABEL: "not-a-rail"' in explanation
 
 
@@ -104,7 +105,7 @@ def test_llm_evaluator_evaluate_outputs_not_parseable_and_raw_response_for_unpar
         use_function_calling_if_available=False,
     )
     assert label == NOT_PARSABLE
-    assert score is None
+    assert math.isclose(score, 0.0)
     assert explanation == 'Unexpected format: "rail"'
 
 
@@ -121,7 +122,7 @@ def test_llm_evaluator_evaluate_outputs_label_when_called_with_function_call(
         use_function_calling_if_available=True,
     )
     assert label == "relevant"
-    assert score == 1
+    assert math.isclose(score, 1.0)
     assert explanation is None
 
 
@@ -140,7 +141,7 @@ def test_llm_evaluator_evaluate_outputs_label_and_explanation_when_called_with_f
         provide_explanation=True,
     )
     assert label == "relevant"
-    assert score == 1
+    assert math.isclose(score, 1.0)
     assert explanation == "explanation"
 
 
@@ -157,7 +158,7 @@ def test_llm_evaluator_evaluate_makes_best_effort_attempt_to_parse_invalid_funct
         use_function_calling_if_available=True,
     )
     assert label == "relevant"
-    assert score == 1
+    assert math.isclose(score, 1.0)
     assert explanation is None
 
 
@@ -174,11 +175,11 @@ def test_relevance_evaluator_evaluate_outputs_label_when_model_produces_expected
         use_function_calling_if_available=False,
     )
     assert label == "relevant"
-    assert score == 1
+    assert math.isclose(score, 1.0)
     assert explanation is None
 
 
-def test_llm_evaluator_evaluate_outputs_score_as_none_with_custom_template_without_scores(
+def test_llm_evaluator_evaluate_outputs_score_as_zero_with_custom_template_without_scores(
     openai_model: OpenAIModel,
 ) -> None:
     custom_template_without_scores = ClassificationTemplate(
@@ -196,5 +197,5 @@ def test_llm_evaluator_evaluate_outputs_score_as_none_with_custom_template_witho
         use_function_calling_if_available=False,
     )
     assert label == "relevant"
-    assert score is None
+    assert math.isclose(score, 0.0)
     assert explanation is None
