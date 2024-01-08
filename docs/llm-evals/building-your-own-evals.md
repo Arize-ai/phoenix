@@ -6,17 +6,17 @@ The LLM Evals library is designed to support the building of any custom Eval tem
 
 <figure><img src="../.gitbook/assets/Screenshot 2023-09-04 at 10.06.26 PM.png" alt=""><figcaption><p>Custom Eval Templates</p></figcaption></figure>
 
-## Steps to Building Your Own Eval&#x20;
+## Steps to Building Your Own Eval
 
 Follow the following steps to easily build your own Eval with Phoenix
 
-### 1. Choose a Metric&#x20;
+### 1. Choose a Metric
 
 To do that, you must identify what is the **metric best suited for your use case**. Can you use a pre-existing template or do you need to evaluate something unique to your use case?
 
-### 2. Build a Golden Dataset&#x20;
+### 2. Build a Golden Dataset
 
-Then, you need the **golden dataset**. This should be representative of the type of data you expect the LLM eval to see. The golden dataset should have the “ground truth” label so that we can measure performance of the LLM eval template. Often such labels come from human feedback.&#x20;
+Then, you need the **golden dataset**. This should be representative of the type of data you expect the LLM eval to see. The golden dataset should have the “ground truth” label so that we can measure performance of the LLM eval template. Often such labels come from human feedback.
 
 Building such a dataset is laborious, but you can often find a standardized one for the most common use cases (as we did in the code above)
 
@@ -33,9 +33,9 @@ df = download_benchmark_dataset(
 df.head()
 ```
 
-### 3. Decide Which LLM to use For Evaluation&#x20;
+### 3. Decide Which LLM to use For Evaluation
 
-Then you need to decide **which LLM** you want to use for evaluation. This could be a different LLM from the one you are using for your application. For example, you may be using Llama for your application and GPT-4 for your eval. Often this choice is influenced by questions of cost and accuracy.&#x20;
+Then you need to decide **which LLM** you want to use for evaluation. This could be a different LLM from the one you are using for your application. For example, you may be using Llama for your application and GPT-4 for your eval. Often this choice is influenced by questions of cost and accuracy.
 
 <figure><img src="https://storage.cloud.google.com/arize-assets/phoenix/assets/images/Create_Your_Own_Template_Pick_Model.png" alt=""><figcaption><p>Decide your LLM for evaluation</p></figcaption></figure>
 
@@ -74,7 +74,6 @@ MY_CUSTOM_TEMPLATE = '''
 The above template shows an example creation of an easy to use string template. The Phoenix Eval templates support both strings and objects.
 
 ```python
-
 model = OpenAIModel(model_name="gpt-4",temperature=0.6)
 positive_eval = llm_classify(
     dataframe=df,
