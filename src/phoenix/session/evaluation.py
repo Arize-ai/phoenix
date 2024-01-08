@@ -103,8 +103,14 @@ def _extract_subject_id_from_index(
 
 def _extract_result(row: "pd.Series[Any]") -> Optional[pb.Evaluation.Result]:
     score = cast(Optional[float], row.get("score"))
+    if isinstance(score, float) and math.isnan(score):
+        score = None
     label = cast(Optional[str], row.get("label"))
+    if isinstance(label, float) and math.isnan(label):
+        label = None
     explanation = cast(Optional[str], row.get("explanation"))
+    if isinstance(explanation, float) and math.isnan(explanation):
+        explanation = None
     if (
         (score is None or isinstance(score, float) and math.isnan(score))
         and not label
