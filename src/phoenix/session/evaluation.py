@@ -111,11 +111,7 @@ def _extract_result(row: "pd.Series[Any]") -> Optional[pb.Evaluation.Result]:
     explanation = cast(Optional[str], row.get("explanation"))
     if isinstance(explanation, float) and math.isnan(explanation):
         explanation = None
-    if (
-        (score is None or isinstance(score, float) and math.isnan(score))
-        and not label
-        and not explanation
-    ):
+    if score is None and not label and not explanation:
         return None
     return pb.Evaluation.Result(
         score=DoubleValue(value=score) if score is not None else None,
