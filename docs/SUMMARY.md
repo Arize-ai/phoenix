@@ -6,7 +6,6 @@
 ## 🔑 Quickstart
 
 * [Phoenix Traces](quickstart/llm-traces.md)
-* [Phoenix Evals](quickstart/evals.md)
 * [Phoenix Inferences](quickstart/phoenix-inferences/README.md)
   * [Schemas and Datasets](quickstart/phoenix-inferences/inferences.md)
 
@@ -23,7 +22,7 @@
 * [Phoenix LLM Evals](llm-evals/llm-evals.md)
 * [Running Pre-Tested Evals](llm-evals/running-pre-tested-evals/README.md)
   * [Retrieval (RAG) Relevance](llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md)
-  * [Hallucinations](llm-evals/running-pre-tested-evals/hallucinations.md)
+  * [Hallucinations (private data)](llm-evals/running-pre-tested-evals/hallucinations.md)
   * [Q\&A on Retrieved Data](llm-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md)
   * [Toxicity](llm-evals/running-pre-tested-evals/toxicity.md)
   * [Code Generation Eval](llm-evals/running-pre-tested-evals/code-generation-eval.md)
@@ -52,6 +51,7 @@
 * [Manage the App](how-to/manage-the-app.md)
 * [Export Your Data](how-to/export-your-data.md)
 * [Extract Data from Spans](how-to/extract-data-from-spans.md)
+* [Filter Spans](how-to/filter-spans.md)
 * [Use Example Datasets](how-to/use-example-datasets.md)
 * [Contribute to Phoenix](how-to/contribute-to-phoenix.md)
 

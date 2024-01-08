@@ -2,6 +2,8 @@
 
 ## Reference Links in Retrieval Q\&A
 
+{% embed url="https://colab.research.google.com/drive/1mAjcIYWCDi9TNFE3p7xRiw0L0hwHzk-q?usp=sharing" %}
+
 In chatbots and Q\&A systems, many times reference links are provided in the response, along with an answer, to help point users to documentation or pages that contain more information or the source for the answer.
 
 **EXAMPLE**: Q\&A from Arize-Phoenix Documentation
@@ -77,8 +79,4 @@ relevance_classifications = llm_classify(
 
 <figure><img src="../../.gitbook/assets/GPT-4 Turbo Ref link.png" alt="" width="563"><figcaption></figcaption></figure>
 
-| Reference Link Evals | GPT-4                                  | GPT-4 Turbo                            | GPT-3.5                              | Claude V2                            | Palm 2                                 |
-| -------------------- | -------------------------------------- | -------------------------------------- | ------------------------------------ | ------------------------------------ | -------------------------------------- |
-| Precision            | <mark style="color:green;">0.97</mark> | <mark style="color:green;">0.94</mark> | <mark style="color:red;">0.89</mark> | <mark style="color:red;">0.74</mark> | <mark style="color:green;">0.68</mark> |
-| Recall               | <mark style="color:green;">0.83</mark> | <mark style="color:green;">0.69</mark> | <mark style="color:red;">0.43</mark> | <mark style="color:red;">0.48</mark> | <mark style="color:green;">0.98</mark> |
-| F1                   | <mark style="color:green;">0.89</mark> | <mark style="color:green;">0.79</mark> | <mark style="color:red;">0.58</mark> | <mark style="color:red;">0.58</mark> | <mark style="color:green;">0.80</mark> |
+<table><thead><tr><th width="130">Reference Link Evals</th><th>GPT-4</th><th>GPT-4 Turbo</th><th>Gemini</th><th>GPT-3.5</th><th>Claude V2</th><th>Palm 2</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.97</mark></td><td><mark style="color:green;">0.94</mark></td><td><mark style="color:green;">0.77</mark></td><td><mark style="color:red;">0.89</mark></td><td><mark style="color:red;">0.74</mark></td><td><mark style="color:green;">0.68</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.83</mark></td><td><mark style="color:green;">0.69</mark></td><td><mark style="color:green;">0.97</mark></td><td><mark style="color:red;">0.43</mark></td><td><mark style="color:red;">0.48</mark></td><td><mark style="color:green;">0.98</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.89</mark></td><td><mark style="color:green;">0.79</mark></td><td><mark style="color:green;">0.86</mark></td><td><mark style="color:red;">0.58</mark></td><td><mark style="color:red;">0.58</mark></td><td><mark style="color:green;">0.80</mark></td></tr></tbody></table>
