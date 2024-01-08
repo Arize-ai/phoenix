@@ -28,9 +28,7 @@ This section will go through a script that iterates through all possible paramet
 
 This overview will run through the scripts in phoenix for performance analysis of RAG setup:
 
-{% embed url="https://github.com/Arize-ai/phoenix/blob/main/scripts/rag/llama_index_w_evals_and_qa.py" %}
-Link to RAG Scripts
-{% endembed %}
+{% @github-files/github-code-block %}
 
 The scripts above power the included notebook.
 
