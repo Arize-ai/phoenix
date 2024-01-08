@@ -6,6 +6,7 @@
 ## 🔑 Quickstart
 
 * [Phoenix Traces](quickstart/llm-traces.md)
+* [Phoenix Evals](quickstart/evals.md)
 * [Phoenix Inferences](quickstart/phoenix-inferences/README.md)
   * [Schemas and Datasets](quickstart/phoenix-inferences/inferences.md)
 
