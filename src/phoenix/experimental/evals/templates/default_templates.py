@@ -415,48 +415,56 @@ RAG_RELEVANCY_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
     template=RAG_RELEVANCY_PROMPT_BASE_TEMPLATE,
     explanation_template=RAG_RELEVANCY_PROMPT_TEMPLATE_WITH_EXPLANATION,
+    scores=[1, 0],
 )
 
 HALLUCINATION_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=list(HALLUCINATION_PROMPT_RAILS_MAP.values()),
     template=HALLUCINATION_PROMPT_BASE_TEMPLATE,
     explanation_template=HALLUCINATION_PROMPT_TEMPLATE_WITH_EXPLANATION,
+    scores=[1, 0],
 )
 
 TOXICITY_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=list(TOXICITY_PROMPT_RAILS_MAP.values()),
     template=TOXICITY_PROMPT_TEMPLATE_BASE_TEMPLATE,
     explanation_template=TOXICITY_PROMPT_TEMPLATE_WITH_EXPLANATION,
+    scores=[1, 0],
 )
 
 QA_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=list(QA_PROMPT_RAILS_MAP.values()),
     template=QA_PROMPT_BASE_TEMPLATE,
     explanation_template=QA_PROMPT_TEMPLATE_WITH_EXPLANATION,
+    scores=[1, 0],
 )
 
 SUMMARIZATION_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=list(SUMMARIZATION_PROMPT_RAILS_MAP.values()),
     template=SUMMARIZATION_PROMPT_BASE_TEMPLATE,
     explanation_template=SUMMARIZATION_PROMPT_TEMPLATE_WITH_EXPLANATION,
+    scores=[1, 0],
 )
 
 CODE_READABILITY_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=list(CODE_READABILITY_PROMPT_RAILS_MAP.values()),
     template=CODE_READABILITY_PROMPT_BASE_TEMPLATE,
     explanation_template=CODE_READABILITY_PROMPT_TEMPLATE_WITH_EXPLANATION,
+    scores=[1, 0],
 )
 
 REFERENCE_LINK_CORRECTNESS_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=list(REFERENCE_LINK_CORRECTNESS_PROMPT_RAILS_MAP.values()),
     template=REFERENCE_LINK_CORRECTNESS_PROMPT_BASE_TEMPLATE,
     explanation_template=REFERENCE_LINK_CORRECTNESS_PROMPT_TEMPLATE_WITH_EXPLANATION,
+    scores=[1, 0],
 )
 
 HUMAN_VS_AI_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=list(HUMAN_VS_AI_PROMPT_RAILS_MAP.values()),
     template=HUMAN_VS_AI_PROMPT_BASE_TEMPLATE,
     explanation_template=HUMAN_VS_AI_PROMPT_TEMPLATE_WITH_EXPLANATION,
+    scores=[1, 0],
 )
 
 
