@@ -1,15 +1,13 @@
 ---
 description: >-
-  Evaluation and benchmarking are crucial concepts in LLM application
-  development. To improve the performance of an LLM app (RAG, agents), you must
-  have a way to measure it.
+  Evaluation and benchmarking are crucial concepts in LLM development. To
+  improve the performance of an LLM app (RAG, agents), you must have a way to
+  measure it.
 ---
 
 # Evaluation
 
-While the standard for measuring performance is human labeling, it is costly to scale. LLMs specifically prompted to perform the evaluation task can be used as an effective alternative to human labeling in many contexts.
-
-Phoenix offers key modules that use this concept to measure the quality of generated results as well as modules to measure retrieval quality.
+Phoenix offers key modules to measure the quality of generated results as well as modules to measure retrieval quality.
 
 * [**Response Evaluation**](evaluation.md#response-evaluation): Does the response match the retrieved context? Does it also match the query?&#x20;
 * [**Retrieval Evaluation**](evaluation.md#retrieval-evaluation): Are the retrieved sources relevant to the query?
@@ -76,7 +74,7 @@ With Phoenix, evaluations can be "attached" to the **spans** and **documents** c
 1. **Querying and downloading data** - query the spans collected by phoenix and materialize them into DataFrames to be used for evaluation (e.g. question and answer data, documents data).
 2. **Running Evaluations** - the data queried in step 1 can be fed into LLM Evals to produce evaluation results.
 3. **Logging Evaluations** - the evaluations performed in the above step can be logged back to Phoenix to be attached to spans and documents for evaluating responses and retrieval. See [here](../how-to/define-your-schema/llm-evaluations.md) on how to log evaluations to Phoenix.
-4. **Sorting and Filtering by Evaluation** - once the evaluations have been logged back to Phoenix, the spans become instantly sortable and filterable by the evaluation values that you attached to the spans. (An example of an evaluation filter would be `evals["hallucination"].label == "hallucinated"`)
+4. **Sorting and Filtering by Evaluation** - once the evaluations have been logged back to Phoenix, the spans become instantly sortable and filterable by the evaluation values that you attached to the spans. (An example of an evaluation filter would be `Eval["hallucination"].label == "hallucinated"`)
 
 <figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/blog/evaluation_flow.png?raw=true" alt=""><figcaption><p>End-to-end evaluation flow</p></figcaption></figure>
 

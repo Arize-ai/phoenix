@@ -6,8 +6,6 @@ description: >-
 
 # AI vs Human (Groundtruth)
 
-{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_human_vs_ai_classifications.ipynb" %}
-
 A workflow we see for high quality RAG deployments is generating a golden dataset of questions and a high quality set of answers. These can be in the range of 100-200 but provide a strong check for the AI generated answers. This Eval checks that the human ground truth matches the AI generated answer. Its designed to catch missing data in "half" answers and differences of substance.
 
 #### Example Human vs AI on Arize Docs:
@@ -98,12 +96,4 @@ relevance_classifications = llm_classify(
 #### GPT 4 turbo:
 
 <figure><img src="../../.gitbook/assets/huamn_vs_ai_gpt-4 turbo .png" alt=""><figcaption></figcaption></figure>
-
-
-
-|           | GPT-4                                  | GPT-4 Turbo                            | Gemini                                 |
-| --------- | -------------------------------------- | -------------------------------------- | -------------------------------------- |
-| Precision | <mark style="color:green;">0.92</mark> | <mark style="color:green;">0.87</mark> | <mark style="color:green;">0.78</mark> |
-| Recall    | <mark style="color:green;">0.74</mark> | <mark style="color:green;">0.69</mark> | <mark style="color:green;">0.87</mark> |
-| F1        | <mark style="color:green;">0.82</mark> | <mark style="color:green;">0.77</mark> | <mark style="color:green;">0.82</mark> |
 

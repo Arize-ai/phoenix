@@ -1,6 +1,6 @@
 # Phoenix LLM Evals
 
-The standard for evaluating text is human labeling. However, high-quality LLM outputs are becoming cheaper and faster to produce, and human evaluation cannot scale. In this context, evaluating the performance of LLM applications is best tackled by using a separate evaluation LLM. The Phoenix [LLM Evals library](running-pre-tested-evals/) is designed for simple, fast, and accurate LLM-based evaluations.&#x20;
+Evaluating LLM outputs is best tackled by using a separate evaluation LLM. The Phoenix [LLM Evals library](running-pre-tested-evals/) is designed for simple, fast, and accurate LLM-based evaluations.&#x20;
 
 <div data-full-width="false">
 
