@@ -9,16 +9,3 @@ The retrieval Eval is designed to asses the relevance of each chunk and its abil
 <figure><img src="../.gitbook/assets/all_chunk_retrieval (1).png" alt=""><figcaption></figcaption></figure>
 
 The picture above shows a single query returning k=4 chunks as a list. The retrieval Eval runs across each chunk returning a value of relevance in a list highlighting its relevance for the specific chunk. Phoenix provides helper functions that take in a dataframe, with query column that has lists of chunks and produces a column that is a list of equal length with an Eval for each chunk.&#x20;
-
-```python
-
-df[formatted_evals_column] = run_relevance_eval(
-  dataframe=df,
-  model=model,
-  template=templates.RAG_RELEVANCY_PROMPT_TEMPLATE,
-  rails=list(templates.RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
-  query_column_name="query",
-  document_column_name="reference",
-)
-```
-
