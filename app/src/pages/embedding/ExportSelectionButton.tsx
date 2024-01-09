@@ -2,6 +2,7 @@ import React, { Suspense, useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { python } from "@codemirror/lang-python";
 import { EditorView } from "@codemirror/view";
+import { nord } from "@uiw/codemirror-theme-nord";
 import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
@@ -19,6 +20,7 @@ import {
 } from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
+import { useTheme } from "@phoenix/contexts";
 import { usePointCloudContext } from "@phoenix/contexts";
 
 import { ExportSelectionButtonExportsQuery } from "./__generated__/ExportSelectionButtonExportsQuery.graphql";
@@ -27,6 +29,10 @@ import { ExportSelectionButtonMutation } from "./__generated__/ExportSelectionBu
 type ExportInfo = {
   fileName: string;
 };
+
+const EXPORTS_CODE_SNIPPET = `import phoenix as px
+
+px.active_session().exports`;
 
 const codeMirrorCSS = css`
   .cm-content {
@@ -38,12 +44,22 @@ const codeMirrorCSS = css`
   }
 `;
 function CodeBlock({ value }: { value: string }) {
+  const { theme } = useTheme();
+  const codeMirrorTheme = theme === "light" ? undefined : nord;
   return (
     <CodeMirror
       value={value}
-      basicSetup={false}
+      basicSetup={{
+        lineNumbers: true,
+        foldGutter: true,
+        bracketMatching: true,
+        syntaxHighlighting: true,
+        highlightActiveLine: false,
+        highlightActiveLineGutter: false,
+      }}
       extensions={[python(), EditorView.lineWrapping]}
       editable={false}
+      theme={codeMirrorTheme}
       css={codeMirrorCSS}
     />
   );
@@ -112,31 +128,27 @@ export function ExportSelectionButton() {
                   Download
                 </Button>
               }
+            ></Alert>
+            <div
+              css={css`
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                align-items: flex-start;
+                padding: 16px;
+                gap: 8px;
+              `}
             >
-              <div
+              <p
                 css={css`
-                  display: flex;
-                  flex-direction: row;
-                  justify-content: space-between;
-                  align-items: center;
-                  button {
-                    flex: none;
-                  }
+                  margin: 0;
+                  flex: 1 1 auto;
                 `}
               >
-                <p
-                  css={css`
-                    margin: 0;
-                    flex: 1 1 auto;
-                  `}
-                >
-                  <span>
-                    You can retrieve your export in your notebook via{" "}
-                  </span>
-                  <CodeBlock value="px.active_session().exports" />
-                </p>
-              </div>
-            </Alert>
+                <span>You can retrieve your export in your notebook via </span>
+              </p>
+              <CodeBlock value={EXPORTS_CODE_SNIPPET} />
+            </div>
             <Accordion>
               <AccordionItem id="all-exports" title="Latest Exports">
                 <Suspense fallback={<Loading />}>
