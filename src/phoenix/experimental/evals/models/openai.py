@@ -107,6 +107,9 @@ class OpenAIModel(BaseEvalModel):
         self._init_tiktoken()
         self._init_rate_limiter()
 
+    def reload_client(self) -> None:
+        self._init_open_ai()
+
     def _init_environment(self) -> None:
         try:
             import httpx
@@ -254,6 +257,7 @@ class OpenAIModel(BaseEvalModel):
         return f"OpenAI invocation parameters: {self.public_invocation_params}"
 
     async def _async_generate(self, prompt: str, **kwargs: Any) -> str:
+        self.reload_client()
         invoke_params = self.invocation_params
         messages = self._build_messages(prompt, kwargs.get("instruction"))
         if functions := kwargs.get("functions"):
@@ -273,6 +277,7 @@ class OpenAIModel(BaseEvalModel):
         return str(message["content"])
 
     def _generate(self, prompt: str, **kwargs: Any) -> str:
+        self.reload_client()
         invoke_params = self.invocation_params
         messages = self._build_messages(prompt, kwargs.get("instruction"))
         if functions := kwargs.get("functions"):
