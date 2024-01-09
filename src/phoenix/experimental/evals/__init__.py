@@ -1,5 +1,12 @@
-from .evaluators import InvalidEvalCriteriaError, LLMEvaluator
-from .functions import llm_classify, llm_generate, run_relevance_eval
+from .evaluators import (
+    HallucinationEvaluator,
+    LLMEvaluator,
+    QAEvaluator,
+    RelevanceEvaluator,
+    SummarizationEvaluator,
+    ToxicityEvaluator,
+)
+from .functions import llm_classify, llm_generate, run_evals, run_relevance_eval
 from .models import BedrockModel, LiteLLMModel, OpenAIModel, VertexAIModel
 from .retrievals import compute_precisions_at_k
 from .templates import (
@@ -16,13 +23,11 @@ from .templates import (
     TOXICITY_PROMPT_RAILS_MAP,
     TOXICITY_PROMPT_TEMPLATE,
     ClassificationTemplate,
-    EvalCriteria,
     PromptTemplate,
 )
 from .utils import NOT_PARSABLE, download_benchmark_dataset
 
 __all__ = [
-    "EvalCriteria",
     "compute_precisions_at_k",
     "download_benchmark_dataset",
     "llm_classify",
@@ -31,7 +36,6 @@ __all__ = [
     "VertexAIModel",
     "BedrockModel",
     "LiteLLMModel",
-    "LLMEvaluator",
     "PromptTemplate",
     "ClassificationTemplate",
     "CODE_READABILITY_PROMPT_RAILS_MAP",
@@ -48,5 +52,14 @@ __all__ = [
     "QA_PROMPT_TEMPLATE",
     "NOT_PARSABLE",
     "run_relevance_eval",
-    "InvalidEvalCriteriaError",
+    "run_evals",
+    "LLMEvaluator",
+    "CodeReadabilityEvaluator",
+    "HallucinationEvaluator",
+    "HumanVsAIEvaluator",
+    "QAEvaluator",
+    "ReferenceLinkCorrectnessEvaluator",
+    "RelevanceEvaluator",
+    "SummarizationEvaluator",
+    "ToxicityEvaluator",
 ]

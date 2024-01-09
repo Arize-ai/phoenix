@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Dict, List
 
 from phoenix.experimental.evals.models.base import BaseEvalModel
 from phoenix.experimental.evals.models.rate_limiters import RateLimiter
+from phoenix.utilities.logging import printif
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
@@ -125,8 +126,7 @@ class GeminiModel(BaseEvalModel):
             response = self._model.generate_content(
                 contents=prompt, generation_config=generation_config, **kwargs
             )
-            candidate = response.candidates[0]
-            return candidate.text
+            return self._parse_response_candidates(response)
 
         return _completion_with_retry(**kwargs)
 
@@ -149,7 +149,29 @@ class GeminiModel(BaseEvalModel):
             response = await self._model.generate_content_async(
                 contents=prompt, generation_config=generation_config, **kwargs
             )
-            candidate = response.candidates[0]
-            return candidate.text
+            return self._parse_response_candidates(response)
 
         return await _completion_with_retry(**kwargs)
+
+    def _parse_response_candidates(self, response: Any) -> Any:
+        if hasattr(response, "candidates"):
+            if isinstance(response.candidates, list) and len(response.candidates) > 0:
+                try:
+                    candidate = response.candidates[0].text
+                except ValueError:
+                    printif(
+                        self._verbose, "The 'candidates' object does not have a 'text' attribute."
+                    )
+                    printif(self._verbose, response.candidates[0])
+                    candidate = ""
+            else:
+                printif(
+                    self._verbose,
+                    "The 'candidates' attribute of 'response' is either not a list or is empty.",
+                )
+                printif(self._verbose, response)
+                candidate = ""
+        else:
+            printif(self._verbose, "The 'response' object does not have a 'candidates' attribute.")
+            candidate = ""
+        return candidate

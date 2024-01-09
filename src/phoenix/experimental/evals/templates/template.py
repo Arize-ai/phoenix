@@ -4,6 +4,7 @@ from typing import Callable, List, Mapping, Optional, Tuple, Union
 
 import pandas as pd
 
+from phoenix.exceptions import PhoenixException
 from phoenix.experimental.evals.utils import NOT_PARSABLE
 
 DEFAULT_START_DELIM = "{"
@@ -13,6 +14,10 @@ DEFAULT_END_DELIM = "}"
 @dataclass
 class PromptOptions:
     provide_explanation: bool = False
+
+
+class InvalidClassificationTemplateError(PhoenixException):
+    pass
 
 
 class PromptTemplate:
@@ -58,7 +63,13 @@ class ClassificationTemplate(PromptTemplate):
         explanation_template: Optional[str] = None,
         explanation_label_parser: Optional[Callable[[str], str]] = None,
         delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
+        scores: Optional[List[float]] = None,
     ):
+        if scores is not None and len(rails) != len(scores):
+            raise InvalidClassificationTemplateError(
+                "If scores are provided, each rail must have one and only one score "
+                "(i.e., the length of both lists must be the same)."
+            )
         self.rails = rails
         self.template = template
         self.explanation_template = explanation_template
@@ -68,6 +79,7 @@ class ClassificationTemplate(PromptTemplate):
         for text in [template, explanation_template]:
             if text is not None:
                 self.variables += self._parse_variables(text)
+        self._scores = scores
 
     def __repr__(self) -> str:
         return self.template
@@ -85,6 +97,14 @@ class ClassificationTemplate(PromptTemplate):
         if parser := self.explanation_label_parser:
             return parser(raw_string)
         return parse_label_from_chain_of_thought_response(raw_string)
+
+    def score(self, rail: str) -> float:
+        if self._scores is None:
+            return 0.0
+        try:
+            return self._scores[self.rails.index(rail)]
+        except (IndexError, ValueError):
+            return 0.0
 
 
 def parse_label_from_chain_of_thought_response(raw_string: str) -> str:
