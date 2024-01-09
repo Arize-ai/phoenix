@@ -1,18 +1,15 @@
 import React, { Suspense, useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
-import { css } from "@emotion/react";
-import { useTheme } from "@phoenix/contexts";
-import { nord } from "@uiw/codemirror-theme-nord";
-import CodeMirror from "@uiw/react-codemirror";
-import { EditorView } from "@codemirror/view";
 import { python } from "@codemirror/lang-python";
+import { EditorView } from "@codemirror/view";
+import CodeMirror from "@uiw/react-codemirror";
+import { css } from "@emotion/react";
 
 import {
   Accordion,
   AccordionItem,
   Alert,
   Button,
-  Code,
   Dialog,
   DialogContainer,
   Download,
@@ -41,22 +38,12 @@ const codeMirrorCSS = css`
   }
 `;
 function CodeBlock({ value }: { value: string }) {
-  const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? undefined : nord;
   return (
     <CodeMirror
       value={value}
-      basicSetup={{
-        lineNumbers: false,
-        foldGutter: false,
-        // bracketMatching: true,
-        syntaxHighlighting: true,
-        // highlightActiveLine: false,
-        highlightActiveLineGutter: false,
-      }}
+      basicSetup={false}
       extensions={[python(), EditorView.lineWrapping]}
       editable={false}
-      theme={codeMirrorTheme}
       css={codeMirrorCSS}
     />
   );
