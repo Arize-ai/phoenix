@@ -25,6 +25,8 @@ jobs:
     name: Publish to PyPI
     runs-on: ubuntu-latest
     needs: create-release
+    # the 'true' string below may be a bug in release-please v4
+    # see https://github.com/google-github-actions/release-please-action/issues/912
     if: ${{ needs.create-release.outputs.release_created == 'true' }}
     environment:
       name: pypi
