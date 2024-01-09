@@ -51,7 +51,6 @@ function CodeBlock({ value }: { value: string }) {
       value={value}
       basicSetup={{
         lineNumbers: true,
-        foldGutter: true,
         bracketMatching: true,
         syntaxHighlighting: true,
         highlightActiveLine: false,
