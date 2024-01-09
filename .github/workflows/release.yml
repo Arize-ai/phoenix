@@ -16,17 +16,16 @@ jobs:
     outputs:
       release_created: ${{ steps.release-please.outputs.release_created }}
     steps:
-      - uses: google-github-actions/release-please-action@v3
+      - uses: google-github-actions/release-please-action@v4
         id: release-please
         with:
           release-type: python
-          package-name: arize-phoenix
 
   publish-to-pypi:
     name: Publish to PyPI
     runs-on: ubuntu-latest
     needs: create-release
-    if: ${{ needs.create-release.outputs.release_created }}
+    if: ${{ needs.create-release.outputs.release_created == 'true' }}
     environment:
       name: pypi
       url: https://pypi.org/p/arize-phoenix
