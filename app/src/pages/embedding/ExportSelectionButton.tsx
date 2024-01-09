@@ -1,7 +1,6 @@
 import React, { Suspense, useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { python } from "@codemirror/lang-python";
-import { EditorView } from "@codemirror/view";
 import { nord } from "@uiw/codemirror-theme-nord";
 import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
@@ -17,6 +16,7 @@ import {
   Icon,
   List,
   ListItem,
+  View,
 } from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
@@ -32,15 +32,13 @@ type ExportInfo = {
 
 const EXPORTS_CODE_SNIPPET = `import phoenix as px
 
-px.active_session().exports`;
+exports = px.active_session().exports
+dataframe = exports[-1]
+dataframe`;
 
 const codeMirrorCSS = css`
   .cm-content {
-    padding: var(--ac-global-dimension-static-size-100) 0;
-  }
-  .cm-editor,
-  .cm-gutters {
-    background-color: transparent;
+    padding: var(--ac-global-dimension-static-size-100);
   }
 `;
 function CodeBlock({ value }: { value: string }) {
@@ -49,14 +47,8 @@ function CodeBlock({ value }: { value: string }) {
   return (
     <CodeMirror
       value={value}
-      basicSetup={{
-        lineNumbers: true,
-        bracketMatching: true,
-        syntaxHighlighting: true,
-        highlightActiveLine: false,
-        highlightActiveLineGutter: false,
-      }}
-      extensions={[python(), EditorView.lineWrapping]}
+      basicSetup={false}
+      extensions={[python()]}
       editable={false}
       theme={codeMirrorTheme}
       css={codeMirrorCSS}
@@ -135,7 +127,7 @@ export function ExportSelectionButton() {
                 justify-content: space-between;
                 align-items: flex-start;
                 padding: 16px;
-                gap: 8px;
+                gap: 16px;
               `}
             >
               <p
@@ -144,9 +136,15 @@ export function ExportSelectionButton() {
                   flex: 1 1 auto;
                 `}
               >
-                <span>You can retrieve your export in your notebook via </span>
+                You can retrieve your export in your notebook via
               </p>
-              <CodeBlock value={EXPORTS_CODE_SNIPPET} />
+              <View
+                borderColor="light"
+                borderWidth="thin"
+                borderRadius="medium"
+              >
+                <CodeBlock value={EXPORTS_CODE_SNIPPET} />
+              </View>
             </div>
             <Accordion>
               <AccordionItem id="all-exports" title="Latest Exports">
