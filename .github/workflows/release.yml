@@ -20,7 +20,6 @@ jobs:
         id: release-please
         with:
           release-type: python
-          package-name: arize-phoenix
 
   publish-to-pypi:
     name: Publish to PyPI
