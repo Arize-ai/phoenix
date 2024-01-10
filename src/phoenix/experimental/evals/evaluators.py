@@ -1,10 +1,7 @@
-from typing import List, Mapping, Optional, Tuple
+from textwrap import indent
+from typing import List, Mapping, Optional, Tuple, Type
 
-from phoenix.exceptions import PhoenixException
 from phoenix.experimental.evals.models import set_verbosity
-from phoenix.experimental.evals.templates.default_templates import (
-    EvalCriteria,
-)
 from phoenix.experimental.evals.utils import (
     NOT_PARSABLE,
     openai_function_call_kwargs,
@@ -14,13 +11,10 @@ from phoenix.experimental.evals.utils import (
 from phoenix.utilities.logging import printif
 
 from .models import BaseEvalModel, OpenAIModel
-from .templates import ClassificationTemplate, PromptOptions, PromptTemplate
+from .templates import ClassificationTemplate, EvalCriteria, PromptOptions, PromptTemplate
 
 Record = Mapping[str, str]
-
-
-class InvalidEvalCriteriaError(PhoenixException):
-    pass
+_TAB = " " * 4
 
 
 class LLMEvaluator:
@@ -48,7 +42,7 @@ class LLMEvaluator:
         provide_explanation: bool = False,
         use_function_calling_if_available: bool = True,
         verbose: bool = False,
-    ) -> Tuple[str, Optional[str]]:
+    ) -> Tuple[str, Optional[float], Optional[str]]:
         """
         Evaluates a single record.
 
@@ -71,7 +65,10 @@ class LLMEvaluator:
             verbose (bool, optional): Whether to print verbose output.
 
         Returns:
-            Tuple[str, Optional[str]]: The label and explanation (if provided).
+            Tuple[str, Optional[float], Optional[str]]: A tuple containing:
+            - label
+            - score (if scores for each label are specified by the template)
+            - explanation (if requested)
         """
         use_openai_function_call = (
             use_function_calling_if_available
@@ -97,7 +94,8 @@ class LLMEvaluator:
             use_openai_function_call=use_openai_function_call,
             verbose=verbose,
         )
-        return label, explanation
+        score = self._template.score(label)
+        return label, score, explanation
 
     async def aevaluate(
         self,
@@ -105,7 +103,7 @@ class LLMEvaluator:
         provide_explanation: bool = False,
         use_function_calling_if_available: bool = True,
         verbose: bool = False,
-    ) -> Tuple[str, Optional[str]]:
+    ) -> Tuple[str, Optional[float], Optional[str]]:
         """
         Evaluates a single record.
 
@@ -123,7 +121,10 @@ class LLMEvaluator:
             verbose (bool, optional): Whether to print verbose output.
 
         Returns:
-            Tuple[str, Optional[str]]: The label and explanation (if provided).
+            Tuple[str, Optional[float], Optional[str]]: A tuple containing:
+            - label
+            - score (if scores for each label are specified by the template)
+            - explanation (if requested)
         """
         use_openai_function_call = (
             use_function_calling_if_available
@@ -149,29 +150,80 @@ class LLMEvaluator:
             use_openai_function_call=use_openai_function_call,
             verbose=verbose,
         )
-        return label, explanation
+        score = self._template.score(label)
+        return label, score, explanation
 
-    @classmethod
-    def from_criteria(
-        cls,
-        criteria: EvalCriteria,
-        model: BaseEvalModel,
-    ) -> "LLMEvaluator":
-        """
-        Instantiates an LLMEvaluator from an eval criteria.
+
+def _create_llm_evaluator_subclass(
+    class_name: str, template: ClassificationTemplate, docstring: str
+) -> Type[LLMEvaluator]:
+    """A factory method that dynamically creates subclasses of LLMEvaluator.
+
+    Args:
+        class_name (str): Name of the class to be created (should match the name
+        of the assignment variable).
+
+        template (ClassificationTemplate): The classification template to use
+        for evaluation.
+
+        docstring (str): The docstring that will be attached to the subclass.
+
+    Returns:
+        Type[LLMEvaluator]: The dynamically created subclass.
+    """
+
+    def __init__(self: LLMEvaluator, model: BaseEvalModel) -> None:
+        LLMEvaluator.__init__(self, model, template)
+
+    __init__.__doc__ = f"""
+        Initializer for {class_name}.
 
         Args:
-            criteria (EvalCriteria): The eval criteria.
+            model (BaseEvalModel): The LLM model to use for evaluation."""
 
-            model (BaseEvalModel): The model to use for evaluation.
+    docstring += f" Outputs railed classes {', '.join(template.rails)}."
+    docstring += "\n\nThe template used for evaluation (without explanation) is:\n\n"
+    docstring += indent(template.template, 2 * _TAB)
 
-        Returns:
-            LLMEvaluator: The instantiate evaluator.
-        """
-        return cls(
-            model=model,
-            template=criteria.value,
-        )
+    return type(class_name, (LLMEvaluator,), {"__init__": __init__, "__doc__": docstring})
+
+
+(
+    HallucinationEvaluator,
+    RelevanceEvaluator,
+    ToxicityEvaluator,
+    QAEvaluator,
+    SummarizationEvaluator,
+) = map(
+    lambda args: _create_llm_evaluator_subclass(*args),
+    (
+        (
+            "HallucinationEvaluator",
+            EvalCriteria.HALLUCINATION.value,
+            'Leverages an LLM to evaluate whether a response (stored under an "output" column) is a hallucination given a query (stored under an "input" column) and one or more retrieved documents (stored under a "reference" column).',  # noqa: E501
+        ),
+        (
+            "RelevanceEvaluator",
+            EvalCriteria.RELEVANCE.value,
+            'Leverages an LLM to evaluate whether a retrieved document (stored under a "reference" column) is relevant or irrelevant to the corresponding query (stored under the "input" column).',  # noqa: E501
+        ),
+        (
+            "ToxicityEvaluator",
+            EvalCriteria.TOXICITY.value,
+            'Leverages an LLM to evaluate whether the string stored under the "input" column contains racist, sexist, chauvinistic, biased, or otherwise toxic content.',  # noqa: E501
+        ),
+        (
+            "QAEvaluator",
+            EvalCriteria.QA.value,
+            'Leverages an LLM to evaluate whether a response (stored under an "output" column) is correct or incorrect given a query (stored under an "input" column) and one or more retrieved documents (stored under a "reference" column).',  # noqa: E501
+        ),
+        (
+            "SummarizationEvaluator",
+            EvalCriteria.SUMMARIZATION.value,
+            'Leverages an LLM to evaluate whether a summary (stored under an "output" column) provides an accurate synopsis of an input document (stored under a "input" column).',  # noqa: E501
+        ),
+    ),
+)
 
 
 class MapReducer:
