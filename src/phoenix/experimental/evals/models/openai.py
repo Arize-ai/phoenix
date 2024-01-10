@@ -257,7 +257,6 @@ class OpenAIModel(BaseEvalModel):
         return f"OpenAI invocation parameters: {self.public_invocation_params}"
 
     async def _async_generate(self, prompt: str, **kwargs: Any) -> str:
-        self.reload_client()
         invoke_params = self.invocation_params
         messages = self._build_messages(prompt, kwargs.get("instruction"))
         if functions := kwargs.get("functions"):
@@ -277,7 +276,6 @@ class OpenAIModel(BaseEvalModel):
         return str(message["content"])
 
     def _generate(self, prompt: str, **kwargs: Any) -> str:
-        self.reload_client()
         invoke_params = self.invocation_params
         messages = self._build_messages(prompt, kwargs.get("instruction"))
         if functions := kwargs.get("functions"):
