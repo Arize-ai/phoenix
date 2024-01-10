@@ -29,6 +29,8 @@ jobs:
     environment:
       name: pypi
       url: https://pypi.org/p/arize-phoenix
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
