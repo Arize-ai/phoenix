@@ -162,6 +162,8 @@ def test_document_evaluations_to_and_from_parquet_preserves_data(tmp_path):
     assert isinstance(read_evals_ds, DocumentEvaluations)
     assert_frame_equal(read_evals_ds.dataframe, dataframe)
     assert read_evals_ds.eval_name == "eval-name"
+    assert read_evals_ds.id == eval_ds
+    assert path.stem.endswith(str(read_evals_ds.id))
 
 
 @pytest.mark.parametrize(
@@ -177,17 +179,46 @@ def test_document_evaluations_to_and_from_parquet_preserves_data(tmp_path):
             {b"arize": '{"invalid_json": "value"'}, "invalid JSON string", id="invalid-json"
         ),
         pytest.param(
-            {b"arize": '{"eval_name": "eval-name"}'},
+            {
+                b"arize": json.dumps(
+                    {"eval_id": "2956d001-e2e1-4f22-8e32-1b4930510803", "eval_name": "eval-name"}
+                )
+            },
             "Invalid Arize metadata",
             id="missing-key-inside-arize-metadata",
         ),
         pytest.param(
-            {b"arize": '{"eval_name": 10, "eval_type": "SpanEvaluations"}'},
+            {
+                b"arize": json.dumps(
+                    {"eval_id": "1234", "eval_name": 10, "eval_type": "SpanEvaluations"}
+                )
+            },
+            "Invalid Arize metadata",
+            id="eval-id-not-uuid",
+        ),
+        pytest.param(
+            {
+                b"arize": json.dumps(
+                    {
+                        "eval_id": "2956d001-e2e1-4f22-8e32-1b4930510803",
+                        "eval_name": 10,
+                        "eval_type": "SpanEvaluations",
+                    }
+                )
+            },
             "Invalid Arize metadata",
             id="incorrect-eval-name-type",
         ),
         pytest.param(
-            {b"arize": '{"eval_name": "eval-name", "eval_type": "NonExistentType"}'},
+            {
+                b"arize": json.dumps(
+                    {
+                        "eval_id": "2956d001-e2e1-4f22-8e32-1b4930510803",
+                        "eval_name": "eval-name",
+                        "eval_type": "NonExistentType",
+                    }
+                )
+            },
             "Invalid Arize metadata",
             id="incorrect-eval-type",
         ),

@@ -5,7 +5,7 @@ from itertools import product
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Set, Tuple, Type, Union
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pandas as pd
 from pandas.api.types import is_integer_dtype, is_numeric_dtype, is_string_dtype
@@ -83,6 +83,7 @@ class NeedsResultColumns(ABC):
 class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
     eval_name: str  # The name for the evaluation, e.g. 'toxicity'
     dataframe: pd.DataFrame = field(repr=False)
+    id: str = field(init=False, default_factory=lambda: str(uuid4()))
 
     def __len__(self) -> int:
         return len(self.dataframe)
@@ -176,7 +177,7 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
             filename.
         """
         directory = Path(directory) if directory else TRACE_DATASET_DIR
-        path = directory / f"evaluations-{uuid4()}.parquet"
+        path = directory / f"evaluations-{self.id}.parquet"
         table = Table.from_pandas(self.dataframe)
         table = table.replace_schema_metadata(
             {
@@ -184,6 +185,7 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
                 # explicitly encode keys and values, which are automatically encoded regardless
                 b"arize": json.dumps(
                     {
+                        "eval_id": self.id,
                         "eval_name": self.eval_name,
                         "eval_type": self.__class__.__name__,
                     }
@@ -207,10 +209,12 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
             were originally persisted.
         """
         schema = parquet.read_schema(path)
-        eval_name, evaluations_cls = _parse_schema_metadata(schema.metadata)
+        eval_id, eval_name, evaluations_cls = _parse_schema_metadata(schema.metadata)
         table = parquet.read_table(path)
         dataframe = table.to_pandas()
-        return evaluations_cls(eval_name=eval_name, dataframe=dataframe)
+        evaluations = evaluations_cls(eval_name=eval_name, dataframe=dataframe)
+        object.__setattr__(evaluations, "id", eval_id)
+        return evaluations
 
 
 @dataclass(frozen=True)
@@ -319,9 +323,29 @@ def _parse_schema_metadata(metadata: Dict[bytes, Any]) -> Tuple[str, Type[Evalua
     evaluations_classes = {subclass.__name__: subclass for subclass in Evaluations.__subclasses__()}
     if not (
         isinstance(arize_metadata, dict)
+        and is_uuid_string(eval_id := arize_metadata.get("eval_id"))
         and isinstance(eval_name := arize_metadata.get("eval_name"), str)
         and (eval_type := arize_metadata.get("eval_type"))
         and (evaluations_cls := evaluations_classes.get(eval_type))
     ):
         raise InvalidParquetMetadataError(f"Invalid Arize metadata: {arize_metadata}")
-    return eval_name, evaluations_cls
+    return eval_id, eval_name, evaluations_cls
+
+
+def is_uuid_string(maybe_uuid_string: Any) -> bool:
+    """
+    Checks if the input is a valid UUID string.
+
+    Args:
+        maybe_uuid (Any): The input to check.
+
+    Returns:
+        bool: A boolean indicating whether the input is a valid UUID string.
+    """
+    if not isinstance(maybe_uuid_string, str):
+        return False
+    try:
+        UUID(maybe_uuid_string)
+        return True
+    except Exception:
+        return False
