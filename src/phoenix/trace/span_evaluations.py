@@ -1,13 +1,24 @@
+import json
 from abc import ABC
 from dataclasses import dataclass, field
 from itertools import product
+from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Callable, List, Mapping, Optional, Sequence, Set, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Set, Tuple, Type, Union
+from uuid import UUID, uuid4
 
 import pandas as pd
 from pandas.api.types import is_integer_dtype, is_numeric_dtype, is_string_dtype
+from pyarrow import Table, parquet
+
+from phoenix.config import TRACE_DATASET_DIR
+from phoenix.exceptions import PhoenixException
 
 EVAL_NAME_COLUMN_PREFIX = "eval."
+
+
+class InvalidParquetMetadataError(PhoenixException):
+    pass
 
 
 class NeedsNamedIndex(ABC):
@@ -72,6 +83,7 @@ class NeedsResultColumns(ABC):
 class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
     eval_name: str  # The name for the evaluation, e.g. 'toxicity'
     dataframe: pd.DataFrame = field(repr=False)
+    id: UUID = field(init=False, default_factory=uuid4)
 
     def __len__(self) -> int:
         return len(self.dataframe)
@@ -151,6 +163,58 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
         cls.all_valid_index_name_sorted_combos = set(
             tuple(sorted(prod)) for prod in product(*cls.index_names.keys())
         )
+
+    def to_parquet(self, directory: Optional[Union[str, Path]] = None) -> Path:
+        """Persists the evaluations to a parquet file.
+
+        Args:
+            directory (Optional[Union[str, Path]], optional): An optional path
+            to a directory where the parquet file will be saved. If not
+            provided, the parquet file will be saved to a default location.
+
+        Returns:
+            Path: The path to the parquet file, including a randomly generated
+            filename.
+        """
+        directory = Path(directory) if directory else TRACE_DATASET_DIR
+        path = directory / f"evaluations-{self.id}.parquet"
+        table = Table.from_pandas(self.dataframe)
+        table = table.replace_schema_metadata(
+            {
+                **(table.schema.metadata or {}),
+                # explicitly encode keys and values, which are automatically encoded regardless
+                b"arize": json.dumps(
+                    {
+                        "eval_id": str(self.id),
+                        "eval_name": self.eval_name,
+                        "eval_type": self.__class__.__name__,
+                    }
+                ).encode("utf-8"),
+            }
+        )
+        parquet.write_table(table, path)
+        return path
+
+    @classmethod
+    def from_parquet(cls, path: Union[str, Path]) -> "Evaluations":
+        """Loads the evaluations from a parquet file.
+
+        Args:
+            path (Union[str, Path]): Path to a persisted evaluations parquet
+            file.
+
+        Returns:
+            Evaluations: The loaded evaluations. The type of the returned
+            evaluations will be the same as the type of the evaluations that
+            were originally persisted.
+        """
+        schema = parquet.read_schema(path)
+        eval_id, eval_name, evaluations_cls = _parse_schema_metadata(schema.metadata)
+        table = parquet.read_table(path)
+        dataframe = table.to_pandas()
+        evaluations = evaluations_cls(eval_name=eval_name, dataframe=dataframe)
+        object.__setattr__(evaluations, "id", eval_id)
+        return evaluations
 
 
 @dataclass(frozen=True)
@@ -235,3 +299,50 @@ class TraceEvaluations(
     index_names=MappingProxyType({("context.trace_id", "trace_id"): is_string_dtype}),
 ):
     ...
+
+
+def _parse_schema_metadata(metadata: Dict[bytes, Any]) -> Tuple[UUID, str, Type[Evaluations]]:
+    """Validates and parses the schema metadata. Raises an exception if the
+    metadata is invalid.
+
+    Args:
+        metadata (Dict[bytes, Any]): A dictionary of schema metadata from a
+        parquet file.
+
+    Returns:
+        Tuple[str, ModuleType]: The evaluation name and the evaluations class.
+    """
+    if not (arize_metadata_json := metadata.get(b"arize")):
+        raise InvalidParquetMetadataError('Schema metadata is missing "arize" key')
+    try:
+        arize_metadata = json.loads(arize_metadata_json)
+    except json.JSONDecodeError as err:
+        raise InvalidParquetMetadataError(
+            'Encountered invalid JSON string under "arize" key'
+        ) from err
+    evaluations_classes = {subclass.__name__: subclass for subclass in Evaluations.__subclasses__()}
+    if not (
+        isinstance(arize_metadata, dict)
+        and (eval_id := _to_uuid(arize_metadata.get("eval_id")))
+        and isinstance(eval_name := arize_metadata.get("eval_name"), str)
+        and (eval_type := arize_metadata.get("eval_type"))
+        and (evaluations_cls := evaluations_classes.get(eval_type))
+    ):
+        raise InvalidParquetMetadataError(f"Invalid Arize metadata: {arize_metadata}")
+    return eval_id, eval_name, evaluations_cls
+
+
+def _to_uuid(value: Any) -> Optional[UUID]:
+    """
+    Converts an input to a UUID if possible, otherwise returns None.
+
+    Args:
+        value (Any): The value to convert to a UUID.
+
+    Returns:
+        Optional[UUID]: A UUID if the value could be converted, otherwise None.
+    """
+    try:
+        return UUID(value)
+    except Exception:
+        return None
