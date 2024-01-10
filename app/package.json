@@ -7,6 +7,7 @@
   "private": true,
   "dependencies": {
     "@arizeai/components": "^1.0.7",
+    "@arizeai/openinference-semantic-conventions": "^0.0.7",
     "@arizeai/point-cloud": "^3.0.4",
     "@codemirror/autocomplete": "^6.9.2",
     "@codemirror/lang-json": "^6.0.1",
