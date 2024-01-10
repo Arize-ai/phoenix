@@ -40,6 +40,7 @@ for path in (
     ROOT_DIR := Path.home().resolve() / ".phoenix",
     EXPORT_DIR := ROOT_DIR / "exports",
     DATASET_DIR := ROOT_DIR / "datasets",
+    TRACE_DATASET_DIR := ROOT_DIR / "trace_datasets",
 ):
     path.mkdir(parents=True, exist_ok=True)
 
