@@ -34,16 +34,6 @@ import {
   ViewProps,
   ViewStyleProps,
 } from "@arizeai/components";
-
-import { ExternalLink } from "@phoenix/components";
-import { resizeHandleCSS } from "@phoenix/components/resize";
-import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { SpanItem } from "@phoenix/components/trace/SpanItem";
-import { SpanKindIcon } from "@phoenix/components/trace/SpanKindIcon";
-import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
-import { TraceTree } from "@phoenix/components/trace/TraceTree";
-import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
-import { useTheme } from "@phoenix/contexts";
 import {
   DOCUMENT_CONTENT,
   DOCUMENT_ID,
@@ -65,7 +55,17 @@ import {
   TOOL_CALL_FUNCTION_ARGUMENTS_JSON,
   TOOL_CALL_FUNCTION_NAME,
   ToolAttributePostfixes,
-} from "@phoenix/openInference/tracing/semanticConventions";
+} from "@arizeai/openinference-semantic-conventions";
+
+import { ExternalLink } from "@phoenix/components";
+import { resizeHandleCSS } from "@phoenix/components/resize";
+import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { SpanItem } from "@phoenix/components/trace/SpanItem";
+import { SpanKindIcon } from "@phoenix/components/trace/SpanKindIcon";
+import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
+import { TraceTree } from "@phoenix/components/trace/TraceTree";
+import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
+import { useTheme } from "@phoenix/contexts";
 import {
   AttributeDocument,
   AttributeEmbedding,
