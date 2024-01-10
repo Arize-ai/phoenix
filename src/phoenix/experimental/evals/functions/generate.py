@@ -78,6 +78,9 @@ def llm_generate(
         represents the generated output
 
     """
+    # clients need to be reloaded to ensure that async evals work properly
+    model.reload_client()
+
     tqdm_bar_format = get_tqdm_progress_bar_formatter("llm_generate")
     output_parser = output_parser or _no_op_parser
     template = normalize_prompt_template(template)

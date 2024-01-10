@@ -61,6 +61,9 @@ class BaseEvalModel(ABC):
     _verbose: bool = False
     _rate_limiter: RateLimiter = field(default_factory=RateLimiter)
 
+    def reload_client(self) -> None:
+        pass
+
     def _retry(
         self,
         error_types: List[Type[BaseException]],

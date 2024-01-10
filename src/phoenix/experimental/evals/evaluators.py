@@ -36,6 +36,9 @@ class LLMEvaluator:
         self._model = model
         self._template = template
 
+    def reload_client(self) -> None:
+        self._model.reload_client()
+
     def evaluate(
         self,
         record: Record,

@@ -127,6 +127,9 @@ def llm_classify(
         from the entries in the rails argument or "NOT_PARSABLE" if the model's output could
         not be parsed.
     """
+    # clients need to be reloaded to ensure that async evals work properly
+    model.reload_client()
+
     tqdm_bar_format = get_tqdm_progress_bar_formatter("llm_classify")
     use_openai_function_call = (
         use_function_calling_if_available
@@ -385,6 +388,9 @@ def run_evals(
         List[DataFrame]: A list of dataframes, one for each evaluator, all of
         which have the same number of rows as the input dataframe.
     """
+    # clients need to be reloaded to ensure that async evals work properly
+    for evaluator in evaluators:
+        evaluator.reload_client()
 
     async def _arun_eval(
         payload: RunEvalsPayload,

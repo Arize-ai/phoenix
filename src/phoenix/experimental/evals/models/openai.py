@@ -107,6 +107,9 @@ class OpenAIModel(BaseEvalModel):
         self._init_tiktoken()
         self._init_rate_limiter()
 
+    def reload_client(self) -> None:
+        self._init_open_ai()
+
     def _init_environment(self) -> None:
         try:
             import httpx
