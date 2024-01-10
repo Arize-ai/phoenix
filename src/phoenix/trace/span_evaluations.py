@@ -83,7 +83,7 @@ class NeedsResultColumns(ABC):
 class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
     eval_name: str  # The name for the evaluation, e.g. 'toxicity'
     dataframe: pd.DataFrame = field(repr=False)
-    id: str = field(init=False, default_factory=lambda: str(uuid4()))
+    id: UUID = field(init=False, default_factory=uuid4)
 
     def __len__(self) -> int:
         return len(self.dataframe)
@@ -185,7 +185,7 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
                 # explicitly encode keys and values, which are automatically encoded regardless
                 b"arize": json.dumps(
                     {
-                        "eval_id": self.id,
+                        "eval_id": str(self.id),
                         "eval_name": self.eval_name,
                         "eval_type": self.__class__.__name__,
                     }
@@ -301,7 +301,7 @@ class TraceEvaluations(
     ...
 
 
-def _parse_schema_metadata(metadata: Dict[bytes, Any]) -> Tuple[str, Type[Evaluations]]:
+def _parse_schema_metadata(metadata: Dict[bytes, Any]) -> Tuple[UUID, str, Type[Evaluations]]:
     """Validates and parses the schema metadata. Raises an exception if the
     metadata is invalid.
 
@@ -323,7 +323,7 @@ def _parse_schema_metadata(metadata: Dict[bytes, Any]) -> Tuple[str, Type[Evalua
     evaluations_classes = {subclass.__name__: subclass for subclass in Evaluations.__subclasses__()}
     if not (
         isinstance(arize_metadata, dict)
-        and is_uuid_string(eval_id := arize_metadata.get("eval_id"))
+        and (eval_id := _to_uuid(arize_metadata.get("eval_id")))
         and isinstance(eval_name := arize_metadata.get("eval_name"), str)
         and (eval_type := arize_metadata.get("eval_type"))
         and (evaluations_cls := evaluations_classes.get(eval_type))
@@ -332,20 +332,17 @@ def _parse_schema_metadata(metadata: Dict[bytes, Any]) -> Tuple[str, Type[Evalua
     return eval_id, eval_name, evaluations_cls
 
 
-def is_uuid_string(maybe_uuid_string: Any) -> bool:
+def _to_uuid(value: Any) -> Optional[UUID]:
     """
-    Checks if the input is a valid UUID string.
+    Converts an input to a UUID if possible, otherwise returns None.
 
     Args:
-        maybe_uuid (Any): The input to check.
+        value (Any): The value to convert to a UUID.
 
     Returns:
-        bool: A boolean indicating whether the input is a valid UUID string.
+        Optional[UUID]: A UUID if the value could be converted, otherwise None.
     """
-    if not isinstance(maybe_uuid_string, str):
-        return False
     try:
-        UUID(maybe_uuid_string)
-        return True
+        return UUID(value)
     except Exception:
-        return False
+        return None

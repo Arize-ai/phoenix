@@ -110,26 +110,28 @@ def test_span_evaluations_to_and_from_parquet_preserves_data(tmp_path):
             "score": [index for index in range(num_records)],
         }
     ).set_index("context.span_id")
-    eval_ds = SpanEvaluations(
+    evals = SpanEvaluations(
         eval_name="eval-name",
         dataframe=dataframe,
     )
-    path = eval_ds.to_parquet(tmp_path)
+    path = evals.to_parquet(tmp_path)
+    table = parquet.read_table(path)
+    arize_metadata = json.loads(table.schema.metadata[b"arize"])
 
     assert path.resolve().parent == tmp_path.resolve()
     assert path.exists()
-    table = parquet.read_table(path)
-    assert_frame_equal(table.to_pandas(), eval_ds.dataframe)
-    assert b"arize" in table.schema.metadata
-    assert json.loads(table.schema.metadata[b"arize"]) == {
-        "eval_name": "eval-name",
-        "eval_type": "SpanEvaluations",
-    }
+    assert_frame_equal(table.to_pandas(), evals.dataframe)
+    assert set(arize_metadata.keys()) == {"eval_id", "eval_name", "eval_type"}
+    assert arize_metadata["eval_name"] == "eval-name"
+    assert arize_metadata["eval_type"] == "SpanEvaluations"
+    assert arize_metadata["eval_id"] == str(evals.id)
 
-    read_evals_ds = Evaluations.from_parquet(path)
-    assert isinstance(read_evals_ds, SpanEvaluations)
-    assert_frame_equal(read_evals_ds.dataframe, dataframe)
-    assert read_evals_ds.eval_name == "eval-name"
+    read_evals = Evaluations.from_parquet(path)
+    assert isinstance(read_evals, SpanEvaluations)
+    assert_frame_equal(read_evals.dataframe, dataframe)
+    assert read_evals.eval_name == "eval-name"
+    assert read_evals.id == evals.id
+    assert path.stem.endswith(str(read_evals.id))
 
 
 def test_document_evaluations_to_and_from_parquet_preserves_data(tmp_path):
@@ -142,28 +144,27 @@ def test_document_evaluations_to_and_from_parquet_preserves_data(tmp_path):
             "explanation": ["it's apropos", "it's germane", "it's rubbish"],
         }
     ).set_index(["context.span_id", "document_position"])
-    eval_ds = DocumentEvaluations(
+    evals = DocumentEvaluations(
         eval_name="eval-name",
         dataframe=dataframe,
     )
-    path = eval_ds.to_parquet(tmp_path)
+    path = evals.to_parquet(tmp_path)
+    table = parquet.read_table(path)
+    arize_metadata = json.loads(table.schema.metadata[b"arize"])
 
     assert path.resolve().parent == tmp_path.resolve()
     assert path.exists()
-    table = parquet.read_table(path)
-    assert_frame_equal(table.to_pandas(), eval_ds.dataframe)
-    assert b"arize" in table.schema.metadata
-    assert json.loads(table.schema.metadata[b"arize"]) == {
-        "eval_name": "eval-name",
-        "eval_type": "DocumentEvaluations",
-    }
+    assert_frame_equal(table.to_pandas(), evals.dataframe)
+    assert arize_metadata["eval_name"] == "eval-name"
+    assert arize_metadata["eval_type"] == "DocumentEvaluations"
+    assert arize_metadata["eval_id"] == str(evals.id)
 
-    read_evals_ds = Evaluations.from_parquet(path)
-    assert isinstance(read_evals_ds, DocumentEvaluations)
-    assert_frame_equal(read_evals_ds.dataframe, dataframe)
-    assert read_evals_ds.eval_name == "eval-name"
-    assert read_evals_ds.id == eval_ds
-    assert path.stem.endswith(str(read_evals_ds.id))
+    read_evals = Evaluations.from_parquet(path)
+    assert isinstance(read_evals, DocumentEvaluations)
+    assert_frame_equal(read_evals.dataframe, dataframe)
+    assert read_evals.eval_name == "eval-name"
+    assert read_evals.id == evals.id
+    assert path.stem.endswith(str(read_evals.id))
 
 
 @pytest.mark.parametrize(
