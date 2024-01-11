@@ -217,8 +217,11 @@ def payload_to_semantic_attributes(
                 attributes[LLM_INVOCATION_PARAMETERS] = json.dumps(
                     {
                         "model": model_name,
-                        "temperature": serialized["temperature"],
-                        "max_tokens": serialized["max_tokens"],
+                        **{
+                            key: serialized.get(key)
+                            for key in ["temperature", "max_tokens"]
+                            if serialized.get(key) is not None
+                        },
                         **serialized["additional_kwargs"],
                     }
                 )
