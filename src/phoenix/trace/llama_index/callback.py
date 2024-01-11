@@ -224,9 +224,9 @@ def _extract_invocation_parameters(serialized: Mapping[str, Any]) -> Dict[str, A
     # FIXME: this is only based on openai. Other models have different parameters.
     if not hasattr(serialized, "get"):
         return {}
-    invocation_parameters = {}
+    invocation_parameters: Dict[str, Any] = {}
     additional_kwargs = serialized.get("additional_kwargs")
-    if additional_kwargs and isinstance(additional_kwargs, dict):
+    if additional_kwargs and isinstance(additional_kwargs, Mapping):
         invocation_parameters.update(additional_kwargs)
     for key in ("temperature", "max_tokens"):
         if (value := serialized.get(key)) is not None:
