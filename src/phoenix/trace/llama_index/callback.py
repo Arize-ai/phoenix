@@ -220,7 +220,7 @@ def payload_to_semantic_attributes(
     return attributes
 
 
-def _extract_invocation_parameters(serialized: Dict[str, Any]) -> Dict[str, Any]:
+def _extract_invocation_parameters(serialized: Mapping[str, Any]) -> Dict[str, Any]:
     # FIXME: this is only based on openai. Other models have different parameters.
     invocation_parameters = {}
     additional_kwargs = serialized.get("additional_kwargs")
