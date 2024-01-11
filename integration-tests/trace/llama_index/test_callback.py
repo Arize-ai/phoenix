@@ -173,7 +173,6 @@ def test_callback_data_agent() -> None:
     for llm_span in llm_spans:
         assert json.loads(llm_span.attributes[LLM_INVOCATION_PARAMETERS]) == {
             "frequency_penalty": 0.003,
-            "max_tokens": None,
             "model": "gpt-3.5-turbo-0613",
             "n": 2,
             "presence_penalty": 0.002,
