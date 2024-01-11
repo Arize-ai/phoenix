@@ -144,7 +144,7 @@ class GeminiModel(BaseEvalModel):
         self, prompt: str, generation_config: Dict[str, Any], **kwargs: Any
     ) -> Any:
         @self.retry
-        @self._rate_limiter.limit
+        @self._rate_limiter.alimit
         async def _completion_with_retry(**kwargs: Any) -> Any:
             response = await self._model.generate_content_async(
                 contents=prompt, generation_config=generation_config, **kwargs

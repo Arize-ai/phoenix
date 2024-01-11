@@ -3,7 +3,7 @@ from enum import Enum
 
 from phoenix.experimental.evals.templates.template import ClassificationTemplate
 
-RAG_RELEVANCY_PROMPT_RAILS_MAP = OrderedDict({True: "relevant", False: "irrelevant"})
+RAG_RELEVANCY_PROMPT_RAILS_MAP = OrderedDict({True: "relevant", False: "unrelated"})
 RAG_RELEVANCY_PROMPT_BASE_TEMPLATE = """
 You are comparing a reference text to a question and trying to determine if the reference text
 contains information relevant to answering the question. Here is the data:
@@ -17,9 +17,9 @@ contains information relevant to answering the question. Here is the data:
 Compare the Question above to the Reference text. You must determine whether the Reference text
 contains information that can answer the Question. Please focus on whether the very specific
 question can be answered by the information in the Reference text.
-Your response must be single word, either "relevant" or "irrelevant",
+Your response must be single word, either "relevant" or "unrelated",
 and should not contain any text or characters aside from that word.
-"irrelevant" means that the reference text does not contain an answer to the Question.
+"unrelated" means that the reference text does not contain an answer to the Question.
 "relevant" means the reference text contains an answer to the Question."""
 RAG_RELEVANCY_PROMPT_TEMPLATE_WITH_EXPLANATION = """
 You are comparing a reference text to a question and trying to determine if the reference text
@@ -34,15 +34,15 @@ contains information relevant to answering the question. Here is the data:
 Compare the Question above to the Reference text. You must determine whether the Reference text
 contains information that can help answer the Question. First, write out in a step by step manner
 an EXPLANATION to show how to arrive at the correct answer. Avoid simply stating the correct answer
-at the outset. Your response LABEL must be single word, either "relevant" or "irrelevant", and
-should not contain any text or characters aside from that word. "irrelevant" means that the
+at the outset. Your response LABEL must be single word, either "relevant" or "unrelated", and
+should not contain any text or characters aside from that word. "unrelated" means that the
 reference text does not help answer to the Question. "relevant" means the reference text directly
 answers the question.
 
 Example response:
 ************
-EXPLANATION: An explanation of your reasoning for why the label is "relevant" or "irrelevant"
-LABEL: "relevant" or "irrelevant"
+EXPLANATION: An explanation of your reasoning for why the label is "relevant" or "unrelated"
+LABEL: "relevant" or "unrelated"
 ************
 
 EXPLANATION:"""
