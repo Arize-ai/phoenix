@@ -72,9 +72,9 @@ Here is an example of how to initialize `OpenAIModel` for Azure:
 
 ```python
 model = OpenAIModel(
-    model_name="gpt-4-32k",
-    azure_endpoint="https://YOUR_SUBDOMAIN.openai.azure.com/",
-    api_version="2023-03-15-preview"
+    model_name="gpt-35-turbo-16k",
+    azure_endpoint="https://arize-internal-llm.openai.azure.com/",
+    api_version="2023-09-15-preview",
 )
 ```
 
@@ -209,9 +209,10 @@ model = BedrockModel(client=client_bedrock)
 
 ```
 
-
 ### phoenix.experimental.evals.LiteLLMModel
-Need to install the extra dependency ``litellm>=1.0.3``
+
+Need to install the extra dependency `litellm>=1.0.3`
+
 ```python
 class LiteLLMModel(BaseEvalModel):
     model_name: str = "gpt-3.5-turbo"
@@ -236,6 +237,7 @@ class LiteLLMModel(BaseEvalModel):
     max_content_size: Optional[int] = None
     """If you're using a fine-tuned model, set this to the maximum content size"""
 ```
+
 You can choose among [multiple models](https://docs.litellm.ai/docs/providers) supported by LiteLLM. Make sure you have set the right environment variables set prior to initializing the model. For additional information about the environment variables for specific model providers visit: [LiteLLM provider specific params](https://docs.litellm.ai/docs/completion/input#provider-specific-params)
 
 Here is an example of how to initialize `LiteLLMModel` for model "gpt-3.5-turbo":
@@ -245,7 +247,6 @@ model = LiteLLMModel(model_name="gpt-3.5-turbo", temperature=0.0)
 model("Hello world, this is a test if you are working?")
 # Output: 'Hello! Yes, I am here and ready to assist you. How can I help you today?'
 ```
-
 
 ## **Usage**
 
