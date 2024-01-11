@@ -215,14 +215,21 @@ def payload_to_semantic_attributes(
             if model_name := serialized.get("model"):
                 attributes[LLM_MODEL_NAME] = model_name
                 attributes[LLM_INVOCATION_PARAMETERS] = json.dumps(
-                    {
-                        "model": model_name,
-                        "temperature": serialized["temperature"],
-                        "max_tokens": serialized["max_tokens"],
-                        **serialized["additional_kwargs"],
-                    }
+                    _extract_invocation_parameters(serialized),
                 )
     return attributes
+
+
+def _extract_invocation_parameters(serialized: Dict[str, Any]) -> Dict[str, Any]:
+    # FIXME: this is only based on openai. Other models have different parameters.
+    invocation_parameters = {}
+    additional_kwargs = serialized.get("additional_kwargs")
+    if additional_kwargs and isinstance(additional_kwargs, dict):
+        invocation_parameters.update(additional_kwargs)
+    for key in ("temperature", "max_tokens"):
+        if (value := serialized.get(key)) is not None:
+            invocation_parameters[key] = value
+    return invocation_parameters
 
 
 class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
