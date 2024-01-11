@@ -215,6 +215,7 @@ def payload_to_semantic_attributes(
             if model_name := serialized.get("model"):
                 attributes[LLM_MODEL_NAME] = model_name
                 if invocation_parameters := _extract_invocation_parameters(serialized):
+                    invocation_parameters["model"] = model_name
                     attributes[LLM_INVOCATION_PARAMETERS] = json.dumps(
                         invocation_parameters,
                     )
