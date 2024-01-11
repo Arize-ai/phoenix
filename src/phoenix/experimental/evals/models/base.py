@@ -81,6 +81,13 @@ class BaseEvalModel(ABC):
 
             if exc:
                 printif(
+                    self._verbose,
+                    (
+                        f"Failed attempt {retry_state.attempt_number}: "
+                        f"{type(exc).__module__}.{type(exc).__name__}"
+                    ),
+                )
+                printif(
                     True,
                     f"Failed attempt {retry_state.attempt_number}: raised {repr(exc)}",
                 )
