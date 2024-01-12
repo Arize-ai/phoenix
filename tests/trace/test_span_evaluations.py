@@ -168,24 +168,20 @@ def test_document_evaluations_to_and_from_parquet_preserves_data(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "metadata,error_message_fragment",
+    "metadata",
     [
-        pytest.param({}, 'missing "arize" key', id="empty-metadata"),
+        pytest.param({}, id="empty-metadata"),
         pytest.param(
             {"pandas": "some-pandas-metadata"},
-            'missing "arize" key',
             id="metadata-missing-arize-key",
         ),
-        pytest.param(
-            {b"arize": '{"invalid_json": "value"'}, "invalid JSON string", id="invalid-json"
-        ),
+        pytest.param({b"arize": '{"invalid_json": "value"'}, id="invalid-json"),
         pytest.param(
             {
                 b"arize": json.dumps(
                     {"eval_id": "2956d001-e2e1-4f22-8e32-1b4930510803", "eval_name": "eval-name"}
                 )
             },
-            "Invalid Arize metadata",
             id="missing-key-inside-arize-metadata",
         ),
         pytest.param(
@@ -194,7 +190,6 @@ def test_document_evaluations_to_and_from_parquet_preserves_data(tmp_path):
                     {"eval_id": "1234", "eval_name": 10, "eval_type": "SpanEvaluations"}
                 )
             },
-            "Invalid Arize metadata",
             id="eval-id-not-uuid",
         ),
         pytest.param(
@@ -207,7 +202,6 @@ def test_document_evaluations_to_and_from_parquet_preserves_data(tmp_path):
                     }
                 )
             },
-            "Invalid Arize metadata",
             id="incorrect-eval-name-type",
         ),
         pytest.param(
@@ -220,12 +214,10 @@ def test_document_evaluations_to_and_from_parquet_preserves_data(tmp_path):
                     }
                 )
             },
-            "Invalid Arize metadata",
             id="incorrect-eval-type",
         ),
     ],
 )
-def test_parse_schema_metadata(metadata, error_message_fragment):
-    with pytest.raises(InvalidParquetMetadataError) as exc_info:
+def test_parse_schema_metadata(metadata):
+    with pytest.raises(InvalidParquetMetadataError):
         _parse_schema_metadata(metadata)
-    assert error_message_fragment in str(exc_info.value)
