@@ -1,6 +1,7 @@
 import json
 from itertools import chain, combinations
 from random import random
+from uuid import uuid4
 
 import pandas as pd
 import pyarrow
@@ -160,6 +161,30 @@ def test_document_evaluations_to_and_from_parquet_preserves_data(tmp_path):
     assert_frame_equal(read_evals.dataframe, dataframe)
     assert read_evals.eval_name == "eval-name"
     assert read_evals.id == evals.id
+
+
+def test_evaluations_from_parquet_raises_error_when_input_id_does_not_match_metadata(tmp_path):
+    num_records = 5
+    span_ids = [f"span_{index}" for index in range(num_records)]
+    dataframe = pd.DataFrame(
+        {
+            "context.span_id": span_ids,
+            "label": [str(index) for index in range(num_records)],
+            "score": [index for index in range(num_records)],
+        }
+    ).set_index("context.span_id")
+    evals = SpanEvaluations(
+        eval_name="eval-name",
+        dataframe=dataframe,
+    )
+    eval_id = evals.to_parquet(tmp_path)
+    updated_id = uuid4()
+    (tmp_path / f"evaluations-{eval_id}.parquet").rename(
+        tmp_path / f"evaluations-{updated_id}.parquet"
+    )  # move the file so the metadata id no longer matches the file name
+
+    with pytest.raises(InvalidParquetMetadataError):
+        Evaluations.from_parquet(updated_id, tmp_path)
 
 
 def test_parse_schema_metadata_raise_error_on_invalid_metadata():

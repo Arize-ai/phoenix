@@ -214,6 +214,11 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
         path = Path(directory) / EVAL_PARQUET_FILE_NAME.format(id=id)
         schema = parquet.read_schema(path)
         eval_id, eval_name, evaluations_cls = _parse_schema_metadata(schema)
+        if id != eval_id:
+            raise InvalidParquetMetadataError(
+                f"The input id {id} does not match the id {eval_id} in the parquet metadata. "
+                "Ensure that you have not renamed the parquet file."
+            )
         table = parquet.read_table(path)
         dataframe = table.to_pandas()
         evaluations = evaluations_cls(eval_name=eval_name, dataframe=dataframe)
