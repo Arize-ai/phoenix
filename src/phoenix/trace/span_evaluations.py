@@ -15,6 +15,7 @@ from phoenix.config import TRACE_DATASET_DIR
 from phoenix.trace.errors import InvalidParquetMetadataError
 
 EVAL_NAME_COLUMN_PREFIX = "eval."
+EVAL_PARQUET_FILE_NAME = "evaluations-{id}.parquet"
 
 
 class NeedsNamedIndex(ABC):
@@ -174,7 +175,7 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
             the evaluations from disk using `from_parquet`.
         """
         directory = Path(directory) if directory else TRACE_DATASET_DIR
-        path = directory / f"evaluations-{self.id}.parquet"
+        path = directory / EVAL_PARQUET_FILE_NAME.format(id=self.id)
         table = Table.from_pandas(self.dataframe)
         table = table.replace_schema_metadata(
             {
@@ -210,7 +211,7 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
             evaluations will be the same as the type of the evaluations that
             were originally persisted.
         """
-        path = Path(directory) / f"evaluations-{id}.parquet"
+        path = Path(directory) / EVAL_PARQUET_FILE_NAME.format(id=id)
         schema = parquet.read_schema(path)
         eval_id, eval_name, evaluations_cls = _parse_schema_metadata(schema)
         table = parquet.read_table(path)
