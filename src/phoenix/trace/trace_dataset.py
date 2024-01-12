@@ -267,6 +267,11 @@ class TraceDataset:
         path = Path(directory or TRACE_DATASET_DIR) / f"trace_dataset-{id}.parquet"
         schema = parquet.read_schema(path)
         dataset_id, dataset_name, eval_ids = _parse_schema_metadata(schema)
+        if id != dataset_id:
+            raise InvalidParquetMetadataError(
+                f"The input id {id} does not match the id {dataset_id} in the parquet metadata. "
+                "Ensure that you have not renamed the parquet file."
+            )
         evaluations = []
         for eval_id in eval_ids:
             try:

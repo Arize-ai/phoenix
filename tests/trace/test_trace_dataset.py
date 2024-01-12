@@ -1,7 +1,7 @@
 import json
 import os
 from datetime import datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pandas as pd
 import pyarrow
@@ -310,6 +310,33 @@ def test_trace_dataset_from_parquet_logs_warning_when_an_evaluation_cannot_be_lo
     assert read_ds._id == ds._id
     assert_frame_equal(read_ds.dataframe, ds.dataframe)
     assert read_ds.evaluations == []
+
+
+def test_trace_dataset_from_parquet_raises_error_when_input_id_does_not_match_metadata(tmp_path):
+    num_records = 5
+    traces_df = pd.DataFrame(
+        {
+            "name": [f"name_{index}" for index in range(num_records)],
+            "span_kind": ["LLM" for index in range(num_records)],
+            "parent_id": [None for index in range(num_records)],
+            "start_time": [datetime.now() for index in range(num_records)],
+            "end_time": [datetime.now() for index in range(num_records)],
+            "message": [f"message_{index}" for index in range(num_records)],
+            "status_code": ["OK" for index in range(num_records)],
+            "status_message": ["" for index in range(num_records)],
+            "context.trace_id": [f"trace_{index}" for index in range(num_records)],
+            "context.span_id": [f"span_{index}" for index in range(num_records)],
+        }
+    )
+    ds = TraceDataset(traces_df, name="trace-dataset-name")
+    dataset_id = ds.to_parquet(tmp_path)
+    updated_id = uuid4()
+    (tmp_path / f"trace_dataset-{dataset_id}.parquet").rename(
+        tmp_path / f"trace_dataset-{updated_id}.parquet"
+    )  # move the file so the metadata id no longer matches the file name
+
+    with pytest.raises(InvalidParquetMetadataError):
+        TraceDataset.from_parquet(updated_id, tmp_path)
 
 
 def test_parse_schema_metadata_raises_on_invalid_metadata() -> None:
