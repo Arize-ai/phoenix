@@ -47,6 +47,8 @@ DOCUMENT_COLUMNS = [
     RERANKER_OUTPUT_DOCUMENTS_COLUMN_NAME,
 ]
 
+TRACE_DATASET_PARQUET_FILE_NAME = "trace_dataset-{id}.parquet"
+
 
 def normalize_dataframe(dataframe: DataFrame) -> "DataFrame":
     """Makes the dataframe have appropriate data types"""
@@ -222,7 +224,7 @@ class TraceDataset:
         directory.mkdir(parents=True, exist_ok=True)
         for evals in self.evaluations:
             evals.save(directory)
-        directory = directory / f"trace_dataset-{self._id}.parquet"
+        directory = directory / TRACE_DATASET_PARQUET_FILE_NAME.format(id=self._id)
         dataframe = get_serializable_spans_dataframe(self.dataframe)
         dataframe.to_parquet(
             directory,
@@ -263,7 +265,7 @@ class TraceDataset:
         Returns:
             TraceDataset: The loaded trace dataset.
         """
-        path = Path(directory or TRACE_DATASET_DIR) / f"trace_dataset-{id}.parquet"
+        path = Path(directory or TRACE_DATASET_DIR) / TRACE_DATASET_PARQUET_FILE_NAME.format(id=id)
         schema = parquet.read_schema(path)
         dataset_id, dataset_name, eval_ids = _parse_schema_metadata(schema)
         if id != dataset_id:
