@@ -204,29 +204,29 @@ class TraceDataset:
             coerce_timestamps="ms",
         )
 
-    def to_parquet(self, path: Optional[Union[str, Path]] = None) -> Path:
+    def to_parquet(self, directory: Optional[Union[str, Path]] = None) -> Path:
         """
         Writes the trace dataset to a parquet file. If any evaluations have been
         appended to the dataset, those evaluations will be written to separate
         parquet files in the same directory.
 
         Args:
-            path (Optional[Union[str, Path]], optional): An optional path to a
-            directory where the data will be written. If not provided, the data
-            will be written to a default location.
+            directory (Optional[Union[str, Path]], optional): An optional path
+            to a directory where the data will be written. If not provided, the
+            data will be written to a default location.
 
         Returns:
             Path: The path to the saved parquet file. The file name is
             automatically generated.
         """
-        directory = Path(path or TRACE_DATASET_DIR)
+        directory = Path(directory or TRACE_DATASET_DIR)
         directory.mkdir(parents=True, exist_ok=True)
         for evals in self.evaluations:
             evals.to_parquet(directory)
-        path = directory / f"trace_dataset-{self._id}.parquet"
+        directory = directory / f"trace_dataset-{self._id}.parquet"
         dataframe = get_serializable_spans_dataframe(self.dataframe)
         dataframe.to_parquet(
-            path,
+            directory,
             allow_truncated_timestamps=True,
             coerce_timestamps="ms",
         )
@@ -244,8 +244,8 @@ class TraceDataset:
                 ).encode("utf-8"),
             }
         )
-        parquet.write_table(table, path)
-        return path
+        parquet.write_table(table, directory)
+        return directory
 
     @classmethod
     def from_parquet(cls, path: Union[str, Path]) -> "TraceDataset":
