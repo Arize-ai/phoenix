@@ -1,14 +1,16 @@
 import json
-import uuid
 from datetime import datetime
-from typing import Any, Iterable, Iterator, List, Optional, cast
+from pathlib import Path
+from typing import Any, Iterable, Iterator, List, Optional, Tuple, Union, cast
+from uuid import UUID, uuid4
 
 import pandas as pd
-from pandas import DataFrame, read_parquet
+from pandas import DataFrame
+from pyarrow import Table, parquet
 
 from phoenix.datetime_utils import normalize_timestamps
 
-from ..config import DATASET_DIR, GENERATED_DATASET_NAME_PREFIX
+from ..config import GENERATED_DATASET_NAME_PREFIX, TRACE_DATASET_DIR
 from .schemas import ATTRIBUTE_PREFIX, CONTEXT_PREFIX, Span
 from .semantic_conventions import (
     DOCUMENT_METADATA,
@@ -94,7 +96,7 @@ class TraceDataset:
     name: str
     dataframe: pd.DataFrame
     evaluations: List[Evaluations] = []
-    _data_file_name: str = "data.parquet"
+    _id: UUID = uuid4()
 
     def __init__(
         self,
@@ -122,7 +124,7 @@ class TraceDataset:
                 f"The dataframe is missing some required columns: {', '.join(missing_columns)}"
             )
         self.dataframe = normalize_dataframe(dataframe)
-        self.name = name or f"{GENERATED_DATASET_NAME_PREFIX}{str(uuid.uuid4())}"
+        self.name = name or f"{GENERATED_DATASET_NAME_PREFIX}{str(uuid4())}"
         self.evaluations = list(evaluations)
 
     @classmethod
@@ -182,22 +184,50 @@ class TraceDataset:
                 }
             )
 
-    @classmethod
-    def from_name(cls, name: str) -> "TraceDataset":
-        """Retrieves a dataset by name from the file system"""
-        directory = DATASET_DIR / name
-        df = read_parquet(directory / cls._data_file_name)
-        return cls(df, name)
-
-    def to_disc(self) -> None:
+    def to_parquet(self, path: Optional[Union[str, Path]] = None) -> Path:
         """writes the data to disc"""
-        directory = DATASET_DIR / self.name
+        directory = Path(path or TRACE_DATASET_DIR)
         directory.mkdir(parents=True, exist_ok=True)
-        get_serializable_spans_dataframe(self.dataframe).to_parquet(
-            directory / self._data_file_name,
+        for evals in self.evaluations:
+            evals.to_parquet(directory)
+        path = directory / f"trace_dataset-{self._id}.parquet"
+        dataframe = get_serializable_spans_dataframe(self.dataframe)
+        dataframe.to_parquet(
+            path,
             allow_truncated_timestamps=True,
             coerce_timestamps="ms",
         )
+        table = Table.from_pandas(self.dataframe)
+        table = table.replace_schema_metadata(
+            {
+                **(table.schema.metadata or {}),
+                # explicitly encode keys and values, which are automatically encoded regardless
+                b"arize": json.dumps(
+                    {
+                        "dataset_id": str(self._id),
+                        "dataset_name": self.name,
+                        "eval_ids": [str(evals.id) for evals in self.evaluations],
+                    }
+                ).encode("utf-8"),
+            }
+        )
+        parquet.write_table(table, path)
+        return path
+
+    @classmethod
+    def from_parquet(cls, path: Union[str, Path]) -> "TraceDataset":
+        """reads the data from disc"""
+        schema = parquet.read_schema(path)
+        dataset_id, dataset_name, eval_ids = _parse_schema_metadata(schema.metadata)
+        evaluations = [
+            Evaluations.from_parquet(TRACE_DATASET_DIR / f"evaluations-{eval_id}.parquet")
+            for eval_id in eval_ids
+        ]
+        table = parquet.read_table(path)
+        dataframe = table.to_pandas()
+        ds = cls(dataframe, dataset_name, evaluations)
+        ds._id = dataset_id
+        return ds
 
     def append_evaluations(self, evaluations: Evaluations) -> None:
         """adds an evaluation to the traces"""
@@ -233,3 +263,11 @@ class TraceDataset:
         # Make sure the index is set to the span_id
         df = self.dataframe.set_index("context.span_id", drop=False)
         return pd.concat([df, evals_df], axis=1)
+
+
+def _parse_schema_metadata(metadata: Any) -> Tuple[str, str, List[str]]:
+    arize_metadata = json.loads(metadata[b"arize"])
+    dataset_id = arize_metadata["dataset_id"]
+    dataset_name = arize_metadata["dataset_name"]
+    eval_ids = arize_metadata["eval_ids"]
+    return UUID(dataset_id), dataset_name, eval_ids

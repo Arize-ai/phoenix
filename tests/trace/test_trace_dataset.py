@@ -1,3 +1,5 @@
+import json
+import os
 from datetime import datetime
 from uuid import UUID
 
@@ -15,9 +17,10 @@ from phoenix.trace.schemas import (
 )
 from phoenix.trace.span_evaluations import SpanEvaluations
 from phoenix.trace.trace_dataset import TraceDataset
+from pyarrow import parquet
 
 
-def test_dataset_construction():
+def test_trace_dataset_construction():
     num_records = 5
     traces_df = pd.DataFrame(
         {
@@ -37,7 +40,7 @@ def test_dataset_construction():
     assert isinstance(ds.dataframe, pd.DataFrame)
 
 
-def test_dataset_validation():
+def test_trace_dataset_validation():
     num_records = 5
     # DataFrame with no span_kind
     traces_df = pd.DataFrame(
@@ -57,7 +60,7 @@ def test_dataset_validation():
         _ = TraceDataset(traces_df)
 
 
-def test_dataset_construction_from_spans():
+def test_trace_dataset_construction_from_spans():
     spans = [
         Span(
             name="name-0",
@@ -145,7 +148,7 @@ def test_dataset_construction_from_spans():
     assert_frame_equal(expected_dataframe, dataset.dataframe[expected_dataframe.columns])
 
 
-def test_dataset_construction_with_evaluations():
+def test_trace_dataset_construction_with_evaluations():
     num_records = 5
     span_ids = [f"span_{index}" for index in range(num_records)]
     traces_df = pd.DataFrame(
@@ -196,3 +199,60 @@ def test_dataset_construction_with_evaluations():
     assert list(df_with_evals["eval.fake_eval_2.score"]) == list(eval_ds_2.dataframe["score"])
     # Validate that the output contains a span_id column
     assert "context.span_id" in df_with_evals.columns
+
+
+def test_trace_dataset_to_parquet_and_from_parquet_preserve_values() -> None:
+    num_records = 5
+    traces_df = pd.DataFrame(
+        {
+            "name": [f"name_{index}" for index in range(num_records)],
+            "span_kind": ["LLM" for index in range(num_records)],
+            "parent_id": [None for index in range(num_records)],
+            "start_time": [datetime.now() for index in range(num_records)],
+            "end_time": [datetime.now() for index in range(num_records)],
+            "message": [f"message_{index}" for index in range(num_records)],
+            "status_code": ["OK" for index in range(num_records)],
+            "status_message": ["" for index in range(num_records)],
+            "context.trace_id": [f"trace_{index}" for index in range(num_records)],
+            "context.span_id": [f"span_{index}" for index in range(num_records)],
+        }
+    )
+    ds = TraceDataset(traces_df)
+
+    num_records = 5
+    span_ids = [f"span_{index}" for index in range(num_records)]
+
+    eval_ds = SpanEvaluations(
+        eval_name="my_eval",
+        dataframe=pd.DataFrame(
+            {
+                "context.span_id": span_ids,
+                "label": [str(index) for index in range(num_records)],
+                "score": [index for index in range(num_records)],
+                "random_column": [index for index in range(num_records)],
+            }
+        ).set_index("context.span_id"),
+    )
+
+    ds.append_evaluations(eval_ds)
+
+    path = ds.to_parquet()
+
+    assert os.path.exists(path)
+    assert os.path.exists(path.parent / f"evaluations-{eval_ds.id}.parquet")
+    assert path.stem.endswith(str(ds._id))
+
+    schema = parquet.read_schema(path)
+    arize_metadata = json.loads(schema.metadata[b"arize"])
+    assert arize_metadata["dataset_id"] == str(ds._id)
+    assert arize_metadata["eval_ids"] == [str(eval_ds.id)]
+
+    table = parquet.read_table(path)
+    dataframe = table.to_pandas()
+    assert_frame_equal(ds.dataframe, dataframe)
+
+    read_ds = TraceDataset.from_parquet(path)
+    assert read_ds._id == ds._id
+    assert_frame_equal(read_ds.dataframe, ds.dataframe)
+    assert read_ds.evaluations[0].id == eval_ds.id
+    assert_frame_equal(read_ds.evaluations[0].dataframe, eval_ds.dataframe)
