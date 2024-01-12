@@ -5,13 +5,13 @@ from typing import Any, Iterable, Iterator, List, Optional, Tuple, Union, cast
 from uuid import UUID, uuid4
 
 import pandas as pd
-from pandas import DataFrame
+from pandas import DataFrame, read_parquet
 from pyarrow import Schema, Table, parquet
 
 from phoenix.datetime_utils import normalize_timestamps
 from phoenix.trace.errors import InvalidParquetMetadataError
 
-from ..config import GENERATED_DATASET_NAME_PREFIX, TRACE_DATASET_DIR
+from ..config import DATASET_DIR, GENERATED_DATASET_NAME_PREFIX, TRACE_DATASET_DIR
 from .schemas import ATTRIBUTE_PREFIX, CONTEXT_PREFIX, Span
 from .semantic_conventions import (
     DOCUMENT_METADATA,
@@ -98,6 +98,7 @@ class TraceDataset:
     dataframe: pd.DataFrame
     evaluations: List[Evaluations] = []
     _id: UUID = uuid4()
+    _data_file_name: str = "data.parquet"
 
     def __init__(
         self,
@@ -185,8 +186,38 @@ class TraceDataset:
                 }
             )
 
-    def to_parquet(self, path: Optional[Union[str, Path]] = None) -> Path:
+    @classmethod
+    def from_name(cls, name: str) -> "TraceDataset":
+        """Retrieves a dataset by name from the file system"""
+        directory = DATASET_DIR / name
+        df = read_parquet(directory / cls._data_file_name)
+        return cls(df, name)
+
+    def to_disc(self) -> None:
         """writes the data to disc"""
+        directory = DATASET_DIR / self.name
+        directory.mkdir(parents=True, exist_ok=True)
+        get_serializable_spans_dataframe(self.dataframe).to_parquet(
+            directory / self._data_file_name,
+            allow_truncated_timestamps=True,
+            coerce_timestamps="ms",
+        )
+
+    def to_parquet(self, path: Optional[Union[str, Path]] = None) -> Path:
+        """
+        Writes the trace dataset to a parquet file. If any evaluations have been
+        appended to the dataset, those evaluations will be written to separate
+        parquet files in the same directory.
+
+        Args:
+            path (Optional[Union[str, Path]], optional): An optional path to a
+            directory where the data will be written. If not provided, the data
+            will be written to a default location.
+
+        Returns:
+            Path: The path to the saved parquet file. The file name is
+            automatically generated.
+        """
         directory = Path(path or TRACE_DATASET_DIR)
         directory.mkdir(parents=True, exist_ok=True)
         for evals in self.evaluations:
@@ -217,7 +248,16 @@ class TraceDataset:
 
     @classmethod
     def from_parquet(cls, path: Union[str, Path]) -> "TraceDataset":
-        """reads the data from disc"""
+        """
+        Reads in a trace dataset from a parquet file. Any associated evaluations
+        will automatically be read from disk and attached to the trace dataset.
+
+        Args:
+            path (Union[str, Path]): The path to the trace dataset parquet file.
+
+        Returns:
+            TraceDataset: The loaded trace dataset.
+        """
         schema = parquet.read_schema(path)
         dataset_id, dataset_name, eval_ids = _parse_schema_metadata(schema)
         evaluations = [

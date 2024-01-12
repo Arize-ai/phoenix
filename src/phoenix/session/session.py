@@ -242,7 +242,7 @@ class ProcessSession(Session):
         if isinstance(corpus_dataset, Dataset):
             corpus_dataset.to_disc()
         if isinstance(trace_dataset, TraceDataset):
-            trace_dataset.to_parquet()
+            trace_dataset.to_disc()
         umap_params_str = (
             f"{self.umap_parameters.min_dist},"
             f"{self.umap_parameters.n_neighbors},"
