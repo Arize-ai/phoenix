@@ -237,14 +237,12 @@ def test_trace_dataset_to_parquet_and_from_parquet_preserve_values(tmp_path) -> 
     )
 
     ds.append_evaluations(eval_ds)
+    dataset_id = ds.to_parquet(tmp_path)
 
-    path = ds.to_parquet(tmp_path)
+    dataset_path = tmp_path / f"trace_dataset-{dataset_id}.parquet"
+    assert dataset_path.exists()
 
-    assert os.path.exists(path)
-    assert os.path.exists(path.parent / f"evaluations-{eval_ds.id}.parquet")
-    assert path.stem.endswith(str(ds._id))
-
-    schema = parquet.read_schema(path)
+    schema = parquet.read_schema(dataset_path)
     arize_metadata = json.loads(schema.metadata[b"arize"])
     assert arize_metadata == {
         "dataset_id": str(ds._id),
@@ -252,11 +250,11 @@ def test_trace_dataset_to_parquet_and_from_parquet_preserve_values(tmp_path) -> 
         "eval_ids": [str(eval_ds.id)],
     }
 
-    table = parquet.read_table(path)
+    table = parquet.read_table(dataset_path)
     dataframe = table.to_pandas()
     assert_frame_equal(ds.dataframe, dataframe)
 
-    read_ds = TraceDataset.from_parquet(path)
+    read_ds = TraceDataset.from_parquet(dataset_id, tmp_path)
     assert read_ds._id == ds._id
     assert_frame_equal(read_ds.dataframe, ds.dataframe)
     assert read_ds.evaluations[0].id == eval_ds.id
@@ -294,16 +292,21 @@ def test_trace_dataset_from_parquet_logs_warning_when_an_evaluation_cannot_be_lo
         ).set_index("context.span_id"),
     )
     ds.append_evaluations(eval_ds)
-    path = ds.to_parquet(tmp_path)
-    os.remove(path.parent / f"evaluations-{eval_ds.id}.parquet")  # remove the evaluation file
+    dataset_id = ds.to_parquet(tmp_path)
+
+    dataset_path = tmp_path / f"trace_dataset-{dataset_id}.parquet"
+    eval_path = dataset_path.parent / f"evaluations-{eval_ds.id}.parquet"
+    assert dataset_path.exists()
+    assert eval_path.exists()
+    os.remove(eval_path)  # remove the eval file to trigger the warning
 
     with pytest.warns(UserWarning) as record:
-        read_ds = TraceDataset.from_parquet(path)
+        read_ds = TraceDataset.from_parquet(dataset_id, tmp_path)
 
     assert len(record) == 1
     assert str(record[0].message).startswith("Failed to load"), "unexpected warning message"
 
-    read_ds = TraceDataset.from_parquet(path)
+    read_ds = TraceDataset.from_parquet(dataset_id, tmp_path)
     assert read_ds._id == ds._id
     assert_frame_equal(read_ds.dataframe, ds.dataframe)
     assert read_ds.evaluations == []

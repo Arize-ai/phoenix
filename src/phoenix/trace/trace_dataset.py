@@ -204,7 +204,7 @@ class TraceDataset:
             coerce_timestamps="ms",
         )
 
-    def to_parquet(self, directory: Optional[Union[str, Path]] = None) -> Path:
+    def to_parquet(self, directory: Optional[Union[str, Path]] = None) -> UUID:
         """
         Writes the trace dataset to a parquet file. If any evaluations have been
         appended to the dataset, those evaluations will be written to separate
@@ -216,8 +216,8 @@ class TraceDataset:
             data will be written to a default location.
 
         Returns:
-            Path: The path to the saved parquet file. The file name is
-            automatically generated.
+            UUID: The id of the trace dataset, which can be used as key to load
+            the dataset from disk using `from_parquet`.
         """
         directory = Path(directory or TRACE_DATASET_DIR)
         directory.mkdir(parents=True, exist_ok=True)
@@ -245,20 +245,26 @@ class TraceDataset:
             }
         )
         parquet.write_table(table, directory)
-        return directory
+        return self._id
 
     @classmethod
-    def from_parquet(cls, path: Union[str, Path]) -> "TraceDataset":
+    def from_parquet(cls, id: UUID, directory: Optional[Union[str, Path]] = None) -> "TraceDataset":
         """
-        Reads in a trace dataset from a parquet file. Any associated evaluations
-        will automatically be read from disk and attached to the trace dataset.
+        Reads in a trace dataset from disk. Any associated evaluations will
+        automatically be read from disk and attached to the trace dataset.
 
         Args:
-            path (Union[str, Path]): The path to the trace dataset parquet file.
+            id (UUID): The ID of the trace dataset to be loaded.
+
+            directory (Optional[Union[str, Path]], optional): The path to the
+            directory containing the persisted trace dataset parquet file. If
+            not provided, the parquet file will be loaded from the same default
+            location used by `to_parquet`.
 
         Returns:
             TraceDataset: The loaded trace dataset.
         """
+        path = Path(directory or TRACE_DATASET_DIR) / f"trace_dataset-{id}.parquet"
         schema = parquet.read_schema(path)
         dataset_id, dataset_name, eval_ids = _parse_schema_metadata(schema)
         evaluations = []
