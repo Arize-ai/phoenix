@@ -12,13 +12,9 @@ from pandas.api.types import is_integer_dtype, is_numeric_dtype, is_string_dtype
 from pyarrow import Table, parquet
 
 from phoenix.config import TRACE_DATASET_DIR
-from phoenix.exceptions import PhoenixException
+from phoenix.trace.errors import InvalidParquetMetadataError
 
 EVAL_NAME_COLUMN_PREFIX = "eval."
-
-
-class InvalidParquetMetadataError(PhoenixException):
-    pass
 
 
 class NeedsNamedIndex(ABC):

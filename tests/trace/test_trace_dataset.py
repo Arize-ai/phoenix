@@ -4,9 +4,11 @@ from datetime import datetime
 from uuid import UUID
 
 import pandas as pd
+import pyarrow
 import pytest
 from pandas.testing import assert_frame_equal
 from phoenix.datetime_utils import normalize_timestamps
+from phoenix.trace.errors import InvalidParquetMetadataError
 from phoenix.trace.schemas import (
     Span,
     SpanContext,
@@ -16,7 +18,7 @@ from phoenix.trace.schemas import (
     SpanStatusCode,
 )
 from phoenix.trace.span_evaluations import SpanEvaluations
-from phoenix.trace.trace_dataset import TraceDataset
+from phoenix.trace.trace_dataset import TraceDataset, _parse_schema_metadata
 from pyarrow import parquet
 
 
@@ -256,3 +258,15 @@ def test_trace_dataset_to_parquet_and_from_parquet_preserve_values() -> None:
     assert_frame_equal(read_ds.dataframe, ds.dataframe)
     assert read_ds.evaluations[0].id == eval_ds.id
     assert_frame_equal(read_ds.evaluations[0].dataframe, eval_ds.dataframe)
+
+
+def test_parse_schema_metadata_raises_on_invalid_metadata() -> None:
+    schema = pyarrow.schema([pyarrow.field("field", pyarrow.float16())]).with_metadata(
+        {
+            b"arize": json.dumps(
+                {"dataset_id": "not-a-valid-uuid", "dataset_name": "dataset-name", "eval_ids": []}
+            ).encode()
+        }
+    )
+    with pytest.raises(InvalidParquetMetadataError):
+        _parse_schema_metadata(schema)

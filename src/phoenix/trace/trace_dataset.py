@@ -6,9 +6,10 @@ from uuid import UUID, uuid4
 
 import pandas as pd
 from pandas import DataFrame
-from pyarrow import Table, parquet
+from pyarrow import Schema, Table, parquet
 
 from phoenix.datetime_utils import normalize_timestamps
+from phoenix.trace.errors import InvalidParquetMetadataError
 
 from ..config import GENERATED_DATASET_NAME_PREFIX, TRACE_DATASET_DIR
 from .schemas import ATTRIBUTE_PREFIX, CONTEXT_PREFIX, Span
@@ -218,7 +219,7 @@ class TraceDataset:
     def from_parquet(cls, path: Union[str, Path]) -> "TraceDataset":
         """reads the data from disc"""
         schema = parquet.read_schema(path)
-        dataset_id, dataset_name, eval_ids = _parse_schema_metadata(schema.metadata)
+        dataset_id, dataset_name, eval_ids = _parse_schema_metadata(schema)
         evaluations = [
             Evaluations.from_parquet(TRACE_DATASET_DIR / f"evaluations-{eval_id}.parquet")
             for eval_id in eval_ids
@@ -265,9 +266,13 @@ class TraceDataset:
         return pd.concat([df, evals_df], axis=1)
 
 
-def _parse_schema_metadata(metadata: Any) -> Tuple[str, str, List[str]]:
-    arize_metadata = json.loads(metadata[b"arize"])
-    dataset_id = arize_metadata["dataset_id"]
-    dataset_name = arize_metadata["dataset_name"]
-    eval_ids = arize_metadata["eval_ids"]
-    return UUID(dataset_id), dataset_name, eval_ids
+def _parse_schema_metadata(schema: Schema) -> Tuple[UUID, str, List[str]]:
+    try:
+        metadata = schema.metadata
+        arize_metadata = json.loads(metadata[b"arize"])
+        dataset_id = UUID(arize_metadata["dataset_id"])
+        dataset_name = arize_metadata["dataset_name"]
+        eval_ids = arize_metadata["eval_ids"]
+        return dataset_id, dataset_name, eval_ids
+    except Exception as err:
+        raise InvalidParquetMetadataError("Unable to parse parquet metadata") from err
