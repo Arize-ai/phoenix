@@ -267,12 +267,21 @@ class TraceDataset:
 
 
 def _parse_schema_metadata(schema: Schema) -> Tuple[UUID, str, List[str]]:
+    """
+    Returns parsed metadata from a parquet schema or raises an exception if the
+    metadata is invalid.
+    """
     try:
         metadata = schema.metadata
         arize_metadata = json.loads(metadata[b"arize"])
         dataset_id = UUID(arize_metadata["dataset_id"])
-        dataset_name = arize_metadata["dataset_name"]
+        if not isinstance(dataset_name := arize_metadata["dataset_name"], str):
+            raise ValueError("Arize metadata must contain a dataset_name key with string value")
         eval_ids = arize_metadata["eval_ids"]
+        if not all(isinstance(eval_id, str) for eval_id in eval_ids):
+            raise ValueError(
+                "Arize metadata must contain an eval_ids key with a list of strings as a value"
+            )
         return dataset_id, dataset_name, eval_ids
     except Exception as err:
         raise InvalidParquetMetadataError("Unable to parse parquet metadata") from err
