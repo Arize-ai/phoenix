@@ -115,24 +115,21 @@ def test_span_evaluations_to_and_from_parquet_preserves_data(tmp_path):
         eval_name="eval-name",
         dataframe=dataframe,
     )
-    path = evals.to_parquet(tmp_path)
-    table = parquet.read_table(path)
+    eval_id = evals.to_parquet(tmp_path)
+    table = parquet.read_table(tmp_path / f"evaluations-{eval_id}.parquet")
     arize_metadata = json.loads(table.schema.metadata[b"arize"])
 
-    assert path.resolve().parent == tmp_path.resolve()
-    assert path.exists()
     assert_frame_equal(table.to_pandas(), evals.dataframe)
     assert set(arize_metadata.keys()) == {"eval_id", "eval_name", "eval_type"}
     assert arize_metadata["eval_name"] == "eval-name"
     assert arize_metadata["eval_type"] == "SpanEvaluations"
     assert arize_metadata["eval_id"] == str(evals.id)
 
-    read_evals = Evaluations.from_parquet(path)
+    read_evals = Evaluations.from_parquet(eval_id, tmp_path)
     assert isinstance(read_evals, SpanEvaluations)
     assert_frame_equal(read_evals.dataframe, dataframe)
     assert read_evals.eval_name == "eval-name"
     assert read_evals.id == evals.id
-    assert path.stem.endswith(str(read_evals.id))
 
 
 def test_document_evaluations_to_and_from_parquet_preserves_data(tmp_path):
@@ -149,23 +146,20 @@ def test_document_evaluations_to_and_from_parquet_preserves_data(tmp_path):
         eval_name="eval-name",
         dataframe=dataframe,
     )
-    path = evals.to_parquet(tmp_path)
-    table = parquet.read_table(path)
+    eval_id = evals.to_parquet(tmp_path)
+    table = parquet.read_table(tmp_path / f"evaluations-{eval_id}.parquet")
     arize_metadata = json.loads(table.schema.metadata[b"arize"])
 
-    assert path.resolve().parent == tmp_path.resolve()
-    assert path.exists()
     assert_frame_equal(table.to_pandas(), evals.dataframe)
     assert arize_metadata["eval_name"] == "eval-name"
     assert arize_metadata["eval_type"] == "DocumentEvaluations"
     assert arize_metadata["eval_id"] == str(evals.id)
 
-    read_evals = Evaluations.from_parquet(path)
+    read_evals = Evaluations.from_parquet(eval_id, tmp_path)
     assert isinstance(read_evals, DocumentEvaluations)
     assert_frame_equal(read_evals.dataframe, dataframe)
     assert read_evals.eval_name == "eval-name"
     assert read_evals.id == evals.id
-    assert path.stem.endswith(str(read_evals.id))
 
 
 def test_parse_schema_metadata_raise_error_on_invalid_metadata():

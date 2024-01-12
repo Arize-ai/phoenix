@@ -160,8 +160,9 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
             tuple(sorted(prod)) for prod in product(*cls.index_names.keys())
         )
 
-    def to_parquet(self, directory: Optional[Union[str, Path]] = None) -> Path:
-        """Persists the evaluations to a parquet file.
+    def to_parquet(self, directory: Optional[Union[str, Path]] = None) -> UUID:
+        """
+        Persists the evaluations to a parquet file.
 
         Args:
             directory (Optional[Union[str, Path]], optional): An optional path
@@ -169,8 +170,8 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
             provided, the parquet file will be saved to a default location.
 
         Returns:
-            Path: The path to the parquet file, including a randomly generated
-            filename.
+            UUID: The ID of the evaluations, which can be used as a key to load
+            the evaluations from disk using `from_parquet`.
         """
         directory = Path(directory) if directory else TRACE_DATASET_DIR
         path = directory / f"evaluations-{self.id}.parquet"
@@ -189,21 +190,27 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
             }
         )
         parquet.write_table(table, path)
-        return path
+        return self.id
 
     @classmethod
-    def from_parquet(cls, path: Union[str, Path]) -> "Evaluations":
-        """Loads the evaluations from a parquet file.
+    def from_parquet(cls, id: UUID, directory: Optional[Union[str, Path]] = None) -> "Evaluations":
+        """
+        Loads the evaluations from a parquet file.
 
         Args:
-            path (Union[str, Path]): Path to a persisted evaluations parquet
-            file.
+            id (UUID): The ID of the evaluations to load.
+
+            directory(Optional[Union[str, Path]], optional): The path to the
+            directory containing the persisted evaluations parquet file. If not
+            provided, the parquet file will be loaded from the same default
+            location used by `to_parquet`.
 
         Returns:
             Evaluations: The loaded evaluations. The type of the returned
             evaluations will be the same as the type of the evaluations that
             were originally persisted.
         """
+        path = Path(directory) / f"evaluations-{id}.parquet"
         schema = parquet.read_schema(path)
         eval_id, eval_name, evaluations_cls = _parse_schema_metadata(schema)
         table = parquet.read_table(path)
