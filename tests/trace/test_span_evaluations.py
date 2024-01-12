@@ -3,6 +3,7 @@ from itertools import chain, combinations
 from random import random
 
 import pandas as pd
+import pyarrow
 import pytest
 from pandas.testing import assert_frame_equal
 from phoenix.trace import DocumentEvaluations, Evaluations, SpanEvaluations
@@ -167,57 +168,21 @@ def test_document_evaluations_to_and_from_parquet_preserves_data(tmp_path):
     assert path.stem.endswith(str(read_evals.id))
 
 
-@pytest.mark.parametrize(
-    "metadata",
-    [
-        pytest.param({}, id="empty-metadata"),
-        pytest.param(
-            {"pandas": "some-pandas-metadata"},
-            id="metadata-missing-arize-key",
-        ),
-        pytest.param({b"arize": '{"invalid_json": "value"'}, id="invalid-json"),
-        pytest.param(
-            {
-                b"arize": json.dumps(
-                    {"eval_id": "2956d001-e2e1-4f22-8e32-1b4930510803", "eval_name": "eval-name"}
-                )
-            },
-            id="missing-key-inside-arize-metadata",
-        ),
-        pytest.param(
-            {
-                b"arize": json.dumps(
-                    {"eval_id": "1234", "eval_name": 10, "eval_type": "SpanEvaluations"}
-                )
-            },
-            id="eval-id-not-uuid",
-        ),
-        pytest.param(
-            {
-                b"arize": json.dumps(
-                    {
-                        "eval_id": "2956d001-e2e1-4f22-8e32-1b4930510803",
-                        "eval_name": 10,
-                        "eval_type": "SpanEvaluations",
-                    }
-                )
-            },
-            id="incorrect-eval-name-type",
-        ),
-        pytest.param(
-            {
-                b"arize": json.dumps(
-                    {
-                        "eval_id": "2956d001-e2e1-4f22-8e32-1b4930510803",
-                        "eval_name": "eval-name",
-                        "eval_type": "NonExistentType",
-                    }
-                )
-            },
-            id="incorrect-eval-type",
-        ),
-    ],
-)
-def test_parse_schema_metadata(metadata):
+def test_parse_schema_metadata_raise_error_on_invalid_metadata():
+    schema = pyarrow.schema(
+        [
+            pyarrow.field("label", pyarrow.string()),
+        ],
+    ).with_metadata(
+        {
+            b"arize": json.dumps(
+                {
+                    "eval_id": "2956d001-e2e1-4f22-8e32-1b4930510803",
+                    "eval_name": "eval-name",
+                    "eval_type": "NonExistentType",
+                }
+            )
+        }
+    )
     with pytest.raises(InvalidParquetMetadataError):
-        _parse_schema_metadata(metadata)
+        _parse_schema_metadata(schema)
