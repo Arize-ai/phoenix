@@ -264,9 +264,7 @@ class TraceDataset:
         evaluations = []
         for eval_id in eval_ids:
             try:
-                evaluations.append(
-                    Evaluations.from_parquet(path.parent / f"evaluations-{eval_id}.parquet")
-                )
+                evaluations.append(Evaluations.from_parquet(eval_id, path.parent))
             except Exception:
                 warn(f'Failed to load evaluations with id: "{eval_id}"')
         table = parquet.read_table(path)
@@ -311,7 +309,7 @@ class TraceDataset:
         return pd.concat([df, evals_df], axis=1)
 
 
-def _parse_schema_metadata(schema: Schema) -> Tuple[UUID, str, List[str]]:
+def _parse_schema_metadata(schema: Schema) -> Tuple[UUID, str, List[UUID]]:
     """
     Returns parsed metadata from a parquet schema or raises an exception if the
     metadata is invalid.
@@ -322,11 +320,7 @@ def _parse_schema_metadata(schema: Schema) -> Tuple[UUID, str, List[str]]:
         dataset_id = UUID(arize_metadata["dataset_id"])
         if not isinstance(dataset_name := arize_metadata["dataset_name"], str):
             raise ValueError("Arize metadata must contain a dataset_name key with string value")
-        eval_ids = arize_metadata["eval_ids"]
-        if not all(isinstance(eval_id, str) for eval_id in eval_ids):
-            raise ValueError(
-                "Arize metadata must contain an eval_ids key with a list of strings as a value"
-            )
+        eval_ids = [UUID(eval_id) for eval_id in arize_metadata["eval_ids"]]
         return dataset_id, dataset_name, eval_ids
     except Exception as err:
         raise InvalidParquetMetadataError("Unable to parse parquet metadata") from err

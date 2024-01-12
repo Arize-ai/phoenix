@@ -211,7 +211,7 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
             evaluations will be the same as the type of the evaluations that
             were originally persisted.
         """
-        path = Path(directory) / EVAL_PARQUET_FILE_NAME.format(id=id)
+        path = Path(directory or TRACE_DATASET_DIR) / EVAL_PARQUET_FILE_NAME.format(id=id)
         schema = parquet.read_schema(path)
         eval_id, eval_name, evaluations_cls = _parse_schema_metadata(schema)
         if id != eval_id:
