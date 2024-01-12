@@ -204,11 +204,10 @@ class TraceDataset:
             coerce_timestamps="ms",
         )
 
-    def to_parquet(self, directory: Optional[Union[str, Path]] = None) -> UUID:
+    def save(self, directory: Optional[Union[str, Path]] = None) -> UUID:
         """
-        Writes the trace dataset to a parquet file. If any evaluations have been
-        appended to the dataset, those evaluations will be written to separate
-        parquet files in the same directory.
+        Writes the trace dataset to disk. If any evaluations have been appended
+        to the dataset, those evaluations will be saved to the same directory.
 
         Args:
             directory (Optional[Union[str, Path]], optional): An optional path
@@ -217,12 +216,12 @@ class TraceDataset:
 
         Returns:
             UUID: The id of the trace dataset, which can be used as key to load
-            the dataset from disk using `from_parquet`.
+            the dataset from disk using `load`.
         """
         directory = Path(directory or TRACE_DATASET_DIR)
         directory.mkdir(parents=True, exist_ok=True)
         for evals in self.evaluations:
-            evals.to_parquet(directory)
+            evals.save(directory)
         directory = directory / f"trace_dataset-{self._id}.parquet"
         dataframe = get_serializable_spans_dataframe(self.dataframe)
         dataframe.to_parquet(
@@ -248,7 +247,7 @@ class TraceDataset:
         return self._id
 
     @classmethod
-    def from_parquet(cls, id: UUID, directory: Optional[Union[str, Path]] = None) -> "TraceDataset":
+    def load(cls, id: UUID, directory: Optional[Union[str, Path]] = None) -> "TraceDataset":
         """
         Reads in a trace dataset from disk. Any associated evaluations will
         automatically be read from disk and attached to the trace dataset.
@@ -259,7 +258,7 @@ class TraceDataset:
             directory (Optional[Union[str, Path]], optional): The path to the
             directory containing the persisted trace dataset parquet file. If
             not provided, the parquet file will be loaded from the same default
-            location used by `to_parquet`.
+            location used by `save`.
 
         Returns:
             TraceDataset: The loaded trace dataset.
@@ -275,7 +274,7 @@ class TraceDataset:
         evaluations = []
         for eval_id in eval_ids:
             try:
-                evaluations.append(Evaluations.from_parquet(eval_id, path.parent))
+                evaluations.append(Evaluations.load(eval_id, path.parent))
             except Exception:
                 warn(f'Failed to load evaluations with id: "{eval_id}"')
         table = parquet.read_table(path)

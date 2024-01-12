@@ -203,7 +203,7 @@ def test_trace_dataset_construction_with_evaluations():
     assert "context.span_id" in df_with_evals.columns
 
 
-def test_trace_dataset_to_parquet_and_from_parquet_preserve_values(tmp_path) -> None:
+def test_trace_dataset_save_and_load_preserve_values(tmp_path) -> None:
     num_records = 5
     traces_df = pd.DataFrame(
         {
@@ -237,7 +237,7 @@ def test_trace_dataset_to_parquet_and_from_parquet_preserve_values(tmp_path) -> 
     )
 
     ds.append_evaluations(eval_ds)
-    dataset_id = ds.to_parquet(tmp_path)
+    dataset_id = ds.save(tmp_path)
 
     dataset_path = tmp_path / f"trace_dataset-{dataset_id}.parquet"
     assert dataset_path.exists()
@@ -254,14 +254,14 @@ def test_trace_dataset_to_parquet_and_from_parquet_preserve_values(tmp_path) -> 
     dataframe = table.to_pandas()
     assert_frame_equal(ds.dataframe, dataframe)
 
-    read_ds = TraceDataset.from_parquet(dataset_id, tmp_path)
+    read_ds = TraceDataset.load(dataset_id, tmp_path)
     assert read_ds._id == ds._id
     assert_frame_equal(read_ds.dataframe, ds.dataframe)
     assert read_ds.evaluations[0].id == eval_ds.id
     assert_frame_equal(read_ds.evaluations[0].dataframe, eval_ds.dataframe)
 
 
-def test_trace_dataset_from_parquet_logs_warning_when_an_evaluation_cannot_be_loaded(tmp_path):
+def test_trace_dataset_load_logs_warning_when_an_evaluation_cannot_be_loaded(tmp_path):
     num_records = 5
     traces_df = pd.DataFrame(
         {
@@ -292,7 +292,7 @@ def test_trace_dataset_from_parquet_logs_warning_when_an_evaluation_cannot_be_lo
         ).set_index("context.span_id"),
     )
     ds.append_evaluations(eval_ds)
-    dataset_id = ds.to_parquet(tmp_path)
+    dataset_id = ds.save(tmp_path)
 
     dataset_path = tmp_path / f"trace_dataset-{dataset_id}.parquet"
     eval_path = dataset_path.parent / f"evaluations-{eval_ds.id}.parquet"
@@ -301,18 +301,18 @@ def test_trace_dataset_from_parquet_logs_warning_when_an_evaluation_cannot_be_lo
     os.remove(eval_path)  # remove the eval file to trigger the warning
 
     with pytest.warns(UserWarning) as record:
-        read_ds = TraceDataset.from_parquet(dataset_id, tmp_path)
+        read_ds = TraceDataset.load(dataset_id, tmp_path)
 
     assert len(record) == 1
     assert str(record[0].message).startswith("Failed to load"), "unexpected warning message"
 
-    read_ds = TraceDataset.from_parquet(dataset_id, tmp_path)
+    read_ds = TraceDataset.load(dataset_id, tmp_path)
     assert read_ds._id == ds._id
     assert_frame_equal(read_ds.dataframe, ds.dataframe)
     assert read_ds.evaluations == []
 
 
-def test_trace_dataset_from_parquet_raises_error_when_input_id_does_not_match_metadata(tmp_path):
+def test_trace_dataset_load_raises_error_when_input_id_does_not_match_metadata(tmp_path):
     num_records = 5
     traces_df = pd.DataFrame(
         {
@@ -329,14 +329,14 @@ def test_trace_dataset_from_parquet_raises_error_when_input_id_does_not_match_me
         }
     )
     ds = TraceDataset(traces_df, name="trace-dataset-name")
-    dataset_id = ds.to_parquet(tmp_path)
+    dataset_id = ds.save(tmp_path)
     updated_id = uuid4()
     (tmp_path / f"trace_dataset-{dataset_id}.parquet").rename(
         tmp_path / f"trace_dataset-{updated_id}.parquet"
     )  # move the file so the metadata id no longer matches the file name
 
     with pytest.raises(InvalidParquetMetadataError):
-        TraceDataset.from_parquet(updated_id, tmp_path)
+        TraceDataset.load(updated_id, tmp_path)
 
 
 def test_parse_schema_metadata_raises_on_invalid_metadata() -> None:

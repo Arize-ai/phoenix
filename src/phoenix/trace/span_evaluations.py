@@ -161,18 +161,18 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
             tuple(sorted(prod)) for prod in product(*cls.index_names.keys())
         )
 
-    def to_parquet(self, directory: Optional[Union[str, Path]] = None) -> UUID:
+    def save(self, directory: Optional[Union[str, Path]] = None) -> UUID:
         """
-        Persists the evaluations to a parquet file.
+        Persists the evaluations to disk.
 
         Args:
             directory (Optional[Union[str, Path]], optional): An optional path
-            to a directory where the parquet file will be saved. If not
-            provided, the parquet file will be saved to a default location.
+            to a directory where the data will be saved. If not provided, the
+            data will be saved to a default location.
 
         Returns:
             UUID: The ID of the evaluations, which can be used as a key to load
-            the evaluations from disk using `from_parquet`.
+            the evaluations from disk using `load`.
         """
         directory = Path(directory) if directory else TRACE_DATASET_DIR
         path = directory / EVAL_PARQUET_FILE_NAME.format(id=self.id)
@@ -194,17 +194,17 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
         return self.id
 
     @classmethod
-    def from_parquet(cls, id: UUID, directory: Optional[Union[str, Path]] = None) -> "Evaluations":
+    def load(cls, id: UUID, directory: Optional[Union[str, Path]] = None) -> "Evaluations":
         """
-        Loads the evaluations from a parquet file.
+        Loads the evaluations from disk.
 
         Args:
             id (UUID): The ID of the evaluations to load.
 
             directory(Optional[Union[str, Path]], optional): The path to the
-            directory containing the persisted evaluations parquet file. If not
-            provided, the parquet file will be loaded from the same default
-            location used by `to_parquet`.
+            directory containing the persisted evaluations. If not provided, the
+            parquet file will be loaded from the same default location used by
+            `save`.
 
         Returns:
             Evaluations: The loaded evaluations. The type of the returned
