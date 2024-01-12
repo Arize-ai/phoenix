@@ -261,7 +261,7 @@ class TraceDataset:
         schema = parquet.read_schema(path)
         dataset_id, dataset_name, eval_ids = _parse_schema_metadata(schema)
         evaluations = [
-            Evaluations.from_parquet(TRACE_DATASET_DIR / f"evaluations-{eval_id}.parquet")
+            Evaluations.from_parquet(path.parent / f"evaluations-{eval_id}.parquet")
             for eval_id in eval_ids
         ]
         table = parquet.read_table(path)

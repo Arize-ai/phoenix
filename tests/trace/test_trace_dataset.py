@@ -203,7 +203,7 @@ def test_trace_dataset_construction_with_evaluations():
     assert "context.span_id" in df_with_evals.columns
 
 
-def test_trace_dataset_to_parquet_and_from_parquet_preserve_values() -> None:
+def test_trace_dataset_to_parquet_and_from_parquet_preserve_values(tmp_path) -> None:
     num_records = 5
     traces_df = pd.DataFrame(
         {
@@ -238,7 +238,7 @@ def test_trace_dataset_to_parquet_and_from_parquet_preserve_values() -> None:
 
     ds.append_evaluations(eval_ds)
 
-    path = ds.to_parquet()
+    path = ds.to_parquet(tmp_path)
 
     assert os.path.exists(path)
     assert os.path.exists(path.parent / f"evaluations-{eval_ds.id}.parquet")
