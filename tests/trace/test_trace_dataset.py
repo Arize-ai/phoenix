@@ -219,7 +219,7 @@ def test_trace_dataset_to_parquet_and_from_parquet_preserve_values(tmp_path) -> 
             "context.span_id": [f"span_{index}" for index in range(num_records)],
         }
     )
-    ds = TraceDataset(traces_df)
+    ds = TraceDataset(traces_df, name="trace-dataset-name")
 
     num_records = 5
     span_ids = [f"span_{index}" for index in range(num_records)]
@@ -246,8 +246,11 @@ def test_trace_dataset_to_parquet_and_from_parquet_preserve_values(tmp_path) -> 
 
     schema = parquet.read_schema(path)
     arize_metadata = json.loads(schema.metadata[b"arize"])
-    assert arize_metadata["dataset_id"] == str(ds._id)
-    assert arize_metadata["eval_ids"] == [str(eval_ds.id)]
+    assert arize_metadata == {
+        "dataset_id": str(ds._id),
+        "dataset_name": "trace-dataset-name",
+        "eval_ids": [str(eval_ds.id)],
+    }
 
     table = parquet.read_table(path)
     dataframe = table.to_pandas()
@@ -258,6 +261,52 @@ def test_trace_dataset_to_parquet_and_from_parquet_preserve_values(tmp_path) -> 
     assert_frame_equal(read_ds.dataframe, ds.dataframe)
     assert read_ds.evaluations[0].id == eval_ds.id
     assert_frame_equal(read_ds.evaluations[0].dataframe, eval_ds.dataframe)
+
+
+def test_trace_dataset_from_parquet_logs_warning_when_an_evaluation_cannot_be_loaded(tmp_path):
+    num_records = 5
+    traces_df = pd.DataFrame(
+        {
+            "name": [f"name_{index}" for index in range(num_records)],
+            "span_kind": ["LLM" for index in range(num_records)],
+            "parent_id": [None for index in range(num_records)],
+            "start_time": [datetime.now() for index in range(num_records)],
+            "end_time": [datetime.now() for index in range(num_records)],
+            "message": [f"message_{index}" for index in range(num_records)],
+            "status_code": ["OK" for index in range(num_records)],
+            "status_message": ["" for index in range(num_records)],
+            "context.trace_id": [f"trace_{index}" for index in range(num_records)],
+            "context.span_id": [f"span_{index}" for index in range(num_records)],
+        }
+    )
+    ds = TraceDataset(traces_df, name="trace-dataset-name")
+    num_records = 5
+    span_ids = [f"span_{index}" for index in range(num_records)]
+    eval_ds = SpanEvaluations(
+        eval_name="my_eval",
+        dataframe=pd.DataFrame(
+            {
+                "context.span_id": span_ids,
+                "label": [str(index) for index in range(num_records)],
+                "score": [index for index in range(num_records)],
+                "random_column": [index for index in range(num_records)],
+            }
+        ).set_index("context.span_id"),
+    )
+    ds.append_evaluations(eval_ds)
+    path = ds.to_parquet(tmp_path)
+    os.remove(path.parent / f"evaluations-{eval_ds.id}.parquet")  # remove the evaluation file
+
+    with pytest.warns(UserWarning) as record:
+        read_ds = TraceDataset.from_parquet(path)
+
+    assert len(record) == 1
+    assert str(record[0].message).startswith("Failed to load"), "unexpected warning message"
+
+    read_ds = TraceDataset.from_parquet(path)
+    assert read_ds._id == ds._id
+    assert_frame_equal(read_ds.dataframe, ds.dataframe)
+    assert read_ds.evaluations == []
 
 
 def test_parse_schema_metadata_raises_on_invalid_metadata() -> None:

@@ -3,6 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable, Iterator, List, Optional, Tuple, Union, cast
 from uuid import UUID, uuid4
+from warnings import warn
 
 import pandas as pd
 from pandas import DataFrame, read_parquet
@@ -260,10 +261,14 @@ class TraceDataset:
         """
         schema = parquet.read_schema(path)
         dataset_id, dataset_name, eval_ids = _parse_schema_metadata(schema)
-        evaluations = [
-            Evaluations.from_parquet(path.parent / f"evaluations-{eval_id}.parquet")
-            for eval_id in eval_ids
-        ]
+        evaluations = []
+        for eval_id in eval_ids:
+            try:
+                evaluations.append(
+                    Evaluations.from_parquet(path.parent / f"evaluations-{eval_id}.parquet")
+                )
+            except Exception:
+                warn(f'Failed to load evaluations with id: "{eval_id}"')
         table = parquet.read_table(path)
         dataframe = table.to_pandas()
         ds = cls(dataframe, dataset_name, evaluations)
