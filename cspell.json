@@ -25,6 +25,7 @@
         "openinference",
         "pydantic",
         "quickstart",
+        "referer",
         "RERANKER",
         "respx",
         "rgba",

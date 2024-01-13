@@ -1,5 +1,4 @@
 import logging
-import re
 from pathlib import Path
 from typing import Any, NamedTuple, Optional, Union
 
@@ -35,8 +34,6 @@ logger = logging.getLogger(__name__)
 
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
 
-_databricks_basename_pattern = r"https://.*?\.com(/driver-proxy/o/\d+/\d+-\d+-\w+/\d+/)"
-
 
 class AppConfig(NamedTuple):
     has_corpus: bool
@@ -51,33 +48,6 @@ def _is_sagemaker(url: str) -> bool:
 
 def _is_databricks(url: str) -> bool:
     return "databricks" in url
-
-
-def _get_databricks_basename(url: str) -> str:
-    match = re.search(_databricks_basename_pattern, url)
-    if match is None:
-        raise ValueError("Could not decipher the basename in Databricks URL")
-    return match.group(1)
-
-
-def _get_basename(request: Request) -> str:
-    """
-    Determine the basename for the API and static content.
-    If the server is running in a hosted notebook, the base URL
-    must be configured to point to the hosted notebook's proxy.
-    """
-    url = str(request.url)
-    if _is_sagemaker(url):
-        # Sagemaker sets up a proxy at /proxy/6006
-        # NB: this is the only port that is open
-        return "/proxy/6006"
-    if _is_databricks(url):
-        # For Databricks, the basename goes from /driver-proxy/ to the
-        # end of the URL where there is a port number
-        # For example: /driver-proxy/o/1018391329803962/0112-220452-osc8oiar/6007/
-        return _get_databricks_basename(url)
-    # URL is relative to / for colab and local
-    return ""
 
 
 class Static(StaticFiles):
@@ -106,7 +76,7 @@ class Static(StaticFiles):
                     "min_dist": self._app_config.min_dist,
                     "n_neighbors": self._app_config.n_neighbors,
                     "n_samples": self._app_config.n_samples,
-                    "basename": _get_basename(request),
+                    "basename": request.scope.get("root_path", ""),
                     "request": request,
                 },
             )

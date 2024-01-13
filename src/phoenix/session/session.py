@@ -13,6 +13,7 @@ from typing import (
     Iterable,
     List,
     Mapping,
+    NamedTuple,
     Optional,
     Set,
     Union,
@@ -130,6 +131,7 @@ class Session(ABC):
         self.export_path.mkdir(parents=True, exist_ok=True)
         self.exported_data = ExportedData()
         self.notebook_env = notebook_env or _get_notebook_environment()
+        self.root_path = _get_root_path(self.notebook_env, self.port)
 
     @abstractmethod
     def end(self) -> None:
@@ -225,6 +227,7 @@ class ProcessSession(Session):
         default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
         port: Optional[int] = None,
+        root_path: Optional[str] = None,
         notebook_env: Optional[NotebookEnvironment] = None,
     ) -> None:
         super().__init__(
@@ -254,6 +257,7 @@ class ProcessSession(Session):
             self.export_path,
             self.host,
             self.port,
+            self.root_path,
             self.primary_dataset.name,
             umap_params_str,
             reference_dataset_name=(
@@ -286,6 +290,7 @@ class ThreadSession(Session):
         default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
         port: Optional[int] = None,
+        root_path: Optional[str] = None,
         notebook_env: Optional[NotebookEnvironment] = None,
     ):
         super().__init__(
@@ -311,6 +316,7 @@ class ThreadSession(Session):
             app=self.app,
             host=self.host,
             port=self.port,
+            root_path=self.root_path,
         ).run_in_thread()
         # start the server
         self.server_thread = next(self.server)
@@ -471,7 +477,8 @@ def _get_url(host: str, port: int, notebook_env: NotebookEnvironment) -> str:
         # NB: Sagemaker notebooks only work with port 6006 - which is used by tensorboard
         return f"{_get_sagemaker_notebook_base_url()}/proxy/{port}/"
     if notebook_env == NotebookEnvironment.DATABRICKS:
-        return f"{_get_databricks_notebook_base_url()}/{port}/"
+        context = _get_databricks_context()
+        return f"{_get_databricks_notebook_base_url(context)}/{port}/"
     return f"http://{host}:{port}/"
 
 
@@ -552,9 +559,28 @@ def _get_sagemaker_notebook_base_url() -> str:
     return f"https://{notebook_instance_name}.notebook.{region}.sagemaker.aws"
 
 
-def _get_databricks_notebook_base_url() -> str:
+def _get_root_path(environment: NotebookEnvironment, port: int) -> str:
     """
-    Returns base url of the databricks notebook by parsing the tags
+    Returns the base path for the app if the app is running behind a proxy
+    """
+    if environment == NotebookEnvironment.SAGEMAKER:
+        return f"/proxy/{port}/"
+    if environment == NotebookEnvironment.DATABRICKS:
+        context = _get_databricks_context()
+        return f"/driver-proxy/o/{context.org_id}/{context.cluster_id}/{port}/"
+    return ""
+
+
+class DatabricksContext(NamedTuple):
+    host: str
+    org_id: str
+    cluster_id: str
+
+
+def _get_databricks_context() -> DatabricksContext:
+    """
+    Returns the databricks context for constructing the base url
+    and the root_path for the app
     """
     import IPython
 
@@ -563,7 +589,16 @@ def _get_databricks_notebook_base_url() -> str:
     notebook_context = json.loads(
         dbutils.entry_point.getDbutils().notebook().getContext().toJson()
     )["tags"]
-    host = notebook_context["browserHostName"]
-    org_id = notebook_context["orgId"]
-    cluster_id = notebook_context["clusterId"]
-    return f"https://{host}/driver-proxy/o/{org_id}/{cluster_id}"
+
+    return DatabricksContext(
+        host=notebook_context["browserHostName"],
+        org_id=notebook_context["orgId"],
+        cluster_id=notebook_context["clusterId"],
+    )
+
+
+def _get_databricks_notebook_base_url(context: DatabricksContext) -> str:
+    """
+    Returns base url of the databricks notebook by parsing the tags
+    """
+    return f"https://{context.host}/driver-proxy/o/{context.org_id}/{context.cluster_id}"
