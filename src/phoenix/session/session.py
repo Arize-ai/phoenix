@@ -54,6 +54,7 @@ class NotebookEnvironment(Enum):
     COLAB = "colab"
     LOCAL = "local"
     SAGEMAKER = "sagemaker"
+    DATABRICKS = "databricks"
 
 
 class ExportedData(_BaseList):
@@ -468,7 +469,9 @@ def _get_url(host: str, port: int, notebook_env: NotebookEnvironment) -> str:
         return str(eval_js(f"google.colab.kernel.proxyPort({port}, {{'cache': true}})"))
     if notebook_env == NotebookEnvironment.SAGEMAKER:
         # NB: Sagemaker notebooks only work with port 6006 - which is used by tensorboard
-        return str(f"{_get_sagemaker_notebook_base_url()}/proxy/{port}/")
+        return f"{_get_sagemaker_notebook_base_url()}/proxy/{port}/"
+    if notebook_env == NotebookEnvironment.DATABRICKS:
+        return f"{_get_databricks_notebook_base_url()}/{port}/"
     return f"http://{host}:{port}/"
 
 
@@ -498,6 +501,11 @@ def _is_sagemaker() -> bool:
     return get_ipython() is not None
 
 
+def _is_databricks() -> bool:
+    """Determines whether this is in a Databricks notebook"""
+    return "dbutils" in globals()
+
+
 def _get_notebook_environment() -> NotebookEnvironment:
     """Determines the notebook environment"""
     if (notebook_env := os.getenv(ENV_NOTEBOOK_ENV)) is not None:
@@ -509,6 +517,8 @@ def _infer_notebook_environment() -> NotebookEnvironment:
     """Use feature detection to determine the notebook environment"""
     if _is_colab():
         return NotebookEnvironment.COLAB
+    if _is_databricks():
+        return NotebookEnvironment.DATABRICKS
     if _is_sagemaker():
         return NotebookEnvironment.SAGEMAKER
     return NotebookEnvironment.LOCAL
@@ -531,3 +541,20 @@ def _get_sagemaker_notebook_base_url() -> str:
     notebook_instance_name = parts[5].split("/")[1]
 
     return f"https://{notebook_instance_name}.notebook.{region}.sagemaker.aws"
+
+
+def _get_databricks_notebook_base_url() -> str:
+    """
+    Returns base url of the databricks notebook by parsing the tags
+    """
+    import IPython
+
+    shell = IPython.get_ipython()  # type: ignore
+    dbutils = shell.user_ns["dbutils"]
+    notebook_context = json.loads(
+        dbutils.entry_point.getDbutils().notebook().getContext().toJson()
+    )["tags"]
+    host = notebook_context["browserHostName"]
+    org_id = notebook_context["orgId"]
+    cluster_id = notebook_context["clusterId"]
+    return f"https://{host}/driver-proxy/o/{org_id}/{cluster_id}/"

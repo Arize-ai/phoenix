@@ -9,6 +9,7 @@
         "colormaps",
         "conda",
         "dataframe",
+        "dbutils",
         "Evals",
         "gitbook",
         "graphiql",
