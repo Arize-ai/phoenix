@@ -511,10 +511,10 @@ def _is_sagemaker() -> bool:
 def _is_databricks() -> bool:
     """Determines whether this is in a Databricks notebook"""
     try:
-        import IPython
+        import IPython  # type: ignore
     except ImportError:
         return False
-    shell = IPython.get_ipython()  # type: ignore
+    shell = IPython.get_ipython()
     try:
         dbutils = shell.user_ns["dbutils"]
     except KeyError:
@@ -584,7 +584,7 @@ def _get_databricks_context() -> DatabricksContext:
     """
     import IPython
 
-    shell = IPython.get_ipython()  # type: ignore
+    shell = IPython.get_ipython()
     dbutils = shell.user_ns["dbutils"]
     notebook_context = json.loads(
         dbutils.entry_point.getDbutils().notebook().getContext().toJson()
