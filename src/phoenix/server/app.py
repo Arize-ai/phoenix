@@ -42,14 +42,6 @@ class AppConfig(NamedTuple):
     n_samples: int
 
 
-def _is_sagemaker(url: str) -> bool:
-    return "sagemaker" in url
-
-
-def _is_databricks(url: str) -> bool:
-    return "databricks" in url
-
-
 class Static(StaticFiles):
     "Static file serving with a fallback to index.html"
 
