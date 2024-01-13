@@ -22,6 +22,8 @@ from .templates import (
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_RAILS_MAP,
     TOXICITY_PROMPT_TEMPLATE,
+    CODE_FUNCTIONALITY_PROMPT_TEMPLATE,
+    CODE_FUNCTIONALITY_PROMPT_RAILS_MAP,
     ClassificationTemplate,
     PromptTemplate,
 )
@@ -51,6 +53,8 @@ __all__ = [
     "QA_PROMPT_RAILS_MAP",
     "QA_PROMPT_TEMPLATE",
     "NOT_PARSABLE",
+    "CODE_FUNCTIONALITY_PROMPT_TEMPLATE",
+    "CODE_FUNCTIONALITY_PROMPT_RAILS_MAP",
     "run_relevance_eval",
     "run_evals",
     "LLMEvaluator",

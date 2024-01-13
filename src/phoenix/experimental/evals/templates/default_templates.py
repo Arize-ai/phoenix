@@ -411,6 +411,88 @@ EXPLANATION:
 
 HUMAN_VS_AI_PROMPT_RAILS_MAP = OrderedDict({True: "correct", False: "incorrect"})
 
+
+CODE_FUNCTIONALITY_PROMPT_BASE_TEMPLATE = """
+Code Evaluation Prompt:
+-----------------------
+Evaluate the provided code to determine its correctness in solving the given instruction.
+
+Data:
+-----
+[Instruction]: {coding_instruction}
+  Clearly define the task or problem that the code aims to address.
+
+[Reference Code]: {code}
+  Examine the submitted code for evaluation in the context of the provided instruction.
+
+Evaluation:
+-----------
+Provide a concise response with a single word: either "bug_free" or "is_bug".
+- "bug_free" signifies that the code correctly and efficiently solves the instruction with no bugs.
+- "is_bug" indicates that the code either fails to meet the instruction requirements or contains bugs.
+
+Example:
+-----------
+
+[Instruction]: Implement the Fibonacci sequence in Python.
+
+[Reference Code]: 'def fibonacci(n):\n    if n <= 1:\n        return n\n    else:\n        return fibonacci(n - 1) + fibonacci(n - 2)\n\nfor i in range(10):\n    print(fibonacci(i))'
+
+[Output]: bug_free
+
+Note: Assumptions can be made that any code needed for the instruction is correct, and optimization is not a requirement for a correct solution. 
+Your response should consist solely of the words "bug_free" or "is_bug" without additional text or characters.
+"""
+
+
+CODE_FUNCTIONALITY_PROMPT_TEMPLATE_WITH_EXPLANATION = """
+Code Evaluation Prompt:
+-----------------------
+Evaluate the provided code to determine its correctness in solving the given instruction.
+
+Data:
+-----
+[Instruction]: {coding_instruction}
+  Clearly define the task or problem that the code aims to address.
+
+[Reference Code]: {code}
+  Examine the submitted code for evaluation in the context of the provided instruction.
+
+Evaluation:
+-----------
+Provide a concise response with a single word: either "bug_free" or "is_bug".
+- "bug_free" signifies that the code correctly and efficiently solves the instruction with no bugs.
+- "is_bug" indicates that the code either fails to meet the instruction requirements or contains bugs.
+
+Example:
+-----------
+
+[Instruction]: Implement the Fibonacci sequence in Python.
+
+[Reference Code]: 'def fibonacci(n):\n    if n <= 1:\n        return n\n    else:\n        return fibonacci(n - 1) + fibonacci(n - 2)\n\nfor i in range(10):\n    print(fibonacci(i))'
+
+[Output]: bug_free
+
+Note: Assumptions can be made that any code needed for the instruction is correct, and optimization is not a requirement for a correct solution. 
+
+First, write out in a step by step manner an EXPLANATION to show how to determine if the code is 'bug_free' or 'is_bug'. 
+Avoid simply stating the correct answer at the outset. 
+You are then going to respond with a LABEL (a single word evaluation). 
+If the code correctly solves the instruction with no bugs, then the code LABEL is "bug_free". 
+If the code either fails to meet the instruction requirements or contains bugs, then the code LABEL is "is_bug".
+
+Example response:
+************
+EXPLANATION: An explanation of your reasoning for if the code is bug free "bug_free"
+or "is_bug" LABEL: "bug_free" or "is_bug"
+************
+
+EXPLANATION:
+
+"""
+
+CODE_FUNCTIONALITY_PROMPT_RAILS_MAP = OrderedDict({True: "bug_free", False: "is_bug"})
+
 RAG_RELEVANCY_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
     template=RAG_RELEVANCY_PROMPT_BASE_TEMPLATE,
@@ -467,6 +549,12 @@ HUMAN_VS_AI_PROMPT_TEMPLATE = ClassificationTemplate(
     scores=[1, 0],
 )
 
+CODE_FUNCTIONALITY_PROMPT_TEMPLATE = ClassificationTemplate(
+    rails=list(CODE_FUNCTIONALITY_PROMPT_RAILS_MAP.values()),
+    template=CODE_FUNCTIONALITY_PROMPT_BASE_TEMPLATE,
+    explanation_template=CODE_FUNCTIONALITY_PROMPT_TEMPLATE_WITH_EXPLANATION,
+    scores=[1, 0],
+)
 
 class EvalCriteria(Enum):
     RELEVANCE = RAG_RELEVANCY_PROMPT_TEMPLATE
@@ -477,3 +565,4 @@ class EvalCriteria(Enum):
     CODE_READABILITY = CODE_READABILITY_PROMPT_TEMPLATE
     REFERENCE_LINK_CORRECTNESS = REFERENCE_LINK_CORRECTNESS_PROMPT_TEMPLATE
     HUMAN_VS_AI = HUMAN_VS_AI_PROMPT_TEMPLATE
+    CODE_FUNCTIONALITY = CODE_FUNCTIONALITY_PROMPT_TEMPLATE
