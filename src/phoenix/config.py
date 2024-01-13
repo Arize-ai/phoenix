@@ -48,7 +48,7 @@ PHOENIX_DIR = Path(__file__).resolve().parent
 # Server config
 SERVER_DIR = PHOENIX_DIR / "server"
 # The host the server will run on after launch_app is called
-HOST = "127.0.0.1"
+HOST = "0.0.0.0"
 # The port the server will run on after launch_app is called
 PORT = 6006
 # The prefix of datasets that are auto-assigned a name

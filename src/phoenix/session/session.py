@@ -393,14 +393,14 @@ def launch_app(
         )
         _session.end()
 
-    host = host or get_env_host()
-    port = port or get_env_port()
-
     # Normalize notebook environment
     if isinstance(notebook_environment, str):
         nb_env: Optional[NotebookEnvironment] = NotebookEnvironment(notebook_environment.lower())
     else:
         nb_env = notebook_environment
+
+    host = host or get_env_host()
+    port = port or get_env_port()
 
     if run_in_thread:
         _session = ThreadSession(
@@ -503,7 +503,16 @@ def _is_sagemaker() -> bool:
 
 def _is_databricks() -> bool:
     """Determines whether this is in a Databricks notebook"""
-    return "dbutils" in globals()
+    try:
+        import IPython
+    except ImportError:
+        return False
+    shell = IPython.get_ipython()  # type: ignore
+    try:
+        dbutils = shell.user_ns["dbutils"]
+    except KeyError:
+        return False
+    return dbutils is not None
 
 
 def _get_notebook_environment() -> NotebookEnvironment:
@@ -515,10 +524,10 @@ def _get_notebook_environment() -> NotebookEnvironment:
 
 def _infer_notebook_environment() -> NotebookEnvironment:
     """Use feature detection to determine the notebook environment"""
-    if _is_colab():
-        return NotebookEnvironment.COLAB
     if _is_databricks():
         return NotebookEnvironment.DATABRICKS
+    if _is_colab():
+        return NotebookEnvironment.COLAB
     if _is_sagemaker():
         return NotebookEnvironment.SAGEMAKER
     return NotebookEnvironment.LOCAL
@@ -557,4 +566,4 @@ def _get_databricks_notebook_base_url() -> str:
     host = notebook_context["browserHostName"]
     org_id = notebook_context["orgId"]
     cluster_id = notebook_context["clusterId"]
-    return f"https://{host}/driver-proxy/o/{org_id}/{cluster_id}/"
+    return f"https://{host}/driver-proxy/o/{org_id}/{cluster_id}"
