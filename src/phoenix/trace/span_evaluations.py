@@ -194,12 +194,14 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
         return self.id
 
     @classmethod
-    def load(cls, id: UUID, directory: Optional[Union[str, Path]] = None) -> "Evaluations":
+    def load(
+        cls, id: Union[str, UUID], directory: Optional[Union[str, Path]] = None
+    ) -> "Evaluations":
         """
         Loads the evaluations from disk.
 
         Args:
-            id (UUID): The ID of the evaluations to load.
+            id (Union[str, UUID]): The ID of the evaluations to load.
 
             directory(Optional[Union[str, Path]], optional): The path to the
             directory containing the persisted evaluations. If not provided, the
@@ -211,6 +213,8 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
             evaluations will be the same as the type of the evaluations that
             were originally persisted.
         """
+        if not isinstance(id, UUID):
+            id = UUID(id)
         path = Path(directory or TRACE_DATASET_DIR) / EVAL_PARQUET_FILE_NAME.format(id=id)
         schema = parquet.read_schema(path)
         eval_id, eval_name, evaluations_cls = _parse_schema_metadata(schema)

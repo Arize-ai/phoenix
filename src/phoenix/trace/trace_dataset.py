@@ -249,13 +249,15 @@ class TraceDataset:
         return self._id
 
     @classmethod
-    def load(cls, id: UUID, directory: Optional[Union[str, Path]] = None) -> "TraceDataset":
+    def load(
+        cls, id: Union[str, UUID], directory: Optional[Union[str, Path]] = None
+    ) -> "TraceDataset":
         """
         Reads in a trace dataset from disk. Any associated evaluations will
         automatically be read from disk and attached to the trace dataset.
 
         Args:
-            id (UUID): The ID of the trace dataset to be loaded.
+            id (Union[str, UUID]): The ID of the trace dataset to be loaded.
 
             directory (Optional[Union[str, Path]], optional): The path to the
             directory containing the persisted trace dataset parquet file. If
@@ -265,6 +267,8 @@ class TraceDataset:
         Returns:
             TraceDataset: The loaded trace dataset.
         """
+        if not isinstance(id, UUID):
+            id = UUID(id)
         path = Path(directory or TRACE_DATASET_DIR) / TRACE_DATASET_PARQUET_FILE_NAME.format(id=id)
         schema = parquet.read_schema(path)
         dataset_id, dataset_name, eval_ids = _parse_schema_metadata(schema)
