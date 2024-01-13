@@ -317,13 +317,11 @@ def _parse_schema_metadata(schema: Schema) -> Tuple[UUID, str, Type[Evaluations]
     try:
         metadata = schema.metadata
         arize_metadata = json.loads(metadata[b"arize"])
-        evaluations_classes = {
-            subclass.__name__: subclass for subclass in Evaluations.__subclasses__()
-        }
+        eval_classes = {subclass.__name__: subclass for subclass in Evaluations.__subclasses__()}
         eval_id = UUID(arize_metadata["eval_id"])
         if not isinstance((eval_name := arize_metadata["eval_name"]), str):
             raise ValueError('Arize metadata must contain a string value for key "eval_name"')
-        evaluations_cls = evaluations_classes[arize_metadata["eval_type"]]
+        evaluations_cls = eval_classes[arize_metadata["eval_type"]]
         return eval_id, eval_name, evaluations_cls
     except Exception as err:
         raise InvalidParquetMetadataError(

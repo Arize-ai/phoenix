@@ -209,7 +209,8 @@ class TraceDataset:
     def save(self, directory: Optional[Union[str, Path]] = None) -> UUID:
         """
         Writes the trace dataset to disk. If any evaluations have been appended
-        to the dataset, those evaluations will be saved to the same directory.
+        to the dataset, those evaluations will be saved to separate files within
+        the same directory.
 
         Args:
             directory (Optional[Union[str, Path]], optional): An optional path
@@ -221,13 +222,12 @@ class TraceDataset:
             the dataset from disk using `load`.
         """
         directory = Path(directory or TRACE_DATASET_DIR)
-        directory.mkdir(parents=True, exist_ok=True)
         for evals in self.evaluations:
             evals.save(directory)
-        directory = directory / TRACE_DATASET_PARQUET_FILE_NAME.format(id=self._id)
+        path = directory / TRACE_DATASET_PARQUET_FILE_NAME.format(id=self._id)
         dataframe = get_serializable_spans_dataframe(self.dataframe)
         dataframe.to_parquet(
-            directory,
+            path,
             allow_truncated_timestamps=True,
             coerce_timestamps="ms",
         )
@@ -245,7 +245,7 @@ class TraceDataset:
                 ).encode("utf-8"),
             }
         )
-        parquet.write_table(table, directory)
+        parquet.write_table(table, path)
         return self._id
 
     @classmethod
