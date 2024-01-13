@@ -79,7 +79,7 @@ def classification_dataframe():
                 "reference": "Ruby is a programming language.",
             },
             {"input": "What is C++?", "reference": "C++ is a programming language."},
-            {"input": "What is C++?", "reference": "irrelevant"},
+            {"input": "What is C++?", "reference": "unrelated"},
         ],
     )
 
@@ -88,9 +88,9 @@ def classification_dataframe():
 def classification_responses():
     return [
         "relevant",
-        "irrelevant",
+        "unrelated",
         "relevant",
-        "irrelevant",
+        "unrelated",
     ]
 
 
@@ -107,7 +107,7 @@ def test_llm_classify(
 ):
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
-    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    responses = ["relevant", "unrelated", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
     for (query, reference), response in response_mapping.items():
@@ -130,11 +130,11 @@ def test_llm_classify(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
-        rails=["relevant", "irrelevant"],
+        rails=["relevant", "unrelated"],
         verbose=True,
     )
 
-    expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(
         result,
@@ -152,7 +152,7 @@ def test_llm_classify_with_included_prompt_and_response(
 ):
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
-    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    responses = ["relevant", "unrelated", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
     for (query, reference), response in response_mapping.items():
@@ -175,13 +175,13 @@ def test_llm_classify_with_included_prompt_and_response(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
-        rails=["relevant", "irrelevant"],
+        rails=["relevant", "unrelated"],
         verbose=True,
         include_prompt=True,
         include_response=True,
     )
 
-    expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert result["label"].tolist() == expected_labels
     assert result["response"].tolist() == responses
@@ -198,7 +198,7 @@ def test_llm_classify_with_async(
 ):
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
-    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    responses = ["relevant", "unrelated", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
     for (query, reference), response in response_mapping.items():
@@ -221,11 +221,11 @@ def test_llm_classify_with_async(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
-        rails=["relevant", "irrelevant"],
+        rails=["relevant", "unrelated"],
         verbose=True,
     )
 
-    expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(
         result,
@@ -241,7 +241,7 @@ def test_llm_classify_with_fn_call(
 ):
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
-    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    responses = ["relevant", "unrelated", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
     for (query, reference), response in response_mapping.items():
@@ -258,10 +258,10 @@ def test_llm_classify_with_fn_call(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
-        rails=["relevant", "irrelevant"],
+        rails=["relevant", "unrelated"],
     )
 
-    expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(result, pd.DataFrame(data={"label": expected_labels}))
 
@@ -272,7 +272,7 @@ def test_classify_fn_call_no_explain(
 ):
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
-    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    responses = ["relevant", "unrelated", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
     for (query, reference), response in response_mapping.items():
@@ -289,11 +289,11 @@ def test_classify_fn_call_no_explain(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
-        rails=["relevant", "irrelevant"],
+        rails=["relevant", "unrelated"],
         provide_explanation=True,
     )
 
-    expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(
         result,
@@ -307,7 +307,7 @@ def test_classify_fn_call_explain(
 ):
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
-    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    responses = ["relevant", "unrelated", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
     for ii, ((query, reference), response) in enumerate(response_mapping.items()):
@@ -328,11 +328,11 @@ def test_classify_fn_call_explain(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
-        rails=["relevant", "irrelevant"],
+        rails=["relevant", "unrelated"],
         provide_explanation=True,
     )
 
-    expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(
         result,
@@ -349,7 +349,7 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(
 ):
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
-    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    responses = ["relevant", "unrelated", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
     for (query, reference), response in response_mapping.items():
@@ -364,14 +364,14 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
-        rails=["relevant", "irrelevant"],
+        rails=["relevant", "unrelated"],
         verbose=True,
         use_function_calling_if_available=False,
     )
 
     out, _ = capfd.readouterr()
     assert "Snapped 'relevant' to rail: relevant" in out, "Snapping events should be printed"
-    assert "Snapped 'irrelevant' to rail: irrelevant" in out, "Snapping events should be printed"
+    assert "Snapped 'unrelated' to rail: unrelated" in out, "Snapping events should be printed"
     assert "Snapped '\\nrelevant ' to rail: relevant" in out, "Snapping events should be printed"
     assert "Cannot snap 'unparsable' to rails" in out, "Snapping events should be printed"
     assert "OpenAI invocation parameters" in out, "Model-specific information should be printed"
@@ -418,7 +418,7 @@ def test_llm_classify_shows_retry_info(openai_api_key: str, capfd: pytest.Captur
             dataframe=dataframe,
             template=RAG_RELEVANCY_PROMPT_TEMPLATE,
             model=model,
-            rails=["relevant", "irrelevant"],
+            rails=["relevant", "unrelated"],
         )
 
     out, _ = capfd.readouterr()
@@ -496,9 +496,9 @@ def test_run_relevance_eval_standard_dataframe(
 
     responses = [
         "relevant",
-        "irrelevant",
+        "unrelated",
         "relevant",
-        "irrelevant",
+        "unrelated",
         "\nrelevant ",
         "unparsable",
         "relevant",
@@ -526,8 +526,8 @@ def test_run_relevance_eval_standard_dataframe(
 
     relevance_classifications = run_relevance_eval(dataframe, model=model)
     assert relevance_classifications == [
-        ["relevant", "irrelevant"],
-        ["relevant", "irrelevant"],
+        ["relevant", "unrelated"],
+        ["relevant", "unrelated"],
         ["relevant"],
         [NOT_PARSABLE, "relevant"],
         [],
@@ -562,7 +562,7 @@ def test_classify_tolerance_to_exceptions(
         dataframe=classification_dataframe,
         template=classification_template,
         model=model,
-        rails=["relevant", "irrelevant"],
+        rails=["relevant", "unrelated"],
     )
 
     assert classification_df is not None
@@ -639,9 +639,9 @@ def test_run_relevance_eval_openinference_dataframe(
 
     responses = [
         "relevant",
-        "irrelevant",
+        "unrelated",
         "relevant",
-        "irrelevant",
+        "unrelated",
         "\nrelevant ",
         "unparsable",
         "relevant",
@@ -669,8 +669,8 @@ def test_run_relevance_eval_openinference_dataframe(
 
     relevance_classifications = run_relevance_eval(dataframe, model=model)
     assert relevance_classifications == [
-        ["relevant", "irrelevant"],
-        ["relevant", "irrelevant"],
+        ["relevant", "unrelated"],
+        ["relevant", "unrelated"],
         ["relevant"],
         [NOT_PARSABLE, "relevant"],
         [],
@@ -697,8 +697,8 @@ def test_run_evals_outputs_dataframes_with_labels_scores_and_explanations_with_f
         (
             M(content__contains="Munich is the capital of Germany.")
             & M(content__contains="relevant"),
-            "irrelevant",
-            "irrelevant-explanation",
+            "unrelated",
+            "unrelated-explanation",
         ),
         (
             M(content__contains="What is the capital of France?") & M(content__contains="toxic"),
@@ -746,11 +746,11 @@ def test_run_evals_outputs_dataframes_with_labels_scores_and_explanations_with_f
     assert_frame_equal(
         pd.DataFrame(
             {
-                "label": ["relevant", "irrelevant"],
+                "label": ["relevant", "unrelated"],
                 "score": [1, 0],
                 "explanation": [
                     "relevant-explanation",
-                    "irrelevant-explanation",
+                    "unrelated-explanation",
                 ],
             },
         ),
@@ -786,7 +786,7 @@ def test_run_evals_outputs_dataframes_with_labels_scores_and_explanations(
         (
             M(content__contains="Munich is the capital of Germany.")
             & M(content__contains="relevant"),
-            "irrelevant-explanation\nLABEL: irrelevant",
+            "unrelated-explanation\nLABEL: unrelated",
         ),
         (
             M(content__contains="What is the capital of France?") & M(content__contains="toxic"),
@@ -827,11 +827,11 @@ def test_run_evals_outputs_dataframes_with_labels_scores_and_explanations(
         eval_dfs[0],
         pd.DataFrame(
             {
-                "label": ["relevant", "irrelevant"],
+                "label": ["relevant", "unrelated"],
                 "score": [1, 0],
                 "explanation": [
                     "relevant-explanation\nLABEL: relevant",
-                    "irrelevant-explanation\nLABEL: irrelevant",
+                    "unrelated-explanation\nLABEL: unrelated",
                 ],
             },
         ),
@@ -866,7 +866,7 @@ def test_run_evals_outputs_dataframes_with_just_labels_and_scores_when_invoked_w
         (
             M(content__contains="Munich is the capital of Germany.")
             & M(content__contains="relevant"),
-            "irrelevant",
+            "unrelated",
         ),
         (
             M(content__contains="What is the capital of France?") & M(content__contains="toxic"),
@@ -917,7 +917,7 @@ def test_run_evals_outputs_dataframes_with_just_labels_and_scores_when_invoked_w
     assert_frame_equal(
         eval_dfs[0],
         pd.DataFrame(
-            {"label": ["relevant", "irrelevant"], "score": [1, 0]},
+            {"label": ["relevant", "unrelated"], "score": [1, 0]},
         ),
     )
     assert_frame_equal(
@@ -943,7 +943,7 @@ def test_run_evals_outputs_dataframes_with_just_labels_and_scores(
         (
             M(content__contains="Munich is the capital of Germany.")
             & M(content__contains="relevant"),
-            "irrelevant",
+            "unrelated",
         ),
         (
             M(content__contains="What is the capital of France?") & M(content__contains="toxic"),
@@ -983,7 +983,7 @@ def test_run_evals_outputs_dataframes_with_just_labels_and_scores(
     assert_frame_equal(
         eval_dfs[0],
         pd.DataFrame(
-            {"label": ["relevant", "irrelevant"], "score": [1, 0]},
+            {"label": ["relevant", "unrelated"], "score": [1, 0]},
         ),
     )
     assert_frame_equal(
@@ -1022,7 +1022,7 @@ def test_run_evals_preserves_index(
         ),
         (
             M(content__contains="Munich is the capital of Germany."),
-            "irrelevant-explanation\nLABEL: irrelevant",
+            "unrelated-explanation\nLABEL: unrelated",
         ),
     ]:
         payload = {
@@ -1060,11 +1060,11 @@ def test_run_evals_preserves_index(
         eval_dfs[0],
         pd.DataFrame(
             {
-                "label": ["relevant", "irrelevant"],
+                "label": ["relevant", "unrelated"],
                 "score": [1, 0],
                 "explanation": [
                     "relevant-explanation\nLABEL: relevant",
-                    "irrelevant-explanation\nLABEL: irrelevant",
+                    "unrelated-explanation\nLABEL: unrelated",
                 ],
             },
             index=index,
@@ -1085,7 +1085,7 @@ def test_run_evals_succeeds_regardless_of_whether_running_event_loop_exists(
         ),
         (
             M(content__contains="Munich is the capital of Germany."),
-            "irrelevant-explanation\nLABEL: irrelevant",
+            "unrelated-explanation\nLABEL: unrelated",
         ),
     ]:
         payload = {
@@ -1122,11 +1122,11 @@ def test_run_evals_succeeds_regardless_of_whether_running_event_loop_exists(
         eval_dfs[0],
         pd.DataFrame(
             {
-                "label": ["relevant", "irrelevant"],
+                "label": ["relevant", "unrelated"],
                 "score": [1, 0],
                 "explanation": [
                     "relevant-explanation\nLABEL: relevant",
-                    "irrelevant-explanation\nLABEL: irrelevant",
+                    "unrelated-explanation\nLABEL: unrelated",
                 ],
             },
         ),
@@ -1149,7 +1149,7 @@ def test_run_evals_produces_expected_output_when_llm_outputs_unexpected_data(
         ),
         (
             M(content__contains="Washington, D.C. is the capital of the USA."),
-            "irrelevant-explanation\nLABEL: irrelevant",  # normal
+            "unrelated-explanation\nLABEL: unrelated",  # normal
         ),
     ]:
         payload = {
@@ -1189,12 +1189,12 @@ def test_run_evals_produces_expected_output_when_llm_outputs_unexpected_data(
     assert_frame_equal(
         pd.DataFrame(
             {
-                "label": ["NOT_PARSABLE", "NOT_PARSABLE", "irrelevant"],
+                "label": ["NOT_PARSABLE", "NOT_PARSABLE", "unrelated"],
                 "score": [0.0, 0.0, 0.0],
                 "explanation": [
                     "relevant-explanation\nrelevant",
                     "some-explanation\nLABEL: unparseable-label",
-                    "irrelevant-explanation\nLABEL: irrelevant",
+                    "unrelated-explanation\nLABEL: unrelated",
                 ],
             },
         ),
