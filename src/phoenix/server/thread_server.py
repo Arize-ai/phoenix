@@ -27,6 +27,7 @@ class ThreadServer(Server):
         app: Starlette,
         host: str,
         port: int,
+        root_path: str,
     ) -> None:
         # Must use asyncio loop if nest_asyncio is applied
         # Otherwise the app crashes when the server is run in a thread
@@ -35,6 +36,7 @@ class ThreadServer(Server):
             app=app,
             host=host,
             port=port,
+            root_path=root_path,
             # TODO: save logs to file
             log_level=logging.ERROR,
             loop=loop,
