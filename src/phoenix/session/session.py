@@ -479,6 +479,9 @@ def _get_url(host: str, port: int, notebook_env: NotebookEnvironment) -> str:
     if notebook_env == NotebookEnvironment.DATABRICKS:
         context = _get_databricks_context()
         return f"{_get_databricks_notebook_base_url(context)}/{port}/"
+    if host == "0.0.0.0" or host == "127.0.0.1":
+        # The app is running locally, so use localhost
+        return f"http://localhost:{port}/"
     return f"http://{host}:{port}/"
 
 
