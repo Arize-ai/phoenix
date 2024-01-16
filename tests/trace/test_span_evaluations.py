@@ -1,8 +1,10 @@
 import json
 from itertools import chain, combinations
 from random import random
+from uuid import uuid4
 
 import pandas as pd
+import pyarrow
 import pytest
 from pandas.testing import assert_frame_equal
 from phoenix.trace import DocumentEvaluations, Evaluations, SpanEvaluations
@@ -100,7 +102,7 @@ def test_document_evaluations_edge_cases():
     assert actual.shape == (0, 0)
 
 
-def test_span_evaluations_to_and_from_parquet_preserves_data(tmp_path):
+def test_span_evaluations_save_and_load_preserves_data(tmp_path):
     num_records = 5
     span_ids = [f"span_{index}" for index in range(num_records)]
     dataframe = pd.DataFrame(
@@ -114,27 +116,24 @@ def test_span_evaluations_to_and_from_parquet_preserves_data(tmp_path):
         eval_name="eval-name",
         dataframe=dataframe,
     )
-    path = evals.to_parquet(tmp_path)
-    table = parquet.read_table(path)
+    eval_id = evals.save(tmp_path)
+    table = parquet.read_table(tmp_path / f"evaluations-{eval_id}.parquet")
     arize_metadata = json.loads(table.schema.metadata[b"arize"])
 
-    assert path.resolve().parent == tmp_path.resolve()
-    assert path.exists()
     assert_frame_equal(table.to_pandas(), evals.dataframe)
     assert set(arize_metadata.keys()) == {"eval_id", "eval_name", "eval_type"}
     assert arize_metadata["eval_name"] == "eval-name"
     assert arize_metadata["eval_type"] == "SpanEvaluations"
     assert arize_metadata["eval_id"] == str(evals.id)
 
-    read_evals = Evaluations.from_parquet(path)
+    read_evals = Evaluations.load(eval_id, tmp_path)
     assert isinstance(read_evals, SpanEvaluations)
     assert_frame_equal(read_evals.dataframe, dataframe)
     assert read_evals.eval_name == "eval-name"
     assert read_evals.id == evals.id
-    assert path.stem.endswith(str(read_evals.id))
 
 
-def test_document_evaluations_to_and_from_parquet_preserves_data(tmp_path):
+def test_document_evaluations_save_and_load_preserves_data(tmp_path):
     dataframe = pd.DataFrame(
         {
             "context.span_id": ["span_1", "span_1", "span_2"],
@@ -148,84 +147,61 @@ def test_document_evaluations_to_and_from_parquet_preserves_data(tmp_path):
         eval_name="eval-name",
         dataframe=dataframe,
     )
-    path = evals.to_parquet(tmp_path)
-    table = parquet.read_table(path)
+    eval_id = evals.save(tmp_path)
+    table = parquet.read_table(tmp_path / f"evaluations-{eval_id}.parquet")
     arize_metadata = json.loads(table.schema.metadata[b"arize"])
 
-    assert path.resolve().parent == tmp_path.resolve()
-    assert path.exists()
     assert_frame_equal(table.to_pandas(), evals.dataframe)
     assert arize_metadata["eval_name"] == "eval-name"
     assert arize_metadata["eval_type"] == "DocumentEvaluations"
     assert arize_metadata["eval_id"] == str(evals.id)
 
-    read_evals = Evaluations.from_parquet(path)
+    read_evals = Evaluations.load(eval_id, tmp_path)
     assert isinstance(read_evals, DocumentEvaluations)
     assert_frame_equal(read_evals.dataframe, dataframe)
     assert read_evals.eval_name == "eval-name"
     assert read_evals.id == evals.id
-    assert path.stem.endswith(str(read_evals.id))
 
 
-@pytest.mark.parametrize(
-    "metadata,error_message_fragment",
-    [
-        pytest.param({}, 'missing "arize" key', id="empty-metadata"),
-        pytest.param(
-            {"pandas": "some-pandas-metadata"},
-            'missing "arize" key',
-            id="metadata-missing-arize-key",
-        ),
-        pytest.param(
-            {b"arize": '{"invalid_json": "value"'}, "invalid JSON string", id="invalid-json"
-        ),
-        pytest.param(
-            {
-                b"arize": json.dumps(
-                    {"eval_id": "2956d001-e2e1-4f22-8e32-1b4930510803", "eval_name": "eval-name"}
-                )
-            },
-            "Invalid Arize metadata",
-            id="missing-key-inside-arize-metadata",
-        ),
-        pytest.param(
-            {
-                b"arize": json.dumps(
-                    {"eval_id": "1234", "eval_name": 10, "eval_type": "SpanEvaluations"}
-                )
-            },
-            "Invalid Arize metadata",
-            id="eval-id-not-uuid",
-        ),
-        pytest.param(
-            {
-                b"arize": json.dumps(
-                    {
-                        "eval_id": "2956d001-e2e1-4f22-8e32-1b4930510803",
-                        "eval_name": 10,
-                        "eval_type": "SpanEvaluations",
-                    }
-                )
-            },
-            "Invalid Arize metadata",
-            id="incorrect-eval-name-type",
-        ),
-        pytest.param(
-            {
-                b"arize": json.dumps(
-                    {
-                        "eval_id": "2956d001-e2e1-4f22-8e32-1b4930510803",
-                        "eval_name": "eval-name",
-                        "eval_type": "NonExistentType",
-                    }
-                )
-            },
-            "Invalid Arize metadata",
-            id="incorrect-eval-type",
-        ),
-    ],
-)
-def test_parse_schema_metadata(metadata, error_message_fragment):
-    with pytest.raises(InvalidParquetMetadataError) as exc_info:
-        _parse_schema_metadata(metadata)
-    assert error_message_fragment in str(exc_info.value)
+def test_evaluations_load_raises_error_when_input_id_does_not_match_metadata(tmp_path):
+    num_records = 5
+    span_ids = [f"span_{index}" for index in range(num_records)]
+    dataframe = pd.DataFrame(
+        {
+            "context.span_id": span_ids,
+            "label": [str(index) for index in range(num_records)],
+            "score": [index for index in range(num_records)],
+        }
+    ).set_index("context.span_id")
+    evals = SpanEvaluations(
+        eval_name="eval-name",
+        dataframe=dataframe,
+    )
+    eval_id = evals.save(tmp_path)
+    updated_id = uuid4()
+    (tmp_path / f"evaluations-{eval_id}.parquet").rename(
+        tmp_path / f"evaluations-{updated_id}.parquet"
+    )  # move the file so the metadata id no longer matches the file name
+
+    with pytest.raises(InvalidParquetMetadataError):
+        Evaluations.load(updated_id, tmp_path)
+
+
+def test_parse_schema_metadata_raise_error_on_invalid_metadata():
+    schema = pyarrow.schema(
+        [
+            pyarrow.field("label", pyarrow.string()),
+        ],
+    ).with_metadata(
+        {
+            b"arize": json.dumps(
+                {
+                    "eval_id": "2956d001-e2e1-4f22-8e32-1b4930510803",
+                    "eval_name": "eval-name",
+                    "eval_type": "NonExistentType",
+                }
+            )
+        }
+    )
+    with pytest.raises(InvalidParquetMetadataError):
+        _parse_schema_metadata(schema)
