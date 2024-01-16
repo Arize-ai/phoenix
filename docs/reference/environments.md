@@ -11,7 +11,7 @@ Phoenix app is first and foremost an application that can be run just in in your
 
 ### Notebooks
 
-Currently phoenix supports local, colab, and SageMaker notebooks.
+Currently phoenix supports local, colab, databricks, and SageMaker notebooks.
 
 {% hint style="warning" %}
 Note, phoenix only supports running the phoenix server via the notebook for SageMaker notebooks. It cannot setup proxy requests for SageMaker studio since there is no support of jupyter-server-proxy
