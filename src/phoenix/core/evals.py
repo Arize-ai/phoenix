@@ -9,10 +9,12 @@ from typing import DefaultDict, Dict, List, Optional, Set, Tuple
 
 import numpy as np
 from google.protobuf.json_format import MessageToDict
+from pandas import DataFrame, Index, MultiIndex
 from typing_extensions import TypeAlias, assert_never
 
 import phoenix.trace.v1 as pb
 from phoenix.trace.schemas import SpanID, TraceID
+from phoenix.trace.span_evaluations import DocumentEvaluations, Evaluations, SpanEvaluations
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -171,3 +173,58 @@ class Evals:
                 if result.HasField("score") and document_position < num_documents:
                     scores[document_position] = result.score.value
         return scores
+
+    def export_evaluations(self) -> List[Evaluations]:
+        evaluations: List[Evaluations] = []
+        evaluations.extend(self._export_span_evaluations())
+        evaluations.extend(self._export_document_evaluations())
+        return evaluations
+
+    def _export_span_evaluations(self) -> List[SpanEvaluations]:
+        span_evaluations = []
+        for eval_name, span_evaluations_by_id in self._span_evaluations_by_name.items():
+            span_ids = []
+            rows = []
+            for span_id, pb_eval in span_evaluations_by_id.items():
+                result = pb_eval.result
+                row = {}
+                if result.HasField("score"):
+                    row["score"] = result.score.value
+                if result.HasField("label"):
+                    row["label"] = result.label.value
+                if result.HasField("explanation"):
+                    row["explanation"] = result.explanation.value
+                span_ids.append(span_id)
+                rows.append(row)
+            dataframe = DataFrame(rows, index=Index(span_ids, name="context.span_id"))
+            span_evaluations.append(SpanEvaluations(eval_name, dataframe))
+        return span_evaluations
+
+    def _export_document_evaluations(self) -> List[DocumentEvaluations]:
+        evaluations = []
+        for eval_name, document_evaluations_by_id in self._document_evaluations_by_name.items():
+            span_ids = []
+            document_positions = []
+            rows = []
+            for span_id, document_evaluations_by_position in document_evaluations_by_id.items():
+                for document_position, pb_eval in document_evaluations_by_position.items():
+                    result = pb_eval.result
+                    row = {}
+                    if result.HasField("score"):
+                        row["score"] = result.score.value
+                    if result.HasField("label"):
+                        row["label"] = result.label.value
+                    if result.HasField("explanation"):
+                        row["explanation"] = result.explanation.value
+                    span_ids.append(span_id)
+                    document_positions.append(document_position)
+                    rows.append(row)
+            dataframe = DataFrame(
+                rows,
+                index=MultiIndex.from_arrays(
+                    (span_ids, document_positions),
+                    names=("context.span_id", "document_position"),
+                ),
+            )
+            evaluations.append(DocumentEvaluations(eval_name, dataframe))
+        return evaluations
