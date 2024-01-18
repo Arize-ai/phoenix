@@ -30,6 +30,7 @@ from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
 from phoenix.services import AppService
+from phoenix.session.evaluation import encode_evaluations
 from phoenix.trace.dsl import SpanFilter
 from phoenix.trace.dsl.query import SpanQuery
 from phoenix.trace.otel import encode
@@ -123,6 +124,10 @@ class Session(ABC):
                 self.traces.put(encode(span))
 
         self.evals: Evals = Evals()
+        if trace_dataset:
+            for evaluations in trace_dataset.evaluations:
+                for pb_evaluation in encode_evaluations(evaluations):
+                    self.evals.put(pb_evaluation)
 
         self.host = host or get_env_host()
         self.port = port or get_env_port()
