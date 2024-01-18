@@ -116,8 +116,8 @@ def llm_classify(
         run_sync (bool, default=False): If True, forces synchronous request submission. Otherwise
         evaluations will be run asynchronously if possible.
 
-        concurrency (Optional[int], default=None): The number of concurrent evals if async submission is
-        possible. If not set, the default is determined on a per-model basis.
+        concurrency (Optional[int], default=None): The number of concurrent evals if async
+        submission is possible. If not set, the default is determined on a per-model basis.
 
     Returns:
         pandas.DataFrame: A dataframe where the `label` column (at column position 0) contains
@@ -383,15 +383,16 @@ def run_evals(
         as model invocation parameters and details about retries and snapping to
         rails.
 
-        concurrency (Optional[int], default=None): The number of concurrent evals if async submission is
-        possible. If not set, the default is determined on a per-model basis.
+        concurrency (Optional[int], default=None): The number of concurrent evals if async
+        submission is possible. If not set, the default is determined on a per-model basis.
 
     Returns:
         List[DataFrame]: A list of dataframes, one for each evaluator, all of
         which have the same number of rows as the input dataframe.
     """
-    # read the default concurrency from the model if not specified
-    concurrency = concurrency or model.default_concurrency
+    # use the minimum default concurrency of all the models
+    if concurrency is None:
+        concurrency = min(evaluator.model.default_concurrency for evaluator in evaluators)
 
     # clients need to be reloaded to ensure that async evals work properly
     for evaluator in evaluators:
