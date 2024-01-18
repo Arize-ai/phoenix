@@ -392,7 +392,7 @@ def run_evals(
     """
     # use the minimum default concurrency of all the models
     if concurrency is None:
-        concurrency = min(evaluator.model.default_concurrency for evaluator in evaluators)
+        concurrency = min(evaluator.default_concurrency for evaluator in evaluators)
 
     # clients need to be reloaded to ensure that async evals work properly
     for evaluator in evaluators:

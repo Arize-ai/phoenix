@@ -36,6 +36,10 @@ class LLMEvaluator:
         self._model = model
         self._template = template
 
+    @property
+    def default_concurrency(self) -> int:
+        return self._model.default_concurrency
+
     def reload_client(self) -> None:
         self._model.reload_client()
 
