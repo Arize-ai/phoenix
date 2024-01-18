@@ -21,6 +21,9 @@ MODEL_TOKEN_LIMIT_MAPPING = {
 
 @dataclass
 class GeminiModel(BaseEvalModel):
+    # The vertex SDK runs into connection pool limits at high concurrency
+    default_concurrency: int = 5
+
     model: str = "gemini-pro"
     """The model name to use."""
     temperature: float = 0.0
