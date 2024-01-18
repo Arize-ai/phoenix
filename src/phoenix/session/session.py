@@ -223,8 +223,9 @@ class Session(ABC):
     def get_evaluations(self) -> List["Evaluations"]:
         return self.evals.export_evaluations()
 
-    def get_trace_dataset(self) -> TraceDataset:
-        dataframe = self.get_spans_dataframe()
+    def get_trace_dataset(self) -> Optional[TraceDataset]:
+        if not (dataframe := self.get_spans_dataframe()):
+            return None
         evaluations = self.get_evaluations()
         return TraceDataset(dataframe=dataframe, evaluations=evaluations)
 
