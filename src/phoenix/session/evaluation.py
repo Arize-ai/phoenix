@@ -9,7 +9,7 @@ import math
 from time import sleep
 from typing import (
     Any,
-    Generator,
+    Iterator,
     Optional,
     Sequence,
     Tuple,
@@ -34,7 +34,7 @@ __all__ = [
 from phoenix.trace.span_evaluations import Evaluations
 
 
-def encode_evaluations(evaluations: Evaluations) -> Generator[pb.Evaluation, None, None]:
+def encode_evaluations(evaluations: Evaluations) -> Iterator[pb.Evaluation]:
     dataframe = evaluations.dataframe
     eval_name = evaluations.eval_name
     index_names = dataframe.index.names
