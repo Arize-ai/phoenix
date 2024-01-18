@@ -50,6 +50,9 @@ class GeminiModel(BaseEvalModel):
             max_retries=self.max_retries,
         )
 
+    def reload_client(self) -> None:
+        self._init_client()
+
     def _init_client(self) -> None:
         try:
             from google.api_core import exceptions  # type:ignore
