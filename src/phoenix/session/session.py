@@ -47,6 +47,8 @@ logger = logging.getLogger(__name__)
 # type workaround
 # https://github.com/python/mypy/issues/5264#issuecomment-399407428
 if TYPE_CHECKING:
+    from phoenix.trace import Evaluations
+
     _BaseList = UserList[pd.DataFrame]
 else:
     _BaseList = UserList
@@ -217,6 +219,9 @@ class Session(ABC):
         if not (data := [json.loads(span_to_json(span)) for span in spans]):
             return None
         return pd.json_normalize(data, max_level=1).set_index("context.span_id", drop=False)
+
+    def get_evaluations(self) -> List["Evaluations"]:
+        return self.evals.export_evaluations()
 
 
 _session: Optional[Session] = None

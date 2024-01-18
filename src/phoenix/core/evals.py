@@ -9,10 +9,12 @@ from typing import DefaultDict, Dict, List, Optional, Set, Tuple
 
 import numpy as np
 from google.protobuf.json_format import MessageToDict
+from pandas import DataFrame, Index, MultiIndex
 from typing_extensions import TypeAlias, assert_never
 
 import phoenix.trace.v1 as pb
 from phoenix.trace.schemas import SpanID, TraceID
+from phoenix.trace.span_evaluations import DocumentEvaluations, Evaluations, SpanEvaluations
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -171,3 +173,54 @@ class Evals:
                 if result.HasField("score") and document_position < num_documents:
                     scores[document_position] = result.score.value
         return scores
+
+    def export_evaluations(self) -> List[Evaluations]:
+        evaluations: List[Evaluations] = []
+        evaluations.extend(self._export_span_evaluations())
+        evaluations.extend(self._export_document_evaluations())
+        return evaluations
+
+    def _export_span_evaluations(self) -> List[SpanEvaluations]:
+        span_evaluations = []
+        with self._lock:
+            span_evaluations_by_name = tuple(self._span_evaluations_by_name.items())
+        for eval_name, _span_evaluations_by_id in span_evaluations_by_name:
+            span_ids = []
+            rows = []
+            with self._lock:
+                span_evaluations_by_id = tuple(_span_evaluations_by_id.items())
+            for span_id, pb_eval in span_evaluations_by_id:
+                span_ids.append(span_id)
+                rows.append(MessageToDict(pb_eval.result))
+            dataframe = DataFrame(rows, index=Index(span_ids, name="context.span_id"))
+            span_evaluations.append(SpanEvaluations(eval_name, dataframe))
+        return span_evaluations
+
+    def _export_document_evaluations(self) -> List[DocumentEvaluations]:
+        evaluations = []
+        with self._lock:
+            document_evaluations_by_name = tuple(self._document_evaluations_by_name.items())
+        for eval_name, _document_evaluations_by_id in document_evaluations_by_name:
+            span_ids = []
+            document_positions = []
+            rows = []
+            with self._lock:
+                document_evaluations_by_id = tuple(_document_evaluations_by_id.items())
+            for span_id, _document_evaluations_by_position in document_evaluations_by_id:
+                with self._lock:
+                    document_evaluations_by_position = sorted(
+                        _document_evaluations_by_position.items()
+                    )  # ensure the evals are sorted by document position
+                for document_position, pb_eval in document_evaluations_by_position:
+                    span_ids.append(span_id)
+                    document_positions.append(document_position)
+                    rows.append(MessageToDict(pb_eval.result))
+            dataframe = DataFrame(
+                rows,
+                index=MultiIndex.from_arrays(
+                    (span_ids, document_positions),
+                    names=("context.span_id", "document_position"),
+                ),
+            )
+            evaluations.append(DocumentEvaluations(eval_name, dataframe))
+        return evaluations
