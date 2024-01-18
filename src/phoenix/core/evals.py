@@ -182,10 +182,14 @@ class Evals:
 
     def _export_span_evaluations(self) -> List[SpanEvaluations]:
         span_evaluations = []
-        for eval_name, span_evaluations_by_id in self._span_evaluations_by_name.items():
+        with self._lock:
+            span_evaluations_by_name = tuple(self._span_evaluations_by_name.items())
+        for eval_name, _span_evaluations_by_id in span_evaluations_by_name:
             span_ids = []
             rows = []
-            for span_id, pb_eval in span_evaluations_by_id.items():
+            with self._lock:
+                span_evaluations_by_id = tuple(_span_evaluations_by_id.items())
+            for span_id, pb_eval in span_evaluations_by_id:
                 span_ids.append(span_id)
                 rows.append(MessageToDict(pb_eval.result))
             dataframe = DataFrame(rows, index=Index(span_ids, name="context.span_id"))
@@ -194,12 +198,20 @@ class Evals:
 
     def _export_document_evaluations(self) -> List[DocumentEvaluations]:
         evaluations = []
-        for eval_name, document_evaluations_by_id in self._document_evaluations_by_name.items():
+        with self._lock:
+            document_evaluations_by_name = tuple(self._document_evaluations_by_name.items())
+        for eval_name, _document_evaluations_by_id in document_evaluations_by_name:
             span_ids = []
             document_positions = []
             rows = []
-            for span_id, document_evaluations_by_position in document_evaluations_by_id.items():
-                for document_position, pb_eval in document_evaluations_by_position.items():
+            with self._lock:
+                document_evaluations_by_id = tuple(_document_evaluations_by_id.items())
+            for span_id, _document_evaluations_by_position in document_evaluations_by_id:
+                with self._lock:
+                    document_evaluations_by_position = sorted(
+                        _document_evaluations_by_position.items()
+                    )  # ensure the evals are sorted by document position
+                for document_position, pb_eval in document_evaluations_by_position:
                     span_ids.append(span_id)
                     document_positions.append(document_position)
                     rows.append(MessageToDict(pb_eval.result))
