@@ -200,17 +200,9 @@ class Evals:
             rows = []
             for span_id, document_evaluations_by_position in document_evaluations_by_id.items():
                 for document_position, pb_eval in document_evaluations_by_position.items():
-                    result = pb_eval.result
-                    row = {}
-                    if result.HasField("score"):
-                        row["score"] = result.score.value
-                    if result.HasField("label"):
-                        row["label"] = result.label.value
-                    if result.HasField("explanation"):
-                        row["explanation"] = result.explanation.value
                     span_ids.append(span_id)
                     document_positions.append(document_position)
-                    rows.append(row)
+                    rows.append(MessageToDict(pb_eval.result))
             dataframe = DataFrame(
                 rows,
                 index=MultiIndex.from_arrays(
