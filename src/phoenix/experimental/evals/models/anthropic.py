@@ -149,6 +149,9 @@ class AnthropicModel(BaseEvalModel):
         return _completion_with_retry(**kwargs)
 
     async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+        # instruction is an invalid input to Anthropic models, it is passed in by
+        # BaseEvalModel.__call__ and needs to be removed
+        kwargs.pop("instruction", None)
         invocation_parameters = self.invocation_parameters()
         invocation_parameters.update(kwargs)
         response = await self._async_generate_with_retry(
