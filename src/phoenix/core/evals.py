@@ -186,16 +186,8 @@ class Evals:
             span_ids = []
             rows = []
             for span_id, pb_eval in span_evaluations_by_id.items():
-                result = pb_eval.result
-                row = {}
-                if result.HasField("score"):
-                    row["score"] = result.score.value
-                if result.HasField("label"):
-                    row["label"] = result.label.value
-                if result.HasField("explanation"):
-                    row["explanation"] = result.explanation.value
                 span_ids.append(span_id)
-                rows.append(row)
+                rows.append(MessageToDict(pb_eval.result))
             dataframe = DataFrame(rows, index=Index(span_ids, name="context.span_id"))
             span_evaluations.append(SpanEvaluations(eval_name, dataframe))
         return span_evaluations
