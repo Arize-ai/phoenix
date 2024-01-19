@@ -30,6 +30,7 @@ from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
 from phoenix.services import AppService
+from phoenix.session.evaluation import encode_evaluations
 from phoenix.trace.dsl import SpanFilter
 from phoenix.trace.dsl.query import SpanQuery
 from phoenix.trace.otel import encode
@@ -46,6 +47,8 @@ logger = logging.getLogger(__name__)
 # type workaround
 # https://github.com/python/mypy/issues/5264#issuecomment-399407428
 if TYPE_CHECKING:
+    from phoenix.trace import Evaluations
+
     _BaseList = UserList[pd.DataFrame]
 else:
     _BaseList = UserList
@@ -123,6 +126,10 @@ class Session(ABC):
                 self.traces.put(encode(span))
 
         self.evals: Evals = Evals()
+        if trace_dataset:
+            for evaluations in trace_dataset.evaluations:
+                for pb_evaluation in encode_evaluations(evaluations):
+                    self.evals.put(pb_evaluation)
 
         self.host = host or get_env_host()
         self.port = port or get_env_port()
@@ -212,6 +219,15 @@ class Session(ABC):
         if not (data := [json.loads(span_to_json(span)) for span in spans]):
             return None
         return pd.json_normalize(data, max_level=1).set_index("context.span_id", drop=False)
+
+    def get_evaluations(self) -> List["Evaluations"]:
+        return self.evals.export_evaluations()
+
+    def get_trace_dataset(self) -> Optional[TraceDataset]:
+        if (dataframe := self.get_spans_dataframe()) is None:
+            return None
+        evaluations = self.get_evaluations()
+        return TraceDataset(dataframe=dataframe, evaluations=evaluations)
 
 
 _session: Optional[Session] = None
