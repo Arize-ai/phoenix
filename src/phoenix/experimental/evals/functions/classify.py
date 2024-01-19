@@ -117,7 +117,8 @@ def llm_classify(
         evaluations will be run asynchronously if possible.
 
         concurrency (Optional[int], default=None): The number of concurrent evals if async
-        submission is possible. If not set, the default is determined on a per-model basis.
+        submission is possible. If not provided, a recommended default concurrency is set on a
+        per-model basis.
 
     Returns:
         pandas.DataFrame: A dataframe where the `label` column (at column position 0) contains
@@ -127,7 +128,6 @@ def llm_classify(
         from the entries in the rails argument or "NOT_PARSABLE" if the model's output could
         not be parsed.
     """
-    # read the default concurrency from the model if not specified
     concurrency = concurrency or model.default_concurrency
     # clients need to be reloaded to ensure that async evals work properly
     model.reload_client()
@@ -384,7 +384,8 @@ def run_evals(
         rails.
 
         concurrency (Optional[int], default=None): The number of concurrent evals if async
-        submission is possible. If not set, the default is determined on a per-model basis.
+        submission is possible. If not provided, a recommended default concurrency is set on a
+        per-model basis.
 
     Returns:
         List[DataFrame]: A list of dataframes, one for each evaluator, all of
