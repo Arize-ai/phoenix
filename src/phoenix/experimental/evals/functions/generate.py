@@ -31,7 +31,7 @@ def llm_generate(
     include_prompt: bool = False,
     include_response: bool = False,
     run_sync: bool = False,
-    concurrency: int = 20,
+    concurrency: Optional[int] = None,
 ) -> pd.DataFrame:
     """
     Generates a text using a template using an LLM. This function is useful
@@ -70,14 +70,17 @@ def llm_generate(
         run_sync (bool, default=False): If True, forces synchronous request submission. Otherwise
         evaluations will be run asynchronously if possible.
 
-        concurrency (int, default=20): The number of concurrent evals if async submission is
-        possible.
+        concurrency (Optional[int], default=None): The number of concurrent evals if async
+        submission is possible. If not provided, a recommended default concurrency is set on a
+        per-model basis.
 
     Returns:
         generations_dataframe (pandas.DataFrame): A dataframe where each row
         represents the generated output
 
     """
+    concurrency = concurrency or model.default_concurrency
+
     # clients need to be reloaded to ensure that async evals work properly
     model.reload_client()
 
