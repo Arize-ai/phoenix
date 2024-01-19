@@ -1,4 +1,3 @@
-import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
@@ -7,8 +6,6 @@ from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
-
-logger = logging.getLogger(__name__)
 
 MODEL_TOKEN_LIMIT_MAPPING = {
     "claude-2.1": 200000,
