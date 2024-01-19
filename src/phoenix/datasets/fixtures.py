@@ -528,8 +528,8 @@ class Metadata(NamedTuple):
 
 class GCSAssets(NamedTuple):
     host: str = "https://storage.googleapis.com/"
-    bucket: str = "arize-assets"
-    prefix: str = "phoenix/datasets/"
+    bucket: str = "arize-phoenix-assets"
+    prefix: str = "datasets/"
 
     def metadata(self, path: Path) -> Metadata:
         url = urljoin(

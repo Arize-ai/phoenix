@@ -123,8 +123,8 @@ def _get_trace_fixture_by_name(fixture_name: str) -> TracesFixture:
 def _download_traces_fixture(
     fixture: TracesFixture,
     host: Optional[str] = "https://storage.googleapis.com/",
-    bucket: Optional[str] = "arize-assets",
-    prefix: Optional[str] = "phoenix/traces/",
+    bucket: Optional[str] = "arize-phoenix-assets",
+    prefix: Optional[str] = "traces/",
 ) -> List[str]:
     """
     Downloads the traces fixture from the phoenix bucket.
@@ -183,7 +183,7 @@ def _read_eval_fixture(eval_fixture: EvaluationFixture) -> Iterator[pb.Evaluatio
 def _url(
     file_name: str,
     host: Optional[str] = "https://storage.googleapis.com/",
-    bucket: Optional[str] = "arize-assets",
-    prefix: Optional[str] = "phoenix/traces/",
+    bucket: Optional[str] = "arize-phoenix-assets",
+    prefix: Optional[str] = "traces/",
 ) -> str:
     return f"{host}{bucket}/{prefix}{file_name}"

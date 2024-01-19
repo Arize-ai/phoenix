@@ -59,7 +59,7 @@ def model_name(request):
 @pytest.fixture(scope="session")
 def storage_context() -> StorageContext:
     file_system = GCSFileSystem(project="public-assets-275721")
-    index_path = "arize-assets/phoenix/datasets/unstructured/llm/llama-index/arize-docs/index/"
+    index_path = "arize-phoenix-assets/datasets/unstructured/llm/llama-index/arize-docs/index/"
     return StorageContext.from_defaults(
         fs=file_system,
         persist_dir=index_path,

@@ -57,7 +57,7 @@ def chinook_database_file() -> Path:
     https://github.com/lerocha/chinook-database/tree/master
     """
     urllib.request.urlretrieve(
-        "http://storage.googleapis.com/arize-assets/phoenix/traces/chinook.db", DB_FILE_PATH
+        "http://storage.googleapis.com/arize-phoenix-assets/traces/chinook.db", DB_FILE_PATH
     )
     yield DB_FILE_PATH
     _remove_file(DB_FILE_PATH)
