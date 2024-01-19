@@ -80,7 +80,6 @@ class AnthropicModel(BaseEvalModel):
         try:
             encoding = self._tiktoken.encoding_for_model(self.model)
         except KeyError:
-            logger.warning("Warning: model not found. Using cl100k_base encoding.")
             encoding = self._tiktoken.get_encoding("cl100k_base")
         self._tiktoken_encoding = encoding
 
