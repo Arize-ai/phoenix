@@ -1,6 +1,6 @@
 <p align="center">
     <a target="_blank" href="https://phoenix.arize.com" style="background:none">
-        <img alt="phoenix logo" src="https://storage.googleapis.com/arize-assets/phoenix/assets/phoenix-logo-light.svg" width="auto" height="200"></img>
+        <img alt="phoenix logo" src="https://storage.googleapis.com/arize-phoenix-assets/assets/phoenix-logo-light.svg" width="auto" height="200"></img>
     </a>
     <br/>
     <br/>
@@ -76,7 +76,7 @@ With the advent of powerful LLMs, it is now possible to build LLM Applications t
 
 [![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab&logo=googlecolab&labelColor=grey&color=blue&logoColor=orange&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/llama_index_tracing_tutorial.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub&logo=github&labelColor=grey&color=blue&logoColor=white&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/llama_index_tracing_tutorial.ipynb)
 
-![LLM Traces UI](https://storage.googleapis.com/arize-assets/phoenix/assets/images/trace_details_view.png)
+![LLM Traces UI](https://storage.googleapis.com/arize-phoenix-assets/assets/images/trace_details_view.png)
 
 To extract traces from your LlamaIndex application, you will have to add Phoenix's `OpenInferenceTraceCallback` to your LlamaIndex application. A callback (in this case an OpenInference `Tracer`) is a class that automatically accumulates `spans` that trac your application as it executes. The OpenInference `Tracer` is a tracer that is specifically designed to work with Phoenix and by default exports the traces to a locally running phoenix server.
 
@@ -163,7 +163,7 @@ from langchain.retrievers import KNNRetriever
 
 embeddings = OpenAIEmbeddings(model="text-embedding-ada-002")
 documents_df = pd.read_parquet(
-    "http://storage.googleapis.com/arize-assets/phoenix/datasets/unstructured/llm/context-retrieval/langchain-pinecone/database.parquet"
+    "http://storage.googleapis.com/arize-phoenix-assets/datasets/unstructured/llm/context-retrieval/langchain-pinecone/database.parquet"
 )
 knn_retriever = KNNRetriever(
     index=np.stack(documents_df["text_vector"]),
@@ -256,7 +256,7 @@ To learn more about LLM Evals, see the [LLM Evals documentation](https://docs.ar
 
 Explore UMAP point-clouds at times of high drift and performance degredation and identify clusters of problematic data.
 
-![Euclidean distance drift analysis](https://storage.googleapis.com/arize-assets/phoenix/assets/images/ner_color_by_correctness.png)
+![Euclidean distance drift analysis](https://storage.googleapis.com/arize-phoenix-assets/assets/images/ner_color_by_correctness.png)
 
 Embedding analysis is critical for understanding the behavior of you NLP, CV, and LLM Apps that use embeddings. Phoenix provides an A/B testing framework to help you understand how your embeddings are changing over time and how they are changing between different versions of your model (`prod` vs `train`, `champion` vs `challenger`).
 
@@ -268,10 +268,10 @@ import phoenix as px
 
 # Download curated datasets and load them into pandas DataFrames.
 train_df = pd.read_parquet(
-    "https://storage.googleapis.com/arize-assets/phoenix/datasets/unstructured/cv/human-actions/human_actions_training.parquet"
+    "https://storage.googleapis.com/arize-phoenix-assets/datasets/unstructured/cv/human-actions/human_actions_training.parquet"
 )
 prod_df = pd.read_parquet(
-    "https://storage.googleapis.com/arize-assets/phoenix/datasets/unstructured/cv/human-actions/human_actions_production.parquet"
+    "https://storage.googleapis.com/arize-phoenix-assets/datasets/unstructured/cv/human-actions/human_actions_production.parquet"
 )
 
 # Define schemas that tell Phoenix which columns of your DataFrames correspond to features, predictions, actuals (i.e., ground truth), embeddings, etc.
@@ -304,13 +304,13 @@ session.url
 
 Color your UMAP point-clouds by your model's dimensions, drift, and performance to identify problematic cohorts.
 
-![UMAP-based EDA](https://storage.googleapis.com/arize-assets/phoenix/assets/images/cv_eda_selection.png)
+![UMAP-based EDA](https://storage.googleapis.com/arize-phoenix-assets/assets/images/cv_eda_selection.png)
 
 ### Cluster-driven Drift and Performance Analysis
 
 Break-apart your data into clusters of high drift or bad performance using HDBSCAN
 
-![HDBSCAN clusters sorted by drift](https://storage.googleapis.com/arize-assets/phoenix/assets/images/HDBSCAN_drift_analysis.png)
+![HDBSCAN clusters sorted by drift](https://storage.googleapis.com/arize-phoenix-assets/assets/images/HDBSCAN_drift_analysis.png)
 
 ### Exportable Clusters
 
@@ -340,10 +340,10 @@ import phoenix as px
 
 # Perform A/B analysis on your training and production datasets
 train_df = pd.read_parquet(
-    "http://storage.googleapis.com/arize-assets/phoenix/datasets/structured/credit-card-fraud/credit_card_fraud_train.parquet",
+    "http://storage.googleapis.com/arize-phoenix-assets/datasets/structured/credit-card-fraud/credit_card_fraud_train.parquet",
 )
 prod_df = pd.read_parquet(
-    "http://storage.googleapis.com/arize-assets/phoenix/datasets/structured/credit-card-fraud/credit_card_fraud_production.parquet",
+    "http://storage.googleapis.com/arize-phoenix-assets/datasets/structured/credit-card-fraud/credit_card_fraud_production.parquet",
 )
 
 # Describe the data for analysis
