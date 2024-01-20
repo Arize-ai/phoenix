@@ -1005,7 +1005,7 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
 }
 
 // Labels that get highlighted as danger in the document evaluations
-const DANGER_DOCUMENT_EVALUATION_LABELS = ["irrelevant"];
+const DANGER_DOCUMENT_EVALUATION_LABELS = ["irrelevant", "unrelated"];
 function DocumentItem({
   document,
   documentEvaluations,

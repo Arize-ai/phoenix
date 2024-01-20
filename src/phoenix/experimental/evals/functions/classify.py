@@ -73,7 +73,7 @@ def llm_classify(
     include_prompt: bool = False,
     include_response: bool = False,
     run_sync: bool = False,
-    concurrency: int = 20,
+    concurrency: Optional[int] = None,
 ) -> pd.DataFrame:
     """Classifies each input row of the dataframe using an LLM. Returns a pandas.DataFrame
     where the first column is named `label` and contains the classification labels. An optional
@@ -116,8 +116,9 @@ def llm_classify(
         run_sync (bool, default=False): If True, forces synchronous request submission. Otherwise
         evaluations will be run asynchronously if possible.
 
-        concurrency (int, default=20): The number of concurrent evals if async submission is
-        possible.
+        concurrency (Optional[int], default=None): The number of concurrent evals if async
+        submission is possible. If not provided, a recommended default concurrency is set on a
+        per-model basis.
 
     Returns:
         pandas.DataFrame: A dataframe where the `label` column (at column position 0) contains
@@ -127,6 +128,7 @@ def llm_classify(
         from the entries in the rails argument or "NOT_PARSABLE" if the model's output could
         not be parsed.
     """
+    concurrency = concurrency or model.default_concurrency
     # clients need to be reloaded to ensure that async evals work properly
     model.reload_client()
 
@@ -353,7 +355,7 @@ def run_evals(
     provide_explanation: bool = False,
     use_function_calling_if_available: bool = True,
     verbose: bool = False,
-    concurrency: int = 20,
+    concurrency: Optional[int] = None,
 ) -> List[DataFrame]:
     """
     Applies a list of evaluators to a dataframe. Outputs a list of dataframes in
@@ -381,13 +383,21 @@ def run_evals(
         as model invocation parameters and details about retries and snapping to
         rails.
 
-        concurrency (int, optional): The number of concurrent evals if async
-        submission is possible.
+        concurrency (Optional[int], default=None): The number of concurrent evals if async
+        submission is possible. If not provided, a recommended default concurrency is set on a
+        per-model basis.
 
     Returns:
         List[DataFrame]: A list of dataframes, one for each evaluator, all of
         which have the same number of rows as the input dataframe.
     """
+    # use the minimum default concurrency of all the models
+    if concurrency is None:
+        if len(evaluators) == 0:
+            concurrency = 1
+        else:
+            concurrency = min(evaluator.default_concurrency for evaluator in evaluators)
+
     # clients need to be reloaded to ensure that async evals work properly
     for evaluator in evaluators:
         evaluator.reload_client()

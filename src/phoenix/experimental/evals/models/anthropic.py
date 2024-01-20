@@ -1,4 +1,3 @@
-import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
@@ -7,8 +6,6 @@ from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
-
-logger = logging.getLogger(__name__)
 
 MODEL_TOKEN_LIMIT_MAPPING = {
     "claude-2.1": 200000,
@@ -80,7 +77,6 @@ class AnthropicModel(BaseEvalModel):
         try:
             encoding = self._tiktoken.encoding_for_model(self.model)
         except KeyError:
-            logger.warning("Warning: model not found. Using cl100k_base encoding.")
             encoding = self._tiktoken.get_encoding("cl100k_base")
         self._tiktoken_encoding = encoding
 
@@ -149,6 +145,9 @@ class AnthropicModel(BaseEvalModel):
         return _completion_with_retry(**kwargs)
 
     async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+        # instruction is an invalid input to Anthropic models, it is passed in by
+        # BaseEvalModel.__call__ and needs to be removed
+        kwargs.pop("instruction", None)
         invocation_parameters = self.invocation_parameters()
         invocation_parameters.update(kwargs)
         response = await self._async_generate_with_retry(

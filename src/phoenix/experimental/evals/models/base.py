@@ -58,6 +58,7 @@ def set_verbosity(
 
 @dataclass
 class BaseEvalModel(ABC):
+    default_concurrency: int = 20
     _verbose: bool = False
     _rate_limiter: RateLimiter = field(default_factory=RateLimiter)
 
