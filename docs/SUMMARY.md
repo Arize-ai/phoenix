@@ -12,6 +12,7 @@
 
 ## 💡 Concepts
 
+* [Deploying Phoenix](concepts/deploying-phoenix.md)
 * [LLM Observability](concepts/llm-observability.md)
 * [Traces and Spans](concepts/llm-traces.md)
 * [Evaluation](concepts/evaluation.md)

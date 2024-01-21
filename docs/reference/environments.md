@@ -50,7 +50,7 @@ Phoenix server images are now available via [Docker Hub](https://hub.docker.com/
 If you deploy the phoenix server (collector) to a remote machine, you will have to make sure to configure the remote endpoint as the collector endpoint. (This feature is only available after phoenix **1.3.x**)
 
 {% tabs %}
-{% tab title="Environment Variable" %}
+{% tab title="Set Endpoint Environment Variable" %}
 ```python
 import os
 
@@ -58,7 +58,7 @@ os.envoron["PHOENIX_COLLECTOR_ENDPOINT"] = "https://my-phoenix.io"
 ```
 {% endtab %}
 
-{% tab title="Second Tab" %}
+{% tab title="Set Endpoint in Code" %}
 ```python
 from phoenix.trace.tracer import Tracer
 from phoenix.trace.exporter import HttpExporter
