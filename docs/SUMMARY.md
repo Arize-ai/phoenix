@@ -33,7 +33,8 @@
   * [AI vs Human (Groundtruth)](llm-evals/running-pre-tested-evals/ai-vs-human-groundtruth.md)
 * [Evals With Explanations](llm-evals/evals-with-explanations.md)
 * [Building Your Own Evals](llm-evals/building-your-own-evals.md)
-* [Retrieval Evals on Document Chunks](llm-evals/retrieval-evals-on-document-chunks.md)
+* [Quickstart Retrieval Evals](llm-evals/quickstart-retrieval-evals/README.md)
+  * [Retrieval Evals on Document Chunks](llm-evals/quickstart-retrieval-evals/retrieval-evals-on-document-chunks.md)
 * [Benchmarking Retrieval (RAG)](llm-evals/benchmarking-retrieval-rag.md)
 
 ## 🔮 Use Cases
