@@ -165,7 +165,7 @@ class BedrockModel(BaseEvalModel):
                     "temperature": self.temperature,
                     "topP": self.top_p,
                     "maxTokens": self.max_tokens,
-                    "stopSequences": [self.stop_sequences],
+                    "stopSequences": self.stop_sequences,
                 },
                 **self.extra_parameters,
             }
