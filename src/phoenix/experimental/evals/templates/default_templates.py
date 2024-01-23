@@ -73,13 +73,6 @@ your response.
     [END DATA]
 
     Is the answer above factual or hallucinated based on the query and reference text?
-
-Your response should be a single word: either "factual" or "hallucinated", and
-it should not include any other text or characters. "hallucinated" indicates that the answer
-provides factually inaccurate information to the query based on the reference text. "factual"
-indicates that the answer to the question is correct relative to the reference text, and does not
-contain made up information. Please read the query and reference text carefully before determining
-your response.
 """
 HALLUCINATION_PROMPT_TEMPLATE_WITH_EXPLANATION = """
 In this task, you will be presented with a query, a reference text and an answer. The answer is
