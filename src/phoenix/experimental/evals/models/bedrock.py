@@ -164,7 +164,7 @@ class BedrockModel(BaseEvalModel):
                     "temperature": self.temperature,
                     "topP": self.top_p,
                     "maxTokens": self.max_tokens,
-                    "stopSequences": [self.stop_sequences],
+                    "stopSequences": self.stop_sequences,
                 },
                 **self.extra_parameters,
             }
@@ -203,6 +203,9 @@ class BedrockModel(BaseEvalModel):
         elif self.model_id.startswith("anthropic"):
             body = json.loads(response.get("body").read().decode())
             return body.get("completion")
+        elif self.model_id.startswith("amazon"):
+            body = json.loads(response.get("body").read())
+            return body.get("results")[0].get("outputText")
         else:
             body = json.loads(response.get("body").read())
             return body.get("results")[0].get("data").get("outputText")
