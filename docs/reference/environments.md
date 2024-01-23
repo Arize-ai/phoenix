@@ -54,7 +54,7 @@ If you deploy the phoenix server (collector) to a remote machine, you will have 
 ```python
 import os
 
-os.envoron["PHOENIX_COLLECTOR_ENDPOINT"] = "https://my-phoenix.io"
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://my-phoenix.io"
 ```
 {% endtab %}
 
