@@ -12,6 +12,11 @@ ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
 The endpoint traces and evals are sent to. This must be set if the Phoenix
 server is running on a remote instance.
 """
+ENV_WORKING_DIR = "PHOENIX_WORKING_DIR"
+"""
+The directory in which to save, load, and export datasets. This directory must
+be accessible by both the Phoenix server and the notebook environment.
+"""
 
 
 def _get_temp_path() -> Path:
@@ -36,13 +41,16 @@ def get_running_pid() -> Optional[int]:
     return None
 
 
-for path in (
-    ROOT_DIR := Path.home().resolve() / ".phoenix",
-    EXPORT_DIR := ROOT_DIR / "exports",
-    DATASET_DIR := ROOT_DIR / "datasets",
-    TRACE_DATASET_DIR := ROOT_DIR / "trace_datasets",
-):
-    path.mkdir(parents=True, exist_ok=True)
+def get_working_dir() -> Path:
+    """
+    Get the working directory for saving, loading, and exporting datasets.
+    """
+    working_dir_str = os.getenv(ENV_WORKING_DIR)
+    if working_dir_str is not None:
+        return Path(working_dir_str)
+    # Fall back to ~/.phoenix if PHOENIX_WORKING_DIR is not set
+    return Path.home().resolve() / ".phoenix"
+
 
 PHOENIX_DIR = Path(__file__).resolve().parent
 # Server config
@@ -53,6 +61,23 @@ HOST = "0.0.0.0"
 PORT = 6006
 # The prefix of datasets that are auto-assigned a name
 GENERATED_DATASET_NAME_PREFIX = "phoenix_dataset_"
+# The work directory for saving, loading, and exporting datasets
+WORKING_DIR = get_working_dir()
+
+try:
+    for path in (
+        ROOT_DIR := WORKING_DIR,
+        EXPORT_DIR := ROOT_DIR / "exports",
+        DATASET_DIR := ROOT_DIR / "datasets",
+        TRACE_DATASET_DIR := ROOT_DIR / "trace_datasets",
+    ):
+        path.mkdir(parents=True, exist_ok=True)
+except Exception as e:
+    print(
+        f"⚠️ Failed to initialize the working directory at {WORKING_DIR} due to an error: {str(e)}"
+    )
+    print("⚠️ While phoenix will still run, you will not be able to save, load, or export data")
+    print("ℹ️ To change, set the `{ENV_WORKING_DIR}` environment variable before importing phoenix.")
 
 
 def get_exported_files(directory: Path) -> List[Path]:
