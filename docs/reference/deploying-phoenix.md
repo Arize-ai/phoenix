@@ -2,7 +2,7 @@
 
 Phoenix has a different set of deployment options depending on your needs. There are two components that work together:
 
-* Tracer: The tracers extract trace data for use in Phoenix or the Arize managed cloud platform.&#x20;
+* Tracer: The tracers extract trace data for use in Phoenix&#x20;
 * Phoenix Application: Phoenix acts as a trace collector and application that visualizes the data for action.
 
 <figure><img src="../.gitbook/assets/tracer.png" alt=""><figcaption><p>Tracing Options</p></figcaption></figure>
