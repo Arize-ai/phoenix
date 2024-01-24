@@ -65,10 +65,6 @@ GENERATED_DATASET_NAME_PREFIX = "phoenix_dataset_"
 WORKING_DIR = get_working_dir()
 
 try:
-    print(f"⚙️ Setting up a working directory at: {WORKING_DIR}")
-    print(
-        f"ℹ️ To change, set the `{ENV_WORKING_DIR}` environment variable before importing phoenix."
-    )
     for path in (
         ROOT_DIR := WORKING_DIR,
         EXPORT_DIR := ROOT_DIR / "exports",
@@ -77,8 +73,11 @@ try:
     ):
         path.mkdir(parents=True, exist_ok=True)
 except Exception as e:
-    print(f"⚠️ Failed to initialize the working directory due to an error: {str(e)}")
+    print(
+        f"⚠️ Failed to initialize the working directory at {WORKING_DIR} due to an error: {str(e)}"
+    )
     print("⚠️ While phoenix will still run, you will not be able to save, load, or export data")
+    print("ℹ️ To change, set the `{ENV_WORKING_DIR}` environment variable before importing phoenix.")
 
 
 def get_exported_files(directory: Path) -> List[Path]:
