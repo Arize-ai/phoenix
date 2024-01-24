@@ -14,9 +14,7 @@ Phoenix has options for all of the above though we highly recommend categorical 
 
 **Score:** A numeric value in a range
 
-Why we recommend categorical LLM Evals over scores is highlighted in this research.&#x20;
-
-{% embed url="https://x.com/aparnadhinak/status/1748368364395721128?s=20" %}
+Why we recommend categorical LLM Evals over scores is highlighted in this[ research. ](https://twitter.com/aparnadhinak/status/1748368364395721128)
 
 ### Categorical - llm\_classify
 
