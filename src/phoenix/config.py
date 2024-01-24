@@ -66,7 +66,7 @@ WORKING_DIR = get_working_dir()
 
 try:
     print(f"⚙️ Setting up a working directory at: {WORKING_DIR}")
-    print(f"ℹ️ To change, set the `{ENV_WORKING_DIR}` env var before importing phoenix.")
+    print(f"ℹ️ To change, set the `{ENV_WORKING_DIR}` environment variable before importing phoenix.")
     for path in (
         ROOT_DIR := WORKING_DIR,
         EXPORT_DIR := ROOT_DIR / "exports",
