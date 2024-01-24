@@ -5,7 +5,7 @@ Phoenix has a different set of deployment options depending on your needs. There
 * Tracer: The tracers extract trace data for use in Phoenix&#x20;
 * Phoenix Application: Phoenix acts as a trace collector and application that visualizes the data for action.
 
-<figure><img src="../.gitbook/assets/tracer.png" alt=""><figcaption><p>Tracing Options</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/deploying_phoeix_ways_to_collect.png" alt=""><figcaption></figcaption></figure>
 
 The above instrumentation options determine how the data is collected from the LLM tracers.&#x20;
 
