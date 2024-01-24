@@ -12,7 +12,6 @@
 
 ## 💡 Concepts
 
-* [Deploying Phoenix](concepts/deploying-phoenix.md)
 * [LLM Observability](concepts/llm-observability.md)
 * [Traces and Spans](concepts/llm-traces.md)
 * [Evaluation](concepts/evaluation.md)
@@ -75,6 +74,7 @@
 
 ## 📚 Reference
 
+* [Deploying Phoenix](reference/deploying-phoenix.md)
 * [Environments](reference/environments.md)
 * [Architecture](reference/architecture.md)
 * [Embeddings](concepts/embeddings.md)

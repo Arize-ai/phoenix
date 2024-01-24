@@ -46,11 +46,10 @@ Phoenix data is currently not persisted. Phoenix will support persisted data in 
 
 _**Application Server:**_
 
-The application server is started by:
+The application server is started by (need phoenix in your python path):
 
 ```python
-import phoenix as px
-session = px.launch_app()
+python3 -m phoenix.server.main serve
 ```
 
 ```
