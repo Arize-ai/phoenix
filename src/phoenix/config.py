@@ -66,7 +66,9 @@ WORKING_DIR = get_working_dir()
 
 try:
     print(f"⚙️ Setting up a working directory at: {WORKING_DIR}")
-    print(f"ℹ️ To change, set the `{ENV_WORKING_DIR}` environment variable before importing phoenix.")
+    print(
+        f"ℹ️ To change, set the `{ENV_WORKING_DIR}` environment variable before importing phoenix."
+    )
     for path in (
         ROOT_DIR := WORKING_DIR,
         EXPORT_DIR := ROOT_DIR / "exports",
@@ -74,8 +76,8 @@ try:
         TRACE_DATASET_DIR := ROOT_DIR / "trace_datasets",
     ):
         path.mkdir(parents=True, exist_ok=True)
-except Exception:
-    print(f"⚠️ Failed to create a working directory at {WORKING_DIR}")
+except Exception as e:
+    print(f"⚠️ Failed to initialize the working directory due to an error: {str(e)}")
     print("⚠️ While phoenix will still run, you will not be able to save, load, or export data")
 
 
