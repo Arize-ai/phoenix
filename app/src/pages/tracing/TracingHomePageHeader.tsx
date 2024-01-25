@@ -96,8 +96,15 @@ export function TracingHomePageHeader(props: {
                 rgba(var(--ac-global-color-grey-300-rgb), 0)
               );
             background-repeat: no-repeat;
-            background-size: 32px 100%, 32px 100%, 32px 100%, 32px 100%;
-            background-position: left center, right center, left center,
+            background-size:
+              32px 100%,
+              32px 100%,
+              32px 100%,
+              32px 100%;
+            background-position:
+              left center,
+              right center,
+              left center,
               right center;
             background-attachment: local, local, scroll, scroll;
           `}

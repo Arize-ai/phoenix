@@ -677,14 +677,17 @@ function RetrieverSpanInfo(props: {
     Record<number, DocumentEvaluation[]>
   >(() => {
     const documentEvaluations = span.documentEvaluations;
-    return documentEvaluations.reduce((acc, documentEvaluation) => {
-      const documentPosition = documentEvaluation.documentPosition;
-      const evaluations = acc[documentPosition] || [];
-      return {
-        ...acc,
-        [documentPosition]: [...evaluations, documentEvaluation],
-      };
-    }, {} as Record<number, DocumentEvaluation[]>);
+    return documentEvaluations.reduce(
+      (acc, documentEvaluation) => {
+        const documentPosition = documentEvaluation.documentPosition;
+        const evaluations = acc[documentPosition] || [];
+        return {
+          ...acc,
+          [documentPosition]: [...evaluations, documentEvaluation],
+        };
+      },
+      {} as Record<number, DocumentEvaluation[]>
+    );
   }, [span.documentEvaluations]);
 
   const hasInput = input != null && input.value != null;

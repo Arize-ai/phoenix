@@ -142,10 +142,13 @@ export function DimensionDriftTimeSeries({
 
   const chartRawData = data.embedding.driftTimeSeries?.data || [];
   const trafficDataMap =
-    data.embedding.trafficTimeSeries?.data.reduce((acc, traffic) => {
-      acc[traffic.timestamp] = traffic.value;
-      return acc;
-    }, {} as Record<string, number | null>) ?? {};
+    data.embedding.trafficTimeSeries?.data.reduce(
+      (acc, traffic) => {
+        acc[traffic.timestamp] = traffic.value;
+        return acc;
+      },
+      {} as Record<string, number | null>
+    ) ?? {};
 
   const chartData = chartRawData.map((d) => {
     const traffic = trafficDataMap[d.timestamp];

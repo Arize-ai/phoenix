@@ -221,20 +221,20 @@ export function DimensionQuantilesTimeSeries({
     }, {} as ChartState)
   );
 
-  const handleLegendMouseEnter: LegendProps["onMouseEnter"] = (e) => {
+  const handleLegendMouseOver: LegendProps["onMouseOver"] = (e) => {
     if (!chartState[e.dataKey as Label]) {
       setChartState({ ...chartState });
     }
   };
 
-  const handleLegendMouseLeave: LegendProps["onMouseLeave"] = () => {
+  const handleLegendMouseOut: LegendProps["onMouseOut"] = () => {
     setChartState({ ...chartState });
   };
 
   const selectChartItem: LegendProps["onClick"] = (e) => {
     setChartState({
       ...chartState,
-      [e.dataKey]: !chartState[e.dataKey as Label],
+      [String(e.dataKey)]: !chartState[e.dataKey as Label],
     });
   };
 
@@ -285,8 +285,8 @@ export function DimensionQuantilesTimeSeries({
         <Tooltip content={<TooltipContent />} />
         <Legend
           onClick={selectChartItem}
-          onMouseOver={handleLegendMouseEnter}
-          onMouseOut={handleLegendMouseLeave}
+          onMouseOver={handleLegendMouseOver}
+          onMouseOut={handleLegendMouseOut}
         />
         <Area
           type="monotone"
