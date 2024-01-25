@@ -54,7 +54,7 @@ If you deploy the phoenix server (collector) to a remote machine, you will have 
 ```python
 import os
 
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://my-phoenix.io"
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://123.456.789:6006"
 ```
 {% endtab %}
 
@@ -65,9 +65,28 @@ from phoenix.trace.exporter import HttpExporter
 from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
 
 
-tracer = Tracer(exporter=HttpExporter(endpoint="https://my-phoenix.io"))
+tracer = Tracer(exporter=HttpExporter(endpoint="http://123.456.789:6006"))
 OpenAIInstrumentor(tracer).instrument()
 ```
 {% endtab %}
 {% endtabs %}
 
+### Terminal
+
+If you want to start a phoenix server to collect traces, you can also run phoenix directly from the command line
+
+```python
+python3 -m phoenix.server.main serve
+```
+
+This will start the phoenix server on port 6006. If you are running your instrumented notebook or application on the same machine, traces should automatically be exported to `http://127.0.0.1:6006` so no additional configuration is needed. However if the server is running remotely, you will have to modify the environment variable `PHOENIX_COLLECTOR_ENDPOINT` to point to that machine (e.g. `http://<my-remote-machine>:<port>`)
+
+### Configuration
+
+Whether you are using phoenix in a notebook or via a container, you can configure it's runtime via the following environment variables. Note that none of these are required.
+
+* **PHOENIX\_PORT:** The port to run the phoenix server. Defaults to 6006 (since this port works best with other tools like SageMaker notebooks. )
+* &#x20;**PHOENIX\_HOST:** The host to run the phoenix server. Defaults to 0.0.0.0&#x20;
+* **PHOENIX\_NOTEBOOK\_ENV:** The notebook environment. Typically you do not need to set this but it can be set explicitly (e.x. `sagemaker`)
+* **PHOENIX\_COLLECTOR\_ENDPOINT:** The endpoint traces and evals are sent to. This must be set if the Phoenix server is running on a remote instance. For example if phoenix is running at `http://125.2.3.5:4040` , this environment variable must be set where your LLM application is running and being traced. Note that the endpoint should not contain trailing slashes or slugs.
+* &#x20;**PHOENIX\_WORKING\_DIR:** The directory in which to save, load, and export datasets. This directory must be accessible by both the Phoenix server and the notebook environment.&#x20;
