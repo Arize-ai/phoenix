@@ -81,6 +81,12 @@ python3 -m phoenix.server.main serve
 
 This will start the phoenix server on port 6006. If you are running your instrumented notebook or application on the same machine, traces should automatically be exported to `http://127.0.0.1:6006` so no additional configuration is needed. However if the server is running remotely, you will have to modify the environment variable `PHOENIX_COLLECTOR_ENDPOINT` to point to that machine (e.g. `http://<my-remote-machine>:<port>`)
 
+Note that this command has various configuration options such as `--host` and `--port`. For example:
+
+```
+python3 -m phoenix.server.main serve --port 1234 --host 0.0.0.0
+```
+
 ### Configuration
 
 Whether you are using phoenix in a notebook or via a container, you can configure it's runtime via the following environment variables. Note that none of these are required.
