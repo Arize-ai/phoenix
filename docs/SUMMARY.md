@@ -6,6 +6,7 @@
 ## 🔑 Quickstart
 
 * [Phoenix Traces](quickstart/llm-traces.md)
+* [Phoenix Evals](quickstart/evals.md)
 * [Phoenix Inferences](quickstart/phoenix-inferences/README.md)
   * [Schemas and Datasets](quickstart/phoenix-inferences/inferences.md)
 
@@ -29,9 +30,11 @@
   * [Summarization Eval](llm-evals/running-pre-tested-evals/summarization-eval.md)
   * [Reference (citation) Link Evals](llm-evals/running-pre-tested-evals/reference-link-evals.md)
   * [AI vs Human (Groundtruth)](llm-evals/running-pre-tested-evals/ai-vs-human-groundtruth.md)
+* [Evaluation Types](llm-evals/evaluation-types.md)
 * [Evals With Explanations](llm-evals/evals-with-explanations.md)
 * [Building Your Own Evals](llm-evals/building-your-own-evals.md)
-* [Retrieval Evals on Document Chunks](llm-evals/retrieval-evals-on-document-chunks.md)
+* [Quickstart Retrieval Evals](llm-evals/quickstart-retrieval-evals/README.md)
+  * [Retrieval Evals on Document Chunks](llm-evals/quickstart-retrieval-evals/retrieval-evals-on-document-chunks.md)
 * [Benchmarking Retrieval (RAG)](llm-evals/benchmarking-retrieval-rag.md)
 
 ## 🔮 Use Cases
@@ -71,6 +74,7 @@
 
 ## 📚 Reference
 
+* [Deploying Phoenix](reference/deploying-phoenix.md)
 * [Environments](reference/environments.md)
 * [Architecture](reference/architecture.md)
 * [Embeddings](concepts/embeddings.md)

@@ -2,7 +2,7 @@
 description: Inspect the inner-workings of your LLM Application using OpenInference Traces
 ---
 
-# Phoenix Traces for LLM applications - OpenAI, LangChain & LlamaIndex
+# Phoenix Traces
 
 ## Streaming Traces to Phoenix
 
@@ -207,18 +207,9 @@ For full details on how to export trace data, see [the detailed guide](../how-to
 
 In addition to launching phoenix on LlamaIndex and LangChain, teams can export trace data to a dataframe in order to run LLM Evals on the data.
 
-```python
-from phoenix.experimental.evals import run_relevance_eval
-
-# Export all of the traces from all the retriver spans that have been run
-trace_df = px.active_session().get_spans_dataframe('span_kind == "RETRIEVER"')
-
-# Run relevance evaluations
-relevances = run_relevance_eval(trace_df)
-
-```
-
-For full details, check out the relevance example of the relevance [LLM Eval](../llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md).
+{% hint style="info" %}
+Learn more in the [evals quickstart](evals.md).
+{% endhint %}
 
 ## Phoenix Tracing App
 

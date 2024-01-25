@@ -11,7 +11,7 @@ Phoenix app is first and foremost an application that can be run just in in your
 
 ### Notebooks
 
-Currently phoenix supports local, colab, and SageMaker notebooks.
+Currently phoenix supports local, colab, databricks, and SageMaker notebooks.
 
 {% hint style="warning" %}
 Note, phoenix only supports running the phoenix server via the notebook for SageMaker notebooks. It cannot setup proxy requests for SageMaker studio since there is no support of jupyter-server-proxy
@@ -50,15 +50,15 @@ Phoenix server images are now available via [Docker Hub](https://hub.docker.com/
 If you deploy the phoenix server (collector) to a remote machine, you will have to make sure to configure the remote endpoint as the collector endpoint. (This feature is only available after phoenix **1.3.x**)
 
 {% tabs %}
-{% tab title="Environment Variable" %}
+{% tab title="Set Endpoint Environment Variable" %}
 ```python
 import os
 
-os.envoron["PHOENIX_COLLECTOR_ENDPOINT"] = "https://my-phoenix.io"
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://my-phoenix.io"
 ```
 {% endtab %}
 
-{% tab title="Second Tab" %}
+{% tab title="Set Endpoint in Code" %}
 ```python
 from phoenix.trace.tracer import Tracer
 from phoenix.trace.exporter import HttpExporter
