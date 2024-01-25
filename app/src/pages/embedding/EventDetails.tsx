@@ -198,7 +198,7 @@ function DocumentItem({ document }: { document: RetrievalDocument }) {
             </Flex>
             {typeof document.relevance === "number" && (
               <Label color="blue">{`relevance ${numberFormatter(
-                document.relevance
+                document.relevance,
               )}`}</Label>
             )}
           </Flex>
@@ -256,7 +256,7 @@ function EmbeddingDimensionsTable({
         accessorKey: "value",
       },
     ],
-    []
+    [],
   );
 
   const table = useReactTable<DimensionRow>({
@@ -276,7 +276,7 @@ function EmbeddingDimensionsTable({
                     <div>
                       {flexRender(
                         header.column.columnDef.header,
-                        header.getContext()
+                        header.getContext(),
                       )}
                     </div>
                   )}
@@ -296,7 +296,7 @@ function EmbeddingDimensionsTable({
                     <td key={cell.id}>
                       {flexRender(
                         cell.column.columnDef.cell,
-                        cell.getContext()
+                        cell.getContext(),
                       )}
                     </td>
                   );

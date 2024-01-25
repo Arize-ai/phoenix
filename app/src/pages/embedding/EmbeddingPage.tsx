@@ -258,7 +258,7 @@ function EmbeddingMain() {
   const { primaryDataset, referenceDataset } = useDatasets();
   const umapParameters = usePointCloudContext((state) => state.umapParameters);
   const getHDSCANParameters = usePointCloudContext(
-    (state) => state.getHDSCANParameters
+    (state) => state.getHDSCANParameters,
   );
   const getMetric = usePointCloudContext((state) => state.getMetric);
   const resetPointCloud = usePointCloudContext((state) => state.reset);
@@ -269,7 +269,7 @@ function EmbeddingMain() {
   const { selectedTimestamp } = useTimeSlice();
   const endTime = useMemo(
     () => selectedTimestamp ?? new Date(primaryDataset.endTime),
-    [selectedTimestamp, primaryDataset.endTime]
+    [selectedTimestamp, primaryDataset.endTime],
   );
   const timeRange = useMemo(() => {
     return {
@@ -287,7 +287,7 @@ function EmbeddingMain() {
         }
       }
     `,
-    {}
+    {},
   );
 
   useEffect(() => {
@@ -310,7 +310,7 @@ function EmbeddingMain() {
       },
       {
         fetchPolicy: "network-only",
-      }
+      },
     );
     return () => {
       disposeQuery();
@@ -402,11 +402,11 @@ function EmbeddingMain() {
 }
 
 function coordinatesToThreeDimensionalPoint(
-  coordinates: UMAPPointsEntry["coordinates"]
+  coordinates: UMAPPointsEntry["coordinates"],
 ): ThreeDimensionalPoint {
   if (coordinates.__typename !== "Point3D") {
     throw new Error(
-      `Expected Point3D but got ${coordinates.__typename} for coordinates`
+      `Expected Point3D but got ${coordinates.__typename} for coordinates`,
     );
   }
   return [coordinates.x, coordinates.y, coordinates.z];
@@ -422,20 +422,20 @@ function PointCloudDisplay({
 }) {
   const data = usePreloadedQuery<UMAPQueryType>(
     EmbeddingPageUMAPQuery,
-    queryReference
+    queryReference,
   );
 
   const sourceData = useMemo(
     () => data.embedding?.UMAPPoints?.data ?? [],
-    [data]
+    [data],
   );
   const referenceSourceData = useMemo(
     () => data.embedding?.UMAPPoints?.referenceData ?? [],
-    [data]
+    [data],
   );
   const corpusSourceData = useMemo(
     () => data.embedding?.UMAPPoints?.corpusData ?? [],
-    [data]
+    [data],
   );
 
   const contextRetrievals = useMemo(() => {
@@ -572,7 +572,7 @@ function PointCloudDisplay({
 
 function SelectionPanel() {
   const selectedEventIds = usePointCloudContext(
-    (state) => state.selectedEventIds
+    (state) => state.selectedEventIds,
   );
 
   if (selectedEventIds.size === 0) {
@@ -636,20 +636,20 @@ const ClustersPanelContents = React.memo(function ClustersPanelContents() {
   const { referenceDataset } = useDatasets();
   const clusters = usePointCloudContext((state) => state.clusters);
   const selectedClusterId = usePointCloudContext(
-    (state) => state.selectedClusterId
+    (state) => state.selectedClusterId,
   );
   const metric = usePointCloudContext((state) => state.metric);
   const setSelectedClusterId = usePointCloudContext(
-    (state) => state.setSelectedClusterId
+    (state) => state.setSelectedClusterId,
   );
   const setSelectedEventIds = usePointCloudContext(
-    (state) => state.setSelectedEventIds
+    (state) => state.setSelectedEventIds,
   );
   const setHighlightedClusterId = usePointCloudContext(
-    (state) => state.setHighlightedClusterId
+    (state) => state.setHighlightedClusterId,
   );
   const setClusterColorMode = usePointCloudContext(
-    (state) => state.setClusterColorMode
+    (state) => state.setClusterColorMode,
   );
   // Hide the reference metric if the following conditions are met:
   // 1. There is no reference dataset
@@ -663,7 +663,7 @@ const ClustersPanelContents = React.memo(function ClustersPanelContents() {
         setClusterColorMode(ClusterColorMode.default);
       }
     },
-    [setClusterColorMode]
+    [setClusterColorMode],
   );
 
   return (
@@ -771,7 +771,7 @@ function PointCloudNotifications() {
   const { notifyError } = useGlobalNotification();
   const errorMessage = usePointCloudContext((state) => state.errorMessage);
   const setErrorMessage = usePointCloudContext(
-    (state) => state.setErrorMessage
+    (state) => state.setErrorMessage,
   );
 
   useEffect(() => {

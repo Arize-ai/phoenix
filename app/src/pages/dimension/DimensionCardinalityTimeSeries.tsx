@@ -55,7 +55,7 @@ function TooltipContent({
     return (
       <ChartTooltip>
         <Text weight="heavy" textSize="medium">{`${fullTimeFormatter(
-          new Date(label)
+          new Date(label),
         )}`}</Text>
         <ChartTooltipItem
           color={color}
@@ -107,7 +107,7 @@ export function DimensionCardinalityTimeSeries({
         end: timeRange.end.toISOString(),
       },
       granularity,
-    }
+    },
   );
 
   const { color } = useColors();

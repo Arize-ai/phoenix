@@ -15,14 +15,14 @@ export function PointSelectionGrid(props: PointSelectionGridProps) {
   const { getDatasetNameByRole } = useDatasets();
   const { events, onItemSelected } = props;
   const eventIdToDataMap = usePointCloudContext(
-    (state) => state.eventIdToDataMap
+    (state) => state.eventIdToDataMap,
   );
   const eventIdToGroup = usePointCloudContext((state) => state.eventIdToGroup);
   const pointGroupColors = usePointCloudContext(
-    (state) => state.pointGroupColors
+    (state) => state.pointGroupColors,
   );
   const selectionGridSize = usePointCloudContext(
-    (state) => state.selectionGridSize
+    (state) => state.selectionGridSize,
   );
 
   return (

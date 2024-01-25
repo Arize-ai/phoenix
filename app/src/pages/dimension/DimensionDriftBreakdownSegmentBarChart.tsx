@@ -98,7 +98,7 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
   const { selectedTimestamp } = useTimeSlice();
   const endTime = useMemo(
     () => selectedTimestamp ?? new Date(primaryDataset.endTime),
-    [selectedTimestamp, primaryDataset.endTime]
+    [selectedTimestamp, primaryDataset.endTime],
   );
   const timeRange = useMemo(() => {
     return {
@@ -148,7 +148,7 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
         }
       }
     `,
-    { dimensionId: props.dimensionId, timeRange: timeRange }
+    { dimensionId: props.dimensionId, timeRange: timeRange },
   );
 
   const chartData = useMemo<BarChartItem[]>(() => {
@@ -188,7 +188,7 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
           textSize="medium"
           color="text-700"
         >{`Distribution comparison at ${fullTimeFormatter(
-          new Date(timeRange.end)
+          new Date(timeRange.end),
         )}`}</Text>
       </View>
       <View flex>

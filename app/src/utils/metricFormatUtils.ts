@@ -42,7 +42,7 @@ export function getMetricShortNameByMetricKey(metricKey: string): string {
 }
 
 export function getMetricDescriptionByMetricKey(
-  metricKey: string
+  metricKey: string,
 ): string | null {
   const definition = METRIC_DEFINITIONS[metricKey];
   if (definition && definition.definition != null) {

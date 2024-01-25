@@ -27,7 +27,7 @@ export function TracingProvider({
 
 export function useTracingContext<T>(
   selector: (state: TracingState) => T,
-  equalityFn?: (left: T, right: T) => boolean
+  equalityFn?: (left: T, right: T) => boolean,
 ): T {
   const store = React.useContext(TracingContext);
   if (!store) throw new Error("Missing TracingContext.Provider in the tree");

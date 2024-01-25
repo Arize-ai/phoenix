@@ -16,10 +16,10 @@ export function PointCloudPointHoverHalo({
   const hoveredEventId = usePointCloudContext((state) => state.hoveredEventId);
   const pointSizeScale = usePointCloudContext((state) => state.pointSizeScale);
   const eventIdToDataMap = usePointCloudContext(
-    (state) => state.eventIdToDataMap
+    (state) => state.eventIdToDataMap,
   );
   const pointGroupColors = usePointCloudContext(
-    (state) => state.pointGroupColors
+    (state) => state.pointGroupColors,
   );
   const eventIdToGroup = usePointCloudContext((state) => state.eventIdToGroup);
   if (hoveredEventId == null || eventIdToDataMap == null) return null;

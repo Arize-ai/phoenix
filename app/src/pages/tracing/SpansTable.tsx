@@ -120,15 +120,15 @@ export function SpansTable(props: SpansTableProps) {
           }
         }
       `,
-      props.query
+      props.query,
     );
 
   const evaluationVisibility = useTracingContext(
-    (state) => state.evaluationVisibility
+    (state) => state.evaluationVisibility,
   );
   const visibleEvaluationColumnNames = useMemo(() => {
     return Object.keys(evaluationVisibility).filter(
-      (name) => evaluationVisibility[name]
+      (name) => evaluationVisibility[name],
     );
   }, [evaluationVisibility]);
 
@@ -149,7 +149,7 @@ export function SpansTable(props: SpansTableProps) {
             accessorKey: `${EVALS_COLUMN_PREFIX}${EVALS_KEY_SEPARATOR}label${EVALS_KEY_SEPARATOR}${name}`,
             cell: ({ row }) => {
               const evaluation = row.original.spanEvaluations.find(
-                (evaluation) => evaluation.name === name
+                (evaluation) => evaluation.name === name,
               );
               if (!evaluation) {
                 return null;
@@ -162,7 +162,7 @@ export function SpansTable(props: SpansTableProps) {
             accessorKey: `${EVALS_COLUMN_PREFIX}${EVALS_KEY_SEPARATOR}score${EVALS_KEY_SEPARATOR}${name}`,
             cell: ({ row }) => {
               const evaluation = row.original.spanEvaluations.find(
-                (evaluation) => evaluation.name === name
+                (evaluation) => evaluation.name === name,
               );
               if (!evaluation) {
                 return null;
@@ -313,7 +313,7 @@ export function SpansTable(props: SpansTableProps) {
           first: PAGE_SIZE,
           filterCondition,
         },
-        { fetchPolicy: "store-and-network" }
+        { fetchPolicy: "store-and-network" },
       );
     });
   }, [sorting, refetch, filterCondition, fetchKey]);
@@ -331,7 +331,7 @@ export function SpansTable(props: SpansTableProps) {
         }
       }
     },
-    [hasNext, isLoadingNext, loadNext]
+    [hasNext, isLoadingNext, loadNext],
   );
   const table = useReactTable<TableRow>({
     columns,
@@ -396,7 +396,7 @@ export function SpansTable(props: SpansTableProps) {
                       >
                         {flexRender(
                           header.column.columnDef.header,
-                          header.getContext()
+                          header.getContext(),
                         )}
                         {header.column.getIsSorted() ? (
                           <Icon
@@ -427,7 +427,7 @@ export function SpansTable(props: SpansTableProps) {
                     key={row.id}
                     onClick={() =>
                       navigate(
-                        `traces/${row.original.context.traceId}?selectedSpanId=${row.original.context.spanId}`
+                        `traces/${row.original.context.traceId}?selectedSpanId=${row.original.context.spanId}`,
                       )
                     }
                   >
@@ -436,7 +436,7 @@ export function SpansTable(props: SpansTableProps) {
                         <td key={cell.id}>
                           {flexRender(
                             cell.column.columnDef.cell,
-                            cell.getContext()
+                            cell.getContext(),
                           )}
                         </td>
                       );

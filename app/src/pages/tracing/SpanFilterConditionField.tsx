@@ -195,7 +195,7 @@ async function isConditionValid(condition: string) {
           }
         }
       `,
-      { condition }
+      { condition },
     ).toPromise();
   // Satisfy the type checker
   if (!validationResult) {
@@ -244,7 +244,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
         setFilterCondition(additionalCondition);
       }
     },
-    [filterCondition, setFilterCondition]
+    [filterCondition, setFilterCondition],
   );
 
   useEffect(() => {
@@ -410,7 +410,7 @@ function FilterConditionSnippet(props: {
             fieldCSS,
             css`
               flex: 1 1 auto;
-            `
+            `,
           )}
         >
           <CodeMirror

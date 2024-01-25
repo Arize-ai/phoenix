@@ -101,7 +101,7 @@ export function DimensionSegmentsBarChart(props: {
         }
       }
     `,
-    props.dimension
+    props.dimension,
   );
 
   const chartData = useMemo<BarChartItem[]>(() => {

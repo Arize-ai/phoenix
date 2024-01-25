@@ -21,13 +21,13 @@ export function DatasetVisibilitySettings({
   hasCorpus: boolean;
 }) {
   const datasetVisibility = usePointCloudContext(
-    (state) => state.datasetVisibility
+    (state) => state.datasetVisibility,
   );
   const setDatasetVisibility = usePointCloudContext(
-    (state) => state.setDatasetVisibility
+    (state) => state.setDatasetVisibility,
   );
   const coloringStrategy = usePointCloudContext(
-    (state) => state.coloringStrategy
+    (state) => state.coloringStrategy,
   );
 
   const handleDatasetVisibilityChange = useCallback(
@@ -38,7 +38,7 @@ export function DatasetVisibilitySettings({
         [name]: checked,
       });
     },
-    [datasetVisibility, setDatasetVisibility]
+    [datasetVisibility, setDatasetVisibility],
   );
   const DEFAULT_COLOR_SCHEME = useDefaultColorScheme();
 

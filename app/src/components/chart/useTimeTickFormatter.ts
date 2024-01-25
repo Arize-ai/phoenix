@@ -14,7 +14,7 @@ type TimeFormatterConfig = {
 };
 
 export function getFormatFromSamplingInterval(
-  samplingIntervalMinutes: number
+  samplingIntervalMinutes: number,
 ): string {
   let format: string;
   if (samplingIntervalMinutes < ONE_HOUR_IN_MINUTES) {

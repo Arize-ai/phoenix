@@ -58,7 +58,7 @@ function TooltipContent({
     return (
       <ChartTooltip>
         <Text weight="heavy" textSize="medium">{`${fullTimeFormatter(
-          new Date(label)
+          new Date(label),
         )}`}</Text>
         <ChartTooltipItem
           color={color}
@@ -137,15 +137,18 @@ export function DimensionDriftTimeSeries({
       },
       driftGranularity: calculateGranularityWithRollingAverage(timeRange),
       countGranularity,
-    }
+    },
   );
 
   const chartRawData = data.embedding.driftTimeSeries?.data || [];
   const trafficDataMap =
-    data.embedding.trafficTimeSeries?.data.reduce((acc, traffic) => {
-      acc[traffic.timestamp] = traffic.value;
-      return acc;
-    }, {} as Record<string, number | null>) ?? {};
+    data.embedding.trafficTimeSeries?.data.reduce(
+      (acc, traffic) => {
+        acc[traffic.timestamp] = traffic.value;
+        return acc;
+      },
+      {} as Record<string, number | null>,
+    ) ?? {};
 
   const chartData = chartRawData.map((d) => {
     const traffic = trafficDataMap[d.timestamp];
@@ -169,7 +172,7 @@ export function DimensionDriftTimeSeries({
         setSelectedTimestamp(new Date(payload.timestamp));
       }
     },
-    [setSelectedTimestamp]
+    [setSelectedTimestamp],
   );
 
   const { color, barColor } = useColors();

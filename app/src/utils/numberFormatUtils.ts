@@ -54,7 +54,7 @@ export function formatNumber(number: number): string {
  * @returns {string} textual representation of the value
  */
 export function createNumberFormatter(
-  formatFn: NumberFormatFn
+  formatFn: NumberFormatFn,
 ): MaybeNumberFormatFn {
   return (maybeNumber: MaybeNumber) => {
     if (typeof maybeNumber !== "number") return "--";

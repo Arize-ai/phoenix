@@ -75,7 +75,7 @@ export const selectableTableCSS = (theme: Theme) =>
           cursor: pointer;
         }
       }
-    `
+    `,
   );
 
 export const paginationCSS = (theme: Theme) => css`

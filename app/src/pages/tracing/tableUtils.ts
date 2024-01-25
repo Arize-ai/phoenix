@@ -13,7 +13,7 @@ export const DEFAULT_SORT: SpanSort = {
 };
 
 export function getGqlSort(
-  sort: ColumnSort
+  sort: ColumnSort,
 ): TracesTableQuery$variables["sort"] {
   let col = null,
     evalResultKey = null;

@@ -17,7 +17,7 @@ const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
 
 function getFeatureFlags(): Record<FeatureFlag, boolean> {
   const featureFlagsFromLocalStorage = localStorage.getItem(
-    LOCAL_STORAGE_FEATURE_FLAGS_KEY
+    LOCAL_STORAGE_FEATURE_FLAGS_KEY,
   );
   if (!featureFlagsFromLocalStorage) {
     return DEFAULT_FEATURE_FLAGS;
@@ -38,7 +38,7 @@ export function useFeatureFlags() {
   const context = React.useContext(FeatureFlagsContext);
   if (context === null) {
     throw new Error(
-      "useFeatureFlags must be used within a FeatureFlagsProvider"
+      "useFeatureFlags must be used within a FeatureFlagsProvider",
     );
   }
   return context;
@@ -50,13 +50,12 @@ export function useFeatureFlag(featureFlag: FeatureFlag) {
 }
 
 export function FeatureFlagsProvider(props: React.PropsWithChildren) {
-  const [featureFlags, _setFeatureFlags] = useState<
-    Record<FeatureFlag, boolean>
-  >(getFeatureFlags());
+  const [featureFlags, _setFeatureFlags] =
+    useState<Record<FeatureFlag, boolean>>(getFeatureFlags());
   const setFeatureFlags = (featureFlags: Record<FeatureFlag, boolean>) => {
     localStorage.setItem(
       LOCAL_STORAGE_FEATURE_FLAGS_KEY,
-      JSON.stringify(featureFlags)
+      JSON.stringify(featureFlags),
     );
     _setFeatureFlags(featureFlags);
   };

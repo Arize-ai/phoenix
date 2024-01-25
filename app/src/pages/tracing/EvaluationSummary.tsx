@@ -35,7 +35,7 @@ export function EvaluationSummary({ evaluationName }: EvaluationSummaryProps) {
     `,
     {
       evaluationName,
-    }
+    },
   );
   return (
     <Flex direction="column" flex="none">
@@ -72,7 +72,7 @@ function EvaluationSummaryValue(props: {
         }
       }
     `,
-    query
+    query,
   );
 
   // Refetch the evaluation summary if the fetchKey changes

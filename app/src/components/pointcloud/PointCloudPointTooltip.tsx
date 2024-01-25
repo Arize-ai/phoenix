@@ -25,11 +25,11 @@ export const PointCloudPointTooltip = () => {
   const { getDatasetNameByRole } = useDatasets();
   const hoveredEventId = usePointCloudContext((state) => state.hoveredEventId);
   const eventIdToDataMap = usePointCloudContext(
-    (state) => state.eventIdToDataMap
+    (state) => state.eventIdToDataMap,
   );
   const pointData = usePointCloudContext((state) => state.pointData);
   const pointGroupColors = usePointCloudContext(
-    (state) => state.pointGroupColors
+    (state) => state.pointGroupColors,
   );
   const eventIdToGroup = usePointCloudContext((state) => state.eventIdToGroup);
   if (hoveredEventId == null || pointData == null || pointData == null)
@@ -57,14 +57,14 @@ export const PointCloudPointTooltip = () => {
         return [
           Math.min(
             size.width - TOOLTIP_SIZE - TOOLTIP_OFFSET,
-            Math.max(0, objectPos.x * widthHalf + widthHalf + TOOLTIP_OFFSET)
+            Math.max(0, objectPos.x * widthHalf + widthHalf + TOOLTIP_OFFSET),
           ),
           Math.min(
             size.height - TOOLTIP_SIZE - TOOLTIP_OFFSET,
             Math.max(
               0,
-              -(objectPos.y * heightHalf) + heightHalf + TOOLTIP_OFFSET
-            )
+              -(objectPos.y * heightHalf) + heightHalf + TOOLTIP_OFFSET,
+            ),
           ),
         ];
       }}

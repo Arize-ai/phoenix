@@ -90,13 +90,13 @@ const clusterSelectionEpsilonContextualHelp = (
 
 export default function ClusteringSettings() {
   const hdbscanParameters = usePointCloudContext(
-    (state) => state.hdbscanParameters
+    (state) => state.hdbscanParameters,
   );
   const setHDBSCANParameters = usePointCloudContext(
-    (state) => state.setHDBSCANParameters
+    (state) => state.setHDBSCANParameters,
   );
   const clustersLoading = usePointCloudContext(
-    (state) => state.clustersLoading
+    (state) => state.clustersLoading,
   );
 
   const {
@@ -113,20 +113,20 @@ export default function ClusteringSettings() {
       const values = {
         minClusterSize: parseInt(
           newHDBSCANParameters.minClusterSize as unknown as string,
-          10
+          10,
         ),
         clusterMinSamples: parseInt(
           newHDBSCANParameters.clusterMinSamples as unknown as string,
-          10
+          10,
         ),
         clusterSelectionEpsilon: parseFloat(
-          newHDBSCANParameters.clusterSelectionEpsilon as unknown as string
+          newHDBSCANParameters.clusterSelectionEpsilon as unknown as string,
         ),
       };
       setHDBSCANParameters(values);
       reset(values);
     },
-    [setHDBSCANParameters, reset]
+    [setHDBSCANParameters, reset],
   );
   return (
     <section

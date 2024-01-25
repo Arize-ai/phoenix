@@ -83,7 +83,7 @@ function TooltipContent({
     return (
       <ChartTooltip>
         <Text weight="heavy" textSize="medium">{`${fullTimeFormatter(
-          new Date(label)
+          new Date(label),
         )}`}</Text>
         <ChartTooltipItem
           color={color}
@@ -282,7 +282,7 @@ export function MetricTimeSeries({
           : embeddingDimensionId, // NEED to provide a placeholder id. This is super hacky but it works for now
       performanceMetric:
         metric.type === "performance" ? metric.metric : "accuracyScore", // Need a placeholder metric
-    }
+    },
   );
 
   const timeTickFormatter = useTimeTickFormatter({
@@ -298,16 +298,19 @@ export function MetricTimeSeries({
         setSelectedTimestamp(new Date(payload.timestamp));
       }
     },
-    [setSelectedTimestamp]
+    [setSelectedTimestamp],
   );
 
   const chartPrimaryRawData = getChartPrimaryData({ data, metric });
   const chartSecondaryRawData = getTrafficData(data);
   const trafficDataMap =
-    chartSecondaryRawData.reduce((acc, traffic) => {
-      acc[traffic.timestamp] = traffic.value;
-      return acc;
-    }, {} as Record<string, number | null>) ?? {};
+    chartSecondaryRawData.reduce(
+      (acc, traffic) => {
+        acc[traffic.timestamp] = traffic.value;
+        return acc;
+      },
+      {} as Record<string, number | null>,
+    ) ?? {};
 
   const chartData = chartPrimaryRawData.map((d) => {
     const traffic = trafficDataMap[d.timestamp];
@@ -495,7 +498,7 @@ function getChartPrimaryData({
  * Function that selects the secondary traffic (count) data for the chart
  */
 function getTrafficData(
-  data: MetricTimeSeriesQuery["response"]
+  data: MetricTimeSeriesQuery["response"],
 ): { timestamp: string; value: number | null }[] {
   if (data.embedding.trafficTimeSeries?.data != null) {
     return [...data.embedding.trafficTimeSeries.data];

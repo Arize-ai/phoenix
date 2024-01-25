@@ -52,7 +52,7 @@ function TooltipContent({
     return (
       <ChartTooltip>
         <Text weight="heavy" textSize="medium">{`${fullTimeFormatter(
-          new Date(label)
+          new Date(label),
         )}`}</Text>
         <ChartTooltipItem
           color={barColor}
@@ -104,7 +104,7 @@ export function DimensionCountTimeSeries({
         end: timeRange.end.toISOString(),
       },
       countGranularity,
-    }
+    },
   );
 
   const chartRawData = data.embedding.trafficTimeSeries?.data || [];

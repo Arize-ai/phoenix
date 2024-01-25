@@ -15,18 +15,18 @@ type PointCloudClustersProps = {
 };
 export function PointCloudClusters({ radius }: PointCloudClustersProps) {
   const eventIdToDataMap = usePointCloudContext(
-    (state) => state.eventIdToDataMap
+    (state) => state.eventIdToDataMap,
   );
   const highlightedClusterId = usePointCloudContext(
-    (state) => state.highlightedClusterId
+    (state) => state.highlightedClusterId,
   );
   const selectedClusterId = usePointCloudContext(
-    (state) => state.selectedClusterId
+    (state) => state.selectedClusterId,
   );
   const clusters = usePointCloudContext((state) => state.clusters);
   const { theme } = useTheme();
   const clusterColorMode = usePointCloudContext(
-    (state) => state.clusterColorMode
+    (state) => state.clusterColorMode,
   );
 
   // Interleave the cluster point locations with the cluster
@@ -43,9 +43,9 @@ export function PointCloudClusters({ radius }: PointCloudClustersProps) {
           })
           .filter(
             (
-              positionInfo
+              positionInfo,
             ): positionInfo is { position: ThreeDimensionalPoint } =>
-              positionInfo.position !== null
+              positionInfo.position !== null,
           );
         return {
           ...cluster,

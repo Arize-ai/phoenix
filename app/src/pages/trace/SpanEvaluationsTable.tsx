@@ -50,7 +50,7 @@ export function SpanEvaluationsTable(props: {
         }
       }
     `,
-    props.span
+    props.span,
   );
   const evaluations = useMemo(() => {
     return [...data.spanEvaluations];
@@ -75,7 +75,7 @@ export function SpanEvaluationsTable(props: {
                   <>
                     {flexRender(
                       header.column.columnDef.header,
-                      header.getContext()
+                      header.getContext(),
                     )}
                   </>
                 )}

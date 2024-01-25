@@ -64,7 +64,7 @@ export function Table<DataRow extends object>({
                     <div>
                       {flexRender(
                         header.column.columnDef.header,
-                        header.getContext()
+                        header.getContext(),
                       )}
                     </div>
                   )}

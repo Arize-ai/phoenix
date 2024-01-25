@@ -41,7 +41,7 @@ export function ModelPage(_props: ModelPageProps) {
     {
       startTime: timeRange.start.toISOString(),
       endTime: timeRange.end.toISOString(),
-    }
+    },
   );
   return (
     <main>

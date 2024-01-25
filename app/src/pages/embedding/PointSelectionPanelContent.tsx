@@ -75,25 +75,25 @@ function convertGqlEventToRetrievalDocument({
 
 export function PointSelectionPanelContent() {
   const selectedEventIds = usePointCloudContext(
-    (state) => state.selectedEventIds
+    (state) => state.selectedEventIds,
   );
   const setSelectedEventIds = usePointCloudContext(
-    (state) => state.setSelectedEventIds
+    (state) => state.setSelectedEventIds,
   );
   const setSelectedClusterId = usePointCloudContext(
-    (state) => state.setSelectedClusterId
+    (state) => state.setSelectedClusterId,
   );
   const selectionDisplay = usePointCloudContext(
-    (state) => state.selectionDisplay
+    (state) => state.selectionDisplay,
   );
   const setSelectionDisplay = usePointCloudContext(
-    (state) => state.setSelectionDisplay
+    (state) => state.setSelectionDisplay,
   );
   const selectionGridSize = usePointCloudContext(
-    (state) => state.selectionGridSize
+    (state) => state.selectionGridSize,
   );
   const setSelectionGridSize = usePointCloudContext(
-    (state) => state.setSelectionGridSize
+    (state) => state.setSelectionGridSize,
   );
 
   const [selectedDetailPointId, setSelectedDetailPointId] = React.useState<
@@ -202,7 +202,7 @@ export function PointSelectionPanelContent() {
       primaryEventIds: [...primaryEventIds],
       referenceEventIds: [...referenceEventIds],
       corpusEventIds: [...corpusEventIds],
-    }
+    },
   );
 
   const allSelectedEvents = useMemo(() => {
@@ -218,7 +218,7 @@ export function PointSelectionPanelContent() {
   };
 
   const eventIdToDataMap = usePointCloudContext(
-    (state) => state.eventIdToDataMap
+    (state) => state.eventIdToDataMap,
   );
   const pointData = usePointCloudContext((state) => state.pointData);
 
@@ -234,7 +234,7 @@ export function PointSelectionPanelContent() {
               convertGqlEventToRetrievalDocument({
                 event: documentEvent,
                 relevance,
-              })
+              }),
             );
           }
         });

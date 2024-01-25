@@ -28,7 +28,7 @@ export function DimensionCardinalityStats(props: {
         ) @include(if: $hasReference)
       }
     `,
-    props.dimension
+    props.dimension,
   );
 
   return (

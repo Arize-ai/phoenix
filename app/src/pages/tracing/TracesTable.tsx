@@ -72,7 +72,7 @@ type NestedSpanTableRow<TSpan extends ISpanItem> = TSpan & {
  * as a table.
  */
 function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(
-  children: SpanTreeNode<TSpan>[]
+  children: SpanTreeNode<TSpan>[],
 ): NestedSpanTableRow<TSpan>[] {
   const normalizedSpanTreeChildren: NestedSpanTableRow<TSpan>[] = [];
   for (const child of children) {
@@ -183,15 +183,15 @@ export function TracesTable(props: TracesTableProps) {
           }
         }
       `,
-      props.query
+      props.query,
     );
 
   const evaluationVisibility = useTracingContext(
-    (state) => state.evaluationVisibility
+    (state) => state.evaluationVisibility,
   );
   const visibleEvaluationColumnNames = useMemo(() => {
     return Object.keys(evaluationVisibility).filter(
-      (name) => evaluationVisibility[name]
+      (name) => evaluationVisibility[name],
     );
   }, [evaluationVisibility]);
   const tableData = useMemo(() => {
@@ -217,7 +217,7 @@ export function TracesTable(props: TracesTableProps) {
             accessorKey: `${EVALS_COLUMN_PREFIX}${EVALS_KEY_SEPARATOR}label${EVALS_KEY_SEPARATOR}${name}`,
             cell: ({ row }) => {
               const evaluation = row.original.spanEvaluations.find(
-                (evaluation) => evaluation.name === name
+                (evaluation) => evaluation.name === name,
               );
               if (!evaluation) {
                 return null;
@@ -230,7 +230,7 @@ export function TracesTable(props: TracesTableProps) {
             accessorKey: `${EVALS_COLUMN_PREFIX}${EVALS_KEY_SEPARATOR}score${EVALS_KEY_SEPARATOR}${name}`,
             cell: ({ row }) => {
               const evaluation = row.original.spanEvaluations.find(
-                (evaluation) => evaluation.name === name
+                (evaluation) => evaluation.name === name,
               );
               if (!evaluation) {
                 return null;
@@ -420,7 +420,7 @@ export function TracesTable(props: TracesTableProps) {
         },
         {
           fetchPolicy: "store-and-network",
-        }
+        },
       );
     });
   }, [sorting, refetch, filterCondition, fetchKey]);
@@ -438,7 +438,7 @@ export function TracesTable(props: TracesTableProps) {
         }
       }
     },
-    [hasNext, isLoadingNext, loadNext]
+    [hasNext, isLoadingNext, loadNext],
   );
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
@@ -510,7 +510,7 @@ export function TracesTable(props: TracesTableProps) {
                       >
                         {flexRender(
                           header.column.columnDef.header,
-                          header.getContext()
+                          header.getContext(),
                         )}
                         {header.column.getIsSorted() ? (
                           <Icon
@@ -548,7 +548,7 @@ export function TracesTable(props: TracesTableProps) {
                         <td key={cell.id}>
                           {flexRender(
                             cell.column.columnDef.cell,
-                            cell.getContext()
+                            cell.getContext(),
                           )}
                         </td>
                       );

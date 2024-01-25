@@ -68,7 +68,7 @@ export function DimensionPage() {
         end: timeRange.end.toISOString(),
       },
       hasReference,
-    }
+    },
   );
 
   if (!dimensionId) {

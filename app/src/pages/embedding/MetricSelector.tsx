@@ -33,10 +33,10 @@ const METRIC_KEY_SEPARATOR = ":";
  * Type guard for MetricDefinition["type"]
  */
 function isMetricType(
-  maybeType: unknown
+  maybeType: unknown,
 ): maybeType is MetricDefinition["type"] {
   return ["drift", "performance", "dataQuality", "retrieval"].includes(
-    maybeType as string
+    maybeType as string,
   );
 }
 /**
@@ -147,7 +147,7 @@ export function MetricSelector({
         }
       }
     `,
-    model
+    model,
   );
   const { referenceDataset, corpusDataset } = useDatasets();
   const hasReferenceDataset = !!referenceDataset;
@@ -156,7 +156,7 @@ export function MetricSelector({
   const loading = usePointCloudContext((state) => state.loading);
   const setMetric = usePointCloudContext((state) => state.setMetric);
   const numericDimensions = data.numericDimensions.edges.map(
-    (edge) => edge.node
+    (edge) => edge.node,
   );
   const hasNumericDimensions = numericDimensions.length > 0;
   const onSelectionChange = useCallback(
@@ -169,7 +169,7 @@ export function MetricSelector({
         setMetric(metricDefinition);
       });
     },
-    [setMetric, numericDimensions, startTransition]
+    [setMetric, numericDimensions, startTransition],
   );
   return (
     <Picker

@@ -14,7 +14,7 @@ const lineWidth = 1;
 export function PointCloudPointRelationships() {
   const hoveredEventId = usePointCloudContext((state) => state.hoveredEventId);
   const eventIdToDataMap = usePointCloudContext(
-    (state) => state.eventIdToDataMap
+    (state) => state.eventIdToDataMap,
   );
   const group = useRef<THREE.Group>(null);
   useFrame((_, delta) => {
@@ -23,7 +23,7 @@ export function PointCloudPointRelationships() {
         (group) =>
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
           // @ts-ignore
-          (group.children[0].material.uniforms.dashOffset.value -= delta * 5)
+          (group.children[0].material.uniforms.dashOffset.value -= delta * 5),
       );
     }
   });

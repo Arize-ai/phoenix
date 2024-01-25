@@ -46,7 +46,7 @@ export function DimensionDriftStats(props: {
         psi: driftMetric(metric: psi, timeRange: $timeRange)
       }
     `,
-    props.dimension
+    props.dimension,
   );
 
   return (

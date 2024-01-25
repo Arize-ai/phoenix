@@ -43,7 +43,7 @@ type TimeRangeContextType = {
 };
 
 export const TimeRangeContext = createContext<TimeRangeContextType | null>(
-  null
+  null,
 );
 
 export function useTimeRange() {
@@ -68,7 +68,7 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
       case TimePreset.last_day: {
         const endTimeBounds = roundToNearestMinutes(
           endOfHour(timeRangeBounds.end),
-          { roundingMethod: "floor" }
+          { roundingMethod: "floor" },
         );
         return {
           start: subDays(endTimeBounds, 1),
@@ -78,7 +78,7 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
       case TimePreset.last_week: {
         const endTimeBounds = roundToNearestMinutes(
           endOfDay(timeRangeBounds.end),
-          { roundingMethod: "floor" }
+          { roundingMethod: "floor" },
         );
         return {
           start: subDays(endTimeBounds, 7),
@@ -88,7 +88,7 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
       case TimePreset.last_month: {
         const endTimeBounds = roundToNearestMinutes(
           endOfDay(timeRangeBounds.end),
-          { roundingMethod: "floor" }
+          { roundingMethod: "floor" },
         );
         return {
           start: subDays(endTimeBounds, 30),
@@ -98,7 +98,7 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
       case TimePreset.last_3_months: {
         const endTimeBounds = roundToNearestMinutes(
           endOfDay(timeRangeBounds.end),
-          { roundingMethod: "floor" }
+          { roundingMethod: "floor" },
         );
         return {
           start: subDays(endTimeBounds, 90),
@@ -129,7 +129,7 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
       case TimePreset.all: {
         const endTimeBounds = roundToNearestMinutes(
           endOfDay(timeRangeBounds.end),
-          { roundingMethod: "floor" }
+          { roundingMethod: "floor" },
         );
         const startTimeBounds = startOfDay(timeRangeBounds.start);
         return {

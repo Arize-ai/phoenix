@@ -15,7 +15,7 @@ import { usePointCloudContext } from "@phoenix/contexts";
 
 export function CanvasDisplaySettingsDropdown() {
   const setPointSizeScale = usePointCloudContext(
-    (state) => state.setPointSizeScale
+    (state) => state.setPointSizeScale,
   );
   const pointSizeScale = usePointCloudContext((state) => state.pointSizeScale);
   return (

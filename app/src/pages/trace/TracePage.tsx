@@ -104,7 +104,7 @@ function isAttributeObject(value: unknown): value is AttributeObject {
 }
 
 export function isAttributePromptTemplate(
-  value: unknown
+  value: unknown,
 ): value is AttributePromptTemplate {
   if (
     isAttributeObject(value) &&
@@ -197,13 +197,13 @@ export function TracePage() {
         }
       }
     `,
-    { traceId: traceId as string }
+    { traceId: traceId as string },
   );
   const spansList = data.spans.edges.map((edge) => edge.span);
   const urlSelectedSpanId = searchParams.get("selectedSpanId");
   const selectedSpanId = urlSelectedSpanId ?? spansList[0].context.spanId;
   const selectedSpan = spansList.find(
-    (span) => span.context.spanId === selectedSpanId
+    (span) => span.context.spanId === selectedSpanId,
   );
   const rootSpan = useMemo(() => {
     return spansList.find((span) => span.parentId == null);
@@ -245,7 +245,7 @@ export function TracePage() {
                     {
                       selectedSpanId: spanId,
                     },
-                    { replace: true }
+                    { replace: true },
                   );
                 }}
               />
@@ -677,14 +677,17 @@ function RetrieverSpanInfo(props: {
     Record<number, DocumentEvaluation[]>
   >(() => {
     const documentEvaluations = span.documentEvaluations;
-    return documentEvaluations.reduce((acc, documentEvaluation) => {
-      const documentPosition = documentEvaluation.documentPosition;
-      const evaluations = acc[documentPosition] || [];
-      return {
-        ...acc,
-        [documentPosition]: [...evaluations, documentEvaluation],
-      };
-    }, {} as Record<number, DocumentEvaluation[]>);
+    return documentEvaluations.reduce(
+      (acc, documentEvaluation) => {
+        const documentPosition = documentEvaluation.documentPosition;
+        const evaluations = acc[documentPosition] || [];
+        return {
+          ...acc,
+          [documentPosition]: [...evaluations, documentEvaluation],
+        };
+      },
+      {} as Record<number, DocumentEvaluation[]>,
+    );
   }, [span.documentEvaluations]);
 
   const hasInput = input != null && input.value != null;
@@ -1046,7 +1049,7 @@ function DocumentItem({
             </Flex>
             {typeof document[DOCUMENT_SCORE] === "number" && (
               <Label color={labelColor}>{`score ${numberFormatter(
-                document[DOCUMENT_SCORE]
+                document[DOCUMENT_SCORE],
               )}`}</Label>
             )}
           </Flex>
@@ -1083,7 +1086,7 @@ function DocumentItem({
                   const evalLabelColor =
                     documentEvaluation.label &&
                     DANGER_DOCUMENT_EVALUATION_LABELS.includes(
-                      documentEvaluation.label
+                      documentEvaluation.label,
                     )
                       ? "danger"
                       : labelColor;
@@ -1218,10 +1221,10 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                   {toolCall[TOOL_CALL_FUNCTION_NAME] as string}(
                   {JSON.stringify(
                     JSON.parse(
-                      toolCall[TOOL_CALL_FUNCTION_ARGUMENTS_JSON] as string
+                      toolCall[TOOL_CALL_FUNCTION_ARGUMENTS_JSON] as string,
                     ),
                     null,
-                    2
+                    2,
                   )}
                   )
                 </pre>
@@ -1239,10 +1242,10 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
             {message[MESSAGE_FUNCTION_CALL_NAME] as string}(
             {JSON.stringify(
               JSON.parse(
-                message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] as string
+                message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] as string,
               ),
               null,
-              2
+              2,
             )}
             )
           </pre>

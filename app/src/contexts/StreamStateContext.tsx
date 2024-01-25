@@ -29,7 +29,7 @@ export type StreamStateContextType = {
 };
 
 export const StreamStateContext = createContext<StreamStateContextType | null>(
-  null
+  null,
 );
 
 export function useStreamState() {
@@ -53,7 +53,7 @@ export function StreamStateProvider({
         _setFetchKey(fetchKey);
       });
     },
-    [_setFetchKey]
+    [_setFetchKey],
   );
   return (
     <StreamStateContext.Provider

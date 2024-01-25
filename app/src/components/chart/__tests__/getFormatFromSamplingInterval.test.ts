@@ -65,9 +65,9 @@ describe("getFormatFromSamplingInterval", () => {
     "samplingIntervalSeconds: %p returns %p",
     (samplingInterval, expectedResult) => {
       const result = locale.utcFormat(
-        getFormatFromSamplingInterval(samplingInterval)
+        getFormatFromSamplingInterval(samplingInterval),
       )(date);
       expect(result).toEqual(expectedResult);
-    }
+    },
   );
 });

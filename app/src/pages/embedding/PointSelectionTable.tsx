@@ -150,7 +150,7 @@ export function PointSelectionTable({
       // Add the metric name to the table value
       tableData.forEach((dataItem) => {
         const metricValue = dataItem.dimensions.find(
-          (dimension) => dimension.dimension.name === dimensionName
+          (dimension) => dimension.dimension.name === dimensionName,
         )?.value;
         dataItem.metric = metricValue != null ? Number(metricValue) : null;
       });
@@ -209,7 +209,7 @@ export function PointSelectionTable({
                   >
                     {flexRender(
                       header.column.columnDef.header,
-                      header.getContext()
+                      header.getContext(),
                     )}
                     {header.column.getIsSorted() ? (
                       <Icon
