@@ -67,7 +67,7 @@ const darkColors: ChartColors = Object.freeze({
   default: "#ffffff",
   // Colors specific to the dataset role
   primary: "#9efcfd",
-  reference: "#baa1f9"
+  reference: "#baa1f9",
 });
 
 const lightColors: ChartColors = Object.freeze({
@@ -101,7 +101,7 @@ const lightColors: ChartColors = Object.freeze({
   gray700: "#f0f0f0",
   // Colors specific to the dataset role
   primary: "#00add0",
-  reference: "#4500d9"
+  reference: "#4500d9",
 });
 
 export const useChartColors = (): ChartColors => {

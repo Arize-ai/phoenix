@@ -36,7 +36,7 @@ export const createTracingStore = (initialProps?: Partial<TracingProps>) => {
     },
     setEvaluationVisibility: (evaluationVisibility) => {
       set({ evaluationVisibility });
-    }
+    },
   });
   return create<TracingState>()(devtools(tracingStore));
 };

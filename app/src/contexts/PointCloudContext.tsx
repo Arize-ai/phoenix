@@ -2,7 +2,7 @@ import React, {
   createContext,
   PropsWithChildren,
   useContext,
-  useRef
+  useRef,
 } from "react";
 import { useZustand } from "use-zustand";
 
@@ -10,7 +10,7 @@ import {
   createPointCloudStore,
   PointCloudProps,
   PointCloudState,
-  PointCloudStore
+  PointCloudStore,
 } from "@phoenix/store/pointCloudStore";
 
 export const PointCloudContext = createContext<PointCloudStore | null>(null);

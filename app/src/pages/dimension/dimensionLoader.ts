@@ -25,7 +25,7 @@ export async function dimensionLoader(args: LoaderFunctionArgs) {
       }
     `,
     {
-      id: dimensionId as string
+      id: dimensionId as string,
     }
   ).toPromise();
 }

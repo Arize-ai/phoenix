@@ -8,7 +8,7 @@ import {
   Text,
   Tooltip,
   TooltipTrigger,
-  TriggerWrap
+  TriggerWrap,
 } from "@arizeai/components";
 
 type TokenCountProps = {

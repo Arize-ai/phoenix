@@ -66,7 +66,7 @@ export function PointCloudPoints({
   referenceData,
   corpusData,
   color,
-  radius
+  radius,
 }: PointCloudPointsProps) {
   const datasetVisibility = usePointCloudContext(
     (state) => state.datasetVisibility
@@ -174,7 +174,7 @@ export function PointCloudPoints({
             color: colorByFn,
             radius,
             size: radius ? radius * CUBE_RADIUS_MULTIPLIER : undefined,
-            scale: pointSizeScale
+            scale: pointSizeScale,
           }}
           onPointHovered={onPointHovered}
           onPointerLeave={onPointerLeave}
@@ -189,7 +189,7 @@ export function PointCloudPoints({
             color: colorByFn,
             radius,
             size: radius ? radius * CUBE_RADIUS_MULTIPLIER : undefined,
-            scale: pointSizeScale
+            scale: pointSizeScale,
           }}
           onPointHovered={onPointHovered}
           onPointerLeave={onPointerLeave}

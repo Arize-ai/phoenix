@@ -3,7 +3,7 @@ import React, {
   PropsWithChildren,
   startTransition,
   useCallback,
-  useState
+  useState,
 } from "react";
 
 export type StreamStateContextType = {
@@ -42,7 +42,7 @@ export function useStreamState() {
 
 export function StreamStateProvider({
   initialFetchKey = "initial",
-  children
+  children,
 }: PropsWithChildren<{ initialFetchKey?: string }>) {
   const [isStreaming, setIsStreaming] = useState<boolean>(true);
   const [fetchKey, _setFetchKey] = useState<string>(initialFetchKey);

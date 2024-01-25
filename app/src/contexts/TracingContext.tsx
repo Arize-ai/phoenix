@@ -5,7 +5,7 @@ import {
   createTracingStore,
   TracingProps,
   TracingState,
-  TracingStore
+  TracingStore,
 } from "@phoenix/store/tracingStore";
 
 export const TracingContext = createContext<TracingStore | null>(null);

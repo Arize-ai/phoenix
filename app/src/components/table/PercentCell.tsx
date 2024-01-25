@@ -8,7 +8,7 @@ import { percentFormatter } from "@phoenix/utils/numberFormatUtils";
  * A table cell that nicely formats the value of a percent.
  */
 export function PercentCell<TData extends object, TValue>({
-  getValue
+  getValue,
 }: CellContext<TData, TValue>) {
   const value = getValue();
   if (!isNumberOrNull(value)) {

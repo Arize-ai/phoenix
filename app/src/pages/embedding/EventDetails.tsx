@@ -3,7 +3,7 @@ import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
-  useReactTable
+  useReactTable,
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
@@ -16,7 +16,7 @@ import {
   Icon,
   Icons,
   Label,
-  View
+  View,
 } from "@arizeai/components";
 
 import { Empty } from "@phoenix/components/Empty";
@@ -227,7 +227,7 @@ type DimensionRow = {
 };
 
 function EmbeddingDimensionsTable({
-  dimensions
+  dimensions,
 }: {
   dimensions: ModelEvent["dimensions"];
 }) {
@@ -236,7 +236,7 @@ function EmbeddingDimensionsTable({
       return {
         name: dimension.dimension.name,
         type: dimension.dimension.type,
-        value: dimension.value ?? "--"
+        value: dimension.value ?? "--",
       };
     });
   }, [dimensions]);
@@ -245,16 +245,16 @@ function EmbeddingDimensionsTable({
     () => [
       {
         header: () => "Name",
-        accessorKey: "name"
+        accessorKey: "name",
       },
       {
         header: () => "Type",
-        accessorKey: "type"
+        accessorKey: "type",
       },
       {
         header: () => "Value",
-        accessorKey: "value"
-      }
+        accessorKey: "value",
+      },
     ],
     []
   );
@@ -262,7 +262,7 @@ function EmbeddingDimensionsTable({
   const table = useReactTable<DimensionRow>({
     columns,
     data,
-    getCoreRowModel: getCoreRowModel()
+    getCoreRowModel: getCoreRowModel(),
   });
   return (
     <table css={tableCSS}>

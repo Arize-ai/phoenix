@@ -16,7 +16,7 @@ import {
   Icon,
   List,
   ListItem,
-  View
+  View,
 } from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
@@ -74,11 +74,11 @@ export function ExportSelectionButton() {
   const onClick = useCallback(() => {
     commit({
       variables: {
-        eventIds: [...selectedEventIds]
+        eventIds: [...selectedEventIds],
       },
       onCompleted: (data) => {
         setExportInfo(data.exportEvents);
-      }
+      },
     });
   }, [commit, selectedEventIds]);
 
@@ -173,7 +173,7 @@ function ExportsList() {
     `,
     {},
     {
-      fetchPolicy: "network-only"
+      fetchPolicy: "network-only",
     }
   );
   return (

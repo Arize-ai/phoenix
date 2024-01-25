@@ -9,13 +9,13 @@ import {
   Form,
   Heading,
   Text,
-  TextField
+  TextField,
 } from "@arizeai/components";
 
 import { MAX_32_BIT_INTEGER } from "@phoenix/constants/numberConstants";
 import {
   MIN_CLUSTER_MIN_SAMPLES,
-  MIN_MIN_CLUSTER_SIZE
+  MIN_MIN_CLUSTER_SIZE,
 } from "@phoenix/constants/pointCloudConstants";
 import { usePointCloudContext } from "@phoenix/contexts";
 
@@ -103,9 +103,9 @@ export default function ClusteringSettings() {
     control,
     handleSubmit,
     formState: { isDirty, isValid },
-    reset
+    reset,
   } = useForm({
-    defaultValues: hdbscanParameters
+    defaultValues: hdbscanParameters,
   });
 
   const onSubmit = useCallback(
@@ -121,7 +121,7 @@ export default function ClusteringSettings() {
         ),
         clusterSelectionEpsilon: parseFloat(
           newHDBSCANParameters.clusterSelectionEpsilon as unknown as string
-        )
+        ),
       };
       setHDBSCANParameters(values);
       reset(values);
@@ -145,16 +145,16 @@ export default function ClusteringSettings() {
             required: "field is required",
             min: {
               value: MIN_MIN_CLUSTER_SIZE,
-              message: "must be greater than 1"
+              message: "must be greater than 1",
             },
             max: {
               value: MAX_32_BIT_INTEGER,
-              message: "must be less than 2,147,483,647"
-            }
+              message: "must be less than 2,147,483,647",
+            },
           }}
           render={({
             field: { onChange, onBlur, value },
-            fieldState: { invalid, error }
+            fieldState: { invalid, error },
           }) => (
             <TextField
               label="min cluster size"
@@ -176,16 +176,16 @@ export default function ClusteringSettings() {
             required: "field is required",
             min: {
               value: MIN_CLUSTER_MIN_SAMPLES,
-              message: `must be greater than ${MIN_CLUSTER_MIN_SAMPLES}`
+              message: `must be greater than ${MIN_CLUSTER_MIN_SAMPLES}`,
             },
             max: {
               value: MAX_32_BIT_INTEGER,
-              message: "must be less than 2,147,483,647"
-            }
+              message: "must be less than 2,147,483,647",
+            },
           }}
           render={({
             field: { onBlur, onChange, value },
-            fieldState: { invalid, error }
+            fieldState: { invalid, error },
           }) => (
             <TextField
               label="cluster minimum samples"
@@ -207,16 +207,16 @@ export default function ClusteringSettings() {
             required: "field is required",
             min: {
               value: 0,
-              message: "must be a non-negative number"
+              message: "must be a non-negative number",
             },
             max: {
               value: MAX_32_BIT_INTEGER,
-              message: "must be less than 2,147,483,647"
-            }
+              message: "must be less than 2,147,483,647",
+            },
           }}
           render={({
             field: { onBlur, onChange, value },
-            fieldState: { invalid, error }
+            fieldState: { invalid, error },
           }) => (
             <TextField
               label="cluster selection epsilon"

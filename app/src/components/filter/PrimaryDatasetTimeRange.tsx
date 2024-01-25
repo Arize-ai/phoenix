@@ -8,7 +8,7 @@ import {
   Picker,
   Tooltip,
   TooltipTrigger,
-  TriggerWrap
+  TriggerWrap,
 } from "@arizeai/components";
 
 import { useDatasets } from "@phoenix/contexts";
@@ -21,10 +21,10 @@ export function PrimaryDatasetTimeRange(_: PrimaryDatasetTimeRangeProps) {
   const {
     timeRange,
     timePreset: selectedTimePreset,
-    setTimePreset
+    setTimePreset,
   } = useTimeRange();
   const {
-    primaryDataset: { name }
+    primaryDataset: { name },
   } = useDatasets();
   const nameAbbr = name.slice(0, 10);
   return (

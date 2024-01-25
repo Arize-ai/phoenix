@@ -8,13 +8,13 @@ import {
   Text,
   TooltipTrigger,
   TriggerWrap,
-  View
+  View,
 } from "@arizeai/components";
 
 import {
   ChartTooltipDivider,
   ChartTooltipItem,
-  useChartColors
+  useChartColors,
 } from "@phoenix/components/chart";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { formatFloat, formatPercent } from "@phoenix/utils/numberFormatUtils";
@@ -34,7 +34,7 @@ export function EvaluationSummary({ evaluationName }: EvaluationSummaryProps) {
       }
     `,
     {
-      evaluationName
+      evaluationName,
     }
   );
   return (
@@ -87,7 +87,7 @@ function EvaluationSummaryValue(props: {
     chartColors.default,
     chartColors.gray600,
     chartColors.gray400,
-    chartColors.gray200
+    chartColors.gray200,
   ];
   const meanScore = data?.spanEvaluationSummary?.meanScore;
   const labelFractions = data?.spanEvaluationSummary?.labelFractions;

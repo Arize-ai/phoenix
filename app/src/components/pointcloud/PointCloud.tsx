@@ -9,7 +9,7 @@ import {
   Heading,
   Icon,
   InfoOutline,
-  TooltipTrigger
+  TooltipTrigger,
 } from "@arizeai/components";
 import {
   Axes,
@@ -18,7 +18,7 @@ import {
   PointBaseProps,
   ThreeDimensionalBounds,
   ThreeDimensionalCanvas,
-  ThreeDimensionalControls
+  ThreeDimensionalControls,
 } from "@arizeai/point-cloud";
 
 import { UNKNOWN_COLOR } from "@phoenix/constants/pointCloudConstants";
@@ -27,7 +27,7 @@ import {
   PointCloudContext,
   ThemeContext,
   usePointCloudContext,
-  useTheme
+  useTheme,
 } from "@phoenix/contexts";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
 import { CanvasMode } from "@phoenix/store";
@@ -62,7 +62,7 @@ const PointCloudInfo = function PointCloudInfo() {
     return [
       primaryEventIds.length,
       referenceEventIds.length,
-      corpusEventIds.length
+      corpusEventIds.length,
     ];
   }, [points]);
 
@@ -337,14 +337,14 @@ const Projection = React.memo(function Projection() {
     const visiblePoints = [
       ...visiblePrimaryPoints,
       ...(visibleReferencePoints || []),
-      ...(visibleCorpusPoints || [])
+      ...(visibleCorpusPoints || []),
     ];
     return visiblePoints;
   }, [
     filteredPrimaryData,
     filteredReferenceData,
     filteredCorpusData,
-    datasetVisibility
+    datasetVisibility,
   ]);
 
   // Context cannot be passed through multiple reconcilers. Bridge the context

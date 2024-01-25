@@ -6,7 +6,7 @@ import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 export function LatencyText({
   latencyMs,
-  textSize = "medium"
+  textSize = "medium",
 }: {
   latencyMs: number;
   textSize?: TextProps["textSize"];

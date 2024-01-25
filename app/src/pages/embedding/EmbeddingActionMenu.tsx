@@ -33,8 +33,8 @@ export function EmbeddingActionMenu() {
               variables: {
                 clusters: clusters.map((cluster) => ({
                   eventIds: cluster.eventIds,
-                  id: cluster.id
-                }))
+                  id: cluster.id,
+                })),
               },
               onCompleted: (data) => {
                 const { fileName } = data.exportClusters;
@@ -46,16 +46,16 @@ export function EmbeddingActionMenu() {
                     text: "Download",
                     onClick: () => {
                       window.open(`/exports?filename=${fileName}`, "_self");
-                    }
-                  }
+                    },
+                  },
                 });
               },
               onError: (error) => {
                 notifyError({
                   title: "Failed to export clusters",
-                  message: `Failed to export clusters: ${error.message}`
+                  message: `Failed to export clusters: ${error.message}`,
                 });
-              }
+              },
             });
             break;
         }

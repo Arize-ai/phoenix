@@ -8,7 +8,7 @@ import {
   Icon,
   Icons,
   Slider,
-  View
+  View,
 } from "@arizeai/components";
 
 import { usePointCloudContext } from "@phoenix/contexts";

@@ -2,14 +2,14 @@ import { ColumnSort } from "@tanstack/react-table";
 
 import {
   SpanSort,
-  TracesTableQuery$variables
+  TracesTableQuery$variables,
 } from "./__generated__/TracesTableQuery.graphql";
 
 export const EVALS_COLUMN_PREFIX = "evals";
 export const EVALS_KEY_SEPARATOR = ":";
 export const DEFAULT_SORT: SpanSort = {
   col: "startTime",
-  dir: "desc"
+  dir: "desc",
 };
 
 export function getGqlSort(
@@ -21,7 +21,7 @@ export function getGqlSort(
     const [, attr, name] = sort.id.split(EVALS_KEY_SEPARATOR);
     evalResultKey = {
       attr,
-      name
+      name,
     } as SpanSort["evalResultKey"];
   } else {
     col = sort.id as SpanSort["col"];
@@ -30,6 +30,6 @@ export function getGqlSort(
   return {
     col,
     evalResultKey,
-    dir: sort.desc ? "desc" : "asc"
+    dir: sort.desc ? "desc" : "asc",
   };
 }

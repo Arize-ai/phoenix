@@ -10,7 +10,7 @@ import {
   Icon,
   TabPane,
   Tabs,
-  Text
+  Text,
 } from "@arizeai/components";
 
 import { Toolbar } from "@phoenix/components/filter";
@@ -61,7 +61,7 @@ const pointSelectionPanelCSS = css`
 
 function convertGqlEventToRetrievalDocument({
   event,
-  relevance
+  relevance,
 }: {
   event: EventData;
   relevance: number | null;
@@ -69,7 +69,7 @@ function convertGqlEventToRetrievalDocument({
   return {
     id: event.eventMetadata.predictionId || "unknown id",
     text: event.documentText ?? "empty document",
-    relevance: relevance
+    relevance: relevance,
   };
 }
 
@@ -201,7 +201,7 @@ export function PointSelectionPanelContent() {
     {
       primaryEventIds: [...primaryEventIds],
       referenceEventIds: [...referenceEventIds],
-      corpusEventIds: [...corpusEventIds]
+      corpusEventIds: [...corpusEventIds],
     }
   );
 
@@ -233,7 +233,7 @@ export function PointSelectionPanelContent() {
             documents.push(
               convertGqlEventToRetrievalDocument({
                 event: documentEvent,
-                relevance
+                relevance,
               })
             );
           }
@@ -253,7 +253,7 @@ export function PointSelectionPanelContent() {
         prompt: event.promptAndResponse?.prompt ?? null,
         response: event.promptAndResponse?.response ?? null,
         retrievedDocuments: documents,
-        documentText: event.documentText ?? null
+        documentText: event.documentText ?? null,
       };
     });
   }, [allSelectedEvents, eventIdToDataMap, pointData]);

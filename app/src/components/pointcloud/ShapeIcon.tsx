@@ -6,7 +6,7 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 export enum Shape {
   square = "square",
   circle = "circle",
-  diamond = "diamond"
+  diamond = "diamond",
 }
 
 type ShapeIconProps = {

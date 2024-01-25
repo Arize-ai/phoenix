@@ -7,7 +7,7 @@ import {
   TextField,
   Tooltip,
   TooltipTrigger,
-  TriggerWrap
+  TriggerWrap,
 } from "@arizeai/components";
 
 import { useDatasets } from "@phoenix/contexts";
@@ -22,7 +22,7 @@ type ReferenceDatasetTimeRangeProps = {
 };
 
 export function ReferenceDatasetTimeRange({
-  timeRange
+  timeRange,
 }: ReferenceDatasetTimeRangeProps) {
   const { referenceDataset } = useDatasets();
   const name = referenceDataset?.name ?? "reference";

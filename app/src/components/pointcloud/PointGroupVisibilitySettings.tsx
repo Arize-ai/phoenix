@@ -30,7 +30,7 @@ export function PointGroupVisibilitySettings() {
       const { name, checked } = event.target;
       setPointGroupVisibility({
         ...pointGroupVisibility,
-        [name]: checked
+        [name]: checked,
       });
     },
     [pointGroupVisibility, setPointGroupVisibility]

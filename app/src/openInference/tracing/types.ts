@@ -10,7 +10,7 @@ import {
   MESSAGE_ROLE,
   MESSAGE_TOOL_CALLS,
   TOOL_CALL_FUNCTION_ARGUMENTS_JSON,
-  TOOL_CALL_FUNCTION_NAME
+  TOOL_CALL_FUNCTION_NAME,
 } from "@arizeai/openinference-semantic-conventions";
 
 export type AttributeToolCall = {

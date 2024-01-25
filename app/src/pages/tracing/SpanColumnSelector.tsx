@@ -27,7 +27,7 @@ export function SpanColumnSelector(props: SpanColumnSelectorProps) {
     <Dropdown
       menu={<ColumnSelectorMenu {...props} />}
       triggerProps={{
-        placement: "bottom end"
+        placement: "bottom end",
       }}
     >
       <Flex direction="row" alignItems="center" gap="size-100">
@@ -136,7 +136,7 @@ function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
 }
 
 function EvaluationColumnSelector({
-  query
+  query,
 }: Pick<SpanColumnSelectorProps, "query">) {
   const data = useFragment<SpanColumnSelector_evaluations$key>(
     graphql`
@@ -199,7 +199,7 @@ function EvaluationColumnSelector({
                   onChange={() => {
                     setEvaluationVisibility({
                       ...evaluationVisibility,
-                      [name]: !isVisible
+                      [name]: !isVisible,
                     });
                   }}
                 />

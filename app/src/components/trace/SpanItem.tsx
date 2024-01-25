@@ -27,7 +27,7 @@ export function SpanItem(props: SpanItemProps) {
     statusCode,
     tokenCountTotal,
     tokenCountPrompt,
-    tokenCountCompletion
+    tokenCountCompletion,
   } = props;
   return (
     <View height="size-500" width="100%">

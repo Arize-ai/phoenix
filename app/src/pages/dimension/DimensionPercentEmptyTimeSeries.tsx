@@ -8,7 +8,7 @@ import {
   Tooltip,
   TooltipProps,
   XAxis,
-  YAxis
+  YAxis,
 } from "recharts";
 
 import { Text, theme } from "@arizeai/components";
@@ -18,7 +18,7 @@ import {
   ChartTooltipItem,
   defaultTimeXAxisProps,
   useChartColors,
-  useTimeTickFormatter
+  useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
@@ -28,20 +28,20 @@ import { DimensionPercentEmptyTimeSeriesQuery } from "./__generated__/DimensionP
 import { timeSeriesChartMargins } from "./dimensionChartConstants";
 
 const numberFormatter = new Intl.NumberFormat([], {
-  maximumFractionDigits: 2
+  maximumFractionDigits: 2,
 });
 
 const useColors = () => {
   const { gray100 } = useChartColors();
 
   return {
-    color: gray100
+    color: gray100,
   };
 };
 function TooltipContent({
   active,
   payload,
-  label
+  label,
 }: TooltipProps<number, string>) {
   const { color } = useColors();
   if (active && payload && payload.length) {
@@ -68,7 +68,7 @@ function TooltipContent({
 }
 
 export function DimensionPercentEmptyTimeSeries({
-  dimensionId
+  dimensionId,
 }: {
   dimensionId: string;
 }) {
@@ -102,20 +102,20 @@ export function DimensionPercentEmptyTimeSeries({
       dimensionId,
       timeRange: {
         start: timeRange.start.toISOString(),
-        end: timeRange.end.toISOString()
+        end: timeRange.end.toISOString(),
       },
-      granularity
+      granularity,
     }
   );
 
   const chartData =
     data.embedding.percentEmptyTimeSeries?.data.map((d) => ({
       timestamp: new Date(d.timestamp).valueOf(),
-      value: d.value
+      value: d.value,
     })) || [];
 
   const timeTickFormatter = useTimeTickFormatter({
-    samplingIntervalMinutes: granularity.samplingIntervalMinutes
+    samplingIntervalMinutes: granularity.samplingIntervalMinutes,
   });
 
   const { color } = useColors();
@@ -144,8 +144,8 @@ export function DimensionPercentEmptyTimeSeries({
             position: "insideLeft",
             style: {
               textAnchor: "middle",
-              fill: "var(--ac-global-text-color-900)"
-            }
+              fill: "var(--ac-global-text-color-900)",
+            },
           }}
           style={{ fill: "var(--ac-global-text-color-700)" }}
         />

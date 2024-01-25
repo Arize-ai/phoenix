@@ -15,7 +15,7 @@ import {
   ModelPage,
   ModelRoot,
   TracePage,
-  TracingRoot
+  TracingRoot,
 } from "./pages";
 
 const router = createBrowserRouter(
@@ -47,7 +47,7 @@ const router = createBrowserRouter(
               // to make this one a function so we can pass
               // the data from the loader to it so that our
               // breadcrumb is made up of dynamic content
-              crumb: (data: embeddingLoaderQuery$data) => data.embedding.name
+              crumb: (data: embeddingLoaderQuery$data) => data.embedding.name,
             }}
           />
         </Route>
@@ -67,7 +67,7 @@ const router = createBrowserRouter(
     </Route>
   ),
   {
-    basename: window.Config.basename
+    basename: window.Config.basename,
   }
 );
 

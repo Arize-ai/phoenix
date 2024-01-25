@@ -5,7 +5,7 @@ import React, {
   useCallback,
   useContext,
   useMemo,
-  useState
+  useState,
 } from "react";
 import {
   addDays,
@@ -14,7 +14,7 @@ import {
   roundToNearestMinutes,
   startOfDay,
   startOfHour,
-  subDays
+  subDays,
 } from "date-fns";
 
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -30,7 +30,7 @@ export enum TimePreset {
   first_day = "First Day",
   first_week = "First Week",
   first_month = "First Month",
-  all = "All"
+  all = "All",
 }
 
 /**
@@ -72,7 +72,7 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
         );
         return {
           start: subDays(endTimeBounds, 1),
-          end: endTimeBounds
+          end: endTimeBounds,
         };
       }
       case TimePreset.last_week: {
@@ -82,7 +82,7 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
         );
         return {
           start: subDays(endTimeBounds, 7),
-          end: endTimeBounds
+          end: endTimeBounds,
         };
       }
       case TimePreset.last_month: {
@@ -92,7 +92,7 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
         );
         return {
           start: subDays(endTimeBounds, 30),
-          end: endTimeBounds
+          end: endTimeBounds,
         };
       }
       case TimePreset.last_3_months: {
@@ -102,28 +102,28 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
         );
         return {
           start: subDays(endTimeBounds, 90),
-          end: endTimeBounds
+          end: endTimeBounds,
         };
       }
       case TimePreset.first_day: {
         const startTimeBounds = startOfHour(timeRangeBounds.start);
         return {
           start: startTimeBounds,
-          end: addDays(startTimeBounds, 1)
+          end: addDays(startTimeBounds, 1),
         };
       }
       case TimePreset.first_week: {
         const startTimeBounds = startOfDay(timeRangeBounds.start);
         return {
           start: startTimeBounds,
-          end: addDays(startTimeBounds, 7)
+          end: addDays(startTimeBounds, 7),
         };
       }
       case TimePreset.first_month: {
         const startTimeBounds = startOfDay(timeRangeBounds.start);
         return {
           start: startTimeBounds,
-          end: addDays(startTimeBounds, 30)
+          end: addDays(startTimeBounds, 30),
         };
       }
       case TimePreset.all: {
@@ -134,7 +134,7 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
         const startTimeBounds = startOfDay(timeRangeBounds.start);
         return {
           start: startTimeBounds,
-          end: endTimeBounds
+          end: endTimeBounds,
         };
       }
       default:

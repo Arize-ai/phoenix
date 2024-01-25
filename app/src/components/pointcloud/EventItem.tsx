@@ -506,7 +506,7 @@ function EventItemFooter({
   color,
   group,
   showDataset,
-  datasetName
+  datasetName,
 }: Pick<EventItemProps, "group" | "color" | "datasetName"> & {
   showDataset: boolean;
 }) {

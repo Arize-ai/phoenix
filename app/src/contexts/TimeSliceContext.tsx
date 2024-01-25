@@ -3,7 +3,7 @@ import React, {
   PropsWithChildren,
   startTransition,
   useContext,
-  useState
+  useState,
 } from "react";
 
 export type TimeSliceContextType = {
@@ -28,7 +28,7 @@ export const useTimeSlice = (): TimeSliceContextType => {
 
 export const TimeSliceContextProvider = ({
   initialTimestamp,
-  children
+  children,
 }: PropsWithChildren<{
   initialTimestamp: Date | null;
 }>) => {
@@ -46,7 +46,7 @@ export const TimeSliceContextProvider = ({
     <TimeSliceContext.Provider
       value={{
         selectedTimestamp,
-        setSelectedTimestamp
+        setSelectedTimestamp,
       }}
     >
       {children}

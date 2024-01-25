@@ -22,17 +22,17 @@ export function calculateGranularity(timeRange: TimeRange): {
   if (timeRangeInHours <= 1) {
     return {
       evaluationWindowMinutes: 1,
-      samplingIntervalMinutes: 1
+      samplingIntervalMinutes: 1,
     };
   } else if (timeRangeInHours <= 24) {
     return {
       evaluationWindowMinutes: ONE_HOUR_IN_MINUTES,
-      samplingIntervalMinutes: ONE_HOUR_IN_MINUTES
+      samplingIntervalMinutes: ONE_HOUR_IN_MINUTES,
     };
   } else {
     return {
       evaluationWindowMinutes: ONE_DAY_IN_MINUTES,
-      samplingIntervalMinutes: ONE_DAY_IN_MINUTES
+      samplingIntervalMinutes: ONE_DAY_IN_MINUTES,
     };
   }
 }
@@ -54,17 +54,17 @@ export function calculateGranularityWithRollingAverage(timeRange: TimeRange): {
   if (timeRangeInHours <= 1) {
     return {
       evaluationWindowMinutes: MIN_EVALUATION_WINDOW_IN_MINUTES,
-      samplingIntervalMinutes: 1
+      samplingIntervalMinutes: 1,
     };
   } else if (timeRangeInHours <= 24) {
     return {
       evaluationWindowMinutes: MIN_EVALUATION_WINDOW_IN_MINUTES,
-      samplingIntervalMinutes: ONE_HOUR_IN_MINUTES
+      samplingIntervalMinutes: ONE_HOUR_IN_MINUTES,
     };
   } else {
     return {
       evaluationWindowMinutes: MIN_EVALUATION_WINDOW_IN_MINUTES,
-      samplingIntervalMinutes: ONE_DAY_IN_MINUTES
+      samplingIntervalMinutes: ONE_DAY_IN_MINUTES,
     };
   }
 }

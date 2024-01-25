@@ -6,7 +6,7 @@ import { usePointCloudContext } from "@phoenix/contexts";
 const POINT_RADIUS_MULTIPLIER = 1.5;
 
 export function PointCloudPointHoverHalo({
-  pointRadius
+  pointRadius,
 }: {
   /**
    * The radius of the point. This is scaled up to be encompassed via the halo

@@ -6,7 +6,7 @@ import {
   ContextualHelp,
   Flex,
   Heading,
-  Text
+  Text,
 } from "@arizeai/components";
 
 import { ExternalLink } from "@phoenix/components";

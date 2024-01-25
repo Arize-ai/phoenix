@@ -9,7 +9,7 @@ import {
   Tooltip,
   TooltipProps,
   XAxis,
-  YAxis
+  YAxis,
 } from "recharts";
 
 import { theme } from "@arizeai/components";
@@ -19,7 +19,7 @@ import {
   ChartTooltipItem,
   defaultBarChartTooltipProps,
   getBinName,
-  useChartColors
+  useChartColors,
 } from "@phoenix/components/chart";
 
 import { DimensionSegmentsBarChart_dimension$key } from "./__generated__/DimensionSegmentsBarChart_dimension.graphql";
@@ -35,13 +35,13 @@ const formatter = format(".2f");
 const useColors = () => {
   const { primary } = useChartColors();
   return {
-    color: primary
+    color: primary,
   };
 };
 function TooltipContent({
   active,
   payload,
-  label
+  label,
 }: TooltipProps<BarChartItem["percent"], BarChartItem["name"]>) {
   const { color } = useColors();
   if (active && payload && payload.length) {
@@ -113,7 +113,7 @@ export function DimensionSegmentsBarChart(props: {
       const percent = (segmentCount / total) * 100;
       return {
         name: binName,
-        percent
+        percent,
       };
     });
   }, [data]);
@@ -127,7 +127,7 @@ export function DimensionSegmentsBarChart(props: {
           top: 25,
           right: 18,
           left: 18,
-          bottom: 5
+          bottom: 5,
         }}
       >
         <defs>
@@ -154,8 +154,8 @@ export function DimensionSegmentsBarChart(props: {
             position: "insideLeft",
             style: {
               textAnchor: "middle",
-              fill: "var(--ac-global-text-color-900)"
-            }
+              fill: "var(--ac-global-text-color-900)",
+            },
           }}
           style={{ fill: "var(--ac-global-text-color-700)" }}
         />

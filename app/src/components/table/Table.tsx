@@ -5,7 +5,7 @@ import {
   getCoreRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  useReactTable
+  useReactTable,
 } from "@tanstack/react-table";
 
 import { Button, Icon, Icons } from "@arizeai/components";
@@ -20,14 +20,14 @@ type TableProps<DataRow extends object> = {
 
 export function Table<DataRow extends object>({
   columns,
-  data
+  data,
 }: TableProps<DataRow>) {
   const table = useReactTable<DataRow>({
     columns,
     data,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel()
+    getSortedRowModel: getSortedRowModel(),
   });
 
   const rows = table.getRowModel().rows;

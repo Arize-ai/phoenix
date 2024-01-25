@@ -6,7 +6,7 @@ import {
   DropdownMenu,
   DropdownTrigger,
   Item,
-  ListBox
+  ListBox,
 } from "@arizeai/components";
 
 import { useDatasets, usePointCloudContext } from "@phoenix/contexts";
@@ -33,8 +33,8 @@ export function ClusterSortPicker() {
         label: "Most drift",
         value: getSortKey({
           column: "driftRatio",
-          dir: "desc"
-        })
+          dir: "desc",
+        }),
       });
     }
     return [
@@ -43,30 +43,30 @@ export function ClusterSortPicker() {
         label: "Largest clusters",
         value: getSortKey({
           column: "size",
-          dir: "desc"
-        })
+          dir: "desc",
+        }),
       },
       {
         label: "Smallest clusters",
         value: getSortKey({
           column: "size",
-          dir: "asc"
-        })
+          dir: "asc",
+        }),
       },
       {
         label: "Highest metric value",
         value: getSortKey({
           column: "primaryMetricValue",
-          dir: "desc"
-        })
+          dir: "desc",
+        }),
       },
       {
         label: "Lowest metric value",
         value: getSortKey({
           column: "primaryMetricValue",
-          dir: "asc"
-        })
-      }
+          dir: "asc",
+        }),
+      },
     ];
   }, [hasReferenceDataset]);
   const selectedSortKey = getSortKey(sort);
@@ -125,7 +125,7 @@ export function ClusterSortPicker() {
                 const [column, dir] = (sortKey as string).split(":");
                 setSort({
                   column: column as ClusterSort["column"],
-                  dir: dir as ClusterSort["dir"]
+                  dir: dir as ClusterSort["dir"],
                 });
               }
               setIsOpen(false);

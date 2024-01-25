@@ -65,7 +65,7 @@ export const PointCloudPointTooltip = () => {
               0,
               -(objectPos.y * heightHalf) + heightHalf + TOOLTIP_OFFSET
             )
-          )
+          ),
         ];
       }}
     >

@@ -23,7 +23,7 @@ export async function embeddingLoader(args: LoaderFunctionArgs) {
       }
     `,
     {
-      id: embeddingDimensionId as string
+      id: embeddingDimensionId as string,
     }
   ).toPromise();
 }

@@ -3,7 +3,7 @@ import React, {
   PropsWithChildren,
   useCallback,
   useContext,
-  useState
+  useState,
 } from "react";
 
 import { ProviderTheme } from "@arizeai/components";

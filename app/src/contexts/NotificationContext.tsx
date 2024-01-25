@@ -23,7 +23,7 @@ type NotificationContextType = {
 const NotificationContext = createContext<NotificationContextType | null>(null);
 
 export function NotificationProvider({
-  children
+  children,
 }: {
   children: React.ReactNode;
 }) {
@@ -33,7 +33,7 @@ export function NotificationProvider({
     (notice: NoticeConfigWithoutVariant) => {
       notify({
         variant: "danger",
-        ...notice
+        ...notice,
       });
     },
     [notify]
@@ -43,7 +43,7 @@ export function NotificationProvider({
     (notice: NoticeConfigWithoutVariant) => {
       notify({
         variant: "success",
-        ...notice
+        ...notice,
       });
     },
     [notify]

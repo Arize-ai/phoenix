@@ -12,7 +12,7 @@ export type FeatureFlagsContextType = {
 export const LOCAL_STORAGE_FEATURE_FLAGS_KEY = "arize-phoenix-feature-flags";
 
 const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
-  __CLEAR__: false
+  __CLEAR__: false,
 };
 
 function getFeatureFlags(): Record<FeatureFlag, boolean> {
@@ -90,7 +90,7 @@ function FeatureFlagsControls(props: PropsWithChildren) {
                   onChange={(isSelected) =>
                     setFeatureFlags({
                       ...featureFlags,
-                      [featureFlag]: isSelected
+                      [featureFlag]: isSelected,
                     })
                   }
                 >

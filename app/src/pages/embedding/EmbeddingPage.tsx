@@ -4,14 +4,14 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
-  useState
+  useState,
 } from "react";
 import {
   graphql,
   PreloadedQuery,
   useLazyLoadQuery,
   usePreloadedQuery,
-  useQueryLoader
+  useQueryLoader,
 } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { subDays } from "date-fns";
@@ -24,7 +24,7 @@ import {
   Switch,
   TabPane,
   Tabs,
-  View
+  View,
 } from "@arizeai/components";
 import { ThreeDimensionalPoint } from "@arizeai/point-cloud";
 
@@ -32,29 +32,29 @@ import { Loading, LoadingMask } from "@phoenix/components";
 import {
   PrimaryDatasetTimeRange,
   ReferenceDatasetTimeRange,
-  Toolbar
+  Toolbar,
 } from "@phoenix/components/filter";
 import {
   ClusterItem,
   PointCloud,
-  PointCloudParameterSettings
+  PointCloudParameterSettings,
 } from "@phoenix/components/pointcloud";
 import ClusteringSettings from "@phoenix/components/pointcloud/ClusteringSettings";
 import { PointCloudDisplaySettings } from "@phoenix/components/pointcloud/PointCloudDisplaySettings";
 import {
   compactResizeHandleCSS,
-  resizeHandleCSS
+  resizeHandleCSS,
 } from "@phoenix/components/resize/styles";
 import {
   PointCloudProvider,
   useGlobalNotification,
-  usePointCloudContext
+  usePointCloudContext,
 } from "@phoenix/contexts";
 import { useDatasets } from "@phoenix/contexts";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import {
   TimeSliceContextProvider,
-  useTimeSlice
+  useTimeSlice,
 } from "@phoenix/contexts/TimeSliceContext";
 import { useEmbeddingDimensionId } from "@phoenix/hooks";
 import {
@@ -63,7 +63,7 @@ import {
   getDefaultRetrievalTroubleshootingPointCloudProps,
   getDefaultSingleDatasetPointCloudProps,
   MetricDefinition,
-  PointCloudProps
+  PointCloudProps,
 } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { getMetricShortNameByMetricKey } from "@phoenix/utils/metricFormatUtils";
@@ -71,7 +71,7 @@ import { getMetricShortNameByMetricKey } from "@phoenix/utils/metricFormatUtils"
 import { EmbeddingPageModelQuery } from "./__generated__/EmbeddingPageModelQuery.graphql";
 import {
   EmbeddingPageUMAPQuery as UMAPQueryType,
-  EmbeddingPageUMAPQuery$data
+  EmbeddingPageUMAPQuery$data,
 } from "./__generated__/EmbeddingPageUMAPQuery.graphql";
 import { ClusterSortPicker } from "./ClusterSortPicker";
 import { EmbeddingActionMenu } from "./EmbeddingActionMenu";
@@ -239,8 +239,8 @@ export function EmbeddingPage() {
     defaultPointCloudProps = {
       ...defaultPointCloudProps,
       umapParameters: {
-        ...window.Config.UMAP
-      }
+        ...window.Config.UMAP,
+      },
     };
     return defaultPointCloudProps;
   }, [corpusDataset, referenceDataset]);
@@ -274,7 +274,7 @@ function EmbeddingMain() {
   const timeRange = useMemo(() => {
     return {
       start: subDays(endTime, 2).toISOString(),
-      end: endTime.toISOString()
+      end: endTime.toISOString(),
     };
   }, [endTime]);
 
@@ -306,10 +306,10 @@ function EmbeddingMain() {
         dataQualityMetricColumnName:
           metric.type === "dataQuality" ? metric.dimension.name : null,
         performanceMetric:
-          metric.type === "performance" ? metric.metric : "accuracyScore" // Note that the fallback should never happen but is to satisfy the type checker
+          metric.type === "performance" ? metric.metric : "accuracyScore", // Note that the fallback should never happen but is to satisfy the type checker
       },
       {
-        fetchPolicy: "network-only"
+        fetchPolicy: "network-only",
       }
     );
     return () => {
@@ -324,7 +324,7 @@ function EmbeddingMain() {
     umapParameters,
     getHDSCANParameters,
     getMetric,
-    timeRange
+    timeRange,
   ]);
 
   return (
@@ -364,7 +364,7 @@ function EmbeddingMain() {
             datasetRole="reference"
             timeRange={{
               start: new Date(referenceDataset.startTime),
-              end: new Date(referenceDataset.endTime)
+              end: new Date(referenceDataset.endTime),
             }}
           />
         ) : null}
@@ -416,7 +416,7 @@ function coordinatesToThreeDimensionalPoint(
  * Fetches the umap data for the embedding dimension and passes the data to the point cloud
  */
 function PointCloudDisplay({
-  queryReference
+  queryReference,
 }: {
   queryReference: PreloadedQuery<UMAPQueryType>;
 }) {
@@ -447,15 +447,15 @@ function PointCloudDisplay({
     const allData = [
       ...sourceData,
       ...referenceSourceData,
-      ...corpusSourceData
+      ...corpusSourceData,
     ];
 
     return allData.map((d) => ({
       ...d,
       position: coordinatesToThreeDimensionalPoint(d.coordinates),
       metaData: {
-        id: d.eventId
-      }
+        id: d.eventId,
+      },
     }));
   }, [referenceSourceData, sourceData, corpusSourceData]);
 
@@ -468,14 +468,14 @@ function PointCloudDisplay({
     setInitialData({
       points: allSourceData,
       clusters,
-      retrievals: contextRetrievals
+      retrievals: contextRetrievals,
     });
   }, [
     allSourceData,
     queryReference,
     contextRetrievals,
     setInitialData,
-    setClusters
+    setClusters,
   ]);
 
   return (
@@ -783,8 +783,8 @@ function PointCloudNotifications() {
           text: "Dismiss",
           onClick: () => {
             setErrorMessage(null);
-          }
-        }
+          },
+        },
       });
     }
   }, [errorMessage, notifyError, setErrorMessage]);

@@ -3,7 +3,7 @@ import React, {
   useEffect,
   useMemo,
   useRef,
-  useState
+  useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
@@ -13,7 +13,7 @@ import {
   getCoreRowModel,
   getSortedRowModel,
   SortingState,
-  useReactTable
+  useReactTable,
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
@@ -32,7 +32,7 @@ import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import {
   SpansTable_spans$key,
-  SpanStatusCode
+  SpanStatusCode,
 } from "./__generated__/SpansTable_spans.graphql";
 import { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.graphql";
 import { EvaluationLabel } from "./EvaluationLabel";
@@ -44,7 +44,7 @@ import {
   DEFAULT_SORT,
   EVALS_COLUMN_PREFIX,
   EVALS_KEY_SEPARATOR,
-  getGqlSort
+  getGqlSort,
 } from "./tableUtils";
 import { TokenCount } from "./TokenCount";
 type SpansTableProps = {
@@ -155,7 +155,7 @@ export function SpansTable(props: SpansTableProps) {
                 return null;
               }
               return evaluation.label;
-            }
+            },
           } as ColumnDef<TableRow>,
           {
             header: `score`,
@@ -168,9 +168,9 @@ export function SpansTable(props: SpansTableProps) {
                 return null;
               }
               return evaluation.score;
-            }
-          } as ColumnDef<TableRow>
-        ]
+            },
+          } as ColumnDef<TableRow>,
+        ],
       };
     });
 
@@ -217,9 +217,9 @@ export function SpansTable(props: SpansTableProps) {
             })}
           </Flex>
         );
-      }
+      },
     },
-    ...dynamicEvaluationColumns
+    ...dynamicEvaluationColumns,
   ];
   const columns: ColumnDef<TableRow>[] = [
     {
@@ -229,7 +229,7 @@ export function SpansTable(props: SpansTableProps) {
       enableSorting: false,
       cell: ({ getValue }) => {
         return <SpanKindLabel spanKind={getValue() as string} />;
-      }
+      },
     },
     {
       header: "name",
@@ -242,25 +242,25 @@ export function SpansTable(props: SpansTableProps) {
             {getValue() as string}
           </Link>
         );
-      }
+      },
     },
     {
       header: "input",
       accessorKey: "input.value",
       cell: TextCell,
-      enableSorting: false
+      enableSorting: false,
     },
     {
       header: "output",
       accessorKey: "output.value",
       cell: TextCell,
-      enableSorting: false
+      enableSorting: false,
     },
     ...evaluationColumns, // TODO: consider hiding this column if there are no evals. For now we want people to know that there are evals
     {
       header: "start time",
       accessorKey: "startTime",
-      cell: TimestampCell
+      cell: TimestampCell,
     },
     {
       header: "latency",
@@ -272,7 +272,7 @@ export function SpansTable(props: SpansTableProps) {
           return null;
         }
         return <LatencyText latencyMs={value} />;
-      }
+      },
     },
     {
       header: "total tokens",
@@ -289,7 +289,7 @@ export function SpansTable(props: SpansTableProps) {
             tokenCountCompletion={row.original.tokenCountCompletion || 0}
           />
         );
-      }
+      },
     },
     {
       header: "status",
@@ -297,8 +297,8 @@ export function SpansTable(props: SpansTableProps) {
       enableSorting: false,
       cell: ({ getValue }) => {
         return <SpanStatusCodeIcon statusCode={getValue() as SpanStatusCode} />;
-      }
-    }
+      },
+    },
   ];
 
   useEffect(() => {
@@ -311,7 +311,7 @@ export function SpansTable(props: SpansTableProps) {
           sort: sort ? getGqlSort(sort) : DEFAULT_SORT,
           after: null,
           first: PAGE_SIZE,
-          filterCondition
+          filterCondition,
         },
         { fetchPolicy: "store-and-network" }
       );
@@ -338,11 +338,11 @@ export function SpansTable(props: SpansTableProps) {
     data: tableData,
     state: {
       sorting,
-      columnVisibility
+      columnVisibility,
     },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel()
+    getSortedRowModel: getSortedRowModel(),
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
@@ -390,8 +390,8 @@ export function SpansTable(props: SpansTableProps) {
                           onClick: header.column.getToggleSortingHandler(),
                           style: {
                             left: header.getStart(),
-                            width: header.getSize()
-                          }
+                            width: header.getSize(),
+                          },
                         }}
                       >
                         {flexRender(

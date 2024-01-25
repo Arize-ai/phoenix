@@ -11,7 +11,7 @@ import {
   LabelProps,
   Picker,
   PickerProps,
-  Text
+  Text,
 } from "@arizeai/components";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
@@ -155,7 +155,7 @@ export function ConnectedDimensionPicker<T>(
       `,
       {},
       {
-        fetchPolicy: "store-or-network"
+        fetchPolicy: "store-or-network",
       }
     )
       .toPromise()

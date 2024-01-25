@@ -15,7 +15,7 @@ import { VisibilityCheckboxField } from "./VisibilityCheckboxField";
  */
 export function DatasetVisibilitySettings({
   hasReference,
-  hasCorpus
+  hasCorpus,
 }: {
   hasReference: boolean;
   hasCorpus: boolean;
@@ -35,7 +35,7 @@ export function DatasetVisibilitySettings({
       const { name, checked } = event.target;
       setDatasetVisibility({
         ...datasetVisibility,
-        [name]: checked
+        [name]: checked,
       });
     },
     [datasetVisibility, setDatasetVisibility]

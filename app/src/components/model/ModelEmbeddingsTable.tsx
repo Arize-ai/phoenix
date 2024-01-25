@@ -47,7 +47,7 @@ export function ModelEmbeddingsTable(props: ModelEmbeddingsTableProps) {
       data.model.embeddingDimensions.edges.map(({ embedding }) => {
         // Normalize the data
         return {
-          ...embedding
+          ...embedding,
         };
       }),
     [data]
@@ -64,13 +64,13 @@ export function ModelEmbeddingsTable(props: ModelEmbeddingsTableProps) {
           <Link to={`embeddings/${row.original.id}`}>
             {renderValue() as string}
           </Link>
-        )
+        ),
       },
       {
         header: "euclidean distance",
         accessorKey: "euclideanDistance",
-        cell: FloatCell
-      }
+        cell: FloatCell,
+      },
     ];
     return cols;
   }, []);

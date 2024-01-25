@@ -11,18 +11,18 @@ const METRIC_DEFINITIONS: Record<
   euclideanDistance: {
     name: "Euclidean Distance",
     shortName: "Euc. Distance",
-    definition: `Euclidean distance over time captures how much your primary dataset's embeddings are drifting from the reference data. Euclidean distance of the embeddings is calculated by taking the centroid of the embedding vectors for each dataset and calculating the distance between the two centroids.`
+    definition: `Euclidean distance over time captures how much your primary dataset's embeddings are drifting from the reference data. Euclidean distance of the embeddings is calculated by taking the centroid of the embedding vectors for each dataset and calculating the distance between the two centroids.`,
   },
   queryDistance: {
     name: "Query Distance",
     shortName: "Query Distance",
-    definition: `The query distance is the euclidean distance of the centroid of queries from the centroid of the corpus.`
+    definition: `The query distance is the euclidean distance of the centroid of queries from the centroid of the corpus.`,
   },
   accuracyScore: {
     name: "Accuracy Score",
     shortName: "Accuracy",
-    definition: `Accuracy classification score. In multi-label classification, this function computes subset accuracy: the set of labels predicted for a sample must exactly match the corresponding set of labels in the ground truth.`
-  }
+    definition: `Accuracy classification score. In multi-label classification, this function computes subset accuracy: the set of labels predicted for a sample must exactly match the corresponding set of labels in the ground truth.`,
+  },
 } as const;
 
 export function getMetricNameByMetricKey(metricKey: string): string {

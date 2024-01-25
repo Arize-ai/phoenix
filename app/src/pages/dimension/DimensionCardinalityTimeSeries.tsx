@@ -8,7 +8,7 @@ import {
   Tooltip,
   TooltipProps,
   XAxis,
-  YAxis
+  YAxis,
 } from "recharts";
 
 import { Text, theme } from "@arizeai/components";
@@ -19,7 +19,7 @@ import {
   ChartTooltipItem,
   defaultTimeXAxisProps,
   useChartColors,
-  useTimeTickFormatter
+  useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
@@ -29,20 +29,20 @@ import { DimensionCardinalityTimeSeriesQuery } from "./__generated__/DimensionCa
 import { timeSeriesChartMargins } from "./dimensionChartConstants";
 
 const numberFormatter = new Intl.NumberFormat([], {
-  maximumFractionDigits: 2
+  maximumFractionDigits: 2,
 });
 
 const useColors = () => {
   const { gray300 } = useChartColors();
   return {
-    color: gray300
+    color: gray300,
   };
 };
 
 function TooltipContent({
   active,
   payload,
-  label
+  label,
 }: TooltipProps<number, string>) {
   const { color } = useColors();
   if (active && payload && payload.length) {
@@ -70,7 +70,7 @@ function TooltipContent({
   return null;
 }
 export function DimensionCardinalityTimeSeries({
-  dimensionId
+  dimensionId,
 }: {
   dimensionId: string;
 }) {
@@ -104,9 +104,9 @@ export function DimensionCardinalityTimeSeries({
       dimensionId,
       timeRange: {
         start: timeRange.start.toISOString(),
-        end: timeRange.end.toISOString()
+        end: timeRange.end.toISOString(),
       },
-      granularity
+      granularity,
     }
   );
 
@@ -115,12 +115,12 @@ export function DimensionCardinalityTimeSeries({
     data.dimension.cardinalityTimeSeries?.data.map((d) => {
       return {
         timestamp: new Date(d.timestamp).valueOf(),
-        value: d.value
+        value: d.value,
       };
     }) || [];
 
   const timeTickFormatter = useTimeTickFormatter({
-    samplingIntervalMinutes: granularity.samplingIntervalMinutes
+    samplingIntervalMinutes: granularity.samplingIntervalMinutes,
   });
 
   return (
@@ -148,8 +148,8 @@ export function DimensionCardinalityTimeSeries({
             position: "insideLeft",
             style: {
               textAnchor: "middle",
-              fill: "var(--ac-global-text-color-900)"
-            }
+              fill: "var(--ac-global-text-color-900)",
+            },
           }}
           style={{ fill: "var(--ac-global-text-color-700)" }}
         />

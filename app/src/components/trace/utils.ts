@@ -15,7 +15,7 @@ export function createSpanTree<TSpan extends ISpanItem>(
   const spanMap = spans.reduce((acc, span) => {
     acc.set(span.context.spanId, {
       span,
-      children: []
+      children: [],
     });
     return acc;
   }, new Map<string, SpanTreeNode<TSpan>>());

@@ -6,7 +6,7 @@ import {
   Heading,
   Item,
   Picker,
-  Text
+  Text,
 } from "@arizeai/components";
 
 import { ColoringStrategy } from "@phoenix/constants/pointCloudConstants";
