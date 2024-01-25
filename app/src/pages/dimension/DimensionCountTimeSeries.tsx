@@ -8,7 +8,7 @@ import {
   Tooltip,
   TooltipProps,
   XAxis,
-  YAxis,
+  YAxis
 } from "recharts";
 
 import { Text, theme } from "@arizeai/components";
@@ -19,7 +19,7 @@ import {
   defaultBarChartTooltipProps,
   defaultTimeXAxisProps,
   useChartColors,
-  useTimeTickFormatter,
+  useTimeTickFormatter
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
@@ -29,20 +29,20 @@ import { DimensionCountTimeSeriesQuery } from "./__generated__/DimensionCountTim
 import { timeSeriesChartMargins } from "./dimensionChartConstants";
 
 const numberFormatter = new Intl.NumberFormat([], {
-  maximumFractionDigits: 2,
+  maximumFractionDigits: 2
 });
 
 const useColors = () => {
   const { gray300 } = useChartColors();
   return {
-    barColor: gray300,
+    barColor: gray300
   };
 };
 
 function TooltipContent({
   active,
   payload,
-  label,
+  label
 }: TooltipProps<number, string>) {
   const { barColor } = useColors();
   if (active && payload && payload.length) {
@@ -52,7 +52,7 @@ function TooltipContent({
     return (
       <ChartTooltip>
         <Text weight="heavy" textSize="medium">{`${fullTimeFormatter(
-          new Date(label),
+          new Date(label)
         )}`}</Text>
         <ChartTooltipItem
           color={barColor}
@@ -67,7 +67,7 @@ function TooltipContent({
   return null;
 }
 export function DimensionCountTimeSeries({
-  dimensionId,
+  dimensionId
 }: {
   dimensionId: string;
 }) {
@@ -101,10 +101,10 @@ export function DimensionCountTimeSeries({
       dimensionId,
       timeRange: {
         start: timeRange.start.toISOString(),
-        end: timeRange.end.toISOString(),
+        end: timeRange.end.toISOString()
       },
-      countGranularity,
-    },
+      countGranularity
+    }
   );
 
   const chartRawData = data.embedding.trafficTimeSeries?.data || [];
@@ -112,12 +112,12 @@ export function DimensionCountTimeSeries({
   const chartData = chartRawData.map((d) => {
     return {
       ...d,
-      timestamp: new Date(d.timestamp).valueOf(),
+      timestamp: new Date(d.timestamp).valueOf()
     };
   });
 
   const timeTickFormatter = useTimeTickFormatter({
-    samplingIntervalMinutes: countGranularity.samplingIntervalMinutes,
+    samplingIntervalMinutes: countGranularity.samplingIntervalMinutes
   });
   const { barColor } = useColors();
 
@@ -146,8 +146,8 @@ export function DimensionCountTimeSeries({
             position: "insideLeft",
             style: {
               textAnchor: "middle",
-              fill: "var(--ac-global-text-color-900)",
-            },
+              fill: "var(--ac-global-text-color-900)"
+            }
           }}
           style={{ fill: "var(--ac-global-text-color-700)" }}
         />

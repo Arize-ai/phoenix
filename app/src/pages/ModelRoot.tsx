@@ -34,7 +34,7 @@ const RootQuery = graphql`
 export function ModelRoot() {
   const data = useLazyLoadQuery<ModelRootQuery>(RootQuery, {});
   const {
-    model: { primaryDataset, referenceDataset, corpusDataset },
+    model: { primaryDataset, referenceDataset, corpusDataset }
   } = data;
 
   return (
@@ -46,7 +46,7 @@ export function ModelRoot() {
       <TimeRangeProvider
         timeRangeBounds={{
           start: new Date(primaryDataset.startTime),
-          end: new Date(primaryDataset.endTime),
+          end: new Date(primaryDataset.endTime)
         }}
       >
         <Outlet />

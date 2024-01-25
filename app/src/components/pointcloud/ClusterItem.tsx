@@ -72,7 +72,7 @@ export function ClusterItem(props: ClusterItemProps) {
     metricName,
     primaryMetricValue,
     referenceMetricValue,
-    hideReference,
+    hideReference
   } = props;
 
   // Calculate the percentage of primary points in the cluster
@@ -84,12 +84,12 @@ export function ClusterItem(props: ClusterItemProps) {
     if (typeof primaryToCorpusRatio === "number") {
       return {
         percentage: ((primaryToCorpusRatio + 1) / 2) * 100,
-        comparisonDatasetRole: DatasetRole.corpus,
+        comparisonDatasetRole: DatasetRole.corpus
       };
     } else if (typeof driftRatio === "number") {
       return {
         percentage: ((driftRatio + 1) / 2) * 100,
-        comparisonDatasetRole: DatasetRole.reference,
+        comparisonDatasetRole: DatasetRole.reference
       };
     }
     return { percentage: 100, comparisonDatasetRole: null };
@@ -171,7 +171,7 @@ export function ClusterItem(props: ClusterItemProps) {
 
 function DistributionBar({
   primaryPercentage,
-  comparisonDatasetRole,
+  comparisonDatasetRole
 }: {
   primaryPercentage: number;
   comparisonDatasetRole?: DatasetRole | null;

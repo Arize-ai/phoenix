@@ -35,7 +35,7 @@ export function getBinName(bin: GqlBin): string {
       return bin.name;
     case "IntervalBin":
       return `${formatNumber(bin.range.start)} - ${formatNumber(
-        bin.range.end,
+        bin.range.end
       )}`;
     case "MissingValueBin":
       return "(empty)";

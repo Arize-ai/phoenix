@@ -8,7 +8,7 @@ import { SpanStatusCodeType } from "./types";
 import { useSpanStatusCodeColor } from "./useSpanStatusCodeColor";
 
 export function SpanStatusCodeIcon<TCode extends SpanStatusCodeType>({
-  statusCode,
+  statusCode
 }: {
   statusCode: TCode;
 }) {

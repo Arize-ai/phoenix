@@ -48,8 +48,8 @@ export function TracingHomePage() {
     `,
     {},
     {
-      fetchPolicy: "store-and-network",
-    },
+      fetchPolicy: "store-and-network"
+    }
   );
   return (
     <main css={mainCSS}>

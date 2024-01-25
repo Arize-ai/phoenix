@@ -8,7 +8,7 @@ import {
   Heading,
   Item,
   Picker,
-  Section,
+  Section
 } from "@arizeai/components";
 
 import { useDatasets, usePointCloudContext } from "@phoenix/contexts";
@@ -16,13 +16,13 @@ import {
   DriftMetricDefinition,
   MetricDefinition,
   PerformanceMetricDefinition,
-  RetrievalMetricDefinition,
+  RetrievalMetricDefinition
 } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
   MetricSelector_dimensions$data,
-  MetricSelector_dimensions$key,
+  MetricSelector_dimensions$key
 } from "./__generated__/MetricSelector_dimensions.graphql";
 
 /**
@@ -33,10 +33,10 @@ const METRIC_KEY_SEPARATOR = ":";
  * Type guard for MetricDefinition["type"]
  */
 function isMetricType(
-  maybeType: unknown,
+  maybeType: unknown
 ): maybeType is MetricDefinition["type"] {
   return ["drift", "performance", "dataQuality", "retrieval"].includes(
-    maybeType as string,
+    maybeType as string
   );
 }
 /**
@@ -74,7 +74,7 @@ type ParseMetricKeyParams = {
  */
 function parseMetricKey({
   metricKey,
-  dimensions,
+  dimensions
 }: ParseMetricKeyParams): MetricDefinition {
   const [type, metricName, dimensionName] =
     metricKey.split(METRIC_KEY_SEPARATOR);
@@ -87,12 +87,12 @@ function parseMetricKey({
     case "retrieval":
       return {
         type,
-        metric: metricName as RetrievalMetricDefinition["metric"],
+        metric: metricName as RetrievalMetricDefinition["metric"]
       };
     case "performance":
       return {
         type,
-        metric: metricName as PerformanceMetricDefinition["metric"],
+        metric: metricName as PerformanceMetricDefinition["metric"]
       };
     case "dataQuality": {
       const dimension = dimensions.find((d) => d.name === dimensionName);
@@ -102,7 +102,7 @@ function parseMetricKey({
       return {
         type,
         metric: metricName as "average",
-        dimension,
+        dimension
       };
     }
     default:
@@ -128,7 +128,7 @@ const contextualHelp = (
   </ContextualHelp>
 );
 export function MetricSelector({
-  model,
+  model
 }: {
   model: MetricSelector_dimensions$key;
 }) {
@@ -147,7 +147,7 @@ export function MetricSelector({
         }
       }
     `,
-    model,
+    model
   );
   const { referenceDataset, corpusDataset } = useDatasets();
   const hasReferenceDataset = !!referenceDataset;
@@ -156,20 +156,20 @@ export function MetricSelector({
   const loading = usePointCloudContext((state) => state.loading);
   const setMetric = usePointCloudContext((state) => state.setMetric);
   const numericDimensions = data.numericDimensions.edges.map(
-    (edge) => edge.node,
+    (edge) => edge.node
   );
   const hasNumericDimensions = numericDimensions.length > 0;
   const onSelectionChange = useCallback(
     (key: Key) => {
       const metricDefinition = parseMetricKey({
         metricKey: key as string,
-        dimensions: numericDimensions,
+        dimensions: numericDimensions
       });
       startTransition(() => {
         setMetric(metricDefinition);
       });
     },
-    [setMetric, numericDimensions, startTransition],
+    [setMetric, numericDimensions, startTransition]
   );
   return (
     <Picker
@@ -185,7 +185,7 @@ export function MetricSelector({
           <Item
             key={getMetricKey({
               type: "drift",
-              metric: "euclideanDistance",
+              metric: "euclideanDistance"
             })}
           >
             Euclidean Distance
@@ -199,7 +199,7 @@ export function MetricSelector({
           <Item
             key={getMetricKey({
               type: "retrieval",
-              metric: "queryDistance",
+              metric: "queryDistance"
             })}
           >
             Query Distance
@@ -212,7 +212,7 @@ export function MetricSelector({
         <Item
           key={getMetricKey({
             type: "performance",
-            metric: "accuracyScore",
+            metric: "accuracyScore"
           })}
         >
           Accuracy Score
@@ -226,7 +226,7 @@ export function MetricSelector({
                 key={getMetricKey({
                   type: "dataQuality",
                   metric: "average",
-                  dimension,
+                  dimension
                 })}
               >{`${dimension.name} avg`}</Item>
             );

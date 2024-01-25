@@ -140,7 +140,7 @@ function SpanNodeWrap(props: PropsWithChildren<{ isSelected: boolean }>) {
  * The line that connects the parent node to the child node edge
  */
 function SpanTreeEdgeConnector({
-  statusCode,
+  statusCode
 }: {
   statusCode: SpanStatusCodeType;
 }) {

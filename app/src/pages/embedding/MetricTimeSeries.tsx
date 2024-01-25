@@ -10,7 +10,7 @@ import {
   Tooltip,
   TooltipProps,
   XAxis,
-  YAxis,
+  YAxis
 } from "recharts";
 import { CategoricalChartFunc } from "recharts/types/chart/generateCategoricalChart";
 import { css } from "@emotion/react";
@@ -22,7 +22,7 @@ import {
   Icon,
   InfoOutline,
   Text,
-  theme,
+  theme
 } from "@arizeai/components";
 
 import {
@@ -31,7 +31,7 @@ import {
   ChartTooltipItem,
   defaultSelectedTimestampReferenceLineProps,
   defaultTimeXAxisProps,
-  useChartColors,
+  useChartColors
 } from "@phoenix/components/chart";
 import { useTimeTickFormatter } from "@phoenix/components/chart";
 import { usePointCloudContext } from "@phoenix/contexts";
@@ -41,18 +41,18 @@ import { MetricDefinition } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import {
   getMetricDescriptionByMetricKey,
-  getMetricShortNameByMetricKey,
+  getMetricShortNameByMetricKey
 } from "@phoenix/utils/metricFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 import {
   calculateGranularity,
-  calculateGranularityWithRollingAverage,
+  calculateGranularityWithRollingAverage
 } from "@phoenix/utils/timeSeriesUtils";
 
 import { MetricTimeSeriesQuery } from "./__generated__/MetricTimeSeriesQuery.graphql";
 
 const numberFormatter = new Intl.NumberFormat([], {
-  maximumFractionDigits: 2,
+  maximumFractionDigits: 2
 });
 
 const useColors = () => {
@@ -61,14 +61,14 @@ const useColors = () => {
   const barColor = colors.gray500;
   return {
     color,
-    barColor,
+    barColor
   };
 };
 
 function TooltipContent({
   active,
   payload,
-  label,
+  label
 }: TooltipProps<number, string>) {
   const { color, barColor } = useColors();
   if (active && payload && payload.length) {
@@ -83,7 +83,7 @@ function TooltipContent({
     return (
       <ChartTooltip>
         <Text weight="heavy" textSize="medium">{`${fullTimeFormatter(
-          new Date(label),
+          new Date(label)
         )}`}</Text>
         <ChartTooltipItem
           color={color}
@@ -171,7 +171,7 @@ function getMetricDescription(metric: MetricDefinition) {
 }
 
 export function MetricTimeSeries({
-  embeddingDimensionId,
+  embeddingDimensionId
 }: {
   embeddingDimensionId: string;
 }) {
@@ -268,7 +268,7 @@ export function MetricTimeSeries({
       embeddingDimensionId,
       timeRange: {
         start: timeRange.start.toISOString(),
-        end: timeRange.end.toISOString(),
+        end: timeRange.end.toISOString()
       },
       metricGranularity: calculateGranularityWithRollingAverage(timeRange),
       countGranularity: granularity,
@@ -281,12 +281,12 @@ export function MetricTimeSeries({
           ? metric.dimension.id
           : embeddingDimensionId, // NEED to provide a placeholder id. This is super hacky but it works for now
       performanceMetric:
-        metric.type === "performance" ? metric.metric : "accuracyScore", // Need a placeholder metric
-    },
+        metric.type === "performance" ? metric.metric : "accuracyScore" // Need a placeholder metric
+    }
   );
 
   const timeTickFormatter = useTimeTickFormatter({
-    samplingIntervalMinutes: granularity.samplingIntervalMinutes,
+    samplingIntervalMinutes: granularity.samplingIntervalMinutes
   });
 
   const onClick: CategoricalChartFunc = useCallback(
@@ -298,7 +298,7 @@ export function MetricTimeSeries({
         setSelectedTimestamp(new Date(payload.timestamp));
       }
     },
-    [setSelectedTimestamp],
+    [setSelectedTimestamp]
   );
 
   const chartPrimaryRawData = getChartPrimaryData({ data, metric });
@@ -309,7 +309,7 @@ export function MetricTimeSeries({
         acc[traffic.timestamp] = traffic.value;
         return acc;
       },
-      {} as Record<string, number | null>,
+      {} as Record<string, number | null>
     ) ?? {};
 
   const chartData = chartPrimaryRawData.map((d) => {
@@ -317,7 +317,7 @@ export function MetricTimeSeries({
     return {
       ...d,
       traffic: traffic,
-      timestamp: new Date(d.timestamp).getTime(),
+      timestamp: new Date(d.timestamp).getTime()
     };
   });
   const metricShortName = getMetricShortName(metric);
@@ -387,8 +387,8 @@ export function MetricTimeSeries({
                 position: "insideLeft",
                 style: {
                   textAnchor: "middle",
-                  fill: "var(--ac-global-text-color-900)",
-                },
+                  fill: "var(--ac-global-text-color-900)"
+                }
               }}
               style={{ fill: "var(--ac-global-text-color-700)" }}
             />
@@ -401,8 +401,8 @@ export function MetricTimeSeries({
                 position: "insideRight",
                 style: {
                   textAnchor: "middle",
-                  fill: "var(--ac-global-text-color-900)",
-                },
+                  fill: "var(--ac-global-text-color-900)"
+                }
               }}
               style={{ fill: "var(--ac-global-text-color-700)" }}
             />
@@ -444,7 +444,7 @@ export function MetricTimeSeries({
  */
 function getChartPrimaryData({
   data,
-  metric,
+  metric
 }: {
   data: MetricTimeSeriesQuery["response"];
   metric: MetricDefinition;
@@ -455,7 +455,7 @@ function getChartPrimaryData({
   ) {
     return data.embedding.euclideanDistanceTimeSeries.data.map((d) => ({
       metricName: getMetricShortNameByMetricKey(metric.metric),
-      ...d,
+      ...d
     }));
   }
   if (
@@ -464,7 +464,7 @@ function getChartPrimaryData({
   ) {
     return data.embedding.retrievalMetricTimeSeries.data.map((d) => ({
       metricName: getMetricShortNameByMetricKey(metric.metric),
-      ...d,
+      ...d
     }));
   } else if (
     data.dimension &&
@@ -474,7 +474,7 @@ function getChartPrimaryData({
     const dimensionName = data.dimension.name || "unknown";
     return data.dimension.dataQualityTimeSeries.data.map((d) => ({
       metricName: `${dimensionName} avg`,
-      ...d,
+      ...d
     }));
   } else if (
     data.model &&
@@ -483,12 +483,12 @@ function getChartPrimaryData({
   ) {
     return data.model.performanceTimeSeries.data.map((d) => ({
       metricName: getMetricShortNameByMetricKey(metric.metric),
-      ...d,
+      ...d
     }));
   } else if (data.embedding.trafficTimeSeries?.data != null) {
     return data.embedding.trafficTimeSeries.data.map((d) => ({
       metricName: "Count",
-      ...d,
+      ...d
     }));
   }
   return [];
@@ -498,7 +498,7 @@ function getChartPrimaryData({
  * Function that selects the secondary traffic (count) data for the chart
  */
 function getTrafficData(
-  data: MetricTimeSeriesQuery["response"],
+  data: MetricTimeSeriesQuery["response"]
 ): { timestamp: string; value: number | null }[] {
   if (data.embedding.trafficTimeSeries?.data != null) {
     return [...data.embedding.trafficTimeSeries.data];

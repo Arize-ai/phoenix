@@ -8,7 +8,7 @@ import {
   RadioGroup,
   Tooltip,
   TooltipTrigger,
-  TriggerWrap,
+  TriggerWrap
 } from "@arizeai/components";
 
 import { CanvasMode } from "@phoenix/store";

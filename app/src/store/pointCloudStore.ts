@@ -20,7 +20,7 @@ import {
   FALLBACK_COLOR,
   SelectionDisplay,
   SelectionGridSize,
-  UNKNOWN_COLOR,
+  UNKNOWN_COLOR
 } from "@phoenix/constants/pointCloudConstants";
 import { getCurrentTheme } from "@phoenix/contexts";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
@@ -33,7 +33,7 @@ import { pointCloudStore_clustersQuery } from "./__generated__/pointCloudStore_c
 import { pointCloudStore_dimensionMetadataQuery } from "./__generated__/pointCloudStore_dimensionMetadataQuery.graphql";
 import {
   pointCloudStore_eventsQuery,
-  pointCloudStore_eventsQuery$data,
+  pointCloudStore_eventsQuery$data
 } from "./__generated__/pointCloudStore_eventsQuery.graphql";
 
 /**
@@ -90,7 +90,7 @@ export type CanvasTheme = "light" | "dark";
  */
 export enum CanvasMode {
   move = "move",
-  select = "select",
+  select = "select"
 }
 
 export enum ClusterColorMode {
@@ -98,7 +98,7 @@ export enum ClusterColorMode {
   /**
    * Highlights the different clusters all at once
    */
-  highlight = "highlight",
+  highlight = "highlight"
 }
 
 /**
@@ -506,17 +506,17 @@ export function getDefaultDriftPointCloudProps(): Partial<PointCloudProps> {
     coloringStrategy: ColoringStrategy.dataset,
     pointGroupVisibility: {
       [DatasetGroup.primary]: true,
-      [DatasetGroup.reference]: true,
+      [DatasetGroup.reference]: true
     },
     pointGroupColors: {
       [DatasetGroup.primary]: defaultColorScheme[0],
       [DatasetGroup.reference]: defaultColorScheme[1],
-      [DatasetGroup.corpus]: FALLBACK_COLOR,
+      [DatasetGroup.corpus]: FALLBACK_COLOR
     },
     metric: {
       type: "drift",
-      metric: "euclideanDistance",
-    },
+      metric: "euclideanDistance"
+    }
   };
 }
 
@@ -529,18 +529,18 @@ export function getDefaultRetrievalTroubleshootingPointCloudProps(): Partial<Poi
     coloringStrategy: ColoringStrategy.dataset,
     pointGroupVisibility: {
       [DatasetGroup.primary]: true,
-      [DatasetGroup.corpus]: true,
+      [DatasetGroup.corpus]: true
     },
     pointGroupColors: {
       [DatasetGroup.primary]: defaultColorScheme[0],
-      [DatasetGroup.corpus]: FALLBACK_COLOR,
+      [DatasetGroup.corpus]: FALLBACK_COLOR
     },
     metric: {
       type: "retrieval",
-      metric: "queryDistance",
+      metric: "queryDistance"
     },
     // Since we are showing clusters by percent query, sort from highest query density to lowest
-    clusterSort: { dir: "desc", column: "primaryMetricValue" },
+    clusterSort: { dir: "desc", column: "primaryMetricValue" }
   };
 }
 /**
@@ -552,19 +552,19 @@ export function getDefaultSingleDatasetPointCloudProps(): Partial<PointCloudProp
     pointGroupVisibility: {
       [CorrectnessGroup.correct]: true,
       [CorrectnessGroup.incorrect]: true,
-      [CorrectnessGroup.unknown]: true,
+      [CorrectnessGroup.unknown]: true
     },
     pointGroupColors: {
       [CorrectnessGroup.correct]: ColorSchemes.Discrete2.LightBlueOrange[0],
       [CorrectnessGroup.incorrect]: ColorSchemes.Discrete2.LightBlueOrange[1],
-      [CorrectnessGroup.unknown]: UNKNOWN_COLOR,
+      [CorrectnessGroup.unknown]: UNKNOWN_COLOR
     },
     metric: {
       type: "performance",
-      metric: "accuracyScore",
+      metric: "accuracyScore"
     },
     // Since we are showing clusters by accuracy, sort from lowest accuracy to highest
-    clusterSort: { dir: "asc", column: "primaryMetricValue" },
+    clusterSort: { dir: "asc", column: "primaryMetricValue" }
   };
 }
 
@@ -592,13 +592,13 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     pointGroupVisibility: {
       [DatasetGroup.primary]: true,
       [DatasetGroup.reference]: true,
-      [DatasetGroup.corpus]: true,
+      [DatasetGroup.corpus]: true
     },
     pointGroupColors: {
       // TODO move to a single source of truth
       [DatasetGroup.primary]: getDefaultColorScheme()[0],
       [DatasetGroup.reference]: getDefaultColorScheme()[1],
-      [DatasetGroup.corpus]: FALLBACK_COLOR,
+      [DatasetGroup.corpus]: FALLBACK_COLOR
     },
     eventIdToGroup: {},
     selectionDisplay: SelectionDisplay.gallery,
@@ -608,18 +608,18 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     umapParameters: {
       minDist: DEFAULT_MIN_DIST,
       nNeighbors: DEFAULT_N_NEIGHBORS,
-      nSamples: DEFAULT_DATASET_SAMPLE_SIZE,
+      nSamples: DEFAULT_DATASET_SAMPLE_SIZE
     },
     hdbscanParameters: {
       minClusterSize: DEFAULT_MIN_CLUSTER_SIZE,
       clusterMinSamples: DEFAULT_CLUSTER_MIN_SAMPLES,
-      clusterSelectionEpsilon: DEFAULT_CLUSTER_SELECTION_EPSILON,
+      clusterSelectionEpsilon: DEFAULT_CLUSTER_SELECTION_EPSILON
     },
     clustersLoading: false,
     metric: {
       type: "drift",
-      metric: "euclideanDistance",
-    },
+      metric: "euclideanDistance"
+    }
   };
 
   const pointCloudStore: StateCreator<PointCloudState> = (set, get) => ({
@@ -641,14 +641,14 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
             }
             return acc;
           },
-          {} as Record<string, Retrieval[]>,
+          {} as Record<string, Retrieval[]>
         );
 
       // Calculate a map of event ID to point data
       points.forEach((p) => {
         p = {
           ...p,
-          retrievals: eventIdToRetrievals[p.eventId] ?? [],
+          retrievals: eventIdToRetrievals[p.eventId] ?? []
         };
         eventIdToDataMap.set(p.eventId, p);
       });
@@ -671,12 +671,12 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
           coloringStrategy: pointCloud.coloringStrategy,
           pointsData: pointCloud.pointData ?? {},
           dimension: pointCloud.dimension || null,
-          dimensionMetadata: pointCloud.dimensionMetadata,
-        }),
+          dimensionMetadata: pointCloud.dimensionMetadata
+        })
       });
       // Re-compute the point coloring once the granular data is loaded
       const pointData = await fetchPointEvents(
-        points.map((p) => p.eventId),
+        points.map((p) => p.eventId)
       ).catch(() => set({ errorMessage: "Failed to load the point events" }));
 
       if (!pointData) return; // The error occurred above
@@ -691,8 +691,8 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
           coloringStrategy: pointCloud.coloringStrategy,
           pointsData: pointData ?? {},
           dimension: pointCloud.dimension || null,
-          dimensionMetadata: pointCloud.dimensionMetadata,
-        }),
+          dimensionMetadata: pointCloud.dimensionMetadata
+        })
       });
     },
     setClusters: (clusters) => {
@@ -704,7 +704,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
         clusters: sortedClusters,
         clustersLoading: false,
         selectedClusterId: null,
-        highlightedClusterId: null,
+        highlightedClusterId: null
       });
     },
     setClusterSort: (sort) => {
@@ -729,14 +729,14 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
             pointGroupVisibility: {
               [CorrectnessGroup.correct]: true,
               [CorrectnessGroup.incorrect]: true,
-              [CorrectnessGroup.unknown]: true,
+              [CorrectnessGroup.unknown]: true
             },
             pointGroupColors: {
               [CorrectnessGroup.correct]:
                 ColorSchemes.Discrete2.LightBlueOrange[0],
               [CorrectnessGroup.incorrect]:
                 ColorSchemes.Discrete2.LightBlueOrange[1],
-              [CorrectnessGroup.unknown]: UNKNOWN_COLOR,
+              [CorrectnessGroup.unknown]: UNKNOWN_COLOR
             },
             dimension: null,
             dimensionMetadata: null,
@@ -745,8 +745,8 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
               coloringStrategy: strategy,
               pointsData: pointCloudState.pointData ?? {},
               dimension: pointCloudState.dimension || null,
-              dimensionMetadata: pointCloudState.dimensionMetadata,
-            }),
+              dimensionMetadata: pointCloudState.dimensionMetadata
+            })
           });
           break;
         case ColoringStrategy.dataset: {
@@ -755,13 +755,13 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
             pointGroupVisibility: {
               [DatasetGroup.primary]: true,
               [DatasetGroup.reference]: true,
-              [DatasetGroup.corpus]: true,
+              [DatasetGroup.corpus]: true
             },
             pointGroupColors: {
               // TODO move these colors to a constants file
               [DatasetGroup.primary]: getDefaultColorScheme()[0],
               [DatasetGroup.reference]: getDefaultColorScheme()[1],
-              [DatasetGroup.corpus]: FALLBACK_COLOR,
+              [DatasetGroup.corpus]: FALLBACK_COLOR
             },
             dimension: null,
             dimensionMetadata: null,
@@ -770,8 +770,8 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
               coloringStrategy: strategy,
               pointsData: pointCloudState.pointData ?? {},
               dimension: pointCloudState.dimension || null,
-              dimensionMetadata: pointCloudState.dimensionMetadata,
-            }),
+              dimensionMetadata: pointCloudState.dimensionMetadata
+            })
           });
           break;
         }
@@ -779,10 +779,10 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
           // come dynamically from the dimension "values"
           set({
             pointGroupVisibility: {
-              unknown: true,
+              unknown: true
             },
             pointGroupColors: {
-              unknown: UNKNOWN_COLOR,
+              unknown: UNKNOWN_COLOR
             },
             dimension: null,
             dimensionMetadata: null,
@@ -791,8 +791,8 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
               coloringStrategy: strategy,
               pointsData: pointCloudState.pointData ?? {},
               dimension: pointCloudState.dimension || null,
-              dimensionMetadata: pointCloudState.dimensionMetadata,
-            }),
+              dimensionMetadata: pointCloudState.dimensionMetadata
+            })
           });
           break;
         }
@@ -814,14 +814,14 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
         clusters: [],
         selectedEventIds: new Set(),
         selectedClusterId: null,
-        eventIdToGroup: {},
+        eventIdToGroup: {}
       });
     },
     setDimension: async (dimension) => {
       const pointCloudState = get();
       set({ dimension, dimensionMetadata: null });
       const dimensionMetadata = await fetchDimensionMetadata(dimension).catch(
-        () => set({ errorMessage: "Failed to load the dimension metadata" }),
+        () => set({ errorMessage: "Failed to load the dimension metadata" })
       );
       if (!dimensionMetadata) return; // The error occurred above
 
@@ -839,29 +839,29 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
             ...dimensionMetadata.categories.reduce(
               (acc, category) => ({
                 ...acc,
-                [category]: true,
+                [category]: true
               }),
-              {},
+              {}
             ),
-            unknown: true,
+            unknown: true
           },
           pointGroupColors: {
             ...dimensionMetadata.categories.reduce(
               (acc, category, idx) => ({
                 ...acc,
-                [category]: colorScaleFn(idx),
+                [category]: colorScaleFn(idx)
               }),
-              {},
+              {}
             ),
-            unknown: UNKNOWN_COLOR,
+            unknown: UNKNOWN_COLOR
           },
           eventIdToGroup: getEventIdToGroup({
             points: pointCloudState.points,
             coloringStrategy: pointCloudState.coloringStrategy,
             pointsData: pointCloudState.pointData ?? {},
             dimension,
-            dimensionMetadata,
-          }),
+            dimensionMetadata
+          })
         });
       } else if (dimensionMetadata.interval !== null) {
         // Create color groups based on the min / max of the dimension
@@ -872,29 +872,29 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
             ...groups.reduce(
               (acc, group) => ({
                 ...acc,
-                [group.name]: true,
+                [group.name]: true
               }),
-              {},
+              {}
             ),
-            unknown: true,
+            unknown: true
           },
           pointGroupColors: {
             ...groups.reduce(
               (acc, group, idx) => ({
                 ...acc,
-                [group.name]: numericColorScale(idx),
+                [group.name]: numericColorScale(idx)
               }),
-              {},
+              {}
             ),
-            unknown: UNKNOWN_COLOR,
+            unknown: UNKNOWN_COLOR
           },
           eventIdToGroup: getEventIdToGroup({
             points: pointCloudState.points,
             coloringStrategy: pointCloudState.coloringStrategy,
             pointsData: pointCloudState.pointData ?? {},
             dimension,
-            dimensionMetadata,
-          }),
+            dimensionMetadata
+          })
         });
       }
     },
@@ -906,7 +906,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       const clusters = await fetchClusters({
         metric: pointCloud.metric,
         points: pointCloud.points,
-        hdbscanParameters,
+        hdbscanParameters
       });
       pointCloud.setClusters(clusters);
     },
@@ -921,10 +921,10 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       const clusters = await fetchClusterMetrics({
         metric,
         clusters: pointCloud.clusters,
-        hdbscanParameters: pointCloud.hdbscanParameters,
+        hdbscanParameters: pointCloud.hdbscanParameters
       });
       pointCloud.setClusters(clusters);
-    },
+    }
   });
 
   return create<PointCloudState>()(devtools(pointCloudStore));
@@ -948,7 +948,7 @@ interface NumericGroupInterval extends Interval {
 }
 
 const numberFormatter = new Intl.NumberFormat([], {
-  maximumFractionDigits: 2,
+  maximumFractionDigits: 2
 });
 /**
  * A human readable string representation of an interval
@@ -963,7 +963,7 @@ function intervalToString({ min, max }: Interval): string {
  */
 function getNumericGroupsFromInterval({
   min,
-  max,
+  max
 }: Interval): NumericGroupInterval[] {
   const range = max - min;
   // Break the range into 10 groups
@@ -975,7 +975,7 @@ function getNumericGroupsFromInterval({
     groups.push({
       min: groupMin,
       max: groupMax,
-      name: intervalToString({ min: groupMin, max: groupMax }),
+      name: intervalToString({ min: groupMin, max: groupMax })
     });
   }
   return groups;
@@ -983,14 +983,14 @@ function getNumericGroupsFromInterval({
 
 function getEventGroupForNumericValue({
   numericGroupIntervals,
-  numericValue,
+  numericValue
 }: {
   numericGroupIntervals: NumericGroupInterval[];
   numericValue: number;
 }): string {
   let eventGroup = UNKNOWN_GROUP;
   let groupIndex = numericGroupIntervals.findIndex(
-    (group) => numericValue >= group.min && numericValue < group.max,
+    (group) => numericValue >= group.min && numericValue < group.max
   );
   // If we fail to find the index, it means it belongs to the last group
   groupIndex = groupIndex === -1 ? NUM_NUMERIC_GROUPS - 1 : groupIndex;
@@ -1002,7 +1002,7 @@ function getEventGroupForNumericValue({
  * Calculates the group mapping for each point
  */
 function getEventIdToGroup(
-  params: GetEventIdToGroupParams,
+  params: GetEventIdToGroupParams
 ): Record<string, string> {
   const { points, coloringStrategy, pointsData, dimension, dimensionMetadata } =
     params;
@@ -1042,7 +1042,7 @@ function getEventIdToGroup(
       let numericGroupIntervals: NumericGroupInterval[] | null;
       if (dimensionMetadata && dimensionMetadata?.interval !== null) {
         numericGroupIntervals = getNumericGroupsFromInterval(
-          dimensionMetadata.interval,
+          dimensionMetadata.interval
         );
       }
       const isColorByPredictionLabel =
@@ -1069,27 +1069,27 @@ function getEventIdToGroup(
           } else if (isColorByPredictionScore) {
             if (numericGroupIntervals == null) {
               throw new Error(
-                "Cannot color by prediction score without numeric group intervals",
+                "Cannot color by prediction score without numeric group intervals"
               );
             }
             const numericValue = pointData.eventMetadata.predictionScore;
             if (typeof numericValue === "number") {
               group = getEventGroupForNumericValue({
                 numericGroupIntervals,
-                numericValue,
+                numericValue
               });
             }
           } else if (isColorByActualScore) {
             if (numericGroupIntervals == null) {
               throw new Error(
-                "Cannot color by actual score without numeric group intervals",
+                "Cannot color by actual score without numeric group intervals"
               );
             }
             const numericValue = pointData.eventMetadata.actualScore;
             if (typeof numericValue === "number") {
               group = getEventGroupForNumericValue({
                 numericGroupIntervals,
-                numericValue,
+                numericValue
               });
             }
           } else if (isColorByActualLabel) {
@@ -1098,7 +1098,7 @@ function getEventIdToGroup(
             // It is a feature or tag. Find the dimension value
             const dimensionWithValue = pointData.dimensions.find(
               (dimensionWithValue) =>
-                dimensionWithValue.dimension.name === dimension.name,
+                dimensionWithValue.dimension.name === dimension.name
             );
             if (
               dimensionWithValue != null &&
@@ -1118,7 +1118,7 @@ function getEventIdToGroup(
               if (typeof numericValue === "number") {
                 group = getEventGroupForNumericValue({
                   numericGroupIntervals,
-                  numericValue,
+                  numericValue
                 });
               }
             }
@@ -1142,7 +1142,7 @@ function getEventIdToGroup(
  * Fetches the dimension metadata for coloring group computation
  */
 async function fetchDimensionMetadata(
-  dimension: Dimension,
+  dimension: Dimension
 ): Promise<DimensionMetadata> {
   const data = await fetchQuery<pointCloudStore_dimensionMetadataQuery>(
     RelayEnvironment,
@@ -1167,8 +1167,8 @@ async function fetchDimensionMetadata(
     {
       id: dimension.id,
       getDimensionMinMax: dimension.dataType === "numeric",
-      getDimensionCategories: dimension.dataType === "categorical",
-    },
+      getDimensionCategories: dimension.dataType === "categorical"
+    }
   ).toPromise();
 
   const dimensionData = data?.dimension;
@@ -1186,7 +1186,7 @@ async function fetchDimensionMetadata(
   }
   return {
     interval,
-    categories: dimensionData?.categories ?? null,
+    categories: dimensionData?.categories ?? null
   };
 }
 
@@ -1296,8 +1296,8 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
     {
       primaryEventIds: primaryEventIds,
       referenceEventIds: referenceEventIds,
-      corpusEventIds: corpusEventIds,
-    },
+      corpusEventIds: corpusEventIds
+    }
   ).toPromise();
   // Construct a map of point id to the event data
   const primaryEvents = data?.model?.primaryDataset?.events ?? [];
@@ -1313,7 +1313,7 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
 async function fetchClusters({
   metric,
   points,
-  hdbscanParameters,
+  hdbscanParameters
 }: {
   metric: MetricDefinition;
   points: readonly Point[];
@@ -1363,7 +1363,7 @@ async function fetchClusters({
       coordinates: points.map((p) => ({
         x: p.position[0],
         y: p.position[1],
-        z: p.position[2],
+        z: p.position[2]
       })),
       fetchDataQualityMetric: metric.type === "dataQuality",
       dataQualityMetricColumnName:
@@ -1372,11 +1372,11 @@ async function fetchClusters({
       // NB: fallback should never happen due to the conditional above
       performanceMetric:
         metric.type === "performance" ? metric.metric : "accuracyScore",
-      ...hdbscanParameters,
+      ...hdbscanParameters
     },
     {
-      fetchPolicy: "network-only",
-    },
+      fetchPolicy: "network-only"
+    }
   ).toPromise();
   return data?.hdbscanClustering ?? [];
 }
@@ -1387,7 +1387,7 @@ async function fetchClusters({
 async function fetchClusterMetrics({
   metric,
   clusters,
-  hdbscanParameters,
+  hdbscanParameters
 }: {
   metric: MetricDefinition;
   clusters: readonly Cluster[];
@@ -1425,7 +1425,7 @@ async function fetchClusterMetrics({
     {
       clusters: clusters.map((cluster) => ({
         id: cluster.id,
-        eventIds: cluster.eventIds,
+        eventIds: cluster.eventIds
       })),
       fetchDataQualityMetric: metric.type === "dataQuality",
       dataQualityMetricColumnName:
@@ -1433,11 +1433,11 @@ async function fetchClusterMetrics({
       fetchPerformanceMetric: metric.type === "performance",
       performanceMetric:
         metric.type === "performance" ? metric.metric : "accuracyScore",
-      ...hdbscanParameters,
+      ...hdbscanParameters
     },
     {
-      fetchPolicy: "network-only",
-    },
+      fetchPolicy: "network-only"
+    }
   ).toPromise();
   return data?.clusters ?? [];
 }
@@ -1486,6 +1486,6 @@ function normalizeCluster(cluster: ClusterInput): Cluster {
     ...cluster,
     size: cluster.eventIds.length,
     primaryMetricValue: primaryMetricValue,
-    referenceMetricValue: referenceMetricValue,
+    referenceMetricValue: referenceMetricValue
   };
 }

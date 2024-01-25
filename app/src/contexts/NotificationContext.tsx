@@ -23,7 +23,7 @@ type NotificationContextType = {
 const NotificationContext = createContext<NotificationContextType | null>(null);
 
 export function NotificationProvider({
-  children,
+  children
 }: {
   children: React.ReactNode;
 }) {
@@ -33,20 +33,20 @@ export function NotificationProvider({
     (notice: NoticeConfigWithoutVariant) => {
       notify({
         variant: "danger",
-        ...notice,
+        ...notice
       });
     },
-    [notify],
+    [notify]
   );
 
   const notifySuccess = useCallback(
     (notice: NoticeConfigWithoutVariant) => {
       notify({
         variant: "success",
-        ...notice,
+        ...notice
       });
     },
-    [notify],
+    [notify]
   );
 
   return (
@@ -63,7 +63,7 @@ export function useGlobalNotification() {
   const context = useContext(NotificationContext);
   if (context === null) {
     throw new Error(
-      "useGlobalNotification must be used within a NotificationProvider",
+      "useGlobalNotification must be used within a NotificationProvider"
     );
   }
   return context;

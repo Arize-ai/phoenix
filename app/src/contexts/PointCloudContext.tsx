@@ -2,7 +2,7 @@ import React, {
   createContext,
   PropsWithChildren,
   useContext,
-  useRef,
+  useRef
 } from "react";
 import { useZustand } from "use-zustand";
 
@@ -10,7 +10,7 @@ import {
   createPointCloudStore,
   PointCloudProps,
   PointCloudState,
-  PointCloudStore,
+  PointCloudStore
 } from "@phoenix/store/pointCloudStore";
 
 export const PointCloudContext = createContext<PointCloudStore | null>(null);
@@ -32,7 +32,7 @@ export function PointCloudProvider({
 
 export function usePointCloudContext<T>(
   selector: (state: PointCloudState) => T,
-  equalityFn?: (left: T, right: T) => boolean,
+  equalityFn?: (left: T, right: T) => boolean
 ): T {
   const store = useContext(PointCloudContext);
   if (!store) throw new Error("Missing PointCloudContext.Provider in the tree");

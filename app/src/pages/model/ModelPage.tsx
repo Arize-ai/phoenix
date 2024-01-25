@@ -8,17 +8,17 @@ import {
   AccordionItem,
   TabbedCard,
   TabPane,
-  Tabs,
+  Tabs
 } from "@arizeai/components";
 
 import {
   PrimaryDatasetTimeRange,
   ReferenceDatasetTimeRange,
-  Toolbar,
+  Toolbar
 } from "@phoenix/components/filter";
 import {
   ModelEmbeddingsTable,
-  ModelSchemaTable,
+  ModelSchemaTable
 } from "@phoenix/components/model";
 import { useDatasets, useTimeRange } from "@phoenix/contexts";
 
@@ -40,8 +40,8 @@ export function ModelPage(_props: ModelPageProps) {
     `,
     {
       startTime: timeRange.start.toISOString(),
-      endTime: timeRange.end.toISOString(),
-    },
+      endTime: timeRange.end.toISOString()
+    }
   );
   return (
     <main>
@@ -52,7 +52,7 @@ export function ModelPage(_props: ModelPageProps) {
             datasetRole="reference"
             timeRange={{
               start: new Date(referenceDataset.startTime),
-              end: new Date(referenceDataset.endTime),
+              end: new Date(referenceDataset.endTime)
             }}
           />
         ) : null}

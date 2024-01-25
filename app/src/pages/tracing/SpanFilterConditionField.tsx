@@ -3,7 +3,7 @@ import React, {
   useCallback,
   useDeferredValue,
   useEffect,
-  useState,
+  useState
 } from "react";
 import { autocompletion, CompletionContext } from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
@@ -26,7 +26,7 @@ import {
   Text,
   TooltipTrigger,
   TriggerWrap,
-  View,
+  View
 } from "@arizeai/components";
 
 import { useTheme } from "@phoenix/contexts";
@@ -80,97 +80,97 @@ function filterConditionCompletions(context: CompletionContext) {
       {
         label: "span_kind",
         type: "variable",
-        info: "The span variant: CHAIN, LLM, RETRIEVER, TOOL, etc.",
+        info: "The span variant: CHAIN, LLM, RETRIEVER, TOOL, etc."
       },
       {
         label: "status_code",
         type: "variable",
-        info: "The span status: OK, UNSET, or ERROR",
+        info: "The span status: OK, UNSET, or ERROR"
       },
       {
         label: "input.value",
         type: "variable",
-        info: "The input value of a span, typically a query",
+        info: "The input value of a span, typically a query"
       },
       {
         label: "output.value",
         type: "variable",
-        info: "The output value of a span, typically a response",
+        info: "The output value of a span, typically a response"
       },
       {
         label: "name",
         type: "variable",
-        info: "The name given to a span - e.x. OpenAI",
+        info: "The name given to a span - e.x. OpenAI"
       },
       {
         label: "latency_ms",
         type: "variable",
-        info: "Latency (i.e. duration) in milliseconds",
+        info: "Latency (i.e. duration) in milliseconds"
       },
       {
         label: "cumulative_token_count.prompt",
         type: "variable",
-        info: "Sum of token count for prompt from self and all child spans",
+        info: "Sum of token count for prompt from self and all child spans"
       },
       {
         label: "cumulative_token_count.completion",
         type: "variable",
-        info: "Sum of token count for completion from self and all child spans",
+        info: "Sum of token count for completion from self and all child spans"
       },
       {
         label: "cumulative_token_count.total",
         type: "variable",
-        info: "Sum of token count total (prompt + completion) from self and all child spans",
+        info: "Sum of token count total (prompt + completion) from self and all child spans"
       },
       {
         label: "llm spans",
         type: "text",
         apply: "span_kind == 'LLM'",
-        detail: "macro",
+        detail: "macro"
       },
       {
         label: "retriever spans",
         type: "text",
         apply: "span_kind == 'RETRIEVER'",
-        detail: "macro",
+        detail: "macro"
       },
       {
         label: "search input",
         type: "text",
         apply: "'' in input.value",
-        detail: "macro",
+        detail: "macro"
       },
       {
         label: "search output",
         type: "text",
         apply: "'' in output.value",
-        detail: "macro",
+        detail: "macro"
       },
       {
         label: "status_code error",
         type: "text",
         apply: "status_code == 'ERROR'",
-        detail: "macro",
+        detail: "macro"
       },
       {
         label: "Latency >= 10s",
         type: "text",
         apply: "latency_ms >= 10_000",
-        detail: "macro",
+        detail: "macro"
       },
       {
         label: "Tokens >= 1,000",
         type: "text",
         apply: "llm.token_count.total >= 1_000",
-        detail: "macro",
+        detail: "macro"
       },
       {
         label: "Hallucinations",
         type: "text",
         apply: "evals['Hallucination'].label == 'hallucinated'",
-        detail: "macro",
-      },
-    ],
+        detail: "macro"
+      }
+    ]
   };
 }
 
@@ -181,7 +181,7 @@ async function isConditionValid(condition: string) {
   if (!condition) {
     return {
       isValid: true,
-      errorMessage: null,
+      errorMessage: null
     };
   }
   const validationResult =
@@ -195,7 +195,7 @@ async function isConditionValid(condition: string) {
           }
         }
       `,
-      { condition },
+      { condition }
     ).toPromise();
   // Satisfy the type checker
   if (!validationResult) {
@@ -211,11 +211,11 @@ const extensions = [
       run: (_editorView: EditorView) => {
         // Ignore newlines
         return true;
-      },
-    },
+      }
+    }
   ]),
   python(),
-  autocompletion({ override: [filterConditionCompletions] }),
+  autocompletion({ override: [filterConditionCompletions] })
 ];
 
 type SpanFilterConditionFieldProps = {
@@ -228,7 +228,7 @@ type SpanFilterConditionFieldProps = {
 export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   const {
     onValidCondition,
-    placeholder = "filter condition (e.x. span_kind == 'LLM')",
+    placeholder = "filter condition (e.x. span_kind == 'LLM')"
   } = props;
   const [isFocused, setIsFocused] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>("");
@@ -244,7 +244,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
         setFilterCondition(additionalCondition);
       }
     },
-    [filterCondition, setFilterCondition],
+    [filterCondition, setFilterCondition]
   );
 
   useEffect(() => {
@@ -282,7 +282,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
             syntaxHighlighting: true,
             highlightActiveLine: false,
             highlightActiveLineGutter: false,
-            defaultKeymap: false,
+            defaultKeymap: false
           }}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
@@ -410,7 +410,7 @@ function FilterConditionSnippet(props: {
             fieldCSS,
             css`
               flex: 1 1 auto;
-            `,
+            `
           )}
         >
           <CodeMirror
@@ -421,7 +421,7 @@ function FilterConditionSnippet(props: {
               bracketMatching: true,
               syntaxHighlighting: true,
               highlightActiveLine: false,
-              highlightActiveLineGutter: false,
+              highlightActiveLineGutter: false
             }}
             extensions={[python()]}
             editable={true}

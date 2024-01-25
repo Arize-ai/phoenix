@@ -21,7 +21,7 @@ export async function homeLoader(_args: LoaderFunctionArgs) {
         }
       }
     `,
-    {},
+    {}
   ).toPromise();
 
   if (data?.functionality.modelInferences) {

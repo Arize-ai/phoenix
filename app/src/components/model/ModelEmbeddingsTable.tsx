@@ -40,17 +40,17 @@ export function ModelEmbeddingsTable(props: ModelEmbeddingsTableProps) {
         }
       }
     `,
-    props.model,
+    props.model
   );
   const tableData = useMemo(
     () =>
       data.model.embeddingDimensions.edges.map(({ embedding }) => {
         // Normalize the data
         return {
-          ...embedding,
+          ...embedding
         };
       }),
-    [data],
+    [data]
   );
 
   // Declare the columns
@@ -64,13 +64,13 @@ export function ModelEmbeddingsTable(props: ModelEmbeddingsTableProps) {
           <Link to={`embeddings/${row.original.id}`}>
             {renderValue() as string}
           </Link>
-        ),
+        )
       },
       {
         header: "euclidean distance",
         accessorKey: "euclideanDistance",
-        cell: FloatCell,
-      },
+        cell: FloatCell
+      }
     ];
     return cols;
   }, []);

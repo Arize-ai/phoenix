@@ -65,10 +65,10 @@ export function DimensionPage() {
       dimensionId: dimensionId!,
       timeRange: {
         start: timeRange.start.toISOString(),
-        end: timeRange.end.toISOString(),
+        end: timeRange.end.toISOString()
       },
-      hasReference,
-    },
+      hasReference
+    }
   );
 
   if (!dimensionId) {

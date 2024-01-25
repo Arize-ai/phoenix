@@ -27,7 +27,7 @@ export function SpanColumnSelector(props: SpanColumnSelectorProps) {
     <Dropdown
       menu={<ColumnSelectorMenu {...props} />}
       triggerProps={{
-        placement: "bottom end",
+        placement: "bottom end"
       }}
     >
       <Flex direction="row" alignItems="center" gap="size-100">
@@ -53,7 +53,7 @@ function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
 
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const setColumnVisibility = useTracingContext(
-    (state) => state.setColumnVisibility,
+    (state) => state.setColumnVisibility
   );
   const columns = useMemo(() => {
     return propsColumns.filter((column) => {
@@ -74,7 +74,7 @@ function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
       const { name, checked } = event.target;
       setColumnVisibility({ ...columnVisibility, [name]: checked });
     },
-    [columnVisibility, setColumnVisibility],
+    [columnVisibility, setColumnVisibility]
   );
 
   const onToggleAll = useCallback(
@@ -85,7 +85,7 @@ function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
       }, {});
       setColumnVisibility(newVisibilityState);
     },
-    [columns, setColumnVisibility],
+    [columns, setColumnVisibility]
   );
 
   return (
@@ -136,7 +136,7 @@ function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
 }
 
 function EvaluationColumnSelector({
-  query,
+  query
 }: Pick<SpanColumnSelectorProps, "query">) {
   const data = useFragment<SpanColumnSelector_evaluations$key>(
     graphql`
@@ -144,13 +144,13 @@ function EvaluationColumnSelector({
         spanEvaluationNames
       }
     `,
-    query,
+    query
   );
   const evaluationVisibility = useTracingContext(
-    (state) => state.evaluationVisibility,
+    (state) => state.evaluationVisibility
   );
   const setEvaluationVisibility = useTracingContext(
-    (state) => state.setEvaluationVisibility,
+    (state) => state.setEvaluationVisibility
   );
   const allVisible = useMemo(() => {
     return data.spanEvaluationNames.every((name) => {
@@ -199,7 +199,7 @@ function EvaluationColumnSelector({
                   onChange={() => {
                     setEvaluationVisibility({
                       ...evaluationVisibility,
-                      [name]: !isVisible,
+                      [name]: !isVisible
                     });
                   }}
                 />

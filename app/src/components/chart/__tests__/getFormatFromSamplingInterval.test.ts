@@ -2,7 +2,7 @@ import { timeFormatLocale } from "d3-time-format";
 
 import {
   ONE_DAY_IN_MINUTES,
-  ONE_HOUR_IN_MINUTES,
+  ONE_HOUR_IN_MINUTES
 } from "@phoenix/utils/timeSeriesUtils";
 
 import { getFormatFromSamplingInterval } from "../useTimeTickFormatter";
@@ -12,7 +12,7 @@ const cases: [number, string][] = [
   [1, "11:08 AM"],
   [ONE_HOUR_IN_MINUTES * 3, "1/1/2020 11:08 AM"],
   [ONE_DAY_IN_MINUTES, "1/1"],
-  [ONE_DAY_IN_MINUTES * 3, "1/1"],
+  [ONE_DAY_IN_MINUTES * 3, "1/1"]
 ];
 
 describe("getFormatFromSamplingInterval", () => {
@@ -29,7 +29,7 @@ describe("getFormatFromSamplingInterval", () => {
       "Wednesday",
       "Thursday",
       "Friday",
-      "Saturday",
+      "Saturday"
     ],
     shortDays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
     months: [
@@ -44,7 +44,7 @@ describe("getFormatFromSamplingInterval", () => {
       "September",
       "October",
       "November",
-      "December",
+      "December"
     ],
     shortMonths: [
       "Jan",
@@ -58,16 +58,16 @@ describe("getFormatFromSamplingInterval", () => {
       "Sep",
       "Oct",
       "Nov",
-      "Dec",
-    ],
+      "Dec"
+    ]
   });
   test.each(cases)(
     "samplingIntervalSeconds: %p returns %p",
     (samplingInterval, expectedResult) => {
       const result = locale.utcFormat(
-        getFormatFromSamplingInterval(samplingInterval),
+        getFormatFromSamplingInterval(samplingInterval)
       )(date);
       expect(result).toEqual(expectedResult);
-    },
+    }
   );
 });

@@ -5,7 +5,7 @@ import {
   getCoreRowModel,
   getSortedRowModel,
   SortingState,
-  useReactTable,
+  useReactTable
 } from "@tanstack/react-table";
 
 import { Flex, Icon, Icons } from "@arizeai/components";
@@ -27,7 +27,7 @@ interface TableDataItem extends ModelEvent {
  */
 export function PointSelectionTable({
   data,
-  onPointSelected,
+  onPointSelected
 }: {
   data: ModelEvent[];
   onPointSelected: (pointId: string) => void;
@@ -85,7 +85,7 @@ export function PointSelectionTable({
               referenceDatasetName={referenceDataset?.name ?? "reference"}
             />
           );
-        },
+        }
       });
     }
     if (hasLinkToData) {
@@ -99,7 +99,7 @@ export function PointSelectionTable({
             return <ExternalLink href={value}>{fileName}</ExternalLink>;
           }
           return null;
-        },
+        }
       });
     }
     if (hasPromptAndResponse) {
@@ -107,32 +107,32 @@ export function PointSelectionTable({
         header: "Prompt",
         accessorKey: "prompt",
         cell: TextCell,
-        size: 200,
+        size: 200
       });
       dataDrivenColumns.push({
         header: "Response",
         accessorKey: "response",
         cell: TextCell,
-        size: 200,
+        size: 200
       });
     } else if (hasRawData) {
       dataDrivenColumns.push({
         header: "Raw Data",
-        accessorKey: "rawData",
+        accessorKey: "rawData"
       });
     }
     if (hasPredictionLabels) {
       dataDrivenColumns.push({
         header: "Prediction Label",
         accessorKey: "predictionLabel",
-        size: 50,
+        size: 50
       });
     }
     if (hasActualLabels) {
       dataDrivenColumns.push({
         header: "Actual Label",
         accessorKey: "actualLabel",
-        size: 50,
+        size: 50
       });
     }
 
@@ -144,13 +144,13 @@ export function PointSelectionTable({
         header: metric.dimension.name,
         accessorKey: "metric",
         cell: FloatCell,
-        sortingFn: "basic",
+        sortingFn: "basic"
       });
 
       // Add the metric name to the table value
       tableData.forEach((dataItem) => {
         const metricValue = dataItem.dimensions.find(
-          (dimension) => dimension.dimension.name === dimensionName,
+          (dimension) => dimension.dimension.name === dimensionName
         )?.value;
         dataItem.metric = metricValue != null ? Number(metricValue) : null;
       });
@@ -174,8 +174,8 @@ export function PointSelectionTable({
               view details
             </LinkButton>
           );
-        },
-      },
+        }
+      }
     ];
     return { columns, tableData };
   }, [data, onPointSelected, primaryDataset, referenceDataset, metric]);
@@ -184,11 +184,11 @@ export function PointSelectionTable({
     columns,
     data: tableData,
     state: {
-      sorting,
+      sorting
     },
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
-    getSortedRowModel: getSortedRowModel(),
+    getSortedRowModel: getSortedRowModel()
   });
 
   return (
@@ -204,12 +204,12 @@ export function PointSelectionTable({
                       className: header.column.getCanSort()
                         ? "cursor-pointer"
                         : "",
-                      onClick: header.column.getToggleSortingHandler(),
+                      onClick: header.column.getToggleSortingHandler()
                     }}
                   >
                     {flexRender(
                       header.column.columnDef.header,
-                      header.getContext(),
+                      header.getContext()
                     )}
                     {header.column.getIsSorted() ? (
                       <Icon
@@ -237,8 +237,8 @@ export function PointSelectionTable({
                         ? `translateX(${
                             table.getState().columnSizingInfo.deltaOffset
                           }px)`
-                        : "",
-                    },
+                        : ""
+                    }
                   }}
                 />
               </th>
@@ -253,7 +253,7 @@ export function PointSelectionTable({
               <td
                 key={cell.id}
                 style={{
-                  width: cell.column.getSize(),
+                  width: cell.column.getSize()
                 }}
               >
                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -269,7 +269,7 @@ export function PointSelectionTable({
 function EventDatasetCell({
   id,
   primaryDatasetName,
-  referenceDatasetName,
+  referenceDatasetName
 }: {
   id: string;
   primaryDatasetName: string;

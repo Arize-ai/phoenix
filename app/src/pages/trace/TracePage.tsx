@@ -32,7 +32,7 @@ import {
   Text,
   View,
   ViewProps,
-  ViewStyleProps,
+  ViewStyleProps
 } from "@arizeai/components";
 import {
   DOCUMENT_CONTENT,
@@ -54,7 +54,7 @@ import {
   SemanticAttributePrefixes,
   TOOL_CALL_FUNCTION_ARGUMENTS_JSON,
   TOOL_CALL_FUNCTION_NAME,
-  ToolAttributePostfixes,
+  ToolAttributePostfixes
 } from "@arizeai/openinference-semantic-conventions";
 
 import { ExternalLink } from "@phoenix/components";
@@ -70,7 +70,7 @@ import {
   AttributeDocument,
   AttributeEmbedding,
   AttributeMessage,
-  AttributePromptTemplate,
+  AttributePromptTemplate
 } from "@phoenix/openInference/tracing/types";
 import { assertUnreachable, isStringArray } from "@phoenix/typeUtils";
 import { formatFloat, numberFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -81,7 +81,7 @@ import { RetrievalEvaluationLabel } from "../tracing/RetrievalEvaluationLabel";
 import {
   MimeType,
   TracePageQuery,
-  TracePageQuery$data,
+  TracePageQuery$data
 } from "./__generated__/TracePageQuery.graphql";
 import { SpanEvaluationsTable } from "./SpanEvaluationsTable";
 
@@ -104,7 +104,7 @@ function isAttributeObject(value: unknown): value is AttributeObject {
 }
 
 export function isAttributePromptTemplate(
-  value: unknown,
+  value: unknown
 ): value is AttributePromptTemplate {
   if (
     isAttributeObject(value) &&
@@ -127,10 +127,10 @@ const defaultCardProps: Partial<CardProps> = {
   backgroundColor: "light",
   borderColor: "light",
   bodyStyle: {
-    padding: 0,
+    padding: 0
   },
   variant: "compact",
-  collapsible: true,
+  collapsible: true
 };
 
 /**
@@ -197,13 +197,13 @@ export function TracePage() {
         }
       }
     `,
-    { traceId: traceId as string },
+    { traceId: traceId as string }
   );
   const spansList = data.spans.edges.map((edge) => edge.span);
   const urlSelectedSpanId = searchParams.get("selectedSpanId");
   const selectedSpanId = urlSelectedSpanId ?? spansList[0].context.spanId;
   const selectedSpan = spansList.find(
-    (span) => span.context.spanId === selectedSpanId,
+    (span) => span.context.spanId === selectedSpanId
   );
   const rootSpan = useMemo(() => {
     return spansList.find((span) => span.parentId == null);
@@ -243,9 +243,9 @@ export function TracePage() {
                 onSpanClick={(spanId) => {
                   setSearchParams(
                     {
-                      selectedSpanId: spanId,
+                      selectedSpanId: spanId
                     },
-                    { replace: true },
+                    { replace: true }
                   );
                 }}
               />
@@ -563,7 +563,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
         backgroundColor="light"
         borderColor="light"
         bodyStyle={{
-          padding: 0,
+          padding: 0
         }}
         variant="compact"
         // @ts-expect-error force putting the title in as a string
@@ -625,7 +625,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             <CodeBlock
               {...{
                 mimeType: "json",
-                value: invocation_parameters_str,
+                value: invocation_parameters_str
               }}
             />
           </TabPane>
@@ -683,10 +683,10 @@ function RetrieverSpanInfo(props: {
         const evaluations = acc[documentPosition] || [];
         return {
           ...acc,
-          [documentPosition]: [...evaluations, documentEvaluation],
+          [documentPosition]: [...evaluations, documentEvaluation]
         };
       },
-      {} as Record<number, DocumentEvaluation[]>,
+      {} as Record<number, DocumentEvaluation[]>
     );
   }, [span.documentEvaluations]);
 
@@ -1014,7 +1014,7 @@ function DocumentItem({
   documentEvaluations,
   backgroundColor,
   borderColor,
-  labelColor,
+  labelColor
 }: {
   document: AttributeDocument;
   documentEvaluations?: DocumentEvaluation[] | null;
@@ -1049,7 +1049,7 @@ function DocumentItem({
             </Flex>
             {typeof document[DOCUMENT_SCORE] === "number" && (
               <Label color={labelColor}>{`score ${numberFormatter(
-                document[DOCUMENT_SCORE],
+                document[DOCUMENT_SCORE]
               )}`}</Label>
             )}
           </Flex>
@@ -1086,7 +1086,7 @@ function DocumentItem({
                   const evalLabelColor =
                     documentEvaluation.label &&
                     DANGER_DOCUMENT_EVALUATION_LABELS.includes(
-                      documentEvaluation.label,
+                      documentEvaluation.label
                     )
                       ? "danger"
                       : labelColor;
@@ -1162,27 +1162,27 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
     if (role === "user") {
       return {
         backgroundColor: "gray-600",
-        borderColor: "gray-100",
+        borderColor: "gray-100"
       };
     } else if (role === "assistant") {
       return {
         backgroundColor: "blue-100",
-        borderColor: "blue-700",
+        borderColor: "blue-700"
       };
     } else if (role === "system") {
       return {
         backgroundColor: "indigo-100",
-        borderColor: "indigo-700",
+        borderColor: "indigo-700"
       };
     } else if (["function", "tool"].includes(role)) {
       return {
         backgroundColor: "yellow-100",
-        borderColor: "yellow-700",
+        borderColor: "yellow-700"
       };
     }
     return {
       backgroundColor: "gray-600",
-      borderColor: "gray-400",
+      borderColor: "gray-400"
     };
   }, [role]);
 
@@ -1221,10 +1221,10 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                   {toolCall[TOOL_CALL_FUNCTION_NAME] as string}(
                   {JSON.stringify(
                     JSON.parse(
-                      toolCall[TOOL_CALL_FUNCTION_ARGUMENTS_JSON] as string,
+                      toolCall[TOOL_CALL_FUNCTION_ARGUMENTS_JSON] as string
                     ),
                     null,
-                    2,
+                    2
                   )}
                   )
                 </pre>
@@ -1242,10 +1242,10 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
             {message[MESSAGE_FUNCTION_CALL_NAME] as string}(
             {JSON.stringify(
               JSON.parse(
-                message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] as string,
+                message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] as string
               ),
               null,
-              2,
+              2
             )}
             )
           </pre>
@@ -1369,7 +1369,7 @@ function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
             bracketMatching: true,
             syntaxHighlighting: true,
             highlightActiveLine: false,
-            highlightActiveLineGutter: false,
+            highlightActiveLineGutter: false
           }}
           extensions={[json(), EditorView.lineWrapping]}
           editable={false}
@@ -1388,7 +1388,7 @@ function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
             lineNumbers: false,
             highlightActiveLine: false,
             highlightActiveLineGutter: false,
-            syntaxHighlighting: true,
+            syntaxHighlighting: true
           }}
           extensions={[EditorView.lineWrapping]}
           css={codeMirrorCSS}

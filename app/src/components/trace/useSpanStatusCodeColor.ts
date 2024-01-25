@@ -5,7 +5,7 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 import { SpanStatusCodeType } from "./types";
 
 export function useSpanStatusCodeColor(
-  statusCode: SpanStatusCodeType,
+  statusCode: SpanStatusCodeType
 ): ColorValue {
   switch (statusCode) {
     case "OK":

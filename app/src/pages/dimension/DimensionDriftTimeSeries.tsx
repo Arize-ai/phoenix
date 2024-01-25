@@ -10,7 +10,7 @@ import {
   Tooltip,
   TooltipProps,
   XAxis,
-  YAxis,
+  YAxis
 } from "recharts";
 import { CategoricalChartFunc } from "recharts/types/chart/generateCategoricalChart";
 import { css } from "@emotion/react";
@@ -24,7 +24,7 @@ import {
   defaultSelectedTimestampReferenceLineProps,
   defaultTimeXAxisProps,
   useChartColors,
-  useTimeTickFormatter,
+  useTimeTickFormatter
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
@@ -32,7 +32,7 @@ import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 import {
   calculateGranularity,
-  calculateGranularityWithRollingAverage,
+  calculateGranularityWithRollingAverage
 } from "@phoenix/utils/timeSeriesUtils";
 
 import { DimensionDriftTimeSeriesQuery } from "./__generated__/DimensionDriftTimeSeriesQuery.graphql";
@@ -42,14 +42,14 @@ const useColors = () => {
   const { orange300, gray300 } = useChartColors();
   return {
     color: orange300,
-    barColor: gray300,
+    barColor: gray300
   };
 };
 
 function TooltipContent({
   active,
   payload,
-  label,
+  label
 }: TooltipProps<number, string>) {
   const { color } = useColors();
   if (active && payload && payload.length) {
@@ -58,7 +58,7 @@ function TooltipContent({
     return (
       <ChartTooltip>
         <Text weight="heavy" textSize="medium">{`${fullTimeFormatter(
-          new Date(label),
+          new Date(label)
         )}`}</Text>
         <ChartTooltipItem
           color={color}
@@ -87,7 +87,7 @@ function TooltipContent({
   return null;
 }
 export function DimensionDriftTimeSeries({
-  dimensionId,
+  dimensionId
 }: {
   dimensionId: string;
 }) {
@@ -133,11 +133,11 @@ export function DimensionDriftTimeSeries({
       dimensionId,
       timeRange: {
         start: timeRange.start.toISOString(),
-        end: timeRange.end.toISOString(),
+        end: timeRange.end.toISOString()
       },
       driftGranularity: calculateGranularityWithRollingAverage(timeRange),
-      countGranularity,
-    },
+      countGranularity
+    }
   );
 
   const chartRawData = data.embedding.driftTimeSeries?.data || [];
@@ -147,7 +147,7 @@ export function DimensionDriftTimeSeries({
         acc[traffic.timestamp] = traffic.value;
         return acc;
       },
-      {} as Record<string, number | null>,
+      {} as Record<string, number | null>
     ) ?? {};
 
   const chartData = chartRawData.map((d) => {
@@ -155,12 +155,12 @@ export function DimensionDriftTimeSeries({
     return {
       ...d,
       traffic: traffic,
-      timestamp: new Date(d.timestamp).valueOf(),
+      timestamp: new Date(d.timestamp).valueOf()
     };
   });
 
   const timeTickFormatter = useTimeTickFormatter({
-    samplingIntervalMinutes: countGranularity.samplingIntervalMinutes,
+    samplingIntervalMinutes: countGranularity.samplingIntervalMinutes
   });
 
   const onClick: CategoricalChartFunc = useCallback(
@@ -172,7 +172,7 @@ export function DimensionDriftTimeSeries({
         setSelectedTimestamp(new Date(payload.timestamp));
       }
     },
-    [setSelectedTimestamp],
+    [setSelectedTimestamp]
   );
 
   const { color, barColor } = useColors();
@@ -212,8 +212,8 @@ export function DimensionDriftTimeSeries({
             position: "insideLeft",
             style: {
               textAnchor: "middle",
-              fill: "var(--ac-global-text-color-900)",
-            },
+              fill: "var(--ac-global-text-color-900)"
+            }
           }}
           style={{ fill: "var(--ac-global-text-color-700)" }}
         />

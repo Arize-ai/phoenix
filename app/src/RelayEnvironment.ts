@@ -3,7 +3,7 @@ import {
   FetchFunction,
   Network,
   RecordSource,
-  Store,
+  Store
 } from "relay-runtime";
 
 const graphQLPath = window.Config.basename + "/graphql";
@@ -16,12 +16,12 @@ const fetchRelay: FetchFunction = async (params, variables, _cacheConfig) => {
   const response = await fetch(graphQLPath, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
+      "Content-Type": "application/json"
     },
     body: JSON.stringify({
       query: params.text,
-      variables,
-    }),
+      variables
+    })
   });
 
   // Get the response as JSON
@@ -35,8 +35,8 @@ const fetchRelay: FetchFunction = async (params, variables, _cacheConfig) => {
       `Error fetching GraphQL query '${
         params.name
       }' with variables '${JSON.stringify(variables)}': ${JSON.stringify(
-        json.errors,
-      )}`,
+        json.errors
+      )}`
     );
   }
 
@@ -52,6 +52,6 @@ export default new Environment({
     // navigates around the app. Relay will hold onto the specified number of
     // query results, allowing the user to return to recently visited pages
     // and reusing cached data if its available/fresh.
-    gcReleaseBufferSize: 10,
-  }),
+    gcReleaseBufferSize: 10
+  })
 });

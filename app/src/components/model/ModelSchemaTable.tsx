@@ -8,7 +8,7 @@ import {
   FloatCell,
   IntCell,
   PercentCell,
-  Table,
+  Table
 } from "@phoenix/components/table";
 
 import { ModelSchemaTable_dimensions$key } from "./__generated__/ModelSchemaTable_dimensions.graphql";
@@ -67,17 +67,17 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
         }
       }
     `,
-    props.model,
+    props.model
   );
   const tableData = useMemo(
     () =>
       data.model.dimensions.edges.map(({ dimension }) => {
         // Normalize the data
         return {
-          ...dimension,
+          ...dimension
         };
       }),
-    [data],
+    [data]
   );
 
   // Declare the columns
@@ -93,46 +93,46 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
               {props.renderValue() as string}
             </Link>
           );
-        },
+        }
       },
       {
         header: "type",
-        accessorKey: "type",
+        accessorKey: "type"
       },
       {
         header: "data type",
-        accessorKey: "dataType",
+        accessorKey: "dataType"
       },
       {
         header: "cardinality",
         accessorKey: "cardinality",
-        cell: IntCell,
+        cell: IntCell
       },
       {
         header: "% empty",
         accessorKey: "percentEmpty",
-        cell: PercentCell,
+        cell: PercentCell
       },
       {
         header: "min",
         accessorKey: "min",
-        cell: FloatCell,
+        cell: FloatCell
       },
       {
         header: "mean",
         accessorKey: "mean",
-        cell: FloatCell,
+        cell: FloatCell
       },
       {
         header: "max",
         accessorKey: "max",
-        cell: FloatCell,
+        cell: FloatCell
       },
       {
         header: "PSI",
         accessorKey: "psi",
-        cell: FloatCell,
-      },
+        cell: FloatCell
+      }
     ];
     return cols;
   }, []);

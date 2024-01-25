@@ -15,19 +15,19 @@ import { VisibilityCheckboxField } from "./VisibilityCheckboxField";
  */
 export function DatasetVisibilitySettings({
   hasReference,
-  hasCorpus,
+  hasCorpus
 }: {
   hasReference: boolean;
   hasCorpus: boolean;
 }) {
   const datasetVisibility = usePointCloudContext(
-    (state) => state.datasetVisibility,
+    (state) => state.datasetVisibility
   );
   const setDatasetVisibility = usePointCloudContext(
-    (state) => state.setDatasetVisibility,
+    (state) => state.setDatasetVisibility
   );
   const coloringStrategy = usePointCloudContext(
-    (state) => state.coloringStrategy,
+    (state) => state.coloringStrategy
   );
 
   const handleDatasetVisibilityChange = useCallback(
@@ -35,10 +35,10 @@ export function DatasetVisibilitySettings({
       const { name, checked } = event.target;
       setDatasetVisibility({
         ...datasetVisibility,
-        [name]: checked,
+        [name]: checked
       });
     },
-    [datasetVisibility, setDatasetVisibility],
+    [datasetVisibility, setDatasetVisibility]
   );
   const DEFAULT_COLOR_SCHEME = useDefaultColorScheme();
 

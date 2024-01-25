@@ -51,7 +51,7 @@ export function DatasetsProvider(props: DatasetsProviderProps) {
             default:
               assertUnreachable(datasetRole);
           }
-        },
+        }
       }}
     >
       {props.children}

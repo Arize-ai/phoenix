@@ -20,7 +20,7 @@ type SelectionDisplayRadioGroupProps = {
  * Controls the view of the user's selection (e.g. view as a list or gallery)
  */
 export function SelectionDisplayRadioGroup(
-  props: SelectionDisplayRadioGroupProps,
+  props: SelectionDisplayRadioGroupProps
 ) {
   return (
     <RadioGroup

@@ -22,7 +22,7 @@ export function DimensionQuantilesStats(props: {
         p1: dataQualityMetric(metric: p01, timeRange: $timeRange)
       }
     `,
-    props.dimension,
+    props.dimension
   );
 
   return (

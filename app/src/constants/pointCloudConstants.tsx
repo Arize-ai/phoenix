@@ -37,18 +37,18 @@ export enum ColoringStrategy {
   /**
    * Color each point by a specific dimension value
    */
-  dimension = "dimension",
+  dimension = "dimension"
 }
 
 export enum SelectionDisplay {
   list = "list",
-  gallery = "gallery",
+  gallery = "gallery"
 }
 
 export enum SelectionGridSize {
   small = "small",
   medium = "medium",
-  large = "large",
+  large = "large"
 }
 
 /**
@@ -58,13 +58,13 @@ export enum SelectionGridSize {
 export enum DatasetGroup {
   primary = "primary",
   reference = "reference",
-  corpus = "corpus",
+  corpus = "corpus"
 }
 
 export enum CorrectnessGroup {
   correct = "correct",
   incorrect = "incorrect",
-  unknown = "unknown",
+  unknown = "unknown"
 }
 
 export const DEFAULT_DARK_COLOR_SCHEME = ["#05fbff", "#cb8afd"];

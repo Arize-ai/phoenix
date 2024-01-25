@@ -18,7 +18,7 @@ export function DimensionCountStats(props: {
         count: dataQualityMetric(metric: count, timeRange: $timeRange)
       }
     `,
-    props.dimension,
+    props.dimension
   );
 
   const count = data.count ?? 0;

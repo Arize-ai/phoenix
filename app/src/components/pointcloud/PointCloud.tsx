@@ -9,7 +9,7 @@ import {
   Heading,
   Icon,
   InfoOutline,
-  TooltipTrigger,
+  TooltipTrigger
 } from "@arizeai/components";
 import {
   Axes,
@@ -18,7 +18,7 @@ import {
   PointBaseProps,
   ThreeDimensionalBounds,
   ThreeDimensionalCanvas,
-  ThreeDimensionalControls,
+  ThreeDimensionalControls
 } from "@arizeai/point-cloud";
 
 import { UNKNOWN_COLOR } from "@phoenix/constants/pointCloudConstants";
@@ -27,7 +27,7 @@ import {
   PointCloudContext,
   ThemeContext,
   usePointCloudContext,
-  useTheme,
+  useTheme
 } from "@phoenix/contexts";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
 import { CanvasMode } from "@phoenix/store";
@@ -53,7 +53,7 @@ const PointCloudInfo = function PointCloudInfo() {
   const { selectedTimestamp } = useTimeSlice();
   const points = usePointCloudContext((state) => state.points);
   const hdbscanParameters = usePointCloudContext(
-    (state) => state.hdbscanParameters,
+    (state) => state.hdbscanParameters
   );
   const umapParameters = usePointCloudContext((state) => state.umapParameters);
   const [numPrimary, numReference, numCorpus] = useMemo(() => {
@@ -62,7 +62,7 @@ const PointCloudInfo = function PointCloudInfo() {
     return [
       primaryEventIds.length,
       referenceEventIds.length,
-      corpusEventIds.length,
+      corpusEventIds.length
     ];
   }, [points]);
 
@@ -235,21 +235,21 @@ const Projection = React.memo(function Projection() {
   const points = usePointCloudContext((state) => state.points);
   const canvasMode = usePointCloudContext((state) => state.canvasMode);
   const setSelectedEventIds = usePointCloudContext(
-    (state) => state.setSelectedEventIds,
+    (state) => state.setSelectedEventIds
   );
 
   const setSelectedClusterId = usePointCloudContext(
-    (state) => state.setSelectedClusterId,
+    (state) => state.setSelectedClusterId
   );
   const pointGroupColors = usePointCloudContext(
-    (state) => state.pointGroupColors,
+    (state) => state.pointGroupColors
   );
   const pointGroupVisibility = usePointCloudContext(
-    (state) => state.pointGroupVisibility,
+    (state) => state.pointGroupVisibility
   );
   const { theme } = useTheme();
   const datasetVisibility = usePointCloudContext(
-    (state) => state.datasetVisibility,
+    (state) => state.datasetVisibility
   );
 
   // AutoRotate the canvas on initial load
@@ -277,7 +277,7 @@ const Projection = React.memo(function Projection() {
       const group = eventIdToGroup[point.metaData.id] || "unknown";
       return pointGroupColors[group] || UNKNOWN_COLOR;
     },
-    [pointGroupColors, eventIdToGroup],
+    [pointGroupColors, eventIdToGroup]
   );
 
   const primaryData = useMemo(() => {
@@ -337,14 +337,14 @@ const Projection = React.memo(function Projection() {
     const visiblePoints = [
       ...visiblePrimaryPoints,
       ...(visibleReferencePoints || []),
-      ...(visibleCorpusPoints || []),
+      ...(visibleCorpusPoints || [])
     ];
     return visiblePoints;
   }, [
     filteredPrimaryData,
     filteredReferenceData,
     filteredCorpusData,
-    datasetVisibility,
+    datasetVisibility
   ]);
 
   // Context cannot be passed through multiple reconcilers. Bridge the context
@@ -352,7 +352,7 @@ const Projection = React.memo(function Projection() {
     PointCloudContext,
     DatasetsContext,
     EmotionThemeContext,
-    ThemeContext,
+    ThemeContext
   );
 
   return (

@@ -8,7 +8,7 @@ import {
   GitHubLink,
   Navbar,
   NavBreadcrumb,
-  ThemeToggle,
+  ThemeToggle
 } from "@phoenix/components/nav";
 
 const layoutCSS = css`

@@ -2,7 +2,7 @@ import { useMemo } from "react";
 
 import {
   DEFAULT_DARK_COLOR_SCHEME,
-  DEFAULT_LIGHT_COLOR_SCHEME,
+  DEFAULT_LIGHT_COLOR_SCHEME
 } from "@phoenix/constants/pointCloudConstants";
 import { useTheme } from "@phoenix/contexts";
 

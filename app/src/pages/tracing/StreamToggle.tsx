@@ -23,11 +23,11 @@ export function StreamToggle(props: { query: StreamToggle_data$key }) {
         streamingLastUpdatedAt
       }
     `,
-    props.query,
+    props.query
   );
   // Keep track of the loaded lastUpdatedAt, so we can detect when it changes
   const loadedLastUpdatedAtRef = useRef<string | null>(
-    lastUpdatedAt.streamingLastUpdatedAt,
+    lastUpdatedAt.streamingLastUpdatedAt
   );
 
   // Refetch lastUpdatedAt if the streaming toggle is on to detect when the underlying data changes

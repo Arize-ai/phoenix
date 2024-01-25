@@ -7,7 +7,7 @@ import {
   Text,
   TooltipTrigger,
   TriggerWrap,
-  View,
+  View
 } from "@arizeai/components";
 
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
@@ -21,7 +21,7 @@ type DocumentEvaluationSummaryProps = {
   evaluationName: string;
 };
 export function DocumentEvaluationSummary({
-  evaluationName,
+  evaluationName
 }: DocumentEvaluationSummaryProps) {
   const data = useLazyLoadQuery<DocumentEvaluationSummaryQuery>(
     graphql`
@@ -31,8 +31,8 @@ export function DocumentEvaluationSummary({
       }
     `,
     {
-      evaluationName,
-    },
+      evaluationName
+    }
   );
   return (
     <Flex direction="column" flex="none">
@@ -68,7 +68,7 @@ function EvaluationSummaryValue(props: {
         }
       }
     `,
-    query,
+    query
   );
 
   // Refetch the evaluation summary if the fetchKey changes

@@ -3,7 +3,7 @@ import { timeFormat } from "d3-time-format";
 
 import {
   ONE_DAY_IN_MINUTES,
-  ONE_HOUR_IN_MINUTES,
+  ONE_HOUR_IN_MINUTES
 } from "@phoenix/utils/timeSeriesUtils";
 
 type TimeFormatterConfig = {
@@ -14,7 +14,7 @@ type TimeFormatterConfig = {
 };
 
 export function getFormatFromSamplingInterval(
-  samplingIntervalMinutes: number,
+  samplingIntervalMinutes: number
 ): string {
   let format: string;
   if (samplingIntervalMinutes < ONE_HOUR_IN_MINUTES) {

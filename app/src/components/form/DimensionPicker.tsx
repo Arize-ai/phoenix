@@ -11,7 +11,7 @@ import {
   LabelProps,
   Picker,
   PickerProps,
-  Text,
+  Text
 } from "@arizeai/components";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
@@ -127,7 +127,7 @@ type ConnectedDimensionPickerProps<T> = Omit<
 >;
 
 export function ConnectedDimensionPicker<T>(
-  props: ConnectedDimensionPickerProps<T>,
+  props: ConnectedDimensionPickerProps<T>
 ) {
   const [dimensions, setDimensions] = useState<Dimension[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -155,8 +155,8 @@ export function ConnectedDimensionPicker<T>(
       `,
       {},
       {
-        fetchPolicy: "store-or-network",
-      },
+        fetchPolicy: "store-or-network"
+      }
     )
       .toPromise()
       .then((data) => {

@@ -12,8 +12,8 @@ describe("createSpanTree", () => {
       parentId: null,
       context: {
         spanId: "86d5abea-ca78-4e59-a3f7-02548bb4e19a",
-        traceId: "c399b6c1-2826-4e4c-90f4-068afccb81c2",
-      },
+        traceId: "c399b6c1-2826-4e4c-90f4-068afccb81c2"
+      }
     },
     {
       spanKind: "chain",
@@ -24,8 +24,8 @@ describe("createSpanTree", () => {
       parentId: "86d5abea-ca78-4e59-a3f7-02548bb4e19a",
       context: {
         spanId: "6cd91cc2-c29d-45c9-b98b-dd37cffa1d7a",
-        traceId: "c399b6c1-2826-4e4c-90f4-068afccb81c2",
-      },
+        traceId: "c399b6c1-2826-4e4c-90f4-068afccb81c2"
+      }
     },
     {
       spanKind: "llm",
@@ -37,8 +37,8 @@ describe("createSpanTree", () => {
       tokenCountTotal: null,
       context: {
         spanId: "5530a9fc-43d7-4add-bff9-91449ec0b1c3",
-        traceId: "c399b6c1-2826-4e4c-90f4-068afccb81c2",
-      },
+        traceId: "c399b6c1-2826-4e4c-90f4-068afccb81c2"
+      }
     },
     {
       spanKind: "retriever",
@@ -50,8 +50,8 @@ describe("createSpanTree", () => {
       tokenCountTotal: null,
       context: {
         spanId: "de0d1e57-70d4-4b2b-a100-30b706902da3",
-        traceId: "c399b6c1-2826-4e4c-90f4-068afccb81c2",
-      },
+        traceId: "c399b6c1-2826-4e4c-90f4-068afccb81c2"
+      }
     },
     {
       spanKind: "embedding",
@@ -62,9 +62,9 @@ describe("createSpanTree", () => {
       parentId: "de0d1e57-70d4-4b2b-a100-30b706902da3",
       context: {
         spanId: "86433110-f83a-429e-b6e9-5f23131d14f7",
-        traceId: "c399b6c1-2826-4e4c-90f4-068afccb81c2",
-      },
-    },
+        traceId: "c399b6c1-2826-4e4c-90f4-068afccb81c2"
+      }
+    }
   ];
   it("should create a span tree", () => {
     expect(createSpanTree(traceSpans)).toMatchInlineSnapshot(`

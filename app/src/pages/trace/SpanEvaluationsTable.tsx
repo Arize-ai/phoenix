@@ -3,7 +3,7 @@ import { graphql, useFragment } from "react-relay";
 import {
   flexRender,
   getCoreRowModel,
-  useReactTable,
+  useReactTable
 } from "@tanstack/react-table";
 
 import { TextCell } from "@phoenix/components/table";
@@ -16,24 +16,24 @@ const columns = [
   {
     header: "name",
     accessorKey: "name",
-    size: 100,
+    size: 100
   },
   {
     header: "label",
     accessorKey: "label",
-    size: 100,
+    size: 100
   },
   {
     header: "score",
     accessorKey: "score",
-    size: 100,
+    size: 100
   },
   {
     header: "explanation",
     accessorKey: "explanation",
     Cell: TextCell,
-    size: 400,
-  },
+    size: 400
+  }
 ];
 
 export function SpanEvaluationsTable(props: {
@@ -50,7 +50,7 @@ export function SpanEvaluationsTable(props: {
         }
       }
     `,
-    props.span,
+    props.span
   );
   const evaluations = useMemo(() => {
     return [...data.spanEvaluations];
@@ -59,7 +59,7 @@ export function SpanEvaluationsTable(props: {
   const table = useReactTable({
     columns,
     data: evaluations,
-    getCoreRowModel: getCoreRowModel(),
+    getCoreRowModel: getCoreRowModel()
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
@@ -75,7 +75,7 @@ export function SpanEvaluationsTable(props: {
                   <>
                     {flexRender(
                       header.column.columnDef.header,
-                      header.getContext(),
+                      header.getContext()
                     )}
                   </>
                 )}
@@ -94,7 +94,7 @@ export function SpanEvaluationsTable(props: {
                 <td
                   key={cell.id}
                   style={{
-                    width: cell.column.getSize(),
+                    width: cell.column.getSize()
                   }}
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}

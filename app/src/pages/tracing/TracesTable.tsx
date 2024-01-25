@@ -4,7 +4,7 @@ import React, {
   useEffect,
   useMemo,
   useRef,
-  useState,
+  useState
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
@@ -16,7 +16,7 @@ import {
   getExpandedRowModel,
   getSortedRowModel,
   SortingState,
-  useReactTable,
+  useReactTable
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
@@ -38,7 +38,7 @@ import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import {
   SpanStatusCode,
-  TracesTable_spans$key,
+  TracesTable_spans$key
 } from "./__generated__/TracesTable_spans.graphql";
 import { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
 import { EvaluationLabel } from "./EvaluationLabel";
@@ -50,7 +50,7 @@ import {
   DEFAULT_SORT,
   EVALS_COLUMN_PREFIX,
   EVALS_KEY_SEPARATOR,
-  getGqlSort,
+  getGqlSort
 } from "./tableUtils";
 import { TokenCount } from "./TokenCount";
 type TracesTableProps = {
@@ -72,13 +72,13 @@ type NestedSpanTableRow<TSpan extends ISpanItem> = TSpan & {
  * as a table.
  */
 function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(
-  children: SpanTreeNode<TSpan>[],
+  children: SpanTreeNode<TSpan>[]
 ): NestedSpanTableRow<TSpan>[] {
   const normalizedSpanTreeChildren: NestedSpanTableRow<TSpan>[] = [];
   for (const child of children) {
     const normalizedChild = {
       ...child.span,
-      children: spanTreeToNestedSpanTableRows(child.children),
+      children: spanTreeToNestedSpanTableRows(child.children)
     };
     normalizedSpanTreeChildren.push(normalizedChild);
   }
@@ -183,15 +183,15 @@ export function TracesTable(props: TracesTableProps) {
           }
         }
       `,
-      props.query,
+      props.query
     );
 
   const evaluationVisibility = useTracingContext(
-    (state) => state.evaluationVisibility,
+    (state) => state.evaluationVisibility
   );
   const visibleEvaluationColumnNames = useMemo(() => {
     return Object.keys(evaluationVisibility).filter(
-      (name) => evaluationVisibility[name],
+      (name) => evaluationVisibility[name]
     );
   }, [evaluationVisibility]);
   const tableData = useMemo(() => {
@@ -217,28 +217,28 @@ export function TracesTable(props: TracesTableProps) {
             accessorKey: `${EVALS_COLUMN_PREFIX}${EVALS_KEY_SEPARATOR}label${EVALS_KEY_SEPARATOR}${name}`,
             cell: ({ row }) => {
               const evaluation = row.original.spanEvaluations.find(
-                (evaluation) => evaluation.name === name,
+                (evaluation) => evaluation.name === name
               );
               if (!evaluation) {
                 return null;
               }
               return evaluation.label;
-            },
+            }
           } as ColumnDef<TableRow>,
           {
             header: `score`,
             accessorKey: `${EVALS_COLUMN_PREFIX}${EVALS_KEY_SEPARATOR}score${EVALS_KEY_SEPARATOR}${name}`,
             cell: ({ row }) => {
               const evaluation = row.original.spanEvaluations.find(
-                (evaluation) => evaluation.name === name,
+                (evaluation) => evaluation.name === name
               );
               if (!evaluation) {
                 return null;
               }
               return evaluation.score;
-            },
-          } as ColumnDef<TableRow>,
-        ],
+            }
+          } as ColumnDef<TableRow>
+        ]
       };
     });
 
@@ -288,9 +288,9 @@ export function TracesTable(props: TracesTableProps) {
             {hasNoEvaluations ? "--" : null}
           </Flex>
         );
-      },
+      }
     },
-    ...dynamicEvaluationColumns,
+    ...dynamicEvaluationColumns
   ];
 
   const columns: ColumnDef<TableRow>[] = [
@@ -333,7 +333,7 @@ export function TracesTable(props: TracesTableProps) {
             </Flex>
           </div>
         );
-      },
+      }
     },
     {
       header: "name",
@@ -346,25 +346,25 @@ export function TracesTable(props: TracesTableProps) {
             {getValue() as string}
           </Link>
         );
-      },
+      }
     },
     {
       header: "input",
       accessorKey: "input.value",
       enableSorting: false,
-      cell: TextCell,
+      cell: TextCell
     },
     {
       header: "output",
       accessorKey: "output.value",
       enableSorting: false,
-      cell: TextCell,
+      cell: TextCell
     },
     ...evaluationColumns, // TODO: consider hiding this column is there is no evals. For now show it
     {
       header: "start time",
       accessorKey: "startTime",
-      cell: TimestampCell,
+      cell: TimestampCell
     },
     {
       header: "latency",
@@ -377,7 +377,7 @@ export function TracesTable(props: TracesTableProps) {
         }
 
         return <LatencyText latencyMs={value} />;
-      },
+      }
     },
     {
       header: "total tokens",
@@ -395,7 +395,7 @@ export function TracesTable(props: TracesTableProps) {
             tokenCountCompletion={row.original.tokenCountCompletion || 0}
           />
         );
-      },
+      }
     },
     {
       header: "status",
@@ -403,8 +403,8 @@ export function TracesTable(props: TracesTableProps) {
       enableSorting: false,
       cell: ({ getValue }) => {
         return <SpanStatusCodeIcon statusCode={getValue() as SpanStatusCode} />;
-      },
-    },
+      }
+    }
   ];
 
   useEffect(() => {
@@ -416,11 +416,11 @@ export function TracesTable(props: TracesTableProps) {
           sort: sort ? getGqlSort(sort) : DEFAULT_SORT,
           after: null,
           first: PAGE_SIZE,
-          filterCondition: filterCondition,
+          filterCondition: filterCondition
         },
         {
-          fetchPolicy: "store-and-network",
-        },
+          fetchPolicy: "store-and-network"
+        }
       );
     });
   }, [sorting, refetch, filterCondition, fetchKey]);
@@ -438,7 +438,7 @@ export function TracesTable(props: TracesTableProps) {
         }
       }
     },
-    [hasNext, isLoadingNext, loadNext],
+    [hasNext, isLoadingNext, loadNext]
   );
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
@@ -450,12 +450,12 @@ export function TracesTable(props: TracesTableProps) {
     state: {
       sorting,
       expanded,
-      columnVisibility,
+      columnVisibility
     },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getExpandedRowModel: getExpandedRowModel(),
+    getExpandedRowModel: getExpandedRowModel()
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
@@ -504,13 +504,13 @@ export function TracesTable(props: TracesTableProps) {
                           onClick: header.column.getToggleSortingHandler(),
                           style: {
                             left: header.getStart(),
-                            width: header.getSize(),
-                          },
+                            width: header.getSize()
+                          }
                         }}
                       >
                         {flexRender(
                           header.column.columnDef.header,
-                          header.getContext(),
+                          header.getContext()
                         )}
                         {header.column.getIsSorted() ? (
                           <Icon
@@ -548,7 +548,7 @@ export function TracesTable(props: TracesTableProps) {
                         <td key={cell.id}>
                           {flexRender(
                             cell.column.columnDef.cell,
-                            cell.getContext(),
+                            cell.getContext()
                           )}
                         </td>
                       );

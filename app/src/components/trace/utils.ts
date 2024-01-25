@@ -9,13 +9,13 @@ export type SpanTreeNode<TSpan> = {
  * @param spans
  */
 export function createSpanTree<TSpan extends ISpanItem>(
-  spans: TSpan[],
+  spans: TSpan[]
 ): SpanTreeNode<TSpan>[] {
   // A map of spanId to span tree node
   const spanMap = spans.reduce((acc, span) => {
     acc.set(span.context.spanId, {
       span,
-      children: [],
+      children: []
     });
     return acc;
   }, new Map<string, SpanTreeNode<TSpan>>());
@@ -39,7 +39,7 @@ export function createSpanTree<TSpan extends ISpanItem>(
     spanNode.children.sort(
       (a, b) =>
         new Date(a.span.startTime).valueOf() -
-        new Date(b.span.startTime).valueOf(),
+        new Date(b.span.startTime).valueOf()
     );
   }
   return rootSpans;

@@ -10,7 +10,7 @@ import {
   Tooltip,
   TooltipProps,
   XAxis,
-  YAxis,
+  YAxis
 } from "recharts";
 
 import { Flex, Text, theme, View } from "@arizeai/components";
@@ -20,7 +20,7 @@ import {
   ChartTooltipItem,
   defaultBarChartTooltipProps,
   getBinName,
-  useChartColors,
+  useChartColors
 } from "@phoenix/components/chart";
 import { useDatasets } from "@phoenix/contexts";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
@@ -42,14 +42,14 @@ const useColors = () => {
   const { primary, reference } = useChartColors();
   return {
     primaryBarColor: primary,
-    referenceBarColor: reference,
+    referenceBarColor: reference
   };
 };
 
 function TooltipContent({
   active,
   payload,
-  label,
+  label
 }: TooltipProps<BarChartItem["primaryPercent"], BarChartItem["name"]>) {
   const { primaryBarColor, referenceBarColor } = useColors();
   if (active && payload && payload.length) {
@@ -98,12 +98,12 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
   const { selectedTimestamp } = useTimeSlice();
   const endTime = useMemo(
     () => selectedTimestamp ?? new Date(primaryDataset.endTime),
-    [selectedTimestamp, primaryDataset.endTime],
+    [selectedTimestamp, primaryDataset.endTime]
   );
   const timeRange = useMemo(() => {
     return {
       start: subDays(endTime, 2).toISOString(),
-      end: endTime.toISOString(),
+      end: endTime.toISOString()
     };
   }, [endTime]);
   const data = useLazyLoadQuery<DimensionDriftBreakdownSegmentBarChartQuery>(
@@ -148,7 +148,7 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
         }
       }
     `,
-    { dimensionId: props.dimensionId, timeRange: timeRange },
+    { dimensionId: props.dimensionId, timeRange: timeRange }
   );
 
   const chartData = useMemo<BarChartItem[]>(() => {
@@ -168,7 +168,7 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
         primaryName,
         referenceName,
         primaryPercent,
-        referencePercent,
+        referencePercent
       };
     });
   }, [
@@ -176,7 +176,7 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
     data.dimension.segmentsComparison?.totalCounts?.primaryValue,
     data.dimension.segmentsComparison?.totalCounts?.referenceValue,
     primaryName,
-    referenceName,
+    referenceName
   ]);
 
   const { primaryBarColor, referenceBarColor } = useColors();
@@ -188,7 +188,7 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
           textSize="medium"
           color="text-700"
         >{`Distribution comparison at ${fullTimeFormatter(
-          new Date(timeRange.end),
+          new Date(timeRange.end)
         )}`}</Text>
       </View>
       <View flex>
@@ -199,7 +199,7 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
               top: 15,
               right: 18,
               left: 18,
-              bottom: 5,
+              bottom: 5
             }}
           >
             <defs>
@@ -248,8 +248,8 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
                 position: "insideLeft",
                 style: {
                   textAnchor: "middle",
-                  fill: "var(--ac-global-text-color-900)",
-                },
+                  fill: "var(--ac-global-text-color-900)"
+                }
               }}
               style={{ fill: "var(--ac-global-text-color-700)" }}
             />

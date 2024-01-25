@@ -45,7 +45,7 @@ export function TracingHomePageHeader(props: {
         documentEvaluationNames
       }
     `,
-    props.query,
+    props.query
   );
 
   // Refetch the count of traces if the fetchKey changes

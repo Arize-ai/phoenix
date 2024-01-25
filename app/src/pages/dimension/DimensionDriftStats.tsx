@@ -6,7 +6,7 @@ import {
   ContextualHelp,
   Flex,
   Heading,
-  Text,
+  Text
 } from "@arizeai/components";
 
 import { ExternalLink } from "@phoenix/components";
@@ -46,7 +46,7 @@ export function DimensionDriftStats(props: {
         psi: driftMetric(metric: psi, timeRange: $timeRange)
       }
     `,
-    props.dimension,
+    props.dimension
   );
 
   return (

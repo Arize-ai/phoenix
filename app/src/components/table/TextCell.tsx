@@ -19,7 +19,7 @@ function formatText(text: string) {
  * is too long.
  */
 export function TextCell<TData extends object, TValue>({
-  getValue,
+  getValue
 }: CellContext<TData, TValue>) {
   const value = getValue();
   const str =

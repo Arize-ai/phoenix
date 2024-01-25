@@ -9,7 +9,7 @@ import {
   Form,
   Heading,
   Text,
-  TextField,
+  TextField
 } from "@arizeai/components";
 
 import {
@@ -18,7 +18,7 @@ import {
   MAX_N_NEIGHBORS,
   MIN_DATASET_SAMPLE_SIZE,
   MIN_MIN_DIST,
-  MIN_N_NEIGHBORS,
+  MIN_N_NEIGHBORS
 } from "@phoenix/constants/pointCloudConstants";
 import { usePointCloudContext } from "@phoenix/contexts";
 import { UMAPParameters } from "@phoenix/store";
@@ -100,26 +100,26 @@ const nSamplesContextualHelp = (
 export function PointCloudParameterSettings() {
   const umapParameters = usePointCloudContext((state) => state.umapParameters);
   const setUMAPParameters = usePointCloudContext(
-    (state) => state.setUMAPParameters,
+    (state) => state.setUMAPParameters
   );
   const {
     handleSubmit,
     control,
     setError,
-    formState: { isDirty, isValid },
+    formState: { isDirty, isValid }
   } = useForm({
     reValidateMode: "onChange",
-    defaultValues: umapParameters,
+    defaultValues: umapParameters
   });
   const onSubmit = useCallback(
     (newUMAPParameters: UMAPParameters) => {
       // TODO: fix the types coming back from the component
       const minDist = parseFloat(
-        newUMAPParameters.minDist as unknown as string,
+        newUMAPParameters.minDist as unknown as string
       );
       if (minDist < MIN_MIN_DIST || minDist > MAX_MIN_DIST) {
         setError("minDist", {
-          message: `must be between ${MIN_MIN_DIST} and ${MAX_MIN_DIST}`,
+          message: `must be between ${MIN_MIN_DIST} and ${MAX_MIN_DIST}`
         });
 
         return;
@@ -129,12 +129,12 @@ export function PointCloudParameterSettings() {
         minDist: minDist,
         nNeighbors: parseInt(
           newUMAPParameters.nNeighbors as unknown as string,
-          10,
+          10
         ),
-        nSamples: parseInt(newUMAPParameters.nSamples as unknown as string, 10),
+        nSamples: parseInt(newUMAPParameters.nSamples as unknown as string, 10)
       });
     },
-    [setUMAPParameters, setError],
+    [setUMAPParameters, setError]
   );
 
   return (
@@ -151,11 +151,11 @@ export function PointCloudParameterSettings() {
           name="minDist"
           control={control}
           rules={{
-            required: "field is required",
+            required: "field is required"
           }}
           render={({
             field: { onChange, onBlur, value },
-            fieldState: { invalid, error },
+            fieldState: { invalid, error }
           }) => (
             <TextField
               label="min distance"
@@ -177,12 +177,12 @@ export function PointCloudParameterSettings() {
             required: "n neighbors is required",
             min: {
               value: MIN_N_NEIGHBORS,
-              message: `greater than or equal to ${MIN_N_NEIGHBORS}`,
+              message: `greater than or equal to ${MIN_N_NEIGHBORS}`
             },
             max: {
               value: MAX_N_NEIGHBORS,
-              message: `less than or equal to ${MAX_N_NEIGHBORS}`,
-            },
+              message: `less than or equal to ${MAX_N_NEIGHBORS}`
+            }
           }}
           render={({ field, fieldState: { invalid, error } }) => (
             <TextField
@@ -206,16 +206,16 @@ export function PointCloudParameterSettings() {
             required: "n samples is required",
             max: {
               value: MAX_DATASET_SAMPLE_SIZE,
-              message: `must be below ${MAX_DATASET_SAMPLE_SIZE}`,
+              message: `must be below ${MAX_DATASET_SAMPLE_SIZE}`
             },
             min: {
               value: MIN_DATASET_SAMPLE_SIZE,
-              message: `must be above ${MIN_DATASET_SAMPLE_SIZE}`,
-            },
+              message: `must be above ${MIN_DATASET_SAMPLE_SIZE}`
+            }
           }}
           render={({
             field: { onChange, onBlur, value },
-            fieldState: { invalid, error },
+            fieldState: { invalid, error }
           }) => (
             <TextField
               label="n samples"

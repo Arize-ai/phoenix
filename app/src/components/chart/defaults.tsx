@@ -12,7 +12,7 @@ export const defaultTimeXAxisProps: XAxisProps = {
   scale: "time",
   type: "number",
   domain: ["auto", "auto"],
-  padding: "gap",
+  padding: "gap"
 };
 
 export const defaultSelectedTimestampReferenceLineProps: ReferenceLineProps = {
@@ -22,14 +22,14 @@ export const defaultSelectedTimestampReferenceLineProps: ReferenceLineProps = {
     position: "top",
     style: {
       fill: "#fabe32",
-      fontSize: theme.typography.sizes.small.fontSize,
-    },
-  },
+      fontSize: theme.typography.sizes.small.fontSize
+    }
+  }
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const defaultBarChartTooltipProps: TooltipProps<any, any> = {
   cursor: {
-    fill: "var(--ac-global-color-grey-300)",
-  },
+    fill: "var(--ac-global-color-grey-300)"
+  }
 };

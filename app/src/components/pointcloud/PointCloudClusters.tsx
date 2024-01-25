@@ -15,18 +15,18 @@ type PointCloudClustersProps = {
 };
 export function PointCloudClusters({ radius }: PointCloudClustersProps) {
   const eventIdToDataMap = usePointCloudContext(
-    (state) => state.eventIdToDataMap,
+    (state) => state.eventIdToDataMap
   );
   const highlightedClusterId = usePointCloudContext(
-    (state) => state.highlightedClusterId,
+    (state) => state.highlightedClusterId
   );
   const selectedClusterId = usePointCloudContext(
-    (state) => state.selectedClusterId,
+    (state) => state.selectedClusterId
   );
   const clusters = usePointCloudContext((state) => state.clusters);
   const { theme } = useTheme();
   const clusterColorMode = usePointCloudContext(
-    (state) => state.clusterColorMode,
+    (state) => state.clusterColorMode
   );
 
   // Interleave the cluster point locations with the cluster
@@ -38,18 +38,18 @@ export function PointCloudClusters({ radius }: PointCloudClustersProps) {
           .map((eventId) => {
             const position = eventIdToDataMap.get(eventId)?.position;
             return {
-              position,
+              position
             };
           })
           .filter(
             (
-              positionInfo,
+              positionInfo
             ): positionInfo is { position: ThreeDimensionalPoint } =>
-              positionInfo.position !== null,
+              positionInfo.position !== null
           );
         return {
           ...cluster,
-          data: positionData,
+          data: positionData
         };
       })
       .filter((cluster) => cluster.data.length > 0); // Remove empty clusters
@@ -61,7 +61,7 @@ export function PointCloudClusters({ radius }: PointCloudClustersProps) {
         const opacity = clusterOpacity({
           selected: cluster.id === selectedClusterId,
           highlighted: cluster.id === highlightedClusterId,
-          clusterColorMode: clusterColorMode,
+          clusterColorMode: clusterColorMode
         });
         return (
           <Cluster
@@ -74,7 +74,7 @@ export function PointCloudClusters({ radius }: PointCloudClustersProps) {
               theme,
               clusterColorMode,
               index,
-              clusterCount: clustersWithData.length,
+              clusterCount: clustersWithData.length
             })}
           />
         );
@@ -91,7 +91,7 @@ function clusterColor({
   theme,
   clusterColorMode,
   index,
-  clusterCount,
+  clusterCount
 }: {
   clusterColorMode: ClusterColorMode;
   theme: ProviderTheme;
@@ -114,7 +114,7 @@ function clusterColor({
 function clusterOpacity({
   selected,
   highlighted,
-  clusterColorMode,
+  clusterColorMode
 }: {
   selected: boolean;
   highlighted: boolean;

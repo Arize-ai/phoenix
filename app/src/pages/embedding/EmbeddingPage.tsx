@@ -4,14 +4,14 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
-  useState,
+  useState
 } from "react";
 import {
   graphql,
   PreloadedQuery,
   useLazyLoadQuery,
   usePreloadedQuery,
-  useQueryLoader,
+  useQueryLoader
 } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { subDays } from "date-fns";
@@ -24,7 +24,7 @@ import {
   Switch,
   TabPane,
   Tabs,
-  View,
+  View
 } from "@arizeai/components";
 import { ThreeDimensionalPoint } from "@arizeai/point-cloud";
 
@@ -32,29 +32,29 @@ import { Loading, LoadingMask } from "@phoenix/components";
 import {
   PrimaryDatasetTimeRange,
   ReferenceDatasetTimeRange,
-  Toolbar,
+  Toolbar
 } from "@phoenix/components/filter";
 import {
   ClusterItem,
   PointCloud,
-  PointCloudParameterSettings,
+  PointCloudParameterSettings
 } from "@phoenix/components/pointcloud";
 import ClusteringSettings from "@phoenix/components/pointcloud/ClusteringSettings";
 import { PointCloudDisplaySettings } from "@phoenix/components/pointcloud/PointCloudDisplaySettings";
 import {
   compactResizeHandleCSS,
-  resizeHandleCSS,
+  resizeHandleCSS
 } from "@phoenix/components/resize/styles";
 import {
   PointCloudProvider,
   useGlobalNotification,
-  usePointCloudContext,
+  usePointCloudContext
 } from "@phoenix/contexts";
 import { useDatasets } from "@phoenix/contexts";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import {
   TimeSliceContextProvider,
-  useTimeSlice,
+  useTimeSlice
 } from "@phoenix/contexts/TimeSliceContext";
 import { useEmbeddingDimensionId } from "@phoenix/hooks";
 import {
@@ -63,7 +63,7 @@ import {
   getDefaultRetrievalTroubleshootingPointCloudProps,
   getDefaultSingleDatasetPointCloudProps,
   MetricDefinition,
-  PointCloudProps,
+  PointCloudProps
 } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { getMetricShortNameByMetricKey } from "@phoenix/utils/metricFormatUtils";
@@ -71,7 +71,7 @@ import { getMetricShortNameByMetricKey } from "@phoenix/utils/metricFormatUtils"
 import { EmbeddingPageModelQuery } from "./__generated__/EmbeddingPageModelQuery.graphql";
 import {
   EmbeddingPageUMAPQuery as UMAPQueryType,
-  EmbeddingPageUMAPQuery$data,
+  EmbeddingPageUMAPQuery$data
 } from "./__generated__/EmbeddingPageUMAPQuery.graphql";
 import { ClusterSortPicker } from "./ClusterSortPicker";
 import { EmbeddingActionMenu } from "./EmbeddingActionMenu";
@@ -239,8 +239,8 @@ export function EmbeddingPage() {
     defaultPointCloudProps = {
       ...defaultPointCloudProps,
       umapParameters: {
-        ...window.Config.UMAP,
-      },
+        ...window.Config.UMAP
+      }
     };
     return defaultPointCloudProps;
   }, [corpusDataset, referenceDataset]);
@@ -258,7 +258,7 @@ function EmbeddingMain() {
   const { primaryDataset, referenceDataset } = useDatasets();
   const umapParameters = usePointCloudContext((state) => state.umapParameters);
   const getHDSCANParameters = usePointCloudContext(
-    (state) => state.getHDSCANParameters,
+    (state) => state.getHDSCANParameters
   );
   const getMetric = usePointCloudContext((state) => state.getMetric);
   const resetPointCloud = usePointCloudContext((state) => state.reset);
@@ -269,12 +269,12 @@ function EmbeddingMain() {
   const { selectedTimestamp } = useTimeSlice();
   const endTime = useMemo(
     () => selectedTimestamp ?? new Date(primaryDataset.endTime),
-    [selectedTimestamp, primaryDataset.endTime],
+    [selectedTimestamp, primaryDataset.endTime]
   );
   const timeRange = useMemo(() => {
     return {
       start: subDays(endTime, 2).toISOString(),
-      end: endTime.toISOString(),
+      end: endTime.toISOString()
     };
   }, [endTime]);
 
@@ -287,7 +287,7 @@ function EmbeddingMain() {
         }
       }
     `,
-    {},
+    {}
   );
 
   useEffect(() => {
@@ -306,11 +306,11 @@ function EmbeddingMain() {
         dataQualityMetricColumnName:
           metric.type === "dataQuality" ? metric.dimension.name : null,
         performanceMetric:
-          metric.type === "performance" ? metric.metric : "accuracyScore", // Note that the fallback should never happen but is to satisfy the type checker
+          metric.type === "performance" ? metric.metric : "accuracyScore" // Note that the fallback should never happen but is to satisfy the type checker
       },
       {
-        fetchPolicy: "network-only",
-      },
+        fetchPolicy: "network-only"
+      }
     );
     return () => {
       disposeQuery();
@@ -324,7 +324,7 @@ function EmbeddingMain() {
     umapParameters,
     getHDSCANParameters,
     getMetric,
-    timeRange,
+    timeRange
   ]);
 
   return (
@@ -364,7 +364,7 @@ function EmbeddingMain() {
             datasetRole="reference"
             timeRange={{
               start: new Date(referenceDataset.startTime),
-              end: new Date(referenceDataset.endTime),
+              end: new Date(referenceDataset.endTime)
             }}
           />
         ) : null}
@@ -402,11 +402,11 @@ function EmbeddingMain() {
 }
 
 function coordinatesToThreeDimensionalPoint(
-  coordinates: UMAPPointsEntry["coordinates"],
+  coordinates: UMAPPointsEntry["coordinates"]
 ): ThreeDimensionalPoint {
   if (coordinates.__typename !== "Point3D") {
     throw new Error(
-      `Expected Point3D but got ${coordinates.__typename} for coordinates`,
+      `Expected Point3D but got ${coordinates.__typename} for coordinates`
     );
   }
   return [coordinates.x, coordinates.y, coordinates.z];
@@ -416,26 +416,26 @@ function coordinatesToThreeDimensionalPoint(
  * Fetches the umap data for the embedding dimension and passes the data to the point cloud
  */
 function PointCloudDisplay({
-  queryReference,
+  queryReference
 }: {
   queryReference: PreloadedQuery<UMAPQueryType>;
 }) {
   const data = usePreloadedQuery<UMAPQueryType>(
     EmbeddingPageUMAPQuery,
-    queryReference,
+    queryReference
   );
 
   const sourceData = useMemo(
     () => data.embedding?.UMAPPoints?.data ?? [],
-    [data],
+    [data]
   );
   const referenceSourceData = useMemo(
     () => data.embedding?.UMAPPoints?.referenceData ?? [],
-    [data],
+    [data]
   );
   const corpusSourceData = useMemo(
     () => data.embedding?.UMAPPoints?.corpusData ?? [],
-    [data],
+    [data]
   );
 
   const contextRetrievals = useMemo(() => {
@@ -447,15 +447,15 @@ function PointCloudDisplay({
     const allData = [
       ...sourceData,
       ...referenceSourceData,
-      ...corpusSourceData,
+      ...corpusSourceData
     ];
 
     return allData.map((d) => ({
       ...d,
       position: coordinatesToThreeDimensionalPoint(d.coordinates),
       metaData: {
-        id: d.eventId,
-      },
+        id: d.eventId
+      }
     }));
   }, [referenceSourceData, sourceData, corpusSourceData]);
 
@@ -468,14 +468,14 @@ function PointCloudDisplay({
     setInitialData({
       points: allSourceData,
       clusters,
-      retrievals: contextRetrievals,
+      retrievals: contextRetrievals
     });
   }, [
     allSourceData,
     queryReference,
     contextRetrievals,
     setInitialData,
-    setClusters,
+    setClusters
   ]);
 
   return (
@@ -572,7 +572,7 @@ function PointCloudDisplay({
 
 function SelectionPanel() {
   const selectedEventIds = usePointCloudContext(
-    (state) => state.selectedEventIds,
+    (state) => state.selectedEventIds
   );
 
   if (selectedEventIds.size === 0) {
@@ -636,20 +636,20 @@ const ClustersPanelContents = React.memo(function ClustersPanelContents() {
   const { referenceDataset } = useDatasets();
   const clusters = usePointCloudContext((state) => state.clusters);
   const selectedClusterId = usePointCloudContext(
-    (state) => state.selectedClusterId,
+    (state) => state.selectedClusterId
   );
   const metric = usePointCloudContext((state) => state.metric);
   const setSelectedClusterId = usePointCloudContext(
-    (state) => state.setSelectedClusterId,
+    (state) => state.setSelectedClusterId
   );
   const setSelectedEventIds = usePointCloudContext(
-    (state) => state.setSelectedEventIds,
+    (state) => state.setSelectedEventIds
   );
   const setHighlightedClusterId = usePointCloudContext(
-    (state) => state.setHighlightedClusterId,
+    (state) => state.setHighlightedClusterId
   );
   const setClusterColorMode = usePointCloudContext(
-    (state) => state.setClusterColorMode,
+    (state) => state.setClusterColorMode
   );
   // Hide the reference metric if the following conditions are met:
   // 1. There is no reference dataset
@@ -663,7 +663,7 @@ const ClustersPanelContents = React.memo(function ClustersPanelContents() {
         setClusterColorMode(ClusterColorMode.default);
       }
     },
-    [setClusterColorMode],
+    [setClusterColorMode]
   );
 
   return (
@@ -771,7 +771,7 @@ function PointCloudNotifications() {
   const { notifyError } = useGlobalNotification();
   const errorMessage = usePointCloudContext((state) => state.errorMessage);
   const setErrorMessage = usePointCloudContext(
-    (state) => state.setErrorMessage,
+    (state) => state.setErrorMessage
   );
 
   useEffect(() => {
@@ -783,8 +783,8 @@ function PointCloudNotifications() {
           text: "Dismiss",
           onClick: () => {
             setErrorMessage(null);
-          },
-        },
+          }
+        }
       });
     }
   }, [errorMessage, notifyError, setErrorMessage]);
