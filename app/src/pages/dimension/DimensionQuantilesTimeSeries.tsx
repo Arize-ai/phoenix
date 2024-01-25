@@ -80,7 +80,7 @@ function TooltipContent({
     return (
       <ChartTooltip>
         <Text weight="heavy" textSize="medium">{`${fullTimeFormatter(
-          new Date(label)
+          new Date(label),
         )}`}</Text>
         <ChartTooltipItem
           color={outerColor}
@@ -191,7 +191,7 @@ export function DimensionQuantilesTimeSeries({
         end: timeRange.end.toISOString(),
       },
       granularity,
-    }
+    },
   );
 
   const p99data = data.dimension.p99TimeSeries?.data.map((d) => d) || [];
@@ -218,23 +218,23 @@ export function DimensionQuantilesTimeSeries({
     Object.keys(Label).reduce((a, key) => {
       a[key as Label] = false;
       return a;
-    }, {} as ChartState)
+    }, {} as ChartState),
   );
 
-  const handleLegendMouseEnter: LegendProps["onMouseEnter"] = (e) => {
+  const handleLegendMouseOver: LegendProps["onMouseOver"] = (e) => {
     if (!chartState[e.dataKey as Label]) {
       setChartState({ ...chartState });
     }
   };
 
-  const handleLegendMouseLeave: LegendProps["onMouseLeave"] = () => {
+  const handleLegendMouseOut: LegendProps["onMouseOut"] = () => {
     setChartState({ ...chartState });
   };
 
   const selectChartItem: LegendProps["onClick"] = (e) => {
     setChartState({
       ...chartState,
-      [e.dataKey]: !chartState[e.dataKey as Label],
+      [String(e.dataKey)]: !chartState[e.dataKey as Label],
     });
   };
 
@@ -285,8 +285,8 @@ export function DimensionQuantilesTimeSeries({
         <Tooltip content={<TooltipContent />} />
         <Legend
           onClick={selectChartItem}
-          onMouseOver={handleLegendMouseEnter}
-          onMouseOut={handleLegendMouseLeave}
+          onMouseOver={handleLegendMouseOver}
+          onMouseOut={handleLegendMouseOut}
         />
         <Area
           type="monotone"
