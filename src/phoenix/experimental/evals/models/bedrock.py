@@ -3,7 +3,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from phoenix.exceptions import PhoenixTokenLimitExceededError
+from phoenix.exceptions import PhoenixContextLimitExceeded
 from phoenix.experimental.evals.models.base import BaseEvalModel
 from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 
@@ -146,8 +146,16 @@ class BedrockModel(BaseEvalModel):
             try:
                 return self.client.invoke_model(**kwargs)
             except Exception as e:
-                if "expected maxLength" in e.args[0]:
-                    raise PhoenixTokenLimitExceededError("Maximum context length exceeded.")
+                exception_message = e.args[0]
+                if "Input is too long" in exception_message:
+                    # Error from Anthropic models
+                    raise PhoenixContextLimitExceeded("Maximum context length exceeded.")
+                elif "expected maxLength" in exception_message:
+                    # Error from Titan models
+                    raise PhoenixContextLimitExceeded("Maximum context length exceeded.")
+                elif "Prompt has too many tokens" in exception_message:
+                    # Error from AI21 models
+                    raise PhoenixContextLimitExceeded("Maximum context length exceeded.")
                 raise e
 
         return _completion_with_retry(**kwargs)
