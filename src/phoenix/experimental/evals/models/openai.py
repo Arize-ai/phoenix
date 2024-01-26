@@ -14,7 +14,7 @@ from typing import (
     get_origin,
 )
 
-from phoenix.exceptions import PhoenixTokenLimitExceededError
+from phoenix.exceptions import PhoenixContextLimitExceeded
 from phoenix.experimental.evals.models.base import BaseEvalModel
 from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 
@@ -318,7 +318,7 @@ class OpenAIModel(BaseEvalModel):
                 return res.model_dump()
             except self._openai._exceptions.BadRequestError as e:
                 if "maximum context length" in e.args[0]:
-                    raise PhoenixTokenLimitExceededError("Maximum context length exceeded.")
+                    raise PhoenixContextLimitExceeded("Maximum context length exceeded.")
                 raise e
 
         return await _completion_with_retry(**kwargs)
@@ -342,7 +342,7 @@ class OpenAIModel(BaseEvalModel):
                 return self._client.chat.completions.create(**kwargs).model_dump()
             except self._openai._exceptions.BadRequestError as e:
                 if "maximum context length" in e.args[0]:
-                    raise PhoenixTokenLimitExceededError("Maximum context length exceeded.")
+                    raise PhoenixContextLimitExceeded("Maximum context length exceeded.")
                 raise e
 
         return _completion_with_retry(**kwargs)

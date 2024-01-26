@@ -2,5 +2,5 @@ class PhoenixException(Exception):
     pass
 
 
-class TokenLimitException(PhoenixException):
+class PhoenixContextLimitExceeded(PhoenixException):
     pass

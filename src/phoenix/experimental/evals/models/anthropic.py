@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from phoenix.exceptions import PhoenixTokenLimitExceededError
+from phoenix.exceptions import PhoenixContextLimitExceeded
 from phoenix.experimental.evals.models.base import BaseEvalModel
 from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 
@@ -145,7 +145,7 @@ class AnthropicModel(BaseEvalModel):
                 return response.completion
             except self._anthropic.BadRequestError as e:
                 if "prompt is too long" in e.args[0]:
-                    raise PhoenixTokenLimitExceededError("Maximum context length exceeded.")
+                    raise PhoenixContextLimitExceeded("Maximum context length exceeded.")
                 raise e
 
         return _completion_with_retry(**kwargs)
@@ -171,7 +171,7 @@ class AnthropicModel(BaseEvalModel):
                 return response.completion
             except self._anthropic.BadRequestError as e:
                 if "prompt is too long" in e.args[0]:
-                    raise PhoenixTokenLimitExceededError("Maximum context length exceeded.")
+                    raise PhoenixContextLimitExceeded("Maximum context length exceeded.")
                 raise e
 
         return await _async_completion_with_retry(**kwargs)
