@@ -317,8 +317,9 @@ class OpenAIModel(BaseEvalModel):
                     res = await self._async_client.chat.completions.create(**kwargs)
                 return res.model_dump()
             except self._openai._exceptions.BadRequestError as e:
-                if "maximum context length" in e.args[0]:
-                    raise PhoenixContextLimitExceeded("Maximum context length exceeded.")
+                exception_message = e.args[0]
+                if exception_message and "maximum context length" in exception_message:
+                    raise PhoenixContextLimitExceeded(exception_message) from e
                 raise e
 
         return await _completion_with_retry(**kwargs)
@@ -341,8 +342,9 @@ class OpenAIModel(BaseEvalModel):
                     return self._client.completions.create(**kwargs).model_dump()
                 return self._client.chat.completions.create(**kwargs).model_dump()
             except self._openai._exceptions.BadRequestError as e:
-                if "maximum context length" in e.args[0]:
-                    raise PhoenixContextLimitExceeded("Maximum context length exceeded.")
+                exception_message = e.args[0]
+                if exception_message and "maximum context length" in exception_message:
+                    raise PhoenixContextLimitExceeded(exception_message) from e
                 raise e
 
         return _completion_with_retry(**kwargs)

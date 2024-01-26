@@ -144,8 +144,9 @@ class AnthropicModel(BaseEvalModel):
                 response = self.client.completions.create(**kwargs)
                 return response.completion
             except self._anthropic.BadRequestError as e:
-                if "prompt is too long" in e.args[0]:
-                    raise PhoenixContextLimitExceeded("Maximum context length exceeded.")
+                exception_message = e.args[0]
+                if exception_message and "prompt is too long" in exception_message:
+                    raise PhoenixContextLimitExceeded(exception_message) from e
                 raise e
 
         return _completion_with_retry(**kwargs)
@@ -170,8 +171,9 @@ class AnthropicModel(BaseEvalModel):
                 response = await self.async_client.completions.create(**kwargs)
                 return response.completion
             except self._anthropic.BadRequestError as e:
-                if "prompt is too long" in e.args[0]:
-                    raise PhoenixContextLimitExceeded("Maximum context length exceeded.")
+                exception_message = e.args[0]
+                if exception_message and "prompt is too long" in exception_message:
+                    raise PhoenixContextLimitExceeded(exception_message) from e
                 raise e
 
         return await _async_completion_with_retry(**kwargs)

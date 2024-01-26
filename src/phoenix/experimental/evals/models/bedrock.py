@@ -147,15 +147,18 @@ class BedrockModel(BaseEvalModel):
                 return self.client.invoke_model(**kwargs)
             except Exception as e:
                 exception_message = e.args[0]
+                if not exception_message:
+                    raise e
+
                 if "Input is too long" in exception_message:
                     # Error from Anthropic models
-                    raise PhoenixContextLimitExceeded("Maximum context length exceeded.")
+                    raise PhoenixContextLimitExceeded(exception_message) from e
                 elif "expected maxLength" in exception_message:
                     # Error from Titan models
-                    raise PhoenixContextLimitExceeded("Maximum context length exceeded.")
+                    raise PhoenixContextLimitExceeded(exception_message) from e
                 elif "Prompt has too many tokens" in exception_message:
                     # Error from AI21 models
-                    raise PhoenixContextLimitExceeded("Maximum context length exceeded.")
+                    raise PhoenixContextLimitExceeded(exception_message) from e
                 raise e
 
         return _completion_with_retry(**kwargs)
