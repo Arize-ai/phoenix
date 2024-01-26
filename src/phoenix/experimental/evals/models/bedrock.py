@@ -3,6 +3,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+from phoenix.exceptions import PhoenixTokenLimitExceededError
 from phoenix.experimental.evals.models.base import BaseEvalModel
 from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 
@@ -142,7 +143,12 @@ class BedrockModel(BaseEvalModel):
         @self.retry
         @self._rate_limiter.limit
         def _completion_with_retry(**kwargs: Any) -> Any:
-            return self.client.invoke_model(**kwargs)
+            try:
+                return self.client.invoke_model(**kwargs)
+            except Exception as e:
+                if "expected maxLength" in e.args[0]:
+                    raise PhoenixTokenLimitExceededError("Maximum context length exceeded.")
+                raise e
 
         return _completion_with_retry(**kwargs)
 
