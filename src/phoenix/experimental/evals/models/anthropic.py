@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+from phoenix.exceptions import PhoenixTokenLimitExceededError
 from phoenix.experimental.evals.models.base import BaseEvalModel
 from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 
@@ -139,8 +140,13 @@ class AnthropicModel(BaseEvalModel):
         @self.retry
         @self._rate_limiter.limit
         def _completion_with_retry(**kwargs: Any) -> Any:
-            response = self.client.completions.create(**kwargs)
-            return response.completion
+            try:
+                response = self.client.completions.create(**kwargs)
+                return response.completion
+            except self._anthropic.BadRequestError as e:
+                if "prompt is too long" in e.args[0]:
+                    raise PhoenixTokenLimitExceededError("Maximum context length exceeded.")
+                raise e
 
         return _completion_with_retry(**kwargs)
 
@@ -160,8 +166,13 @@ class AnthropicModel(BaseEvalModel):
         @self.retry
         @self._rate_limiter.alimit
         async def _async_completion_with_retry(**kwargs: Any) -> Any:
-            response = await self.async_client.completions.create(**kwargs)
-            return response.completion
+            try:
+                response = await self.async_client.completions.create(**kwargs)
+                return response.completion
+            except self._anthropic.BadRequestError as e:
+                if "prompt is too long" in e.args[0]:
+                    raise PhoenixTokenLimitExceededError("Maximum context length exceeded.")
+                raise e
 
         return await _async_completion_with_retry(**kwargs)
 
