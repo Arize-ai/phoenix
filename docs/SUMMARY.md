@@ -71,9 +71,12 @@
 * [Arize](integrations/bring-production-data-to-notebook-for-eda-or-retraining.md)
 * [AutoGen](integrations/autogen-support.md)
 
+## ☁ deployment
+
+* [Deploying Phoenix](deployment/deploying-phoenix.md)
+
 ## 📚 Reference
 
-* [Deploying Phoenix](reference/deploying-phoenix.md)
 * [Environments](reference/environments.md)
 * [Embeddings](concepts/embeddings.md)
 * [OpenInference](concepts/open-inference.md)
