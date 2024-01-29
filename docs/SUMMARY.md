@@ -75,7 +75,6 @@
 
 * [Deploying Phoenix](reference/deploying-phoenix.md)
 * [Environments](reference/environments.md)
-* [Architecture](reference/architecture.md)
 * [Embeddings](concepts/embeddings.md)
 * [OpenInference](concepts/open-inference.md)
 * [Frequently Asked Questions](reference/frequently-asked-questions.md)
