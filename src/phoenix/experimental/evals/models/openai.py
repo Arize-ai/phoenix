@@ -14,6 +14,7 @@ from typing import (
     get_origin,
 )
 
+from phoenix.exceptions import PhoenixContextLimitExceeded
 from phoenix.experimental.evals.models.base import BaseEvalModel
 from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 
@@ -31,6 +32,8 @@ MODEL_TOKEN_LIMIT_MAPPING = {
     "gpt-4-0613": 8192,  # Current gpt-4 default
     "gpt-4-32k-0314": 32768,
     "gpt-4-32k-0613": 32768,
+    "gpt-4-1106-preview": 128000,
+    "gpt-4-vision-preview": 128000,
 }
 LEGACY_COMPLETION_API_MODELS = ("gpt-3.5-turbo-instruct",)
 logger = logging.getLogger(__name__)
@@ -106,6 +109,9 @@ class OpenAIModel(BaseEvalModel):
         self._init_open_ai()
         self._init_tiktoken()
         self._init_rate_limiter()
+
+    def reload_client(self) -> None:
+        self._init_open_ai()
 
     def _init_environment(self) -> None:
         try:
@@ -297,18 +303,24 @@ class OpenAIModel(BaseEvalModel):
         @self.retry
         @self._rate_limiter.alimit
         async def _completion_with_retry(**kwargs: Any) -> Any:
-            if self._model_uses_legacy_completion_api:
-                if "prompt" not in kwargs:
-                    kwargs["prompt"] = "\n\n".join(
-                        (message.get("content") or "")
-                        for message in (kwargs.pop("messages", None) or ())
-                    )
-                # OpenAI 1.0.0 API responses are pydantic objects, not dicts
-                # We must dump the model to get the dict
-                res = await self._async_client.completions.create(**kwargs)
-            else:
-                res = await self._async_client.chat.completions.create(**kwargs)
-            return res.model_dump()
+            try:
+                if self._model_uses_legacy_completion_api:
+                    if "prompt" not in kwargs:
+                        kwargs["prompt"] = "\n\n".join(
+                            (message.get("content") or "")
+                            for message in (kwargs.pop("messages", None) or ())
+                        )
+                    # OpenAI 1.0.0 API responses are pydantic objects, not dicts
+                    # We must dump the model to get the dict
+                    res = await self._async_client.completions.create(**kwargs)
+                else:
+                    res = await self._async_client.chat.completions.create(**kwargs)
+                return res.model_dump()
+            except self._openai._exceptions.BadRequestError as e:
+                exception_message = e.args[0]
+                if exception_message and "maximum context length" in exception_message:
+                    raise PhoenixContextLimitExceeded(exception_message) from e
+                raise e
 
         return await _completion_with_retry(**kwargs)
 
@@ -318,16 +330,22 @@ class OpenAIModel(BaseEvalModel):
         @self.retry
         @self._rate_limiter.limit
         def _completion_with_retry(**kwargs: Any) -> Any:
-            if self._model_uses_legacy_completion_api:
-                if "prompt" not in kwargs:
-                    kwargs["prompt"] = "\n\n".join(
-                        (message.get("content") or "")
-                        for message in (kwargs.pop("messages", None) or ())
-                    )
-                # OpenAI 1.0.0 API responses are pydantic objects, not dicts
-                # We must dump the model to get the dict
-                return self._client.completions.create(**kwargs).model_dump()
-            return self._client.chat.completions.create(**kwargs).model_dump()
+            try:
+                if self._model_uses_legacy_completion_api:
+                    if "prompt" not in kwargs:
+                        kwargs["prompt"] = "\n\n".join(
+                            (message.get("content") or "")
+                            for message in (kwargs.pop("messages", None) or ())
+                        )
+                    # OpenAI 1.0.0 API responses are pydantic objects, not dicts
+                    # We must dump the model to get the dict
+                    return self._client.completions.create(**kwargs).model_dump()
+                return self._client.chat.completions.create(**kwargs).model_dump()
+            except self._openai._exceptions.BadRequestError as e:
+                exception_message = e.args[0]
+                if exception_message and "maximum context length" in exception_message:
+                    raise PhoenixContextLimitExceeded(exception_message) from e
+                raise e
 
         return _completion_with_retry(**kwargs)
 

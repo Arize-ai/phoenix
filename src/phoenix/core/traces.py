@@ -13,20 +13,21 @@ from typing import (
     Iterator,
     List,
     Optional,
+    Set,
     SupportsFloat,
     Tuple,
-    Union,
     cast,
 )
 
+import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 from ddsketch import DDSketch
 from sortedcontainers import SortedKeyList
 from typing_extensions import TypeAlias
 from wrapt import ObjectProxy
 
-import phoenix.trace.v1 as pb
 from phoenix.datetime_utils import right_open_time_range
 from phoenix.trace import semantic_conventions
+from phoenix.trace.otel import decode
 from phoenix.trace.schemas import (
     ATTRIBUTE_PREFIX,
     COMPUTED_PREFIX,
@@ -34,9 +35,10 @@ from phoenix.trace.schemas import (
     Span,
     SpanAttributes,
     SpanID,
+    SpanStatusCode,
     TraceID,
 )
-from phoenix.trace.v1.utils import decode, encode
+from phoenix.trace.semantic_conventions import RETRIEVAL_DOCUMENTS
 
 END_OF_QUEUE = None  # sentinel value for queue termination
 
@@ -74,15 +76,15 @@ class ReadableSpan(ObjectProxy):  # type: ignore
     are ingested, and would need to be re-computed on the fly.
     """
 
-    __wrapped__: pb.Span
-
-    def __init__(self, span: pb.Span) -> None:
+    def __init__(self, otlp_span: otlp.Span) -> None:
+        span = decode(otlp_span)
         super().__init__(span)
+        self._self_otlp_span = otlp_span
         self._self_computed_values: Dict[str, SupportsFloat] = {}
 
     @property
     def span(self) -> Span:
-        span = decode(self.__wrapped__)
+        span = decode(self._self_otlp_span)
         span.attributes.update(cast(SpanAttributes, self._self_computed_values))
         # TODO: compute latency rank percent (which can change depending on how
         # many spans already ingested).
@@ -96,9 +98,7 @@ class ReadableSpan(ObjectProxy):  # type: ignore
             return getattr(self.__wrapped__.context, suffix_key, None)
         if key.startswith(ATTRIBUTE_PREFIX):
             suffix_key = key[len(ATTRIBUTE_PREFIX) :]
-            if suffix_key not in self.__wrapped__.attributes:
-                return None
-            return self.__wrapped__.attributes[suffix_key]
+            return self.__wrapped__.attributes.get(suffix_key)
         return getattr(self.__wrapped__, key, None)
 
     def __setitem__(self, key: str, value: Any) -> None:
@@ -113,21 +113,21 @@ ChildSpanID: TypeAlias = SpanID
 
 class Traces:
     def __init__(self) -> None:
-        self._queue: "SimpleQueue[Optional[pb.Span]]" = SimpleQueue()
+        self._queue: "SimpleQueue[Optional[otlp.Span]]" = SimpleQueue()
         # Putting `None` as the sentinel value for queue termination.
         weakref.finalize(self, self._queue.put, END_OF_QUEUE)
         self._lock = RLock()
         self._spans: Dict[SpanID, ReadableSpan] = {}
         self._parent_span_ids: Dict[SpanID, ParentSpanID] = {}
-        self._traces: Dict[TraceID, List[SpanID]] = defaultdict(list)
-        self._child_span_ids: DefaultDict[SpanID, List[ChildSpanID]] = defaultdict(list)
-        self._orphan_spans: DefaultDict[ParentSpanID, List[pb.Span]] = defaultdict(list)
+        self._traces: DefaultDict[TraceID, List[SpanID]] = defaultdict(list)
+        self._child_span_ids: DefaultDict[SpanID, Set[ChildSpanID]] = defaultdict(set)
+        self._orphan_spans: DefaultDict[ParentSpanID, List[otlp.Span]] = defaultdict(list)
         self._num_documents: DefaultDict[SpanID, int] = defaultdict(int)
         self._start_time_sorted_span_ids: SortedKeyList[SpanID] = SortedKeyList(
-            key=lambda span_id: self._spans[span_id].start_time.ToDatetime(timezone.utc),
+            key=lambda span_id: self._spans[span_id].start_time,
         )
         self._start_time_sorted_root_span_ids: SortedKeyList[SpanID] = SortedKeyList(
-            key=lambda span_id: self._spans[span_id].start_time.ToDatetime(timezone.utc),
+            key=lambda span_id: self._spans[span_id].start_time,
         )
         self._latency_sorted_root_span_ids: SortedKeyList[SpanID] = SortedKeyList(
             key=lambda span_id: self._spans[span_id][ComputedAttributes.LATENCY_MS.value],
@@ -136,15 +136,18 @@ class Traces:
         self._min_start_time: Optional[datetime] = None
         self._max_start_time: Optional[datetime] = None
         self._token_count_total: int = 0
+        self._last_updated_at: Optional[datetime] = None
         self._start_consumer()
 
-    def put(self, span: Optional[Union[Span, pb.Span]] = None) -> None:
-        self._queue.put(encode(span) if isinstance(span, Span) else span)
+    def put(self, span: Optional[otlp.Span] = None) -> None:
+        self._queue.put(span)
 
     def get_trace(self, trace_id: TraceID) -> Iterator[Span]:
         with self._lock:
             # make a copy because source data can mutate during iteration
-            span_ids = tuple(self._traces[trace_id])
+            if not (trace := self._traces.get(trace_id)):
+                return
+            span_ids = tuple(trace)
         for span_id in span_ids:
             if span := self[span_id]:
                 yield span
@@ -194,7 +197,7 @@ class Traces:
 
     def get_num_documents(self, span_id: SpanID) -> int:
         with self._lock:
-            return self._num_documents[span_id]
+            return self._num_documents.get(span_id) or 0
 
     def latency_rank_percent(self, latency_ms: float) -> Optional[float]:
         """
@@ -221,10 +224,16 @@ class Traces:
     def get_descendant_span_ids(self, span_id: SpanID) -> Iterator[SpanID]:
         with self._lock:
             # make a copy because source data can mutate during iteration
-            span_ids = tuple(self._child_span_ids[span_id])
+            if not (child_span_ids := self._child_span_ids.get(span_id)):
+                return
+            span_ids = tuple(child_span_ids)
         for child_span_id in span_ids:
             yield child_span_id
             yield from self.get_descendant_span_ids(child_span_id)
+
+    @property
+    def last_updated_at(self) -> Optional[datetime]:
+        return self._last_updated_at
 
     @property
     def span_count(self) -> int:
@@ -259,24 +268,24 @@ class Traces:
             with self._lock:
                 self._process_span(item)
 
-    def _process_span(self, span: pb.Span) -> None:
-        span_id = SpanID(span.context.span_id)
+    def _process_span(self, span: otlp.Span) -> None:
+        new_span = ReadableSpan(span)
+        span_id = new_span.context.span_id
         existing_span = self._spans.get(span_id)
-        if existing_span and existing_span.HasField("end_time"):
+        if existing_span and existing_span.end_time:
             # Reject updates if span has ended.
             return
-        is_root_span = not span.HasField("parent_span_id")
+        is_root_span = not new_span.parent_id
         if not is_root_span:
-            parent_span_id = SpanID(span.parent_span_id.value)
+            parent_span_id = new_span.parent_id
             if parent_span_id not in self._spans:
                 # Span can't be processed before its parent.
                 self._orphan_spans[parent_span_id].append(span)
                 return
-            self._child_span_ids[parent_span_id].append(span_id)
+            self._child_span_ids[parent_span_id].add(span_id)
             self._parent_span_ids[span_id] = parent_span_id
-        new_span = ReadableSpan(span)
-        start_time = span.start_time.ToDatetime(timezone.utc)
-        end_time = span.end_time.ToDatetime(timezone.utc) if span.HasField("end_time") else None
+        start_time = new_span.start_time
+        end_time = new_span.end_time
         if end_time:
             new_span[ComputedAttributes.LATENCY_MS.value] = latency = (
                 end_time - start_time
@@ -287,7 +296,7 @@ class Traces:
         if is_root_span and end_time:
             self._latency_sorted_root_span_ids.add(span_id)
         if not existing_span:
-            trace_id = TraceID(span.context.trace_id)
+            trace_id = new_span.context.trace_id
             self._traces[trace_id].append(span_id)
             if is_root_span:
                 self._start_time_sorted_root_span_ids.add(span_id)
@@ -303,7 +312,7 @@ class Traces:
                 else max(self._max_start_time, start_time)
             )
         new_span[ComputedAttributes.ERROR_COUNT.value] = int(
-            span.status.code is pb.Span.Status.Code.ERROR
+            new_span.status_code is SpanStatusCode.ERROR
         )
         # Update cumulative values for span's ancestors.
         for attribute_name, cumulative_attribute_name in (
@@ -336,14 +345,16 @@ class Traces:
             self._token_count_total -= existing_span[LLM_TOKEN_COUNT_TOTAL] or 0
         self._token_count_total += new_span[LLM_TOKEN_COUNT_TOTAL] or 0
         # Update number of documents
-        num_documents_update = len(span.retrieval.documents)
+        num_documents_update = len(new_span.attributes.get(RETRIEVAL_DOCUMENTS) or ())
         if existing_span:
-            num_documents_update -= len(existing_span.retrieval.documents)
+            num_documents_update -= len(existing_span.attributes.get(RETRIEVAL_DOCUMENTS) or ())
         if num_documents_update:
             self._num_documents[span_id] += num_documents_update
         # Process previously orphaned spans, if any.
         for orphan_span in self._orphan_spans.pop(span_id, ()):
             self._process_span(orphan_span)
+        # Update last updated timestamp
+        self._last_updated_at = datetime.now(timezone.utc)
 
     def _add_value_to_span_ancestors(
         self,

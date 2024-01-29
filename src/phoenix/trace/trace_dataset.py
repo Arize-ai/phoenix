@@ -1,14 +1,18 @@
 import json
-import uuid
 from datetime import datetime
-from typing import Any, Iterable, Iterator, List, Optional, cast
+from pathlib import Path
+from typing import Any, Iterable, Iterator, List, Optional, Tuple, Union, cast
+from uuid import UUID, uuid4
+from warnings import warn
 
 import pandas as pd
 from pandas import DataFrame, read_parquet
+from pyarrow import Schema, Table, parquet
 
 from phoenix.datetime_utils import normalize_timestamps
+from phoenix.trace.errors import InvalidParquetMetadataError
 
-from ..config import DATASET_DIR, GENERATED_DATASET_NAME_PREFIX
+from ..config import DATASET_DIR, GENERATED_DATASET_NAME_PREFIX, TRACE_DATASET_DIR
 from .schemas import ATTRIBUTE_PREFIX, CONTEXT_PREFIX, Span
 from .semantic_conventions import (
     DOCUMENT_METADATA,
@@ -42,6 +46,8 @@ DOCUMENT_COLUMNS = [
     RERANKER_INPUT_DOCUMENTS_COLUMN_NAME,
     RERANKER_OUTPUT_DOCUMENTS_COLUMN_NAME,
 ]
+
+TRACE_DATASET_PARQUET_FILE_NAME = "trace_dataset-{id}.parquet"
 
 
 def normalize_dataframe(dataframe: DataFrame) -> "DataFrame":
@@ -94,6 +100,7 @@ class TraceDataset:
     name: str
     dataframe: pd.DataFrame
     evaluations: List[Evaluations] = []
+    _id: UUID = uuid4()
     _data_file_name: str = "data.parquet"
 
     def __init__(
@@ -122,7 +129,7 @@ class TraceDataset:
                 f"The dataframe is missing some required columns: {', '.join(missing_columns)}"
             )
         self.dataframe = normalize_dataframe(dataframe)
-        self.name = name or f"{GENERATED_DATASET_NAME_PREFIX}{str(uuid.uuid4())}"
+        self.name = name or f"{GENERATED_DATASET_NAME_PREFIX}{str(uuid4())}"
         self.evaluations = list(evaluations)
 
     @classmethod
@@ -199,6 +206,89 @@ class TraceDataset:
             coerce_timestamps="ms",
         )
 
+    def save(self, directory: Optional[Union[str, Path]] = None) -> UUID:
+        """
+        Writes the trace dataset to disk. If any evaluations have been appended
+        to the dataset, those evaluations will be saved to separate files within
+        the same directory.
+
+        Args:
+            directory (Optional[Union[str, Path]], optional): An optional path
+            to a directory where the data will be written. If not provided, the
+            data will be written to a default location.
+
+        Returns:
+            UUID: The id of the trace dataset, which can be used as key to load
+            the dataset from disk using `load`.
+        """
+        directory = Path(directory or TRACE_DATASET_DIR)
+        for evals in self.evaluations:
+            evals.save(directory)
+        path = directory / TRACE_DATASET_PARQUET_FILE_NAME.format(id=self._id)
+        dataframe = get_serializable_spans_dataframe(self.dataframe)
+        dataframe.to_parquet(
+            path,
+            allow_truncated_timestamps=True,
+            coerce_timestamps="ms",
+        )
+        table = Table.from_pandas(self.dataframe)
+        table = table.replace_schema_metadata(
+            {
+                **(table.schema.metadata or {}),
+                # explicitly encode keys and values, which are automatically encoded regardless
+                b"arize": json.dumps(
+                    {
+                        "dataset_id": str(self._id),
+                        "dataset_name": self.name,
+                        "eval_ids": [str(evals.id) for evals in self.evaluations],
+                    }
+                ).encode("utf-8"),
+            }
+        )
+        parquet.write_table(table, path)
+        return self._id
+
+    @classmethod
+    def load(
+        cls, id: Union[str, UUID], directory: Optional[Union[str, Path]] = None
+    ) -> "TraceDataset":
+        """
+        Reads in a trace dataset from disk. Any associated evaluations will
+        automatically be read from disk and attached to the trace dataset.
+
+        Args:
+            id (Union[str, UUID]): The ID of the trace dataset to be loaded.
+
+            directory (Optional[Union[str, Path]], optional): The path to the
+            directory containing the persisted trace dataset parquet file. If
+            not provided, the parquet file will be loaded from the same default
+            location used by `save`.
+
+        Returns:
+            TraceDataset: The loaded trace dataset.
+        """
+        if not isinstance(id, UUID):
+            id = UUID(id)
+        path = Path(directory or TRACE_DATASET_DIR) / TRACE_DATASET_PARQUET_FILE_NAME.format(id=id)
+        schema = parquet.read_schema(path)
+        dataset_id, dataset_name, eval_ids = _parse_schema_metadata(schema)
+        if id != dataset_id:
+            raise InvalidParquetMetadataError(
+                f"The input id {id} does not match the id {dataset_id} in the parquet metadata. "
+                "Ensure that you have not renamed the parquet file."
+            )
+        evaluations = []
+        for eval_id in eval_ids:
+            try:
+                evaluations.append(Evaluations.load(eval_id, path.parent))
+            except Exception:
+                warn(f'Failed to load evaluations with id: "{eval_id}"')
+        table = parquet.read_table(path)
+        dataframe = table.to_pandas()
+        ds = cls(dataframe, dataset_name, evaluations)
+        ds._id = dataset_id
+        return ds
+
     def append_evaluations(self, evaluations: Evaluations) -> None:
         """adds an evaluation to the traces"""
         # Append the evaluations to the list of evaluations
@@ -233,3 +323,20 @@ class TraceDataset:
         # Make sure the index is set to the span_id
         df = self.dataframe.set_index("context.span_id", drop=False)
         return pd.concat([df, evals_df], axis=1)
+
+
+def _parse_schema_metadata(schema: Schema) -> Tuple[UUID, str, List[UUID]]:
+    """
+    Returns parsed metadata from a parquet schema or raises an exception if the
+    metadata is invalid.
+    """
+    try:
+        metadata = schema.metadata
+        arize_metadata = json.loads(metadata[b"arize"])
+        dataset_id = UUID(arize_metadata["dataset_id"])
+        if not isinstance(dataset_name := arize_metadata["dataset_name"], str):
+            raise ValueError("Arize metadata must contain a dataset_name key with string value")
+        eval_ids = [UUID(eval_id) for eval_id in arize_metadata["eval_ids"]]
+        return dataset_id, dataset_name, eval_ids
+    except Exception as err:
+        raise InvalidParquetMetadataError("Unable to parse parquet metadata") from err

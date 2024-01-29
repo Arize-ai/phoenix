@@ -1,13 +1,21 @@
+import json
 from abc import ABC
 from dataclasses import dataclass, field
 from itertools import product
+from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Callable, List, Mapping, Optional, Sequence, Set, Tuple
+from typing import Any, Callable, List, Mapping, Optional, Sequence, Set, Tuple, Type, Union
+from uuid import UUID, uuid4
 
 import pandas as pd
 from pandas.api.types import is_integer_dtype, is_numeric_dtype, is_string_dtype
+from pyarrow import Schema, Table, parquet
+
+from phoenix.config import TRACE_DATASET_DIR
+from phoenix.trace.errors import InvalidParquetMetadataError
 
 EVAL_NAME_COLUMN_PREFIX = "eval."
+EVAL_PARQUET_FILE_NAME = "evaluations-{id}.parquet"
 
 
 class NeedsNamedIndex(ABC):
@@ -72,6 +80,7 @@ class NeedsResultColumns(ABC):
 class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
     eval_name: str  # The name for the evaluation, e.g. 'toxicity'
     dataframe: pd.DataFrame = field(repr=False)
+    id: UUID = field(init=False, default_factory=uuid4)
 
     def __len__(self) -> int:
         return len(self.dataframe)
@@ -151,6 +160,74 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
         cls.all_valid_index_name_sorted_combos = set(
             tuple(sorted(prod)) for prod in product(*cls.index_names.keys())
         )
+
+    def save(self, directory: Optional[Union[str, Path]] = None) -> UUID:
+        """
+        Persists the evaluations to disk.
+
+        Args:
+            directory (Optional[Union[str, Path]], optional): An optional path
+            to a directory where the data will be saved. If not provided, the
+            data will be saved to a default location.
+
+        Returns:
+            UUID: The ID of the evaluations, which can be used as a key to load
+            the evaluations from disk using `load`.
+        """
+        directory = Path(directory) if directory else TRACE_DATASET_DIR
+        path = directory / EVAL_PARQUET_FILE_NAME.format(id=self.id)
+        table = Table.from_pandas(self.dataframe)
+        table = table.replace_schema_metadata(
+            {
+                **(table.schema.metadata or {}),
+                # explicitly encode keys and values, which are automatically encoded regardless
+                b"arize": json.dumps(
+                    {
+                        "eval_id": str(self.id),
+                        "eval_name": self.eval_name,
+                        "eval_type": self.__class__.__name__,
+                    }
+                ).encode("utf-8"),
+            }
+        )
+        parquet.write_table(table, path)
+        return self.id
+
+    @classmethod
+    def load(
+        cls, id: Union[str, UUID], directory: Optional[Union[str, Path]] = None
+    ) -> "Evaluations":
+        """
+        Loads the evaluations from disk.
+
+        Args:
+            id (Union[str, UUID]): The ID of the evaluations to load.
+
+            directory(Optional[Union[str, Path]], optional): The path to the
+            directory containing the persisted evaluations. If not provided, the
+            parquet file will be loaded from the same default location used by
+            `save`.
+
+        Returns:
+            Evaluations: The loaded evaluations. The type of the returned
+            evaluations will be the same as the type of the evaluations that
+            were originally persisted.
+        """
+        if not isinstance(id, UUID):
+            id = UUID(id)
+        path = Path(directory or TRACE_DATASET_DIR) / EVAL_PARQUET_FILE_NAME.format(id=id)
+        schema = parquet.read_schema(path)
+        eval_id, eval_name, evaluations_cls = _parse_schema_metadata(schema)
+        if id != eval_id:
+            raise InvalidParquetMetadataError(
+                f"The input id {id} does not match the id {eval_id} in the parquet metadata. "
+                "Ensure that you have not renamed the parquet file."
+            )
+        table = parquet.read_table(path)
+        dataframe = table.to_pandas()
+        evaluations = evaluations_cls(eval_name=eval_name, dataframe=dataframe)
+        object.__setattr__(evaluations, "id", eval_id)
+        return evaluations
 
 
 @dataclass(frozen=True)
@@ -235,3 +312,22 @@ class TraceEvaluations(
     index_names=MappingProxyType({("context.trace_id", "trace_id"): is_string_dtype}),
 ):
     ...
+
+
+def _parse_schema_metadata(schema: Schema) -> Tuple[UUID, str, Type[Evaluations]]:
+    """
+    Validates and parses the pyarrow schema metadata.
+    """
+    try:
+        metadata = schema.metadata
+        arize_metadata = json.loads(metadata[b"arize"])
+        eval_classes = {subclass.__name__: subclass for subclass in Evaluations.__subclasses__()}
+        eval_id = UUID(arize_metadata["eval_id"])
+        if not isinstance((eval_name := arize_metadata["eval_name"]), str):
+            raise ValueError('Arize metadata must contain a string value for key "eval_name"')
+        evaluations_cls = eval_classes[arize_metadata["eval_type"]]
+        return eval_id, eval_name, evaluations_cls
+    except Exception as err:
+        raise InvalidParquetMetadataError(
+            "An error occurred while parsing parquet schema metadata"
+        ) from err

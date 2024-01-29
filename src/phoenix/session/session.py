@@ -13,6 +13,7 @@ from typing import (
     Iterable,
     List,
     Mapping,
+    NamedTuple,
     Optional,
     Set,
     Union,
@@ -29,8 +30,10 @@ from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
 from phoenix.services import AppService
+from phoenix.session.evaluation import encode_evaluations
 from phoenix.trace.dsl import SpanFilter
 from phoenix.trace.dsl.query import SpanQuery
+from phoenix.trace.otel import encode
 from phoenix.trace.span_json_encoder import span_to_json
 from phoenix.trace.trace_dataset import TraceDataset
 
@@ -44,6 +47,8 @@ logger = logging.getLogger(__name__)
 # type workaround
 # https://github.com/python/mypy/issues/5264#issuecomment-399407428
 if TYPE_CHECKING:
+    from phoenix.trace import Evaluations
+
     _BaseList = UserList[pd.DataFrame]
 else:
     _BaseList = UserList
@@ -53,6 +58,7 @@ class NotebookEnvironment(Enum):
     COLAB = "colab"
     LOCAL = "local"
     SAGEMAKER = "sagemaker"
+    DATABRICKS = "databricks"
 
 
 class ExportedData(_BaseList):
@@ -117,9 +123,13 @@ class Session(ABC):
         self.traces = Traces()
         if trace_dataset:
             for span in trace_dataset.to_spans():
-                self.traces.put(span)
+                self.traces.put(encode(span))
 
         self.evals: Evals = Evals()
+        if trace_dataset:
+            for evaluations in trace_dataset.evaluations:
+                for pb_evaluation in encode_evaluations(evaluations):
+                    self.evals.put(pb_evaluation)
 
         self.host = host or get_env_host()
         self.port = port or get_env_port()
@@ -128,6 +138,7 @@ class Session(ABC):
         self.export_path.mkdir(parents=True, exist_ok=True)
         self.exported_data = ExportedData()
         self.notebook_env = notebook_env or _get_notebook_environment()
+        self.root_path = _get_root_path(self.notebook_env, self.port)
 
     @abstractmethod
     def end(self) -> None:
@@ -209,6 +220,15 @@ class Session(ABC):
             return None
         return pd.json_normalize(data, max_level=1).set_index("context.span_id", drop=False)
 
+    def get_evaluations(self) -> List["Evaluations"]:
+        return self.evals.export_evaluations()
+
+    def get_trace_dataset(self) -> Optional[TraceDataset]:
+        if (dataframe := self.get_spans_dataframe()) is None:
+            return None
+        evaluations = self.get_evaluations()
+        return TraceDataset(dataframe=dataframe, evaluations=evaluations)
+
 
 _session: Optional[Session] = None
 
@@ -223,6 +243,7 @@ class ProcessSession(Session):
         default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
         port: Optional[int] = None,
+        root_path: Optional[str] = None,
         notebook_env: Optional[NotebookEnvironment] = None,
     ) -> None:
         super().__init__(
@@ -252,6 +273,7 @@ class ProcessSession(Session):
             self.export_path,
             self.host,
             self.port,
+            self.root_path,
             self.primary_dataset.name,
             umap_params_str,
             reference_dataset_name=(
@@ -284,6 +306,7 @@ class ThreadSession(Session):
         default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
         port: Optional[int] = None,
+        root_path: Optional[str] = None,
         notebook_env: Optional[NotebookEnvironment] = None,
     ):
         super().__init__(
@@ -309,6 +332,7 @@ class ThreadSession(Session):
             app=self.app,
             host=self.host,
             port=self.port,
+            root_path=self.root_path,
         ).run_in_thread()
         # start the server
         self.server_thread = next(self.server)
@@ -391,14 +415,14 @@ def launch_app(
         )
         _session.end()
 
-    host = host or get_env_host()
-    port = port or get_env_port()
-
     # Normalize notebook environment
     if isinstance(notebook_environment, str):
         nb_env: Optional[NotebookEnvironment] = NotebookEnvironment(notebook_environment.lower())
     else:
         nb_env = notebook_environment
+
+    host = host or get_env_host()
+    port = port or get_env_port()
 
     if run_in_thread:
         _session = ThreadSession(
@@ -467,7 +491,13 @@ def _get_url(host: str, port: int, notebook_env: NotebookEnvironment) -> str:
         return str(eval_js(f"google.colab.kernel.proxyPort({port}, {{'cache': true}})"))
     if notebook_env == NotebookEnvironment.SAGEMAKER:
         # NB: Sagemaker notebooks only work with port 6006 - which is used by tensorboard
-        return str(f"{_get_sagemaker_notebook_base_url()}/proxy/{port}/")
+        return f"{_get_sagemaker_notebook_base_url()}/proxy/{port}/"
+    if notebook_env == NotebookEnvironment.DATABRICKS:
+        context = _get_databricks_context()
+        return f"{_get_databricks_notebook_base_url(context)}/{port}/"
+    if host == "0.0.0.0" or host == "127.0.0.1":
+        # The app is running locally, so use localhost
+        return f"http://localhost:{port}/"
     return f"http://{host}:{port}/"
 
 
@@ -497,6 +527,20 @@ def _is_sagemaker() -> bool:
     return get_ipython() is not None
 
 
+def _is_databricks() -> bool:
+    """Determines whether this is in a Databricks notebook"""
+    try:
+        import IPython  # type: ignore
+    except ImportError:
+        return False
+    shell = IPython.get_ipython()
+    try:
+        dbutils = shell.user_ns["dbutils"]
+    except KeyError:
+        return False
+    return dbutils is not None
+
+
 def _get_notebook_environment() -> NotebookEnvironment:
     """Determines the notebook environment"""
     if (notebook_env := os.getenv(ENV_NOTEBOOK_ENV)) is not None:
@@ -506,6 +550,8 @@ def _get_notebook_environment() -> NotebookEnvironment:
 
 def _infer_notebook_environment() -> NotebookEnvironment:
     """Use feature detection to determine the notebook environment"""
+    if _is_databricks():
+        return NotebookEnvironment.DATABRICKS
     if _is_colab():
         return NotebookEnvironment.COLAB
     if _is_sagemaker():
@@ -530,3 +576,48 @@ def _get_sagemaker_notebook_base_url() -> str:
     notebook_instance_name = parts[5].split("/")[1]
 
     return f"https://{notebook_instance_name}.notebook.{region}.sagemaker.aws"
+
+
+def _get_root_path(environment: NotebookEnvironment, port: int) -> str:
+    """
+    Returns the base path for the app if the app is running behind a proxy
+    """
+    if environment == NotebookEnvironment.SAGEMAKER:
+        return f"/proxy/{port}/"
+    if environment == NotebookEnvironment.DATABRICKS:
+        context = _get_databricks_context()
+        return f"/driver-proxy/o/{context.org_id}/{context.cluster_id}/{port}/"
+    return ""
+
+
+class DatabricksContext(NamedTuple):
+    host: str
+    org_id: str
+    cluster_id: str
+
+
+def _get_databricks_context() -> DatabricksContext:
+    """
+    Returns the databricks context for constructing the base url
+    and the root_path for the app
+    """
+    import IPython
+
+    shell = IPython.get_ipython()
+    dbutils = shell.user_ns["dbutils"]
+    notebook_context = json.loads(
+        dbutils.entry_point.getDbutils().notebook().getContext().toJson()
+    )["tags"]
+
+    return DatabricksContext(
+        host=notebook_context["browserHostName"],
+        org_id=notebook_context["orgId"],
+        cluster_id=notebook_context["clusterId"],
+    )
+
+
+def _get_databricks_notebook_base_url(context: DatabricksContext) -> str:
+    """
+    Returns base url of the databricks notebook by parsing the tags
+    """
+    return f"https://{context.host}/driver-proxy/o/{context.org_id}/{context.cluster_id}"

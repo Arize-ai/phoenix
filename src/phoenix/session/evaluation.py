@@ -9,6 +9,7 @@ import math
 from time import sleep
 from typing import (
     Any,
+    Iterator,
     Optional,
     Sequence,
     Tuple,
@@ -33,24 +34,29 @@ __all__ = [
 from phoenix.trace.span_evaluations import Evaluations
 
 
-def add_evaluations(
-    exporter: HttpExporter,
-    evaluations: pd.DataFrame,
-    evaluation_name: str,
-) -> None:
-    index_names = evaluations.index.names
-    for index, row in evaluations.iterrows():
+def encode_evaluations(evaluations: Evaluations) -> Iterator[pb.Evaluation]:
+    dataframe = evaluations.dataframe
+    eval_name = evaluations.eval_name
+    index_names = dataframe.index.names
+    for index, row in dataframe.iterrows():
         subject_id = _extract_subject_id_from_index(
             index_names,
             cast(Union[str, Tuple[Any]], index),
         )
         if (result := _extract_result(row)) is None:
             continue
-        evaluation = pb.Evaluation(
-            name=evaluation_name,
+        yield pb.Evaluation(
+            name=eval_name,
             result=result,
             subject_id=subject_id,
         )
+
+
+def add_evaluations(
+    exporter: HttpExporter,
+    evaluations: Evaluations,
+) -> None:
+    for evaluation in encode_evaluations(evaluations):
         exporter.export(evaluation)
 
 
@@ -103,13 +109,15 @@ def _extract_subject_id_from_index(
 
 def _extract_result(row: "pd.Series[Any]") -> Optional[pb.Evaluation.Result]:
     score = cast(Optional[float], row.get("score"))
+    if isinstance(score, float) and math.isnan(score):
+        score = None
     label = cast(Optional[str], row.get("label"))
+    if isinstance(label, float) and math.isnan(label):
+        label = None
     explanation = cast(Optional[str], row.get("explanation"))
-    if (
-        (score is None or isinstance(score, float) and math.isnan(score))
-        and not label
-        and not explanation
-    ):
+    if isinstance(explanation, float) and math.isnan(explanation):
+        explanation = None
+    if score is None and not label and not explanation:
         return None
     return pb.Evaluation.Result(
         score=DoubleValue(value=score) if score is not None else None,
@@ -128,7 +136,7 @@ def log_evaluations(
         return
     exporter = HttpExporter(endpoint=endpoint, host=host, port=port)
     for eval in filter(bool, evals):
-        add_evaluations(exporter, eval.dataframe, eval.eval_name)
+        add_evaluations(exporter, eval)
     with tqdm(total=n, desc="Sending Evaluations") as pbar:
         while n:
             sleep(0.1)

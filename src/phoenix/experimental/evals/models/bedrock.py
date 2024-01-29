@@ -3,6 +3,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+from phoenix.exceptions import PhoenixContextLimitExceeded
 from phoenix.experimental.evals.models.base import BaseEvalModel
 from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 
@@ -87,7 +88,6 @@ class BedrockModel(BaseEvalModel):
         try:
             encoding = self._tiktoken.encoding_for_model(self.model_id)
         except KeyError:
-            logger.warning("Warning: model not found. Using cl100k_base encoding.")
             encoding = self._tiktoken.get_encoding("cl100k_base")
         self._tiktoken_encoding = encoding
 
@@ -143,7 +143,23 @@ class BedrockModel(BaseEvalModel):
         @self.retry
         @self._rate_limiter.limit
         def _completion_with_retry(**kwargs: Any) -> Any:
-            return self.client.invoke_model(**kwargs)
+            try:
+                return self.client.invoke_model(**kwargs)
+            except Exception as e:
+                exception_message = e.args[0]
+                if not exception_message:
+                    raise e
+
+                if "Input is too long" in exception_message:
+                    # Error from Anthropic models
+                    raise PhoenixContextLimitExceeded(exception_message) from e
+                elif "expected maxLength" in exception_message:
+                    # Error from Titan models
+                    raise PhoenixContextLimitExceeded(exception_message) from e
+                elif "Prompt has too many tokens" in exception_message:
+                    # Error from AI21 models
+                    raise PhoenixContextLimitExceeded(exception_message) from e
+                raise e
 
         return _completion_with_retry(**kwargs)
 
@@ -165,7 +181,7 @@ class BedrockModel(BaseEvalModel):
                     "temperature": self.temperature,
                     "topP": self.top_p,
                     "maxTokens": self.max_tokens,
-                    "stopSequences": [self.stop_sequences],
+                    "stopSequences": self.stop_sequences,
                 },
                 **self.extra_parameters,
             }
@@ -204,6 +220,9 @@ class BedrockModel(BaseEvalModel):
         elif self.model_id.startswith("anthropic"):
             body = json.loads(response.get("body").read().decode())
             return body.get("completion")
+        elif self.model_id.startswith("amazon"):
+            body = json.loads(response.get("body").read())
+            return body.get("results")[0].get("outputText")
         else:
             body = json.loads(response.get("body").read())
             return body.get("results")[0].get("data").get("outputText")

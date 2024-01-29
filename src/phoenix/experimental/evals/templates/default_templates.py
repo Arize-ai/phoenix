@@ -1,8 +1,9 @@
 from collections import OrderedDict
+from enum import Enum
 
 from phoenix.experimental.evals.templates.template import ClassificationTemplate
 
-RAG_RELEVANCY_PROMPT_RAILS_MAP = OrderedDict({True: "relevant", False: "irrelevant"})
+RAG_RELEVANCY_PROMPT_RAILS_MAP = OrderedDict({True: "relevant", False: "unrelated"})
 RAG_RELEVANCY_PROMPT_BASE_TEMPLATE = """
 You are comparing a reference text to a question and trying to determine if the reference text
 contains information relevant to answering the question. Here is the data:
@@ -16,9 +17,9 @@ contains information relevant to answering the question. Here is the data:
 Compare the Question above to the Reference text. You must determine whether the Reference text
 contains information that can answer the Question. Please focus on whether the very specific
 question can be answered by the information in the Reference text.
-Your response must be single word, either "relevant" or "irrelevant",
+Your response must be single word, either "relevant" or "unrelated",
 and should not contain any text or characters aside from that word.
-"irrelevant" means that the reference text does not contain an answer to the Question.
+"unrelated" means that the reference text does not contain an answer to the Question.
 "relevant" means the reference text contains an answer to the Question."""
 RAG_RELEVANCY_PROMPT_TEMPLATE_WITH_EXPLANATION = """
 You are comparing a reference text to a question and trying to determine if the reference text
@@ -33,15 +34,15 @@ contains information relevant to answering the question. Here is the data:
 Compare the Question above to the Reference text. You must determine whether the Reference text
 contains information that can help answer the Question. First, write out in a step by step manner
 an EXPLANATION to show how to arrive at the correct answer. Avoid simply stating the correct answer
-at the outset. Your response LABEL must be single word, either "relevant" or "irrelevant", and
-should not contain any text or characters aside from that word. "irrelevant" means that the
+at the outset. Your response LABEL must be single word, either "relevant" or "unrelated", and
+should not contain any text or characters aside from that word. "unrelated" means that the
 reference text does not help answer to the Question. "relevant" means the reference text directly
 answers the question.
 
 Example response:
 ************
-EXPLANATION: An explanation of your reasoning for why the label is "relevant" or "irrelevant"
-LABEL: "relevant" or "irrelevant"
+EXPLANATION: An explanation of your reasoning for why the label is "relevant" or "unrelated"
+LABEL: "relevant" or "unrelated"
 ************
 
 EXPLANATION:"""
@@ -72,13 +73,6 @@ your response.
     [END DATA]
 
     Is the answer above factual or hallucinated based on the query and reference text?
-
-Your response should be a single word: either "factual" or "hallucinated", and
-it should not include any other text or characters. "hallucinated" indicates that the answer
-provides factually inaccurate information to the query based on the reference text. "factual"
-indicates that the answer to the question is correct relative to the reference text, and does not
-contain made up information. Please read the query and reference text carefully before determining
-your response.
 """
 HALLUCINATION_PROMPT_TEMPLATE_WITH_EXPLANATION = """
 In this task, you will be presented with a query, a reference text and an answer. The answer is
@@ -414,46 +408,65 @@ RAG_RELEVANCY_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
     template=RAG_RELEVANCY_PROMPT_BASE_TEMPLATE,
     explanation_template=RAG_RELEVANCY_PROMPT_TEMPLATE_WITH_EXPLANATION,
+    scores=[1, 0],
 )
 
 HALLUCINATION_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=list(HALLUCINATION_PROMPT_RAILS_MAP.values()),
     template=HALLUCINATION_PROMPT_BASE_TEMPLATE,
     explanation_template=HALLUCINATION_PROMPT_TEMPLATE_WITH_EXPLANATION,
+    scores=[1, 0],
 )
 
 TOXICITY_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=list(TOXICITY_PROMPT_RAILS_MAP.values()),
     template=TOXICITY_PROMPT_TEMPLATE_BASE_TEMPLATE,
     explanation_template=TOXICITY_PROMPT_TEMPLATE_WITH_EXPLANATION,
+    scores=[1, 0],
 )
 
 QA_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=list(QA_PROMPT_RAILS_MAP.values()),
     template=QA_PROMPT_BASE_TEMPLATE,
     explanation_template=QA_PROMPT_TEMPLATE_WITH_EXPLANATION,
+    scores=[1, 0],
 )
 
 SUMMARIZATION_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=list(SUMMARIZATION_PROMPT_RAILS_MAP.values()),
     template=SUMMARIZATION_PROMPT_BASE_TEMPLATE,
     explanation_template=SUMMARIZATION_PROMPT_TEMPLATE_WITH_EXPLANATION,
+    scores=[1, 0],
 )
 
 CODE_READABILITY_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=list(CODE_READABILITY_PROMPT_RAILS_MAP.values()),
     template=CODE_READABILITY_PROMPT_BASE_TEMPLATE,
     explanation_template=CODE_READABILITY_PROMPT_TEMPLATE_WITH_EXPLANATION,
+    scores=[1, 0],
 )
 
 REFERENCE_LINK_CORRECTNESS_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=list(REFERENCE_LINK_CORRECTNESS_PROMPT_RAILS_MAP.values()),
     template=REFERENCE_LINK_CORRECTNESS_PROMPT_BASE_TEMPLATE,
     explanation_template=REFERENCE_LINK_CORRECTNESS_PROMPT_TEMPLATE_WITH_EXPLANATION,
+    scores=[1, 0],
 )
 
 HUMAN_VS_AI_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=list(HUMAN_VS_AI_PROMPT_RAILS_MAP.values()),
     template=HUMAN_VS_AI_PROMPT_BASE_TEMPLATE,
     explanation_template=HUMAN_VS_AI_PROMPT_TEMPLATE_WITH_EXPLANATION,
+    scores=[1, 0],
 )
+
+
+class EvalCriteria(Enum):
+    RELEVANCE = RAG_RELEVANCY_PROMPT_TEMPLATE
+    HALLUCINATION = HALLUCINATION_PROMPT_TEMPLATE
+    TOXICITY = TOXICITY_PROMPT_TEMPLATE
+    QA = QA_PROMPT_TEMPLATE
+    SUMMARIZATION = SUMMARIZATION_PROMPT_TEMPLATE
+    CODE_READABILITY = CODE_READABILITY_PROMPT_TEMPLATE
+    REFERENCE_LINK_CORRECTNESS = REFERENCE_LINK_CORRECTNESS_PROMPT_TEMPLATE
+    HUMAN_VS_AI = HUMAN_VS_AI_PROMPT_TEMPLATE

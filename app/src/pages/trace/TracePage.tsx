@@ -34,16 +34,6 @@ import {
   ViewProps,
   ViewStyleProps,
 } from "@arizeai/components";
-
-import { ExternalLink } from "@phoenix/components";
-import { resizeHandleCSS } from "@phoenix/components/resize";
-import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { SpanItem } from "@phoenix/components/trace/SpanItem";
-import { SpanKindIcon } from "@phoenix/components/trace/SpanKindIcon";
-import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
-import { TraceTree } from "@phoenix/components/trace/TraceTree";
-import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
-import { useTheme } from "@phoenix/contexts";
 import {
   DOCUMENT_CONTENT,
   DOCUMENT_ID,
@@ -65,7 +55,17 @@ import {
   TOOL_CALL_FUNCTION_ARGUMENTS_JSON,
   TOOL_CALL_FUNCTION_NAME,
   ToolAttributePostfixes,
-} from "@phoenix/openInference/tracing/semanticConventions";
+} from "@arizeai/openinference-semantic-conventions";
+
+import { ExternalLink } from "@phoenix/components";
+import { resizeHandleCSS } from "@phoenix/components/resize";
+import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { SpanItem } from "@phoenix/components/trace/SpanItem";
+import { SpanKindIcon } from "@phoenix/components/trace/SpanKindIcon";
+import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
+import { TraceTree } from "@phoenix/components/trace/TraceTree";
+import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
+import { useTheme } from "@phoenix/contexts";
 import {
   AttributeDocument,
   AttributeEmbedding,
@@ -677,14 +677,17 @@ function RetrieverSpanInfo(props: {
     Record<number, DocumentEvaluation[]>
   >(() => {
     const documentEvaluations = span.documentEvaluations;
-    return documentEvaluations.reduce((acc, documentEvaluation) => {
-      const documentPosition = documentEvaluation.documentPosition;
-      const evaluations = acc[documentPosition] || [];
-      return {
-        ...acc,
-        [documentPosition]: [...evaluations, documentEvaluation],
-      };
-    }, {} as Record<number, DocumentEvaluation[]>);
+    return documentEvaluations.reduce(
+      (acc, documentEvaluation) => {
+        const documentPosition = documentEvaluation.documentPosition;
+        const evaluations = acc[documentPosition] || [];
+        return {
+          ...acc,
+          [documentPosition]: [...evaluations, documentEvaluation],
+        };
+      },
+      {} as Record<number, DocumentEvaluation[]>
+    );
   }, [span.documentEvaluations]);
 
   const hasInput = input != null && input.value != null;
@@ -706,7 +709,7 @@ function RetrieverSpanInfo(props: {
                   return (
                     <>
                       <RetrievalEvaluationLabel
-                        key="ncdg"
+                        key="ndcg"
                         name={retrievalMetric.evaluationName}
                         metric="ndcg"
                         score={retrievalMetric.ndcg}
@@ -1005,7 +1008,7 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
 }
 
 // Labels that get highlighted as danger in the document evaluations
-const DANGER_DOCUMENT_EVALUATION_LABELS = ["irrelevant"];
+const DANGER_DOCUMENT_EVALUATION_LABELS = ["irrelevant", "unrelated"];
 function DocumentItem({
   document,
   documentEvaluations,
@@ -1426,7 +1429,7 @@ function SpanEventsList({ events }: { events: Span["events"] }) {
         return (
           <ListItem key={idx}>
             <Flex direction="row" alignItems="center" gap="size-100">
-              <View>
+              <View flex="none">
                 <div
                   data-event-type={isException ? "exception" : "info"}
                   css={(theme) => css`

@@ -1,5 +1,12 @@
-from .evaluators import LLMEvaluator
-from .functions import llm_classify, llm_generate, run_relevance_eval
+from .evaluators import (
+    HallucinationEvaluator,
+    LLMEvaluator,
+    QAEvaluator,
+    RelevanceEvaluator,
+    SummarizationEvaluator,
+    ToxicityEvaluator,
+)
+from .functions import llm_classify, llm_generate, run_evals, run_relevance_eval
 from .models import BedrockModel, LiteLLMModel, OpenAIModel, VertexAIModel
 from .retrievals import compute_precisions_at_k
 from .templates import (
@@ -29,7 +36,6 @@ __all__ = [
     "VertexAIModel",
     "BedrockModel",
     "LiteLLMModel",
-    "LLMEvaluator",
     "PromptTemplate",
     "ClassificationTemplate",
     "CODE_READABILITY_PROMPT_RAILS_MAP",
@@ -46,4 +52,14 @@ __all__ = [
     "QA_PROMPT_TEMPLATE",
     "NOT_PARSABLE",
     "run_relevance_eval",
+    "run_evals",
+    "LLMEvaluator",
+    "CodeReadabilityEvaluator",
+    "HallucinationEvaluator",
+    "HumanVsAIEvaluator",
+    "QAEvaluator",
+    "ReferenceLinkCorrectnessEvaluator",
+    "RelevanceEvaluator",
+    "SummarizationEvaluator",
+    "ToxicityEvaluator",
 ]

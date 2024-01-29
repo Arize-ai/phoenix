@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable, Generator, List, Optional, Sequence, Type
 
+from phoenix.exceptions import PhoenixException
 from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 
 if TYPE_CHECKING:
@@ -15,6 +16,7 @@ from tenacity import (
     retry,
     retry_base,
     retry_if_exception_type,
+    retry_unless_exception_type,
     stop_after_attempt,
     wait_random_exponential,
 )
@@ -58,8 +60,12 @@ def set_verbosity(
 
 @dataclass
 class BaseEvalModel(ABC):
+    default_concurrency: int = 20
     _verbose: bool = False
     _rate_limiter: RateLimiter = field(default_factory=RateLimiter)
+
+    def reload_client(self) -> None:
+        pass
 
     def _retry(
         self,
@@ -78,6 +84,13 @@ class BaseEvalModel(ABC):
 
             if exc:
                 printif(
+                    self._verbose,
+                    (
+                        f"Failed attempt {retry_state.attempt_number}: "
+                        f"{type(exc).__module__}.{type(exc).__name__}"
+                    ),
+                )
+                printif(
                     True,
                     f"Failed attempt {retry_state.attempt_number}: raised {repr(exc)}",
                 )
@@ -92,6 +105,9 @@ class BaseEvalModel(ABC):
         retry_instance: retry_base = retry_if_exception_type(error_types[0])
         for error in error_types[1:]:
             retry_instance = retry_instance | retry_if_exception_type(error)
+
+        internal_error_bypass: retry_base = retry_unless_exception_type(PhoenixException)
+        retry_instance = retry_instance & internal_error_bypass
         return retry(
             reraise=True,
             stop=stop_after_attempt(max_retries),

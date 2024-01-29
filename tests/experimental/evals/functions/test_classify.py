@@ -1,3 +1,4 @@
+import json
 from contextlib import ExitStack
 from itertools import product
 from typing import List
@@ -25,6 +26,7 @@ from phoenix.experimental.evals.templates.default_templates import (
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_TEMPLATE,
 )
+from phoenix.experimental.evals.utils import _EXPLANATION, _FUNCTION_NAME, _RESPONSE
 from respx.patterns import M
 
 
@@ -77,7 +79,7 @@ def classification_dataframe():
                 "reference": "Ruby is a programming language.",
             },
             {"input": "What is C++?", "reference": "C++ is a programming language."},
-            {"input": "What is C++?", "reference": "irrelevant"},
+            {"input": "What is C++?", "reference": "unrelated"},
         ],
     )
 
@@ -86,9 +88,9 @@ def classification_dataframe():
 def classification_responses():
     return [
         "relevant",
-        "irrelevant",
+        "unrelated",
         "relevant",
-        "irrelevant",
+        "unrelated",
     ]
 
 
@@ -105,7 +107,7 @@ def test_llm_classify(
 ):
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
-    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    responses = ["relevant", "unrelated", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
     for (query, reference), response in response_mapping.items():
@@ -128,11 +130,11 @@ def test_llm_classify(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
-        rails=["relevant", "irrelevant"],
+        rails=["relevant", "unrelated"],
         verbose=True,
     )
 
-    expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(
         result,
@@ -150,7 +152,7 @@ def test_llm_classify_with_included_prompt_and_response(
 ):
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
-    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    responses = ["relevant", "unrelated", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
     for (query, reference), response in response_mapping.items():
@@ -173,13 +175,13 @@ def test_llm_classify_with_included_prompt_and_response(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
-        rails=["relevant", "irrelevant"],
+        rails=["relevant", "unrelated"],
         verbose=True,
         include_prompt=True,
         include_response=True,
     )
 
-    expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert result["label"].tolist() == expected_labels
     assert result["response"].tolist() == responses
@@ -196,7 +198,7 @@ def test_llm_classify_with_async(
 ):
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
-    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    responses = ["relevant", "unrelated", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
     for (query, reference), response in response_mapping.items():
@@ -219,11 +221,11 @@ def test_llm_classify_with_async(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
-        rails=["relevant", "irrelevant"],
+        rails=["relevant", "unrelated"],
         verbose=True,
     )
 
-    expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(
         result,
@@ -239,7 +241,7 @@ def test_llm_classify_with_fn_call(
 ):
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
-    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    responses = ["relevant", "unrelated", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
     for (query, reference), response in response_mapping.items():
@@ -256,10 +258,10 @@ def test_llm_classify_with_fn_call(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
-        rails=["relevant", "irrelevant"],
+        rails=["relevant", "unrelated"],
     )
 
-    expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(result, pd.DataFrame(data={"label": expected_labels}))
 
@@ -270,7 +272,7 @@ def test_classify_fn_call_no_explain(
 ):
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
-    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    responses = ["relevant", "unrelated", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
     for (query, reference), response in response_mapping.items():
@@ -287,11 +289,11 @@ def test_classify_fn_call_no_explain(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
-        rails=["relevant", "irrelevant"],
+        rails=["relevant", "unrelated"],
         provide_explanation=True,
     )
 
-    expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(
         result,
@@ -305,7 +307,7 @@ def test_classify_fn_call_explain(
 ):
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
-    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    responses = ["relevant", "unrelated", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
     for ii, ((query, reference), response) in enumerate(response_mapping.items()):
@@ -326,11 +328,11 @@ def test_classify_fn_call_explain(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
-        rails=["relevant", "irrelevant"],
+        rails=["relevant", "unrelated"],
         provide_explanation=True,
     )
 
-    expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(
         result,
@@ -347,7 +349,7 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(
 ):
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
-    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    responses = ["relevant", "unrelated", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
     for (query, reference), response in response_mapping.items():
@@ -362,14 +364,14 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
-        rails=["relevant", "irrelevant"],
+        rails=["relevant", "unrelated"],
         verbose=True,
         use_function_calling_if_available=False,
     )
 
     out, _ = capfd.readouterr()
     assert "Snapped 'relevant' to rail: relevant" in out, "Snapping events should be printed"
-    assert "Snapped 'irrelevant' to rail: irrelevant" in out, "Snapping events should be printed"
+    assert "Snapped 'unrelated' to rail: unrelated" in out, "Snapping events should be printed"
     assert "Snapped '\\nrelevant ' to rail: relevant" in out, "Snapping events should be printed"
     assert "Cannot snap 'unparsable' to rails" in out, "Snapping events should be printed"
     assert "OpenAI invocation parameters" in out, "Model-specific information should be printed"
@@ -416,7 +418,7 @@ def test_llm_classify_shows_retry_info(openai_api_key: str, capfd: pytest.Captur
             dataframe=dataframe,
             template=RAG_RELEVANCY_PROMPT_TEMPLATE,
             model=model,
-            rails=["relevant", "irrelevant"],
+            rails=["relevant", "unrelated"],
         )
 
     out, _ = capfd.readouterr()
@@ -494,9 +496,9 @@ def test_run_relevance_eval_standard_dataframe(
 
     responses = [
         "relevant",
-        "irrelevant",
+        "unrelated",
         "relevant",
-        "irrelevant",
+        "unrelated",
         "\nrelevant ",
         "unparsable",
         "relevant",
@@ -524,8 +526,8 @@ def test_run_relevance_eval_standard_dataframe(
 
     relevance_classifications = run_relevance_eval(dataframe, model=model)
     assert relevance_classifications == [
-        ["relevant", "irrelevant"],
-        ["relevant", "irrelevant"],
+        ["relevant", "unrelated"],
+        ["relevant", "unrelated"],
         ["relevant"],
         [NOT_PARSABLE, "relevant"],
         [],
@@ -560,7 +562,7 @@ def test_classify_tolerance_to_exceptions(
         dataframe=classification_dataframe,
         template=classification_template,
         model=model,
-        rails=["relevant", "irrelevant"],
+        rails=["relevant", "unrelated"],
     )
 
     assert classification_df is not None
@@ -637,9 +639,9 @@ def test_run_relevance_eval_openinference_dataframe(
 
     responses = [
         "relevant",
-        "irrelevant",
+        "unrelated",
         "relevant",
-        "irrelevant",
+        "unrelated",
         "\nrelevant ",
         "unparsable",
         "relevant",
@@ -667,8 +669,8 @@ def test_run_relevance_eval_openinference_dataframe(
 
     relevance_classifications = run_relevance_eval(dataframe, model=model)
     assert relevance_classifications == [
-        ["relevant", "irrelevant"],
-        ["relevant", "irrelevant"],
+        ["relevant", "unrelated"],
+        ["relevant", "unrelated"],
         ["relevant"],
         [NOT_PARSABLE, "relevant"],
         [],
@@ -679,34 +681,44 @@ def test_run_relevance_eval_openinference_dataframe(
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
-def test_run_evals_outputs_dataframes_with_just_labels(
+def test_run_evals_outputs_dataframes_with_labels_scores_and_explanations_with_function_calls(
     running_event_loop_mock: bool,
     respx_mock: respx.mock,
     toxicity_evaluator: LLMEvaluator,
     relevance_evaluator: LLMEvaluator,
 ) -> None:
-    for matcher, response in [
+    for matcher, label, explanation in [
         (
             M(content__contains="Paris is the capital of France.")
             & M(content__contains="relevant"),
             "relevant",
+            "relevant-explanation",
         ),
         (
             M(content__contains="Munich is the capital of Germany.")
             & M(content__contains="relevant"),
-            "irrelevant",
+            "unrelated",
+            "unrelated-explanation",
         ),
         (
             M(content__contains="What is the capital of France?") & M(content__contains="toxic"),
             "non-toxic",
+            "non-toxic-explanation",
         ),
     ]:
         payload = {
             "choices": [
                 {
+                    "index": 0,
                     "message": {
-                        "content": response,
+                        "role": "assistant",
+                        "content": None,
+                        "function_call": {
+                            "name": _FUNCTION_NAME,
+                            "arguments": json.dumps({_RESPONSE: label, _EXPLANATION: explanation}),
+                        },
                     },
+                    "finish_reason": "function_call",
                 }
             ],
         }
@@ -723,29 +735,44 @@ def test_run_evals_outputs_dataframes_with_just_labels(
                 "reference": "Munich is the capital of Germany.",
             },
         ],
-        index=["a", "b"],
     )
-    eval_dfs = run_evals(dataframe=df, evaluators=[relevance_evaluator, toxicity_evaluator])
+    eval_dfs = run_evals(
+        dataframe=df,
+        evaluators=[relevance_evaluator, toxicity_evaluator],
+        provide_explanation=True,
+        use_function_calling_if_available=True,
+    )
     assert len(eval_dfs) == 2
     assert_frame_equal(
-        eval_dfs[0],
         pd.DataFrame(
-            {"label": ["relevant", "irrelevant"]},
-            index=["a", "b"],
+            {
+                "label": ["relevant", "unrelated"],
+                "score": [1, 0],
+                "explanation": [
+                    "relevant-explanation",
+                    "unrelated-explanation",
+                ],
+            },
         ),
+        eval_dfs[0],
     )
     assert_frame_equal(
-        eval_dfs[1],
         pd.DataFrame(
-            {"label": ["non-toxic", "non-toxic"]},
-            index=["a", "b"],
+            {
+                "label": ["non-toxic", "non-toxic"],
+                "score": [0, 0],
+                "explanation": [
+                    "non-toxic-explanation",
+                    "non-toxic-explanation",
+                ],
+            },
         ),
+        eval_dfs[1],
     )
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
-def test_run_evals_outputs_dataframes_with_labels_and_explanations(
-    running_event_loop_mock: bool,
+def test_run_evals_outputs_dataframes_with_labels_scores_and_explanations(
     respx_mock: respx.mock,
     toxicity_evaluator: LLMEvaluator,
     relevance_evaluator: LLMEvaluator,
@@ -759,7 +786,7 @@ def test_run_evals_outputs_dataframes_with_labels_and_explanations(
         (
             M(content__contains="Munich is the capital of Germany.")
             & M(content__contains="relevant"),
-            "irrelevant-explanation\nLABEL: irrelevant",
+            "unrelated-explanation\nLABEL: unrelated",
         ),
         (
             M(content__contains="What is the capital of France?") & M(content__contains="toxic"),
@@ -788,23 +815,25 @@ def test_run_evals_outputs_dataframes_with_labels_and_explanations(
                 "reference": "Munich is the capital of Germany.",
             },
         ],
-        index=["a", "b"],
     )
     eval_dfs = run_evals(
-        dataframe=df, evaluators=[relevance_evaluator, toxicity_evaluator], provide_explanation=True
+        dataframe=df,
+        evaluators=[relevance_evaluator, toxicity_evaluator],
+        provide_explanation=True,
+        use_function_calling_if_available=False,
     )
     assert len(eval_dfs) == 2
     assert_frame_equal(
         eval_dfs[0],
         pd.DataFrame(
             {
-                "label": ["relevant", "irrelevant"],
+                "label": ["relevant", "unrelated"],
+                "score": [1, 0],
                 "explanation": [
                     "relevant-explanation\nLABEL: relevant",
-                    "irrelevant-explanation\nLABEL: irrelevant",
+                    "unrelated-explanation\nLABEL: unrelated",
                 ],
             },
-            index=["a", "b"],
         ),
     )
     assert_frame_equal(
@@ -812,13 +841,364 @@ def test_run_evals_outputs_dataframes_with_labels_and_explanations(
         pd.DataFrame(
             {
                 "label": ["non-toxic", "non-toxic"],
+                "score": [0, 0],
                 "explanation": [
                     "non-toxic-explanation\nLABEL: non-toxic",
                     "non-toxic-explanation\nLABEL: non-toxic",
                 ],
             },
-            index=["a", "b"],
         ),
+    )
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_run_evals_outputs_dataframes_with_just_labels_and_scores_when_invoked_with_function_calls(
+    respx_mock: respx.mock,
+    toxicity_evaluator: LLMEvaluator,
+    relevance_evaluator: LLMEvaluator,
+) -> None:
+    for matcher, response in [
+        (
+            M(content__contains="Paris is the capital of France.")
+            & M(content__contains="relevant"),
+            "relevant",
+        ),
+        (
+            M(content__contains="Munich is the capital of Germany.")
+            & M(content__contains="relevant"),
+            "unrelated",
+        ),
+        (
+            M(content__contains="What is the capital of France?") & M(content__contains="toxic"),
+            "non-toxic",
+        ),
+    ]:
+        payload = {
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": None,
+                        "function_call": {
+                            "name": _FUNCTION_NAME,
+                            "arguments": json.dumps(
+                                {
+                                    _RESPONSE: response,
+                                }
+                            ),
+                        },
+                    },
+                    "finish_reason": "function_call",
+                }
+            ],
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+
+    df = pd.DataFrame(
+        [
+            {
+                "input": "What is the capital of France?",
+                "reference": "Paris is the capital of France.",
+            },
+            {
+                "input": "What is the capital of France?",
+                "reference": "Munich is the capital of Germany.",
+            },
+        ],
+    )
+    eval_dfs = run_evals(
+        dataframe=df,
+        evaluators=[relevance_evaluator, toxicity_evaluator],
+        provide_explanation=False,
+        use_function_calling_if_available=True,
+    )
+    assert len(eval_dfs) == 2
+    assert_frame_equal(
+        eval_dfs[0],
+        pd.DataFrame(
+            {"label": ["relevant", "unrelated"], "score": [1, 0]},
+        ),
+    )
+    assert_frame_equal(
+        eval_dfs[1],
+        pd.DataFrame(
+            {"label": ["non-toxic", "non-toxic"], "score": [0, 0]},
+        ),
+    )
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_run_evals_outputs_dataframes_with_just_labels_and_scores(
+    respx_mock: respx.mock,
+    toxicity_evaluator: LLMEvaluator,
+    relevance_evaluator: LLMEvaluator,
+) -> None:
+    for matcher, response in [
+        (
+            M(content__contains="Paris is the capital of France.")
+            & M(content__contains="relevant"),
+            "relevant",
+        ),
+        (
+            M(content__contains="Munich is the capital of Germany.")
+            & M(content__contains="relevant"),
+            "unrelated",
+        ),
+        (
+            M(content__contains="What is the capital of France?") & M(content__contains="toxic"),
+            "non-toxic",
+        ),
+    ]:
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": response,
+                    },
+                }
+            ],
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+
+    df = pd.DataFrame(
+        [
+            {
+                "input": "What is the capital of France?",
+                "reference": "Paris is the capital of France.",
+            },
+            {
+                "input": "What is the capital of France?",
+                "reference": "Munich is the capital of Germany.",
+            },
+        ],
+    )
+    eval_dfs = run_evals(
+        dataframe=df,
+        evaluators=[relevance_evaluator, toxicity_evaluator],
+        provide_explanation=False,
+        use_function_calling_if_available=False,
+    )
+    assert len(eval_dfs) == 2
+    assert_frame_equal(
+        eval_dfs[0],
+        pd.DataFrame(
+            {"label": ["relevant", "unrelated"], "score": [1, 0]},
+        ),
+    )
+    assert_frame_equal(
+        eval_dfs[1],
+        pd.DataFrame(
+            {"label": ["non-toxic", "non-toxic"], "score": [0, 0]},
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    "index",
+    [
+        pytest.param(
+            pd.MultiIndex.from_arrays(
+                [["span-id-0", "span-id-0"], [0, 1]], names=("content.span_id", "document_position")
+            ),
+            id="multiindex",
+        ),
+        pytest.param(
+            pd.Index([0, 1], name="document_position"),
+            id="index",
+        ),
+    ],
+)
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_run_evals_preserves_index(
+    index: pd.Index,
+    respx_mock: respx.mock,
+    relevance_evaluator: LLMEvaluator,
+) -> None:
+    for matcher, response in [
+        (
+            M(content__contains="Paris is the capital of France."),
+            "relevant-explanation\nLABEL: relevant",
+        ),
+        (
+            M(content__contains="Munich is the capital of Germany."),
+            "unrelated-explanation\nLABEL: unrelated",
+        ),
+    ]:
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": response,
+                    },
+                }
+            ],
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+
+    df = pd.DataFrame(
+        [
+            {
+                "input": "What is the capital of France?",
+                "reference": "Paris is the capital of France.",
+            },
+            {
+                "input": "What is the capital of France?",
+                "reference": "Munich is the capital of Germany.",
+            },
+        ],
+        index=index,
+    )
+    eval_dfs = run_evals(
+        dataframe=df,
+        evaluators=[relevance_evaluator],
+        provide_explanation=True,
+        use_function_calling_if_available=False,
+    )
+    assert len(eval_dfs) == 1
+    assert_frame_equal(
+        eval_dfs[0],
+        pd.DataFrame(
+            {
+                "label": ["relevant", "unrelated"],
+                "score": [1, 0],
+                "explanation": [
+                    "relevant-explanation\nLABEL: relevant",
+                    "unrelated-explanation\nLABEL: unrelated",
+                ],
+            },
+            index=index,
+        ),
+    )
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_run_evals_succeeds_regardless_of_whether_running_event_loop_exists(
+    running_event_loop_mock: bool,
+    respx_mock: respx.mock,
+    relevance_evaluator: LLMEvaluator,
+) -> None:
+    for matcher, response in [
+        (
+            M(content__contains="Paris is the capital of France."),
+            "relevant-explanation\nLABEL: relevant",
+        ),
+        (
+            M(content__contains="Munich is the capital of Germany."),
+            "unrelated-explanation\nLABEL: unrelated",
+        ),
+    ]:
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": response,
+                    },
+                }
+            ],
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+
+    df = pd.DataFrame(
+        [
+            {
+                "input": "What is the capital of France?",
+                "reference": "Paris is the capital of France.",
+            },
+            {
+                "input": "What is the capital of France?",
+                "reference": "Munich is the capital of Germany.",
+            },
+        ],
+    )
+    eval_dfs = run_evals(
+        dataframe=df,
+        evaluators=[relevance_evaluator],
+        provide_explanation=True,
+        use_function_calling_if_available=False,
+    )
+    assert len(eval_dfs) == 1
+    assert_frame_equal(
+        eval_dfs[0],
+        pd.DataFrame(
+            {
+                "label": ["relevant", "unrelated"],
+                "score": [1, 0],
+                "explanation": [
+                    "relevant-explanation\nLABEL: relevant",
+                    "unrelated-explanation\nLABEL: unrelated",
+                ],
+            },
+        ),
+    )
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_run_evals_produces_expected_output_when_llm_outputs_unexpected_data(
+    respx_mock: respx.mock,
+    relevance_evaluator: LLMEvaluator,
+) -> None:
+    for matcher, response in [
+        (
+            M(content__contains="Paris is the capital of France."),
+            "relevant-explanation\nrelevant",  # missing delimiter
+        ),
+        (
+            M(content__contains="Munich is the capital of Germany."),
+            "some-explanation\nLABEL: unparseable-label",  # unparseable-label
+        ),
+        (
+            M(content__contains="Washington, D.C. is the capital of the USA."),
+            "unrelated-explanation\nLABEL: unrelated",  # normal
+        ),
+    ]:
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": response,
+                    },
+                }
+            ],
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+
+    df = pd.DataFrame(
+        [
+            {
+                "input": "What is the capital of France?",
+                "reference": "Paris is the capital of France.",
+            },
+            {
+                "input": "What is the capital of France?",
+                "reference": "Munich is the capital of Germany.",
+            },
+            {
+                "input": "What is the capital of France?",
+                "reference": "Washington, D.C. is the capital of the USA.",
+            },
+        ],
+    )
+    eval_dfs = run_evals(
+        dataframe=df,
+        evaluators=[relevance_evaluator],
+        provide_explanation=True,
+        use_function_calling_if_available=False,
+    )
+    assert len(eval_dfs) == 1
+    assert_frame_equal(
+        pd.DataFrame(
+            {
+                "label": ["NOT_PARSABLE", "NOT_PARSABLE", "unrelated"],
+                "score": [0.0, 0.0, 0.0],
+                "explanation": [
+                    "relevant-explanation\nrelevant",
+                    "some-explanation\nLABEL: unparseable-label",
+                    "unrelated-explanation\nLABEL: unrelated",
+                ],
+            },
+        ),
+        eval_dfs[0],
     )
 
 

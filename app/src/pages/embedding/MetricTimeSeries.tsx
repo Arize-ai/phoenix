@@ -304,10 +304,13 @@ export function MetricTimeSeries({
   const chartPrimaryRawData = getChartPrimaryData({ data, metric });
   const chartSecondaryRawData = getTrafficData(data);
   const trafficDataMap =
-    chartSecondaryRawData.reduce((acc, traffic) => {
-      acc[traffic.timestamp] = traffic.value;
-      return acc;
-    }, {} as Record<string, number | null>) ?? {};
+    chartSecondaryRawData.reduce(
+      (acc, traffic) => {
+        acc[traffic.timestamp] = traffic.value;
+        return acc;
+      },
+      {} as Record<string, number | null>
+    ) ?? {};
 
   const chartData = chartPrimaryRawData.map((d) => {
     const traffic = trafficDataMap[d.timestamp];

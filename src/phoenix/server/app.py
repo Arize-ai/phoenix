@@ -28,6 +28,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.schema import schema
 from phoenix.server.evaluation_handler import EvaluationHandler
 from phoenix.server.span_handler import SpanHandler
+from phoenix.server.trace_handler import TraceHandler
 
 logger = logging.getLogger(__name__)
 
@@ -39,21 +40,6 @@ class AppConfig(NamedTuple):
     min_dist: float
     n_neighbors: int
     n_samples: int
-
-
-def _get_basename(request: Request) -> str:
-    """
-    Determine the basename for the API and static content.
-    If the server is running in a hosted notebook, the base URL
-    must be configured to point to the hosted notebook's proxy.
-    """
-    is_sagemaker = "sagemaker" in str(request.url)
-    if is_sagemaker:
-        # Sagemaker sets up a proxy at /proxy/6006
-        # NB: this is the only port that is open
-        return "/proxy/6006"
-    # URL is relative to / for colab and local
-    return ""
 
 
 class Static(StaticFiles):
@@ -82,7 +68,7 @@ class Static(StaticFiles):
                     "min_dist": self._app_config.min_dist,
                     "n_neighbors": self._app_config.n_neighbors,
                     "n_samples": self._app_config.n_samples,
-                    "basename": _get_basename(request),
+                    "basename": request.scope.get("root_path", ""),
                     "request": request,
                 },
             )
@@ -185,11 +171,11 @@ def create_app(
             else [
                 Route(
                     "/v1/spans",
-                    type(
-                        "SpanEndpoint",
-                        (SpanHandler,),
-                        {"queue": traces},
-                    ),
+                    type("SpanEndpoint", (SpanHandler,), {"queue": traces}),
+                ),
+                Route(
+                    "/v1/traces",
+                    type("TraceEndpoint", (TraceHandler,), {"queue": traces}),
                 ),
             ]
         )

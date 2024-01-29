@@ -2,9 +2,9 @@ repos:
     - repo: https://github.com/charliermarsh/ruff-pre-commit
       rev: "v0.1.3"
       hooks:
-        - id: ruff-format
-        - id: ruff
-          args: [--fix]
+          - id: ruff-format
+          - id: ruff
+            args: [--fix]
     - repo: local
       hooks:
           - id: clean-notebooks
@@ -21,7 +21,7 @@ repos:
             files: \.ipynb$
             stages: [commit]
             language: system
-            entry: nbqa ruff --fix --ignore=E402 --ignore=E501 --ignore=F704 
+            entry: nbqa ruff --fix --ignore=E402 --ignore=E501 --ignore=F704
     - repo: https://github.com/pre-commit/mirrors-prettier
       rev: "6f3cb139ef36133b6f903b97facc57b07cef57c9"
       hooks:
@@ -29,7 +29,7 @@ repos:
             files: \.(jsx?|tsx?|css|.md)$
             exclude: \.*__generated__.*$
             additional_dependencies:
-                - prettier@2.8.7
+                - prettier@3.2.4
     - repo: https://github.com/pre-commit/mirrors-eslint
       rev: "8ddcbd412c0b348841f0f82c837702f432539652"
       hooks:

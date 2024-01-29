@@ -631,15 +631,18 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
 
       // make a dictionary of eventIds to their retrievals
       const eventIdToRetrievals: Record<string, Retrieval[]> =
-        retrievals.reduce((acc, retrieval) => {
-          const { queryId } = retrieval;
-          if (acc[queryId]) {
-            acc[queryId].push(retrieval);
-          } else {
-            acc[queryId] = [retrieval];
-          }
-          return acc;
-        }, {} as Record<string, Retrieval[]>);
+        retrievals.reduce(
+          (acc, retrieval) => {
+            const { queryId } = retrieval;
+            if (acc[queryId]) {
+              acc[queryId].push(retrieval);
+            } else {
+              acc[queryId] = [retrieval];
+            }
+            return acc;
+          },
+          {} as Record<string, Retrieval[]>
+        );
 
       // Calculate a map of event ID to point data
       points.forEach((p) => {

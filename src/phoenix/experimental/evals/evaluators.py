@@ -1,15 +1,20 @@
-from typing import List, Mapping, Optional, Tuple
+from textwrap import indent
+from typing import List, Mapping, Optional, Tuple, Type
 
 from phoenix.experimental.evals.models import set_verbosity
-from phoenix.experimental.evals.utils import parse_openai_function_call, snap_to_rail
+from phoenix.experimental.evals.utils import (
+    NOT_PARSABLE,
+    openai_function_call_kwargs,
+    parse_openai_function_call,
+    snap_to_rail,
+)
 from phoenix.utilities.logging import printif
 
-from .models import BaseEvalModel
-from .templates import ClassificationTemplate, PromptOptions, PromptTemplate
+from .models import BaseEvalModel, OpenAIModel
+from .templates import ClassificationTemplate, EvalCriteria, PromptOptions, PromptTemplate
 
 Record = Mapping[str, str]
-
-NOT_PARSABLE = "NOT_PARSABLE"
+_TAB = " " * 4
 
 
 class LLMEvaluator:
@@ -31,12 +36,20 @@ class LLMEvaluator:
         self._model = model
         self._template = template
 
+    @property
+    def default_concurrency(self) -> int:
+        return self._model.default_concurrency
+
+    def reload_client(self) -> None:
+        self._model.reload_client()
+
     def evaluate(
         self,
         record: Record,
         provide_explanation: bool = False,
+        use_function_calling_if_available: bool = True,
         verbose: bool = False,
-    ) -> Tuple[str, Optional[str]]:
+    ) -> Tuple[str, Optional[float], Optional[str]]:
         """
         Evaluates a single record.
 
@@ -46,28 +59,58 @@ class LLMEvaluator:
             provide_explanation (bool, optional): Whether to provide an
             explanation.
 
+            use_function_calling_if_available (bool, optional): If True, use
+            function calling (if available) as a means to constrain the LLM
+            outputs. With function calling, the LLM is instructed to provide its
+            response as a structured JSON object, which is easier to parse.
+
+            use_function_calling_if_available (bool, optional): If True, use
+            function calling (if available) as a means to constrain the LLM
+            outputs. With function calling, the LLM is instructed to provide its
+            response as a structured JSON object, which is easier to parse.
+
             verbose (bool, optional): Whether to print verbose output.
 
         Returns:
-            Tuple[str, Optional[str]]: The label and explanation (if provided).
+            Tuple[str, Optional[float], Optional[str]]: A tuple containing:
+            - label
+            - score (if scores for each label are specified by the template)
+            - explanation (if requested)
         """
+        use_openai_function_call = (
+            use_function_calling_if_available
+            and isinstance(self._model, OpenAIModel)
+            and self._model.supports_function_calling
+        )
         prompt = self._template.format(
             record, options=PromptOptions(provide_explanation=provide_explanation)
         )
         with set_verbosity(self._model, verbose) as verbose_model:
-            unparsed_output = verbose_model(prompt)
+            unparsed_output = verbose_model(
+                prompt,
+                **(
+                    openai_function_call_kwargs(self._template.rails, provide_explanation)
+                    if use_openai_function_call
+                    else {}
+                ),
+            )
         label, explanation = _extract_label_and_explanation(
             unparsed_output=unparsed_output,
             template=self._template,
-            use_openai_function_call=False,
             provide_explanation=provide_explanation,
+            use_openai_function_call=use_openai_function_call,
             verbose=verbose,
         )
-        return label, explanation
+        score = self._template.score(label)
+        return label, score, explanation
 
     async def aevaluate(
-        self, record: Record, provide_explanation: bool = False, verbose: bool = False
-    ) -> Tuple[str, Optional[str]]:
+        self,
+        record: Record,
+        provide_explanation: bool = False,
+        use_function_calling_if_available: bool = True,
+        verbose: bool = False,
+    ) -> Tuple[str, Optional[float], Optional[str]]:
         """
         Evaluates a single record.
 
@@ -77,24 +120,117 @@ class LLMEvaluator:
             provide_explanation (bool, optional): Whether to provide an
             explanation.
 
+            use_function_calling_if_available (bool, optional): If True, use
+            function calling (if available) as a means to constrain the LLM
+            outputs. With function calling, the LLM is instructed to provide its
+            response as a structured JSON object, which is easier to parse.
+
             verbose (bool, optional): Whether to print verbose output.
 
         Returns:
-            Tuple[str, Optional[str]]: The label and explanation (if provided).
+            Tuple[str, Optional[float], Optional[str]]: A tuple containing:
+            - label
+            - score (if scores for each label are specified by the template)
+            - explanation (if requested)
         """
+        use_openai_function_call = (
+            use_function_calling_if_available
+            and isinstance(self._model, OpenAIModel)
+            and self._model.supports_function_calling
+        )
         prompt = self._template.format(
             record, options=PromptOptions(provide_explanation=provide_explanation)
         )
         with set_verbosity(self._model, verbose) as verbose_model:
-            unparsed_output = await verbose_model._async_generate(prompt)
+            unparsed_output = await verbose_model._async_generate(
+                prompt,
+                **(
+                    openai_function_call_kwargs(self._template.rails, provide_explanation)
+                    if use_openai_function_call
+                    else {}
+                ),
+            )
         label, explanation = _extract_label_and_explanation(
             unparsed_output=unparsed_output,
             template=self._template,
-            use_openai_function_call=False,
             provide_explanation=provide_explanation,
+            use_openai_function_call=use_openai_function_call,
             verbose=verbose,
         )
-        return label, explanation
+        score = self._template.score(label)
+        return label, score, explanation
+
+
+def _create_llm_evaluator_subclass(
+    class_name: str, template: ClassificationTemplate, docstring: str
+) -> Type[LLMEvaluator]:
+    """A factory method that dynamically creates subclasses of LLMEvaluator.
+
+    Args:
+        class_name (str): Name of the class to be created (should match the name
+        of the assignment variable).
+
+        template (ClassificationTemplate): The classification template to use
+        for evaluation.
+
+        docstring (str): The docstring that will be attached to the subclass.
+
+    Returns:
+        Type[LLMEvaluator]: The dynamically created subclass.
+    """
+
+    def __init__(self: LLMEvaluator, model: BaseEvalModel) -> None:
+        LLMEvaluator.__init__(self, model, template)
+
+    __init__.__doc__ = f"""
+        Initializer for {class_name}.
+
+        Args:
+            model (BaseEvalModel): The LLM model to use for evaluation."""
+
+    docstring += f" Outputs railed classes {', '.join(template.rails)}."
+    docstring += "\n\nThe template used for evaluation (without explanation) is:\n\n"
+    docstring += indent(template.template, 2 * _TAB)
+
+    return type(class_name, (LLMEvaluator,), {"__init__": __init__, "__doc__": docstring})
+
+
+(
+    HallucinationEvaluator,
+    RelevanceEvaluator,
+    ToxicityEvaluator,
+    QAEvaluator,
+    SummarizationEvaluator,
+) = map(
+    lambda args: _create_llm_evaluator_subclass(*args),
+    (
+        (
+            "HallucinationEvaluator",
+            EvalCriteria.HALLUCINATION.value,
+            'Leverages an LLM to evaluate whether a response (stored under an "output" column) is a hallucination given a query (stored under an "input" column) and one or more retrieved documents (stored under a "reference" column).',  # noqa: E501
+        ),
+        (
+            "RelevanceEvaluator",
+            EvalCriteria.RELEVANCE.value,
+            'Leverages an LLM to evaluate whether a retrieved document (stored under a "reference" column) is relevant or irrelevant to the corresponding query (stored under the "input" column).',  # noqa: E501
+        ),
+        (
+            "ToxicityEvaluator",
+            EvalCriteria.TOXICITY.value,
+            'Leverages an LLM to evaluate whether the string stored under the "input" column contains racist, sexist, chauvinistic, biased, or otherwise toxic content.',  # noqa: E501
+        ),
+        (
+            "QAEvaluator",
+            EvalCriteria.QA.value,
+            'Leverages an LLM to evaluate whether a response (stored under an "output" column) is correct or incorrect given a query (stored under an "input" column) and one or more retrieved documents (stored under a "reference" column).',  # noqa: E501
+        ),
+        (
+            "SummarizationEvaluator",
+            EvalCriteria.SUMMARIZATION.value,
+            'Leverages an LLM to evaluate whether a summary (stored under an "output" column) provides an accurate synopsis of an input document (stored under a "input" column).',  # noqa: E501
+        ),
+    ),
+)
 
 
 class MapReducer:

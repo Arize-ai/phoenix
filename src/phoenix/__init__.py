@@ -5,8 +5,7 @@ from .session.evaluation import log_evaluations
 from .session.session import NotebookEnvironment, Session, active_session, close_app, launch_app
 from .trace.fixtures import load_example_traces
 from .trace.trace_dataset import TraceDataset
-
-__version__ = "2.0.0"
+from .version import __version__
 
 # module level doc-string
 __doc__ = """
@@ -25,6 +24,7 @@ Here are just a few of the things that phoenix does well:
 """
 
 __all__ = [
+    "__version__",
     "Dataset",
     "EmbeddingColumnNames",
     "RetrievalEmbeddingColumnNames",
