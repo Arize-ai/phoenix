@@ -23,9 +23,9 @@ contains information relevant to answering the question. Here is the data:
 Compare the Question above to the Reference text. You must determine whether the Reference text
 contains information that can answer the Question. Please focus on whether the very specific
 question can be answered by the information in the Reference text.
-Your response must be single word, either "relevant" or "irrelevant",
+Your response must be single word, either "relevant" or "unrelated",
 and should not contain any text or characters aside from that word.
-"irrelevant" means that the reference text does not contain an answer to the Question.
+"unrelated" means that the reference text does not contain an answer to the Question.
 "relevant" means the reference text contains an answer to the Question.
 ```
 
