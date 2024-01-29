@@ -4,7 +4,7 @@
 
 This LLM Eval detects if the output of a model is a hallucination based on contextual data.
 
-This Eval is designed specifically designed for hallucinations relative to private or retrieved data, is an answer to a question a hallucination based on a set of contextual data.
+This Eval is specifically designed to detect hallucinations in generated answers from private or retrieved data. The Eval detects if an AI answer to a question is a hallucination based on the reference data used to generate the answer.
 
 
 

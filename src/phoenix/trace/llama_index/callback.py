@@ -7,7 +7,7 @@ It enables production LLMapp servers to seamlessly integrate with LLM
 observability solutions such as Arize and Phoenix.
 
 For more information on the specification, see
-https://github.com/Arize-ai/open-inference-spec
+https://github.com/Arize-ai/openinference
 """
 import json
 import logging
@@ -241,7 +241,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
     with LLM observability solutions such as Arize and Phoenix.
 
     For more information on the specification, see
-    https://github.com/Arize-ai/open-inference-spec
+    https://github.com/Arize-ai/openinference
     """
 
     def __init__(

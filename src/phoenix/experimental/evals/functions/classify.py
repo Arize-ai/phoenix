@@ -249,7 +249,7 @@ def run_relevance_eval(
 
         This latter format is intended for running evaluations on exported OpenInference trace
         dataframes. For more information on the OpenInference tracing specification, see
-        https://github.com/Arize-ai/open-inference-spec/.
+        https://github.com/Arize-ai/openinference/.
 
         model (BaseEvalModel): The model used for evaluation.
 
