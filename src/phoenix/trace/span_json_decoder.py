@@ -1,7 +1,6 @@
 import json
 from datetime import datetime
 from typing import Any, Dict, Optional
-from uuid import UUID
 
 from phoenix.trace.schemas import (
     MimeType,
@@ -10,8 +9,10 @@ from phoenix.trace.schemas import (
     SpanConversationAttributes,
     SpanEvent,
     SpanException,
+    SpanID,
     SpanKind,
     SpanStatusCode,
+    TraceID,
 )
 from phoenix.trace.semantic_conventions import (
     EXCEPTION_MESSAGE,
@@ -54,11 +55,11 @@ def json_to_span(data: Dict[str, Any]) -> Any:
         if not isinstance(context, dict):
             raise ValueError(f"context should be dict, but context={context}")
         data["context"] = SpanContext(
-            trace_id=UUID(context["trace_id"]),
-            span_id=UUID(context["span_id"]),
+            trace_id=TraceID(context["trace_id"]),
+            span_id=SpanID(context["span_id"]),
         )
         parent_id = data.get("parent_id")
-        data["parent_id"] = UUID(parent_id) if parent_id else None
+        data["parent_id"] = parent_id
         attributes = data.get("attributes")
         data["attributes"] = json_to_attributes(attributes)
         data["start_time"] = datetime.fromisoformat(data["start_time"])
