@@ -1,9 +1,15 @@
+---
+description: How to use phoenix outside of the notebook environment.
+---
+
 # Deploying Phoenix
 
-Phoenix has a different set of deployment options depending on your needs. There are two components that work together:
+Phoenix's notebook-first approach to observability makes it a great tool to utilize during experimentation and pre-production. However at some point you are going to want to ship your application to production and continue to monitor your application as it runs.&#x20;
 
-* Tracer: The tracers extract trace data for use in Phoenix&#x20;
-* Phoenix Application: Phoenix acts as a trace collector and application that visualizes the data for action.
+Phoenix is made up of two components that can be deployed independently:
+
+* **Trace Instrumentation**: These are a set of plugins that can be added to your application's startup process. These plugins (known as instrumentations) automatically collect spans for your application and export them for collection and visualization.
+* **Trace Collector (e.g. the Phoenix Server)**: The Phoenix server acts as a trace collector and application that helps you troubleshoot your application in real time.
 
 <figure><img src="../.gitbook/assets/deploying_pheonix_v2.jpg" alt=""><figcaption></figcaption></figure>
 
