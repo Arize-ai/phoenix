@@ -1,3 +1,4 @@
+import json
 from dataclasses import replace
 from datetime import datetime, timezone
 from random import random
@@ -281,36 +282,8 @@ def test_decode_encode_documents(span):
             value=AnyValue(double_value=score),
         ),
         KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m0",
-            value=AnyValue(string_value="111"),
-        ),
-        KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m1",
-            value=AnyValue(bool_value=True),
-        ),
-        KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m2",
-            value=AnyValue(int_value=333),
-        ),
-        KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m3",
-            value=AnyValue(double_value=444.0),
-        ),
-        KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m4",
-            value=AnyValue(array_value=ArrayValue(values=[AnyValue(string_value="1111")])),
-        ),
-        KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m5",
-            value=AnyValue(array_value=ArrayValue(values=[AnyValue(bool_value=True)])),
-        ),
-        KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m6",
-            value=AnyValue(array_value=ArrayValue(values=[AnyValue(int_value=3333)])),
-        ),
-        KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m7",
-            value=AnyValue(array_value=ArrayValue(values=[AnyValue(double_value=4444.0)])),
+            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}",
+            value=AnyValue(string_value=json.dumps(document_metadata)),
         ),
     ]
     assert set(map(MessageToJson, otlp_span.attributes)) == set(map(MessageToJson, otlp_attributes))
@@ -428,36 +401,8 @@ def test_decode_encode_message_tool_parameters(span):
             value=AnyValue(string_value="LLM"),
         ),
         KeyValue(
-            key=f"{TOOL_PARAMETERS}.title",
-            value=AnyValue(string_value="multiply"),
-        ),
-        KeyValue(
-            key=f"{TOOL_PARAMETERS}.properties.a.title",
-            value=AnyValue(string_value="A"),
-        ),
-        KeyValue(
-            key=f"{TOOL_PARAMETERS}.properties.a.type",
-            value=AnyValue(string_value="integer"),
-        ),
-        KeyValue(
-            key=f"{TOOL_PARAMETERS}.properties.b.title",
-            value=AnyValue(string_value="B"),
-        ),
-        KeyValue(
-            key=f"{TOOL_PARAMETERS}.properties.b.type",
-            value=AnyValue(string_value="integer"),
-        ),
-        KeyValue(
-            key=f"{TOOL_PARAMETERS}.required",
-            value=AnyValue(
-                array_value=ArrayValue(
-                    values=[AnyValue(string_value="a"), AnyValue(string_value="b")]
-                )
-            ),
-        ),
-        KeyValue(
-            key=f"{TOOL_PARAMETERS}.type",
-            value=AnyValue(string_value="object"),
+            key=f"{TOOL_PARAMETERS}",
+            value=AnyValue(string_value=json.dumps(attributes[TOOL_PARAMETERS])),
         ),
     ]
     assert set(map(MessageToJson, otlp_span.attributes)) == set(map(MessageToJson, otlp_attributes))
