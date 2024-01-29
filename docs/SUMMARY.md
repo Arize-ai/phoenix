@@ -39,9 +39,9 @@
 
 ## 🔮 Use Cases
 
-* [QA with Retrieval (Using Vector Stores)](use-cases/troubleshooting-llm-retrieval-with-vector-stores.md)
+* [Retrieval with Embeddings](use-cases/troubleshooting-llm-retrieval-with-vector-stores.md)
 * [Structured Extraction](use-cases/structured-extraction.md)
-* [Evaluate RAG with LLM Evals](use-cases/rag-evaluation.md)
+* [Evaluate RAG with Evals](use-cases/rag-evaluation.md)
 
 ## 🔢 How-To
 
@@ -55,7 +55,6 @@
 * [Export Your Data](how-to/export-your-data.md)
 * [Extract Data from Spans](how-to/extract-data-from-spans.md)
 * [Use Example Datasets](how-to/use-example-datasets.md)
-* [Contribute to Phoenix](how-to/contribute-to-phoenix.md)
 
 ## ⌨ API
 
@@ -80,6 +79,7 @@
 * [Embeddings](concepts/embeddings.md)
 * [OpenInference](concepts/open-inference.md)
 * [Frequently Asked Questions](reference/frequently-asked-questions.md)
+* [Contribute to Phoenix](reference/contribute-to-phoenix.md)
 
 ***
 
