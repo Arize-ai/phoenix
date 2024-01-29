@@ -189,7 +189,7 @@ exclude_lines = [
 
 [tool.hatch.envs.type.scripts]
 check = [
-  "mypy . --show-traceback",
+  "mypy .",
 ]
 
 [tool.hatch.envs.style.scripts]
