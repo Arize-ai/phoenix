@@ -124,6 +124,7 @@ dependencies = [
 [tool.hatch.envs.type]
 dependencies = [
   "mypy==1.5.1",
+  "pydantic==v1.10.14",  # for mypy
   "llama-index>=0.9.14",
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "types-psutil",
