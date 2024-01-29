@@ -5,11 +5,11 @@ Phoenix has a different set of deployment options depending on your needs. There
 * Tracer: The tracers extract trace data for use in Phoenix&#x20;
 * Phoenix Application: Phoenix acts as a trace collector and application that visualizes the data for action.
 
-<figure><img src="../.gitbook/assets/deploying_phoeix_ways_to_collect.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../.gitbook/assets/deploying_pheonix_v2.jpg" alt=""><figcaption></figcaption></figure>
 
 The above instrumentation options determine how the data is collected from the LLM tracers.&#x20;
 
-<figure><img src="../.gitbook/assets/hosting_options.png" alt=""><figcaption><p>Deployment Options</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/deploying_phoenix_deployment_options.jpg" alt=""><figcaption></figcaption></figure>
 
 * **Notebook** - Runs locally from a Colab, Jupyter, SageMaker, or Databricks notebook. Data is collected using the tracer and is passed through in memory objects so no need for IP configuration. &#x20;
 * **Local Computer** - Runs locally on computer and connects to LLM tracer through IP socket.
