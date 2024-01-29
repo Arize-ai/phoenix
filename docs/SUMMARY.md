@@ -2,6 +2,7 @@
 
 * [Phoenix: AI Observability & Evaluation](README.md)
 * [Examples](notebooks.md)
+* [Environments](environments.md)
 
 ## 🔑 Quickstart
 
@@ -63,21 +64,20 @@
 * [Evals](api/evals.md)
 * [Models](api/evaluation-models.md)
 
+## ☁ deployment
+
+* [Deploying Phoenix](deployment/deploying-phoenix.md)
+
 ## 🔌 INTEGRATIONS
 
 * [LlamaIndex](integrations/llamaindex.md)
 * [LangChain](integrations/langchain.md)
 * [OpenAI](integrations/openai.md)
-* [Arize](integrations/bring-production-data-to-notebook-for-eda-or-retraining.md)
 * [AutoGen](integrations/autogen-support.md)
-
-## ☁ deployment
-
-* [Deploying Phoenix](deployment/deploying-phoenix.md)
+* [Arize](integrations/bring-production-data-to-notebook-for-eda-or-retraining.md)
 
 ## 📚 Reference
 
-* [Environments](reference/environments.md)
 * [Embeddings](concepts/embeddings.md)
 * [OpenInference](concepts/open-inference.md)
 * [Frequently Asked Questions](reference/frequently-asked-questions.md)
