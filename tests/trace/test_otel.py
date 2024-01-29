@@ -30,6 +30,7 @@ from phoenix.trace.semantic_conventions import (
     EXCEPTION_STACKTRACE,
     EXCEPTION_TYPE,
     LLM_OUTPUT_MESSAGES,
+    LLM_PROMPT_TEMPLATE_VARIABLES,
     MESSAGE_ROLE,
     MESSAGE_TOOL_CALLS,
     OPENINFERENCE_SPAN_KIND,
@@ -381,7 +382,29 @@ def test_decode_encode_message_tool_calls(span):
     assert decoded_span.attributes[LLM_OUTPUT_MESSAGES] == span.attributes[LLM_OUTPUT_MESSAGES]
 
 
-def test_decode_encode_message_tool_parameters(span):
+def test_decode_encode_llm_prompt_template_variables(span):
+    attributes = {LLM_PROMPT_TEMPLATE_VARIABLES: {"context_str": "123", "query_str": "321"}}
+    span = replace(span, attributes=attributes)
+    otlp_span = encode(span)
+    otlp_attributes = [
+        KeyValue(
+            key=OPENINFERENCE_SPAN_KIND,
+            value=AnyValue(string_value="LLM"),
+        ),
+        KeyValue(
+            key=f"{LLM_PROMPT_TEMPLATE_VARIABLES}",
+            value=AnyValue(string_value=json.dumps(attributes[LLM_PROMPT_TEMPLATE_VARIABLES])),
+        ),
+    ]
+    assert set(map(MessageToJson, otlp_span.attributes)) == set(map(MessageToJson, otlp_attributes))
+    decoded_span = decode(otlp_span)
+    assert (
+        decoded_span.attributes[LLM_PROMPT_TEMPLATE_VARIABLES]
+        == span.attributes[LLM_PROMPT_TEMPLATE_VARIABLES]
+    )
+
+
+def test_decode_encode_tool_parameters(span):
     attributes = {
         TOOL_PARAMETERS: {
             "title": "multiply",
