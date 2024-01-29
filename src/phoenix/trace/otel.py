@@ -1,3 +1,4 @@
+import json
 from binascii import hexlify, unhexlify
 from datetime import datetime, timezone
 from types import MappingProxyType
@@ -36,13 +37,16 @@ from phoenix.trace.schemas import (
     TraceID,
 )
 from phoenix.trace.semantic_conventions import (
+    DOCUMENT_METADATA,
     EXCEPTION_ESCAPED,
     EXCEPTION_MESSAGE,
     EXCEPTION_STACKTRACE,
     EXCEPTION_TYPE,
     INPUT_MIME_TYPE,
+    LLM_PROMPT_TEMPLATE_VARIABLES,
     OPENINFERENCE_SPAN_KIND,
     OUTPUT_MIME_TYPE,
+    TOOL_PARAMETERS,
 )
 
 
@@ -56,7 +60,7 @@ def decode(otlp_span: otlp.Span) -> Span:
         _decode_unix_nano(otlp_span.end_time_unix_nano) if otlp_span.end_time_unix_nano else None
     )
 
-    attributes = dict(_unflatten(_decode_key_values(otlp_span.attributes)))
+    attributes = dict(_unflatten(_load_json_strings(_decode_key_values(otlp_span.attributes))))
     span_kind = SpanKind(attributes.pop(OPENINFERENCE_SPAN_KIND, None))
 
     for mime_type in (INPUT_MIME_TYPE, OUTPUT_MIME_TYPE):
@@ -141,6 +145,27 @@ def _decode_value(any_value: AnyValue) -> Any:
     if which is None:
         return None
     assert_never(which)
+
+
+_JSON_STRING_ATTRIBUTES = (
+    DOCUMENT_METADATA,
+    LLM_PROMPT_TEMPLATE_VARIABLES,
+    TOOL_PARAMETERS,
+)
+
+
+def _load_json_strings(key_values: Iterable[Tuple[str, Any]]) -> Iterator[Tuple[str, Any]]:
+    for key, value in key_values:
+        if key.endswith(_JSON_STRING_ATTRIBUTES):
+            try:
+                dict_value = json.loads(value)
+            except json.JSONDecodeError:
+                yield key, value
+            else:
+                if dict_value:
+                    yield key, dict_value
+        else:
+            yield key, value
 
 
 StatusMessage: TypeAlias = str
@@ -291,7 +316,10 @@ def encode(span: Span) -> otlp.Span:
             attributes.pop(key, None)
         elif isinstance(value, Mapping):
             attributes.pop(key, None)
-            attributes.update(_flatten_mapping(value, key))
+            if key.endswith(_JSON_STRING_ATTRIBUTES):
+                attributes[key] = json.dumps(value)
+            else:
+                attributes.update(_flatten_mapping(value, key))
         elif not isinstance(value, str) and isinstance(value, Sequence) and _has_mapping(value):
             attributes.pop(key, None)
             attributes.update(_flatten_sequence(value, key))
@@ -351,7 +379,10 @@ def _flatten_mapping(
     for key, value in mapping.items():
         prefixed_key = f"{prefix}.{key}"
         if isinstance(value, Mapping):
-            yield from _flatten_mapping(value, prefixed_key)
+            if key.endswith(_JSON_STRING_ATTRIBUTES):
+                yield prefixed_key, json.dumps(value)
+            else:
+                yield from _flatten_mapping(value, prefixed_key)
         elif isinstance(value, Sequence):
             yield from _flatten_sequence(value, prefixed_key)
         elif value is not None:

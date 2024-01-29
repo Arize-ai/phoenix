@@ -1,3 +1,4 @@
+import json
 from dataclasses import replace
 from datetime import datetime, timezone
 from random import random
@@ -29,6 +30,7 @@ from phoenix.trace.semantic_conventions import (
     EXCEPTION_STACKTRACE,
     EXCEPTION_TYPE,
     LLM_OUTPUT_MESSAGES,
+    LLM_PROMPT_TEMPLATE_VARIABLES,
     MESSAGE_ROLE,
     MESSAGE_TOOL_CALLS,
     OPENINFERENCE_SPAN_KIND,
@@ -281,36 +283,8 @@ def test_decode_encode_documents(span):
             value=AnyValue(double_value=score),
         ),
         KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m0",
-            value=AnyValue(string_value="111"),
-        ),
-        KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m1",
-            value=AnyValue(bool_value=True),
-        ),
-        KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m2",
-            value=AnyValue(int_value=333),
-        ),
-        KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m3",
-            value=AnyValue(double_value=444.0),
-        ),
-        KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m4",
-            value=AnyValue(array_value=ArrayValue(values=[AnyValue(string_value="1111")])),
-        ),
-        KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m5",
-            value=AnyValue(array_value=ArrayValue(values=[AnyValue(bool_value=True)])),
-        ),
-        KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m6",
-            value=AnyValue(array_value=ArrayValue(values=[AnyValue(int_value=3333)])),
-        ),
-        KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m7",
-            value=AnyValue(array_value=ArrayValue(values=[AnyValue(double_value=4444.0)])),
+            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}",
+            value=AnyValue(string_value=json.dumps(document_metadata)),
         ),
     ]
     assert set(map(MessageToJson, otlp_span.attributes)) == set(map(MessageToJson, otlp_attributes))
@@ -408,7 +382,29 @@ def test_decode_encode_message_tool_calls(span):
     assert decoded_span.attributes[LLM_OUTPUT_MESSAGES] == span.attributes[LLM_OUTPUT_MESSAGES]
 
 
-def test_decode_encode_message_tool_parameters(span):
+def test_decode_encode_llm_prompt_template_variables(span):
+    attributes = {LLM_PROMPT_TEMPLATE_VARIABLES: {"context_str": "123", "query_str": "321"}}
+    span = replace(span, attributes=attributes)
+    otlp_span = encode(span)
+    otlp_attributes = [
+        KeyValue(
+            key=OPENINFERENCE_SPAN_KIND,
+            value=AnyValue(string_value="LLM"),
+        ),
+        KeyValue(
+            key=f"{LLM_PROMPT_TEMPLATE_VARIABLES}",
+            value=AnyValue(string_value=json.dumps(attributes[LLM_PROMPT_TEMPLATE_VARIABLES])),
+        ),
+    ]
+    assert set(map(MessageToJson, otlp_span.attributes)) == set(map(MessageToJson, otlp_attributes))
+    decoded_span = decode(otlp_span)
+    assert (
+        decoded_span.attributes[LLM_PROMPT_TEMPLATE_VARIABLES]
+        == span.attributes[LLM_PROMPT_TEMPLATE_VARIABLES]
+    )
+
+
+def test_decode_encode_tool_parameters(span):
     attributes = {
         TOOL_PARAMETERS: {
             "title": "multiply",
@@ -428,36 +424,8 @@ def test_decode_encode_message_tool_parameters(span):
             value=AnyValue(string_value="LLM"),
         ),
         KeyValue(
-            key=f"{TOOL_PARAMETERS}.title",
-            value=AnyValue(string_value="multiply"),
-        ),
-        KeyValue(
-            key=f"{TOOL_PARAMETERS}.properties.a.title",
-            value=AnyValue(string_value="A"),
-        ),
-        KeyValue(
-            key=f"{TOOL_PARAMETERS}.properties.a.type",
-            value=AnyValue(string_value="integer"),
-        ),
-        KeyValue(
-            key=f"{TOOL_PARAMETERS}.properties.b.title",
-            value=AnyValue(string_value="B"),
-        ),
-        KeyValue(
-            key=f"{TOOL_PARAMETERS}.properties.b.type",
-            value=AnyValue(string_value="integer"),
-        ),
-        KeyValue(
-            key=f"{TOOL_PARAMETERS}.required",
-            value=AnyValue(
-                array_value=ArrayValue(
-                    values=[AnyValue(string_value="a"), AnyValue(string_value="b")]
-                )
-            ),
-        ),
-        KeyValue(
-            key=f"{TOOL_PARAMETERS}.type",
-            value=AnyValue(string_value="object"),
+            key=f"{TOOL_PARAMETERS}",
+            value=AnyValue(string_value=json.dumps(attributes[TOOL_PARAMETERS])),
         ),
     ]
     assert set(map(MessageToJson, otlp_span.attributes)) == set(map(MessageToJson, otlp_attributes))
