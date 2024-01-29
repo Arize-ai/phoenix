@@ -43,6 +43,7 @@ from phoenix.trace.semantic_conventions import (
     EXCEPTION_STACKTRACE,
     EXCEPTION_TYPE,
     INPUT_MIME_TYPE,
+    LLM_PROMPT_TEMPLATE_VARIABLES,
     OPENINFERENCE_SPAN_KIND,
     OUTPUT_MIME_TYPE,
     TOOL_PARAMETERS,
@@ -148,6 +149,7 @@ def _decode_value(any_value: AnyValue) -> Any:
 
 _JSON_STRING_ATTRIBUTES = (
     DOCUMENT_METADATA,
+    LLM_PROMPT_TEMPLATE_VARIABLES,
     TOOL_PARAMETERS,
 )
 
