@@ -9,6 +9,10 @@ description: >-
 Phoenix app is first and foremost an application that can be run just in in your notebook! This makes it an extremely flexible app since it can be accessed directly as you iterate on your AI-powered app!\
 
 
+{% hint style="info" %}
+Looking how to deploy Phoenix outside of the notebook? Checkout the [deployment guide.](deployment/deploying-phoenix.md)
+{% endhint %}
+
 ### Notebooks
 
 Currently phoenix supports local, colab, databricks, and SageMaker notebooks.
@@ -70,6 +74,8 @@ OpenAIInstrumentor(tracer).instrument()
 ```
 {% endtab %}
 {% endtabs %}
+
+Note that the above is only necessary if your application is running in a Jupyter notebook. If you are trying to deploy your application and have phoenix collect traces via a container, please consult the [deployment guide.](deployment/deploying-phoenix.md)
 
 ### Terminal
 
