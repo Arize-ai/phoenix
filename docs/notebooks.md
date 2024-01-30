@@ -16,7 +16,7 @@ Don't want to run a notebook? Check out our tracing demo site!&#x20;
 
 Example full-stack applications instrumented using OpenInference and observed via phoenix server instances.
 
-<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td><strong>Python</strong></td><td>LlamaIndex, Fast API Instrumentation</td><td><a href=".gitbook/assets/python.png">python.png</a></td></tr><tr><td><strong>Javascript</strong></td><td>OpenAI, Express, Next.JS</td><td><a href=".gitbook/assets/javascript.png">javascript.png</a></td></tr></tbody></table>
+<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><strong>Python</strong></td><td>LlamaIndex, Fast API Instrumentation</td><td><a href=".gitbook/assets/python.png">python.png</a></td><td><a href="https://github.com/Arize-ai/openinference/tree/main/python/examples">https://github.com/Arize-ai/openinference/tree/main/python/examples</a></td></tr><tr><td><strong>Javascript</strong></td><td>OpenAI, Express, Next.JS</td><td><a href=".gitbook/assets/javascript.png">javascript.png</a></td><td><a href="https://github.com/Arize-ai/openinference/tree/main/js/examples">https://github.com/Arize-ai/openinference/tree/main/js/examples</a></td></tr></tbody></table>
 
 ## LLM Traces
 
