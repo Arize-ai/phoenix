@@ -1,7 +1,5 @@
 ---
-description: >-
-  Evaluate, troubleshoot, and fine-tune your LLM, CV, and NLP models in a
-  notebook.
+description: Evaluate, troubleshoot, and fine-tune your LLM, CV, and NLP models.
 cover: >-
   https://images.unsplash.com/photo-1610296669228-602fa827fc1f?crop=entropy&cs=tinysrgb&fm=jpg&ixid=MnwxOTcwMjR8MHwxfHNlYXJjaHw1fHxzcGFjZXxlbnwwfHx8fDE2NzkwOTMzODc&ixlib=rb-4.0.3&q=80
 coverY: 0
@@ -9,7 +7,7 @@ coverY: 0
 
 # Phoenix: AI Observability & Evaluation
 
-Phoenix is an open-source observability library designed for experimentation, evaluation, and troubleshooting.
+Phoenix is an open-source observability library and platform designed for experimentation, evaluation, and troubleshooting.
 
 The toolset is designed to ingest [inference data](quickstart/phoenix-inferences/inferences.md) for [LLMs](concepts/llm-observability.md), CV, NLP, and tabular datasets as well as [LLM traces](quickstart/llm-traces.md). It allows AI Engineers and Data Scientists to quickly visualize their data, evaluate performance, track down issues & insights, and easily export to improve.&#x20;
 
