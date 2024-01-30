@@ -1,8 +1,8 @@
 ---
-description: How to fly with Phoenix
+description: How to install Phoenix for Observability and evaluation
 ---
 
-# Install and Import Phoenix
+# Installation
 
 In your Jupyter or Colab environment, run the following command to install.
 
@@ -20,7 +20,7 @@ conda install -c conda-forge arize-phoenix
 {% endtab %}
 {% endtabs %}
 
-Note that the above only installs dependencies that are necessary to run the application. Phoenix also has an experimental sub-module where you can find [LLM Evals](../llm-evals/llm-evals.md).
+Note that the above only installs dependencies that are necessary to run the application. Phoenix also has an experimental sub-module where you can find [LLM Evals](llm-evals/llm-evals.md).
 
 ```sh
 pip install arize-phoenix[experimental]

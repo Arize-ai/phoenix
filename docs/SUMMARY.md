@@ -2,6 +2,7 @@
 
 * [Phoenix: AI Observability & Evaluation](README.md)
 * [Examples](notebooks.md)
+* [Installation](install-and-import-phoenix.md)
 * [Environments](environments.md)
 
 ## 🔑 Quickstart
@@ -46,7 +47,6 @@
 
 ## 🔢 How-To
 
-* [Install and Import Phoenix](how-to/install-and-import-phoenix.md)
 * [Import Your Data](how-to/define-your-schema/README.md)
   * [LLM Evaluations](how-to/define-your-schema/llm-evaluations.md)
   * [Prompt and Response (LLM)](how-to/define-your-schema/prompt-and-response-llm.md)
@@ -57,17 +57,17 @@
 * [Extract Data from Spans](how-to/extract-data-from-spans.md)
 * [Use Example Datasets](how-to/use-example-datasets.md)
 
+## ☁ deployment
+
+* [Deploying Phoenix](deployment/deploying-phoenix.md)
+* [Instrumentation](deployment/instrumentation.md)
+
 ## ⌨ API
 
 * [Dataset and Schema](api/dataset-and-schema.md)
 * [Session](api/session.md)
 * [Evals](api/evals.md)
 * [Models](api/evaluation-models.md)
-
-## ☁ deployment
-
-* [Deploying Phoenix](deployment/deploying-phoenix.md)
-* [Instrumentation](deployment/instrumentation.md)
 
 ## 🔌 INTEGRATIONS
 
