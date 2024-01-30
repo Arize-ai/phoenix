@@ -6,6 +6,8 @@ description: >-
 
 # Environments
 
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/environments.png" alt=""><figcaption><p>Phoenix can be run locally, via a cloud notebook, or as a container</p></figcaption></figure>
+
 Phoenix app is first and foremost an application that can be run just in in your notebook! This makes it an extremely flexible app since it can be accessed directly as you iterate on your AI-powered app!\
 
 
