@@ -57,7 +57,7 @@
 * [Extract Data from Spans](how-to/extract-data-from-spans.md)
 * [Use Example Datasets](how-to/use-example-datasets.md)
 
-## ☁ deployment
+## 🚀 deployment
 
 * [Deploying Phoenix](deployment/deploying-phoenix.md)
 * [Instrumentation](deployment/instrumentation.md)

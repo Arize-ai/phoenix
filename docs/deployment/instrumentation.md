@@ -6,7 +6,7 @@ description: >-
 
 # Instrumentation
 
-<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/instrumentation.png" alt=""><figcaption><p>Instrumentations available via OpenInference</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/integrations (1).png" alt=""><figcaption><p>Instrumentations available via OpenInference</p></figcaption></figure>
 
 
 
