@@ -67,6 +67,7 @@
 ## ☁ deployment
 
 * [Deploying Phoenix](deployment/deploying-phoenix.md)
+* [Instrumentation](deployment/instrumentation.md)
 
 ## 🔌 INTEGRATIONS
 

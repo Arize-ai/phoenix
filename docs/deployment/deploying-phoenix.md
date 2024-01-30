@@ -8,8 +8,16 @@ Phoenix's notebook-first approach to observability makes it a great tool to util
 
 Phoenix is made up of two components that can be deployed independently:
 
-* **Trace Instrumentation**: These are a set of plugins that can be added to your application's startup process. These plugins (known as instrumentations) automatically collect spans for your application and export them for collection and visualization.
+* **Trace Instrumentation**: These are a set of plugins that can be added to your application's startup process. These plugins (known as instrumentations) automatically collect spans for your application and export them for collection and visualization. For phoenix, all the instrumentors are managed via a single repository called [OpenInference](https://github.com/Arize-ai/openinference)
 * **Trace Collector (e.g. the Phoenix Server)**: The Phoenix server acts as a trace collector and application that helps you troubleshoot your application in real time.
+
+In order to run Phoenix tracing in production, you will have to follow these following steps:\
+
+
+1. Convert your notebook application to run on a server
+2. Add [OpenInference](https://github.com/Arize-ai/openinference) Instrumentation to your server&#x20;
+3. Run the Phoenix server
+4. Point your tracing instrumentation to the phoenix server
 
 <figure><img src="../.gitbook/assets/deploying_pheonix_v2.jpg" alt=""><figcaption></figcaption></figure>
 
