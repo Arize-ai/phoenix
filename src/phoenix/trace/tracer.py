@@ -10,7 +10,12 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import SpanProcessor
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
-from phoenix.trace.exporter import OpenInferenceExporter, _is_legacy_exporter
+from phoenix.trace.exporter import (
+    HttpExporter,
+    NoOpExporter,
+    OpenInferenceExporter,
+    _convert_legacy_exporters,
+)
 
 from .schemas import (
     Span,
@@ -36,9 +41,9 @@ class SpanExporter(Protocol):
 class OpenInferenceTracer:
     def __init__(
         self,
-        exporter=Optional[Union[SpanExporter, OpenInferenceExporter]],
-        resource=None,
-        span_processors: Sequence[SpanProcessor] = None,
+        exporter: Optional[Union[OpenInferenceExporter, HttpExporter, NoOpExporter]] = None,
+        resource: Optional[Resource] = None,
+        span_processors: Optional[Sequence[SpanProcessor]] = None,
         on_append: Optional[Callable[[List[Span]], None]] = None,
     ):
         if resource is None:
@@ -47,9 +52,7 @@ class OpenInferenceTracer:
 
         if exporter is None:
             exporter = OpenInferenceExporter()
-        elif _is_legacy_exporter(exporter):
-            exporter = OpenInferenceExporter._from_legacy_exporter(exporter)
-        self.exporter = exporter
+        self.exporter = _convert_legacy_exporters(exporter)
 
         if on_append is not None:
             self._on_append_deprecation_warning()
@@ -83,14 +86,25 @@ class OpenInferenceTracer:
         )
 
     @classmethod
-    def _from_legacy_tracer(cls, tracer: "Tracer"):
+    def _from_legacy_tracer(cls, tracer: "Tracer") -> "OpenInferenceTracer":
         logger.warning(
             "OpenInference has been updated for full OpenTelemetry compliance. The legacy"
             "Tracer objects are deprecated. Please migrate to OpenInferenceTracer or configure "
             "OpenTelemetry TracerProvider directly. More examples can be found in the Phoenix "
             "docs: https://docs.arize.com/phoenix/deployment/instrumentation"
         )
-        return cls(exporter=tracer._exporter)
+        exporter = tracer._exporter
+        if isinstance(exporter, (NoOpExporter, HttpExporter, OpenInferenceExporter)):
+            return cls(exporter=exporter)
+        else:
+            raise TypeError(
+                "OpenInference has been updated for full OpenTelemetry compliance. Generic "
+                "TraceExporter objects are no longer supported. Legacy Phoenix HttpExporter and "
+                "NoOpExporter objects are deprecated, but will continue to be supported. For "
+                "custom exporters, consider adding an OpenTelemetry SpanProcessor to the "
+                "OpenTelemetry TracerProvider. More examples can be found in the Phoenix docs: "
+                "https://docs.arize.com/phoenix/deployment/instrumentation"
+            )
 
 
 class Tracer:

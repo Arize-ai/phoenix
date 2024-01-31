@@ -12,8 +12,8 @@ class OpenAIInstrumentor:
         """Instruments your OpenAI client to automatically create spans for each API call.
 
         Args:
-            tracer (Optional[Tracer, OpenInferenceTracer], optional): A tracer to record and handle spans. If not
-            provided, the default tracer will be used.
+            tracer (Optional[Tracer, OpenInferenceTracer], optional): A tracer to record and handle
+            spans. If not provided, the default tracer will be used.
         """
         if tracer is None:
             tracer = OpenInferenceTracer()

@@ -9,6 +9,7 @@ from typing import Any, Optional, Union
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import requests
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from requests import Session
 from typing_extensions import TypeAlias, assert_never
 
@@ -30,12 +31,21 @@ class NoOpExporter:
         pass
 
 
+class OTELNoOpExporter(SpanExporter):
+    def export(self, _: Any) -> SpanExportResult:
+        return SpanExportResult.SUCCESS
+
+    def shutdown(self) -> None:
+        pass
+
+
 class OpenInferenceExporter:
     def __init__(
         self,
         endpoint: Optional[str] = None,
         host: Optional[str] = None,
         port: Optional[int] = None,
+        no_op: bool = False,
     ) -> None:
         """
         Span/Evaluation Exporter using HTTP.
@@ -60,7 +70,11 @@ class OpenInferenceExporter:
         # Make sure the url does not end with a slash
         self._base_url = self._phoenix_otel_endpoint(endpoint.rstrip("/"))
         self._warn_if_phoenix_is_not_running()
-        self.exporter = OTLPSpanExporter(endpoint=self._base_url)
+
+        if no_op:
+            self.exporter = OTELNoOpExporter()
+        else:
+            self.exporter = OTLPSpanExporter(endpoint=self._base_url)
 
     def _phoenix_otel_endpoint(self, url: str) -> str:
         return f"{url}/v1/traces"
@@ -75,13 +89,17 @@ class OpenInferenceExporter:
             )
 
     @classmethod
-    def _from_legacy_exporter(cls, exporter: "HttpExporter") -> "OpenInferenceExporter":
+    def _from_legacy_exporter(
+        cls, exporter: Union["HttpExporter", NoOpExporter]
+    ) -> "OpenInferenceExporter":
         logger.warning(
             "OpenInference has been updated for full OpenTelemetry compliance. The legacy"
             "Exporter objects are deprecated. Please migrate to OpenInferenceExporter or "
             "configure OpenTelemetry trace processors directly. More examples can be found in the "
             "Phoenix docs: https://docs.arize.com/phoenix/deployment/instrumentation"
         )
+        if isinstance(exporter, NoOpExporter):
+            return cls(no_op=True)
         return cls(endpoint=exporter._base_url)
 
 
@@ -176,5 +194,9 @@ class HttpExporter:
             )
 
 
-def _is_legacy_exporter(exporter: Any) -> bool:
-    return isinstance(exporter, HttpExporter)
+def _convert_legacy_exporters(
+    exporter: Union[OpenInferenceExporter, HttpExporter, NoOpExporter]
+) -> OpenInferenceExporter:
+    if isinstance(exporter, (HttpExporter, NoOpExporter)):
+        exporter = OpenInferenceExporter._from_legacy_exporter(exporter)
+    return exporter
