@@ -1,3 +1,5 @@
+import asyncio
+from functools import partial
 from typing import Optional, cast
 
 import pandas as pd
@@ -20,7 +22,15 @@ class GetSpansDataFrameHandler(HTTPEndpoint):
     async def post(self, request: Request) -> Response:
         payload = await request.json()
         filter_condition = cast(str, payload.pop("filter_condition", None) or "")
-        valid_eval_names = self.evals.get_span_evaluation_names() if self.evals else ()
+        loop = asyncio.get_running_loop()
+        valid_eval_names = (
+            await loop.run_in_executor(
+                None,
+                self.evals.get_span_evaluation_names,
+            )
+            if self.evals
+            else ()
+        )
         try:
             span_filter = SpanFilter(
                 filter_condition,
@@ -32,17 +42,22 @@ class GetSpansDataFrameHandler(HTTPEndpoint):
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
                 content=f"Invalid filter condition: {e}",
             )
-        df = get_spans_dataframe(
-            self.traces,
-            span_filter,
-            start_time=payload.get("start_time"),
-            stop_time=payload.get("stop_time"),
-            root_spans_only=payload.get("root_spans_only"),
+        df = await loop.run_in_executor(
+            None,
+            partial(
+                get_spans_dataframe,
+                self.traces,
+                span_filter,
+                start_time=payload.get("start_time"),
+                stop_time=payload.get("stop_time"),
+                root_spans_only=payload.get("root_spans_only"),
+            ),
         )
         if df is None:
             return Response(status_code=HTTP_404_NOT_FOUND)
+        content = await loop.run_in_executor(None, _df_to_bytes, df)
         return Response(
-            content=_df_to_bytes(df),
+            content=content,
             media_type="application/x-pandas-arrow",
         )
 
@@ -54,7 +69,15 @@ class QuerySpansHandler(HTTPEndpoint):
     async def post(self, request: Request) -> Response:
         payload = await request.json()
         queries = payload.pop("queries", [])
-        valid_eval_names = self.evals.get_span_evaluation_names() if self.evals else ()
+        loop = asyncio.get_running_loop()
+        valid_eval_names = (
+            await loop.run_in_executor(
+                None,
+                self.evals.get_span_evaluation_names,
+            )
+            if self.evals
+            else ()
+        )
         try:
             span_queries = [
                 SpanQuery.from_dict(
@@ -69,16 +92,25 @@ class QuerySpansHandler(HTTPEndpoint):
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
                 content=f"Invalid query: {e}",
             )
-        results = query_spans(
-            self.traces,
-            *span_queries,
-            start_time=payload.get("start_time"),
-            stop_time=payload.get("stop_time"),
+        results = await loop.run_in_executor(
+            None,
+            partial(
+                query_spans,
+                self.traces,
+                *span_queries,
+                start_time=payload.get("start_time"),
+                stop_time=payload.get("stop_time"),
+                root_spans_only=payload.get("root_spans_only"),
+            ),
         )
         if not results:
             return Response(status_code=HTTP_404_NOT_FOUND)
+        content = await loop.run_in_executor(
+            None,
+            lambda: b"".join(_df_to_bytes(df) for df in results),
+        )
         return Response(
-            content=b"".join(_df_to_bytes(df) for df in results),
+            content=content,
             media_type="application/x-pandas-arrow",
         )
 
