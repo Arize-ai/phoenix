@@ -72,9 +72,9 @@ class Client:
         elif response.status_code == 422:
             raise ValueError(response.content.decode())
         response.raise_for_status()
-        stream = BytesIO(response.content)
-        with pa.ipc.open_stream(stream) as pa_stream:
-            return cast(pd.DataFrame, pa_stream.read_all().to_pandas())
+        source = BytesIO(response.content)
+        with pa.ipc.open_stream(source) as reader:
+            return cast(pd.DataFrame, reader.read_pandas())
 
     def query_spans(
         self,
@@ -107,12 +107,12 @@ class Client:
         elif response.status_code == 422:
             raise ValueError(response.content.decode())
         response.raise_for_status()
-        stream = BytesIO(response.content)
+        source = BytesIO(response.content)
         results = []
         while True:
             try:
-                with pa.ipc.open_stream(stream) as pa_stream:
-                    results.append(pa_stream.read_all().to_pandas())
+                with pa.ipc.open_stream(source) as reader:
+                    results.append(reader.read_pandas())
             except ArrowInvalid:
                 break
         return results[0] if len(results) == 1 else results
@@ -127,14 +127,13 @@ class Client:
         elif response.status_code == 422:
             raise ValueError(response.content.decode())
         response.raise_for_status()
-        stream = BytesIO(response.content)
+        source = BytesIO(response.content)
         results = []
         while True:
             try:
-                with pa.ipc.open_stream(stream) as pa_stream:
-                    pa_table: pa.Table = pa_stream.read_all()
-                    evaluations = Evaluations.from_pyarrow_table(pa_table)
-                    results.append(evaluations)
+                with pa.ipc.open_stream(source) as reader:
+                    pa_table = reader.read_all()
+                    results.append(Evaluations.from_pyarrow_table(pa_table))
             except ArrowInvalid:
                 break
         return results
