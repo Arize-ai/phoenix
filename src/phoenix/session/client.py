@@ -3,6 +3,7 @@ import weakref
 from datetime import datetime
 from io import BytesIO
 from typing import List, Optional, Union, cast
+from urllib.parse import urljoin
 
 import pandas as pd
 import pyarrow as pa
@@ -56,7 +57,7 @@ class Client:
                 root_spans_only=root_spans_only,
             )
         response = self._session.post(
-            url=f"{self._base_url}/v1/get_spans_dataframe",
+            url=urljoin(self._base_url, "v1/get_spans_dataframe"),
             json={
                 "filter_condition": filter_condition,
                 "start_time": start_time,
@@ -91,7 +92,7 @@ class Client:
                 root_spans_only=root_spans_only,
             )
         response = self._session.post(
-            url=f"{self._base_url}/v1/query_spans",
+            url=urljoin(self._base_url, "v1/query_spans"),
             json={
                 "queries": [q.to_dict() for q in queries],
                 "start_time": start_time,
@@ -120,7 +121,7 @@ class Client:
 
     def _warn_if_phoenix_is_not_running(self) -> None:
         try:
-            self._session.get(f"{self._base_url}/arize_phoenix_version").raise_for_status()
+            self._session.get(urljoin(self._base_url, "arize_phoenix_version")).raise_for_status()
         except Exception:
             logger.warning(
                 f"Arize Phoenix is not running on {self._base_url}. Launch Phoenix "
