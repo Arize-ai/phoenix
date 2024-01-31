@@ -383,13 +383,16 @@ class ThreadSession(Session):
             )
             for query in queries
         )
-        return query_spans(
+        results = query_spans(
             traces,
             *queries,
             start_time=start_time,
             stop_time=stop_time,
             root_spans_only=root_spans_only,
         )
+        if len(results) == 1:
+            return results[0]
+        return results
 
     def get_spans_dataframe(
         self,
