@@ -178,8 +178,8 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
         )
         return table
 
-    @classmethod
-    def from_pyarrow_table(self, table: Table) -> "Evaluations":
+    @staticmethod
+    def from_pyarrow_table(table: Table) -> "Evaluations":
         schema = table.schema
         eval_id, eval_name, evaluations_cls = _parse_schema_metadata(schema)
         dataframe = table.to_pandas()
