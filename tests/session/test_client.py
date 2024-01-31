@@ -26,8 +26,6 @@ def test_query_spans(client: Client, endpoint: str, dataframe: pd.DataFrame):
     df0, df1 = dataframe.iloc[:1, :], dataframe.iloc[1:, :]
     url = f"{endpoint}/v1/query_spans"
 
-    assert client.query_spans() is None
-
     responses.post(url, body=b"".join([_df_to_bytes(df0), _df_to_bytes(df1)]))
     query = SpanQuery()
     dfs = client.query_spans(query, query)
@@ -40,6 +38,9 @@ def test_query_spans(client: Client, endpoint: str, dataframe: pd.DataFrame):
 
     responses.post(url, body=_df_to_bytes(df0))
     assert_frame_equal(client.query_spans(query), df0)
+
+    responses.post(url, body=_df_to_bytes(df1))
+    assert_frame_equal(client.query_spans(), df1)
 
 
 @pytest.fixture

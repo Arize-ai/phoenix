@@ -79,14 +79,16 @@ class Client:
         *queries: SpanQuery,
         start_time: Optional[datetime] = None,
         stop_time: Optional[datetime] = None,
+        root_spans_only: Optional[bool] = None,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
         if not queries:
-            return None
+            queries = (SpanQuery(),)
         if self._use_active_session_if_available and (session := px.active_session()):
             return session.query_spans(
                 *queries,
                 start_time=start_time,
                 stop_time=stop_time,
+                root_spans_only=root_spans_only,
             )
         response = self._session.post(
             url=f"{self._base_url}/v1/query_spans",
@@ -94,6 +96,7 @@ class Client:
                 "queries": [q.to_dict() for q in queries],
                 "start_time": start_time,
                 "stop_time": stop_time,
+                "root_spans_only": root_spans_only,
             },
         )
         if response.status_code == 404:

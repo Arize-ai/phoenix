@@ -185,6 +185,7 @@ class Session(ABC):
         *queries: SpanQuery,
         start_time: Optional[datetime] = None,
         stop_time: Optional[datetime] = None,
+        root_spans_only: Optional[bool] = None,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
         ...
 
@@ -284,11 +285,13 @@ class ProcessSession(Session):
         *queries: SpanQuery,
         start_time: Optional[datetime] = None,
         stop_time: Optional[datetime] = None,
+        root_spans_only: Optional[bool] = None,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
         return self._client.query_spans(
             *queries,
             start_time=start_time,
             stop_time=stop_time,
+            root_spans_only=root_spans_only,
         )
 
     def get_spans_dataframe(
@@ -365,6 +368,7 @@ class ThreadSession(Session):
         *queries: SpanQuery,
         start_time: Optional[datetime] = None,
         stop_time: Optional[datetime] = None,
+        root_spans_only: Optional[bool] = None,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
         if len(queries) == 0 or (traces := self.traces) is None:
             return None
@@ -382,6 +386,7 @@ class ThreadSession(Session):
             *queries,
             start_time=start_time,
             stop_time=stop_time,
+            root_spans_only=root_spans_only,
         )
 
     def get_spans_dataframe(
