@@ -119,6 +119,10 @@ class Client:
             df = results[0]
             return None if df.shape == (0, 0) else df
         return results
+        if len(results) == 1:
+            df = results[0]
+            return None if df.shape == (0, 0) else df
+        return results
 
     def get_evaluations(self) -> List[Evaluations]:
         if self._use_active_session_if_available and (session := px.active_session()):
