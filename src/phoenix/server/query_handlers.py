@@ -1,12 +1,12 @@
 import asyncio
 from functools import partial
-from typing import Optional, cast
+from typing import AsyncIterator, Optional, cast
 
 import pandas as pd
 import pyarrow as pa
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import Response, StreamingResponse
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
 
 from phoenix.core.evals import Evals
@@ -55,9 +55,13 @@ class GetSpansDataFrameHandler(HTTPEndpoint):
         )
         if df is None:
             return Response(status_code=HTTP_404_NOT_FOUND)
-        content = await loop.run_in_executor(None, _df_to_bytes, df)
-        return Response(
-            content=content,
+
+        async def content() -> AsyncIterator[bytes]:
+            async for batch in _df_to_bytes(df):
+                yield batch
+
+        return StreamingResponse(
+            content=content(),
             media_type="application/x-pandas-arrow",
         )
 
@@ -105,19 +109,28 @@ class QuerySpansHandler(HTTPEndpoint):
         )
         if not results:
             return Response(status_code=HTTP_404_NOT_FOUND)
-        content = await loop.run_in_executor(
-            None,
-            lambda: b"".join(_df_to_bytes(df) for df in results),
-        )
-        return Response(
-            content=content,
+
+        async def content() -> AsyncIterator[bytes]:
+            for result in results:
+                async for batch in _df_to_bytes(result):
+                    yield batch
+
+        return StreamingResponse(
+            content=content(),
             media_type="application/x-pandas-arrow",
         )
 
 
-def _df_to_bytes(df: pd.DataFrame) -> bytes:
-    pa_table = pa.Table.from_pandas(df)
-    sink = pa.BufferOutputStream()
-    with pa.ipc.new_stream(sink, pa_table.schema) as writer:
-        writer.write_table(pa_table, max_chunksize=65536)
-    return cast(bytes, sink.getvalue().to_pybytes())
+async def _df_to_bytes(df: pd.DataFrame) -> AsyncIterator[bytes]:
+    loop = asyncio.get_running_loop()
+    pa_table = await loop.run_in_executor(None, pa.Table.from_pandas, df)
+    async for batch in _table_to_bytes(pa_table):
+        yield batch
+
+
+async def _table_to_bytes(table: pa.Table) -> AsyncIterator[bytes]:
+    for batch in table.to_batches():
+        sink = pa.BufferOutputStream()
+        with pa.ipc.RecordBatchStreamWriter(sink, table.schema) as writer:
+            writer.write_batch(batch)
+        yield cast(bytes, sink.getvalue().to_pybytes())
