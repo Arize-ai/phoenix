@@ -113,6 +113,10 @@ def test_query_select(spans):
         }
     ).set_index("context.span_id")
     assert_frame_equal(actual, desired)
+    del actual
+    actual = SpanQuery.from_dict(query.to_dict())(spans)
+    assert_frame_equal(actual, desired)
+    del query, actual, desired
 
 
 def test_query_concat(spans):
@@ -134,6 +138,9 @@ def test_query_concat(spans):
         }
     ).set_index("context.span_id")
     assert_frame_equal(actual, desired)
+    del actual
+    actual = SpanQuery.from_dict(query.to_dict())(spans)
+    assert_frame_equal(actual, desired)
     del query, actual, desired
 
     query = (
@@ -151,6 +158,9 @@ def test_query_concat(spans):
             "score": ["100", f"201{sep}203"],
         }
     ).set_index("context.span_id")
+    assert_frame_equal(actual, desired)
+    del actual
+    actual = SpanQuery.from_dict(query.to_dict())(spans)
     assert_frame_equal(actual, desired)
     del query, actual, desired
 
@@ -176,6 +186,9 @@ def test_query_explode(spans):
         }
     ).set_index(["context.span_id", "document_position"])
     assert_frame_equal(actual, desired)
+    del actual
+    actual = SpanQuery.from_dict(query.to_dict())(spans)
+    assert_frame_equal(actual, desired)
     del query, actual, desired
 
     query = SpanQuery().explode(RETRIEVAL_DOCUMENTS)
@@ -188,6 +201,9 @@ def test_query_explode(spans):
             DOCUMENT_SCORE: [100, None, 201, 203],
         }
     ).set_index(["context.span_id", "document_position"])
+    assert_frame_equal(actual, desired)
+    del actual
+    actual = SpanQuery.from_dict(query.to_dict())(spans)
     assert_frame_equal(actual, desired)
     del query, actual, desired
 
@@ -203,6 +219,9 @@ def test_query_explode(spans):
             "reference": ["10", "20", "22"],
         }
     ).set_index(["context.span_id", "document_position"])
+    assert_frame_equal(actual, desired)
+    del actual
+    actual = SpanQuery.from_dict(query.to_dict())(spans)
     assert_frame_equal(actual, desired)
     del query, actual, desired
 
@@ -231,6 +250,16 @@ def test_join(spans):
             "reference": ["10", "20\n\n22"],
         }
     ).set_index("context.span_id")
+    assert_frame_equal(actual, desired)
+
+    del left_result, right_result, actual
+    left_result = SpanQuery.from_dict(left_query.to_dict())(spans)
+    right_result = SpanQuery.from_dict(right_query.to_dict())(spans)
+    actual = pd.concat(
+        [left_result, right_result],
+        axis=1,
+        join="outer",
+    )
     assert_frame_equal(actual, desired)
 
 
