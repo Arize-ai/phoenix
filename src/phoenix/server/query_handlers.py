@@ -156,8 +156,9 @@ async def _df_to_bytes(df: pd.DataFrame) -> AsyncIterator[bytes]:
 
 
 async def _table_to_bytes(table: pa.Table) -> AsyncIterator[bytes]:
+    loop = asyncio.get_running_loop()
     for batch in table.to_batches():
         sink = pa.BufferOutputStream()
         with pa.ipc.RecordBatchStreamWriter(sink, table.schema) as writer:
-            writer.write_batch(batch)
-        yield cast(bytes, sink.getvalue().to_pybytes())
+            await loop.run_in_executor(None, writer.write_batch, batch)
+        yield cast(bytes, await loop.run_in_executor(None, lambda: sink.getvalue().to_pybytes()))
