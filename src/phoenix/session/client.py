@@ -8,7 +8,7 @@ import pandas as pd
 import pyarrow as pa
 from pyarrow import ArrowInvalid
 from requests import Session
-from starlette.status import HTTP_404_NOT_FOUND
+from starlette.status import HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
 
 import phoenix as px
 from phoenix.config import get_env_host, get_env_port
@@ -68,6 +68,8 @@ class Client:
         if response.status_code == HTTP_404_NOT_FOUND:
             logger.info("No spans found.")
             return None
+        elif response.status_code == HTTP_422_UNPROCESSABLE_ENTITY:
+            logger.error(response.content.decode())
         response.raise_for_status()
         stream = BytesIO(response.content)
         with pa.ipc.open_stream(stream) as pa_stream:
@@ -98,6 +100,8 @@ class Client:
         if response.status_code == HTTP_404_NOT_FOUND:
             logger.info("No spans found.")
             return None
+        elif response.status_code == HTTP_422_UNPROCESSABLE_ENTITY:
+            logger.error(response.content.decode())
         response.raise_for_status()
         stream = BytesIO(response.content)
         results = []

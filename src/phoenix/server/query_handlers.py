@@ -5,7 +5,7 @@ import pyarrow as pa
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
-from starlette.status import HTTP_404_NOT_FOUND
+from starlette.status import HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
 
 from phoenix.core.evals import Evals
 from phoenix.core.traces import Traces
@@ -21,11 +21,17 @@ class GetSpansDataFrameHandler(HTTPEndpoint):
         payload = await request.json()
         filter_condition = cast(str, payload.pop("filter_condition", None) or "")
         valid_eval_names = self.evals.get_span_evaluation_names() if self.evals else ()
-        span_filter = SpanFilter(
-            filter_condition,
-            evals=self.evals,
-            valid_eval_names=valid_eval_names,
-        )
+        try:
+            span_filter = SpanFilter(
+                filter_condition,
+                evals=self.evals,
+                valid_eval_names=valid_eval_names,
+            )
+        except Exception as e:
+            return Response(
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                content=f"Invalid filter condition: {e}",
+            )
         df = get_spans_dataframe(
             self.traces,
             span_filter,
@@ -49,14 +55,20 @@ class QuerySpansHandler(HTTPEndpoint):
         payload = await request.json()
         queries = payload.pop("queries", [])
         valid_eval_names = self.evals.get_span_evaluation_names() if self.evals else ()
-        span_queries = [
-            SpanQuery.from_dict(
-                query,
-                evals=self.evals,
-                valid_eval_names=valid_eval_names,
+        try:
+            span_queries = [
+                SpanQuery.from_dict(
+                    query,
+                    evals=self.evals,
+                    valid_eval_names=valid_eval_names,
+                )
+                for query in queries
+            ]
+        except Exception as e:
+            return Response(
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                content=f"Invalid query: {e}",
             )
-            for query in queries
-        ]
         results = query_spans(
             self.traces,
             *span_queries,
