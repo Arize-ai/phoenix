@@ -27,6 +27,7 @@ from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context
 from phoenix.server.api.schema import schema
 from phoenix.server.evaluation_handler import EvaluationHandler
+from phoenix.server.query_handlers import GetSpansDataFrameHandler, QuerySpansHandler
 from phoenix.server.span_handler import SpanHandler
 from phoenix.server.trace_handler import TraceHandler
 
@@ -176,6 +177,22 @@ def create_app(
                 Route(
                     "/v1/traces",
                     type("TraceEndpoint", (TraceHandler,), {"queue": traces}),
+                ),
+                Route(
+                    "/v1/query_spans",
+                    type(
+                        "QuerySpansEndpoint",
+                        (QuerySpansHandler,),
+                        {"traces": traces, "evals": evals},
+                    ),
+                ),
+                Route(
+                    "/v1/get_spans_dataframe",
+                    type(
+                        "GetSpansDataFrameEndpoint",
+                        (GetSpansDataFrameHandler,),
+                        {"traces": traces, "evals": evals},
+                    ),
                 ),
             ]
         )

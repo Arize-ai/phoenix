@@ -30,12 +30,14 @@ from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
 from phoenix.services import AppService
+from phoenix.session.client import Client
 from phoenix.session.evaluation import encode_evaluations
+from phoenix.trace import Evaluations
 from phoenix.trace.dsl import SpanFilter
 from phoenix.trace.dsl.query import SpanQuery
 from phoenix.trace.otel import encode
-from phoenix.trace.span_json_encoder import span_to_json
 from phoenix.trace.trace_dataset import TraceDataset
+from phoenix.utilities import get_spans_dataframe, query_spans
 
 try:
     from IPython.display import IFrame  # type: ignore
@@ -47,8 +49,6 @@ logger = logging.getLogger(__name__)
 # type workaround
 # https://github.com/python/mypy/issues/5264#issuecomment-399407428
 if TYPE_CHECKING:
-    from phoenix.trace import Evaluations
-
     _BaseList = UserList[pd.DataFrame]
 else:
     _BaseList = UserList
@@ -179,25 +179,16 @@ class Session(ABC):
         """Returns the url for the phoenix app"""
         return _get_url(self.host, self.port, self.notebook_env)
 
+    @abstractmethod
     def query_spans(
         self,
         *queries: SpanQuery,
         start_time: Optional[datetime] = None,
         stop_time: Optional[datetime] = None,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
-        if len(queries) == 0 or (traces := self.traces) is None:
-            return None
-        spans = tuple(
-            traces.get_spans(
-                start_time=start_time,
-                stop_time=stop_time,
-            )
-        )
-        dataframes = [query(spans) for query in queries]
-        if len(dataframes) == 1:
-            return dataframes[0]
-        return dataframes
+        ...
 
+    @abstractmethod
     def get_spans_dataframe(
         self,
         filter_condition: Optional[str] = None,
@@ -206,22 +197,11 @@ class Session(ABC):
         stop_time: Optional[datetime] = None,
         root_spans_only: Optional[bool] = None,
     ) -> Optional[pd.DataFrame]:
-        if (traces := self.traces) is None:
-            return None
-        predicate = SpanFilter(filter_condition) if filter_condition else None
-        spans = traces.get_spans(
-            start_time=start_time,
-            stop_time=stop_time,
-            root_spans_only=root_spans_only,
-        )
-        if predicate:
-            spans = filter(predicate, spans)
-        if not (data := [json.loads(span_to_json(span)) for span in spans]):
-            return None
-        return pd.json_normalize(data, max_level=1).set_index("context.span_id", drop=False)
+        ...
 
-    def get_evaluations(self) -> List["Evaluations"]:
-        return self.evals.export_evaluations()
+    @abstractmethod
+    def get_evaluations(self) -> List[Evaluations]:
+        ...
 
     def get_trace_dataset(self) -> Optional[TraceDataset]:
         if (dataframe := self.get_spans_dataframe()) is None:
@@ -286,6 +266,10 @@ class ProcessSession(Session):
                 self.trace_dataset.name if self.trace_dataset is not None else None
             ),
         )
+        self._client = Client(
+            endpoint=self.url,
+            use_active_session_if_available=False,
+        )
 
     @property
     def active(self) -> bool:
@@ -294,6 +278,36 @@ class ProcessSession(Session):
     def end(self) -> None:
         self.app_service.stop()
         self.temp_dir.cleanup()
+
+    def query_spans(
+        self,
+        *queries: SpanQuery,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+    ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
+        return self._client.query_spans(
+            *queries,
+            start_time=start_time,
+            stop_time=stop_time,
+        )
+
+    def get_spans_dataframe(
+        self,
+        filter_condition: Optional[str] = None,
+        *,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+        root_spans_only: Optional[bool] = None,
+    ) -> Optional[pd.DataFrame]:
+        return self._client.get_spans_dataframe(
+            filter_condition,
+            start_time=start_time,
+            stop_time=stop_time,
+            root_spans_only=root_spans_only,
+        )
+
+    def get_evaluations(self) -> List[Evaluations]:
+        raise NotImplementedError()
 
 
 class ThreadSession(Session):
@@ -344,6 +358,57 @@ class ThreadSession(Session):
     def end(self) -> None:
         self.server.close()
         self.temp_dir.cleanup()
+
+    def query_spans(
+        self,
+        *queries: SpanQuery,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+    ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
+        if len(queries) == 0 or (traces := self.traces) is None:
+            return None
+        valid_eval_names = self.evals.get_span_evaluation_names() if self.evals else ()
+        queries = [
+            SpanQuery.from_dict(
+                query.to_dict(),
+                evals=self.evals,
+                valid_eval_names=valid_eval_names,
+            )
+            for query in queries
+        ]
+        return query_spans(
+            traces,
+            *queries,
+            start_time=start_time,
+            stop_time=stop_time,
+        )
+
+    def get_spans_dataframe(
+        self,
+        filter_condition: Optional[str] = None,
+        *,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+        root_spans_only: Optional[bool] = None,
+    ) -> Optional[pd.DataFrame]:
+        if (traces := self.traces) is None:
+            return None
+        valid_eval_names = self.evals.get_span_evaluation_names() if self.evals else ()
+        span_filter = SpanFilter(
+            filter_condition,
+            evals=self.evals,
+            valid_eval_names=valid_eval_names,
+        )
+        return get_spans_dataframe(
+            traces,
+            span_filter=span_filter,
+            start_time=start_time,
+            stop_time=stop_time,
+            root_spans_only=root_spans_only,
+        )
+
+    def get_evaluations(self) -> List[Evaluations]:
+        return self.evals.export_evaluations()
 
 
 def launch_app(

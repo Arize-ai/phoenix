@@ -1,7 +1,6 @@
 import weakref
 from collections import defaultdict
 from datetime import datetime, timezone
-from enum import Enum
 from queue import SimpleQueue
 from threading import RLock, Thread
 from types import MethodType
@@ -32,6 +31,7 @@ from phoenix.trace.schemas import (
     ATTRIBUTE_PREFIX,
     COMPUTED_PREFIX,
     CONTEXT_PREFIX,
+    ComputedAttributes,
     Span,
     SpanAttributes,
     SpanID,
@@ -53,18 +53,6 @@ END_TIME = "end_time"
 LLM_TOKEN_COUNT_TOTAL = ATTRIBUTE_PREFIX + semantic_conventions.LLM_TOKEN_COUNT_TOTAL
 LLM_TOKEN_COUNT_PROMPT = ATTRIBUTE_PREFIX + semantic_conventions.LLM_TOKEN_COUNT_PROMPT
 LLM_TOKEN_COUNT_COMPLETION = ATTRIBUTE_PREFIX + semantic_conventions.LLM_TOKEN_COUNT_COMPLETION
-
-
-class ComputedAttributes(Enum):
-    # Enum value must be string prefixed by COMPUTED_PREFIX
-    LATENCY_MS = (
-        COMPUTED_PREFIX + "latency_ms"
-    )  # The latency (or duration) of the span in milliseconds
-    CUMULATIVE_LLM_TOKEN_COUNT_TOTAL = COMPUTED_PREFIX + "cumulative_token_count.total"
-    CUMULATIVE_LLM_TOKEN_COUNT_PROMPT = COMPUTED_PREFIX + "cumulative_token_count.prompt"
-    CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION = COMPUTED_PREFIX + "cumulative_token_count.completion"
-    ERROR_COUNT = COMPUTED_PREFIX + "error_count"
-    CUMULATIVE_ERROR_COUNT = COMPUTED_PREFIX + "cumulative_error_count"
 
 
 class ReadableSpan(ObjectProxy):  # type: ignore
