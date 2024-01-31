@@ -533,7 +533,8 @@ def _is_databricks() -> bool:
         import IPython  # type: ignore
     except ImportError:
         return False
-    shell = IPython.get_ipython()
+    if not (shell := IPython.get_ipython()):
+        return False
     try:
         dbutils = shell.user_ns["dbutils"]
     except KeyError:
