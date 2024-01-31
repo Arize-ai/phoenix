@@ -370,8 +370,10 @@ class ThreadSession(Session):
         stop_time: Optional[datetime] = None,
         root_spans_only: Optional[bool] = None,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
-        if len(queries) == 0 or (traces := self.traces) is None:
+        if (traces := self.traces) is None:
             return None
+        if not queries:
+            queries = (SpanQuery(),)
         valid_eval_names = self.evals.get_span_evaluation_names() if self.evals else ()
         queries = tuple(
             SpanQuery.from_dict(
