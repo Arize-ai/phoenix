@@ -11,7 +11,9 @@ from requests import Session
 
 import phoenix as px
 from phoenix.config import get_env_host, get_env_port
+from phoenix.trace import Evaluations
 from phoenix.trace.dsl import SpanQuery
+from phoenix.trace.trace_dataset import TraceDataset
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +116,34 @@ class Client:
             except ArrowInvalid:
                 break
         return results[0] if len(results) == 1 else results
+
+    def get_evaluations(self) -> List[Evaluations]:
+        if self._use_active_session_if_available and (session := px.active_session()):
+            return session.get_evaluations()
+        response = self._session.post(f"{self._base_url}/v1/get_evaluations")
+        if response.status_code == 404:
+            logger.info("No evaluations found.")
+            return []
+        elif response.status_code == 422:
+            raise ValueError(response.content.decode())
+        response.raise_for_status()
+        stream = BytesIO(response.content)
+        results = []
+        while True:
+            try:
+                with pa.ipc.open_stream(stream) as pa_stream:
+                    pa_table: pa.Table = pa_stream.read_all()
+                    evaluations = Evaluations.from_pyarrow_table(pa_table)
+                    results.append(evaluations)
+            except ArrowInvalid:
+                break
+        return results
+
+    def get_trace_dataset(self) -> Optional[TraceDataset]:
+        if (dataframe := self.get_spans_dataframe()) is None:
+            return None
+        evaluations = self.get_evaluations()
+        return TraceDataset(dataframe=dataframe, evaluations=evaluations)
 
     def _warn_if_phoenix_is_not_running(self) -> None:
         try:

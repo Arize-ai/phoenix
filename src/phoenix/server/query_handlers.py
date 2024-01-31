@@ -83,9 +83,26 @@ class QuerySpansHandler(HTTPEndpoint):
         )
 
 
+class GetEvaluationsHandler(HTTPEndpoint):
+    evals: Evals
+
+    async def post(self, _: Request) -> Response:
+        results = self.evals.export_evaluations()
+        if not results:
+            return Response(status_code=HTTP_404_NOT_FOUND)
+        return Response(
+            content=b"".join(_table_to_bytes(ev.to_pyarrow_table()) for ev in results),
+            media_type="application/x-pandas-arrow",
+        )
+
+
 def _df_to_bytes(df: pd.DataFrame) -> bytes:
     pa_table = pa.Table.from_pandas(df)
+    return _table_to_bytes(pa_table)
+
+
+def _table_to_bytes(table: pa.Table) -> bytes:
     sink = pa.BufferOutputStream()
-    with pa.ipc.new_stream(sink, pa_table.schema) as writer:
-        writer.write_table(pa_table, max_chunksize=65536)
+    with pa.ipc.new_stream(sink, table.schema) as writer:
+        writer.write_table(table, max_chunksize=65536)
     return cast(bytes, sink.getvalue().to_pybytes())

@@ -310,8 +310,7 @@ class ProcessSession(Session):
         )
 
     def get_evaluations(self) -> List[Evaluations]:
-        # TODO: implement this in Client
-        raise NotImplementedError()
+        return self._client.get_evaluations()
 
 
 class ThreadSession(Session):

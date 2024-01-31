@@ -164,6 +164,7 @@ def _read_eval_fixture(eval_fixture: EvaluationFixture) -> Iterator[pb.Evaluatio
         )
         if isinstance(eval_fixture, DocumentEvaluationFixture):
             span_id, document_position = cast(Tuple[str, int], index)
+            span_id = span_id.replace("-", "")
             subject_id = pb.Evaluation.SubjectId(
                 document_retrieval_id=pb.Evaluation.SubjectId.DocumentRetrievalId(
                     document_position=document_position,
@@ -172,6 +173,7 @@ def _read_eval_fixture(eval_fixture: EvaluationFixture) -> Iterator[pb.Evaluatio
             )
         else:
             span_id = cast(str, index)
+            span_id = span_id.replace("-", "")
             subject_id = pb.Evaluation.SubjectId(span_id=span_id)
         yield pb.Evaluation(
             name=eval_fixture.evaluation_name,
