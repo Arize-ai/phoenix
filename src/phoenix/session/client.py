@@ -68,7 +68,7 @@ class Client:
             logger.info("No spans found.")
             return None
         elif response.status_code == 422:
-            logger.error(response.content.decode())
+            raise ValueError(response.content.decode())
         response.raise_for_status()
         stream = BytesIO(response.content)
         with pa.ipc.open_stream(stream) as pa_stream:
@@ -100,7 +100,7 @@ class Client:
             logger.info("No spans found.")
             return None
         elif response.status_code == 422:
-            logger.error(response.content.decode())
+            raise ValueError(response.content.decode())
         response.raise_for_status()
         stream = BytesIO(response.content)
         results = []
