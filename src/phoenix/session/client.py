@@ -115,7 +115,10 @@ class Client:
                     results.append(reader.read_pandas())
             except ArrowInvalid:
                 break
-        return results[0] if len(results) == 1 else results
+        if len(results) == 1:
+            df = results[0]
+            return None if df.shape == (0, 0) else df
+        return results
 
     def get_evaluations(self) -> List[Evaluations]:
         if self._use_active_session_if_available and (session := px.active_session()):
