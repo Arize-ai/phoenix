@@ -4,14 +4,16 @@ from phoenix.trace.exporter import HttpExporter
 
 def test_exporter(monkeypatch: pytest.MonkeyPatch):
     # Test that it defaults to local
+    monkeypatch.delenv("PHOENIX_COLLECTOR_ENDPOINT")
     exporter = HttpExporter()
     assert exporter._base_url == "http://0.0.0.0:6006"
 
     # Test that you can configure an endpoint
-    exporter = HttpExporter(endpoint="https://my-phoenix-server.com/")
-    assert exporter._base_url == "https://my-phoenix-server.com"
+    endpoint = "https://my-phoenix-server.com/"
+    exporter = HttpExporter(endpoint=endpoint)
+    assert exporter._base_url == endpoint
 
     # Test that it supports environment variables
-    monkeypatch.setenv("PHOENIX_COLLECTOR_ENDPOINT", "https://my-phoenix-server.com/")
+    monkeypatch.setenv("PHOENIX_COLLECTOR_ENDPOINT", endpoint)
     exporter = HttpExporter()
-    assert exporter._base_url == "https://my-phoenix-server.com"
+    assert exporter._base_url == endpoint
