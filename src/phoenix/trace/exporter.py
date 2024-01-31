@@ -48,14 +48,18 @@ class HttpExporter:
             Note, this parameter supersedes `host` and `port`.
         host: Optional[str]
             The host of the Phoenix server. It can also be set using environment
-            variable `PHOENIX_HOST`, otherwise it defaults to `127.0.0.1`.
+            variable `PHOENIX_HOST`, otherwise it defaults to `0.0.0.0`.
         port: Optional[int]
             The port of the Phoenix server. It can also be set using environment
             variable `PHOENIX_PORT`, otherwise it defaults to `6006`.
         """
         self._host = host or get_env_host()
         self._port = port or get_env_port()
-        endpoint = endpoint or get_env_collector_endpoint() or f"http://{self._host}:{self._port}"
+        endpoint = (
+            endpoint
+            or get_env_collector_endpoint()
+            or f"http://{'127.0.0.1' if self._host == '0.0.0.0' else self._host}:{self._port}"
+        )
         # Make sure the url does not end with a slash
         self._base_url = endpoint.rstrip("/")
         self._warn_if_phoenix_is_not_running()
