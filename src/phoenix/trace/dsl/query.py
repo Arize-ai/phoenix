@@ -99,8 +99,10 @@ class Projection:
         return {"key": self.key}
 
     @classmethod
-    def from_dict(cls, obj) -> "Projection":
-        return cls(**obj)
+    def from_dict(cls, obj: Mapping[str, Any]) -> "Projection":
+        return cls(
+            **({"key": cast(str, key)} if (key := obj.get("key")) else {}),
+        )
 
 
 @dataclass(frozen=True)
@@ -170,14 +172,14 @@ class Explosion(Projection):
     @classmethod
     def from_dict(cls, obj: Mapping[str, Any]) -> "Explosion":
         return cls(
-            **({"key": cast(str, key)} if (key := obj.get("key")) else {}),
+            **({"key": cast(str, key)} if (key := obj.get("key")) else {}),  # type: ignore
             **(
-                {"kwargs": MappingProxyType(dict(cast(Mapping[str, str], kwargs)))}
+                {"kwargs": MappingProxyType(dict(cast(Mapping[str, str], kwargs)))}  # type: ignore
                 if (kwargs := obj.get("kwargs"))
                 else {}
             ),
             **(
-                {"primary_index_key": cast(str, primary_index_key)}
+                {"primary_index_key": cast(str, primary_index_key)}  # type: ignore
                 if (primary_index_key := obj.get("primary_index_key"))
                 else {}
             ),
@@ -217,13 +219,17 @@ class Concatenation(Projection):
     @classmethod
     def from_dict(cls, obj: Mapping[str, Any]) -> "Concatenation":
         return cls(
-            **({"key": cast(str, key)} if (key := obj.get("key")) else {}),
+            **({"key": cast(str, key)} if (key := obj.get("key")) else {}),  # type: ignore
             **(
-                {"kwargs": MappingProxyType(dict(cast(Mapping[str, str], kwargs)))}
+                {"kwargs": MappingProxyType(dict(cast(Mapping[str, str], kwargs)))}  # type: ignore
                 if (kwargs := obj.get("kwargs"))
                 else {}
             ),
-            **({"separator": cast(str, separator)} if (separator := obj.get("separator")) else {}),
+            **(
+                {"separator": cast(str, separator)}  # type: ignore
+                if (separator := obj.get("separator"))
+                else {}
+            ),
         )
 
 
@@ -363,7 +369,7 @@ class SpanQuery:
                             for name, proj in cast(Mapping[str, Any], select).items()
                         }
                     )
-                }
+                }  # type: ignore
                 if (select := obj.get("select"))
                 else {}
             ),
@@ -374,27 +380,27 @@ class SpanQuery:
                         evals=evals,
                         valid_eval_names=valid_eval_names,
                     )
-                }
+                }  # type: ignore
                 if (filter := obj.get("filter"))
                 else {}
             ),
             **(
-                {"_explode": Explosion.from_dict(cast(Mapping[str, Any], explode))}
+                {"_explode": Explosion.from_dict(cast(Mapping[str, Any], explode))}  # type: ignore
                 if (explode := obj.get("explode"))
                 else {}
             ),
             **(
-                {"_concat": Concatenation.from_dict(cast(Mapping[str, Any], concat))}
+                {"_concat": Concatenation.from_dict(cast(Mapping[str, Any], concat))}  # type: ignore
                 if (concat := obj.get("concat"))
                 else {}
             ),
             **(
-                {"_rename": MappingProxyType(dict(cast(Mapping[str, str], rename)))}
+                {"_rename": MappingProxyType(dict(cast(Mapping[str, str], rename)))}  # type: ignore
                 if (rename := obj.get("rename"))
                 else {}
             ),
             **(
-                {"_index": Projection.from_dict(cast(Mapping[str, Any], index))}
+                {"_index": Projection.from_dict(cast(Mapping[str, Any], index))}  # type: ignore
                 if (index := obj.get("index"))
                 else {}
             ),

@@ -27,7 +27,7 @@ def query_spans(
 
 
 def get_spans_dataframe(
-    traces: Optional[Traces] = None,
+    traces: Traces,
     span_filter: Optional[SpanFilter] = None,
     start_time: Optional[datetime] = None,
     stop_time: Optional[datetime] = None,

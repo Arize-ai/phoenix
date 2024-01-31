@@ -307,6 +307,7 @@ class ProcessSession(Session):
         )
 
     def get_evaluations(self) -> List[Evaluations]:
+        # TODO: implement this in Client
         raise NotImplementedError()
 
 
@@ -368,14 +369,14 @@ class ThreadSession(Session):
         if len(queries) == 0 or (traces := self.traces) is None:
             return None
         valid_eval_names = self.evals.get_span_evaluation_names() if self.evals else ()
-        queries = [
+        queries = tuple(
             SpanQuery.from_dict(
                 query.to_dict(),
                 evals=self.evals,
                 valid_eval_names=valid_eval_names,
             )
             for query in queries
-        ]
+        )
         return query_spans(
             traces,
             *queries,
@@ -395,7 +396,7 @@ class ThreadSession(Session):
             return None
         valid_eval_names = self.evals.get_span_evaluation_names() if self.evals else ()
         span_filter = SpanFilter(
-            filter_condition,
+            filter_condition or "",
             evals=self.evals,
             valid_eval_names=valid_eval_names,
         )

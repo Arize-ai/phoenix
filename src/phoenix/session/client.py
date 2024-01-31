@@ -2,7 +2,7 @@ import logging
 import weakref
 from datetime import datetime
 from io import BytesIO
-from typing import List, Optional, Union
+from typing import List, Optional, Union, cast
 
 import pandas as pd
 import pyarrow as pa
@@ -71,7 +71,7 @@ class Client:
         response.raise_for_status()
         stream = BytesIO(response.content)
         with pa.ipc.open_stream(stream) as pa_stream:
-            return pa_stream.read_all().to_pandas()
+            return cast(pd.DataFrame, pa_stream.read_all().to_pandas())
 
     def query_spans(
         self,
