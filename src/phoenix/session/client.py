@@ -128,7 +128,7 @@ class Client:
     def get_evaluations(self) -> List[Evaluations]:
         if self._use_active_session_if_available and (session := px.active_session()):
             return session.get_evaluations()
-        response = self._session.post(f"{self._base_url}/v1/get_evaluations")
+        response = self._session.post(urljoin(self._base_url, "v1/get_evaluations"))
         if response.status_code == 404:
             logger.info("No evaluations found.")
             return []
