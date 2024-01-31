@@ -43,10 +43,11 @@ class HttpExporter:
         Parameters
         ----------
         endpoint: Optional[str]
-            The endpoint of the Phoenix server (collector). This should be set if the Phoenix
-            server is running on a remote instance. It can also be set using environment
-            variable `PHOENIX_COLLECTOR_ENDPOINT`, otherwise it defaults to `http://127.0.0.1:6006`
-            Note, this parameter supersedes `host` and `port`.
+            The endpoint of the Phoenix server (collector). This should be set
+            if the Phoenix server is running on a remote instance. It can also
+            be set using environment variable `PHOENIX_COLLECTOR_ENDPOINT`,
+            otherwise it defaults to `http://<host>:<port>`. Note, this
+            parameter supersedes `host` and `port`.
         host: Optional[str]
             The host of the Phoenix server. It can also be set using environment
             variable `PHOENIX_HOST`, otherwise it defaults to `0.0.0.0`.
