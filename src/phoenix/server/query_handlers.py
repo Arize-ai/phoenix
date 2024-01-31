@@ -55,7 +55,6 @@ class GetSpansDataFrameHandler(HTTPEndpoint):
         )
         if df is None:
             return Response(status_code=HTTP_404_NOT_FOUND)
-
         return Response(
             content=_df_to_bytes(df),
             media_type="application/x-pandas-arrow",
