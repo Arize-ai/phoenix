@@ -9,6 +9,11 @@ def test_exporter(monkeypatch: pytest.MonkeyPatch):
     exporter = HttpExporter()
     assert exporter._base_url == f"http://{HOST}:{PORT}"
 
+    # Test that you can configure host and port
+    host, port = "abcd", 1234
+    exporter = HttpExporter(host=host, port=port)
+    assert exporter._base_url == f"http://{host}:{port}"
+
     # Test that you can configure an endpoint
     endpoint = "https://my-phoenix-server.com/"
     exporter = HttpExporter(endpoint=endpoint)
