@@ -159,7 +159,7 @@ def _load_json_strings(key_values: Iterable[Tuple[str, Any]]) -> Iterator[Tuple[
         if key.endswith(_JSON_STRING_ATTRIBUTES):
             try:
                 dict_value = json.loads(value)
-            except json.JSONDecodeError:
+            except Exception:
                 yield key, value
             else:
                 if dict_value:
