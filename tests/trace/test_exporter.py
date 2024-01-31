@@ -1,4 +1,5 @@
 import pytest
+from phoenix.config import HOST, PORT
 from phoenix.trace.exporter import HttpExporter
 
 
@@ -6,7 +7,7 @@ def test_exporter(monkeypatch: pytest.MonkeyPatch):
     # Test that it defaults to local
     monkeypatch.delenv("PHOENIX_COLLECTOR_ENDPOINT", False)
     exporter = HttpExporter()
-    assert exporter._base_url == "http://0.0.0.0:6006"
+    assert exporter._base_url == f"http://{HOST}:{PORT}"
 
     # Test that you can configure an endpoint
     endpoint = "https://my-phoenix-server.com/"
