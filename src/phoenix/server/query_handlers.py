@@ -55,13 +55,8 @@ class GetSpansDataFrameHandler(HTTPEndpoint):
         )
         if df is None:
             return Response(status_code=HTTP_404_NOT_FOUND)
-
-        async def content() -> AsyncIterator[bytes]:
-            async for batch in _df_to_bytes(df):
-                yield batch
-
-        return StreamingResponse(
-            content=content(),
+        return Response(
+            content=_df_to_bytes(df),
             media_type="application/x-pandas-arrow",
         )
 
@@ -112,8 +107,7 @@ class QuerySpansHandler(HTTPEndpoint):
 
         async def content() -> AsyncIterator[bytes]:
             for result in results:
-                async for batch in _df_to_bytes(result):
-                    yield batch
+                yield _df_to_bytes(result)
 
         return StreamingResponse(
             content=content(),
@@ -121,17 +115,13 @@ class QuerySpansHandler(HTTPEndpoint):
         )
 
 
-async def _df_to_bytes(df: pd.DataFrame) -> AsyncIterator[bytes]:
-    loop = asyncio.get_running_loop()
-    pa_table = await loop.run_in_executor(None, pa.Table.from_pandas, df)
-    async for batch in _table_to_bytes(pa_table):
-        yield batch
+def _df_to_bytes(df: pd.DataFrame) -> bytes:
+    pa_table = pa.Table.from_pandas(df)
+    return _table_to_bytes(pa_table)
 
 
-async def _table_to_bytes(table: pa.Table) -> AsyncIterator[bytes]:
-    loop = asyncio.get_running_loop()
-    for batch in table.to_batches():
-        sink = pa.BufferOutputStream()
-        with pa.ipc.RecordBatchStreamWriter(sink, table.schema) as writer:
-            await loop.run_in_executor(None, writer.write_batch, batch)
-        yield cast(bytes, await loop.run_in_executor(None, lambda: sink.getvalue().to_pybytes()))
+def _table_to_bytes(table: pa.Table) -> bytes:
+    sink = pa.BufferOutputStream()
+    with pa.ipc.new_stream(sink, table.schema) as writer:
+        writer.write_table(table)
+    return cast(bytes, sink.getvalue().to_pybytes())
