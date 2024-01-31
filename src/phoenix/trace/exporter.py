@@ -30,7 +30,7 @@ class NoOpExporter:
         pass
 
 
-class OtelExporter:
+class OpenInferenceExporter:
     def __init__(
         self,
         endpoint: Optional[str] = None,
@@ -75,7 +75,7 @@ class OtelExporter:
             )
 
     @classmethod
-    def from_legacy_exporter(cls, exporter: "HttpExporter") -> "OtelExporter":
+    def _from_legacy_exporter(cls, exporter: "HttpExporter") -> "OpenInferenceExporter":
         return cls(endpoint=exporter._base_url)
 
 
@@ -170,5 +170,5 @@ class HttpExporter:
             )
 
 
-def is_legacy_exporter(exporter: Any) -> bool:
+def _is_legacy_exporter(exporter: Any) -> bool:
     return isinstance(exporter, HttpExporter)

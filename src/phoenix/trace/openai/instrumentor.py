@@ -4,11 +4,11 @@ from openinference.instrumentation.openai import (
     OpenAIInstrumentor as OpenInferenceOpenAIInstrumentor,
 )
 
-from ..tracer import OtelTracer, Tracer, is_legacy_tracer
+from phoenix.trace.tracer import OpenInferenceTracer, Tracer, _is_legacy_tracer
 
 
 class OpenAIInstrumentor:
-    def __init__(self, tracer: Optional[Union[Tracer, OtelTracer]] = None) -> None:
+    def __init__(self, tracer: Optional[Union[Tracer, OpenInferenceTracer]] = None) -> None:
         """Instruments your OpenAI client to automatically create spans for each API call.
 
         Args:
@@ -16,11 +16,9 @@ class OpenAIInstrumentor:
             provided, the default tracer will be used.
         """
         if tracer is None:
-            tracer = OtelTracer()
-        elif is_legacy_tracer(tracer):
-            tracer = OtelTracer.from_legacy_tracer(tracer)
-        else:
-            tracer = tracer
+            tracer = OpenInferenceTracer()
+        elif _is_legacy_tracer(tracer):
+            tracer = OpenInferenceTracer._from_legacy_tracer(tracer)
         self.tracer = tracer
 
     def instrument(self) -> None:
