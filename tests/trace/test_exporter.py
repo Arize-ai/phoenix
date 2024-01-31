@@ -4,7 +4,7 @@ from phoenix.trace.exporter import HttpExporter
 
 def test_exporter(monkeypatch: pytest.MonkeyPatch):
     # Test that it defaults to local
-    monkeypatch.delenv("PHOENIX_COLLECTOR_ENDPOINT")
+    monkeypatch.delenv("PHOENIX_COLLECTOR_ENDPOINT", False)
     exporter = HttpExporter()
     assert exporter._base_url == "http://0.0.0.0:6006"
 
