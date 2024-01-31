@@ -39,7 +39,7 @@ class OpenInferenceTracer:
         exporter=Optional[Union[SpanExporter, OpenInferenceExporter]],
         resource=None,
         span_processors: Sequence[SpanProcessor] = None,
-        # on_append=Optional[Callable[[List[Span]], None]],
+        on_append: Optional[Callable[[List[Span]], None]] = None,
     ):
         if resource is None:
             resource = Resource(attributes={})
@@ -51,9 +51,12 @@ class OpenInferenceTracer:
             exporter = OpenInferenceExporter._from_legacy_exporter(exporter)
         self.exporter = exporter
 
+        if on_append is not None:
+            self._on_append_deprecation_warning()
+
         self.span_processors = span_processors or []
 
-    def configure_tracer(self) -> None:
+    def _configure_otel_tracer(self) -> None:
         self.tracer = trace_sdk.TracerProvider(resource=self.resource)
         span_processor = SimpleSpanProcessor(span_exporter=self.exporter.exporter)
         self.tracer.add_span_processor(span_processor)
@@ -61,8 +64,32 @@ class OpenInferenceTracer:
             self.tracer.add_span_processor(processor)
         trace_api.set_tracer_provider(tracer_provider=self.tracer)
 
+    def get_spans(self) -> None:
+        logger.warning(
+            "OpenInference has been updated for full OpenTelemetry compliance. The legacy"
+            "`get_spans` method has been removed. If you need access to spans for processing, "
+            "some options include exporting spans from an OpenTelemetry collector or adding a "
+            "SpanProcessor to the OpenTelemetry TracerProvider. More examples can be found in the "
+            "Phoenix docs: https://docs.arize.com/phoenix/deployment/instrumentation"
+        )
+
+    def _on_append_deprecation_warning(self) -> None:
+        logger.warning(
+            "OpenInference has been updated for full OpenTelemetry compliance. The legacy"
+            "`on_append` callbacks are removed. If you need access to spans for processing, "
+            "some options include exporting spans from an OpenTelemetry collector or adding a "
+            "SpanProcessor to the OpenTelemetry TracerProvider. More examples can be found in the "
+            "Phoenix docs: https://docs.arize.com/phoenix/deployment/instrumentation"
+        )
+
     @classmethod
     def _from_legacy_tracer(cls, tracer: "Tracer"):
+        logger.warning(
+            "OpenInference has been updated for full OpenTelemetry compliance. The legacy"
+            "Tracer objects are deprecated. Please migrate to OpenInferenceTracer or configure "
+            "OpenTelemetry TracerProvider directly. More examples can be found in the Phoenix "
+            "docs: https://docs.arize.com/phoenix/deployment/instrumentation"
+        )
         return cls(exporter=tracer._exporter)
 
 
