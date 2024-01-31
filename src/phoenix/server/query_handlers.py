@@ -126,8 +126,12 @@ class GetEvaluationsHandler(HTTPEndpoint):
         )
         if not results:
             return Response(status_code=HTTP_404_NOT_FOUND)
+        content = await loop.run_in_executor(
+            None,
+            lambda: b"".join(_table_to_bytes(ev.to_pyarrow_table()) for ev in results),
+        )
         return Response(
-            content=b"".join(_table_to_bytes(ev.to_pyarrow_table()) for ev in results),
+            content=content,
             media_type="application/x-pandas-arrow",
         )
 
