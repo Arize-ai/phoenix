@@ -43,13 +43,14 @@ class HttpExporter:
         Parameters
         ----------
         endpoint: Optional[str]
-            The endpoint of the Phoenix server (collector). This should be set if the Phoenix
-            server is running on a remote instance. It can also be set using environment
-            variable `PHOENIX_COLLECTOR_ENDPOINT`, otherwise it defaults to `http://127.0.0.1:6006`
-            Note, this parameter supersedes `host` and `port`.
+            The endpoint of the Phoenix server (collector). This should be set
+            if the Phoenix server is running on a remote instance. It can also
+            be set using environment variable `PHOENIX_COLLECTOR_ENDPOINT`,
+            otherwise it defaults to `http://<host>:<port>`. Note, this
+            parameter supersedes `host` and `port`.
         host: Optional[str]
             The host of the Phoenix server. It can also be set using environment
-            variable `PHOENIX_HOST`, otherwise it defaults to `127.0.0.1`.
+            variable `PHOENIX_HOST`, otherwise it defaults to `0.0.0.0`.
         port: Optional[int]
             The port of the Phoenix server. It can also be set using environment
             variable `PHOENIX_PORT`, otherwise it defaults to `6006`.
@@ -57,7 +58,9 @@ class HttpExporter:
         self._host = host or get_env_host()
         self._port = port or get_env_port()
         self._base_url = (
-            endpoint or get_env_collector_endpoint() or f"http://{self._host}:{self._port}"
+            endpoint
+            or get_env_collector_endpoint()
+            or f"http://{'127.0.0.1' if self._host == '0.0.0.0' else self._host}:{self._port}"
         )
         self._warn_if_phoenix_is_not_running()
         self._session = Session()

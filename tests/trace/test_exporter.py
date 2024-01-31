@@ -1,5 +1,5 @@
 import pytest
-from phoenix.config import HOST, PORT
+from phoenix.config import PORT
 from phoenix.trace.exporter import HttpExporter
 
 
@@ -7,7 +7,7 @@ def test_exporter(monkeypatch: pytest.MonkeyPatch):
     # Test that it defaults to local
     monkeypatch.delenv("PHOENIX_COLLECTOR_ENDPOINT", False)
     exporter = HttpExporter()
-    assert exporter._base_url == f"http://{HOST}:{PORT}"
+    assert exporter._base_url == f"http://127.0.0.1:{PORT}"
 
     # Test that you can configure host and port
     host, port = "abcd", 1234
