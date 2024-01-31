@@ -32,7 +32,7 @@ class Client:
             Phoenix server endpoint, e.g. http://localhost:6006. If not provided, the
             endpoint will be inferred from the environment variables.
         use_active_session_if_available : bool, optional
-            If active session is available, use it instead of creating sending HTTP requests.
+            If active session is available, use it instead of sending HTTP requests.
         """
         self._use_active_session_if_available = use_active_session_if_available
         self._base_url = endpoint or f"http://{get_env_host()}:{get_env_port()}"
