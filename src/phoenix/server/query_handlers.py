@@ -114,7 +114,11 @@ class GetEvaluationsHandler(HTTPEndpoint):
     evals: Evals
 
     async def post(self, _: Request) -> Response:
-        results = self.evals.export_evaluations()
+        loop = asyncio.get_running_loop()
+        results = await loop.run_in_executor(
+            None,
+            self.evals.export_evaluations,
+        )
         if not results:
             return Response(status_code=HTTP_404_NOT_FOUND)
         return Response(
