@@ -1,4 +1,5 @@
 from typing import cast
+from urllib.parse import urljoin
 
 import pandas as pd
 import pyarrow as pa
@@ -11,7 +12,7 @@ from phoenix.trace.dsl import SpanQuery
 
 @responses.activate
 def test_get_spans_dataframe(client: Client, endpoint: str, dataframe: pd.DataFrame):
-    url = f"{endpoint}/v1/get_spans_dataframe"
+    url = urljoin(endpoint, "v1/get_spans_dataframe")
 
     responses.post(url, body=_df_to_bytes(dataframe))
     df = client.get_spans_dataframe()
@@ -24,7 +25,7 @@ def test_get_spans_dataframe(client: Client, endpoint: str, dataframe: pd.DataFr
 @responses.activate
 def test_query_spans(client: Client, endpoint: str, dataframe: pd.DataFrame):
     df0, df1 = dataframe.iloc[:1, :], dataframe.iloc[1:, :]
-    url = f"{endpoint}/v1/query_spans"
+    url = urljoin(endpoint, "v1/query_spans")
 
     responses.post(url, body=b"".join([_df_to_bytes(df0), _df_to_bytes(df1)]))
     query = SpanQuery()
