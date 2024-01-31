@@ -55,8 +55,9 @@ class GetSpansDataFrameHandler(HTTPEndpoint):
         )
         if df is None:
             return Response(status_code=HTTP_404_NOT_FOUND)
+        content = await loop.run_in_executor(None, _df_to_bytes, df)
         return Response(
-            content=_df_to_bytes(df),
+            content=content,
             media_type="application/x-pandas-arrow",
         )
 
@@ -104,8 +105,12 @@ class QuerySpansHandler(HTTPEndpoint):
         )
         if not results:
             return Response(status_code=HTTP_404_NOT_FOUND)
+        content = await loop.run_in_executor(
+            None,
+            lambda: b"".join(_df_to_bytes(df) for df in results),
+        )
         return Response(
-            content=b"".join(_df_to_bytes(df) for df in results),
+            content=content,
             media_type="application/x-pandas-arrow",
         )
 
