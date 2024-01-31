@@ -54,8 +54,8 @@ class SpanKind(Enum):
         return None if v else cls.UNKNOWN
 
 
-TraceID = UUID
-SpanID = UUID
+TraceID = str
+SpanID = str
 AttributePrimitiveValue = Union[str, bool, float, int]
 AttributeValue = Union[AttributePrimitiveValue, List[AttributePrimitiveValue]]
 SpanAttributes = Dict[str, AttributeValue]

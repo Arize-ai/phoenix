@@ -27,7 +27,7 @@ from typing import (
     Union,
     cast,
 )
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import llama_index
 from llama_index.callbacks.base_handler import BaseCallbackHandler
@@ -291,7 +291,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         if parent_data := self._event_id_to_event_data.get(parent_id):
             trace_id = parent_data.trace_id
         else:
-            trace_id = uuid4()
+            trace_id = TraceID(uuid4())
         event_data = self._event_id_to_event_data[event_id]
         event_data.name = event_type.value
         event_data.event_type = event_type
@@ -432,7 +432,7 @@ def _add_spans_to_tracer(
             attributes=attributes,
             events=sorted(span_exceptions, key=lambda event: event.timestamp) or None,
             conversation=None,
-            span_id=UUID(event_data.span_id),
+            span_id=SpanID(event_data.span_id),
         )
         new_parent_span_id = span.context.span_id
         for new_child_event_id in trace_map.get(event_id, []):

@@ -164,6 +164,11 @@ def _read_eval_fixture(eval_fixture: EvaluationFixture) -> Iterator[pb.Evaluatio
         )
         if isinstance(eval_fixture, DocumentEvaluationFixture):
             span_id, document_position = cast(Tuple[str, int], index)
+            # Legacy fixture files contain UUID strings for span_ids. The hyphens in these
+            # strings need to be removed because we are also removing the hyphens from the
+            # span_ids of their corresponding traces. In general, hyphen is not an allowed
+            # character in the string representation of span_ids.
+            span_id = span_id.replace("-", "")
             subject_id = pb.Evaluation.SubjectId(
                 document_retrieval_id=pb.Evaluation.SubjectId.DocumentRetrievalId(
                     document_position=document_position,
@@ -172,6 +177,11 @@ def _read_eval_fixture(eval_fixture: EvaluationFixture) -> Iterator[pb.Evaluatio
             )
         else:
             span_id = cast(str, index)
+            # Legacy fixture files contain UUID strings for span_ids. The hyphens in these
+            # strings need to be removed because we are also removing the hyphens from the
+            # span_ids of their corresponding traces. In general, hyphen is not an allowed
+            # character in the string representation of span_ids.
+            span_id = span_id.replace("-", "")
             subject_id = pb.Evaluation.SubjectId(span_id=span_id)
         yield pb.Evaluation(
             name=eval_fixture.evaluation_name,

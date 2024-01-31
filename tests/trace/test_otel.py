@@ -1,14 +1,14 @@
+import json
 from dataclasses import replace
 from datetime import datetime, timezone
 from random import random
-from uuid import UUID
 
 import numpy as np
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import pytest
 from google.protobuf.json_format import MessageToJson
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
-from phoenix.trace.otel import _span_id_to_bytes, _unflatten, decode, encode
+from phoenix.trace.otel import _decode_identifier, _encode_identifier, _unflatten, decode, encode
 from phoenix.trace.schemas import (
     Span,
     SpanContext,
@@ -30,6 +30,7 @@ from phoenix.trace.semantic_conventions import (
     EXCEPTION_STACKTRACE,
     EXCEPTION_TYPE,
     LLM_OUTPUT_MESSAGES,
+    LLM_PROMPT_TEMPLATE_VARIABLES,
     MESSAGE_ROLE,
     MESSAGE_TOOL_CALLS,
     OPENINFERENCE_SPAN_KIND,
@@ -44,9 +45,9 @@ from pytest import approx
 def test_decode_encode(span):
     otlp_span = encode(span)
     assert otlp_span.name == "test_span"
-    assert otlp_span.trace_id == span.context.trace_id.bytes
-    assert otlp_span.span_id == _span_id_to_bytes(span.context.span_id)
-    assert otlp_span.parent_span_id == _span_id_to_bytes(span.parent_id)
+    assert otlp_span.trace_id == _encode_identifier(span.context.trace_id)
+    assert otlp_span.span_id == _encode_identifier(span.context.span_id)
+    assert otlp_span.parent_span_id == _encode_identifier(span.parent_id)
     assert approx(otlp_span.start_time_unix_nano / 1e9) == span.start_time.timestamp()
     assert approx(otlp_span.end_time_unix_nano / 1e9) == span.end_time.timestamp()
     assert set(map(MessageToJson, otlp_span.attributes)) == {
@@ -61,9 +62,13 @@ def test_decode_encode(span):
     assert otlp_span.status.message == "xyz"
 
     decoded_span = decode(otlp_span)
-    assert decoded_span.context.trace_id == span.context.trace_id
-    assert isinstance(decoded_span.context.span_id, UUID)
-    assert isinstance(decoded_span.parent_id, UUID)
+    assert decoded_span.context.trace_id == _decode_identifier(
+        _encode_identifier(span.context.trace_id)
+    )
+    assert decoded_span.context.span_id == _decode_identifier(
+        _encode_identifier(span.context.span_id)
+    )
+    assert decoded_span.parent_id == _decode_identifier(_encode_identifier(span.parent_id))
     assert decoded_span.attributes == span.attributes
     assert decoded_span.events == span.events
     assert decoded_span.status_code == span.status_code
@@ -278,36 +283,8 @@ def test_decode_encode_documents(span):
             value=AnyValue(double_value=score),
         ),
         KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m0",
-            value=AnyValue(string_value="111"),
-        ),
-        KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m1",
-            value=AnyValue(bool_value=True),
-        ),
-        KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m2",
-            value=AnyValue(int_value=333),
-        ),
-        KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m3",
-            value=AnyValue(double_value=444.0),
-        ),
-        KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m4",
-            value=AnyValue(array_value=ArrayValue(values=[AnyValue(string_value="1111")])),
-        ),
-        KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m5",
-            value=AnyValue(array_value=ArrayValue(values=[AnyValue(bool_value=True)])),
-        ),
-        KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m6",
-            value=AnyValue(array_value=ArrayValue(values=[AnyValue(int_value=3333)])),
-        ),
-        KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m7",
-            value=AnyValue(array_value=ArrayValue(values=[AnyValue(double_value=4444.0)])),
+            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}",
+            value=AnyValue(string_value=json.dumps(document_metadata)),
         ),
     ]
     assert set(map(MessageToJson, otlp_span.attributes)) == set(map(MessageToJson, otlp_attributes))
@@ -405,7 +382,29 @@ def test_decode_encode_message_tool_calls(span):
     assert decoded_span.attributes[LLM_OUTPUT_MESSAGES] == span.attributes[LLM_OUTPUT_MESSAGES]
 
 
-def test_decode_encode_message_tool_parameters(span):
+def test_decode_encode_llm_prompt_template_variables(span):
+    attributes = {LLM_PROMPT_TEMPLATE_VARIABLES: {"context_str": "123", "query_str": "321"}}
+    span = replace(span, attributes=attributes)
+    otlp_span = encode(span)
+    otlp_attributes = [
+        KeyValue(
+            key=OPENINFERENCE_SPAN_KIND,
+            value=AnyValue(string_value="LLM"),
+        ),
+        KeyValue(
+            key=f"{LLM_PROMPT_TEMPLATE_VARIABLES}",
+            value=AnyValue(string_value=json.dumps(attributes[LLM_PROMPT_TEMPLATE_VARIABLES])),
+        ),
+    ]
+    assert set(map(MessageToJson, otlp_span.attributes)) == set(map(MessageToJson, otlp_attributes))
+    decoded_span = decode(otlp_span)
+    assert (
+        decoded_span.attributes[LLM_PROMPT_TEMPLATE_VARIABLES]
+        == span.attributes[LLM_PROMPT_TEMPLATE_VARIABLES]
+    )
+
+
+def test_decode_encode_tool_parameters(span):
     attributes = {
         TOOL_PARAMETERS: {
             "title": "multiply",
@@ -425,36 +424,8 @@ def test_decode_encode_message_tool_parameters(span):
             value=AnyValue(string_value="LLM"),
         ),
         KeyValue(
-            key=f"{TOOL_PARAMETERS}.title",
-            value=AnyValue(string_value="multiply"),
-        ),
-        KeyValue(
-            key=f"{TOOL_PARAMETERS}.properties.a.title",
-            value=AnyValue(string_value="A"),
-        ),
-        KeyValue(
-            key=f"{TOOL_PARAMETERS}.properties.a.type",
-            value=AnyValue(string_value="integer"),
-        ),
-        KeyValue(
-            key=f"{TOOL_PARAMETERS}.properties.b.title",
-            value=AnyValue(string_value="B"),
-        ),
-        KeyValue(
-            key=f"{TOOL_PARAMETERS}.properties.b.type",
-            value=AnyValue(string_value="integer"),
-        ),
-        KeyValue(
-            key=f"{TOOL_PARAMETERS}.required",
-            value=AnyValue(
-                array_value=ArrayValue(
-                    values=[AnyValue(string_value="a"), AnyValue(string_value="b")]
-                )
-            ),
-        ),
-        KeyValue(
-            key=f"{TOOL_PARAMETERS}.type",
-            value=AnyValue(string_value="object"),
+            key=f"{TOOL_PARAMETERS}",
+            value=AnyValue(string_value=json.dumps(attributes[TOOL_PARAMETERS])),
         ),
     ]
     assert set(map(MessageToJson, otlp_span.attributes)) == set(map(MessageToJson, otlp_attributes))
@@ -550,9 +521,9 @@ def test_unflatten_separator(key_value_pairs, desired):
 
 @pytest.fixture
 def span() -> Span:
-    trace_id = UUID("f096b681-b8d4-44eb-bc4a-1db0b5a8d556")
-    span_id = UUID("828ae989-67b6-45a1-9c2f-d58f0e7977a4")
-    parent_id = UUID("7cb52fbe-d459-4b59-88f2-21003e25a7bf")
+    trace_id = "f096b681-b8d4-44eb-bc4a-1db0b5a8d556"
+    span_id = "828ae989-67b6-45a1-9c2f-d58f0e7977a4"
+    parent_id = "7cb52fbe-d459-4b59-88f2-21003e25a7bf"
     start_time = datetime(2021, 12, 1, 0, 0, 10, tzinfo=timezone.utc)
     end_time = datetime(2021, 12, 31, 0, 0, 0, 10, tzinfo=timezone.utc)
     return Span(

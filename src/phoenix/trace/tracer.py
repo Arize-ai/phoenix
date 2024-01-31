@@ -2,7 +2,7 @@ import logging
 from datetime import datetime
 from threading import RLock
 from typing import Any, Callable, Iterator, List, Optional, Protocol
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from .schemas import (
     Span,
@@ -13,6 +13,7 @@ from .schemas import (
     SpanID,
     SpanKind,
     SpanStatusCode,
+    TraceID,
 )
 
 logger = logging.getLogger(__name__)
@@ -68,18 +69,18 @@ class Tracer:
         status_code: SpanStatusCode = SpanStatusCode.UNSET,
         status_message: Optional[str] = "",
         parent_id: Optional[SpanID] = None,
-        trace_id: Optional[UUID] = None,
+        trace_id: Optional[TraceID] = None,
         attributes: Optional[SpanAttributes] = None,
         events: Optional[List[SpanEvent]] = None,
         conversation: Optional[SpanConversationAttributes] = None,
-        span_id: Optional[UUID] = None,
+        span_id: Optional[SpanID] = None,
     ) -> Span:
         """
         create_span creates a new span with the given name and options.
         """
         # If no trace_id is provided, generate a new one
         if trace_id is None:
-            trace_id = uuid4()
+            trace_id = TraceID(uuid4())
 
         # If no attributes are provided, create an empty dict
         if attributes is None:
@@ -91,7 +92,7 @@ class Tracer:
 
         span = Span(
             name=name,
-            context=SpanContext(trace_id=trace_id, span_id=span_id or uuid4()),
+            context=SpanContext(trace_id=trace_id, span_id=span_id or SpanID(uuid4())),
             span_kind=span_kind,
             parent_id=parent_id,
             start_time=start_time,

@@ -5,6 +5,7 @@ from queue import SimpleQueue
 from threading import Thread
 from types import MethodType
 from typing import Any, Optional, Union
+from urllib.parse import urljoin
 
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import requests
@@ -55,13 +56,11 @@ class HttpExporter:
         """
         self._host = host or get_env_host()
         self._port = port or get_env_port()
-        endpoint = (
+        self._base_url = (
             endpoint
             or get_env_collector_endpoint()
             or f"http://{'127.0.0.1' if self._host == '0.0.0.0' else self._host}:{self._port}"
         )
-        # Make sure the url does not end with a slash
-        self._base_url = endpoint.rstrip("/")
         self._warn_if_phoenix_is_not_running()
         self._session = Session()
         weakref.finalize(self, self._session.close)
@@ -108,15 +107,15 @@ class HttpExporter:
 
     def _url(self, message: Message) -> str:
         if isinstance(message, otlp.Span):
-            return f"{self._base_url}/v1/spans"
+            return urljoin(self._base_url, "v1/spans")
         if isinstance(message, pb.Evaluation):
-            return f"{self._base_url}/v1/evaluations"
+            return urljoin(self._base_url, "v1/evaluations")
         logger.exception(f"unrecognized message type: {type(message)}")
         assert_never(message)
 
     def _warn_if_phoenix_is_not_running(self) -> None:
         try:
-            requests.get(f"{self._base_url}/arize_phoenix_version").raise_for_status()
+            requests.get(urljoin(self._base_url, "arize_phoenix_version")).raise_for_status()
         except Exception:
             logger.warning(
                 f"Arize Phoenix is not running on {self._base_url}. Launch Phoenix "
