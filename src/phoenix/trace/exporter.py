@@ -71,10 +71,9 @@ class OpenInferenceExporter:
         self._base_url = self._phoenix_otel_endpoint(endpoint.rstrip("/"))
         self._warn_if_phoenix_is_not_running()
 
-        if no_op:
-            self.exporter = OTELNoOpExporter()
-        else:
-            self.exporter = OTLPSpanExporter(endpoint=self._base_url)
+        self.otel_exporter: SpanExporter = (
+            OTELNoOpExporter() if no_op else OTLPSpanExporter(endpoint=self._base_url)
+        )
 
     def _phoenix_otel_endpoint(self, url: str) -> str:
         return f"{url}/v1/traces"

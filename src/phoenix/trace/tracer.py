@@ -61,7 +61,7 @@ class OpenInferenceTracer:
 
     def _configure_otel_tracer(self) -> None:
         self.tracer = trace_sdk.TracerProvider(resource=self.resource)
-        span_processor = SimpleSpanProcessor(span_exporter=self.exporter.exporter)
+        span_processor = SimpleSpanProcessor(span_exporter=self.exporter.otel_exporter)
         self.tracer.add_span_processor(span_processor)
         for processor in self.span_processors:
             self.tracer.add_span_processor(processor)
