@@ -4,6 +4,13 @@ from threading import RLock
 from typing import Any, Callable, Iterator, List, Optional, Protocol
 from uuid import uuid4
 
+from opentelemetry import trace as trace_api
+from opentelemetry.sdk import trace as trace_sdk
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+from phoenix.trace.exporter import OtelExporter, is_legacy_exporter
+
 from .schemas import (
     Span,
     SpanAttributes,
@@ -23,6 +30,33 @@ logger.addHandler(logging.NullHandler())
 class SpanExporter(Protocol):
     def export(self, span: Span) -> None:
         ...
+
+
+class OtelTracer:
+    def __init__(self, exporter=None, processor=None, resource=None):
+        if resource is None:
+            resource = Resource(attributes={})
+        self.resource = resource
+
+        if exporter is None:
+            exporter = OtelExporter()
+        elif is_legacy_exporter(exporter):
+            exporter = OtelExporter.from_legacy_exporter(exporter)
+        else:
+            exporter = exporter
+
+        self.exporter = exporter
+        self.processor = processor
+
+    def configure_tracer(self) -> None:
+        self.tracer = trace_sdk.TracerProvider(resource=self.resource)
+        span_processor = SimpleSpanProcessor(span_exporter=self.exporter.exporter)
+        self.tracer.add_span_processor(span_processor)
+        trace_api.set_tracer_provider(tracer_provider=self.tracer)
+
+    @classmethod
+    def from_legacy_tracer(cls, tracer: "Tracer"):
+        return cls(exporter=tracer._exporter)
 
 
 class Tracer:
@@ -120,3 +154,7 @@ class Tracer:
         in a notebook environment and you want to inspect the spans.
         """
         yield from self.span_buffer
+
+
+def is_legacy_tracer(tracer: Any) -> bool:
+    return isinstance(tracer, Tracer)
