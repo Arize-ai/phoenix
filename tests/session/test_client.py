@@ -47,7 +47,7 @@ def test_query_spans(client: Client, endpoint: str, dataframe: pd.DataFrame):
 
 @responses.activate
 def test_get_evaluations(client: Client, endpoint: str, evaluations: SpanEvaluations):
-    url = f"{endpoint}/v1/get_evaluations"
+    url = urljoin(endpoint, "v1/get_evaluations")
 
     table = evaluations.to_pyarrow_table()
     responses.post(url, body=_table_to_bytes(table))
