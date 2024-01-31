@@ -42,6 +42,9 @@ dependencies = [
   "requests",
   "opentelemetry-sdk",
   "opentelemetry-proto",
+  "openinference-semantic-conventions",
+  "openinference-instrumentation-openai",
+  "opentelemetry-exporter-otlp",
 ]
 dynamic = ["version"]
 
@@ -65,9 +68,6 @@ dev = [
   "litellm>=1.0.3",
   "google-cloud-aiplatform>=1.3",
   "anthropic",
-  "openinference-semantic-conventions",
-  "openinference-instrumentation-llama-index",
-  "opentelemetry-exporter-otlp",
 ]
 experimental = [
   "tenacity",
