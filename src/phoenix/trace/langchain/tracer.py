@@ -30,13 +30,13 @@ class _DummyObject:
 
 
 class _Deprecation:
+    __all__ = (_DUMMY,)
+
     def __getattr__(self, name: str) -> Any:
         if name == _DUMMY:
             logger.warning(_DEPRECATION_MESSAGE)
             return _DummyObject
         raise AttributeError(f"module {__name__} has no attribute {name}")
-
-    __all__ = (_DUMMY,)
 
 
 # See e.g. https://stackoverflow.com/a/7668273

@@ -8,6 +8,8 @@ _DUMMY = "OpenInferenceTracer"
 
 
 class _Deprecation:
+    __all__ = ("LangChainInstrumentor", _DUMMY)
+
     def __getattr__(self, name: str) -> Any:
         if name == "tracer":
             return _tracer
@@ -18,8 +20,6 @@ class _Deprecation:
         if name == "LangChainInstrumentor":
             return _instrumentor.LangChainInstrumentor
         raise AttributeError(f"module {__name__} has no attribute {name}")
-
-    __all__ = ("LangChainInstrumentor", _DUMMY)
 
 
 # See e.g. https://stackoverflow.com/a/7668273
