@@ -84,7 +84,7 @@ class OpenInferenceTracer:
 
     def get_spans(self) -> None:
         logger.warning(
-            "OpenInference has been updated for full OpenTelemetry compliance. The legacy"
+            "OpenInference has been updated for full OpenTelemetry compliance. The legacy "
             "`get_spans` method has been removed. If you need access to spans for processing, "
             "some options include exporting spans from an OpenTelemetry collector or adding a "
             "SpanProcessor to the OpenTelemetry TracerProvider. More examples can be found in the "
@@ -93,7 +93,7 @@ class OpenInferenceTracer:
 
     def _on_append_deprecation_warning(self) -> None:
         logger.warning(
-            "OpenInference has been updated for full OpenTelemetry compliance. The legacy"
+            "OpenInference has been updated for full OpenTelemetry compliance. The legacy "
             "`on_append` callbacks are removed. If you need access to spans for processing, "
             "some options include exporting spans from an OpenTelemetry collector or adding a "
             "SpanProcessor to the OpenTelemetry TracerProvider. More examples can be found in the "
@@ -103,7 +103,7 @@ class OpenInferenceTracer:
     @classmethod
     def _from_legacy_tracer(cls, tracer: "Tracer") -> "OpenInferenceTracer":
         logger.warning(
-            "OpenInference has been updated for full OpenTelemetry compliance. The legacy"
+            "OpenInference has been updated for full OpenTelemetry compliance. The legacy "
             "Tracer objects are deprecated. Please migrate to OpenInferenceTracer or configure "
             "OpenTelemetry TracerProvider directly. More examples can be found in the Phoenix "
             "docs: https://docs.arize.com/phoenix/deployment/instrumentation"
