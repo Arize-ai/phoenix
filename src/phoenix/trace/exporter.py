@@ -197,7 +197,7 @@ class HttpExporter:
 
 
 def _convert_legacy_exporters(
-    exporter: Union[OpenInferenceExporter, HttpExporter, NoOpExporter]
+    exporter: Union[OpenInferenceExporter, HttpExporter, NoOpExporter],
 ) -> OpenInferenceExporter:
     if isinstance(exporter, (HttpExporter, NoOpExporter)):
         return OpenInferenceExporter._from_legacy_exporter(exporter)
