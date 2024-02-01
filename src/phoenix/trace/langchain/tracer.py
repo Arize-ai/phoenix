@@ -16,7 +16,7 @@ _DEPRECATION_MESSAGE = (
 )
 
 
-class OpenInferenceTracer:
+class _DummyObject:
     def __init__(self, *_: Any, **__: Any) -> None:
         logger.warning(_DEPRECATION_MESSAGE)
 
@@ -32,8 +32,12 @@ class _Deprecation:
     def __getattr__(self, name: str) -> Any:
         if name == "OpenInferenceTracer":
             logger.warning(_DEPRECATION_MESSAGE)
-            return OpenInferenceTracer
+            return _DummyObject
         raise AttributeError(f"module {__name__} has no attribute {name}")
+
+    __all__ = list(
+        set(vars().keys()).union({"OpenInferenceTracer"}) - {"__module__", "__qualname__"}
+    )
 
 
 # See e.g. https://stackoverflow.com/a/7668273

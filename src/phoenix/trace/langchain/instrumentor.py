@@ -15,6 +15,9 @@ from phoenix.config import get_env_collector_endpoint, get_env_host, get_env_por
 logger = logging.getLogger(__name__)
 
 
+__all__ = ("LangChainInstrumentor",)
+
+
 class LangChainInstrumentor:
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         if args or kwargs:
