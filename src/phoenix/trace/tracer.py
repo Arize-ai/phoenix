@@ -39,12 +39,27 @@ class SpanExporter(Protocol):
 
 
 class OpenInferenceTracer:
+    """
+    A wrapper for OpenTelemetry TracerProvider that provides a simplified interface for configuring
+    a TracerProvider and exporting spans to Phoenix.
+
+    Args:
+        exporter (Union[OpenInferenceExporter, SpanExporter]): A span exporter used to send spans to
+            an OpenTelemetry collector. If not provided, the default OpenInferenceExporter will be
+            used. Legacy SpanConverter objects are deprecated, but will be converted to
+            OpenInferenceExporter objects.
+        resource (Resource): An OpenTelemetry Resource object that contains attributes describing
+            the entity that produced the spans. If not provided, an empty Resource will be used.
+        span_processors (Sequence[SpanProcessor]): A list of OpenTelemetry SpanProcessor objects
+            that will be used to process spans.
+    """
+
     def __init__(
         self,
         exporter: Optional[Union[OpenInferenceExporter, HttpExporter, NoOpExporter]] = None,
         resource: Optional[Resource] = None,
         span_processors: Optional[Sequence[SpanProcessor]] = None,
-        on_append: Optional[Callable[[List[Span]], None]] = None,
+        _on_append: Optional[Callable[[List[Span]], None]] = None,
     ):
         if resource is None:
             resource = Resource(attributes={})
@@ -98,7 +113,7 @@ class OpenInferenceTracer:
             isinstance(exporter, (NoOpExporter, HttpExporter, OpenInferenceExporter))
             or exporter is None
         ):
-            return cls(exporter=exporter)
+            return cls(exporter=exporter, _on_append=tracer.on_append)
         else:
             raise TypeError(
                 "OpenInference has been updated for full OpenTelemetry compliance. Generic "

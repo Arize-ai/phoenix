@@ -63,6 +63,9 @@ class OpenInferenceExporter:
         port: Optional[int]
             The port of the Phoenix server. It can also be set using environment
             variable `PHOENIX_PORT`, otherwise it defaults to `6006`.
+        no_op: bool
+            If enabled, the exporter will not send any data to Phoenix. This is useful for
+            testing and development.
         """
         self._host = host or get_env_host()
         self._port = port or get_env_port()
