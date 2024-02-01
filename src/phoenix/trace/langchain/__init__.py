@@ -4,6 +4,8 @@ from typing import Any
 import phoenix.trace.langchain.instrumentor as _instrumentor
 import phoenix.trace.langchain.tracer as _tracer
 
+_DUMMY = "OpenInferenceTracer"
+
 
 class _Deprecation:
     def __getattr__(self, name: str) -> Any:
@@ -11,15 +13,14 @@ class _Deprecation:
             return _tracer
         if name == "instrumentor":
             return _instrumentor
-        if name == "OpenInferenceTracer":
-            return _tracer.OpenInferenceTracer  # type: ignore
+        if name == _DUMMY:
+            return getattr(_tracer, name)
         if name == "LangChainInstrumentor":
             return _instrumentor.LangChainInstrumentor
         raise AttributeError(f"module {__name__} has no attribute {name}")
 
     __all__ = list(
-        set(vars().keys()).union({"OpenInferenceTracer", "LangChainInstrumentor"})
-        - {"__module__", "__qualname__"}
+        set(vars().keys()).union({"LangChainInstrumentor", _DUMMY}) - {"__module__", "__qualname__"}
     )
 
 
