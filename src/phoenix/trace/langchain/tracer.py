@@ -23,12 +23,12 @@ class OpenInferenceTracer:
     def get_spans(self) -> Iterator[Span]:
         logger.warning(_DEPRECATION_MESSAGE)
         logger.warning(
-            ".get_spans() is a dummy function that does nothing. It will be removed in the future."
+            ".get_spans() is a dummy method that does nothing. It will be removed in the future."
         )
         return iter(())
 
 
-class Deprecation:
+class _Deprecation:
     def __getattr__(self, name: str) -> Any:
         if name == "OpenInferenceTracer":
             logger.warning(_DEPRECATION_MESSAGE)
@@ -37,4 +37,4 @@ class Deprecation:
 
 
 # See e.g. https://stackoverflow.com/a/7668273
-sys.modules[__name__] = Deprecation()  # type: ignore
+sys.modules[__name__] = _Deprecation()  # type: ignore
