@@ -11,6 +11,10 @@ Phoenix is an open-source observability library and platform designed for experi
 
 The toolset is designed to ingest [inference data](quickstart/phoenix-inferences/inferences.md) for [LLMs](concepts/llm-observability.md), CV, NLP, and tabular datasets as well as [LLM traces](quickstart/llm-traces.md). It allows AI Engineers and Data Scientists to quickly visualize their data, evaluate performance, track down issues & insights, and easily export to improve.&#x20;
 
+## Demo:
+
+{% embed url="https://www.loom.com/share/a96e244c4ff8473d9350b02ccbd203b4" %}
+
 ## Quickstarts
 
 Running Phoenix for the first time? Select a quickstart below.&#x20;
