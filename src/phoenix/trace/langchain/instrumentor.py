@@ -1,37 +1,38 @@
-from typing import Any, Optional
+import logging
+from importlib.metadata import PackageNotFoundError
+from importlib.util import find_spec
+from typing import Any
+from urllib.parse import urljoin
 
-from .tracer import OpenInferenceTracer
+from openinference.instrumentation.langchain import LangChainInstrumentor as OTELInstrumentor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk import trace as trace_sdk
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+from phoenix.config import get_env_collector_endpoint, get_env_host, get_env_port
+
+logger = logging.getLogger(__name__)
 
 
 class LangChainInstrumentor:
-    """
-    Instruments the OpenInferenceTracer for LangChain automatically by patching the
-    BaseCallbackManager in LangChain.
-    """
-
-    def __init__(self, tracer: Optional[OpenInferenceTracer] = None) -> None:
-        self._tracer = tracer if tracer is not None else OpenInferenceTracer()
-
-    def instrument(self) -> None:
-        try:
-            from langchain.callbacks.base import BaseCallbackManager
-        except ImportError:
-            # Raise a cleaner error if LangChain is not installed
-            raise ImportError(
-                "LangChain is not installed. Please install LangChain first to use the instrumentor"
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        if args or kwargs:
+            logger.warning(
+                "LangChainInstrumentor no longer takes any arguments. "
+                "The arguments provided is ignored."
+            )
+        if find_spec("langchain_core") is None:
+            raise PackageNotFoundError(
+                "Missing `langchain-core`. Install with `pip install langchain-core`."
             )
 
-        source_init = BaseCallbackManager.__init__
-
-        # Keep track of the source init so we can tell if the patching occurred
-        self._source_callback_manager_init = source_init
-
-        tracer = self._tracer
-
-        # Patch the init method of the BaseCallbackManager to add the tracer
-        # to all callback managers
-        def patched_init(self: BaseCallbackManager, *args: Any, **kwargs: Any) -> None:
-            source_init(self, *args, **kwargs)
-            self.add_handler(tracer, True)
-
-        BaseCallbackManager.__init__ = patched_init
+    def instrument(self) -> None:
+        host = get_env_host()
+        if host == "0.0.0.0":
+            host = "127.0.0.1"
+        base_url = get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
+        tracer_provider = trace_sdk.TracerProvider(resource=Resource(attributes={}))
+        span_exporter = OTLPSpanExporter(endpoint=urljoin(base_url, "v1/traces"))
+        tracer_provider.add_span_processor(SimpleSpanProcessor(span_exporter=span_exporter))
+        OTELInstrumentor().instrument(skip_dep_check=True, tracer_provider=tracer_provider)

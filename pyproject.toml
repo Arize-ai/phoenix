@@ -42,6 +42,8 @@ dependencies = [
   "requests",
   "opentelemetry-sdk",
   "opentelemetry-proto",
+  "opentelemetry-exporter-otlp",
+  "openinference-instrumentation-langchain",
 ]
 dynamic = ["version"]
 
