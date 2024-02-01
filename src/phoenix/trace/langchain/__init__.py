@@ -19,9 +19,7 @@ class _Deprecation:
             return _instrumentor.LangChainInstrumentor
         raise AttributeError(f"module {__name__} has no attribute {name}")
 
-    __all__ = list(
-        set(vars().keys()).union({"LangChainInstrumentor", _DUMMY}) - {"__module__", "__qualname__"}
-    )
+    __all__ = ("LangChainInstrumentor", _DUMMY)
 
 
 # See e.g. https://stackoverflow.com/a/7668273

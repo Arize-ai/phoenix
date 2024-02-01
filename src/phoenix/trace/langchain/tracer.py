@@ -10,9 +10,9 @@ from phoenix.trace.schemas import Span
 
 logger = logging.getLogger(__name__)
 
-_NAME = "OpenInferenceTracer"
+_DUMMY = "OpenInferenceTracer"
 _DEPRECATION_MESSAGE = (
-    f"DEPRECATED: `{_NAME}` is a dummy class in the current version of Phoenix. "
+    f"DEPRECATED: `{_DUMMY}` is a dummy class in the current version of Phoenix. "
     "It no longer has any purpose or functionality and will be removed in the future."
 )
 
@@ -31,12 +31,12 @@ class _DummyObject:
 
 class _Deprecation:
     def __getattr__(self, name: str) -> Any:
-        if name == _NAME:
+        if name == _DUMMY:
             logger.warning(_DEPRECATION_MESSAGE)
             return _DummyObject
         raise AttributeError(f"module {__name__} has no attribute {name}")
 
-    __all__ = list(set(vars().keys()).union({_NAME}) - {"__module__", "__qualname__"})
+    __all__ = (_DUMMY,)
 
 
 # See e.g. https://stackoverflow.com/a/7668273
