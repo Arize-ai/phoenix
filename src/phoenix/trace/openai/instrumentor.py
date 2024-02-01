@@ -4,7 +4,7 @@ from openinference.instrumentation.openai import (
     OpenAIInstrumentor as OpenInferenceOpenAIInstrumentor,
 )
 
-from phoenix.trace.tracer import OpenInferenceTracer, Tracer, _is_legacy_tracer
+from phoenix.trace.tracer import OpenInferenceTracer, Tracer, _convert_legacy_tracer
 
 
 class OpenAIInstrumentor:
@@ -17,9 +17,7 @@ class OpenAIInstrumentor:
         """
         if tracer is None:
             tracer = OpenInferenceTracer()
-        elif _is_legacy_tracer(tracer):
-            tracer = OpenInferenceTracer._from_legacy_tracer(tracer)
-        self.tracer = tracer
+        self.tracer = _convert_legacy_tracer(tracer)
 
     def instrument(self) -> None:
         """

@@ -58,14 +58,14 @@ class OpenInferenceTracer:
             self._on_append_deprecation_warning()
 
         self.span_processors = span_processors or []
+        self.tracer_provider = trace_sdk.TracerProvider(resource=self.resource)
 
     def _configure_otel_tracer(self) -> None:
-        self.tracer = trace_sdk.TracerProvider(resource=self.resource)
         span_processor = SimpleSpanProcessor(span_exporter=self.exporter.otel_exporter)
-        self.tracer.add_span_processor(span_processor)
+        self.tracer_provider.add_span_processor(span_processor)
         for processor in self.span_processors:
-            self.tracer.add_span_processor(processor)
-        trace_api.set_tracer_provider(tracer_provider=self.tracer)
+            self.tracer_provider.add_span_processor(processor)
+        trace_api.set_tracer_provider(tracer_provider=self.tracer_provider)
 
     def get_spans(self) -> None:
         logger.warning(
@@ -94,7 +94,10 @@ class OpenInferenceTracer:
             "docs: https://docs.arize.com/phoenix/deployment/instrumentation"
         )
         exporter = tracer._exporter
-        if isinstance(exporter, (NoOpExporter, HttpExporter, OpenInferenceExporter)):
+        if (
+            isinstance(exporter, (NoOpExporter, HttpExporter, OpenInferenceExporter))
+            or exporter is None
+        ):
             return cls(exporter=exporter)
         else:
             raise TypeError(
@@ -204,5 +207,7 @@ class Tracer:
         yield from self.span_buffer
 
 
-def _is_legacy_tracer(tracer: Any) -> bool:
-    return isinstance(tracer, Tracer)
+def _convert_legacy_tracer(tracer: Union[OpenInferenceTracer, Tracer]) -> OpenInferenceTracer:
+    if isinstance(tracer, Tracer):
+        return OpenInferenceTracer._from_legacy_tracer(tracer)
+    return tracer
