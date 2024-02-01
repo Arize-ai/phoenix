@@ -69,7 +69,7 @@ class OpenInferenceTracer:
             exporter = OpenInferenceExporter()
         self.exporter = _convert_legacy_exporters(exporter)
 
-        if on_append is not None:
+        if _on_append is not None:
             self._on_append_deprecation_warning()
 
         self.span_processors = span_processors or []
