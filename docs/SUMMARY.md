@@ -77,6 +77,10 @@
 * [AutoGen](integrations/autogen-support.md)
 * [Arize](integrations/bring-production-data-to-notebook-for-eda-or-retraining.md)
 
+## 🏴☠ Programming Languages
+
+* [JavaScript](programming-languages/javascript.md)
+
 ## 📚 Reference
 
 * [Embeddings](concepts/embeddings.md)
