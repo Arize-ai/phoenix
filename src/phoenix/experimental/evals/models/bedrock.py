@@ -55,12 +55,6 @@ class BedrockModel(BaseEvalModel):
         self._init_client()
         self._init_tiktoken()
         self._init_rate_limiter()
-        self.retry = self._retry(
-            error_types=[],  # default to catching all errors
-            min_seconds=self.retry_min_seconds,
-            max_seconds=self.retry_max_seconds,
-            max_retries=self.max_retries,
-        )
 
     def _init_environment(self) -> None:
         try:
@@ -131,18 +125,17 @@ class BedrockModel(BaseEvalModel):
         accept = "application/json"
         contentType = "application/json"
 
-        response = self._generate_with_retry(
+        response = self._rate_limited_completion(
             body=body, modelId=self.model_id, accept=accept, contentType=contentType
         )
 
         return self._parse_output(response) or ""
 
-    def _generate_with_retry(self, **kwargs: Any) -> Any:
+    def _rate_limited_completion(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
 
-        @self.retry
         @self._rate_limiter.limit
-        def _completion_with_retry(**kwargs: Any) -> Any:
+        def _completion(**kwargs: Any) -> Any:
             try:
                 return self.client.invoke_model(**kwargs)
             except Exception as e:
@@ -161,7 +154,7 @@ class BedrockModel(BaseEvalModel):
                     raise PhoenixContextLimitExceeded(exception_message) from e
                 raise e
 
-        return _completion_with_retry(**kwargs)
+        return _completion(**kwargs)
 
     def _format_prompt_for_claude(self, prompt: str) -> str:
         # Claude requires prompt in the format of Human: ... Assisatnt:

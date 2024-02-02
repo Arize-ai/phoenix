@@ -115,25 +115,11 @@ class OpenAIModel(BaseEvalModel):
 
     def _init_environment(self) -> None:
         try:
-            import httpx
             import openai
             import openai._utils as openai_util
 
             self._openai = openai
             self._openai_util = openai_util
-            self._openai_retry_errors = [
-                self._openai.APITimeoutError,
-                self._openai.APIError,
-                self._openai.APIConnectionError,
-                self._openai.InternalServerError,
-                httpx.ReadTimeout,
-            ]
-            self.retry = self._retry(
-                error_types=self._openai_retry_errors,
-                min_seconds=self.retry_min_seconds,
-                max_seconds=self.retry_max_seconds,
-                max_retries=self.max_retries,
-            )
         except ImportError:
             self._raise_import_error(
                 package_display_name="OpenAI",
@@ -266,7 +252,7 @@ class OpenAIModel(BaseEvalModel):
             invoke_params["functions"] = functions
         if function_call := kwargs.get("function_call"):
             invoke_params["function_call"] = function_call
-        response = await self._async_generate_with_retry(
+        response = await self._async_rate_limited_completion(
             messages=messages,
             **invoke_params,
         )
@@ -285,7 +271,7 @@ class OpenAIModel(BaseEvalModel):
             invoke_params["functions"] = functions
         if function_call := kwargs.get("function_call"):
             invoke_params["function_call"] = function_call
-        response = self._generate_with_retry(
+        response = self._rate_limited_completion(
             messages=messages,
             **invoke_params,
         )
@@ -297,12 +283,9 @@ class OpenAIModel(BaseEvalModel):
             return str(function_call.get("arguments") or "")
         return str(message["content"])
 
-    async def _async_generate_with_retry(self, **kwargs: Any) -> Any:
-        """Use tenacity to retry the completion call."""
-
-        @self.retry
+    async def _async_rate_limited_completion(self, **kwargs: Any) -> Any:
         @self._rate_limiter.alimit
-        async def _completion_with_retry(**kwargs: Any) -> Any:
+        async def _async_completion(**kwargs: Any) -> Any:
             try:
                 if self._model_uses_legacy_completion_api:
                     if "prompt" not in kwargs:
@@ -322,14 +305,11 @@ class OpenAIModel(BaseEvalModel):
                     raise PhoenixContextLimitExceeded(exception_message) from e
                 raise e
 
-        return await _completion_with_retry(**kwargs)
+        return await _async_completion(**kwargs)
 
-    def _generate_with_retry(self, **kwargs: Any) -> Any:
-        """Use tenacity to retry the completion call."""
-
-        @self.retry
+    def _rate_limited_completion(self, **kwargs: Any) -> Any:
         @self._rate_limiter.limit
-        def _completion_with_retry(**kwargs: Any) -> Any:
+        def _completion(**kwargs: Any) -> Any:
             try:
                 if self._model_uses_legacy_completion_api:
                     if "prompt" not in kwargs:
@@ -347,7 +327,7 @@ class OpenAIModel(BaseEvalModel):
                     raise PhoenixContextLimitExceeded(exception_message) from e
                 raise e
 
-        return _completion_with_retry(**kwargs)
+        return _completion(**kwargs)
 
     @property
     def max_context_size(self) -> int:
