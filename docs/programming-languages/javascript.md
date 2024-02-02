@@ -253,7 +253,7 @@ export function chat(message: string) {
 
 The above instrumented code can now be pasted in the `/chat` handler. You should now be able to see spans emitted from your app.
 
-Start your app as follows, and then send it requests by visiting `http://localhost:8080/rolldice?message="how long is a pencil"` with your browser or `curl`.
+Start your app as follows, and then send it requests by visiting `http://localhost:8080/chat?message="how long is a pencil"` with your browser or `curl`.
 
 ```sh
 ts-node --require ./instrumentation.ts app.ts
@@ -265,12 +265,15 @@ After a while, you should see the spans printed in the console by the `ConsoleSp
 {
   "traceId": "6cc927a05e7f573e63f806a2e9bb7da8",
   "parentId": undefined,
-  "name": "rollTheDice",
+  "name": "chat",
   "id": "117d98e8add5dc80",
   "kind": 0,
   "timestamp": 1688386291908349,
   "duration": 501,
-  "attributes": {},
+  "attributes": {
+    "openinference.span.kind": "chain"
+    "input.value": "how long is a pencil"
+  },
   "status": { "code": 0 },
   "events": [],
   "links": []
