@@ -74,6 +74,7 @@
 * [LlamaIndex](integrations/llamaindex.md)
 * [LangChain](integrations/langchain.md)
 * [OpenAI](integrations/openai.md)
+* [Bedrock](integrations/bedrock.md)
 * [AutoGen](integrations/autogen-support.md)
 * [Arize](integrations/bring-production-data-to-notebook-for-eda-or-retraining.md)
 
