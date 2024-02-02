@@ -220,27 +220,34 @@ In most cases you want to use the latter (`tracer.startActiveSpan`), as it takes
 The code below illustrates how to create an active span.
 
 ```ts
-import { trace, Span } from '@opentelemetry/api';
+import { trace, Span } from "@opentelemetry/api";
 import { SpanKind } from "@opentelemetry/api";
-import { SemanticConventions, OpenInferenceSpanKind } from "@arizeai/openinference-semantic-conventions"
+import {
+    SemanticConventions,
+    OpenInferenceSpanKind,
+} from "@arizeai/openinference-semantic-conventions";
 
 export function chat(message: string) {
-  // Create a span. A span must be closed.
-  return tracer.startActiveSpan('chat', {
+    // Create a span. A span must be closed.
+    return tracer.startActiveSpan(
+        "chat",
+        {
             kind: SpanKind.INTERNAL,
             attributes: {
-               [SemanticConventions.INPUT_VALUE]: OpenInferenceSpanKind.chain,
-              [SemanticConventions.INPUT_VALUE]: message
+                [SemanticConventions.INPUT_VALUE]: OpenInferenceSpanKind.chain,
+                [SemanticConventions.INPUT_VALUE]: message,
             },
-          }, (span: Span) => {
-    let chatCompletion = await openai.chat.completions.create({
-    messages: [{ role: "user", content: message }],
-    model: "gpt-3.5-turbo",
-  });
-    // Be sure to end the span!
-    span.end();
-    return result;
-  });
+        },
+        (span: Span) => {
+            let chatCompletion = await openai.chat.completions.create({
+                messages: [{ role: "user", content: message }],
+                model: "gpt-3.5-turbo",
+            });
+            // Be sure to end the span!
+            span.end();
+            return result;
+        }
+    );
 }
 ```
 
