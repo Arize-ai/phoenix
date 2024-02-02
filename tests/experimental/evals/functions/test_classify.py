@@ -395,12 +395,8 @@ def test_llm_classify_shows_retry_info(openai_api_key: str, capfd: pytest.Captur
         openai_retry_error = model._openai.APITimeoutError("test timeout")
         mock_openai = MagicMock()
         mock_openai.side_effect = openai_retry_error
-        stack.enter_context(
-            patch.object(model, "_generate", mock_openai)
-        )
-        stack.enter_context(
-            patch.object(model, "_async_generate", mock_openai)
-        )
+        stack.enter_context(patch.object(model, "_generate", mock_openai))
+        stack.enter_context(patch.object(model, "_async_generate", mock_openai))
         llm_classify(
             dataframe=dataframe,
             template=RAG_RELEVANCY_PROMPT_TEMPLATE,

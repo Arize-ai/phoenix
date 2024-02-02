@@ -96,14 +96,14 @@ class LiteLLMModel(BaseEvalModel):
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         messages = self._get_messages_from_prompt(prompt)
         response = self._litellm.completion(
-                model=self.model_name,
-                messages=messages,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                top_p=self.top_p,
-                num_retries=self.num_retries,
-                request_timeout=self.request_timeout,
-                **self.model_kwargs,
+            model=self.model_name,
+            messages=messages,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+            top_p=self.top_p,
+            num_retries=self.num_retries,
+            request_timeout=self.request_timeout,
+            **self.model_kwargs,
         )
         return str(response.choices[0].message.content)
 
