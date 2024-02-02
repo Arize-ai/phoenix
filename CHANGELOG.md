@@ -3,10 +3,6 @@
 ## [2.8.0](https://github.com/Arize-ai/phoenix/compare/v2.7.0...v2.8.0) (2024-02-02)
 
 
-### ⚠ BREAKING CHANGES
-
-* Remove model-level tenacity retries ([#2176](https://github.com/Arize-ai/phoenix/issues/2176))
-
 ### Features
 
 * Remove model-level tenacity retries ([#2176](https://github.com/Arize-ai/phoenix/issues/2176)) ([66d452c](https://github.com/Arize-ai/phoenix/commit/66d452c45a676ee5dbac43b25df43df32bdb71bc))
