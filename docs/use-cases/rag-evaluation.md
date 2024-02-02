@@ -6,6 +6,8 @@ description: Building a RAG pipeline and evaluating it with Phoenix Evals.
 
 {% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_rag.ipynb" %}
 
+{% embed url="https://www.youtube.com/watch?v=LrMguHcbpO8" %}
+
 In this tutorial we will look into building a RAG pipeline and evaluating it with Phoenix Evals.
 
 It has the the following sections:
