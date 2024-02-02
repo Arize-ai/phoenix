@@ -22,6 +22,9 @@
     <a target="_blank" href="https://pypi.org/project/arize-phoenix/">
         <img src="https://img.shields.io/pypi/pyversions/arize-phoenix">
     </a>
+    <a target="_blank" href="https://hub.docker.com/repository/docker/arizephoenix/phoenix/general">
+        <img src="https://img.shields.io/docker/cloud/build/arizephoenix/phoenix?label=Docker&style=flat">
+    </a>
 </p>
 
 ![a rotating UMAP point cloud of a computer vision model](https://github.com/Arize-ai/phoenix-assets/blob/main/gifs/image_classification_10mb.gif?raw=true)
