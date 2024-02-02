@@ -23,7 +23,7 @@
         <img src="https://img.shields.io/pypi/pyversions/arize-phoenix">
     </a>
     <a target="_blank" href="https://hub.docker.com/repository/docker/arizephoenix/phoenix/general">
-        <img src="https://img.shields.io/docker/v/arizephoenix/phoenix?sort=semver&logo=docker&color=blue">
+        <img src="https://img.shields.io/docker/v/arizephoenix/phoenix?sort=semver&logo=docker&label=image&color=blue">
     </a>
 </p>
 
