@@ -188,8 +188,12 @@ docker pull arizephoenix/phoenix
 
 Pick an image you would like to run or simply run the latest:
 
+{% hint style="danger" %}
+Note, you should pin the phoenix version for production to the version of phoenix you plan on using. E.x. arizephoenix/phoenix:2.7.0
+{% endhint %}
+
 ```
-docker run -i -t arizephoenix/phoenix:latest
+docker run -p 6006:6006 -i -t arizephoenix/phoenix:latest
 ```
 {% endtab %}
 
