@@ -60,7 +60,7 @@ from phoenix.experimental.evals import (
 )
 
 api_key = None  # set your api key here or with the OPENAI_API_KEY environment variable
-eval_model = OpenAIModel(model_name="gpt-4-1106-preview", api_key=api_key)
+eval_model = OpenAIModel(model_name="gpt-4-turbo-preview", api_key=api_key)
 
 hallucination_evaluator = HallucinationEvaluator(eval_model)
 qa_correctness_evaluator = QAEvaluator(eval_model)
@@ -264,7 +264,7 @@ capitals_df = llm_generate(
     dataframe=countries_df,
     template=template,
     model=OpenAIModel(
-        model_name="gpt-4-1106-preview",
+        model_name="gpt-4-turbo-preview",
         model_kwargs={
             "response_format": {"type": "json_object"}
         }
