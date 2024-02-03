@@ -63,7 +63,7 @@ For a comprehensive guide to python instrumentation, please consult [OpenTelemet
 ### Install OpenTelemetry packages
 
 ```
-pip install opentelemetry-api opentelemetry-instrumentation opentelemetry-semantic-conventions = "*"
+pip install opentelemetry-api opentelemetry-instrumentation opentelemetry-semantic-conventions opentelemetry-exporter-otlp-proto-http
 ```
 {% endtab %}
 
