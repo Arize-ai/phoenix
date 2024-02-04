@@ -12,35 +12,35 @@ from phoenix.trace.dsl import SpanQuery
 
 @responses.activate
 def test_get_spans_dataframe(client: Client, endpoint: str, dataframe: pd.DataFrame):
-    url = urljoin(endpoint, "v1/get_spans_dataframe")
+    url = urljoin(endpoint, "v1/spans")
 
-    responses.post(url, body=_df_to_bytes(dataframe))
+    responses.get(url, body=_df_to_bytes(dataframe))
     df = client.get_spans_dataframe()
     assert_frame_equal(df, dataframe)
 
-    responses.post(url, status=404)
+    responses.get(url, status=404)
     assert client.get_spans_dataframe() is None
 
 
 @responses.activate
 def test_query_spans(client: Client, endpoint: str, dataframe: pd.DataFrame):
     df0, df1 = dataframe.iloc[:1, :], dataframe.iloc[1:, :]
-    url = urljoin(endpoint, "v1/query_spans")
+    url = urljoin(endpoint, "v1/spans")
 
-    responses.post(url, body=b"".join([_df_to_bytes(df0), _df_to_bytes(df1)]))
+    responses.get(url, body=b"".join([_df_to_bytes(df0), _df_to_bytes(df1)]))
     query = SpanQuery()
     dfs = client.query_spans(query, query)
     assert len(dfs) == 2
     assert_frame_equal(dfs[0], df0)
     assert_frame_equal(dfs[1], df1)
 
-    responses.post(url, status=404)
+    responses.get(url, status=404)
     assert client.query_spans(query) is None
 
-    responses.post(url, body=_df_to_bytes(df0))
+    responses.get(url, body=_df_to_bytes(df0))
     assert_frame_equal(client.query_spans(query), df0)
 
-    responses.post(url, body=_df_to_bytes(df1))
+    responses.get(url, body=_df_to_bytes(df1))
     assert_frame_equal(client.query_spans(), df1)
 
 

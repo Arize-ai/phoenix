@@ -1,7 +1,10 @@
 import asyncio
+import gzip
+from datetime import datetime
 from functools import partial
 from typing import AsyncIterator, Optional, cast
 
+import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import pandas as pd
 import pyarrow as pa
 from starlette.endpoints import HTTPEndpoint
@@ -11,61 +14,37 @@ from starlette.status import HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
 
 from phoenix.core.evals import Evals
 from phoenix.core.traces import Traces
-from phoenix.trace.dsl import SpanFilter, SpanQuery
-from phoenix.utilities import get_spans_dataframe, query_spans
+from phoenix.trace.dsl import SpanQuery
+from phoenix.trace.otel import encode
+from phoenix.trace.schemas import Span
+from phoenix.trace.span_json_decoder import json_to_span
+from phoenix.utilities import query_spans
 
 
-class GetSpansDataFrameHandler(HTTPEndpoint):
+class SpanHandler(HTTPEndpoint):
     traces: Traces
     evals: Optional[Evals] = None
 
     async def post(self, request: Request) -> Response:
-        payload = await request.json()
-        filter_condition = cast(str, payload.pop("filter_condition", None) or "")
-        loop = asyncio.get_running_loop()
-        valid_eval_names = (
-            await loop.run_in_executor(
-                None,
-                self.evals.get_span_evaluation_names,
-            )
-            if self.evals
-            else ()
-        )
         try:
-            span_filter = SpanFilter(
-                filter_condition,
-                evals=self.evals,
-                valid_eval_names=valid_eval_names,
-            )
-        except Exception as e:
-            return Response(
-                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-                content=f"Invalid filter condition: {e}",
-            )
-        df = await loop.run_in_executor(
-            None,
-            partial(
-                get_spans_dataframe,
-                self.traces,
-                span_filter,
-                start_time=payload.get("start_time"),
-                stop_time=payload.get("stop_time"),
-                root_spans_only=payload.get("root_spans_only"),
-            ),
-        )
-        if df is None:
-            return Response(status_code=HTTP_404_NOT_FOUND)
-        return Response(
-            content=_df_to_bytes(df),
-            media_type="application/x-pandas-arrow",
-        )
+            content_type = request.headers.get("content-type")
+            if content_type == "application/x-protobuf":
+                body = await request.body()
+                content_encoding = request.headers.get("content-encoding")
+                if content_encoding == "gzip":
+                    body = gzip.decompress(body)
+                otlp_span = otlp.Span()
+                otlp_span.ParseFromString(body)
+            else:
+                span = json_to_span(await request.json())
+                assert isinstance(span, Span)
+                otlp_span = encode(span)
+        except Exception:
+            return Response(status_code=422)
+        self.traces.put(otlp_span)
+        return Response()
 
-
-class QuerySpansHandler(HTTPEndpoint):
-    traces: Traces
-    evals: Optional[Evals] = None
-
-    async def post(self, request: Request) -> Response:
+    async def get(self, request: Request) -> Response:
         payload = await request.json()
         queries = payload.pop("queries", [])
         loop = asyncio.get_running_loop()
@@ -97,8 +76,8 @@ class QuerySpansHandler(HTTPEndpoint):
                 query_spans,
                 self.traces,
                 *span_queries,
-                start_time=payload.get("start_time"),
-                stop_time=payload.get("stop_time"),
+                start_time=_from_iso_format(payload.get("start_time")),
+                stop_time=_from_iso_format(payload.get("stop_time")),
                 root_spans_only=payload.get("root_spans_only"),
             ),
         )
@@ -113,6 +92,10 @@ class QuerySpansHandler(HTTPEndpoint):
             content=content(),
             media_type="application/x-pandas-arrow",
         )
+
+
+def _from_iso_format(value: Optional[str]) -> Optional[datetime]:
+    return datetime.fromisoformat(value) if value else None
 
 
 def _df_to_bytes(df: pd.DataFrame) -> bytes:
