@@ -95,24 +95,17 @@ class LiteLLMModel(BaseEvalModel):
 
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         messages = self._get_messages_from_prompt(prompt)
-        return str(
-            self._generate_with_retry(
-                model=self.model_name,
-                messages=messages,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-                top_p=self.top_p,
-                num_retries=self.num_retries,
-                request_timeout=self.request_timeout,
-                **self.model_kwargs,
-            )
+        response = self._litellm.completion(
+            model=self.model_name,
+            messages=messages,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+            top_p=self.top_p,
+            num_retries=self.num_retries,
+            request_timeout=self.request_timeout,
+            **self.model_kwargs,
         )
-
-    def _generate_with_retry(self, **kwargs: Any) -> Any:
-        # Using default LiteLLM completion with retries = self.num_retries.
-
-        response = self._litellm.completion(**kwargs)
-        return response.choices[0].message.content
+        return str(response.choices[0].message.content)
 
     def _get_messages_from_prompt(self, prompt: str) -> List[Dict[str, str]]:
         # LiteLLM requires prompts in the format of messages

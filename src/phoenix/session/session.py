@@ -31,13 +31,13 @@ from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
 from phoenix.services import AppService
 from phoenix.session.client import Client
+from phoenix.session.data_extractor import TraceDataExtractor
 from phoenix.session.evaluation import encode_evaluations
 from phoenix.trace import Evaluations
-from phoenix.trace.dsl import SpanFilter
 from phoenix.trace.dsl.query import SpanQuery
 from phoenix.trace.otel import encode
 from phoenix.trace.trace_dataset import TraceDataset
-from phoenix.utilities import get_spans_dataframe, query_spans
+from phoenix.utilities import query_spans
 
 try:
     from IPython.display import IFrame  # type: ignore
@@ -80,7 +80,7 @@ class ExportedData(_BaseList):
         self.data.extend(pd.read_parquet(path) for path in new_paths)
 
 
-class Session(ABC):
+class Session(TraceDataExtractor, ABC):
     """Session that maintains a 1-1 shared state with the Phoenix App."""
 
     trace_dataset: Optional[TraceDataset]
@@ -178,37 +178,6 @@ class Session(ABC):
     def url(self) -> str:
         """Returns the url for the phoenix app"""
         return _get_url(self.host, self.port, self.notebook_env)
-
-    @abstractmethod
-    def query_spans(
-        self,
-        *queries: SpanQuery,
-        start_time: Optional[datetime] = None,
-        stop_time: Optional[datetime] = None,
-        root_spans_only: Optional[bool] = None,
-    ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
-        ...
-
-    @abstractmethod
-    def get_spans_dataframe(
-        self,
-        filter_condition: Optional[str] = None,
-        *,
-        start_time: Optional[datetime] = None,
-        stop_time: Optional[datetime] = None,
-        root_spans_only: Optional[bool] = None,
-    ) -> Optional[pd.DataFrame]:
-        ...
-
-    @abstractmethod
-    def get_evaluations(self) -> List[Evaluations]:
-        ...
-
-    def get_trace_dataset(self) -> Optional[TraceDataset]:
-        if (dataframe := self.get_spans_dataframe()) is None:
-            return None
-        evaluations = self.get_evaluations()
-        return TraceDataset(dataframe=dataframe, evaluations=evaluations)
 
 
 _session: Optional[Session] = None
@@ -393,30 +362,6 @@ class ThreadSession(Session):
             df = results[0]
             return None if df.shape == (0, 0) else df
         return results
-
-    def get_spans_dataframe(
-        self,
-        filter_condition: Optional[str] = None,
-        *,
-        start_time: Optional[datetime] = None,
-        stop_time: Optional[datetime] = None,
-        root_spans_only: Optional[bool] = None,
-    ) -> Optional[pd.DataFrame]:
-        if (traces := self.traces) is None:
-            return None
-        valid_eval_names = self.evals.get_span_evaluation_names() if self.evals else ()
-        span_filter = SpanFilter(
-            filter_condition or "",
-            evals=self.evals,
-            valid_eval_names=valid_eval_names,
-        )
-        return get_spans_dataframe(
-            traces,
-            span_filter=span_filter,
-            start_time=start_time,
-            stop_time=stop_time,
-            root_spans_only=root_spans_only,
-        )
 
     def get_evaluations(self) -> List[Evaluations]:
         return self.evals.export_evaluations()

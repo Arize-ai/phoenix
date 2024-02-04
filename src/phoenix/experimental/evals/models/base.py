@@ -2,24 +2,13 @@ import logging
 from abc import ABC, abstractmethod, abstractproperty
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Generator, List, Optional, Sequence, Type
+from typing import TYPE_CHECKING, Any, Generator, List, Optional, Sequence
 
-from phoenix.exceptions import PhoenixException
 from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
 
-
-from tenacity import (
-    RetryCallState,
-    retry,
-    retry_base,
-    retry_if_exception_type,
-    retry_unless_exception_type,
-    stop_after_attempt,
-    wait_random_exponential,
-)
 from tqdm.asyncio import tqdm_asyncio
 from tqdm.auto import tqdm
 from typing_extensions import TypeVar
@@ -66,55 +55,6 @@ class BaseEvalModel(ABC):
 
     def reload_client(self) -> None:
         pass
-
-    def _retry(
-        self,
-        error_types: List[Type[BaseException]],
-        min_seconds: int,
-        max_seconds: int,
-        max_retries: int,
-    ) -> Callable[[Any], Any]:
-        """Create a retry decorator for a given LLM and provided list of error types."""
-
-        def log_retry(retry_state: RetryCallState) -> None:
-            if fut := retry_state.outcome:
-                exc = fut.exception()
-            else:
-                exc = None
-
-            if exc:
-                printif(
-                    self._verbose,
-                    (
-                        f"Failed attempt {retry_state.attempt_number}: "
-                        f"{type(exc).__module__}.{type(exc).__name__}"
-                    ),
-                )
-                printif(
-                    True,
-                    f"Failed attempt {retry_state.attempt_number}: raised {repr(exc)}",
-                )
-            else:
-                printif(True, f"Failed attempt {retry_state.attempt_number}")
-            return None
-
-        if not error_types:
-            # default to retrying on all exceptions
-            error_types = [Exception]
-
-        retry_instance: retry_base = retry_if_exception_type(error_types[0])
-        for error in error_types[1:]:
-            retry_instance = retry_instance | retry_if_exception_type(error)
-
-        internal_error_bypass: retry_base = retry_unless_exception_type(PhoenixException)
-        retry_instance = retry_instance & internal_error_bypass
-        return retry(
-            reraise=True,
-            stop=stop_after_attempt(max_retries),
-            wait=wait_random_exponential(multiplier=1, min=min_seconds, max=max_seconds),
-            retry=retry_instance,
-            before_sleep=log_retry,
-        )
 
     def __call__(self, prompt: str, instruction: Optional[str] = None, **kwargs: Any) -> str:
         """Run the LLM on the given prompt."""

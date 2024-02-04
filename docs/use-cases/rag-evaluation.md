@@ -371,7 +371,7 @@ from phoenix.experimental.evals import (
 
 retrieved_documents_relevance = llm_classify(
     retrieved_documents,
-    OpenAIModel(model_name="gpt-4-1106-preview"),
+    OpenAIModel(model_name="gpt-4-turbo-preview"),
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
     provide_explanation=True,
@@ -609,7 +609,7 @@ from phoenix.experimental.evals.templates.default_templates import (
 
 qa_correctness_eval = llm_classify(
     question_and_answer_df,
-    OpenAIModel(model_name="gpt-4-1106-preview"),
+    OpenAIModel(model_name="gpt-4-turbo-preview"),
     QA_PROMPT_TEMPLATE,
     list(QA_PROMPT_RAILS_MAP.values()),
     provide_explanation=True,

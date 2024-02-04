@@ -37,7 +37,7 @@ from phoenix.experimental.evals import (
 # Creating Hallucination Eval which checks if the application hallucinated
 hallucination_eval = llm_classify(
   dataframe=queries_df,
-  model=OpenAIModel("gpt-4-1106-preview", temperature=0.0),
+  model=OpenAIModel("gpt-4-turbo-preview", temperature=0.0),
   template=HALLUCINATION_PROMPT_TEMPLATE,
   rails=list(HALLUCINATION_PROMPT_RAILS_MAP.values()),
   provide_explanation=True,  # Makes the LLM explain its reasoning
@@ -50,7 +50,7 @@ hallucination_eval["score"] = (
 # Creating Q&A Eval which checks if the application answered the question correctly
 qa_correctness_eval = llm_classify(
   dataframe=queries_df,
-  model=OpenAIModel("gpt-4-1106-preview", temperature=0.0),
+  model=OpenAIModel("gpt-4-turbo-preview", temperature=0.0),
   template=QA_PROMPT_TEMPLATE,
   rails=list(QA_PROMPT_RAILS_MAP.values()),
   provide_explanation=True,  # Makes the LLM explain its reasoning
@@ -90,7 +90,7 @@ from phoenix.experimental.evals import (
 
 retrieved_documents_eval = llm_classify(
     dataframe=retrieved_documents_df,
-    model=OpenAIModel("gpt-4-1106-preview", temperature=0.0),
+    model=OpenAIModel("gpt-4-turbo-preview", temperature=0.0),
     template=RAG_RELEVANCY_PROMPT_TEMPLATE,
     rails=list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
     provide_explanation=True,

@@ -2,7 +2,7 @@ import logging
 import weakref
 from datetime import datetime
 from io import BytesIO
-from typing import List, Optional, Union, cast
+from typing import List, Optional, Union
 from urllib.parse import urljoin
 
 import pandas as pd
@@ -12,14 +12,13 @@ from requests import Session
 
 import phoenix as px
 from phoenix.config import get_env_host, get_env_port
-from phoenix.trace import Evaluations
+from phoenix.session.data_extractor import TraceDataExtractor
 from phoenix.trace.dsl import SpanQuery
-from phoenix.trace.trace_dataset import TraceDataset
 
 logger = logging.getLogger(__name__)
 
 
-class Client:
+class Client(TraceDataExtractor):
     def __init__(
         self,
         endpoint: Optional[str] = None,
@@ -43,40 +42,6 @@ class Client:
         if not (self._use_active_session_if_available and px.active_session()):
             self._warn_if_phoenix_is_not_running()
 
-    def get_spans_dataframe(
-        self,
-        filter_condition: Optional[str] = None,
-        *,
-        start_time: Optional[datetime] = None,
-        stop_time: Optional[datetime] = None,
-        root_spans_only: Optional[bool] = None,
-    ) -> Optional[pd.DataFrame]:
-        if self._use_active_session_if_available and (session := px.active_session()):
-            return session.get_spans_dataframe(
-                filter_condition,
-                start_time=start_time,
-                stop_time=stop_time,
-                root_spans_only=root_spans_only,
-            )
-        response = self._session.post(
-            url=urljoin(self._base_url, "v1/get_spans_dataframe"),
-            json={
-                "filter_condition": filter_condition,
-                "start_time": start_time,
-                "stop_time": stop_time,
-                "root_spans_only": root_spans_only,
-            },
-        )
-        if response.status_code == 404:
-            logger.info("No spans found.")
-            return None
-        elif response.status_code == 422:
-            raise ValueError(response.content.decode())
-        response.raise_for_status()
-        source = BytesIO(response.content)
-        with pa.ipc.open_stream(source) as reader:
-            return cast(pd.DataFrame, reader.read_pandas())
-
     def query_spans(
         self,
         *queries: SpanQuery,
@@ -93,12 +58,12 @@ class Client:
                 stop_time=stop_time,
                 root_spans_only=root_spans_only,
             )
-        response = self._session.post(
-            url=urljoin(self._base_url, "v1/query_spans"),
+        response = self._session.get(
+            url=urljoin(self._base_url, "v1/spans"),
             json={
                 "queries": [q.to_dict() for q in queries],
-                "start_time": start_time,
-                "stop_time": stop_time,
+                "start_time": _to_iso_format(start_time),
+                "stop_time": _to_iso_format(stop_time),
                 "root_spans_only": root_spans_only,
             },
         )
@@ -120,37 +85,6 @@ class Client:
             df = results[0]
             return None if df.shape == (0, 0) else df
         return results
-        if len(results) == 1:
-            df = results[0]
-            return None if df.shape == (0, 0) else df
-        return results
-
-    def get_evaluations(self) -> List[Evaluations]:
-        if self._use_active_session_if_available and (session := px.active_session()):
-            return session.get_evaluations()
-        response = self._session.post(urljoin(self._base_url, "v1/get_evaluations"))
-        if response.status_code == 404:
-            logger.info("No evaluations found.")
-            return []
-        elif response.status_code == 422:
-            raise ValueError(response.content.decode())
-        response.raise_for_status()
-        source = BytesIO(response.content)
-        results = []
-        while True:
-            try:
-                with pa.ipc.open_stream(source) as reader:
-                    pa_table = reader.read_all()
-                    results.append(Evaluations.from_pyarrow_table(pa_table))
-            except ArrowInvalid:
-                break
-        return results
-
-    def get_trace_dataset(self) -> Optional[TraceDataset]:
-        if (dataframe := self.get_spans_dataframe()) is None:
-            return None
-        evaluations = self.get_evaluations()
-        return TraceDataset(dataframe=dataframe, evaluations=evaluations)
 
     def _warn_if_phoenix_is_not_running(self) -> None:
         try:
@@ -160,3 +94,7 @@ class Client:
                 f"Arize Phoenix is not running on {self._base_url}. Launch Phoenix "
                 f"with `import phoenix as px; px.launch_app()`"
             )
+
+
+def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
+    return value.isoformat() if value else None
