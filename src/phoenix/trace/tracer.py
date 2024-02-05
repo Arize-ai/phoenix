@@ -6,15 +6,6 @@ import logging
 import sys
 from typing import Any, Callable, Iterator, List, Optional, Protocol
 
-from opentelemetry import trace as trace_api
-from opentelemetry.sdk import trace as trace_sdk
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-
-from phoenix.trace.exporter import (
-    _OpenInferenceExporter,
-)
-
 from .schemas import (
     Span,
 )
@@ -32,10 +23,13 @@ _DEFUNCT_MSG = (
     "deprecated. It no longer has any purpose or functionality and will be removed in the future."
 )
 
-_USE_ENV_MSG = (
-    "Setting the Phoenix endpoint through the HttpExporter is no longer supported. "
-    'Please use environment variables instead, e.g. os.environ["PHOENIX_PORT"] = "54321"'
-)
+_USE_ENV_MSG = """
+Setting the Phoenix endpoint through the HttpExporter is no longer supported.
+Please use environment variables instead:
+  - os.environ["PHOENIX_HOST"] = "127.0.0.1"
+  - os.environ["PHOENIX_PORT"] = "54321"
+  - os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://127.0.0.1:54321"
+"""
 
 _ON_APPEND_DEPRECATION_MSG = (
     "OpenInference has been updated for full OpenTelemetry compliance. The ability to set "
@@ -53,18 +47,10 @@ class Tracer:
     ) -> None:
         if exporter is not None:
             logger.warning(_USE_ENV_MSG)
-        self.exporter = _OpenInferenceExporter().otel_exporter
         logger.warning(_DEFUNCT_MSG)
 
         if on_append is not None:
             logger.warning(_ON_APPEND_DEPRECATION_MSG)
-
-        self._tracer_provider = trace_sdk.TracerProvider(resource=Resource(attributes={}))
-
-    def _configure_otel_tracer(self) -> None:
-        span_processor = SimpleSpanProcessor(span_exporter=self.exporter)
-        self._tracer_provider.add_span_processor(span_processor)
-        trace_api.set_tracer_provider(tracer_provider=self._tracer_provider)
 
     def create_span(self, *_: Any, **__: Any) -> Any:
         logger.warning(_DEFUNCT_MSG)
@@ -88,6 +74,8 @@ class _DefunctModule:
         if name == "SpanExporter":
             logger.warning("`SpanExporter` is defunct and will be removed in the future.")
             return SpanExporter
+        if name == "_USE_ENV_MSG":
+            return _USE_ENV_MSG
         raise AttributeError(f"module {__name__} has no attribute {name}")
 
 
