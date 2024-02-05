@@ -91,20 +91,6 @@ class _OpenInferenceExporter:
                 f"with `import phoenix as px; px.launch_app()`"
             )
 
-    @classmethod
-    def _from_legacy_exporter(
-        cls, exporter: Union["HttpExporter", NoOpExporter]
-    ) -> "_OpenInferenceExporter":
-        logger.warning(
-            "OpenInference has been updated for full OpenTelemetry compliance. The legacy"
-            "Exporter objects are deprecated. Please migrate to OpenInferenceExporter or "
-            "configure OpenTelemetry trace processors directly. More examples can be found in the "
-            "Phoenix docs: https://docs.arize.com/phoenix/deployment/instrumentation"
-        )
-        if isinstance(exporter, NoOpExporter):
-            return cls(no_op=True)
-        return cls(endpoint=exporter._base_url)
-
 
 class HttpExporter:
     def __init__(
