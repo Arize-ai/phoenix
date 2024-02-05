@@ -42,9 +42,11 @@ dependencies = [
   "requests",
   "opentelemetry-sdk",
   "opentelemetry-proto",
-  "openinference-semantic-conventions",
-  "openinference-instrumentation-openai",
+  "pyarrow",
   "opentelemetry-exporter-otlp",
+  "openinference-instrumentation-langchain",
+  "openinference-instrumentation-llama-index",
+  "openinference-instrumentation-openai",
 ]
 dynamic = ["version"]
 

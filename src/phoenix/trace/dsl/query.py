@@ -1,14 +1,30 @@
+import json
 from collections import defaultdict
 from dataclasses import dataclass, field, fields, replace
 from functools import cached_property, partial
 from types import MappingProxyType
-from typing import Any, Callable, ClassVar, Dict, Iterable, Iterator, List, Mapping, Sequence, Tuple
+from typing import (
+    Any,
+    Callable,
+    ClassVar,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    cast,
+)
 
 import pandas as pd
 
 from phoenix.trace.dsl import SpanFilter
+from phoenix.trace.dsl.filter import SupportsGetSpanEvaluation
 from phoenix.trace.schemas import ATTRIBUTE_PREFIX, CONTEXT_PREFIX, Span
 from phoenix.trace.semantic_conventions import RETRIEVAL_DOCUMENTS
+from phoenix.trace.span_json_encoder import span_to_json
 
 _SPAN_ID = "context.span_id"
 _PRESCRIBED_POSITION_PREFIXES = {
@@ -79,6 +95,15 @@ class Projection:
     def _from_span(span: Span, key: str) -> Any:
         return getattr(span, key, None)
 
+    def to_dict(self) -> Dict[str, Any]:
+        return {"key": self.key}
+
+    @classmethod
+    def from_dict(cls, obj: Mapping[str, Any]) -> "Projection":
+        return cls(
+            **({"key": cast(str, key)} if (key := obj.get("key")) else {}),
+        )
+
 
 @dataclass(frozen=True)
 class Explosion(Projection):
@@ -137,6 +162,29 @@ class Explosion(Projection):
             record[f"{self.position_prefix}position"] = i
             yield record
 
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            **super().to_dict(),
+            **({"kwargs": dict(self.kwargs)} if self.kwargs else {}),
+            "primary_index_key": self.primary_index_key,
+        }
+
+    @classmethod
+    def from_dict(cls, obj: Mapping[str, Any]) -> "Explosion":
+        return cls(
+            **({"key": cast(str, key)} if (key := obj.get("key")) else {}),  # type: ignore
+            **(
+                {"kwargs": MappingProxyType(dict(cast(Mapping[str, str], kwargs)))}  # type: ignore
+                if (kwargs := obj.get("kwargs"))
+                else {}
+            ),
+            **(
+                {"primary_index_key": cast(str, primary_index_key)}  # type: ignore
+                if (primary_index_key := obj.get("primary_index_key"))
+                else {}
+            ),
+        )
+
 
 @dataclass(frozen=True)
 class Concatenation(Projection):
@@ -160,6 +208,29 @@ class Concatenation(Projection):
                     record[k].append(value)
         for name, values in record.items():
             yield name, self.separator.join(map(str, values))
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            **super().to_dict(),
+            **({"kwargs": dict(self.kwargs)} if self.kwargs else {}),
+            "separator": self.separator,
+        }
+
+    @classmethod
+    def from_dict(cls, obj: Mapping[str, Any]) -> "Concatenation":
+        return cls(
+            **({"key": cast(str, key)} if (key := obj.get("key")) else {}),  # type: ignore
+            **(
+                {"kwargs": MappingProxyType(dict(cast(Mapping[str, str], kwargs)))}  # type: ignore
+                if (kwargs := obj.get("kwargs"))
+                else {}
+            ),
+            **(
+                {"separator": cast(str, separator)}  # type: ignore
+                if (separator := obj.get("separator"))
+                else {}
+            ),
+        )
 
 
 @dataclass(frozen=True)
@@ -221,6 +292,14 @@ class SpanQuery:
                 lambda span: (isinstance(seq := self._concat.value(span), Sequence) and len(seq)),
                 spans,
             )
+        if not (self._select or self._explode or self._concat):
+            if not (data := [json.loads(span_to_json(span)) for span in spans]):
+                return pd.DataFrame()
+            return (
+                pd.json_normalize(data, max_level=1)
+                .rename(self._rename, axis=1, errors="ignore")
+                .set_index("context.span_id", drop=False)
+            )
         _selected: List[Dict[str, Any]] = []
         _exploded: List[Dict[str, Any]] = []
         for span in spans:
@@ -259,3 +338,70 @@ class SpanQuery:
                 return explode_df.rename(self._rename, axis=1, errors="ignore")
             select_df = select_df.join(explode_df, how="outer")
         return select_df.rename(self._rename, axis=1, errors="ignore")
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            **(
+                {"select": {name: proj.to_dict() for name, proj in self._select.items()}}
+                if self._select
+                else {}
+            ),
+            "filter": self._filter.to_dict(),
+            "explode": self._explode.to_dict(),
+            "concat": self._concat.to_dict(),
+            **({"rename": dict(self._rename)} if self._rename else {}),
+            "index": self._index.to_dict(),
+        }
+
+    @classmethod
+    def from_dict(
+        cls,
+        obj: Mapping[str, Any],
+        evals: Optional[SupportsGetSpanEvaluation] = None,
+        valid_eval_names: Optional[Sequence[str]] = None,
+    ) -> "SpanQuery":
+        return cls(
+            **(
+                {
+                    "_select": MappingProxyType(
+                        {
+                            name: Projection.from_dict(proj)
+                            for name, proj in cast(Mapping[str, Any], select).items()
+                        }
+                    )
+                }  # type: ignore
+                if (select := obj.get("select"))
+                else {}
+            ),
+            **(
+                {
+                    "_filter": SpanFilter.from_dict(
+                        cast(Mapping[str, Any], filter),
+                        evals=evals,
+                        valid_eval_names=valid_eval_names,
+                    )
+                }  # type: ignore
+                if (filter := obj.get("filter"))
+                else {}
+            ),
+            **(
+                {"_explode": Explosion.from_dict(cast(Mapping[str, Any], explode))}  # type: ignore
+                if (explode := obj.get("explode"))
+                else {}
+            ),
+            **(
+                {"_concat": Concatenation.from_dict(cast(Mapping[str, Any], concat))}  # type: ignore
+                if (concat := obj.get("concat"))
+                else {}
+            ),
+            **(
+                {"_rename": MappingProxyType(dict(cast(Mapping[str, str], rename)))}  # type: ignore
+                if (rename := obj.get("rename"))
+                else {}
+            ),
+            **(
+                {"_index": Projection.from_dict(cast(Mapping[str, Any], index))}  # type: ignore
+                if (index := obj.get("index"))
+                else {}
+            ),
+        )

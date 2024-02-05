@@ -9,7 +9,7 @@ from httpx import AsyncByteStream, Response
 from openai import OpenAI
 from opentelemetry.sdk.trace import ReadableSpan, SpanProcessor
 from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
-from phoenix.trace.tracer import OpenInferenceTracer
+from phoenix.trace.tracer import Tracer
 from respx import MockRouter
 
 
@@ -69,9 +69,9 @@ def test_openai_instrumentor_instruments_chat_completion(
     respx_mock: MockRouter,
 ) -> None:
     span_processor = InMemorySpanProcessor()
-    tracer = OpenInferenceTracer()
+    tracer = Tracer()
     instrumentor = OpenAIInstrumentor(tracer)
-    instrumentor.tracer.tracer_provider.add_span_processor(span_processor)
+    instrumentor.tracer._tracer_provider.add_span_processor(span_processor)
     instrumentor.instrument()
     model = "gpt-4"
     messages = [{"role": "user", "content": "Who won the World Cup in 2018?"}]

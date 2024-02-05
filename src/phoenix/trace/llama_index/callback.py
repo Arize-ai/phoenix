@@ -14,9 +14,9 @@ from openinference.instrumentation.llama_index import (
 )
 from opentelemetry import trace as trace_api
 
-from phoenix.trace.exporter import HttpExporter, NoOpExporter, OpenInferenceExporter
+from phoenix.trace.exporter import HttpExporter, NoOpExporter, _OpenInferenceExporter
 from phoenix.trace.schemas import Span
-from phoenix.trace.tracer import OpenInferenceTracer
+from phoenix.trace.tracer import Tracer
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class OpenInferenceTraceCallbackHandler(_OpenInferenceTraceCallbackHandler):
     def __init__(
         self,
         callback: Optional[Callable[[List[Span]], None]] = None,
-        exporter: Optional[Union[OpenInferenceExporter, HttpExporter, NoOpExporter]] = None,
+        exporter: Optional[Union[_OpenInferenceExporter, HttpExporter, NoOpExporter]] = None,
     ) -> None:
         if callback is not None:
             logger.warning(
@@ -45,7 +45,7 @@ class OpenInferenceTraceCallbackHandler(_OpenInferenceTraceCallbackHandler):
                 "TracerProvider. More examples can be found in the Phoenix docs: "
                 "https://docs.arize.com/phoenix/deployment/instrumentation"
             )
-        compat_tracer = OpenInferenceTracer(exporter=exporter)
+        compat_tracer = Tracer(exporter=exporter)
         compat_tracer._configure_otel_tracer()  # temporary until we make a PR to llama_index
         super().__init__(
             tracer=trace_api.get_tracer(__name__, __version__, compat_tracer.tracer_provider)

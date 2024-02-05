@@ -1,24 +1,24 @@
-from typing import Optional, Union
+from typing import Optional
 
 from openinference.instrumentation.openai import (
     OpenAIInstrumentor as OpenInferenceOpenAIInstrumentor,
 )
 
-from phoenix.trace.tracer import OpenInferenceTracer, Tracer, _convert_legacy_tracer
+from phoenix.trace.tracer import Tracer
 
 
 class OpenAIInstrumentor:
-    def __init__(self, tracer: Optional[Union[Tracer, OpenInferenceTracer]] = None) -> None:
+    def __init__(self, tracer: Optional[Tracer] = None) -> None:
         """Instruments your OpenAI client to automatically create spans for each API call.
 
         Args:
-            tracer (Union[Tracer, OpenInferenceTracer]): A tracer to record and handle
+            tracer (Optional[Tracer]): A tracer to record and handle
             spans. If not provided, the default tracer will be used. Legacy Tracer objects are
             deprecated, but will be converted to OpenInferenceTracer objects.
         """
         if tracer is None:
-            tracer = OpenInferenceTracer()
-        self.tracer = _convert_legacy_tracer(tracer)
+            tracer = Tracer()
+        self.tracer = tracer
 
     def instrument(self) -> None:
         """
