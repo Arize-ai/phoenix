@@ -33,7 +33,7 @@ class Client(TraceDataExtractor):
         ----------
         endpoint : str, optional
             Phoenix server endpoint, e.g. http://localhost:6006. If not provided, the
-            host and port will be inferred from the environment variables.
+            endpoint will be inferred from the environment variables.
         use_active_session_if_available : bool, optional
             If active session is available, use it instead of sending HTTP requests.
         """
