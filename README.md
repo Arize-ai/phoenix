@@ -384,7 +384,7 @@ Phoenix's notebook-first approach to observability makes it a great tool to util
 
 In order to run Phoenix tracing in production, you will have to follow these following steps:
 
--   **Setup a Server**: your LLM application to run on a server
+-   **Setup a Server**: your LLM application to run on a server ([examples](https://github.com/Arize-ai/openinference/tree/main/python/examples))
 -   **Instrument**: Add [OpenInference](https://github.com/Arize-ai/openinference) Instrumentation to your server
 -   Observe: Run the Phoenix server as a side-car or a standalone instance and point your tracing instrumentation to the phoenix server
 
