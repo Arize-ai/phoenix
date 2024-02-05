@@ -1,12 +1,9 @@
 import asyncio
 import gzip
-from datetime import datetime
 from functools import partial
-from typing import AsyncIterator, Optional, cast
+from typing import AsyncIterator, Optional
 
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
-import pandas as pd
-import pyarrow as pa
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
@@ -14,6 +11,7 @@ from starlette.status import HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
 
 from phoenix.core.evals import Evals
 from phoenix.core.traces import Traces
+from phoenix.server.api.routers.utils import df_to_bytes, from_iso_format
 from phoenix.trace.dsl import SpanQuery
 from phoenix.trace.otel import encode
 from phoenix.trace.schemas import Span
@@ -76,8 +74,8 @@ class SpanHandler(HTTPEndpoint):
                 query_spans,
                 self.traces,
                 *span_queries,
-                start_time=_from_iso_format(payload.get("start_time")),
-                stop_time=_from_iso_format(payload.get("stop_time")),
+                start_time=from_iso_format(payload.get("start_time")),
+                stop_time=from_iso_format(payload.get("stop_time")),
                 root_spans_only=payload.get("root_spans_only"),
             ),
         )
@@ -86,25 +84,9 @@ class SpanHandler(HTTPEndpoint):
 
         async def content() -> AsyncIterator[bytes]:
             for result in results:
-                yield _df_to_bytes(result)
+                yield df_to_bytes(result)
 
         return StreamingResponse(
             content=content(),
             media_type="application/x-pandas-arrow",
         )
-
-
-def _from_iso_format(value: Optional[str]) -> Optional[datetime]:
-    return datetime.fromisoformat(value) if value else None
-
-
-def _df_to_bytes(df: pd.DataFrame) -> bytes:
-    pa_table = pa.Table.from_pandas(df)
-    return _table_to_bytes(pa_table)
-
-
-def _table_to_bytes(table: pa.Table) -> bytes:
-    sink = pa.BufferOutputStream()
-    with pa.ipc.new_stream(sink, table.schema) as writer:
-        writer.write_table(table)
-    return cast(bytes, sink.getvalue().to_pybytes())

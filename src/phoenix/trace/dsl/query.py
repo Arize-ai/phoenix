@@ -298,7 +298,7 @@ class SpanQuery:
             return (
                 pd.json_normalize(data, max_level=1)
                 .rename(self._rename, axis=1, errors="ignore")
-                .set_index("context.span_id")
+                .set_index("context.span_id", drop=False)
             )
         _selected: List[Dict[str, Any]] = []
         _exploded: List[Dict[str, Any]] = []

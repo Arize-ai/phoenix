@@ -47,17 +47,17 @@ def test_query_spans(client: Client, endpoint: str, dataframe: pd.DataFrame):
 
 @responses.activate
 def test_get_evaluations(client: Client, endpoint: str, evaluations: SpanEvaluations):
-    url = urljoin(endpoint, "v1/get_evaluations")
+    url = urljoin(endpoint, "v1/evaluations")
 
     table = evaluations.to_pyarrow_table()
-    responses.post(url, body=_table_to_bytes(table))
+    responses.get(url, body=_table_to_bytes(table))
     results = client.get_evaluations()
     assert len(results) == 1
     assert isinstance(results[0], SpanEvaluations)
     assert results[0].eval_name == evaluations.eval_name
     assert_frame_equal(results[0].dataframe, evaluations.dataframe)
 
-    responses.post(url, status=404)
+    responses.get(url, status=404)
     assert client.get_evaluations() == []
 
 
