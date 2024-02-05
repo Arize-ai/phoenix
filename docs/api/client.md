@@ -85,7 +85,8 @@ Get spans associated with calls to retrievers in a Retrieval Augmented Generatio
 
 Some settings of the Phoenix Client can be configured through the environment variables below.&#x20;
 
-* `PHOENIX_COLLECTOR_ENDPOINT` The endpoint of the Phoenix collector. This is usually the URL for a remote Phoenix server.
+* `PHOENIX_COLLECTOR_ENDPOINT` The endpoint of the Phoenix collector.
+  * This is usually the URL to a remote server.
 * `PHOENIX_PORT` The port on which the server listens.
 * `PHOENIX_HOST` The host on which the server listens.
 
