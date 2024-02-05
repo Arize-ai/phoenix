@@ -1,5 +1,5 @@
 """
-This module is deprecated and will be removed in the future. It's currently
+This module is defunct and will be removed in the future. It's currently
 maintaining a dummy class to avoid breaking any import code.
 """
 import logging
