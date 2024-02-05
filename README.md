@@ -39,21 +39,22 @@ Phoenix provides MLOps and LLMOps insights at lightning speed with zero-config o
 
 **Table of Contents**
 
--   [Installation](#installation)
--   [LLM Traces](#llm-traces)
-    -   [Tracing with LlamaIndex](#tracing-with-llamaindex)
-    -   [Tracing with LangChain](#tracing-with-langchain)
--   [LLM Evals](#llm-evals)
--   [Embedding Analysis](#embedding-analysis)
-    -   [UMAP-based Exploratory Data Analysis](#umap-based-exploratory-data-analysis)
-    -   [Cluster-driven Drift and Performance Analysis](#cluster-driven-drift-and-performance-analysis)
-    -   [Exportable Clusters](#exportable-clusters)
--   [Retrieval-Augmented Generation Analysis](#retrieval-augmented-generation-analysis)
--   [Structured Data Analysis](#structured-data-analysis)
--   [Breaking Changes](#breaking-changes)
--   [Community](#community)
--   [Thanks](#thanks)
--   [Copyright, Patent, and License](#copyright-patent-and-license)
+- [Installation](#installation)
+- [LLM Traces](#llm-traces)
+  - [Tracing with LlamaIndex](#tracing-with-llamaindex)
+  - [Tracing with LangChain](#tracing-with-langchain)
+- [LLM Evals](#llm-evals)
+- [Embedding Analysis](#embedding-analysis)
+  - [UMAP-based Exploratory Data Analysis](#umap-based-exploratory-data-analysis)
+  - [Cluster-driven Drift and Performance Analysis](#cluster-driven-drift-and-performance-analysis)
+  - [Exportable Clusters](#exportable-clusters)
+- [Retrieval-Augmented Generation Analysis](#retrieval-augmented-generation-analysis)
+- [Structured Data Analysis](#structured-data-analysis)
+- [Deploying Phoenix](#deploying-phoenix)
+- [Breaking Changes](#breaking-changes)
+- [Community](#community)
+- [Thanks](#thanks)
+- [Copyright, Patent, and License](#copyright-patent-and-license)
 
 ## Installation
 
@@ -367,6 +368,27 @@ train_ds = px.Dataset(dataframe=train_df, schema=schema, name="training")
 # Launch Phoenix for analysis
 session = px.launch_app(primary=prod_ds, reference=train_ds)
 ```
+
+## Deploying Phoenix
+
+ <a target="_blank" href="https://hub.docker.com/repository/docker/arizephoenix/phoenix/general">
+        <img src="https://img.shields.io/docker/v/arizephoenix/phoenix?sort=semver&logo=docker&label=image&color=blue">
+    </a>
+    
+<img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/deployment.png" title="How phoenix can collect traces from an LLM application"/>
+
+Phoenix's notebook-first approach to observability makes it a great tool to utilize during experimentation and pre-production. However at some point you are going to want to ship your application to production and continue to monitor your application as it runs. Phoenix is made up of two components that can be deployed independently:
+
+-   **Trace Instrumentation**: These are a set of plugins that can be added to your application's startup process. These plugins (known as instrumentations) automatically collect spans for your application and export them for collection and visualization. For phoenix, all the instrumentors are managed via a single repository called [OpenInference](https://github.com/Arize-ai/openinference)
+-   **Trace Collector**: The Phoenix server acts as a trace collector and application that helps you troubleshoot your application in real time. You can pull the latest images of Phoenix from the [Docker Hub](https://hub.docker.com/repository/docker/arizephoenix/phoenix/general)
+
+In order to run Phoenix tracing in production, you will have to follow these following steps:
+
+-   **Setup a Server**: your LLM application to run on a server ([examples](https://github.com/Arize-ai/openinference/tree/main/python/examples))
+-   **Instrument**: Add [OpenInference](https://github.com/Arize-ai/openinference) Instrumentation to your server
+-   Observe: Run the Phoenix server as a side-car or a standalone instance and point your tracing instrumentation to the phoenix server
+
+For more information on deploying Phoenix, see the [Phoenix Deployment Guide](https://docs.arize.com/phoenix/deployment/deploying-phoenix).
 
 ## Breaking Changes
 
