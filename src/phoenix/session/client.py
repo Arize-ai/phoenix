@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 class Client(TraceDataExtractor):
     def __init__(
         self,
+        *,
         endpoint: Optional[str] = None,
         use_active_session_if_available: bool = True,
     ):
