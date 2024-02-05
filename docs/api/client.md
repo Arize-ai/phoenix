@@ -25,7 +25,7 @@ A client for making HTTP requests to the Phoenix server. This is intended for ex
 
 ### Parameters
 
-* **endpoint** (Optional\[str]): Phoenix server endpoint. This is the URL for a remote server. If not provided, the `host` and `port` will be inferred from the environment variables. Fo a local server this is `http://localhost:6006.`See [#environment-variables](client.md#environment-variables "mention").
+* **endpoint** (Optional\[str]): Phoenix server endpoint. This is the URL for a remote server. If not provided, the endpoint will be inferred from environment variables. See [#environment-variables](client.md#environment-variables "mention").
 * **use\_active\_session\_if\_available** (Optional\[bool]): Most users can ignore this parameter. If `px.active_session()` is available in the same runtime environment, then delegate the requests to the `Session` object instead of making an HTTP request to the Phoenix server.
 
 ### Methods
@@ -85,6 +85,7 @@ Get spans associated with calls to retrievers in a Retrieval Augmented Generatio
 
 Some settings of the Phoenix Client can be configured through the environment variables below.&#x20;
 
+* `PHOENIX_COLLECTOR_ENDPOINT` The endpoint of the Phoenix collector. This is usually the URL for a remote Phoenix server.
 * `PHOENIX_PORT` The port on which the server listens.
 * `PHOENIX_HOST` The host on which the server listens.
 
