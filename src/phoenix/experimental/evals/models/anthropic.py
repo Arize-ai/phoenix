@@ -45,12 +45,6 @@ class AnthropicModel(BaseEvalModel):
         self._init_client()
         self._init_tiktoken()
         self._init_rate_limiter()
-        self.retry = self._retry(
-            error_types=[],  # default to catching all errors
-            min_seconds=self.retry_min_seconds,
-            max_seconds=self.retry_max_seconds,
-            max_retries=self.max_retries,
-        )
 
     def _init_environment(self) -> None:
         try:
@@ -128,7 +122,7 @@ class AnthropicModel(BaseEvalModel):
         kwargs.pop("instruction", None)
         invocation_parameters = self.invocation_parameters()
         invocation_parameters.update(kwargs)
-        response = self._generate_with_retry(
+        response = self._rate_limited_completion(
             model=self.model,
             prompt=self._format_prompt_for_claude(prompt),
             **invocation_parameters,
@@ -136,10 +130,9 @@ class AnthropicModel(BaseEvalModel):
 
         return str(response)
 
-    def _generate_with_retry(self, **kwargs: Any) -> Any:
-        @self.retry
+    def _rate_limited_completion(self, **kwargs: Any) -> Any:
         @self._rate_limiter.limit
-        def _completion_with_retry(**kwargs: Any) -> Any:
+        def _completion(**kwargs: Any) -> Any:
             try:
                 response = self.client.completions.create(**kwargs)
                 return response.completion
@@ -149,7 +142,7 @@ class AnthropicModel(BaseEvalModel):
                     raise PhoenixContextLimitExceeded(exception_message) from e
                 raise e
 
-        return _completion_with_retry(**kwargs)
+        return _completion(**kwargs)
 
     async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         # instruction is an invalid input to Anthropic models, it is passed in by
@@ -157,16 +150,15 @@ class AnthropicModel(BaseEvalModel):
         kwargs.pop("instruction", None)
         invocation_parameters = self.invocation_parameters()
         invocation_parameters.update(kwargs)
-        response = await self._async_generate_with_retry(
+        response = await self._async_rate_limited_completion(
             model=self.model, prompt=self._format_prompt_for_claude(prompt), **invocation_parameters
         )
 
         return str(response)
 
-    async def _async_generate_with_retry(self, **kwargs: Any) -> Any:
-        @self.retry
+    async def _async_rate_limited_completion(self, **kwargs: Any) -> Any:
         @self._rate_limiter.alimit
-        async def _async_completion_with_retry(**kwargs: Any) -> Any:
+        async def _async_completion(**kwargs: Any) -> Any:
             try:
                 response = await self.async_client.completions.create(**kwargs)
                 return response.completion
@@ -176,7 +168,7 @@ class AnthropicModel(BaseEvalModel):
                     raise PhoenixContextLimitExceeded(exception_message) from e
                 raise e
 
-        return await _async_completion_with_retry(**kwargs)
+        return await _async_completion(**kwargs)
 
     def _format_prompt_for_claude(self, prompt: str) -> str:
         # Claude requires prompt in the format of Human: ... Assistant:
