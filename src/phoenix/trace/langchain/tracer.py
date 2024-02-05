@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 _DUMMY = "OpenInferenceTracer"
 _DEPRECATION_MESSAGE = (
-    f"DEPRECATED: `{_DUMMY}` is a dummy class in the current version of Phoenix. "
+    f"DEPRECATED: `{_DUMMY}` is a defunct class in the current version of Phoenix. "
     "It no longer has any purpose or functionality and will be removed in the future."
 )
 
@@ -24,7 +24,7 @@ class _DummyObject:
     def get_spans(self) -> Iterator[Span]:
         logger.warning(_DEPRECATION_MESSAGE)
         logger.warning(
-            ".get_spans() is a dummy method that does nothing. It will be removed in the future."
+            ".get_spans() is a defunct method that does nothing. It will be removed in the future."
         )
         return iter(())
 
