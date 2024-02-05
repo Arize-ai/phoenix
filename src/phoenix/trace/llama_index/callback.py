@@ -6,10 +6,10 @@ from typing import (
     Optional,
 )
 
-from openinference.instrumentation.llama_index import (
+from openinference.instrumentation.llama_index._callback import (
     OpenInferenceTraceCallbackHandler as _OpenInferenceTraceCallbackHandler,
 )
-from openinference.instrumentation.llama_index import (
+from openinference.instrumentation.llama_index.version import (
     __version__,
 )
 from opentelemetry import trace as trace_api
