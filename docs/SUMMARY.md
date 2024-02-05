@@ -66,6 +66,7 @@
 
 * [Dataset and Schema](api/dataset-and-schema.md)
 * [Session](api/session.md)
+* [Client](api/client.md)
 * [Evals](api/evals.md)
 * [Models](api/evaluation-models.md)
 
