@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from typing import (
     Any,
+    Dict,
     Iterable,
     Iterator,
     Mapping,
@@ -17,10 +18,9 @@ from typing import (
 from typing_extensions import TypeGuard
 
 import phoenix.trace.v1 as pb
-from phoenix.core.traces import ComputedAttributes
 from phoenix.trace import semantic_conventions
 from phoenix.trace.dsl.missing import MISSING
-from phoenix.trace.schemas import COMPUTED_PREFIX, Span, SpanID
+from phoenix.trace.schemas import COMPUTED_PREFIX, ComputedAttributes, Span, SpanID
 
 _VALID_EVAL_ATTRIBUTES: Tuple[str, ...] = tuple(
     field.name for field in pb.Evaluation.Result.DESCRIPTOR.fields
@@ -62,6 +62,22 @@ class SpanFilter:
                 self.compiled,
                 {"span": span, "_MISSING": MISSING, "evals": self.evals},
             ),
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {"condition": self.condition}
+
+    @classmethod
+    def from_dict(
+        cls,
+        obj: Mapping[str, Any],
+        evals: Optional[SupportsGetSpanEvaluation] = None,
+        valid_eval_names: Optional[Sequence[str]] = None,
+    ) -> "SpanFilter":
+        return cls(
+            condition=obj.get("condition") or "",
+            evals=evals,
+            valid_eval_names=valid_eval_names,
         )
 
 

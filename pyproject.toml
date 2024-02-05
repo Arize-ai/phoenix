@@ -42,6 +42,7 @@ dependencies = [
   "requests",
   "opentelemetry-sdk",
   "opentelemetry-proto",
+  "pyarrow",
 ]
 dynamic = ["version"]
 

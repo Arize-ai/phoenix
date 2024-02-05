@@ -113,6 +113,8 @@ def test_query_select(spans):
         }
     ).set_index("context.span_id")
     assert_frame_equal(actual, desired)
+    assert_frame_equal(SpanQuery.from_dict(query.to_dict())(spans), desired)
+    del query, actual, desired
 
 
 def test_query_concat(spans):
@@ -134,6 +136,7 @@ def test_query_concat(spans):
         }
     ).set_index("context.span_id")
     assert_frame_equal(actual, desired)
+    assert_frame_equal(SpanQuery.from_dict(query.to_dict())(spans), desired)
     del query, actual, desired
 
     query = (
@@ -152,6 +155,7 @@ def test_query_concat(spans):
         }
     ).set_index("context.span_id")
     assert_frame_equal(actual, desired)
+    assert_frame_equal(SpanQuery.from_dict(query.to_dict())(spans), desired)
     del query, actual, desired
 
 
@@ -176,6 +180,7 @@ def test_query_explode(spans):
         }
     ).set_index(["context.span_id", "document_position"])
     assert_frame_equal(actual, desired)
+    assert_frame_equal(SpanQuery.from_dict(query.to_dict())(spans), desired)
     del query, actual, desired
 
     query = SpanQuery().explode(RETRIEVAL_DOCUMENTS)
@@ -189,6 +194,7 @@ def test_query_explode(spans):
         }
     ).set_index(["context.span_id", "document_position"])
     assert_frame_equal(actual, desired)
+    assert_frame_equal(SpanQuery.from_dict(query.to_dict())(spans), desired)
     del query, actual, desired
 
     query = SpanQuery().explode(
@@ -204,6 +210,7 @@ def test_query_explode(spans):
         }
     ).set_index(["context.span_id", "document_position"])
     assert_frame_equal(actual, desired)
+    assert_frame_equal(SpanQuery.from_dict(query.to_dict())(spans), desired)
     del query, actual, desired
 
 
@@ -232,6 +239,17 @@ def test_join(spans):
         }
     ).set_index("context.span_id")
     assert_frame_equal(actual, desired)
+    assert_frame_equal(
+        pd.concat(
+            [
+                SpanQuery.from_dict(left_query.to_dict())(spans),
+                SpanQuery.from_dict(right_query.to_dict())(spans),
+            ],
+            axis=1,
+            join="outer",
+        ),
+        desired,
+    )
 
 
 @pytest.fixture(scope="module")

@@ -25,10 +25,10 @@ from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context
+from phoenix.server.api.routers.evaluation_handler import EvaluationHandler
+from phoenix.server.api.routers.span_handler import SpanHandler
+from phoenix.server.api.routers.trace_handler import TraceHandler
 from phoenix.server.api.schema import schema
-from phoenix.server.evaluation_handler import EvaluationHandler
-from phoenix.server.span_handler import SpanHandler
-from phoenix.server.trace_handler import TraceHandler
 
 logger = logging.getLogger(__name__)
 
@@ -171,7 +171,7 @@ def create_app(
             else [
                 Route(
                     "/v1/spans",
-                    type("SpanEndpoint", (SpanHandler,), {"queue": traces}),
+                    type("SpanEndpoint", (SpanHandler,), {"traces": traces, "evals": evals}),
                 ),
                 Route(
                     "/v1/traces",
@@ -185,8 +185,8 @@ def create_app(
             else [
                 Route(
                     "/v1/evaluations",
-                    type("SpanEndpoint", (EvaluationHandler,), {"queue": evals}),
-                )
+                    type("EvaluationsEndpoint", (EvaluationHandler,), {"queue": evals}),
+                ),
             ]
         )
         + [
