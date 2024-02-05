@@ -29,7 +29,7 @@ class _DummyObject:
         return iter(())
 
 
-class _Deprecation:
+class _DefunctModule:
     __all__ = (_DUMMY,)
 
     def __getattr__(self, name: str) -> Any:
@@ -40,4 +40,4 @@ class _Deprecation:
 
 
 # See e.g. https://stackoverflow.com/a/7668273
-sys.modules[__name__] = _Deprecation()  # type: ignore
+sys.modules[__name__] = _DefunctModule()  # type: ignore
