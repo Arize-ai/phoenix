@@ -38,8 +38,11 @@ class Client(TraceDataExtractor):
             If active session is available, use it instead of sending HTTP requests.
         """
         self._use_active_session_if_available = use_active_session_if_available
+        host = get_env_host()
+        if host == "0.0.0.0":
+            host = "127.0.0.1"
         self._base_url = (
-            endpoint or get_env_collector_endpoint() or f"http://{get_env_host()}:{get_env_port()}"
+            endpoint or get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
         )
         self._session = Session()
         weakref.finalize(self, self._session.close)
