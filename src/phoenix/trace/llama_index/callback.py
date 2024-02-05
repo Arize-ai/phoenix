@@ -48,5 +48,5 @@ class OpenInferenceTraceCallbackHandler(_OpenInferenceTraceCallbackHandler):
         compat_tracer = Tracer(exporter=exporter)
         compat_tracer._configure_otel_tracer()  # temporary until we make a PR to llama_index
         super().__init__(
-            tracer=trace_api.get_tracer(__name__, __version__, compat_tracer.tracer_provider)
+            tracer=trace_api.get_tracer(__name__, __version__, compat_tracer._tracer_provider)
         )
