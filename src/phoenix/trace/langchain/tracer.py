@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 _DUMMY = "OpenInferenceTracer"
 _DEPRECATION_MESSAGE = (
-    f"DEPRECATED: `{_DUMMY}` is a defunct class in the current version of Phoenix. "
+    f"DEFUNCT: `{_DUMMY}` is a defunct class in the current version of Phoenix. "
     "It no longer has any purpose or functionality and will be removed in the future."
 )
 
