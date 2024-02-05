@@ -43,7 +43,8 @@ class Tracer:
     def get_spans(self) -> Iterator[Any]:
         logger.warning(_DEFUNCT_MSG)
         logger.warning(
-            ".get_spans() is a defunct method that does nothing. It will be removed in the future."
+            ".get_spans() is a defunct method that does nothing. "
+            "It will be removed in the future."
         )
         return iter(())
 
