@@ -1,122 +1,49 @@
 import logging
-from datetime import datetime
-from threading import RLock
-from typing import Any, Callable, Iterator, List, Optional, Protocol
-from uuid import uuid4
-
-from .schemas import (
-    Span,
-    SpanAttributes,
-    SpanContext,
-    SpanConversationAttributes,
-    SpanEvent,
-    SpanID,
-    SpanKind,
-    SpanStatusCode,
-    TraceID,
-)
+import sys
+from typing import Any, Iterator, Protocol
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 
 class SpanExporter(Protocol):
-    def export(self, span: Span) -> None:
+    def export(self, _: Any) -> None:
         ...
 
 
+_DEPRECATION_MESSAGE = (
+    "DEPRECATED: `Tracer` is a dummy class in the current version of Phoenix. "
+    "It no longer has any purpose or functionality and will be removed in the future."
+)
+
+
 class Tracer:
-    """
-    Tracer creates spans containing more information about what is happening for
-    a given operation, such as a request in a service.
+    _exporter: Any
 
-    OpenTelemetry Inspiration:
-    https://opentelemetry.io/docs/concepts/signals/traces/#tracer
-    """
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        logger.warning(_DEPRECATION_MESSAGE)
 
-    span_buffer: List[Span]
-    on_append: Optional[Callable[[List[Span]], None]]
+    def create_span(self, *_: Any, **__: Any) -> Any:
+        logger.warning(_DEPRECATION_MESSAGE)
 
-    def __init__(
-        self,
-        exporter: Optional[SpanExporter] = None,
-        on_append: Optional[Callable[[List[Span]], None]] = None,
-        *args: Any,
-        **kwargs: Any,
-    ):
-        """
-        Create a new Tracer. A Tracer's main purpose is to create spans.
-        Serialization should be handled by a separate component.
-
-        Args:
-            on_append:
-                A callback function that will be called when a span is
-                created and appended to the buffer. This is useful for
-                serializing data to a file or sending it to a remote server.
-        """
-        self.span_buffer = []
-        self.on_append = on_append
-        self._exporter: Optional[SpanExporter] = exporter
-        self._lock = RLock()
-        super().__init__(*args, **kwargs)
-
-    def create_span(
-        self,
-        name: str,
-        span_kind: SpanKind,
-        start_time: datetime,
-        end_time: Optional[datetime] = None,
-        status_code: SpanStatusCode = SpanStatusCode.UNSET,
-        status_message: Optional[str] = "",
-        parent_id: Optional[SpanID] = None,
-        trace_id: Optional[TraceID] = None,
-        attributes: Optional[SpanAttributes] = None,
-        events: Optional[List[SpanEvent]] = None,
-        conversation: Optional[SpanConversationAttributes] = None,
-        span_id: Optional[SpanID] = None,
-    ) -> Span:
-        """
-        create_span creates a new span with the given name and options.
-        """
-        # If no trace_id is provided, generate a new one
-        if trace_id is None:
-            trace_id = TraceID(uuid4())
-
-        # If no attributes are provided, create an empty dict
-        if attributes is None:
-            attributes = {}
-
-        # If no events are provided, create an empty list
-        if events is None:
-            events = []
-
-        span = Span(
-            name=name,
-            context=SpanContext(trace_id=trace_id, span_id=span_id or SpanID(uuid4())),
-            span_kind=span_kind,
-            parent_id=parent_id,
-            start_time=start_time,
-            end_time=end_time,
-            status_code=status_code,
-            status_message=status_message if status_message is not None else "",
-            attributes=attributes,
-            events=events,
-            conversation=conversation,
+    def get_spans(self) -> Iterator[Any]:
+        logger.warning(_DEPRECATION_MESSAGE)
+        logger.warning(
+            ".get_spans() is a dummy method that does nothing. It will be removed in the future."
         )
+        return iter(())
 
-        if self._exporter:
-            self._exporter.export(span)
 
-        with self._lock:
-            self.span_buffer.append(span)
+class _DefunctModule:
+    __all__ = ("Tracer", "SpanExporter")
 
-        if self.on_append is not None:
-            self.on_append(self.span_buffer)
-        return span
+    def __getattr__(self, name: str) -> Any:
+        if name == "Tracer":
+            logger.warning(_DEPRECATION_MESSAGE)
+            return Tracer
+        if name == "SpanExporter":
+            return SpanExporter
+        raise AttributeError(f"module {__name__} has no attribute {name}")
 
-    def get_spans(self) -> Iterator[Span]:
-        """
-        Returns the spans stored in the tracer. This is useful if you are running
-        in a notebook environment and you want to inspect the spans.
-        """
-        yield from self.span_buffer
+
+# See e.g. https://stackoverflow.com/a/7668273
+sys.modules[__name__] = _DefunctModule()  # type: ignore
