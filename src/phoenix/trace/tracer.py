@@ -15,7 +15,7 @@ class SpanExporter(Protocol):
 
 
 _DEPRECATION_MESSAGE = (
-    "DEPRECATED: `Tracer` is a dummy class in the current version of Phoenix. "
+    "DEFUNCT: `Tracer` is a defunct class in the current version of Phoenix. "
     "It no longer has any purpose or functionality and will be removed in the future."
 )
 
@@ -32,7 +32,7 @@ class Tracer:
     def get_spans(self) -> Iterator[Any]:
         logger.warning(_DEPRECATION_MESSAGE)
         logger.warning(
-            ".get_spans() is a dummy method that does nothing. It will be removed in the future."
+            ".get_spans() is a defunct method that does nothing. It will be removed in the future."
         )
         return iter(())
 
