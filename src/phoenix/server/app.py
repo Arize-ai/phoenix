@@ -185,7 +185,7 @@ def create_app(
             else [
                 Route(
                     "/v1/evaluations",
-                    type("EvaluationsEndpoint", (EvaluationHandler,), {"queue": evals}),
+                    type("EvaluationsEndpoint", (EvaluationHandler,), {"evals": evals}),
                 ),
             ]
         )

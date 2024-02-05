@@ -7,6 +7,7 @@ import pytest
 import responses
 from pandas.testing import assert_frame_equal
 from phoenix.session.client import Client
+from phoenix.trace import SpanEvaluations
 from phoenix.trace.dsl import SpanQuery
 
 
@@ -44,16 +45,46 @@ def test_query_spans(client: Client, endpoint: str, dataframe: pd.DataFrame):
     assert_frame_equal(client.query_spans(), df1)
 
 
+@responses.activate
+def test_get_evaluations(client: Client, endpoint: str, evaluations: SpanEvaluations):
+    url = urljoin(endpoint, "v1/evaluations")
+
+    table = evaluations.to_pyarrow_table()
+    responses.get(url, body=_table_to_bytes(table))
+    results = client.get_evaluations()
+    assert len(results) == 1
+    assert isinstance(results[0], SpanEvaluations)
+    assert results[0].eval_name == evaluations.eval_name
+    assert_frame_equal(results[0].dataframe, evaluations.dataframe)
+
+    responses.get(url, status=404)
+    assert client.get_evaluations() == []
+
+
 @pytest.fixture
 def dataframe() -> pd.DataFrame:
     return pd.DataFrame({"a": [1, 2], "b": [3, 4]}, index=["x", "y"])
 
 
+@pytest.fixture
+def evaluations() -> SpanEvaluations:
+    return SpanEvaluations(
+        eval_name="test",
+        dataframe=pd.DataFrame(
+            {"score": [3, 4]},
+            index=pd.Index(["x", "y"], name="span_id"),
+        ),
+    )
+
+
 def _df_to_bytes(df: pd.DataFrame) -> bytes:
-    pa_table = pa.Table.from_pandas(df)
+    return _table_to_bytes(pa.Table.from_pandas(df))
+
+
+def _table_to_bytes(table: pa.Table) -> bytes:
     sink = pa.BufferOutputStream()
-    with pa.ipc.new_stream(sink, pa_table.schema) as writer:
-        writer.write_table(pa_table, max_chunksize=65536)
+    with pa.ipc.new_stream(sink, table.schema) as writer:
+        writer.write_table(table, max_chunksize=65536)
     return cast(bytes, sink.getvalue().to_pybytes())
 
 

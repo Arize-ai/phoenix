@@ -4,7 +4,9 @@ from typing import List, Optional, Union, cast
 
 import pandas as pd
 
+from phoenix.trace import Evaluations
 from phoenix.trace.dsl import SpanQuery
+from phoenix.trace.trace_dataset import TraceDataset
 
 
 class TraceDataExtractor(ABC):
@@ -40,3 +42,13 @@ class TraceDataExtractor(ABC):
                 root_spans_only=root_spans_only,
             ),
         )
+
+    @abstractmethod
+    def get_evaluations(self) -> List[Evaluations]:
+        ...
+
+    def get_trace_dataset(self) -> Optional[TraceDataset]:
+        if (dataframe := self.get_spans_dataframe()) is None:
+            return None
+        evaluations = self.get_evaluations()
+        return TraceDataset(dataframe=dataframe, evaluations=evaluations)

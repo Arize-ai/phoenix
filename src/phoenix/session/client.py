@@ -13,6 +13,7 @@ from requests import Session
 import phoenix as px
 from phoenix.config import get_env_host, get_env_port
 from phoenix.session.data_extractor import TraceDataExtractor
+from phoenix.trace import Evaluations
 from phoenix.trace.dsl import SpanQuery
 
 logger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ class Client(TraceDataExtractor):
         ----------
         endpoint : str, optional
             Phoenix server endpoint, e.g. http://localhost:6006. If not provided, the
-            endpoint will be inferred from the environment variables.
+            host and port will be inferred from the environment variables.
         use_active_session_if_available : bool, optional
             If active session is available, use it instead of sending HTTP requests.
         """
@@ -84,6 +85,27 @@ class Client(TraceDataExtractor):
         if len(results) == 1:
             df = results[0]
             return None if df.shape == (0, 0) else df
+        return results
+
+    def get_evaluations(self) -> List[Evaluations]:
+        if self._use_active_session_if_available and (session := px.active_session()):
+            return session.get_evaluations()
+        response = self._session.get(urljoin(self._base_url, "v1/evaluations"))
+        if response.status_code == 404:
+            logger.info("No evaluations found.")
+            return []
+        elif response.status_code == 422:
+            raise ValueError(response.content.decode())
+        response.raise_for_status()
+        source = BytesIO(response.content)
+        results = []
+        while True:
+            try:
+                with pa.ipc.open_stream(source) as reader:
+                    pa_table = reader.read_all()
+                    results.append(Evaluations.from_pyarrow_table(pa_table))
+            except ArrowInvalid:
+                break
         return results
 
     def _warn_if_phoenix_is_not_running(self) -> None:

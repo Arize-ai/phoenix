@@ -263,24 +263,8 @@ class ProcessSession(Session):
             root_spans_only=root_spans_only,
         )
 
-    def get_spans_dataframe(
-        self,
-        filter_condition: Optional[str] = None,
-        *,
-        start_time: Optional[datetime] = None,
-        stop_time: Optional[datetime] = None,
-        root_spans_only: Optional[bool] = None,
-    ) -> Optional[pd.DataFrame]:
-        return self._client.get_spans_dataframe(
-            filter_condition,
-            start_time=start_time,
-            stop_time=stop_time,
-            root_spans_only=root_spans_only,
-        )
-
     def get_evaluations(self) -> List[Evaluations]:
-        # TODO: implement this in Client
-        raise NotImplementedError()
+        return self._client.get_evaluations()
 
 
 class ThreadSession(Session):
