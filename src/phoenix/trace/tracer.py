@@ -82,9 +82,6 @@ class OpenInferenceTracer:
             self.tracer_provider.add_span_processor(processor)
         trace_api.set_tracer_provider(tracer_provider=self.tracer_provider)
 
-    def get_tracer(self) -> trace_api.Tracer:
-        return trace_api.get_tracer(__name__, __version__, self.tracer_provider)
-
     def get_spans(self) -> None:
         logger.warning(
             "OpenInference has been updated for full OpenTelemetry compliance. The legacy "
