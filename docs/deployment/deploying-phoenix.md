@@ -242,7 +242,7 @@ services:
         condition: service_healthy
 ```
 
-This way you will always have a running phenix instance when you run
+This way you will always have a running Phoenix instance when you run
 
 ```
 docker compose up
