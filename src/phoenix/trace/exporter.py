@@ -10,7 +10,7 @@ from urllib.parse import urljoin
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import requests
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
+from opentelemetry.sdk.trace.export import SpanExporter
 from requests import Session
 from typing_extensions import TypeAlias, assert_never
 
@@ -32,21 +32,12 @@ class NoOpExporter:
         pass
 
 
-class OTELNoOpExporter(SpanExporter):
-    def export(self, _: Any) -> SpanExportResult:
-        return SpanExportResult.SUCCESS
-
-    def shutdown(self) -> None:
-        pass
-
-
 class _OpenInferenceExporter:
     def __init__(
         self,
         endpoint: Optional[str] = None,
         host: Optional[str] = None,
         port: Optional[int] = None,
-        no_op: bool = False,
     ) -> None:
         """
         A compatibility class used to configure the Phoenix endpoint for instrumentation.
@@ -64,9 +55,6 @@ class _OpenInferenceExporter:
         port: Optional[int]
             The port of the Phoenix server. It can also be set using environment
             variable `PHOENIX_PORT`, otherwise it defaults to `6006`.
-        no_op: bool
-            If enabled, the exporter will not send any data to Phoenix. This is useful for
-            testing and development.
         """
         self._host = host or get_env_host()
         self._port = port or get_env_port()
@@ -75,9 +63,7 @@ class _OpenInferenceExporter:
         self._base_url = self._phoenix_otel_endpoint(endpoint.rstrip("/"))
         self._warn_if_phoenix_is_not_running()
 
-        self.otel_exporter: SpanExporter = (
-            OTELNoOpExporter() if no_op else OTLPSpanExporter(endpoint=self._base_url)
-        )
+        self.otel_exporter: SpanExporter = OTLPSpanExporter(endpoint=self._base_url)
 
     def _phoenix_otel_endpoint(self, url: str) -> str:
         return f"{url}/v1/traces"
