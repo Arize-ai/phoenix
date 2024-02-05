@@ -45,6 +45,8 @@ dependencies = [
   "pyarrow",
   "opentelemetry-exporter-otlp",
   "openinference-instrumentation-langchain",
+  "openinference-instrumentation-llama-index",
+  "openinference-instrumentation-openai",
 ]
 dynamic = ["version"]
 
