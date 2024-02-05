@@ -57,6 +57,7 @@ class _DefunctModule:
             logger.warning(_DEFUNCT_MSG)
             return Tracer
         if name == "SpanExporter":
+            logger.warning("`SpanExporter` is defunct and will be removed in the future.")
             return SpanExporter
         raise AttributeError(f"module {__name__} has no attribute {name}")
 
