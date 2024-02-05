@@ -1,20 +1,18 @@
 import logging
 from datetime import datetime
 from threading import RLock
-from typing import Any, Callable, Iterator, List, Optional, Protocol, Sequence, Union
+from typing import Any, Callable, Iterator, List, Optional, Protocol, Union
 from uuid import uuid4
 
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk import trace as trace_sdk
 from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import SpanProcessor
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 from phoenix.trace.exporter import (
     HttpExporter,
     NoOpExporter,
     OpenInferenceExporter,
-    _convert_legacy_exporters,
 )
 
 from .schemas import (
@@ -48,38 +46,25 @@ class OpenInferenceTracer:
             an OpenTelemetry collector. If not provided, the default OpenInferenceExporter will be
             used. Legacy SpanConverter objects are deprecated, but will be converted to
             OpenInferenceExporter objects.
-        resource (Resource): An OpenTelemetry Resource object that contains attributes describing
-            the entity that produced the spans. If not provided, an empty Resource will be used.
-        span_processors (Sequence[SpanProcessor]): A list of OpenTelemetry SpanProcessor objects
-            that will be used to process spans.
     """
 
     def __init__(
         self,
         exporter: Optional[Union[OpenInferenceExporter, HttpExporter, NoOpExporter]] = None,
-        resource: Optional[Resource] = None,
-        span_processors: Optional[Sequence[SpanProcessor]] = None,
-        _on_append: Optional[Callable[[List[Span]], None]] = None,
+        on_append: Optional[Callable[[List[Span]], None]] = None,
     ):
-        if resource is None:
-            resource = Resource(attributes={})
-        self.resource = resource
+        if exporter is not None:
+            self._exporter_deprecation_warning()
+        self.exporter = OpenInferenceExporter().otel_exporter
 
-        if exporter is None:
-            exporter = OpenInferenceExporter()
-        self.exporter = _convert_legacy_exporters(exporter)
-
-        if _on_append is not None:
+        if on_append is not None:
             self._on_append_deprecation_warning()
 
-        self.span_processors = span_processors or []
-        self.tracer_provider = trace_sdk.TracerProvider(resource=self.resource)
+        self.tracer_provider = trace_sdk.TracerProvider(resource=Resource(attributes={}))
 
     def _configure_otel_tracer(self) -> None:
-        span_processor = SimpleSpanProcessor(span_exporter=self.exporter.otel_exporter)
+        span_processor = SimpleSpanProcessor(span_exporter=self.exporter)
         self.tracer_provider.add_span_processor(span_processor)
-        for processor in self.span_processors:
-            self.tracer_provider.add_span_processor(processor)
         trace_api.set_tracer_provider(tracer_provider=self.tracer_provider)
 
     def get_spans(self) -> None:
@@ -89,6 +74,14 @@ class OpenInferenceTracer:
             "some options include exporting spans from an OpenTelemetry collector or adding a "
             "SpanProcessor to the OpenTelemetry TracerProvider. More examples can be found in the "
             "Phoenix docs: https://docs.arize.com/phoenix/deployment/instrumentation"
+        )
+
+    def _exporter_deprecation_warning(self) -> None:
+        logger.warning(
+            "OpenInference has been updated for full OpenTelemetry compliance. The legacy "
+            "`exporter` argument is deprecated. Please configure the Phoenix endpoint using "
+            "environment variables. More details can be found in the Phoenix docs: "
+            "https://docs.arize.com/phoenix/deployment/instrumentation"
         )
 
     def _on_append_deprecation_warning(self) -> None:

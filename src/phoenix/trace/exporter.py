@@ -194,11 +194,3 @@ class HttpExporter:
                 f"Arize Phoenix is not running on {self._base_url}. Launch Phoenix "
                 f"with `import phoenix as px; px.launch_app()`"
             )
-
-
-def _convert_legacy_exporters(
-    exporter: Union[OpenInferenceExporter, HttpExporter, NoOpExporter],
-) -> OpenInferenceExporter:
-    if isinstance(exporter, (HttpExporter, NoOpExporter)):
-        return OpenInferenceExporter._from_legacy_exporter(exporter)
-    return exporter

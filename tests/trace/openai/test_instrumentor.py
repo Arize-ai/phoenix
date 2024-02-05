@@ -69,8 +69,10 @@ def test_openai_instrumentor_instruments_chat_completion(
     respx_mock: MockRouter,
 ) -> None:
     span_processor = InMemorySpanProcessor()
-    tracer = OpenInferenceTracer(span_processors=[span_processor])
-    OpenAIInstrumentor(tracer).instrument()
+    tracer = OpenInferenceTracer()
+    instrumentor = OpenAIInstrumentor(tracer)
+    instrumentor.tracer.tracer_provider.add_span_processor(span_processor)
+    instrumentor.instrument()
     model = "gpt-4"
     messages = [{"role": "user", "content": "Who won the World Cup in 2018?"}]
     temperature = 0.23
