@@ -71,7 +71,7 @@ def test_openai_instrumentor_instruments_chat_completion(
     span_processor = InMemorySpanProcessor()
     tracer = Tracer()
     instrumentor = OpenAIInstrumentor(tracer)
-    instrumentor.tracer._tracer_provider.add_span_processor(span_processor)
+    instrumentor._tracer_provider.add_span_processor(span_processor)
     instrumentor.instrument()
     model = "gpt-4"
     messages = [{"role": "user", "content": "Who won the World Cup in 2018?"}]

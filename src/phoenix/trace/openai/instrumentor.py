@@ -24,15 +24,15 @@ class OpenAIInstrumentor:
             Phoenix.
         """
         self._exporter = _OpenInferenceExporter().otel_exporter
+        self._tracer_provider = trace_sdk.TracerProvider(resource=Resource(attributes={}))
 
     def instrument(self) -> None:
         """
         Instruments your OpenAI client.
         """
-        tracer_provider = trace_sdk.TracerProvider(resource=Resource(attributes={}))
         span_processor = SimpleSpanProcessor(span_exporter=self._exporter)
-        tracer_provider.add_span_processor(span_processor)
-        trace_api.set_tracer_provider(tracer_provider=tracer_provider)
+        self._tracer_provider.add_span_processor(span_processor)
+        trace_api.set_tracer_provider(tracer_provider=self._tracer_provider)
         self._instrumentor = OpenInferenceOpenAIInstrumentor()
         self._instrumentor.instrument(skip_dep_check=True)
 
