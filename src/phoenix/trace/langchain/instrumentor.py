@@ -11,11 +11,17 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 from phoenix.config import get_env_collector_endpoint, get_env_host, get_env_port
+from phoenix.trace.exporter import HttpExporter
 
 logger = logging.getLogger(__name__)
 
 
 __all__ = ("LangChainInstrumentor",)
+
+_USE_ENV_MSG = (
+    "Setting endpoint through the HttpExporter is no longer supported. "
+    'Use environment variables instead, e.g. os.environ["PHOENIX_PORT"] = "54321"'
+)
 
 
 class LangChainInstrumentor:
@@ -25,6 +31,11 @@ class LangChainInstrumentor:
                 "LangChainInstrumentor no longer takes any arguments. "
                 "The arguments provided is ignored."
             )
+            for arg in args:
+                if isinstance(arg, HttpExporter):
+                    logger.warning(_USE_ENV_MSG)
+            if "exporter" in kwargs:
+                logger.warning(_USE_ENV_MSG)
         if find_spec("langchain_core") is None:
             raise PackageNotFoundError(
                 "Missing `langchain-core`. Install with `pip install langchain-core`."
