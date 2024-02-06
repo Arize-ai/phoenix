@@ -2,8 +2,9 @@
 Token processing functions for supported models. This module is being deprecated.
 """
 
-
 from typing import List
+
+import tiktoken
 
 from ..models import BaseEvalModel
 
@@ -49,9 +50,7 @@ MODEL_TOKEN_LIMIT = {
 }
 
 
-def get_encoder(model: BaseEvalModel) -> None:
-    import tiktoken
-
+def get_encoder(model: BaseEvalModel) -> tiktoken.Encoding:
     try:
         encoding = tiktoken.encoding_for_model(model.model_name)
     except KeyError:

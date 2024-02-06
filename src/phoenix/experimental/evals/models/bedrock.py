@@ -1,26 +1,15 @@
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from phoenix.exceptions import PhoenixContextLimitExceeded
 from phoenix.experimental.evals.models.base import BaseEvalModel
 from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 
-if TYPE_CHECKING:
-    from tiktoken import Encoding
-
 logger = logging.getLogger(__name__)
 
 MINIMUM_BOTO_VERSION = "1.28.58"
-MODEL_TOKEN_LIMIT_MAPPING = {
-    "anthropic.claude-instant-v1": 100 * 1024,
-    "anthropic.claude-v1": 100 * 1024,
-    "anthropic.claude-v2": 100 * 1024,
-    "amazon.titan-text-express-v1": 8 * 1024,
-    "ai21.j2-mid-v1": 8 * 1024,
-    "ai21.j2-ultra-v1": 8 * 1024,
-}
 
 
 @dataclass
@@ -36,7 +25,7 @@ class BedrockModel(BaseEvalModel):
     top_k: int = 256
     """The cutoff where the model no longer selects the words"""
     stop_sequences: List[str] = field(default_factory=list)
-    """If the model encounters a stop sequence, it stops generating further tokens. """
+    """If the model encounters a stop sequence, it stops generating further tokens."""
     max_retries: int = 6
     """Maximum number of retries to make when generating."""
     retry_min_seconds: int = 10
@@ -51,20 +40,8 @@ class BedrockModel(BaseEvalModel):
     """Any extra parameters to add to the request body (e.g., countPenalty for a21 models)"""
 
     def __post_init__(self) -> None:
-        self._init_environment()
         self._init_client()
-        self._init_tiktoken()
         self._init_rate_limiter()
-
-    def _init_environment(self) -> None:
-        try:
-            import tiktoken
-
-            self._tiktoken = tiktoken
-        except ImportError:
-            self._raise_import_error(
-                package_name="tiktoken",
-            )
 
     def _init_client(self) -> None:
         if not self.client:
@@ -78,13 +55,6 @@ class BedrockModel(BaseEvalModel):
                     package_min_version=MINIMUM_BOTO_VERSION,
                 )
 
-    def _init_tiktoken(self) -> None:
-        try:
-            encoding = self._tiktoken.encoding_for_model(self.model_name)
-        except KeyError:
-            encoding = self._tiktoken.get_encoding("cl100k_base")
-        self._tiktoken_encoding = encoding
-
     def _init_rate_limiter(self) -> None:
         self._rate_limiter = RateLimiter(
             rate_limit_error=self.client.exceptions.ThrottlingException,
@@ -93,32 +63,6 @@ class BedrockModel(BaseEvalModel):
             maximum_per_second_request_rate=20,
             enforcement_window_minutes=1,
         )
-
-    @property
-    def max_context_size(self) -> int:
-        context_size = self.max_content_size or MODEL_TOKEN_LIMIT_MAPPING.get(self.model_name, None)
-
-        if context_size is None:
-            raise ValueError(
-                "Can't determine maximum context size. An unknown model name was "
-                + f"used: {self.model_name}. Please set the `max_content_size` argument"
-                + "when using fine-tuned models. "
-            )
-
-        return context_size
-
-    @property
-    def encoder(self) -> "Encoding":
-        return self._tiktoken_encoding
-
-    def get_tokens_from_text(self, text: str) -> List[int]:
-        return self.encoder.encode(text)
-
-    def get_text_from_tokens(self, tokens: List[int]) -> str:
-        return self.encoder.decode(tokens)
-
-    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
-        return self._generate(prompt, **kwargs)
 
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         body = json.dumps(self._create_request_body(prompt))
