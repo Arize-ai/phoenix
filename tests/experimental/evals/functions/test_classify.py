@@ -123,8 +123,7 @@ def test_llm_classify(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel()
+    model = OpenAIModel()
 
     result = llm_classify(
         dataframe=dataframe,
@@ -168,8 +167,7 @@ def test_llm_classify_with_included_prompt_and_response(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel()
+    model = OpenAIModel()
 
     result = llm_classify(
         dataframe=dataframe,
@@ -214,8 +212,7 @@ def test_llm_classify_with_async(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel()
+    model = OpenAIModel()
 
     result = llm_classify(
         dataframe=dataframe,
@@ -251,8 +248,7 @@ def test_llm_classify_with_fn_call(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel(max_retries=0)
+    model = OpenAIModel()
 
     result = llm_classify(
         dataframe=dataframe,
@@ -282,8 +278,7 @@ def test_classify_fn_call_no_explain(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel(max_retries=0)
+    model = OpenAIModel()
 
     result = llm_classify(
         dataframe=dataframe,
@@ -321,8 +316,7 @@ def test_classify_fn_call_explain(
             return_value=httpx.Response(200, json={"choices": [{"message": message}]})
         )
 
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel(max_retries=0)
+    model = OpenAIModel()
 
     result = llm_classify(
         dataframe=dataframe,
@@ -357,8 +351,7 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(
         payload = {"choices": [{"message": {"content": response}}]}
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel(max_retries=0)
+    model = OpenAIModel()
 
     llm_classify(
         dataframe=dataframe,
@@ -512,8 +505,7 @@ def test_run_relevance_eval_standard_dataframe(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel()
+    model = OpenAIModel()
 
     relevance_classifications = run_relevance_eval(dataframe, model=model)
     assert relevance_classifications == [
@@ -537,8 +529,7 @@ def test_classify_tolerance_to_exceptions(
     respx_mock: respx.mock,
     capfd,
 ):
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel(max_retries=0)
+    model = OpenAIModel()
     queries = classification_dataframe["input"].tolist()
     for query, response in zip(queries, classification_responses):
         matcher = M(content__contains=query)
@@ -655,8 +646,7 @@ def test_run_relevance_eval_openinference_dataframe(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel()
+    model = OpenAIModel()
 
     relevance_classifications = run_relevance_eval(dataframe, model=model)
     assert relevance_classifications == [

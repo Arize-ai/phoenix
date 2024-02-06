@@ -12,8 +12,7 @@ def test_openai_model(monkeypatch):
     we have very little type safety in the OpenAI wrapper
     """
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel(model_name="gpt-4-turbo-preview")
+    model = OpenAIModel(model_name="gpt-4-turbo-preview")
 
     assert model.model_name == "gpt-4-turbo-preview"
     assert isinstance(model._client, OpenAI)
@@ -21,12 +20,11 @@ def test_openai_model(monkeypatch):
 
 def test_azure_openai_model(monkeypatch):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel(
-            model_name="gpt-4-turbo-preview",
-            api_version="2023-07-01-preview",
-            azure_endpoint="https://example-endpoint.openai.azure.com",
-        )
+    model = OpenAIModel(
+        model_name="gpt-4-turbo-preview",
+        api_version="2023-07-01-preview",
+        azure_endpoint="https://example-endpoint.openai.azure.com",
+    )
     assert isinstance(model._client, AzureOpenAI)
 
 
@@ -44,20 +42,18 @@ def test_azure_fails_when_missing_options(monkeypatch):
 
 def test_azure_supports_function_calling(monkeypatch):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel(
-            model_name="gpt-4-turbo-preview",
-            api_version="2023-07-01-preview",
-            azure_endpoint="https://example-endpoint.openai.azure.com",
-        )
+    model = OpenAIModel(
+        model_name="gpt-4-turbo-preview",
+        api_version="2023-07-01-preview",
+        azure_endpoint="https://example-endpoint.openai.azure.com",
+    )
     assert isinstance(model._client, AzureOpenAI)
     assert model.supports_function_calling is True
 
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel(
-            model_name="gpt-4-turbo-preview",
-            api_version="2023-06-01-preview",
-            azure_endpoint="https://example-endpoint.openai.azure.com",
-        )
+    model = OpenAIModel(
+        model_name="gpt-4-turbo-preview",
+        api_version="2023-06-01-preview",
+        azure_endpoint="https://example-endpoint.openai.azure.com",
+    )
     assert isinstance(model._client, AzureOpenAI)
     assert model.supports_function_calling is False
