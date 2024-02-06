@@ -35,9 +35,11 @@ class Client(TraceDataExtractor):
             Phoenix server endpoint, e.g. http://localhost:6006. If not provided, the
             endpoint will be inferred from the environment variables.
         use_active_session_if_available : bool, optional
-            If active session is available, use it instead of sending HTTP requests.
+            If px.active_session() is available in the same runtime, e.g. the same Jupyter
+            notebook, delegate the request to the active session instead of making HTTP
+            requests. This argument is set to False if endpoint is provided explicitly.
         """
-        self._use_active_session_if_available = use_active_session_if_available
+        self._use_active_session_if_available = use_active_session_if_available and not endpoint
         host = get_env_host()
         if host == "0.0.0.0":
             host = "127.0.0.1"
