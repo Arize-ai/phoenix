@@ -2,7 +2,6 @@ import logging
 import os
 from dataclasses import dataclass, field, fields
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -17,9 +16,6 @@ from typing import (
 from phoenix.exceptions import PhoenixContextLimitExceeded
 from phoenix.experimental.evals.models.base import BaseModel
 from phoenix.experimental.evals.models.rate_limiters import RateLimiter
-
-if TYPE_CHECKING:
-    from tiktoken import Encoding
 
 OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
 MINIMUM_OPENAI_VERSION = "1.0.0"
@@ -103,7 +99,6 @@ class OpenAIModel(BaseModel):
     def __post_init__(self) -> None:
         self._init_environment()
         self._init_open_ai()
-        self._init_tiktoken()
         self._init_rate_limiter()
 
     def reload_client(self) -> None:
@@ -121,14 +116,6 @@ class OpenAIModel(BaseModel):
                 package_display_name="OpenAI",
                 package_name="openai",
                 package_min_version=MINIMUM_OPENAI_VERSION,
-            )
-        try:
-            import tiktoken
-
-            self._tiktoken = tiktoken
-        except ImportError:
-            self._raise_import_error(
-                package_name="tiktoken",
             )
 
     def _init_open_ai(self) -> None:
@@ -194,13 +181,6 @@ class OpenAIModel(BaseModel):
             base_url=(self.base_url or self._openai.base_url),
             max_retries=0,
         )
-
-    def _init_tiktoken(self) -> None:
-        try:
-            encoding = self._tiktoken.encoding_for_model(self.model_name)
-        except KeyError:
-            encoding = self._tiktoken.get_encoding("cl100k_base")
-        self._tiktoken_encoding = encoding
 
     def _get_azure_options(self) -> AzureOptions:
         options = {}
@@ -326,27 +306,6 @@ class OpenAIModel(BaseModel):
         return _completion(**kwargs)
 
     @property
-    def max_context_size(self) -> int:
-        model_name = self.model_name
-        # handling finetuned models
-        if "ft-" in model_name:
-            model_name = self.model_name.split(":")[0]
-        if model_name == "gpt-4":
-            # Map gpt-4 to the current default
-            model_name = "gpt-4-0613"
-
-        context_size = MODEL_TOKEN_LIMIT_MAPPING.get(model_name, None)
-
-        if context_size is None:
-            raise ValueError(
-                "Can't determine maximum context size. An unknown model name was "
-                f"used: {model_name}. Please provide a valid OpenAI model name. "
-                "Known models are: " + ", ".join(MODEL_TOKEN_LIMIT_MAPPING.keys())
-            )
-
-        return context_size
-
-    @property
     def public_invocation_params(self) -> Dict[str, Any]:
         return {
             **({"model": self.model_name}),
@@ -372,40 +331,6 @@ class OpenAIModel(BaseModel):
             "n": self.n,
             "timeout": self.request_timeout,
         }
-
-    @property
-    def encoder(self) -> "Encoding":
-        return self._tiktoken_encoding
-
-    def get_token_count_from_messages(self, messages: List[Dict[str, str]]) -> int:
-        """Return the number of tokens used by a list of messages.
-
-        Official documentation: https://github.com/openai/openai-cookbook/blob/main/examples/How_to_format_inputs_to_ChatGPT_models.ipynb
-        """  # noqa
-        model_name = self.model_name
-        if model_name == "gpt-3.5-turbo-0301":
-            tokens_per_message = 4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
-            tokens_per_name = -1  # if there's a name, the role is omitted
-        else:
-            tokens_per_message = 3
-            tokens_per_name = 1
-
-        token_count = 0
-        for message in messages:
-            token_count += tokens_per_message
-            for key, text in message.items():
-                token_count += len(self.get_tokens_from_text(text))
-                if key == "name":
-                    token_count += tokens_per_name
-        # every reply is primed with <|start|>assistant<|message|>
-        token_count += 3
-        return token_count
-
-    def get_tokens_from_text(self, text: str) -> List[int]:
-        return self.encoder.encode(text)
-
-    def get_text_from_tokens(self, tokens: List[int]) -> str:
-        return self.encoder.decode(tokens)
 
     @property
     def supports_function_calling(self) -> bool:

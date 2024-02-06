@@ -1,13 +1,10 @@
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import Any, Dict, List
 
 from phoenix.experimental.evals.models.base import BaseModel
 from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 from phoenix.utilities.logging import printif
-
-if TYPE_CHECKING:
-    from tiktoken import Encoding
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +21,7 @@ class GeminiModel(BaseModel):
     # The vertex SDK runs into connection pool limits at high concurrency
     default_concurrency: int = 5
 
-    model: str = "gemini-pro"
+    model_name: str = "gemini-pro"
     """The model name to use."""
     temperature: float = 0.0
     """What sampling temperature to use."""
@@ -51,7 +48,7 @@ class GeminiModel(BaseModel):
 
             self._vertex = vertex
             self._gcp_exceptions = exceptions
-            self._model = self._vertex.GenerativeModel(self.model)
+            self._model = self._vertex.GenerativeModel(self.model_name)
         except ImportError:
             self._raise_import_error(
                 package_name="vertexai",
@@ -65,29 +62,6 @@ class GeminiModel(BaseModel):
             maximum_per_second_request_rate=20,
             enforcement_window_minutes=1,
         )
-
-    @property
-    def encoder(self) -> "Encoding":
-        raise TypeError("Gemini models contain their own token counting")
-
-    def get_tokens_from_text(self, text: str) -> List[int]:
-        raise NotImplementedError
-
-    def get_text_from_tokens(self, tokens: List[int]) -> str:
-        raise NotImplementedError
-
-    @property
-    def max_context_size(self) -> int:
-        context_size = MODEL_TOKEN_LIMIT_MAPPING.get(self.model, None)
-
-        if context_size is None:
-            raise ValueError(
-                "Can't determine maximum context size. An unknown model name was "
-                + f"used: {self.model}. Please set the `max_content_size` argument"
-                + "when using fine-tuned models. "
-            )
-
-        return context_size
 
     @property
     def generation_config(self) -> Dict[str, Any]:
