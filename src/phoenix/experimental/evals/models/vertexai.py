@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from phoenix.experimental.evals.models.base import BaseEvalModel
 
@@ -111,20 +111,6 @@ class VertexAIModel(BaseEvalModel):
                 "top_k": self.top_k,
                 "top_p": self.top_p,
             }
-
-    def get_tokens_from_text(self, text: str) -> List[int]:
-        raise NotImplementedError
-
-    def get_text_from_tokens(self, tokens: List[int]) -> str:
-        raise NotImplementedError
-
-    @property
-    def max_context_size(self) -> int:
-        raise NotImplementedError
-
-    @property
-    def encoder(self):  # type:ignore
-        raise NotImplementedError
 
 
 def is_codey_model(model_name: str) -> bool:

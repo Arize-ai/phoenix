@@ -1,11 +1,8 @@
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from phoenix.experimental.evals.models.base import BaseEvalModel
-
-if TYPE_CHECKING:
-    from tiktoken import Encoding
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +33,6 @@ class LiteLLMModel(BaseEvalModel):
 
     def __post_init__(self) -> None:
         self._init_environment()
-        self._init_model_encoding()
 
     def _init_environment(self) -> None:
         try:
@@ -58,37 +54,6 @@ class LiteLLMModel(BaseEvalModel):
                 package_display_name="LiteLLM",
                 package_name="litellm",
             )
-
-    def _init_model_encoding(self) -> None:
-        from litellm import decode, encode
-
-        self._encoding = encode
-        self._decoding = decode
-
-    @property
-    def max_context_size(self) -> int:
-        context_size = self.max_content_size or self._litellm.get_max_tokens(self.model_name).get(
-            "max_tokens", None
-        )
-
-        if context_size is None:
-            raise ValueError(
-                "Can't determine maximum context size. An unknown model name was "
-                + f"used: {self.model_name}."
-            )
-
-        return context_size
-
-    @property
-    def encoder(self) -> "Encoding":
-        raise NotImplementedError
-
-    def get_tokens_from_text(self, text: str) -> List[int]:
-        result: List[int] = self._encoding(model=self.model_name, text=text)
-        return result
-
-    def get_text_from_tokens(self, tokens: List[int]) -> str:
-        return str(self._decoding(model=self.model_name, tokens=tokens))
 
     async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         return self._generate(prompt, **kwargs)

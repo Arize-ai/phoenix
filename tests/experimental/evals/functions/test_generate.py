@@ -1,6 +1,5 @@
 import json
 from typing import Dict
-from unittest.mock import patch
 
 import httpx
 import numpy as np
@@ -54,8 +53,7 @@ def test_llm_generate(monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock):
         "Given {query} and a golden answer {reference}, generate an answer that is incorrect."
     )
 
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel()
+    model = OpenAIModel()
 
     generated = llm_generate(dataframe=dataframe, template=template, model=model)
     assert generated.iloc[:, 0].tolist() == responses
@@ -104,8 +102,7 @@ def test_llm_generate_with_included_prompts_and_responses(
         "Given {query} and a golden answer {reference}, generate an answer that is incorrect."
     )
 
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel()
+    model = OpenAIModel()
 
     generated = llm_generate(
         dataframe=dataframe,
@@ -158,8 +155,7 @@ def test_llm_generate_with_output_parser(monkeypatch: pytest.MonkeyPatch, respx_
 
     template = "Given {query}, generate output"
 
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel()
+    model = OpenAIModel()
 
     def output_parser(response: str, response_index: int) -> Dict[str, str]:
         try:
@@ -192,8 +188,7 @@ def test_classify_tolerance_to_exceptions(
     monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock, capfd
 ):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel(max_retries=0)
+    model = OpenAIModel()
     dataframe = pd.DataFrame(
         [
             {
