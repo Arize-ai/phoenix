@@ -238,7 +238,7 @@ class ProcessSession(Session):
         )
         host = "127.0.0.1" if self.host == "0.0.0.0" else self.host
         self._client = Client(
-            endpoint=f"http:{host}:{self.port}",
+            endpoint=f"http://{host}:{self.port}",
             use_active_session_if_available=False,
         )
 
