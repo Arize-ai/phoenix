@@ -427,6 +427,15 @@ def launch_app(
         )
         _session.end()
 
+    # Detect mis-configurations and provide warnings
+    if (env_collector_endpoint := os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT)) is not None:
+        logger.warning(
+            f"⚠️ {ENV_PHOENIX_COLLECTOR_ENDPOINT} is set to {env_collector_endpoint}"
+            "This means that all traces will be sent to the collector endpoint and not this app."
+            "If you would like to use this app to view traces, please unset this environment"
+            "variable and start your notebook again."
+        )
+
     # Normalize notebook environment
     if isinstance(notebook_environment, str):
         nb_env: Optional[NotebookEnvironment] = NotebookEnvironment(notebook_environment.lower())
@@ -436,14 +445,6 @@ def launch_app(
     host = host or get_env_host()
     port = port or get_env_port()
 
-    # Detect mis-configurations and provide warnings
-    if (env_collector_endpoint := os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT)) is not None:
-        logger.warning(
-            f"⚠️ {ENV_PHOENIX_COLLECTOR_ENDPOINT} is set to {env_collector_endpoint}"
-            "This means that all traces will be sent to the collector endpoint and not this app."
-            "If you would like to use this app to view traces, please unset this environment"
-            "variable and start your notebook again."
-        )
     if run_in_thread:
         _session = ThreadSession(
             primary,
