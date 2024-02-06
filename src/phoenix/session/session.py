@@ -433,7 +433,7 @@ def launch_app(
             f"⚠️ {ENV_PHOENIX_COLLECTOR_ENDPOINT} is set to {env_collector_endpoint}"
             "This means that all traces will be sent to the collector endpoint and not this app."
             "If you would like to use this app to view traces, please unset this environment"
-            "variable and start your notebook again."
+            f"variable via e.g. `del os.environ['{ENV_PHOENIX_COLLECTOR_ENDPOINT}']`"
         )
 
     # Normalize notebook environment
