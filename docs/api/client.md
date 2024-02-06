@@ -1,7 +1,7 @@
 ---
 description: >-
-  Descriptions of classes and methods related to Phoenix Client for extracting
-  data from the Phoenix server (either local or remote).
+  Descriptions of classes and methods related to Phoenix Client for
+  extracting/downloading data from the Phoenix server (either local or remote).
 ---
 
 # Client
@@ -26,7 +26,7 @@ A client for making HTTP requests to the Phoenix server. This is intended for ex
 ### Parameters
 
 * **endpoint** (Optional\[str]): Phoenix server endpoint. This is the URL for a remote server. If not provided, the endpoint will be inferred from environment variables. See [#environment-variables](client.md#environment-variables "mention").
-* **use\_active\_session\_if\_available** (Optional\[bool]): Most users can ignore this parameter. If `px.active_session()` is available in the same runtime environment, then delegate the requests to the `Session` object instead of making an HTTP request to the Phoenix server.
+* **use\_active\_session\_if\_available** (Optional\[bool]): If `px.active_session()` is available in the same runtime environment, e.g. the same Jupyter notebook, then delegate the requests to the `Session` object instead of making an HTTP request to the Phoenix server.
 
 ### Methods
 
