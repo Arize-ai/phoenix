@@ -21,12 +21,6 @@ class VertexAIModel(BaseEvalModel):
     model_name: str = "text-bison"
     tuned_model_name: Optional[str] = None
     "The name of a tuned model. If provided, model_name is ignored."
-    max_retries: int = 6
-    """Maximum number of retries to make when generating."""
-    retry_min_seconds: int = 10
-    """Minimum number of seconds to wait when retrying."""
-    retry_max_seconds: int = 60
-    """Maximum number of seconds to wait when retrying."""
     temperature: float = 0.0
     """What sampling temperature to use."""
     max_tokens: int = 256

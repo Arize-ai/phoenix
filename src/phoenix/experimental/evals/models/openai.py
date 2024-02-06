@@ -87,12 +87,6 @@ class OpenAIModel(BaseEvalModel):
     """Batch size to use when passing multiple documents to generate."""
     request_timeout: Optional[Union[float, Tuple[float, float]]] = None
     """Timeout for requests to OpenAI completion API. Default is 600 seconds."""
-    max_retries: int = 20
-    """Maximum number of retries to make when generating."""
-    retry_min_seconds: int = 10
-    """Minimum number of seconds to wait when retrying."""
-    retry_max_seconds: int = 60
-    """Maximum number of seconds to wait when retrying."""
 
     # Azure options
     api_version: Optional[str] = field(default=None)
