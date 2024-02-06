@@ -204,8 +204,6 @@ export function PointSelectionPanelContent() {
     return [...primaryEvents, ...referenceEvents, ...corpusEvents];
   }, [data]);
 
-  const numSelectedEvents = allSelectedEvents.length;
-
   const onClose = () => {
     setSelectedEventIds(new Set());
     setSelectedClusterId(null);
@@ -298,6 +296,9 @@ export function PointSelectionPanelContent() {
     return null;
   }, [allData, selectedDetailPointId]);
 
+  const numSelectedEvents = allSelectedEvents.length;
+  const numMatchingEvents = filteredEvents.length;
+
   return (
     <section css={pointSelectionPanelCSS}>
       <div
@@ -323,7 +324,11 @@ export function PointSelectionPanelContent() {
       {/* @ts-expect-error more tabs to come */}
       <Tabs>
         <TabPane name="Selection">
-          <SelectionToolbar numSelectedEvents={numSelectedEvents} />
+          <SelectionToolbar
+            numSelectedEvents={numSelectedEvents}
+            numMatchingEvents={numMatchingEvents}
+            searchText={selectionSearchText}
+          />
           {selectionDisplay === SelectionDisplay.list ? (
             <div
               css={css`
@@ -361,8 +366,18 @@ export function PointSelectionPanelContent() {
 
 function SelectionToolbar({
   numSelectedEvents,
+  numMatchingEvents,
+  searchText,
 }: {
   numSelectedEvents: number;
+  /**
+   * The number of events that match the current search
+   */
+  numMatchingEvents: number;
+  /**
+   * The current search text
+   */
+  searchText: string;
 }) {
   const selectionDisplay = usePointCloudContext(
     (state) => state.selectionDisplay
@@ -379,6 +394,12 @@ function SelectionToolbar({
   const setSelectionSearchText = usePointCloudContext(
     (state) => state.setSelectionSearchText
   );
+  const summaryText = useMemo(() => {
+    if (!searchText) {
+      return `${numSelectedEvents} selected`;
+    }
+    return `${numMatchingEvents}/${numSelectedEvents} match "${searchText}"`;
+  }, [numSelectedEvents, numMatchingEvents, searchText]);
   return (
     <Toolbar
       extra={
@@ -410,7 +431,7 @@ function SelectionToolbar({
         </div>
       }
     >
-      <Text>{`${numSelectedEvents} points selected`}</Text>
+      <Text>{summaryText}</Text>
     </Toolbar>
   );
 }
