@@ -430,7 +430,7 @@ def launch_app(
     # Detect mis-configurations and provide warnings
     if (env_collector_endpoint := os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT)) is not None:
         logger.warning(
-            f"⚠️ {ENV_PHOENIX_COLLECTOR_ENDPOINT} is set to {env_collector_endpoint}"
+            f"⚠️ {ENV_PHOENIX_COLLECTOR_ENDPOINT} is set to {env_collector_endpoint} \n"
             "This means that all traces will be sent to the collector endpoint and not this app."
             "If you would like to use this app to view traces, please unset this environment"
             f"variable via e.g. `del os.environ['{ENV_PHOENIX_COLLECTOR_ENDPOINT}']`"
