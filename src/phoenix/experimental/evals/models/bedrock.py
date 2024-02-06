@@ -26,12 +26,6 @@ class BedrockModel(BaseEvalModel):
     """The cutoff where the model no longer selects the words"""
     stop_sequences: List[str] = field(default_factory=list)
     """If the model encounters a stop sequence, it stops generating further tokens."""
-    max_retries: int = 6
-    """Maximum number of retries to make when generating."""
-    retry_min_seconds: int = 10
-    """Minimum number of seconds to wait when retrying."""
-    retry_max_seconds: int = 60
-    """Maximum number of seconds to wait when retrying."""
     client: Any = None
     """The bedrock session client. If unset, a new one is created with boto3."""
     max_content_size: Optional[int] = None
