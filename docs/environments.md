@@ -99,7 +99,7 @@ Note that the above is only necessary if your application is running in a Jupyte
 
 If you want to start a phoenix server to collect traces, you can also run phoenix directly from the command line
 
-```python
+```bash
 python3 -m phoenix.server.main serve
 ```
 
@@ -107,8 +107,8 @@ This will start the phoenix server on port 6006. If you are running your instrum
 
 Note that this command has various configuration options such as `--host` and `--port`. For example:
 
-```
-python3 -m phoenix.server.main serve --port 1234 --host 0.0.0.0
+```bash
+python3 -m phoenix.server.main --port 1234 --host 0.0.0.0 serve
 ```
 
 ### Configuration
