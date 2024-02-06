@@ -1,6 +1,7 @@
 from .datasets.dataset import Dataset
 from .datasets.fixtures import ExampleDatasets, load_example
 from .datasets.schema import EmbeddingColumnNames, RetrievalEmbeddingColumnNames, Schema
+from .session.client import Client
 from .session.evaluation import log_evaluations
 from .session.session import NotebookEnvironment, Session, active_session, close_app, launch_app
 from .trace.fixtures import load_example_traces
@@ -39,4 +40,5 @@ __all__ = [
     "TraceDataset",
     "NotebookEnvironment",
     "log_evaluations",
+    "Client",
 ]

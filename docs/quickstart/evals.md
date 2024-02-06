@@ -71,7 +71,7 @@ Install the OpenAI SDK with `pip install openai` and instantiate your model.
 from phoenix.experimental.evals import OpenAIModel
 
 api_key = None  # set your api key here or with the OPENAI_API_KEY environment variable
-eval_model = OpenAIModel(model_name="gpt-4-1106-preview", api_key=api_key)
+eval_model = OpenAIModel(model_name="gpt-4-turbo-preview", api_key=api_key)
 ```
 
 You'll next define your evaluators. Evaluators are built on top of language models and prompt the LLM to assess the quality of responses, the relevance of retrieved documents, etc., and provide a quality signal even in the absence of human-labeled data. Pick an evaluator type and instantiate it with the language model you want to use to perform evaluations using our battle-tested evaluation templates.

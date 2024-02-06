@@ -11,11 +11,10 @@ import phoenix.trace.v1 as pb
 from phoenix.core.traces import (
     END_TIME,
     START_TIME,
-    ComputedAttributes,
 )
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.trace import semantic_conventions
-from phoenix.trace.schemas import Span, SpanID
+from phoenix.trace.schemas import ComputedAttributes, Span, SpanID
 
 
 @strawberry.enum

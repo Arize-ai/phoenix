@@ -161,6 +161,32 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
             tuple(sorted(prod)) for prod in product(*cls.index_names.keys())
         )
 
+    def to_pyarrow_table(self) -> Table:
+        table = Table.from_pandas(self.dataframe)
+        table = table.replace_schema_metadata(
+            {
+                **(table.schema.metadata or {}),
+                # explicitly encode keys and values, which are automatically encoded regardless
+                b"arize": json.dumps(
+                    {
+                        "eval_id": str(self.id),
+                        "eval_name": self.eval_name,
+                        "eval_type": self.__class__.__name__,
+                    }
+                ).encode("utf-8"),
+            }
+        )
+        return table
+
+    @staticmethod
+    def from_pyarrow_table(table: Table) -> "Evaluations":
+        schema = table.schema
+        eval_id, eval_name, evaluations_cls = _parse_schema_metadata(schema)
+        dataframe = table.to_pandas()
+        evaluations = evaluations_cls(eval_name=eval_name, dataframe=dataframe)
+        object.__setattr__(evaluations, "id", eval_id)
+        return evaluations
+
     def save(self, directory: Optional[Union[str, Path]] = None) -> UUID:
         """
         Persists the evaluations to disk.
@@ -176,20 +202,7 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
         """
         directory = Path(directory) if directory else TRACE_DATASET_DIR
         path = directory / EVAL_PARQUET_FILE_NAME.format(id=self.id)
-        table = Table.from_pandas(self.dataframe)
-        table = table.replace_schema_metadata(
-            {
-                **(table.schema.metadata or {}),
-                # explicitly encode keys and values, which are automatically encoded regardless
-                b"arize": json.dumps(
-                    {
-                        "eval_id": str(self.id),
-                        "eval_name": self.eval_name,
-                        "eval_type": self.__class__.__name__,
-                    }
-                ).encode("utf-8"),
-            }
-        )
+        table = self.to_pyarrow_table()
         parquet.write_table(table, path)
         return self.id
 
