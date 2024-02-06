@@ -6,8 +6,6 @@ import logging
 import sys
 from typing import Any, Iterator, Protocol
 
-from phoenix.trace.exporter import HttpExporter
-
 logger = logging.getLogger(__name__)
 
 
@@ -17,25 +15,38 @@ class SpanExporter(Protocol):
 
 
 _DEFUNCT_MSG = (
-    "DEFUNCT: `Tracer` is a defunct class in the current version of Phoenix. "
-    "It no longer has any purpose or functionality and will be removed in the future."
+    "DEFUNCT: `Tracer` is now a defunct class in the current version of Phoenix and is being "
+    "deprecated. It no longer has any purpose or functionality and will be removed in the future."
 )
-_USE_ENV_MSG = (
-    "Setting endpoint through the HttpExporter is no longer supported. "
-    'Use environment variables instead, e.g. os.environ["PHOENIX_PORT"] = "54321"'
+
+_USE_ENV_MSG = """
+Setting the Phoenix endpoint through the HttpExporter is no longer supported.
+Please use environment variables instead:
+  - os.environ["PHOENIX_HOST"] = "127.0.0.1"
+  - os.environ["PHOENIX_PORT"] = "54321"
+  - os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://127.0.0.1:54321"
+"""
+
+_ON_APPEND_DEPRECATION_MSG = (
+    "OpenInference has been updated for full OpenTelemetry compliance. The ability to set "
+    "`on_append` callbacks are removed."
 )
 
 
 class Tracer:
     _exporter: Any
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        for arg in args:
-            if isinstance(arg, HttpExporter):
-                logger.warning(_USE_ENV_MSG)
-        if "exporter" in kwargs:
+    def __init__(
+        self,
+        exporter: Any = None,
+        on_append: Any = None,
+    ) -> None:
+        if exporter is not None:
             logger.warning(_USE_ENV_MSG)
         logger.warning(_DEFUNCT_MSG)
+
+        if on_append is not None:
+            logger.warning(_ON_APPEND_DEPRECATION_MSG)
 
     def create_span(self, *_: Any, **__: Any) -> Any:
         logger.warning(_DEFUNCT_MSG)
@@ -59,6 +70,8 @@ class _DefunctModule:
         if name == "SpanExporter":
             logger.warning("`SpanExporter` is defunct and will be removed in the future.")
             return SpanExporter
+        if name == "_USE_ENV_MSG":
+            return _USE_ENV_MSG
         raise AttributeError(f"module {__name__} has no attribute {name}")
 
 
