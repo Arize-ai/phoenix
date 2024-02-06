@@ -32,7 +32,7 @@ With SageMaker notebooks, phoenix leverages the [jupyter-server-proy](https://gi
 ```python
 import os
 
-os.envoron["PHOENIX_NOTEBOOK_ENV"] = "sagemaker"
+os.environ["PHOENIX_NOTEBOOK_ENV"] = "sagemaker"
 ```
 {% endtab %}
 

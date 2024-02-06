@@ -198,8 +198,8 @@ docker run -p 6006:6006 -i -t arizephoenix/phoenix:latest
 {% endtab %}
 
 {% tab title="Command Line" %}
-```
-python3 -m phoenix.server.main serve --port 6006
+```sh
+python3 -m phoenix.server.main --port 6006 serve
 ```
 {% endtab %}
 {% endtabs %}
