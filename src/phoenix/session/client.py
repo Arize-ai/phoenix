@@ -11,7 +11,7 @@ from pyarrow import ArrowInvalid
 from requests import Session
 
 import phoenix as px
-from phoenix.config import get_env_host, get_env_port
+from phoenix.config import get_env_collector_endpoint, get_env_host, get_env_port
 from phoenix.session.data_extractor import TraceDataExtractor
 from phoenix.trace import Evaluations
 from phoenix.trace.dsl import SpanQuery
@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 class Client(TraceDataExtractor):
     def __init__(
         self,
+        *,
         endpoint: Optional[str] = None,
         use_active_session_if_available: bool = True,
     ):
@@ -32,12 +33,19 @@ class Client(TraceDataExtractor):
         ----------
         endpoint : str, optional
             Phoenix server endpoint, e.g. http://localhost:6006. If not provided, the
-            host and port will be inferred from the environment variables.
+            endpoint will be inferred from the environment variables.
         use_active_session_if_available : bool, optional
-            If active session is available, use it instead of sending HTTP requests.
+            If px.active_session() is available in the same runtime, e.g. the same Jupyter
+            notebook, delegate the request to the active session instead of making HTTP
+            requests. This argument is set to False if endpoint is provided explicitly.
         """
-        self._use_active_session_if_available = use_active_session_if_available
-        self._base_url = endpoint or f"http://{get_env_host()}:{get_env_port()}"
+        self._use_active_session_if_available = use_active_session_if_available and not endpoint
+        host = get_env_host()
+        if host == "0.0.0.0":
+            host = "127.0.0.1"
+        self._base_url = (
+            endpoint or get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
+        )
         self._session = Session()
         weakref.finalize(self, self._session.close)
         if not (self._use_active_session_if_available and px.active_session()):
@@ -60,7 +68,7 @@ class Client(TraceDataExtractor):
                 root_spans_only=root_spans_only,
             )
         response = self._session.get(
-            url=urljoin(self._base_url, "v1/spans"),
+            url=urljoin(self._base_url, "/v1/spans"),
             json={
                 "queries": [q.to_dict() for q in queries],
                 "start_time": _to_iso_format(start_time),
@@ -90,7 +98,7 @@ class Client(TraceDataExtractor):
     def get_evaluations(self) -> List[Evaluations]:
         if self._use_active_session_if_available and (session := px.active_session()):
             return session.get_evaluations()
-        response = self._session.get(urljoin(self._base_url, "v1/evaluations"))
+        response = self._session.get(urljoin(self._base_url, "/v1/evaluations"))
         if response.status_code == 404:
             logger.info("No evaluations found.")
             return []
@@ -110,7 +118,7 @@ class Client(TraceDataExtractor):
 
     def _warn_if_phoenix_is_not_running(self) -> None:
         try:
-            self._session.get(urljoin(self._base_url, "arize_phoenix_version")).raise_for_status()
+            self._session.get(urljoin(self._base_url, "/arize_phoenix_version")).raise_for_status()
         except Exception:
             logger.warning(
                 f"Arize Phoenix is not running on {self._base_url}. Launch Phoenix "

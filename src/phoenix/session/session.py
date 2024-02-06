@@ -21,7 +21,13 @@ from typing import (
 
 import pandas as pd
 
-from phoenix.config import ENV_NOTEBOOK_ENV, get_env_host, get_env_port, get_exported_files
+from phoenix.config import (
+    ENV_NOTEBOOK_ENV,
+    ENV_PHOENIX_COLLECTOR_ENDPOINT,
+    get_env_host,
+    get_env_port,
+    get_exported_files,
+)
 from phoenix.core.evals import Evals
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
@@ -420,6 +426,16 @@ def launch_app(
             "it down and starting a new instance..."
         )
         _session.end()
+
+    # Detect mis-configurations and provide warnings
+    if (env_collector_endpoint := os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT)) is not None:
+        logger.warning(
+            f"⚠️ {ENV_PHOENIX_COLLECTOR_ENDPOINT} is set to {env_collector_endpoint}.\n"
+            "⚠️ This means that traces will be sent to the collector endpoint and not this app.\n"
+            "⚠️ If you would like to use this app to view traces, please unset this environment"
+            f"variable via e.g. `del os.environ['{ENV_PHOENIX_COLLECTOR_ENDPOINT}']` \n"
+            "⚠️ You will need to restart your notebook to apply this change."
+        )
 
     # Normalize notebook environment
     if isinstance(notebook_environment, str):
