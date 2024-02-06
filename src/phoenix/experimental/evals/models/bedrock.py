@@ -25,7 +25,7 @@ MODEL_TOKEN_LIMIT_MAPPING = {
 
 @dataclass
 class BedrockModel(BaseEvalModel):
-    model_id: str = "anthropic.claude-v2"
+    model_name: str = "anthropic.claude-v2"
     """The model name to use."""
     temperature: float = 0.0
     """What sampling temperature to use."""
@@ -80,7 +80,7 @@ class BedrockModel(BaseEvalModel):
 
     def _init_tiktoken(self) -> None:
         try:
-            encoding = self._tiktoken.encoding_for_model(self.model_id)
+            encoding = self._tiktoken.encoding_for_model(self.model_name)
         except KeyError:
             encoding = self._tiktoken.get_encoding("cl100k_base")
         self._tiktoken_encoding = encoding
@@ -96,12 +96,12 @@ class BedrockModel(BaseEvalModel):
 
     @property
     def max_context_size(self) -> int:
-        context_size = self.max_content_size or MODEL_TOKEN_LIMIT_MAPPING.get(self.model_id, None)
+        context_size = self.max_content_size or MODEL_TOKEN_LIMIT_MAPPING.get(self.model_name, None)
 
         if context_size is None:
             raise ValueError(
                 "Can't determine maximum context size. An unknown model name was "
-                + f"used: {self.model_id}. Please set the `max_content_size` argument"
+                + f"used: {self.model_name}. Please set the `max_content_size` argument"
                 + "when using fine-tuned models. "
             )
 
@@ -126,7 +126,7 @@ class BedrockModel(BaseEvalModel):
         contentType = "application/json"
 
         response = self._rate_limited_completion(
-            body=body, modelId=self.model_id, accept=accept, contentType=contentType
+            body=body, modelId=self.model_name, accept=accept, contentType=contentType
         )
 
         return self._parse_output(response) or ""
@@ -167,7 +167,7 @@ class BedrockModel(BaseEvalModel):
     def _create_request_body(self, prompt: str) -> Dict[str, Any]:
         # The request formats for bedrock models differ
         # see https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters.html
-        if self.model_id.startswith("ai21"):
+        if self.model_name.startswith("ai21"):
             return {
                 **{
                     "prompt": prompt,
@@ -178,7 +178,7 @@ class BedrockModel(BaseEvalModel):
                 },
                 **self.extra_parameters,
             }
-        elif self.model_id.startswith("anthropic"):
+        elif self.model_name.startswith("anthropic"):
             return {
                 **{
                     "prompt": self._format_prompt_for_claude(prompt),
@@ -191,8 +191,10 @@ class BedrockModel(BaseEvalModel):
                 **self.extra_parameters,
             }
         else:
-            if not self.model_id.startswith("amazon"):
-                logger.warn(f"Unknown format for model {self.model_id}, returning titan format...")
+            if not self.model_name.startswith("amazon"):
+                logger.warn(
+                    f"Unknown format for model {self.model_name}, returning titan format..."
+                )
             return {
                 **{
                     "inputText": prompt,
@@ -207,13 +209,13 @@ class BedrockModel(BaseEvalModel):
             }
 
     def _parse_output(self, response: Any) -> Any:
-        if self.model_id.startswith("ai21"):
+        if self.model_name.startswith("ai21"):
             body = json.loads(response.get("body").read())
             return body.get("completions")[0].get("data").get("text")
-        elif self.model_id.startswith("anthropic"):
+        elif self.model_name.startswith("anthropic"):
             body = json.loads(response.get("body").read().decode())
             return body.get("completion")
-        elif self.model_id.startswith("amazon"):
+        elif self.model_name.startswith("amazon"):
             body = json.loads(response.get("body").read())
             return body.get("results")[0].get("outputText")
         else:

@@ -17,7 +17,7 @@ MODEL_TOKEN_LIMIT_MAPPING = {
 
 @dataclass
 class AnthropicModel(BaseEvalModel):
-    model: str = "claude-2.1"
+    model_name: str = "claude-2.1"
     """The model name to use."""
     temperature: float = 0.0
     """What sampling temperature to use."""
@@ -70,7 +70,7 @@ class AnthropicModel(BaseEvalModel):
 
     def _init_tiktoken(self) -> None:
         try:
-            encoding = self._tiktoken.encoding_for_model(self.model)
+            encoding = self._tiktoken.encoding_for_model(self.model_name)
         except KeyError:
             encoding = self._tiktoken.get_encoding("cl100k_base")
         self._tiktoken_encoding = encoding
@@ -105,12 +105,12 @@ class AnthropicModel(BaseEvalModel):
 
     @property
     def max_context_size(self) -> int:
-        context_size = self.max_content_size or MODEL_TOKEN_LIMIT_MAPPING.get(self.model, None)
+        context_size = self.max_content_size or MODEL_TOKEN_LIMIT_MAPPING.get(self.model_name, None)
 
         if context_size is None:
             raise ValueError(
                 "Can't determine maximum context size. An unknown model name was "
-                + f"used: {self.model}. Please set the `max_content_size` argument"
+                + f"used: {self.model_name}. Please set the `max_content_size` argument"
                 + "when using fine-tuned models. "
             )
 
@@ -123,7 +123,7 @@ class AnthropicModel(BaseEvalModel):
         invocation_parameters = self.invocation_parameters()
         invocation_parameters.update(kwargs)
         response = self._rate_limited_completion(
-            model=self.model,
+            model=self.model_name,
             prompt=self._format_prompt_for_claude(prompt),
             **invocation_parameters,
         )
@@ -151,7 +151,9 @@ class AnthropicModel(BaseEvalModel):
         invocation_parameters = self.invocation_parameters()
         invocation_parameters.update(kwargs)
         response = await self._async_rate_limited_completion(
-            model=self.model, prompt=self._format_prompt_for_claude(prompt), **invocation_parameters
+            model=self.model_name,
+            prompt=self._format_prompt_for_claude(prompt),
+            **invocation_parameters,
         )
 
         return str(response)

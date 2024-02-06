@@ -24,7 +24,7 @@ class GeminiModel(BaseEvalModel):
     # The vertex SDK runs into connection pool limits at high concurrency
     default_concurrency: int = 5
 
-    model: str = "gemini-pro"
+    model_name: str = "gemini-pro"
     """The model name to use."""
     temperature: float = 0.0
     """What sampling temperature to use."""
@@ -57,7 +57,7 @@ class GeminiModel(BaseEvalModel):
 
             self._vertex = vertex
             self._gcp_exceptions = exceptions
-            self._model = self._vertex.GenerativeModel(self.model)
+            self._model = self._vertex.GenerativeModel(self.model_name)
         except ImportError:
             self._raise_import_error(
                 package_name="vertexai",
@@ -84,12 +84,12 @@ class GeminiModel(BaseEvalModel):
 
     @property
     def max_context_size(self) -> int:
-        context_size = MODEL_TOKEN_LIMIT_MAPPING.get(self.model, None)
+        context_size = MODEL_TOKEN_LIMIT_MAPPING.get(self.model_name, None)
 
         if context_size is None:
             raise ValueError(
                 "Can't determine maximum context size. An unknown model name was "
-                + f"used: {self.model}. Please set the `max_content_size` argument"
+                + f"used: {self.model_name}. Please set the `max_content_size` argument"
                 + "when using fine-tuned models. "
             )
 
