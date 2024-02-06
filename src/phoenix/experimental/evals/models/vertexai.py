@@ -3,7 +3,7 @@ import warnings
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
-from phoenix.experimental.evals.models.base import BaseEvalModel
+from phoenix.experimental.evals.models.base import BaseModel
 
 if TYPE_CHECKING:
     from google.auth.credentials import Credentials  # type:ignore
@@ -14,7 +14,7 @@ MINIMUM_VERTEX_AI_VERSION = "1.33.0"
 
 
 @dataclass
-class VertexAIModel(BaseEvalModel):
+class VertexAIModel(BaseModel):
     project: Optional[str] = None
     "project (str): The default project to use when making API calls."
     location: Optional[str] = None

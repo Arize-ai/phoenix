@@ -2,7 +2,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
-from phoenix.experimental.evals.models.base import BaseEvalModel
+from phoenix.experimental.evals.models.base import BaseModel
 from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 from phoenix.utilities.logging import printif
 
@@ -17,7 +17,7 @@ MODEL_TOKEN_LIMIT_MAPPING = {
 
 
 @dataclass
-class GeminiModel(BaseEvalModel):
+class GeminiModel(BaseModel):
     # The vertex SDK runs into connection pool limits at high concurrency
     default_concurrency: int = 5
 

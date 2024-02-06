@@ -15,7 +15,7 @@ from typing import (
 )
 
 from phoenix.exceptions import PhoenixContextLimitExceeded
-from phoenix.experimental.evals.models.base import BaseEvalModel
+from phoenix.experimental.evals.models.base import BaseModel
 from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 
 OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
@@ -48,7 +48,7 @@ class AzureOptions:
 
 
 @dataclass
-class OpenAIModel(BaseEvalModel):
+class OpenAIModel(BaseModel):
     api_key: Optional[str] = field(repr=False, default=None)
     """Your OpenAI key. If not provided, will be read from the environment variable"""
     organization: Optional[str] = field(repr=False, default=None)

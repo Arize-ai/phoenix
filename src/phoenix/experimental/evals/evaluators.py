@@ -10,7 +10,7 @@ from phoenix.experimental.evals.utils import (
 )
 from phoenix.utilities.logging import printif
 
-from .models import BaseEvalModel, OpenAIModel
+from .models import BaseModel, OpenAIModel
 from .templates import ClassificationTemplate, EvalCriteria, PromptOptions, PromptTemplate
 
 Record = Mapping[str, str]
@@ -24,7 +24,7 @@ class LLMEvaluator:
 
     def __init__(
         self,
-        model: BaseEvalModel,
+        model: BaseModel,
         template: ClassificationTemplate,
     ) -> None:
         """Initializer for LLMEvaluator.
@@ -179,7 +179,7 @@ def _create_llm_evaluator_subclass(
         Type[LLMEvaluator]: The dynamically created subclass.
     """
 
-    def __init__(self: LLMEvaluator, model: BaseEvalModel) -> None:
+    def __init__(self: LLMEvaluator, model: BaseModel) -> None:
         LLMEvaluator.__init__(self, model, template)
 
     __init__.__doc__ = f"""
@@ -246,7 +246,7 @@ class MapReducer:
 
     def __init__(
         self,
-        model: BaseEvalModel,
+        model: BaseModel,
         map_prompt_template: PromptTemplate,
         reduce_prompt_template: PromptTemplate,
     ) -> None:
@@ -309,7 +309,7 @@ class Refiner:
 
     def __init__(
         self,
-        model: BaseEvalModel,
+        model: BaseModel,
         initial_prompt_template: PromptTemplate,
         refine_prompt_template: PromptTemplate,
         synthesize_prompt_template: Optional[PromptTemplate] = None,

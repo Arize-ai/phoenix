@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from phoenix.exceptions import PhoenixContextLimitExceeded
-from phoenix.experimental.evals.models.base import BaseEvalModel
+from phoenix.experimental.evals.models.base import BaseModel
 from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 
 logger = logging.getLogger(__name__)
@@ -13,7 +13,7 @@ MINIMUM_BOTO_VERSION = "1.28.58"
 
 
 @dataclass
-class BedrockModel(BaseEvalModel):
+class BedrockModel(BaseModel):
     model_name: str = "anthropic.claude-v2"
     """The model name to use."""
     temperature: float = 0.0
