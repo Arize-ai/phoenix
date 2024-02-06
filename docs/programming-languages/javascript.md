@@ -234,7 +234,7 @@ export function chat(message: string) {
         {
             kind: SpanKind.INTERNAL,
             attributes: {
-                [SemanticConventions.INPUT_VALUE]: OpenInferenceSpanKind.chain,
+                [SemanticConventions.OPENINFERENCE_SPAN_KIND]: OpenInferenceSpanKind.chain,
                 [SemanticConventions.INPUT_VALUE]: message,
             },
         },
