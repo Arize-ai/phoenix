@@ -26,7 +26,6 @@ export function SelectionDisplayRadioGroup(
     <RadioGroup
       defaultValue={props.mode}
       variant="inline-button"
-      size="compact"
       onChange={(v) => {
         if (isSelectionDisplay(v)) {
           props.onChange(v);
