@@ -1,9 +1,9 @@
 from typing import List
 
-from ..models import BaseEvalModel
+from ..models import BaseModel
 
 
-def truncate_text_by_model(model: BaseEvalModel, text: str, token_buffer: int = 0) -> str:
+def truncate_text_by_model(model: BaseModel, text: str, token_buffer: int = 0) -> str:
     """Truncates text using a give model token limit.
 
     Args:
@@ -23,9 +23,7 @@ def truncate_text_by_model(model: BaseEvalModel, text: str, token_buffer: int = 
     return text
 
 
-def concatenate_and_truncate_chunks(
-    chunks: List[str], model: BaseEvalModel, token_buffer: int
-) -> str:
+def concatenate_and_truncate_chunks(chunks: List[str], model: BaseModel, token_buffer: int) -> str:
     """_summary_"""
     """Given a list of `chunks` of text, this function will return the concatenated chunks
     truncated to a token limit given by the `model` and `token_buffer`. See the function

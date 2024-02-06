@@ -15,7 +15,7 @@ from typing import (
 )
 
 from phoenix.exceptions import PhoenixContextLimitExceeded
-from phoenix.experimental.evals.models.base import BaseEvalModel
+from phoenix.experimental.evals.models.base import BaseModel
 from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 
 if TYPE_CHECKING:
@@ -51,7 +51,7 @@ class AzureOptions:
 
 
 @dataclass
-class OpenAIModel(BaseEvalModel):
+class OpenAIModel(BaseModel):
     api_key: Optional[str] = field(repr=False, default=None)
     """Your OpenAI key. If not provided, will be read from the environment variable"""
     organization: Optional[str] = field(repr=False, default=None)

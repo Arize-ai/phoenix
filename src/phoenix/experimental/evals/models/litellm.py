@@ -2,7 +2,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from phoenix.experimental.evals.models.base import BaseEvalModel
+from phoenix.experimental.evals.models.base import BaseModel
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class LiteLLMModel(BaseEvalModel):
+class LiteLLMModel(BaseModel):
     model_name: str = "gpt-3.5-turbo"
     """The model name to use."""
     temperature: float = 0.0

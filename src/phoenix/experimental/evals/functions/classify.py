@@ -23,7 +23,7 @@ from typing_extensions import TypeAlias
 
 from phoenix.experimental.evals.evaluators import LLMEvaluator
 from phoenix.experimental.evals.functions.executor import get_executor_on_sync_context
-from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
+from phoenix.experimental.evals.models import BaseModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
@@ -63,7 +63,7 @@ ParsedLLMResponse: TypeAlias = Tuple[Optional[str], Optional[str], str]
 
 def llm_classify(
     dataframe: pd.DataFrame,
-    model: BaseEvalModel,
+    model: BaseModel,
     template: Union[ClassificationTemplate, PromptTemplate, str],
     rails: List[str],
     system_instruction: Optional[str] = None,
@@ -217,7 +217,7 @@ def llm_classify(
 
 def run_relevance_eval(
     dataframe: pd.DataFrame,
-    model: BaseEvalModel,
+    model: BaseModel,
     template: Union[ClassificationTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE,
     rails: List[str] = list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
     system_instruction: Optional[str] = None,
