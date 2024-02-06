@@ -60,14 +60,14 @@ def get_encoder(model: BaseEvalModel) -> tiktoken.Encoding:
 
 def max_context_size(model: BaseEvalModel) -> int:
     # default to 4096
-    MODEL_TOKEN_LIMIT.get(model.model_name, 4096)
+    return MODEL_TOKEN_LIMIT.get(model.model_name, 4096)
 
 
-def get_tokens_from_text(encoder, text: str) -> List[int]:
+def get_tokens_from_text(encoder: tiktoken.Encoding, text: str) -> List[int]:
     return encoder.encode(text)
 
 
-def get_text_from_tokens(encoder, tokens: List[int]) -> str:
+def get_text_from_tokens(encoder: tiktoken.Encoding, tokens: List[int]) -> str:
     return encoder.decode(tokens)
 
 

@@ -51,7 +51,7 @@ class BaseEvalModel(ABC):
 
     @property
     @abstractmethod
-    def model_name(self):
+    def model_name(self) -> str:
         """
         A string identifier for the text model being used.
         """

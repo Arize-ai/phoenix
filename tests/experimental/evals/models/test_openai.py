@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 import pytest
 from openai import AzureOpenAI, OpenAI
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME, OpenAIModel
