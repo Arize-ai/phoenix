@@ -55,6 +55,9 @@ class LiteLLMModel(BaseEvalModel):
                 package_name="litellm",
             )
 
+    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+        return self._generate(prompt, **kwargs)
+
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         messages = self._get_messages_from_prompt(prompt)
         response = self._litellm.completion(
