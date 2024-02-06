@@ -29,9 +29,7 @@ TQDM_BAR_FORMAT = (
 
 
 @contextmanager
-def set_verbosity(
-    model: "BaseEvalModel", verbose: bool = False
-) -> Generator["BaseEvalModel", None, None]:
+def set_verbosity(model: "BaseModel", verbose: bool = False) -> Generator["BaseModel", None, None]:
     try:
         _model_verbose_setting = model._verbose
         _rate_limiter_verbose_setting = model._rate_limiter._verbose
@@ -44,7 +42,7 @@ def set_verbosity(
 
 
 @dataclass
-class BaseEvalModel(ABC):
+class BaseModel(ABC):
     default_concurrency: int = 20
     _verbose: bool = False
     _rate_limiter: RateLimiter = field(default_factory=RateLimiter)

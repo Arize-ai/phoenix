@@ -39,7 +39,7 @@ from phoenix.experimental.evals import (
     run_relevance_eval,
 )
 from phoenix.experimental.evals.functions.processing import concatenate_and_truncate_chunks
-from phoenix.experimental.evals.models import BaseEvalModel
+from phoenix.experimental.evals.models import BaseModel
 
 # from phoenix.experimental.evals.templates import NOT_PARSABLE
 from plotresults import (
@@ -176,7 +176,7 @@ def run_experiments(
     web_title,
     save_dir,
     llama_index_model,
-    eval_model: BaseEvalModel,
+    eval_model: BaseModel,
     template: str,
 ):
     logger.info(f"LAMAINDEX MODEL : {llama_index_model}")
@@ -297,7 +297,7 @@ def run_experiments(
 # Running the main Phoenix Evals both Q&A and Retrieval
 def df_evals(
     df: pd.DataFrame,
-    model: BaseEvalModel,
+    model: BaseModel,
     formatted_evals_column: str,
     template: str,
 ):

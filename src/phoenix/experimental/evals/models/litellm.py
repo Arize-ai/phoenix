@@ -2,13 +2,13 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from phoenix.experimental.evals.models.base import BaseEvalModel
+from phoenix.experimental.evals.models.base import BaseModel
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class LiteLLMModel(BaseEvalModel):
+class LiteLLMModel(BaseModel):
     model_name: str = "gpt-3.5-turbo"
     """The model name to use."""
     temperature: float = 0.0

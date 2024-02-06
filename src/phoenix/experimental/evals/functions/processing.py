@@ -7,7 +7,7 @@ from typing import Any, List
 
 import tiktoken
 
-from ..models import BaseEvalModel
+from ..models import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,7 @@ _DEPRECATION_WARNING = (
 )
 
 
-def get_encoder(model: BaseEvalModel) -> tiktoken.Encoding:
+def get_encoder(model: BaseModel) -> tiktoken.Encoding:
     try:
         encoding = tiktoken.encoding_for_model(model.model_name)
     except KeyError:
@@ -68,7 +68,7 @@ def get_encoder(model: BaseEvalModel) -> tiktoken.Encoding:
     return encoding
 
 
-def max_context_size(model: BaseEvalModel) -> int:
+def max_context_size(model: BaseModel) -> int:
     # default to 4096
     return MODEL_TOKEN_LIMIT.get(model.model_name, 4096)
 
@@ -81,11 +81,11 @@ def get_text_from_tokens(encoder: tiktoken.Encoding, tokens: List[int]) -> str:
     return encoder.decode(tokens)
 
 
-def truncate_text_by_model(model: BaseEvalModel, text: str, token_buffer: int = 0) -> str:
+def truncate_text_by_model(model: BaseModel, text: str, token_buffer: int = 0) -> str:
     """Truncates text using a give model token limit.
 
     Args:
-        model (BaseEvalModel): The model to use as reference.
+        model (BaseModel): The model to use as reference.
         text (str): The text to be truncated.
         token_buffer (int, optional): The number of tokens to be left as buffer. For example, if the
         `model` has a token limit of 1,000 and we want to leave a buffer of 50, the text will be
@@ -102,16 +102,15 @@ def truncate_text_by_model(model: BaseEvalModel, text: str, token_buffer: int = 
     return text
 
 
-def concatenate_and_truncate_chunks(
-    chunks: List[str], model: BaseEvalModel, token_buffer: int
-) -> str:
+def concatenate_and_truncate_chunks(chunks: List[str], model: BaseModel, token_buffer: int) -> str:
+    """_summary_"""
     """Given a list of `chunks` of text, this function will return the concatenated chunks
     truncated to a token limit given by the `model` and `token_buffer`. See the function
     `truncate_text_by_model` for information on the truncation process.
 
     Args:
         chunks (List[str]): A list of pieces of text.
-        model (BaseEvalModel): The model to use as reference.
+        model (BaseModel): The model to use as reference.
         token_buffer (int): The number of tokens to be left as buffer. For example, if the
         `model` has a token limit of 1,000 and we want to leave a buffer of 50, the text will be
         truncated such that the resulting text comprises 950 tokens. Defaults to 0.

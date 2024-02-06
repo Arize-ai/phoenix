@@ -2,12 +2,12 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from phoenix.exceptions import PhoenixContextLimitExceeded
-from phoenix.experimental.evals.models.base import BaseEvalModel
+from phoenix.experimental.evals.models.base import BaseModel
 from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 
 
 @dataclass
-class AnthropicModel(BaseEvalModel):
+class AnthropicModel(BaseModel):
     model_name: str = "claude-2.1"
     """The model name to use."""
     temperature: float = 0.0
