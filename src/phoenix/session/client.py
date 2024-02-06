@@ -37,7 +37,7 @@ class Client(TraceDataExtractor):
         use_active_session_if_available : bool, optional
             If px.active_session() is available in the same runtime, e.g. the same Jupyter
             notebook, delegate the request to the active session instead of making HTTP
-            requests. This argument is set to False if endpoint= is provided explicitly.
+            requests. This argument is set to False if endpoint is provided explicitly.
         """
         self._use_active_session_if_available = use_active_session_if_available and not endpoint
         host = get_env_host()
