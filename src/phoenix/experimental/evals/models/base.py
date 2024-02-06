@@ -53,6 +53,14 @@ class BaseEvalModel(ABC):
     _verbose: bool = False
     _rate_limiter: RateLimiter = field(default_factory=RateLimiter)
 
+    @property
+    @abstractmethod
+    def model_name(self):
+        """
+        A string identifier for the text model being used.
+        """
+        ...
+
     def reload_client(self) -> None:
         pass
 
