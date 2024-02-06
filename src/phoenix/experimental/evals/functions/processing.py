@@ -3,7 +3,7 @@ Token processing functions for supported models. This module is being deprecated
 """
 import logging
 import sys
-from typing import List
+from typing import Any, List
 
 import tiktoken
 
