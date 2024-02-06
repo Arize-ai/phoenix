@@ -1,18 +1,14 @@
 import logging
-from abc import ABC, abstractmethod, abstractproperty
+from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Generator, List, Optional, Sequence
-
-from phoenix.experimental.evals.models.rate_limiters import RateLimiter
-
-if TYPE_CHECKING:
-    from tiktoken import Encoding
+from typing import Any, Generator, List, Optional, Sequence
 
 from tqdm.asyncio import tqdm_asyncio
 from tqdm.auto import tqdm
 from typing_extensions import TypeVar
 
+from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 from phoenix.experimental.evals.utils.threads import to_thread
 from phoenix.utilities.logging import printif
 
@@ -52,6 +48,14 @@ class BaseEvalModel(ABC):
     default_concurrency: int = 20
     _verbose: bool = False
     _rate_limiter: RateLimiter = field(default_factory=RateLimiter)
+
+    @property
+    @abstractmethod
+    def model_name(self) -> str:
+        """
+        A string identifier for the text model being used.
+        """
+        ...
 
     def reload_client(self) -> None:
         pass
@@ -156,19 +160,3 @@ class BaseEvalModel(ABC):
         else:
             msg += f"`pip install {package_name}`."
         raise ImportError(msg)
-
-    @abstractmethod
-    def get_tokens_from_text(self, text: str) -> List[int]:
-        ...
-
-    @abstractmethod
-    def get_text_from_tokens(self, tokens: List[int]) -> str:
-        ...
-
-    @abstractproperty
-    def max_context_size(self) -> int:
-        ...
-
-    @abstractproperty
-    def encoder(self) -> "Encoding":
-        ...

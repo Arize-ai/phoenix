@@ -3,7 +3,6 @@ import os
 import warnings
 from dataclasses import dataclass, field, fields
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -18,9 +17,6 @@ from typing import (
 from phoenix.exceptions import PhoenixContextLimitExceeded
 from phoenix.experimental.evals.models.base import BaseEvalModel
 from phoenix.experimental.evals.models.rate_limiters import RateLimiter
-
-if TYPE_CHECKING:
-    from tiktoken import Encoding
 
 OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
 MINIMUM_OPENAI_VERSION = "1.0.0"
@@ -114,7 +110,6 @@ class OpenAIModel(BaseEvalModel):
         self._migrate_model_name()
         self._init_environment()
         self._init_open_ai()
-        self._init_tiktoken()
         self._init_rate_limiter()
 
     def reload_client(self) -> None:
@@ -143,14 +138,6 @@ class OpenAIModel(BaseEvalModel):
                 package_display_name="OpenAI",
                 package_name="openai",
                 package_min_version=MINIMUM_OPENAI_VERSION,
-            )
-        try:
-            import tiktoken
-
-            self._tiktoken = tiktoken
-        except ImportError:
-            self._raise_import_error(
-                package_name="tiktoken",
             )
 
     def _init_open_ai(self) -> None:

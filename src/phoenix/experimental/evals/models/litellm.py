@@ -1,12 +1,9 @@
 import logging
 import warnings
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from phoenix.experimental.evals.models.base import BaseEvalModel
-
-if TYPE_CHECKING:
-    from tiktoken import Encoding
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +42,6 @@ class LiteLLMModel(BaseEvalModel):
     def __post_init__(self) -> None:
         self._migrate_model_name()
         self._init_environment()
-        self._init_model_encoding()
 
     def _migrate_model_name(self) -> None:
         if self.model_name is not None:
