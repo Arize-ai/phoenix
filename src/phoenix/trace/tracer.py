@@ -4,11 +4,7 @@ maintaining a dummy class to avoid breaking any import code.
 """
 import logging
 import sys
-from typing import Any, Callable, Iterator, List, Optional, Protocol
-
-from .schemas import (
-    Span,
-)
+from typing import Any, Iterator, Protocol
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +39,7 @@ class Tracer:
     def __init__(
         self,
         exporter: Any = None,
-        on_append: Optional[Callable[[List[Span]], None]] = None,
+        on_append: Any = None,
     ) -> None:
         if exporter is not None:
             logger.warning(_USE_ENV_MSG)

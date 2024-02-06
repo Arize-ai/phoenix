@@ -56,21 +56,21 @@ class _OpenInferenceExporter:
             The port of the Phoenix server. It can also be set using environment
             variable `PHOENIX_PORT`, otherwise it defaults to `6006`.
         """
-        self._host = host or get_env_host()
+        host = host or get_env_host()
+        if host == "0.0.0.0":
+            host = "127.0.0.1"
+        self._host = host
         self._port = port or get_env_port()
         endpoint = endpoint or get_env_collector_endpoint() or f"http://{self._host}:{self._port}"
         # Make sure the url does not end with a slash
-        self._base_url = self._phoenix_otel_endpoint(endpoint.rstrip("/"))
+        self._base_url = urljoin(endpoint, "/v1/traces")
         self._warn_if_phoenix_is_not_running()
 
         self.otel_exporter: SpanExporter = OTLPSpanExporter(endpoint=self._base_url)
 
-    def _phoenix_otel_endpoint(self, url: str) -> str:
-        return f"{url}/v1/traces"
-
     def _warn_if_phoenix_is_not_running(self) -> None:
         try:
-            requests.get(f"{self._base_url}/arize_phoenix_version").raise_for_status()
+            requests.get(urljoin(self._base_url, "/arize_phoenix_version")).raise_for_status()
         except Exception:
             logger.warning(
                 f"Arize Phoenix is not running on {self._base_url}. Launch Phoenix "

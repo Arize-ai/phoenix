@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any
 
 from openinference.instrumentation.openai import (
     OpenAIInstrumentor as OpenInferenceOpenAIInstrumentor,
@@ -9,17 +9,16 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 from phoenix.trace.exporter import _OpenInferenceExporter
-from phoenix.trace.tracer import Tracer
 
 
 class OpenAIInstrumentor:
-    def __init__(self, tracer: Optional[Tracer] = None) -> None:
+    def __init__(self, tracer: Any = None) -> None:
         """
         Instruments your OpenAI client to automatically create spans for each
         API call.
 
         Args:
-            tracer (Optional[Tracer]): A tracer to record and handle spans. This
+            tracer (Any): Previously, a tracer to record and handle spans. This
             argument is now defunct and will be removed in a future version of
             Phoenix.
         """
