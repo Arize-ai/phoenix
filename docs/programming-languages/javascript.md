@@ -14,7 +14,7 @@ Phoenix is written and maintained in Python to make it natively runnable in Pyth
 
 ## Getting Started
 
-[Instrumentation](../deployment/instrumentation.md) is the act of adding observability code to an app yourself.
+[Instrumentation](../telemetry/instrumentation.md) is the act of adding observability code to an app yourself.
 
 If you’re instrumenting an app, you need to use the OpenTelemetry SDK for your language. You’ll then use the SDK to initialize OpenTelemetry and the API to instrument your code. This will emit telemetry from your app, and any library you installed that also comes with instrumentation.
 

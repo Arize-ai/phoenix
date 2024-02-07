@@ -57,10 +57,11 @@
 * [Extract Data from Spans](how-to/extract-data-from-spans.md)
 * [Use Example Datasets](how-to/use-example-datasets.md)
 
-## 🚀 deployment
+## 🔭 telemetry
 
-* [Deploying Phoenix](deployment/deploying-phoenix.md)
-* [Instrumentation](deployment/instrumentation.md)
+* [Deploying Phoenix](telemetry/deploying-phoenix.md)
+* [Instrumentation](telemetry/instrumentation.md)
+* [Custom Spans](telemetry/custom-spans.md)
 
 ## ⌨ API
 
