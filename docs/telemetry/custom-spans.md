@@ -16,7 +16,7 @@ pip install opentelemetry-api
 pip install opentelemetry-sdk
 ```
 
-Let's next install the OpenInference Semantic Conventions package so that we can construct spans with LLM semantic conventions:
+Let's next install the [OpenInference Semantic Conventions](https://github.com/Arize-ai/openinference/blob/main/python/openinference-semantic-conventions/README.md) package so that we can construct spans with LLM semantic conventions:
 
 ```shell
 pip install openinference-semantic-conventions
@@ -111,9 +111,11 @@ current_span.set_attribute("operation.name", "Saying hello!")
 current_span.set_attribute("operation.other-stuff", [1, 2, 3])
 ```
 
+Notice above that the attributes have a specific prefix `operation`. When adding custom attributes, it's best practice to vendor your attributes (e.x. `mycompany.`) so that your attributes do not clash with semantic conventions.
+
 ## Add semantic attributes
 
-Semantic Attributes are pre-defined Attributes that are well-known naming conventions for common kinds of data. Using Semantic Attributes lets you normalize this kind of information across your systems. In the case of Phoenix, the OpenInference Semantic Conventions package provides a set of well-known attributes that are used to represent LLM application specific semantic conventions.
+Semantic Attributes are pre-defined Attributes that are well-known naming conventions for common kinds of data. Using Semantic Attributes lets you normalize this kind of information across your systems. In the case of Phoenix, the [OpenInference Semantic Conventions](https://github.com/Arize-ai/openinference/blob/main/python/openinference-semantic-conventions/README.md) package provides a set of well-known attributes that are used to represent LLM application specific semantic conventions.
 
 To use OpenInference Semantic Attributes in Python, ensure you have the semantic conventions package:
 
@@ -165,7 +167,7 @@ except:
 
 ## Record exceptions in spans
 
-It can be a good idea to record exceptions when they happen. It’s recommended to do this in conjunction with setting [span status](custom-spans.md#set-span-status).
+It can be a good idea to record exceptions when they happen. It’s recommended to do this in conjunction with setting span status.
 
 ```python
 from opentelemetry import trace
