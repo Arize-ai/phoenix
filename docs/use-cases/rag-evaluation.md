@@ -372,7 +372,7 @@ from phoenix.experimental.evals import (
     run_evals,
 )
 
-relevance_evaluator = RelevanceEvaluator(OpenAIModel(model_name="gpt-4-1106-preview"))
+relevance_evaluator = RelevanceEvaluator(OpenAIModel(model_name="gpt-4-turbo-preview"))
 
 retrieved_documents_relevance_df = run_evals(
     evaluators=[relevance_evaluator],
@@ -530,8 +530,8 @@ from phoenix.experimental.evals import (
     run_evals,
 )
 
-qa_evaluator = QAEvaluator(OpenAIModel(model_name="gpt-4-1106-preview"))
-hallucination_evaluator = HallucinationEvaluator(OpenAIModel(model_name="gpt-4-1106-preview"))
+qa_evaluator = QAEvaluator(OpenAIModel(model_name="gpt-4-turbo-preview"))
+hallucination_evaluator = HallucinationEvaluator(OpenAIModel(model_name="gpt-4-turbo-preview"))
 
 qa_correctness_eval_df, hallucination_eval_df = run_evals(
     evaluators=[qa_evaluator, hallucination_evaluator],

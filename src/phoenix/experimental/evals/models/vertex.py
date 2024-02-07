@@ -46,12 +46,6 @@ class GeminiModel(BaseEvalModel):
     def __post_init__(self) -> None:
         self._init_client()
         self._init_rate_limiter()
-        self.retry = self._retry(
-            error_types=[],  # default to catching all errors
-            min_seconds=self.retry_min_seconds,
-            max_seconds=self.retry_max_seconds,
-            max_retries=self.max_retries,
-        )
 
     def reload_client(self) -> None:
         self._init_client()
@@ -115,30 +109,17 @@ class GeminiModel(BaseEvalModel):
         # instruction is an invalid input to Gemini models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         kwargs.pop("instruction", None)
-        response = self._generate_with_retry(
-            prompt=prompt,
-            generation_config=self.generation_config,
-            **kwargs,
-        )
 
-        return str(response)
-
-    def _generate_with_retry(
-        self, prompt: str, generation_config: Dict[str, Any], **kwargs: Any
-    ) -> Any:
-        @self.retry
         @self._rate_limiter.limit
-        def _completion_with_retry(**kwargs: Any) -> Any:
+        def _rate_limited_completion(
+            prompt: str, generation_config: Dict[str, Any], **kwargs: Any
+        ) -> Any:
             response = self._model.generate_content(
                 contents=prompt, generation_config=generation_config, **kwargs
             )
             return self._parse_response_candidates(response)
 
-        return _completion_with_retry(**kwargs)
-
-    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
-        kwargs.pop("instruction", None)
-        response = await self._async_generate_with_retry(
+        response = _rate_limited_completion(
             prompt=prompt,
             generation_config=self.generation_config,
             **kwargs,
@@ -146,18 +127,27 @@ class GeminiModel(BaseEvalModel):
 
         return str(response)
 
-    async def _async_generate_with_retry(
-        self, prompt: str, generation_config: Dict[str, Any], **kwargs: Any
-    ) -> Any:
-        @self.retry
+    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+        # instruction is an invalid input to Gemini models, it is passed in by
+        # BaseEvalModel.__call__ and needs to be removed
+        kwargs.pop("instruction", None)
+
         @self._rate_limiter.alimit
-        async def _completion_with_retry(**kwargs: Any) -> Any:
+        async def _rate_limited_completion(
+            prompt: str, generation_config: Dict[str, Any], **kwargs: Any
+        ) -> Any:
             response = await self._model.generate_content_async(
                 contents=prompt, generation_config=generation_config, **kwargs
             )
             return self._parse_response_candidates(response)
 
-        return await _completion_with_retry(**kwargs)
+        response = await _rate_limited_completion(
+            prompt=prompt,
+            generation_config=self.generation_config,
+            **kwargs,
+        )
+
+        return str(response)
 
     def _parse_response_candidates(self, response: Any) -> Any:
         if hasattr(response, "candidates"):

@@ -21,7 +21,13 @@ from typing import (
 
 import pandas as pd
 
-from phoenix.config import ENV_NOTEBOOK_ENV, get_env_host, get_env_port, get_exported_files
+from phoenix.config import (
+    ENV_NOTEBOOK_ENV,
+    ENV_PHOENIX_COLLECTOR_ENDPOINT,
+    get_env_host,
+    get_env_port,
+    get_exported_files,
+)
 from phoenix.core.evals import Evals
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
@@ -30,12 +36,14 @@ from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
 from phoenix.services import AppService
+from phoenix.session.client import Client
+from phoenix.session.data_extractor import TraceDataExtractor
 from phoenix.session.evaluation import encode_evaluations
-from phoenix.trace.dsl import SpanFilter
+from phoenix.trace import Evaluations
 from phoenix.trace.dsl.query import SpanQuery
 from phoenix.trace.otel import encode
-from phoenix.trace.span_json_encoder import span_to_json
 from phoenix.trace.trace_dataset import TraceDataset
+from phoenix.utilities import query_spans
 
 try:
     from IPython.display import IFrame  # type: ignore
@@ -47,8 +55,6 @@ logger = logging.getLogger(__name__)
 # type workaround
 # https://github.com/python/mypy/issues/5264#issuecomment-399407428
 if TYPE_CHECKING:
-    from phoenix.trace import Evaluations
-
     _BaseList = UserList[pd.DataFrame]
 else:
     _BaseList = UserList
@@ -80,7 +86,7 @@ class ExportedData(_BaseList):
         self.data.extend(pd.read_parquet(path) for path in new_paths)
 
 
-class Session(ABC):
+class Session(TraceDataExtractor, ABC):
     """Session that maintains a 1-1 shared state with the Phoenix App."""
 
     trace_dataset: Optional[TraceDataset]
@@ -179,56 +185,6 @@ class Session(ABC):
         """Returns the url for the phoenix app"""
         return _get_url(self.host, self.port, self.notebook_env)
 
-    def query_spans(
-        self,
-        *queries: SpanQuery,
-        start_time: Optional[datetime] = None,
-        stop_time: Optional[datetime] = None,
-    ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
-        if len(queries) == 0 or (traces := self.traces) is None:
-            return None
-        spans = tuple(
-            traces.get_spans(
-                start_time=start_time,
-                stop_time=stop_time,
-            )
-        )
-        dataframes = [query(spans) for query in queries]
-        if len(dataframes) == 1:
-            return dataframes[0]
-        return dataframes
-
-    def get_spans_dataframe(
-        self,
-        filter_condition: Optional[str] = None,
-        *,
-        start_time: Optional[datetime] = None,
-        stop_time: Optional[datetime] = None,
-        root_spans_only: Optional[bool] = None,
-    ) -> Optional[pd.DataFrame]:
-        if (traces := self.traces) is None:
-            return None
-        predicate = SpanFilter(filter_condition) if filter_condition else None
-        spans = traces.get_spans(
-            start_time=start_time,
-            stop_time=stop_time,
-            root_spans_only=root_spans_only,
-        )
-        if predicate:
-            spans = filter(predicate, spans)
-        if not (data := [json.loads(span_to_json(span)) for span in spans]):
-            return None
-        return pd.json_normalize(data, max_level=1).set_index("context.span_id", drop=False)
-
-    def get_evaluations(self) -> List["Evaluations"]:
-        return self.evals.export_evaluations()
-
-    def get_trace_dataset(self) -> Optional[TraceDataset]:
-        if (dataframe := self.get_spans_dataframe()) is None:
-            return None
-        evaluations = self.get_evaluations()
-        return TraceDataset(dataframe=dataframe, evaluations=evaluations)
-
 
 _session: Optional[Session] = None
 
@@ -286,6 +242,10 @@ class ProcessSession(Session):
                 self.trace_dataset.name if self.trace_dataset is not None else None
             ),
         )
+        self._client = Client(
+            endpoint=self.url,
+            use_active_session_if_available=False,
+        )
 
     @property
     def active(self) -> bool:
@@ -294,6 +254,23 @@ class ProcessSession(Session):
     def end(self) -> None:
         self.app_service.stop()
         self.temp_dir.cleanup()
+
+    def query_spans(
+        self,
+        *queries: SpanQuery,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+        root_spans_only: Optional[bool] = None,
+    ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
+        return self._client.query_spans(
+            *queries,
+            start_time=start_time,
+            stop_time=stop_time,
+            root_spans_only=root_spans_only,
+        )
+
+    def get_evaluations(self) -> List[Evaluations]:
+        return self._client.get_evaluations()
 
 
 class ThreadSession(Session):
@@ -344,6 +321,41 @@ class ThreadSession(Session):
     def end(self) -> None:
         self.server.close()
         self.temp_dir.cleanup()
+
+    def query_spans(
+        self,
+        *queries: SpanQuery,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+        root_spans_only: Optional[bool] = None,
+    ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
+        if (traces := self.traces) is None:
+            return None
+        if not queries:
+            queries = (SpanQuery(),)
+        valid_eval_names = self.evals.get_span_evaluation_names() if self.evals else ()
+        queries = tuple(
+            SpanQuery.from_dict(
+                query.to_dict(),
+                evals=self.evals,
+                valid_eval_names=valid_eval_names,
+            )
+            for query in queries
+        )
+        results = query_spans(
+            traces,
+            *queries,
+            start_time=start_time,
+            stop_time=stop_time,
+            root_spans_only=root_spans_only,
+        )
+        if len(results) == 1:
+            df = results[0]
+            return None if df.shape == (0, 0) else df
+        return results
+
+    def get_evaluations(self) -> List[Evaluations]:
+        return self.evals.export_evaluations()
 
 
 def launch_app(
@@ -414,6 +426,16 @@ def launch_app(
             "it down and starting a new instance..."
         )
         _session.end()
+
+    # Detect mis-configurations and provide warnings
+    if (env_collector_endpoint := os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT)) is not None:
+        logger.warning(
+            f"⚠️ {ENV_PHOENIX_COLLECTOR_ENDPOINT} is set to {env_collector_endpoint}.\n"
+            "⚠️ This means that traces will be sent to the collector endpoint and not this app.\n"
+            "⚠️ If you would like to use this app to view traces, please unset this environment"
+            f"variable via e.g. `del os.environ['{ENV_PHOENIX_COLLECTOR_ENDPOINT}']` \n"
+            "⚠️ You will need to restart your notebook to apply this change."
+        )
 
     # Normalize notebook environment
     if isinstance(notebook_environment, str):
@@ -533,7 +555,8 @@ def _is_databricks() -> bool:
         import IPython  # type: ignore
     except ImportError:
         return False
-    shell = IPython.get_ipython()
+    if (shell := IPython.get_ipython()) is None:
+        return False
     try:
         dbutils = shell.user_ns["dbutils"]
     except KeyError:

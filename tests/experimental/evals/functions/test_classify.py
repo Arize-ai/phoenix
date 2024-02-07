@@ -390,30 +390,13 @@ def test_llm_classify_shows_retry_info(openai_api_key: str, capfd: pytest.Captur
     )
 
     with ExitStack() as stack:
-        waiting_fn = "phoenix.experimental.evals.models.base.wait_random_exponential"
-        stack.enter_context(patch(waiting_fn, return_value=False))
-        model = OpenAIModel(max_retries=4)
+        model = OpenAIModel()
 
-        request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
-        openai_retry_errors = [
-            model._openai.APITimeoutError("test timeout"),
-            model._openai.APIError(
-                message="test api error",
-                request=httpx.request,
-                body={},
-            ),
-            model._openai.APIConnectionError(message="test api connection error", request=request),
-            model._openai.InternalServerError(
-                "test internal server error",
-                response=httpx.Response(status_code=500, request=request),
-                body={},
-            ),
-        ]
+        openai_retry_error = model._openai.APITimeoutError("test timeout")
         mock_openai = MagicMock()
-        mock_openai.side_effect = openai_retry_errors
-        stack.enter_context(
-            patch.object(model._async_client.chat.completions, "create", mock_openai)
-        )
+        mock_openai.side_effect = openai_retry_error
+        stack.enter_context(patch.object(model, "_generate", mock_openai))
+        stack.enter_context(patch.object(model, "_async_generate", mock_openai))
         llm_classify(
             dataframe=dataframe,
             template=RAG_RELEVANCY_PROMPT_TEMPLATE,
@@ -422,10 +405,18 @@ def test_llm_classify_shows_retry_info(openai_api_key: str, capfd: pytest.Captur
         )
 
     out, _ = capfd.readouterr()
-    assert "Failed attempt 1" in out, "Retry information should be printed"
-    assert "Failed attempt 2" in out, "Retry information should be printed"
-    assert "Failed attempt 3" in out, "Retry information should be printed"
-    assert "Failed attempt 4" not in out, "Maximum retries should not be exceeded"
+    assert "Exception in worker on attempt 1" in out, "Retry information should be printed"
+    assert "Exception in worker on attempt 2" in out, "Retry information should be printed"
+    assert "Exception in worker on attempt 3" in out, "Retry information should be printed"
+    assert "Exception in worker on attempt 4" in out, "Retry information should be printed"
+    assert "Exception in worker on attempt 5" in out, "Retry information should be printed"
+    assert "Exception in worker on attempt 6" in out, "Retry information should be printed"
+    assert "Exception in worker on attempt 7" in out, "Retry information should be printed"
+    assert "Exception in worker on attempt 8" in out, "Retry information should be printed"
+    assert "Exception in worker on attempt 9" in out, "Retry information should be printed"
+    assert "Exception in worker on attempt 10" in out, "Retry information should be printed"
+    assert "Exception in worker on attempt 11" in out, "Retry information should be printed"
+    assert "Exception in worker on attempt 12" not in out, "Maximum retries should not be exceeded"
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")

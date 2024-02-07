@@ -2,7 +2,6 @@ from collections import defaultdict
 from datetime import datetime
 from itertools import chain
 from typing import Dict, List, Optional, Set, Tuple, Union, cast
-from uuid import UUID
 
 import numpy as np
 import numpy.typing as npt
@@ -22,7 +21,7 @@ from phoenix.server.api.input_types.Coordinates import (
 from phoenix.server.api.input_types.SpanSort import SpanSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.trace.dsl import SpanFilter
-from phoenix.trace.schemas import SpanID
+from phoenix.trace.schemas import SpanID, TraceID
 
 from .context import Context
 from .input_types.TimeRange import TimeRange
@@ -264,7 +263,7 @@ class Query:
                 root_spans_only=root_spans_only,
             )
         else:
-            spans = chain.from_iterable(map(traces.get_trace, map(UUID, trace_ids)))
+            spans = chain.from_iterable(map(traces.get_trace, map(TraceID, trace_ids)))
         if predicate:
             spans = filter(predicate, spans)
         if sort:

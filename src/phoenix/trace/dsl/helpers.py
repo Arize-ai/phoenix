@@ -20,15 +20,15 @@ IS_LLM = "span_kind == 'LLM'"
 IS_RETRIEVER = "span_kind == 'RETRIEVER'"
 
 
-class Session(Protocol):
+class CanQuerySpans(Protocol):
     def query_spans(self, *query: SpanQuery) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
         ...
 
 
-def get_retrieved_documents(session: Session) -> pd.DataFrame:
+def get_retrieved_documents(obj: CanQuerySpans) -> pd.DataFrame:
     return cast(
         pd.DataFrame,
-        session.query_spans(
+        obj.query_spans(
             SpanQuery()
             .where(IS_RETRIEVER)
             .select("trace_id", **INPUT)
@@ -41,11 +41,11 @@ def get_retrieved_documents(session: Session) -> pd.DataFrame:
     )
 
 
-def get_qa_with_reference(session: Session) -> pd.DataFrame:
+def get_qa_with_reference(obj: CanQuerySpans) -> pd.DataFrame:
     return pd.concat(
         cast(
             List[pd.DataFrame],
-            session.query_spans(
+            obj.query_spans(
                 SpanQuery().select(**IO).where(IS_ROOT),
                 SpanQuery()
                 .where(IS_RETRIEVER)

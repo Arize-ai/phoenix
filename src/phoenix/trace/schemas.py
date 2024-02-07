@@ -54,8 +54,8 @@ class SpanKind(Enum):
         return None if v else cls.UNKNOWN
 
 
-TraceID = UUID
-SpanID = UUID
+TraceID = str
+SpanID = str
 AttributePrimitiveValue = Union[str, bool, float, int]
 AttributeValue = Union[AttributePrimitiveValue, List[AttributePrimitiveValue]]
 SpanAttributes = Dict[str, AttributeValue]
@@ -194,3 +194,15 @@ class MimeType(Enum):
 ATTRIBUTE_PREFIX = "attributes."
 CONTEXT_PREFIX = "context."
 COMPUTED_PREFIX = "__computed__."
+
+
+class ComputedAttributes(Enum):
+    # Enum value must be string prefixed by COMPUTED_PREFIX
+    LATENCY_MS = (
+        COMPUTED_PREFIX + "latency_ms"
+    )  # The latency (or duration) of the span in milliseconds
+    CUMULATIVE_LLM_TOKEN_COUNT_TOTAL = COMPUTED_PREFIX + "cumulative_token_count.total"
+    CUMULATIVE_LLM_TOKEN_COUNT_PROMPT = COMPUTED_PREFIX + "cumulative_token_count.prompt"
+    CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION = COMPUTED_PREFIX + "cumulative_token_count.completion"
+    ERROR_COUNT = COMPUTED_PREFIX + "error_count"
+    CUMULATIVE_ERROR_COUNT = COMPUTED_PREFIX + "cumulative_error_count"

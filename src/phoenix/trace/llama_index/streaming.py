@@ -1,11 +1,10 @@
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Generator, List
-from uuid import UUID
 
 from llama_index.callbacks.schema import TIMESTAMP_FORMAT
 from llama_index.response.schema import StreamingResponse
 
-from phoenix.trace.schemas import SpanKind, SpanStatusCode
+from phoenix.trace.schemas import SpanID, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import OUTPUT_VALUE
 from phoenix.trace.tracer import Tracer
 
@@ -60,11 +59,11 @@ class TokenGenInstrumentor:
             end_time=datetime.now(timezone.utc),
             status_code=SpanStatusCode.OK,
             status_message="",
-            parent_id=UUID(parent_id) if parent_id else None,
+            parent_id=SpanID(parent_id) if parent_id else None,
             attributes=self._event_data.attributes,
             events=[],
             conversation=None,
-            span_id=UUID(self._event_data.span_id),
+            span_id=SpanID(self._event_data.span_id),
         )
 
 

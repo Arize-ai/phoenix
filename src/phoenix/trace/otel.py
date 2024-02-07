@@ -1,3 +1,5 @@
+import json
+from binascii import hexlify, unhexlify
 from datetime import datetime, timezone
 from types import MappingProxyType
 from typing import (
@@ -16,7 +18,6 @@ from typing import (
     Union,
     cast,
 )
-from uuid import UUID
 
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
@@ -36,13 +37,16 @@ from phoenix.trace.schemas import (
     TraceID,
 )
 from phoenix.trace.semantic_conventions import (
+    DOCUMENT_METADATA,
     EXCEPTION_ESCAPED,
     EXCEPTION_MESSAGE,
     EXCEPTION_STACKTRACE,
     EXCEPTION_TYPE,
     INPUT_MIME_TYPE,
+    LLM_PROMPT_TEMPLATE_VARIABLES,
     OPENINFERENCE_SPAN_KIND,
     OUTPUT_MIME_TYPE,
+    TOOL_PARAMETERS,
 )
 
 
@@ -56,7 +60,7 @@ def decode(otlp_span: otlp.Span) -> Span:
         _decode_unix_nano(otlp_span.end_time_unix_nano) if otlp_span.end_time_unix_nano else None
     )
 
-    attributes = dict(_unflatten(_decode_key_values(otlp_span.attributes)))
+    attributes = dict(_unflatten(_load_json_strings(_decode_key_values(otlp_span.attributes))))
     span_kind = SpanKind(attributes.pop(OPENINFERENCE_SPAN_KIND, None))
 
     for mime_type in (INPUT_MIME_TYPE, OUTPUT_MIME_TYPE):
@@ -84,18 +88,12 @@ def decode(otlp_span: otlp.Span) -> Span:
     )
 
 
-def _decode_identifier(identifier: bytes) -> Optional[UUID]:
-    # This is a stopgap solution until we move away from UUIDs.
-    # The goal is to convert bytes to UUID in a deterministic way.
+def _decode_identifier(identifier: bytes) -> Optional[str]:
     if not identifier:
         return None
-    try:
-        # OTEL trace_id is 16 bytes, so it matches UUID's length, but
-        # OTEL span_id is 8 bytes, so we double up by concatenating.
-        return UUID(bytes=identifier[:8] + identifier[-8:])
-    except ValueError:
-        # Fallback to a seeding a UUID from the bytes.
-        return UUID(int=int.from_bytes(identifier, byteorder="big"))
+    # Hex encoding is used for trace and span identifiers in OTLP.
+    # See e.g. https://github.com/open-telemetry/opentelemetry-go/blob/ce3faf1488b72921921f9589048835dddfe97f33/trace/trace.go#L33  # noqa: E501
+    return hexlify(identifier).decode()
 
 
 def _decode_event(otlp_event: otlp.Span.Event) -> SpanEvent:
@@ -147,6 +145,27 @@ def _decode_value(any_value: AnyValue) -> Any:
     if which is None:
         return None
     assert_never(which)
+
+
+_JSON_STRING_ATTRIBUTES = (
+    DOCUMENT_METADATA,
+    LLM_PROMPT_TEMPLATE_VARIABLES,
+    TOOL_PARAMETERS,
+)
+
+
+def _load_json_strings(key_values: Iterable[Tuple[str, Any]]) -> Iterator[Tuple[str, Any]]:
+    for key, value in key_values:
+        if key.endswith(_JSON_STRING_ATTRIBUTES):
+            try:
+                dict_value = json.loads(value)
+            except Exception:
+                yield key, value
+            else:
+                if dict_value:
+                    yield key, dict_value
+        else:
+            yield key, value
 
 
 StatusMessage: TypeAlias = str
@@ -277,9 +296,9 @@ _BILLION = 1_000_000_000  # for converting seconds to nanoseconds
 
 
 def encode(span: Span) -> otlp.Span:
-    trace_id: bytes = span.context.trace_id.bytes
-    span_id: bytes = _span_id_to_bytes(span.context.span_id)
-    parent_span_id: bytes = _span_id_to_bytes(span.parent_id) if span.parent_id else bytes()
+    trace_id: bytes = _encode_identifier(span.context.trace_id)
+    span_id: bytes = _encode_identifier(span.context.span_id)
+    parent_span_id: bytes = _encode_identifier(span.parent_id)
 
     # floating point rounding error can cause the timestamp to be slightly different from expected
     start_time_unix_nano: int = int(span.start_time.timestamp() * _BILLION)
@@ -297,7 +316,10 @@ def encode(span: Span) -> otlp.Span:
             attributes.pop(key, None)
         elif isinstance(value, Mapping):
             attributes.pop(key, None)
-            attributes.update(_flatten_mapping(value, key))
+            if key.endswith(_JSON_STRING_ATTRIBUTES):
+                attributes[key] = json.dumps(value)
+            else:
+                attributes.update(_flatten_mapping(value, key))
         elif not isinstance(value, str) and isinstance(value, Sequence) and _has_mapping(value):
             attributes.pop(key, None)
             attributes.update(_flatten_sequence(value, key))
@@ -334,10 +356,13 @@ def _encode_status(span_status_code: SpanStatusCode, status_message: str) -> otl
     return otlp.Status(code=code, message=status_message)
 
 
-def _span_id_to_bytes(span_id: SpanID) -> bytes:
-    # Note that this is not compliant with the OTEL spec, which uses 8-byte span IDs.
-    # This is a stopgap solution for backward compatibility until we move away from UUIDs.
-    return span_id.bytes
+def _encode_identifier(identifier: Optional[str]) -> bytes:
+    if not identifier:
+        return bytes()
+    # For legacy JSONL files containing UUID strings we
+    # need to remove the hyphen.
+    identifier = identifier.replace("-", "")
+    return unhexlify(identifier)
 
 
 def _has_mapping(sequence: Sequence[Any]) -> bool:
@@ -354,7 +379,10 @@ def _flatten_mapping(
     for key, value in mapping.items():
         prefixed_key = f"{prefix}.{key}"
         if isinstance(value, Mapping):
-            yield from _flatten_mapping(value, prefixed_key)
+            if key.endswith(_JSON_STRING_ATTRIBUTES):
+                yield prefixed_key, json.dumps(value)
+            else:
+                yield from _flatten_mapping(value, prefixed_key)
         elif isinstance(value, Sequence):
             yield from _flatten_sequence(value, prefixed_key)
         elif value is not None:
