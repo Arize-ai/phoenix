@@ -242,8 +242,9 @@ class ProcessSession(Session):
                 self.trace_dataset.name if self.trace_dataset is not None else None
             ),
         )
+        host = "127.0.0.1" if self.host == "0.0.0.0" else self.host
         self._client = Client(
-            endpoint=self.url,
+            endpoint=f"http://{host}:{self.port}",
             use_active_session_if_available=False,
         )
 
