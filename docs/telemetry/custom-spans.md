@@ -7,7 +7,7 @@ description: >-
 
 # Custom Spans
 
-While the spans created via phoenix and OpenInference creates a solid foundation for tracing your application, sometimes you may need to create and customize and customize the LLM spans. Phoenix and OpenInference use OpenTelemetry Trace API to create spans. This guide will help you understand how to create and customize spans using OpenTelemetry Trace API.
+While the spans created via phoenix and OpenInference creates a solid foundation for tracing your application, sometimes you may need to create and customize and customize the LLM spans. Phoenix and OpenInference use OpenTelemetry Trace API to create spans. Because Phoenix supports OpenTelemetry, this means that you can perform manual instrumentation, no LLM framework required!  This guide will help you understand how to create and customize spans using OpenTelemetry Trace API.
 
 First, ensure you have the API and SDK packages:
 
