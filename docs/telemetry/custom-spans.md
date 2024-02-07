@@ -19,8 +19,12 @@ pip install opentelemetry-sdk
 Let's next install the OpenInference Semantic Conventions package so that we can construct spans with LLM semantic conventions:
 
 ```shell
-pip install opentelemetry-semantic-conventions
+pip install openinference-semantic-conventions
 ```
+
+For full documentation on the OpenInference semantic conventions, please consult the specification
+
+{% embed url="https://arize-ai.github.io/openinference/spec/semantic_conventions.html" %}
 
 ## Acquire Tracer
 
@@ -34,8 +38,7 @@ tracer = trace.get_tracer("my.tracer.name")
 
 ## Creating spans
 
-To create a span, you'll typically want
-it to be started as the current span.
+To create a span, you'll typically want it to be started as the current span.
 
 ```python
 def do_work():
@@ -45,14 +48,11 @@ def do_work():
         # When the 'with' block goes out of scope, 'span' is closed for you
 ```
 
-You can also use `start_span` to create a span without making it the current
-span. This is usually done to track concurrent or asynchronous operations.
+You can also use `start_span` to create a span without making it the current span. This is usually done to track concurrent or asynchronous operations.
 
 ## Creating nested spans
 
-If you have a distinct sub-operation you'd like to track as a part of another
-one, you can create span to represent
-the relationship:
+If you have a distinct sub-operation you'd like to track as a part of another one, you can create span to represent the relationship:
 
 ```python
 def do_work():
@@ -68,14 +68,11 @@ def do_work():
         # This span is also closed when it goes out of scope
 ```
 
-When you view spans in a trace visualization tool, `child` will be tracked as a
-nested span under `parent`.
+When you view spans in a trace visualization tool, `child` will be tracked as a nested span under `parent`.
 
 ## Creating spans with decorators
 
-It's common to have a single spans track
-the execution of an entire function. In that scenario, there is a decorator you
-can use to reduce code:
+It's common to have a single spans track the execution of an entire function. In that scenario, there is a decorator you can use to reduce code:
 
 ```python
 @tracer.start_as_current_span("do_work")
@@ -83,21 +80,15 @@ def do_work():
     print("doing some work...")
 ```
 
-Use of the decorator is equivalent to creating the span inside `do_work()` and
-ending it when `do_work()` is finished.
+Use of the decorator is equivalent to creating the span inside `do_work()` and ending it when `do_work()` is finished.
 
-To use the decorator, you must have a `tracer` instance available global to your
-function declaration.
+To use the decorator, you must have a `tracer` instance available global to your function declaration.
 
-If you need to add [attributes](#add-attributes-to-a-span) or
-[events](#adding-events) then it's less convenient to
-use a decorator.
+If you need to add [attributes](custom-spans.md#add-attributes-to-a-span) or [events](custom-spans.md#adding-events) then it's less convenient to use a decorator.
 
 ## Get the current span
 
-Sometimes it's helpful to access whatever the current
-spans is at a point in time so that you
-can enrich it with more information.
+Sometimes it's helpful to access whatever the current spans is at a point in time so that you can enrich it with more information.
 
 ```python
 from opentelemetry import trace
@@ -108,9 +99,7 @@ current_span = trace.get_current_span()
 
 ## Add attributes to a span
 
-Attributes let you attach key/value
-pairs to a spans so it carries more
-information about the current operation that it's tracking.
+Attributes let you attach key/value pairs to a spans so it carries more information about the current operation that it's tracking.
 
 ```python
 from opentelemetry import trace
@@ -124,13 +113,9 @@ current_span.set_attribute("operation.other-stuff", [1, 2, 3])
 
 ## Add semantic attributes
 
-Semantic Attributes are pre-defined
-Attributes that are well-known
-naming conventions for common kinds of data. Using Semantic Attributes lets you
-normalize this kind of information across your systems. In the case of Phoenix, the OpenInference Semantic Conventions package provides a set of well-known attributes that are used to represent LLM application specific semantic conventions.
+Semantic Attributes are pre-defined Attributes that are well-known naming conventions for common kinds of data. Using Semantic Attributes lets you normalize this kind of information across your systems. In the case of Phoenix, the OpenInference Semantic Conventions package provides a set of well-known attributes that are used to represent LLM application specific semantic conventions.
 
-To use OpenInference Semantic Attributes in Python, ensure you have the semantic conventions
-package:
+To use OpenInference Semantic Attributes in Python, ensure you have the semantic conventions package:
 
 ```shell
 pip install openinference-semantic-conventions
@@ -150,9 +135,7 @@ current_span.set_attribute(SpanAttributes.LLM_MODEL_NAME, "gpt-3.5-turbo")
 
 ## Adding events
 
-An event is a human-readable message on a span that represents
-"something happening" during its lifetime. You can think of it as a primitive
-log.
+An event is a human-readable message on a span that represents "something happening" during its lifetime. You can think of it as a primitive log.
 
 ```python
 from opentelemetry import trace
@@ -182,8 +165,7 @@ except:
 
 ## Record exceptions in spans
 
-It can be a good idea to record exceptions when they happen. It’s recommended to
-do this in conjunction with setting [span status](#set-span-status).
+It can be a good idea to record exceptions when they happen. It’s recommended to do this in conjunction with setting [span status](custom-spans.md#set-span-status).
 
 ```python
 from opentelemetry import trace
