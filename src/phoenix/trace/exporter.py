@@ -108,9 +108,9 @@ class HttpExporter:
 
     def _url(self, message: Message) -> str:
         if isinstance(message, otlp.Span):
-            return urljoin(self._base_url, "v1/spans")
+            return urljoin(self._base_url, "/v1/spans")
         if isinstance(message, pb.Evaluation):
-            return urljoin(self._base_url, "v1/evaluations")
+            return urljoin(self._base_url, "/v1/evaluations")
         logger.exception(f"unrecognized message type: {type(message)}")
         assert_never(message)
 

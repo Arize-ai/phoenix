@@ -216,7 +216,7 @@ export function TracePage() {
     <DialogContainer
       type="slideOver"
       isDismissable
-      onDismiss={() => navigate(-1)}
+      onDismiss={() => navigate("/tracing")}
     >
       <Dialog size="XL" title="Trace Details">
         <main
