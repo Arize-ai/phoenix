@@ -26,7 +26,6 @@ export function SelectionGridSizeRadioGroup(
     <RadioGroup
       defaultValue={props.size}
       variant="inline-button"
-      size="compact"
       onChange={(v) => {
         if (isSelectionGridSize(v)) {
           props.onChange(v);
