@@ -78,9 +78,3 @@ When you're done using Phoenix, gracefully shut down your running background ses
 px.close_app()
 ```
 
-If you need to terminate the port connection entirely, then&#x20;
-
-```
-lsof -t -i tcp:6006 | xargs kill -9
-```
-
