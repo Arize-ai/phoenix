@@ -2,6 +2,8 @@
 
 * [Phoenix: AI Observability & Evaluation](README.md)
 * [Examples](notebooks.md)
+* [Installation](install-and-import-phoenix.md)
+* [Environments](environments.md)
 
 ## 🔑 Quickstart
 
@@ -39,13 +41,12 @@
 
 ## 🔮 Use Cases
 
-* [QA with Retrieval (Using Vector Stores)](use-cases/troubleshooting-llm-retrieval-with-vector-stores.md)
+* [Retrieval with Embeddings](use-cases/troubleshooting-llm-retrieval-with-vector-stores.md)
 * [Structured Extraction](use-cases/structured-extraction.md)
-* [Evaluate RAG with LLM Evals](use-cases/rag-evaluation.md)
+* [Evaluate RAG with Evals](use-cases/rag-evaluation.md)
 
 ## 🔢 How-To
 
-* [Install and Import Phoenix](how-to/install-and-import-phoenix.md)
 * [Import Your Data](how-to/define-your-schema/README.md)
   * [LLM Evaluations](how-to/define-your-schema/llm-evaluations.md)
   * [Prompt and Response (LLM)](how-to/define-your-schema/prompt-and-response-llm.md)
@@ -55,12 +56,18 @@
 * [Export Your Data](how-to/export-your-data.md)
 * [Extract Data from Spans](how-to/extract-data-from-spans.md)
 * [Use Example Datasets](how-to/use-example-datasets.md)
-* [Contribute to Phoenix](how-to/contribute-to-phoenix.md)
+
+## 🔭 telemetry
+
+* [Deploying Phoenix](telemetry/deploying-phoenix.md)
+* [Instrumentation](telemetry/instrumentation.md)
+* [Custom Spans](telemetry/custom-spans.md)
 
 ## ⌨ API
 
 * [Dataset and Schema](api/dataset-and-schema.md)
 * [Session](api/session.md)
+* [Client](api/client.md)
 * [Evals](api/evals.md)
 * [Models](api/evaluation-models.md)
 
@@ -69,17 +76,20 @@
 * [LlamaIndex](integrations/llamaindex.md)
 * [LangChain](integrations/langchain.md)
 * [OpenAI](integrations/openai.md)
-* [Arize](integrations/bring-production-data-to-notebook-for-eda-or-retraining.md)
+* [Bedrock](integrations/bedrock.md)
 * [AutoGen](integrations/autogen-support.md)
+* [Arize](integrations/bring-production-data-to-notebook-for-eda-or-retraining.md)
+
+## 🏴☠ Programming Languages
+
+* [JavaScript](programming-languages/javascript.md)
 
 ## 📚 Reference
 
-* [Deploying Phoenix](reference/deploying-phoenix.md)
-* [Environments](reference/environments.md)
-* [Architecture](reference/architecture.md)
 * [Embeddings](concepts/embeddings.md)
 * [OpenInference](concepts/open-inference.md)
 * [Frequently Asked Questions](reference/frequently-asked-questions.md)
+* [Contribute to Phoenix](reference/contribute-to-phoenix.md)
 
 ***
 

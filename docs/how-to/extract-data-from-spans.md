@@ -56,8 +56,8 @@ query = SpanQuery().where(
     reference="document.content",
 )
 
-# The active Phoenix session can take this query and return the dataframe.
-px.active_session().query_spans(query)
+# The Phoenix Client can take this query and return the dataframe.
+px.Client().query_spans(query)
 ```
 
 ## DataFrame Index
@@ -168,13 +168,13 @@ query = SpanQuery().select(
 
 ### Joining a Span to Its Parent
 
-To do this, we would provide two queries to Phoenix which will return two simultaneous dataframes that can be joined together by pandas. The `query_for_child_spans` uses `parent_id` as index as shown in [Using Parent ID as Index](extract-data-from-spans.md#using-parent-id-as-index), and `session.query_spans()` returns a list of dataframes when multiple queries are given.
+To do this, we would provide two queries to Phoenix which will return two simultaneous dataframes that can be joined together by pandas. The `query_for_child_spans` uses `parent_id` as index as shown in [Using Parent ID as Index](extract-data-from-spans.md#using-parent-id-as-index), and `px.Client().query_spans()` returns a list of dataframes when multiple queries are given.
 
 ```python
 import pandas as pd
 
 pd.concatenate(
-    px.active_session().query_spans(
+    px.Client().query_spans(
         query_for_parent_spans,
         query_for_child_spans,
     ),
@@ -199,8 +199,8 @@ query = SpanQuery().where(
     output="output.value,
 )
 
-# The active Phoenix session can take this query and return a dataframe.
-px.active_session().query_spans(query)
+# The Phoenix Client can take this query and return a dataframe.
+px.Client().query_spans(query)
 ```
 
 ### Retrieval (RAG) Relevance Evaluations
@@ -235,7 +235,7 @@ query_for_retrieved_documents = SpanQuery().where(
 
 # Perform an inner join on the two sets of spans.
 pd.concat(
-    px.active_session().query_spans(
+    px.Client().query_spans(
         query_for_root_span,
         query_for_retrieved_documents,
     ),
@@ -255,7 +255,7 @@ The query shown in the [example](extract-data-from-spans.md#example) can be done
 ```python
 from phoenix.session.evaluation import get_retrieved_documents
 
-retrieved_documents = get_retrieved_documents(px.active_session())
+retrieved_documents = get_retrieved_documents(px.Client())
 retrieved_documents
 ```
 
@@ -266,7 +266,7 @@ To extract the dataframe input to the [Q\&A on Retrieved Data evaluations](../ll
 ```python
 from phoenix.session.evaluation import get_qa_with_reference
 
-qa_with_reference = get_qa_with_reference(px.active_session())
+qa_with_reference = get_qa_with_reference(px.Client())
 qa_with_reference
 ```
 

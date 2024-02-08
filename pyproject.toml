@@ -42,7 +42,6 @@ dependencies = [
   "requests",
   "opentelemetry-sdk",
   "opentelemetry-proto",
-  "pyarrow",
   "opentelemetry-exporter-otlp",
   "openinference-instrumentation-langchain",
   "openinference-instrumentation-llama-index",
@@ -77,6 +76,7 @@ experimental = [
 llama-index = [
   "llama-index==0.9.14",  # always pin to a version that keeps our notebooks working
 ]
+
 [project.urls]
 Documentation = "https://docs.arize.com/phoenix/"
 Issues = "https://github.com/Arize-ai/phoenix/issues"

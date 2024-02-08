@@ -5,6 +5,7 @@ import { css } from "@emotion/react";
 import {
   Button,
   CloseOutline,
+  CompactSearchField,
   Dialog,
   DialogContainer,
   Icon,
@@ -85,15 +86,6 @@ export function PointSelectionPanelContent() {
   );
   const selectionDisplay = usePointCloudContext(
     (state) => state.selectionDisplay
-  );
-  const setSelectionDisplay = usePointCloudContext(
-    (state) => state.setSelectionDisplay
-  );
-  const selectionGridSize = usePointCloudContext(
-    (state) => state.selectionGridSize
-  );
-  const setSelectionGridSize = usePointCloudContext(
-    (state) => state.setSelectionGridSize
   );
 
   const [selectedDetailPointId, setSelectedDetailPointId] = React.useState<
@@ -221,7 +213,9 @@ export function PointSelectionPanelContent() {
     (state) => state.eventIdToDataMap
   );
   const pointData = usePointCloudContext((state) => state.pointData);
-
+  const selectionSearchText = usePointCloudContext(
+    (state) => state.selectionSearchText
+  );
   const allData: ModelEvent[] = useMemo(() => {
     return allSelectedEvents.map((event) => {
       const point = eventIdToDataMap.get(event.id);
@@ -258,6 +252,42 @@ export function PointSelectionPanelContent() {
     });
   }, [allSelectedEvents, eventIdToDataMap, pointData]);
 
+  const filteredData = useMemo(() => {
+    if (selectionSearchText) {
+      const lowerCaseSearchText = selectionSearchText.toLowerCase();
+      return allData.filter((event) => {
+        return (
+          event.id.includes(lowerCaseSearchText) ||
+          event.documentText?.toLowerCase().includes(lowerCaseSearchText) ||
+          event.predictionId?.includes(lowerCaseSearchText) ||
+          event.prompt?.toLowerCase().includes(lowerCaseSearchText) ||
+          event.response?.toLowerCase().includes(lowerCaseSearchText)
+        );
+      });
+    }
+    return allData;
+  }, [allData, selectionSearchText]);
+
+  const filteredEvents = useMemo(() => {
+    if (selectionSearchText) {
+      const lowerCaseSearchText = selectionSearchText.toLowerCase();
+      return allSelectedEvents.filter((event) => {
+        return (
+          event.id.includes(lowerCaseSearchText) ||
+          event.documentText?.toLowerCase().includes(lowerCaseSearchText) ||
+          event.eventMetadata?.predictionId?.includes(lowerCaseSearchText) ||
+          event.promptAndResponse?.prompt
+            ?.toLowerCase()
+            .includes(lowerCaseSearchText) ||
+          event.promptAndResponse?.response
+            ?.toLowerCase()
+            .includes(lowerCaseSearchText)
+        );
+      });
+    }
+    return allSelectedEvents;
+  }, [allSelectedEvents, selectionSearchText]);
+
   const eventDetails: ModelEvent | null = useMemo(() => {
     if (selectedDetailPointId) {
       const event = allData.find((event) => event.id === selectedDetailPointId);
@@ -265,6 +295,9 @@ export function PointSelectionPanelContent() {
     }
     return null;
   }, [allData, selectedDetailPointId]);
+
+  const numSelectedEvents = allSelectedEvents.length;
+  const numMatchingEvents = filteredEvents.length;
 
   return (
     <section css={pointSelectionPanelCSS}>
@@ -291,32 +324,11 @@ export function PointSelectionPanelContent() {
       {/* @ts-expect-error more tabs to come */}
       <Tabs>
         <TabPane name="Selection">
-          <Toolbar
-            extra={
-              <div
-                css={css`
-                  display: flex;
-                  flex-direction: row;
-                  gap: var(--px-spacing-med);
-                `}
-              >
-                {selectionDisplay === SelectionDisplay.gallery && (
-                  <SelectionGridSizeRadioGroup
-                    size={selectionGridSize}
-                    onChange={setSelectionGridSize}
-                  />
-                )}
-                <SelectionDisplayRadioGroup
-                  mode={selectionDisplay}
-                  onChange={(displayMode) => {
-                    setSelectionDisplay(displayMode);
-                  }}
-                />
-              </div>
-            }
-          >
-            <Text>{`${allSelectedEvents.length} points selected`}</Text>
-          </Toolbar>
+          <SelectionToolbar
+            numSelectedEvents={numSelectedEvents}
+            numMatchingEvents={numMatchingEvents}
+            searchText={selectionSearchText}
+          />
           {selectionDisplay === SelectionDisplay.list ? (
             <div
               css={css`
@@ -325,13 +337,13 @@ export function PointSelectionPanelContent() {
               `}
             >
               <PointSelectionTable
-                data={allData}
+                data={filteredData}
                 onPointSelected={setSelectedDetailPointId}
               />
             </div>
           ) : (
             <PointSelectionGrid
-              events={allSelectedEvents}
+              events={filteredEvents}
               onItemSelected={setSelectedDetailPointId}
             />
           )}
@@ -349,5 +361,77 @@ export function PointSelectionPanelContent() {
         )}
       </DialogContainer>
     </section>
+  );
+}
+
+function SelectionToolbar({
+  numSelectedEvents,
+  numMatchingEvents,
+  searchText,
+}: {
+  numSelectedEvents: number;
+  /**
+   * The number of events that match the current search
+   */
+  numMatchingEvents: number;
+  /**
+   * The current search text
+   */
+  searchText: string;
+}) {
+  const selectionDisplay = usePointCloudContext(
+    (state) => state.selectionDisplay
+  );
+  const setSelectionDisplay = usePointCloudContext(
+    (state) => state.setSelectionDisplay
+  );
+  const selectionGridSize = usePointCloudContext(
+    (state) => state.selectionGridSize
+  );
+  const setSelectionGridSize = usePointCloudContext(
+    (state) => state.setSelectionGridSize
+  );
+  const setSelectionSearchText = usePointCloudContext(
+    (state) => state.setSelectionSearchText
+  );
+  const summaryText = useMemo(() => {
+    if (!searchText) {
+      return `${numSelectedEvents} selected`;
+    }
+    return `${numMatchingEvents}/${numSelectedEvents} match "${searchText}"`;
+  }, [numSelectedEvents, numMatchingEvents, searchText]);
+  return (
+    <Toolbar
+      extra={
+        <div
+          css={css`
+            display: flex;
+            flex-direction: row;
+            gap: var(--px-spacing-med);
+          `}
+        >
+          <CompactSearchField
+            placeholder="Search by text or ID"
+            onChange={(searchText) => {
+              setSelectionSearchText(searchText);
+            }}
+          />
+          {selectionDisplay === SelectionDisplay.gallery && (
+            <SelectionGridSizeRadioGroup
+              size={selectionGridSize}
+              onChange={setSelectionGridSize}
+            />
+          )}
+          <SelectionDisplayRadioGroup
+            mode={selectionDisplay}
+            onChange={(displayMode) => {
+              setSelectionDisplay(displayMode);
+            }}
+          />
+        </div>
+      }
+    >
+      <Text>{summaryText}</Text>
+    </Toolbar>
   );
 }

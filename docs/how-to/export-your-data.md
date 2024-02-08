@@ -15,7 +15,7 @@ Phoenix is designed to be a pre-production tool that can be used to find interes
 The easiest way to gather traces that have been collected by Phoenix is to directly pull a dataframe of the traces from your Phoenix `session` object.
 
 ```python
-px.active_session().get_spans_dataframe('span_kind == "RETRIEVER"')
+px.Client().get_spans_dataframe('span_kind == "RETRIEVER"')
 ```
 
 Notice that the `get_spans_dataframe` method supports a Python expression as an optional `str` parameter so you can filter down your data to specific traces you care about. For full details, consult the [Session API docs](../api/session.md).
