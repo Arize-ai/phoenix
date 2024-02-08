@@ -9,8 +9,9 @@ from urllib.parse import urljoin
 
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import requests
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.trace.export import SpanExporter
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+    OTLPSpanExporter,
+)
 from requests import Session
 from typing_extensions import TypeAlias, assert_never
 
@@ -32,7 +33,7 @@ class NoOpExporter:
         pass
 
 
-class _OpenInferenceExporter:
+class _OpenInferenceExporter(OTLPSpanExporter):
     def __init__(
         self,
         endpoint: Optional[str] = None,
@@ -61,19 +62,19 @@ class _OpenInferenceExporter:
             host = "127.0.0.1"
         self._host = host
         self._port = port or get_env_port()
-        endpoint = endpoint or get_env_collector_endpoint() or f"http://{self._host}:{self._port}"
-        # Make sure the url does not end with a slash
-        self._base_url = urljoin(endpoint, "/v1/traces")
+        self._endpoint: str = endpoint or urljoin(
+            get_env_collector_endpoint() or f"http://{self._host}:{self._port}",
+            "/v1/traces",
+        )
         self._warn_if_phoenix_is_not_running()
-
-        self.otel_exporter: SpanExporter = OTLPSpanExporter(endpoint=self._base_url)
+        super().__init__(endpoint=self._endpoint)
 
     def _warn_if_phoenix_is_not_running(self) -> None:
         try:
-            requests.get(urljoin(self._base_url, "/arize_phoenix_version")).raise_for_status()
+            requests.get(urljoin(self._endpoint, "/arize_phoenix_version")).raise_for_status()
         except Exception:
             logger.warning(
-                f"Arize Phoenix is not running on {self._base_url}. Launch Phoenix "
+                f"Arize Phoenix is not running on {self._endpoint}. Launch Phoenix "
                 f"with `import phoenix as px; px.launch_app()`"
             )
 

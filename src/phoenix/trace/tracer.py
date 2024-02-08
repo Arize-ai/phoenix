@@ -6,6 +6,8 @@ import logging
 import sys
 from typing import Any, Iterator, Protocol
 
+from phoenix.trace.exporter import HttpExporter
+
 logger = logging.getLogger(__name__)
 
 
@@ -15,12 +17,12 @@ class SpanExporter(Protocol):
 
 
 _DEFUNCT_MSG = (
-    "DEFUNCT: `Tracer` is now a defunct class in the current version of Phoenix and is being "
-    "deprecated. It no longer has any purpose or functionality and will be removed in the future."
+    "DEFUNCT: `phoenix.trace.tracer.Tracer` is defunct in the current version of Phoenix, "
+    "and will be removed in the future."
 )
 
 _USE_ENV_MSG = """
-Setting the Phoenix endpoint through the HttpExporter is no longer supported.
+Setting the Phoenix endpoint via HttpExporter() is no longer supported.
 Please use environment variables instead:
   - os.environ["PHOENIX_HOST"] = "127.0.0.1"
   - os.environ["PHOENIX_PORT"] = "54321"
@@ -33,18 +35,31 @@ _ON_APPEND_DEPRECATION_MSG = (
 )
 
 
+def _show_deprecation_warnings(obj: object, *args: Any, **kwargs: Any) -> None:
+    if args or kwargs:
+        logger.warning(
+            f"{obj.__class__.__name__}() no longer takes any arguments. "
+            "The arguments provided has been ignored."
+        )
+        if any(callable(arg) for arg in args) or "callback" in kwargs:
+            logger.warning(
+                "The `callback` argument is defunct and no longer has any effect. "
+                "If you need access to spans for processing, some options include "
+                "exporting spans from Phoenix or adding a SpanProcessor to the "
+                "OpenTelemetry TracerProvider. More examples can be found in the "
+                "Phoenix docs: https://docs.arize.com/phoenix/deployment/instrumentation"
+            )
+        if any(isinstance(arg, HttpExporter) for arg in args):
+            logger.warning(_USE_ENV_MSG)
+
+
 class Tracer:
     _exporter: Any
 
-    def __init__(
-        self,
-        exporter: Any = None,
-        on_append: Any = None,
-    ) -> None:
+    def __init__(self, exporter: Any = None, on_append: Any = None) -> None:
+        logger.warning(_DEFUNCT_MSG)
         if exporter is not None:
             logger.warning(_USE_ENV_MSG)
-        logger.warning(_DEFUNCT_MSG)
-
         if on_append is not None:
             logger.warning(_ON_APPEND_DEPRECATION_MSG)
 
@@ -70,8 +85,8 @@ class _DefunctModule:
         if name == "SpanExporter":
             logger.warning("`SpanExporter` is defunct and will be removed in the future.")
             return SpanExporter
-        if name == "_USE_ENV_MSG":
-            return _USE_ENV_MSG
+        if name == "_show_deprecation_warnings":
+            return _show_deprecation_warnings
         raise AttributeError(f"module {__name__} has no attribute {name}")
 
 

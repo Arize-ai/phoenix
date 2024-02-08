@@ -1,9 +1,8 @@
 import logging
+from importlib.metadata import PackageNotFoundError
+from importlib.util import find_spec
 from typing import (
     Any,
-    Callable,
-    List,
-    Optional,
 )
 
 from openinference.instrumentation.llama_index._callback import (
@@ -14,12 +13,10 @@ from openinference.instrumentation.llama_index.version import (
 )
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk import trace as trace_sdk
-from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 from phoenix.trace.exporter import _OpenInferenceExporter
-from phoenix.trace.schemas import Span
-from phoenix.trace.tracer import _USE_ENV_MSG
+from phoenix.trace.tracer import _show_deprecation_warnings
 
 logger = logging.getLogger(__name__)
 
@@ -34,25 +31,12 @@ class OpenInferenceTraceCallbackHandler(_OpenInferenceTraceCallbackHandler):
     https://github.com/Arize-ai/openinference
     """
 
-    def __init__(
-        self,
-        callback: Optional[Callable[[List[Span]], None]] = None,
-        exporter: Any = None,
-    ) -> None:
-        if callback is not None:
-            logger.warning(
-                "OpenInference has been updated for full OpenTelemetry compliance. "
-                "The legacy `callback` argument has been deprecated and no longer has any effect. "
-                "If you need access to spans for processing, some options include exporting spans "
-                "from an OpenTelemetry collector or adding a SpanProcessor to the OpenTelemetry "
-                "TracerProvider. More examples can be found in the Phoenix docs: "
-                "https://docs.arize.com/phoenix/deployment/instrumentation"
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        _show_deprecation_warnings(self, *args, **kwargs)
+        if find_spec("llama_index") is None:
+            raise PackageNotFoundError(
+                "Missing `llama-index`. Install with `pip install llama-index`."
             )
-        if exporter is not None:
-            logger.warning(_USE_ENV_MSG)
-        self._exporter = _OpenInferenceExporter().otel_exporter
-        tracer_provider = trace_sdk.TracerProvider(resource=Resource(attributes={}))
-        span_processor = SimpleSpanProcessor(span_exporter=self._exporter)
-        tracer_provider.add_span_processor(span_processor)
-        trace_api.set_tracer_provider(tracer_provider=tracer_provider)
-        super().__init__(tracer=trace_api.get_tracer(__name__, __version__, tracer_provider))
+        tracer_provider = trace_sdk.TracerProvider()
+        tracer_provider.add_span_processor(SimpleSpanProcessor(_OpenInferenceExporter()))
+        super().__init__(trace_api.get_tracer(__name__, __version__, tracer_provider))
