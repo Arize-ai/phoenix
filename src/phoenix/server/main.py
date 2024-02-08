@@ -13,7 +13,7 @@ from grpc._server import _ServerStage
 from uvicorn import Config
 from uvicorn import Server as HttpServer
 
-from phoenix.config import EXPORT_DIR, get_env_host, get_env_port, get_pids_path
+from phoenix.config import EXPORT_DIR, get_env_grpc_port, get_env_host, get_env_port, get_pids_path
 from phoenix.core.evals import Evals
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
@@ -128,6 +128,7 @@ if __name__ == "__main__":
     parser.add_argument("--export_path")
     parser.add_argument("--host", type=str, required=False)
     parser.add_argument("--port", type=int, required=False)
+    parser.add_argument("--grpc-port", type=int, required=False)
     parser.add_argument("--read-only", type=bool, default=False)
     parser.add_argument("--no-internet", action="store_true")
     parser.add_argument("--umap_params", type=str, required=False, default=DEFAULT_UMAP_PARAMS_STR)
@@ -220,7 +221,7 @@ if __name__ == "__main__":
     )
     host = args.host or get_env_host()
     port = args.port or get_env_port()
-    grpc_port = 4317
+    grpc_port = args.grpc_port or get_env_grpc_port()
     http_server = HttpServer(config=Config(app, host=host, port=port))
     grpc_server = create_grpc_server(traces, grpc_port)
     Thread(target=lambda server: server.start(), args=(grpc_server,), daemon=True).start()
