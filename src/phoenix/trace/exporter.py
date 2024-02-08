@@ -34,49 +34,16 @@ class NoOpExporter:
 
 
 class _OpenInferenceExporter(OTLPSpanExporter):
-    def __init__(
-        self,
-        endpoint: Optional[str] = None,
-        host: Optional[str] = None,
-        port: Optional[int] = None,
-    ) -> None:
-        """
-        A compatibility class used to configure the Phoenix endpoint for instrumentation.
-
-        Parameters
-        ----------
-        endpoint: Optional[str]
-            The endpoint of the Phoenix server (collector). This should be set if the Phoenix
-            server is running on a remote instance. It can also be set using environment
-            variable `PHOENIX_COLLECTOR_ENDPOINT`, otherwise it defaults to `http://127.0.0.1:6006`
-            Note, this parameter supersedes `host` and `port`.
-        host: Optional[str]
-            The host of the Phoenix server. It can also be set using environment
-            variable `PHOENIX_HOST`, otherwise it defaults to `127.0.0.1`.
-        port: Optional[int]
-            The port of the Phoenix server. It can also be set using environment
-            variable `PHOENIX_PORT`, otherwise it defaults to `6006`.
-        """
-        host = host or get_env_host()
+    def __init__(self) -> None:
+        host = get_env_host()
         if host == "0.0.0.0":
             host = "127.0.0.1"
-        self._host = host
-        self._port = port or get_env_port()
-        self._endpoint: str = endpoint or urljoin(
-            get_env_collector_endpoint() or f"http://{self._host}:{self._port}",
+        endpoint = urljoin(
+            get_env_collector_endpoint() or f"http://{host}:{get_env_port()}",
             "/v1/traces",
         )
-        self._warn_if_phoenix_is_not_running()
-        super().__init__(endpoint=self._endpoint)
-
-    def _warn_if_phoenix_is_not_running(self) -> None:
-        try:
-            requests.get(urljoin(self._endpoint, "/arize_phoenix_version")).raise_for_status()
-        except Exception:
-            logger.warning(
-                f"Arize Phoenix is not running on {self._endpoint}. Launch Phoenix "
-                f"with `import phoenix as px; px.launch_app()`"
-            )
+        _warn_if_phoenix_is_not_running(endpoint)
+        super().__init__(endpoint)
 
 
 class HttpExporter:
@@ -111,7 +78,7 @@ class HttpExporter:
             or get_env_collector_endpoint()
             or f"http://{'127.0.0.1' if self._host == '0.0.0.0' else self._host}:{self._port}"
         )
-        self._warn_if_phoenix_is_not_running()
+        _warn_if_phoenix_is_not_running(self._base_url)
         self._session = Session()
         weakref.finalize(self, self._session.close)
         self._session.headers.update(
@@ -163,11 +130,12 @@ class HttpExporter:
         logger.exception(f"unrecognized message type: {type(message)}")
         assert_never(message)
 
-    def _warn_if_phoenix_is_not_running(self) -> None:
-        try:
-            requests.get(urljoin(self._base_url, "arize_phoenix_version")).raise_for_status()
-        except Exception:
-            logger.warning(
-                f"Arize Phoenix is not running on {self._base_url}. Launch Phoenix "
-                f"with `import phoenix as px; px.launch_app()`"
-            )
+
+def _warn_if_phoenix_is_not_running(endpoint: str) -> None:
+    try:
+        requests.get(urljoin(endpoint, "/arize_phoenix_version")).raise_for_status()
+    except Exception:
+        logger.warning(
+            f"Arize Phoenix is not running on {endpoint}. Launch Phoenix "
+            f"with `import phoenix as px; px.launch_app()`"
+        )
