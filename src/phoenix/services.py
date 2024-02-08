@@ -110,6 +110,7 @@ class AppService(Service):
         export_path: Path,
         host: str,
         port: int,
+        grpc_port: int,
         root_path: str,
         primary_dataset_name: str,
         umap_params: str,
@@ -120,6 +121,7 @@ class AppService(Service):
         self.export_path = export_path
         self.host = host
         self.port = port
+        self.grpc_port = grpc_port
         self.root_path = root_path  # TODO(mikeldking): Add support for root_path
         self.__primary_dataset_name = primary_dataset_name
         self.__umap_params = umap_params
@@ -139,6 +141,8 @@ class AppService(Service):
             str(self.host),
             "--port",
             str(self.port),
+            "--grpc-port",
+            str(self.grpc_port),
             "--umap_params",
             self.__umap_params,
             "datasets",

@@ -24,6 +24,7 @@ import pandas as pd
 from phoenix.config import (
     ENV_NOTEBOOK_ENV,
     ENV_PHOENIX_COLLECTOR_ENDPOINT,
+    get_env_grpc_port,
     get_env_host,
     get_env_port,
     get_exported_files,
@@ -106,6 +107,7 @@ class Session(TraceDataExtractor, ABC):
         default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
         port: Optional[int] = None,
+        grpc_port: Optional[int] = None,
         notebook_env: Optional[NotebookEnvironment] = None,
     ):
         self.primary_dataset = primary_dataset
@@ -139,6 +141,7 @@ class Session(TraceDataExtractor, ABC):
 
         self.host = host or get_env_host()
         self.port = port or get_env_port()
+        self.grpc_port = grpc_port or get_env_grpc_port()
         self.temp_dir = TemporaryDirectory()
         self.export_path = Path(self.temp_dir.name) / "exports"
         self.export_path.mkdir(parents=True, exist_ok=True)
@@ -199,6 +202,7 @@ class ProcessSession(Session):
         default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
         port: Optional[int] = None,
+        grpc_port: Optional[int] = None,
         root_path: Optional[str] = None,
         notebook_env: Optional[NotebookEnvironment] = None,
     ) -> None:
@@ -210,6 +214,7 @@ class ProcessSession(Session):
             default_umap_parameters=default_umap_parameters,
             host=host,
             port=port,
+            grpc_port=grpc_port,
             notebook_env=notebook_env,
         )
         primary_dataset.to_disc()
@@ -229,6 +234,7 @@ class ProcessSession(Session):
             self.export_path,
             self.host,
             self.port,
+            self.grpc_port,
             self.root_path,
             self.primary_dataset.name,
             umap_params_str,
@@ -367,6 +373,7 @@ def launch_app(
     default_umap_parameters: Optional[Mapping[str, Any]] = None,
     host: Optional[str] = None,
     port: Optional[int] = None,
+    grpc_port: Optional[int] = None,
     run_in_thread: bool = True,
     notebook_environment: Optional[Union[NotebookEnvironment, str]] = None,
 ) -> Optional[Session]:
@@ -391,6 +398,9 @@ def launch_app(
         The port on which the server listens. When using traces this should not be
         used and should instead set the environment variable `PHOENIX_PORT`.
         Defaults to 6006.
+    grpc_port: int, optional
+        The port on which the gRPC server listens. It can also be set using environment
+        variable `PHOENIX_GRPC_PORT`, otherwise it defaults to 4317.
     run_in_thread: bool, optional, default=True
         Whether the server should run in a Thread or Process.
     default_umap_parameters: Dict[str, Union[int, float]], optional, default=None
@@ -446,6 +456,7 @@ def launch_app(
 
     host = host or get_env_host()
     port = port or get_env_port()
+    grpc_port = grpc_port or get_env_grpc_port()
 
     if run_in_thread:
         _session = ThreadSession(
@@ -468,6 +479,7 @@ def launch_app(
             default_umap_parameters,
             host=host,
             port=port,
+            grpc_port=grpc_port,
             notebook_env=nb_env,
         )
 
