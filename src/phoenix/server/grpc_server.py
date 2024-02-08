@@ -3,6 +3,7 @@ from typing import Protocol
 
 import grpc  # type: ignore
 from grpc import RpcContext
+from grpc import Server as GRPCServer
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
     ExportTraceServiceResponse,
@@ -34,9 +35,11 @@ class Servicer(TraceServiceServicer):
         return ExportTraceServiceResponse()
 
 
-def serve(queue: SupportsPutSpan) -> None:
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+def create_grpc_server(queue: SupportsPutSpan, port: int, max_workers: int = 10) -> GRPCServer:
+    """
+    Creates an instance of grpc.Server and attaches the TraceServiceServicer.
+    """
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=max_workers))
     add_TraceServiceServicer_to_server(Servicer(queue), server)  # type: ignore
-    server.add_insecure_port("[::]:4317")
-    server.start()
-    server.wait_for_termination()
+    server.add_insecure_port(f"[::]:{port}")
+    return server

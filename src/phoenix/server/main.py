@@ -8,7 +8,10 @@ from threading import Thread
 from time import sleep, time
 from typing import Iterable, Optional, Protocol, TypeVar
 
-from uvicorn import Config, Server
+from grpc import Server as GRPCServer
+from grpc._server import _ServerStage
+from uvicorn import Config
+from uvicorn import Server as HttpServer
 
 from phoenix.config import EXPORT_DIR, get_env_host, get_env_port, get_pids_path
 from phoenix.core.evals import Evals
@@ -23,6 +26,7 @@ from phoenix.pointcloud.umap_parameters import (
     UMAPParameters,
 )
 from phoenix.server.app import create_app
+from phoenix.server.grpc_server import create_grpc_server
 from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
     _download_traces_fixture,
@@ -36,16 +40,46 @@ logger = logging.getLogger(__name__)
 
 
 def _write_pid_file_when_ready(
-    server: Server,
+    http_server: HttpServer,
+    grpc_server: GRPCServer,
     wait_up_to_seconds: float = 5,
-) -> None:
-    """Write PID file after server is started (or when time is up)."""
+) -> bool:
+    """
+    Writes PID file after both HTTP and gRPC servers have started, or after the
+    specified timeout has elapsed. Returns True if the timeout was reached and
+    False otherwise.
+    """
     time_limit = time() + wait_up_to_seconds
-    while time() < time_limit and not server.should_exit and not server.started:
+    timed_out = False
+    http_server_wait_complete = False
+    grpc_server_wait_complete = False
+    while not timed_out and (not http_server_wait_complete or not grpc_server_wait_complete):
+        timed_out = time() >= time_limit
+        http_server_wait_complete = http_server.started or http_server.should_exit
+        grpc_server_wait_complete = grpc_server._state.stage == _ServerStage.STARTED
         sleep(1e-3)
-    if time() >= time_limit and not server.started:
-        server.should_exit = True
+    if timed_out:
+        http_server.should_exit = True
+        grpc_server.stop(  # this method is idempotent and may be called at any time
+            grace=None,  # stops the server immediately
+        )
     _get_pid_file().touch()
+    return timed_out
+
+
+def _block_while_healthy(
+    http_server: HttpServer,
+    grpc_server: GRPCServer,
+) -> None:
+    """
+    Blocks while both servers are nominally healthy.
+    """
+    while (
+        http_server.started
+        and not http_server.should_exit
+        and grpc_server._state.stage == _ServerStage.STARTED
+    ):
+        sleep(1)
 
 
 def _remove_pid_file() -> None:
@@ -186,6 +220,12 @@ if __name__ == "__main__":
     )
     host = args.host or get_env_host()
     port = args.port or get_env_port()
-    server = Server(config=Config(app, host=host, port=port))
-    Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
-    server.run()
+    grpc_port = 4317
+    http_server = HttpServer(config=Config(app, host=host, port=port))
+    grpc_server = create_grpc_server(traces, grpc_port)
+    Thread(target=lambda server: server.start(), args=(grpc_server,), daemon=True).start()
+    Thread(target=lambda server: server.run(), args=(http_server,), daemon=True).start()
+    timed_out = _write_pid_file_when_ready(http_server, grpc_server)
+    if timed_out:
+        exit(1)
+    _block_while_healthy(http_server, grpc_server)
