@@ -9,9 +9,7 @@ from urllib.parse import urljoin
 
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import requests
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
-    OTLPSpanExporter,
-)
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from requests import Session
 from typing_extensions import TypeAlias, assert_never
 
