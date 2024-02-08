@@ -74,12 +74,9 @@ See the [integrations guide](../integrations/llamaindex.md#traces) for the full 
 
 {% tab title="LangChain" %}
 ```python
-from phoenix.trace.langchain import OpenInferenceTracer, LangChainInstrumentor
+from phoenix.trace.langchain import LangChainInstrumentor
 
-# If no exporter is specified, the tracer will export to the locally running Phoenix server
-tracer = OpenInferenceTracer()
-# If no tracer is specified, a tracer is constructed for you
-LangChainInstrumentor(tracer).instrument()
+LangChainInstrumentor().instrument()
 
 # Initialize your LangChain application
 # This might vary on your use-case. An example Chain is shown below
@@ -112,13 +109,10 @@ See the [integration guide](../integrations/langchain.md#traces) for details
 
 {% tab title="OpenAI API" %}
 ```python
-from phoenix.trace.tracer import Tracer
 from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
-from phoenix.trace.exporter import HttpExporter
 from phoenix.trace.openai import OpenAIInstrumentor
 
-tracer = Tracer(exporter=HttpExporter())
-OpenAIInstrumentor(tracer).instrument()
+OpenAIInstrumentor().instrument()
 
 # Define a conversation with a user message
 conversation = [
@@ -142,16 +136,12 @@ assistant_reply = response['choices'][0]['message']['content']
 
 {% tab title="AutoGen" %}
 ```python
-from phoenix.trace.tracer import Tracer
 from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
-from phoenix.trace.exporter import HttpExporter
 from phoenix.trace.openai import OpenAIInstrumentor
-from phoenix.trace.tracer import Tracer
 
 import phoenix as px
-session = px.launch_app()
-tracer = Tracer(exporter=HttpExporter())
-OpenAIInstrumentor(tracer).instrument()
+px.launch_app()
+OpenAIInstrumentor().instrument()
 ```
 {% endtab %}
 {% endtabs %}
@@ -168,33 +158,12 @@ There are two ways to extract trace dataframes. The two ways for LangChain are d
 
 {% tabs %}
 {% tab title="From the App" %}
-<pre class="language-python"><code class="lang-python"><strong>session = px.active_session()
-</strong>
-<strong># You can export a dataframe from the session
+<pre class="language-python"><code class="lang-python"><strong># You can export a dataframe from the session
 </strong><strong># Note that you can apply a filter if you would like to export only a sub-set of spans
-</strong><strong>df = session.get_spans_dataframe('span_kind == "RETRIEVER"')
+</strong><strong>df = px.Client().get_spans_dataframe('span_kind == "RETRIEVER"')
 </strong>
 <strong># Re-launch the app using the data
 </strong>px.launch_app(trace=px.TraceDataset(df))
-</code></pre>
-{% endtab %}
-
-{% tab title="From the Tracer" %}
-<pre class="language-python"><code class="lang-python"><strong>from phoenix.trace.langchain import OpenInferenceTracer
-</strong>
-tracer = OpenInferenceTracer()
-
-# Run the application with the tracer
-chain.run(query, callbacks=[tracer])
-
-# When you are ready to analyze the data, you can convert the traces
-ds = TraceDataset.from_spans(tracer.get_spans())
-
-# Print the dataframe
-ds.dataframe.head()
-
-# Re-initialize the app with the trace dataset
-px.launch_app(trace=ds)
 </code></pre>
 {% endtab %}
 {% endtabs %}

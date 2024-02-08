@@ -7,7 +7,7 @@ description: >-
 # OpenInference
 
 {% hint style="info" %}
-For a in-depth specification of the OpenInference specification, please consult the spec [https://github.com/Arize-ai/open](https://github.com/Arize-ai/open-inference-spec)[inference](https://github.com/Arize-ai/openinference)
+For a in-depth specification of the OpenInference specification, please consult the spec [https://github.com/Arize-ai/openinference](https://github.com/Arize-ai/openinference)
 {% endhint %}
 
 <figure><img src="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/main/logos/OpenInference/Full%20color/OI-full-horiz.svg" alt="" width="563"><figcaption><p>OpenInference is a set of specifications for model inferences and LLM traces</p></figcaption></figure>
