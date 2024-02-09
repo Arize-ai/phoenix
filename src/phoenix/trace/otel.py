@@ -19,6 +19,7 @@ from typing import (
     cast,
 )
 
+import numpy as np
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
 from opentelemetry.util.types import Attributes, AttributeValue
@@ -320,9 +321,9 @@ def encode(span: Span) -> otlp.Span:
                 attributes[key] = json.dumps(value)
             else:
                 attributes.update(_flatten_mapping(value, key))
-        elif not isinstance(value, str) and isinstance(value, Sequence) and _has_mapping(value):
+        elif not isinstance(value, str) and isinstance(value, Iterable) and _has_mapping(value):
             attributes.pop(key, None)
-            attributes.update(_flatten_sequence(value, key))
+            attributes.update(_flatten_iterable(value, key))
 
     attributes[OPENINFERENCE_SPAN_KIND] = span.span_kind.value
 
@@ -365,7 +366,7 @@ def _encode_identifier(identifier: Optional[str]) -> bytes:
     return unhexlify(identifier)
 
 
-def _has_mapping(sequence: Sequence[Any]) -> bool:
+def _has_mapping(sequence: Iterable[Any]) -> bool:
     for item in sequence:
         if isinstance(item, Mapping):
             return True
@@ -384,18 +385,18 @@ def _flatten_mapping(
             else:
                 yield from _flatten_mapping(value, prefixed_key)
         elif isinstance(value, Sequence):
-            yield from _flatten_sequence(value, prefixed_key)
+            yield from _flatten_iterable(value, prefixed_key)
         elif value is not None:
             yield prefixed_key, value
 
 
-def _flatten_sequence(
-    sequence: Sequence[Any],
+def _flatten_iterable(
+    iterable: Iterable[Any],
     prefix: str,
 ) -> Iterator[Tuple[str, Any]]:
-    if isinstance(sequence, str) or not _has_mapping(sequence):
-        yield prefix, sequence
-    for idx, obj in enumerate(sequence):
+    if isinstance(iterable, str) or not _has_mapping(iterable):
+        yield prefix, iterable
+    for idx, obj in enumerate(iterable):
         if not isinstance(obj, Mapping):
             continue
         yield from _flatten_mapping(obj, f"{prefix}.{idx}")
@@ -413,6 +414,8 @@ def _encode_attributes(attributes: Attributes) -> Iterator[KeyValue]:
     if not attributes:
         return
     for key, value in attributes.items():
+        if isinstance(value, np.ndarray):
+            value = value.tolist()
         yield KeyValue(key=key, value=_encode_value(value))
 
 
