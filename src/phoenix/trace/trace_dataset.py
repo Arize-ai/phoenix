@@ -98,15 +98,19 @@ class TraceDataset:
     """
 
     name: str
+    """
+    A human readable name for the dataset.
+    """
     dataframe: pd.DataFrame
     evaluations: List[Evaluations] = []
-    _id: UUID = uuid4()
+    _id: UUID
     _data_file_name: str = "data.parquet"
 
     def __init__(
         self,
         dataframe: DataFrame,
         name: Optional[str] = None,
+        id: Optional[Union[str, UUID]] = None,
         evaluations: Iterable[Evaluations] = (),
     ):
         """
@@ -122,14 +126,24 @@ class TraceDataset:
             an optional list of evaluations for the spans in the dataset. If
             provided, the evaluations can be materialized into a unified
             dataframe as annotations.
+        id: Optional[UUID]
+            an optional UUID for the dataset. If not provided, a new UUID will
+            be generated.
         """
         # Validate the the dataframe has required fields
         if missing_columns := set(REQUIRED_COLUMNS) - set(dataframe.columns):
             raise ValueError(
                 f"The dataframe is missing some required columns: {', '.join(missing_columns)}"
             )
+        # Assign an id to the dataset. This is used to save and load the dataset
+        if id is None:
+            self._id = uuid4()
+        else:
+            self._id = id if isinstance(id, UUID) else UUID(id)
+
         self.dataframe = normalize_dataframe(dataframe)
-        self.name = name or f"{GENERATED_DATASET_NAME_PREFIX}{str(uuid4())}"
+        # TODO: This is not used in any meaningful way. Should remove
+        self.name = name or f"{GENERATED_DATASET_NAME_PREFIX}{str(self._id)}"
         self.evaluations = list(evaluations)
 
     @classmethod
@@ -246,6 +260,8 @@ class TraceDataset:
             }
         )
         parquet.write_table(table, path)
+        print(f"💾 Trace dataset saved to under ID: {self._id}")
+        print(f"📂 Trace dataset path: {path}")
         return self._id
 
     @classmethod
@@ -285,8 +301,7 @@ class TraceDataset:
                 warn(f'Failed to load evaluations with id: "{eval_id}"')
         table = parquet.read_table(path)
         dataframe = table.to_pandas()
-        ds = cls(dataframe, dataset_name, evaluations)
-        ds._id = dataset_id
+        ds = cls(dataframe=dataframe, name=dataset_name, id=dataset_id, evaluations=evaluations)
         return ds
 
     def append_evaluations(self, evaluations: Evaluations) -> None:
