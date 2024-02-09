@@ -111,7 +111,6 @@ class TraceDataset:
         dataframe: DataFrame,
         name: Optional[str] = None,
         evaluations: Iterable[Evaluations] = (),
-        id: Optional[Union[str, UUID]] = None,
     ):
         """
         Constructs a TraceDataset from a dataframe of spans. Optionally takes in
@@ -135,12 +134,7 @@ class TraceDataset:
             raise ValueError(
                 f"The dataframe is missing some required columns: {', '.join(missing_columns)}"
             )
-        # Assign an id to the dataset. This is used to save and load the dataset
-        if id is None:
-            self._id = uuid4()
-        else:
-            self._id = id if isinstance(id, UUID) else UUID(id)
-
+        self._id = uuid4()
         self.dataframe = normalize_dataframe(dataframe)
         # TODO: This is not used in any meaningful way. Should remove
         self.name = name or f"{GENERATED_DATASET_NAME_PREFIX}{str(self._id)}"
@@ -301,7 +295,8 @@ class TraceDataset:
                 warn(f'Failed to load evaluations with id: "{eval_id}"')
         table = parquet.read_table(path)
         dataframe = table.to_pandas()
-        ds = cls(dataframe=dataframe, name=dataset_name, id=dataset_id, evaluations=evaluations)
+        ds = cls(dataframe=dataframe, name=dataset_name, evaluations=evaluations)
+        ds._id = dataset_id
         return ds
 
     def append_evaluations(self, evaluations: Evaluations) -> None:
