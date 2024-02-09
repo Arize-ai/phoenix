@@ -6,9 +6,9 @@
 
 ### OpenAI Tracing
 
-`phoenix.trace.tracer.Tracer` is defunct and should be removed.
+#### `phoenix.trace.tracer.Tracer` is defunct and should be removed.
 
-#### Old (v2.x)
+##### Old (v2.x)
 
 ```python
 from phoenix.trace.exporter import HttpExporter  # no longer necessary
@@ -19,7 +19,7 @@ tracer = Tracer(exporter=HttpExporter())  # no longer supported
 OpenAIInstrumentor(tracer).instrument()  # tracer argument is no longer supported
 ```
 
-#### New (v3.0.0)
+##### New (v3.0.0)
 
 ```python
 from phoenix.trace.openai import OpenAIInstrumentor
@@ -27,9 +27,9 @@ from phoenix.trace.openai import OpenAIInstrumentor
 OpenAIInstrumentor().instrument() 
 ```
 --- 
-Eendpoint should be configure via environment variables `PHOENIX_HOST`, `PHOENIX_PORT`, or `PHOENIX_COLLECTOR_ENDPOINT`.
+#### Endpoint should be configured via environment variables `PHOENIX_HOST`, `PHOENIX_PORT`, or `PHOENIX_COLLECTOR_ENDPOINT`.
 
-#### Old (v2.x)
+##### Old (v2.x)
 
 ```python
 from phoenix.trace.exporter import HttpExporter  # no longer necessary
@@ -40,26 +40,28 @@ tracer = Tracer(exporter=HttpExporter(port=12345))  # no longer supported
 OpenAIInstrumentor(tracer).instrument()  # tracer argument is no longer supported
 ```
 
-#### New (v3.0.0)
+##### New (v3.0.0)
 
 ```python
+import os
 from phoenix.trace.openai import OpenAIInstrumentor
 
 os.environ["PHOENIX_PORT"] = "12345"
 OpenAIInstrumentor().instrument()
 ```
 ---
-Calling `.get_spans()` on a tracer is no longer supported. Use `px.Client()` to get the spans as a dataframe from Phoenix.
+#### Calling `.get_spans()` on a tracer is no longer supported. Use `px.Client()` to get the spans as a dataframe from Phoenix.
 
-#### Old (v2.x)
+##### Old (v2.x)
 ```python
+from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.trace.tracer import Tracer  # no longer supported
 
 tracer = Tracer()  # no longer supported
 TraceDataset.from_spans(tracer.get_spans())  # no longer supported
 ```
 
-#### New (v3.0.0)
+##### New (v3.0.0)
 ```python
 import phoenix as px
 
@@ -68,7 +70,7 @@ px.Client().get_spans_dataframe()
 ---
 ### LlamaIndex Tracing
 
-The standard way of instrumenting your LlamaIndex application remains the same between 2.x and 3.x:
+#### The standard way of instrumenting your LlamaIndex application remains the same between 2.x and 3.x:
 
 ```python
 from llama_index import set_global_handler
@@ -76,7 +78,7 @@ from llama_index import set_global_handler
 set_global_handler("arize_phoenix")
 ```
 ---
-User should not pass Phoenix handler to a callback manager. Use the `set_global_handler` method above.
+#### User should not pass Phoenix handler to a callback manager. Use the `set_global_handler` method above.
 
 ```python
 from llama_index.callbacks import CallbackManager
@@ -86,9 +88,9 @@ callback_handler = OpenInferenceTraceCallbackHandler()  # no longer supported
 CallbackManager(handlers=[callback_handler])  # no longer supported
 ```
 ---
-It was previously possible to pass an instance of `HttpExporter` to `set_global_handler` in order to export traces to a non-default endpoint. This method of setting the endpoint is no longer supported. Users should set the `PHOENIX_HOST`, `PHOENIX_PORT`, or `PHOENIX_COLLECTOR_ENDPOINT` environment variables instead.
+#### Endpoint should be configured via environment variables `PHOENIX_HOST`, `PHOENIX_PORT`, or `PHOENIX_COLLECTOR_ENDPOINT`.
 
-#### Old (v2.x)
+##### Old (v2.x)
 
 ```python
 from llama_index import set_global_handler
@@ -109,7 +111,7 @@ os.environ["PHOENIX_PORT"] = "6007"
 set_global_handler("arize_phoenix")
 ```
 ---
-Calling `.get_spans()` on a handler is no longer supported. Use `px.Client()` to get the spans as a dataframe from Phoenix.
+#### Calling `.get_spans()` on a handler is no longer supported. Use `px.Client()` to get the spans as a dataframe from Phoenix.
 
 #### Old (v2.x)
 ```python
@@ -120,7 +122,7 @@ handler = OpenInferenceTraceCallbackHandler()  # no longer supported
 TraceDataset.from_spans(handler.get_spans())  # .get_spans() no longer supported
 ```
 
-#### New (v3.0.0)
+##### New (v3.0.0)
 ```python
 import phoenix as px
 
@@ -129,9 +131,9 @@ px.Client().get_spans_dataframe()
 ---
 ### LangChain Tracing
 
-`phoenix.trace.langchain.OpenInferenceTracer` is defunct and should be removed.
+#### `phoenix.trace.langchain.OpenInferenceTracer` is defunct and should be removed.
 
-#### Old (v2.x)
+##### Old (v2.x)
 
 ```python
 from phoenix.trace.langchain import LangChainInstrumentor, OpenInferenceTracer
@@ -140,7 +142,7 @@ tracer = OpenInferenceTracer()  # no longer supported
 LangChainInstrumentor(tracer).instrument()  # tracer argument is no longer supported
 ```
 
-#### New (v3.0.0)
+##### New (v3.0.0)
 
 ```python
 from phoenix.trace.langchain import LangChainInstrumentor
@@ -149,9 +151,9 @@ LangChainInstrumentor().instrument()
 ```
 
 --- 
-Eendpoint should be configure via environment variables `PHOENIX_HOST`, `PHOENIX_PORT`, or `PHOENIX_COLLECTOR_ENDPOINT`.
+#### Endpoint should be configured via environment variables `PHOENIX_HOST`, `PHOENIX_PORT`, or `PHOENIX_COLLECTOR_ENDPOINT`.
 
-#### Old (v2.x)
+##### Old (v2.x)
 
 ```python
 from phoenix.trace.exporter import HttpExporter  # no longer necessary
@@ -161,7 +163,7 @@ tracer = OpenInferenceTracer(exporter=HttpExporter(port=12345)  # no longer supp
 LangChainInstrumentor(tracer).instrument()
 ```
 
-#### New (v3.0.0)
+##### New (v3.0.0)
 
 ```python
 from phoenix.trace.langchain import LangChainInstrumentor
@@ -170,9 +172,9 @@ os.environ["PHOENIX_PORT"] = "12345"
 LangChainInstrumentor().instrument()
 ```
 ---
-Calling `.get_spans()` on a tracer is no longer supported. Use `px.Client()` to get the spans as a dataframe from Phoenix.
+#### Calling `.get_spans()` on a tracer is no longer supported. Use `px.Client()` to get the spans as a dataframe from Phoenix.
 
-#### Old (v2.x)
+##### Old (v2.x)
 ```python
 from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.trace.langchain import OpenInferenceTracer  # no longer supported
@@ -181,7 +183,7 @@ tracer = OpenInferenceTracer()  # no longer supported
 TraceDataset.from_spans(tracer.get_spans())  # .get_spans() no longer supported
 ```
 
-#### New (v3.0.0)
+##### New (v3.0.0)
 ```python
 import phoenix as px
 
