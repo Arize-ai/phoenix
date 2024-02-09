@@ -312,6 +312,8 @@ def encode(span: Span) -> otlp.Span:
             attributes[mime_type] = attributes[mime_type].value
 
     for key, value in span.attributes.items():
+        # if isinstance(value, np.ndarray):
+        #     value = value.tolist()
         if value is None:
             # None can't be transmitted by OTLP
             attributes.pop(key, None)
@@ -321,9 +323,13 @@ def encode(span: Span) -> otlp.Span:
                 attributes[key] = json.dumps(value)
             else:
                 attributes.update(_flatten_mapping(value, key))
-        elif not isinstance(value, str) and isinstance(value, Iterable) and _has_mapping(value):
+        elif (
+            not isinstance(value, str)
+            and (isinstance(value, Sequence) or isinstance(value, np.ndarray))
+            and _has_mapping(value)
+        ):
             attributes.pop(key, None)
-            attributes.update(_flatten_iterable(value, key))
+            attributes.update(_flatten_sequence(value, key))
 
     attributes[OPENINFERENCE_SPAN_KIND] = span.span_kind.value
 
@@ -366,7 +372,7 @@ def _encode_identifier(identifier: Optional[str]) -> bytes:
     return unhexlify(identifier)
 
 
-def _has_mapping(sequence: Iterable[Any]) -> bool:
+def _has_mapping(sequence: Sequence[Any]) -> bool:
     for item in sequence:
         if isinstance(item, Mapping):
             return True
@@ -385,18 +391,18 @@ def _flatten_mapping(
             else:
                 yield from _flatten_mapping(value, prefixed_key)
         elif isinstance(value, Sequence):
-            yield from _flatten_iterable(value, prefixed_key)
+            yield from _flatten_sequence(value, prefixed_key)
         elif value is not None:
             yield prefixed_key, value
 
 
-def _flatten_iterable(
-    iterable: Iterable[Any],
+def _flatten_sequence(
+    sequence: Sequence[Any],
     prefix: str,
 ) -> Iterator[Tuple[str, Any]]:
-    if isinstance(iterable, str) or not _has_mapping(iterable):
-        yield prefix, iterable
-    for idx, obj in enumerate(iterable):
+    if isinstance(sequence, str) or not _has_mapping(sequence):
+        yield prefix, sequence
+    for idx, obj in enumerate(sequence):
         if not isinstance(obj, Mapping):
             continue
         yield from _flatten_mapping(obj, f"{prefix}.{idx}")
