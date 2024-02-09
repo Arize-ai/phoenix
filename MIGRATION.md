@@ -54,7 +54,7 @@ OpenAIInstrumentor().instrument()
 
 ##### Old (v2.x)
 ```python
-from phoenix.trace.trace_dataset import TraceDataset
+from phoenix.trace.trace_dataset import TraceDataset  # no longer necessary
 from phoenix.trace.tracer import Tracer  # no longer supported
 
 tracer = Tracer()  # no longer supported
@@ -81,7 +81,7 @@ set_global_handler("arize_phoenix")
 #### User should not pass Phoenix handler to a callback manager. Use the `set_global_handler` method above.
 
 ```python
-from llama_index.callbacks import CallbackManager
+from llama_index.callbacks import CallbackManager  # no longer necessary
 from phoenix.trace.llama_index import OpenInferenceTraceCallbackHandler  # no longer supported
 
 callback_handler = OpenInferenceTraceCallbackHandler()  # no longer supported
@@ -115,7 +115,7 @@ set_global_handler("arize_phoenix")
 
 #### Old (v2.x)
 ```python
-from phoenix.trace.trace_dataset import TraceDataset
+from phoenix.trace.trace_dataset import TraceDataset  # no longer necessary
 from phoenix.trace.llama_index import OpenInferenceTraceCallbackHandler  # no longer supported
 
 handler = OpenInferenceTraceCallbackHandler()  # no longer supported
@@ -159,7 +159,7 @@ LangChainInstrumentor().instrument()
 from phoenix.trace.exporter import HttpExporter  # no longer necessary
 from phoenix.trace.langchain import LangChainInstrumentor, OpenInferenceTracer
 
-tracer = OpenInferenceTracer(exporter=HttpExporter(port=12345)  # no longer supported
+tracer = OpenInferenceTracer(exporter=HttpExporter(port=12345))  # no longer supported
 LangChainInstrumentor(tracer).instrument()
 ```
 
@@ -176,7 +176,7 @@ LangChainInstrumentor().instrument()
 
 ##### Old (v2.x)
 ```python
-from phoenix.trace.trace_dataset import TraceDataset
+from phoenix.trace.trace_dataset import TraceDataset  # no longer necessary
 from phoenix.trace.langchain import OpenInferenceTracer  # no longer supported
 
 tracer = OpenInferenceTracer()  # no longer supported
