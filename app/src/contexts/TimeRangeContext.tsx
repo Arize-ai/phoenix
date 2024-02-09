@@ -74,8 +74,9 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
       case TimePreset.last_hour: {
         const endTimeBounds = roundToNearestMinutes(
           endOfMinute(timeRangeBounds.end),
-          { roundingMethod: "floor" }
+          { roundingMethod: "ceil" }
         );
+
         return {
           start: subHours(endTimeBounds, 1),
           end: endTimeBounds,
@@ -84,7 +85,7 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
       case TimePreset.last_day: {
         const endTimeBounds = roundToNearestMinutes(
           endOfHour(timeRangeBounds.end),
-          { roundingMethod: "floor" }
+          { roundingMethod: "ceil" }
         );
         return {
           start: subDays(endTimeBounds, 1),
@@ -94,7 +95,7 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
       case TimePreset.last_week: {
         const endTimeBounds = roundToNearestMinutes(
           endOfDay(timeRangeBounds.end),
-          { roundingMethod: "floor" }
+          { roundingMethod: "ceil" }
         );
         return {
           start: subDays(endTimeBounds, 7),
@@ -104,7 +105,7 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
       case TimePreset.last_month: {
         const endTimeBounds = roundToNearestMinutes(
           endOfDay(timeRangeBounds.end),
-          { roundingMethod: "floor" }
+          { roundingMethod: "ceil" }
         );
         return {
           start: subDays(endTimeBounds, 30),
@@ -114,7 +115,7 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
       case TimePreset.last_3_months: {
         const endTimeBounds = roundToNearestMinutes(
           endOfDay(timeRangeBounds.end),
-          { roundingMethod: "floor" }
+          { roundingMethod: "ceil" }
         );
         return {
           start: subDays(endTimeBounds, 90),
