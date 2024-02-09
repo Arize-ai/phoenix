@@ -17,8 +17,9 @@ class SpanExporter(Protocol):
 
 
 _DEFUNCT_MSG = (
-    "DEFUNCT: `phoenix.trace.tracer.Tracer` is defunct in the current version of Phoenix, "
-    "and will be removed in the future."
+    "`phoenix.trace.tracer.Tracer` is defunct in the current version of Phoenix, "
+    "and will be removed in the future. For a migration guide, see "
+    "https://github.com/Arize-ai/phoenix/blob/main/MIGRATION.md"
 )
 
 _USE_ENV_MSG = """
@@ -26,12 +27,14 @@ Setting the Phoenix endpoint via HttpExporter() is no longer supported.
 Please use environment variables instead:
   - os.environ["PHOENIX_HOST"] = "127.0.0.1"
   - os.environ["PHOENIX_PORT"] = "54321"
-  - os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://127.0.0.1:54321"
+  - os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://127.0.0.1:54321
+For a migration guide, see https://github.com/Arize-ai/phoenix/blob/main/MIGRATION.md
 """
 
 _ON_APPEND_DEPRECATION_MSG = (
     "OpenInference has been updated for full OpenTelemetry compliance. The ability to set "
-    "`on_append` callbacks are removed."
+    "`on_append` callbacks are removed. For a migration guide, see "
+    "https://github.com/Arize-ai/phoenix/blob/main/MIGRATION.md"
 )
 
 
@@ -39,15 +42,16 @@ def _show_deprecation_warnings(obj: object, *args: Any, **kwargs: Any) -> None:
     if args or kwargs:
         logger.warning(
             f"{obj.__class__.__name__}() no longer takes any arguments. "
-            "The arguments provided has been ignored."
+            "The arguments provided has been ignored. For a migration guide, "
+            "see https://github.com/Arize-ai/phoenix/blob/main/MIGRATION.md"
         )
         if any(callable(arg) for arg in args) or "callback" in kwargs:
             logger.warning(
                 "The `callback` argument is defunct and no longer has any effect. "
                 "If you need access to spans for processing, some options include "
                 "exporting spans from Phoenix or adding a SpanProcessor to the "
-                "OpenTelemetry TracerProvider. More examples can be found in the "
-                "Phoenix docs: https://docs.arize.com/phoenix/deployment/instrumentation"
+                "OpenTelemetry TracerProvider. For a migration guide, "
+                "see https://github.com/Arize-ai/phoenix/blob/main/MIGRATION.md"
             )
         if any(isinstance(arg, HttpExporter) for arg in args):
             logger.warning(_USE_ENV_MSG)
@@ -70,7 +74,8 @@ class Tracer:
         logger.warning(_DEFUNCT_MSG)
         logger.warning(
             ".get_spans() is a defunct method that does nothing. "
-            "It will be removed in the future."
+            "It will be removed in the future. For a migration guide, "
+            "see https://github.com/Arize-ai/phoenix/blob/main/MIGRATION.md"
         )
         return iter(())
 
