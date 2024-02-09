@@ -57,7 +57,7 @@ dev = [
   "nbqa",
   "ruff==0.1.5",
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
-  "pytest",
+  "pytest==7.4.4",
   "pytest-asyncio",
   "pytest-cov",
   "pytest-lazy-fixture",
@@ -102,7 +102,7 @@ artifacts = ["src/phoenix/server/static"]
 [tool.hatch.envs.default]
 dependencies = [
   "pandas==1.4.0",
-  "pytest",
+  "pytest=7.4.4",
   "pytest-asyncio",
   "pytest-cov",
   "pytest-lazy-fixture",
