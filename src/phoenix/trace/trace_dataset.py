@@ -125,9 +125,6 @@ class TraceDataset:
             an optional list of evaluations for the spans in the dataset. If
             provided, the evaluations can be materialized into a unified
             dataframe as annotations.
-        id: Optional[UUID]
-            an optional UUID for the dataset. If not provided, a new UUID will
-            be generated.
         """
         # Validate the the dataframe has required fields
         if missing_columns := set(REQUIRED_COLUMNS) - set(dataframe.columns):
