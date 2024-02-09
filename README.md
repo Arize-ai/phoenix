@@ -155,9 +155,8 @@ session = px.launch_app()
 
 from phoenix.trace.langchain import OpenInferenceTracer, LangChainInstrumentor
 
-# If no exporter is specified, the tracer will export to the locally running Phoenix server
-tracer = OpenInferenceTracer()
-LangChainInstrumentor(tracer).instrument()
+# By default, the traces will be exported to the locally running Phoenix server.
+LangChainInstrumentor().instrument()
 
 # Initialize your LangChain application
 from langchain.chains import RetrievalQA
