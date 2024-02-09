@@ -110,8 +110,8 @@ class TraceDataset:
         self,
         dataframe: DataFrame,
         name: Optional[str] = None,
-        id: Optional[Union[str, UUID]] = None,
         evaluations: Iterable[Evaluations] = (),
+        id: Optional[Union[str, UUID]] = None,
     ):
         """
         Constructs a TraceDataset from a dataframe of spans. Optionally takes in
