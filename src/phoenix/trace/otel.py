@@ -19,6 +19,7 @@ from typing import (
     cast,
 )
 
+import numpy as np
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
 from opentelemetry.util.types import Attributes, AttributeValue
@@ -320,7 +321,11 @@ def encode(span: Span) -> otlp.Span:
                 attributes[key] = json.dumps(value)
             else:
                 attributes.update(_flatten_mapping(value, key))
-        elif not isinstance(value, str) and isinstance(value, Sequence) and _has_mapping(value):
+        elif (
+            not isinstance(value, str)
+            and (isinstance(value, Sequence) or isinstance(value, np.ndarray))
+            and _has_mapping(value)
+        ):
             attributes.pop(key, None)
             attributes.update(_flatten_sequence(value, key))
 
@@ -413,6 +418,8 @@ def _encode_attributes(attributes: Attributes) -> Iterator[KeyValue]:
     if not attributes:
         return
     for key, value in attributes.items():
+        if isinstance(value, np.ndarray):
+            value = value.tolist()
         yield KeyValue(key=key, value=_encode_value(value))
 
 
