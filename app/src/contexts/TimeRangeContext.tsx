@@ -87,11 +87,10 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
           endOfHour(timeRangeBounds.end),
           { roundingMethod: "ceil" }
         );
-        const tr = {
+        return {
           start: subDays(endTimeBounds, 1),
           end: endTimeBounds,
         };
-        return tr;
       }
       case TimePreset.last_week: {
         const endTimeBounds = roundToNearestMinutes(
