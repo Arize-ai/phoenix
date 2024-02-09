@@ -2,7 +2,7 @@
 
 ## v2.x to v3.0.0
 
--   **v3.0.0** - Phoenix now exclusively uses OpenInference for instrumentation. OpenInference uses OpenTelemetry Protocol as the means for sending traces to a collector.
+-   **v3.0.0** - Phoenix now exclusively uses [OpenInference](https://github.com/Arize-ai/openinference) for instrumentation. OpenInference uses OpenTelemetry Protocol as the means for sending traces to a collector.
 
 ### OpenAI Tracing
 
@@ -16,7 +16,7 @@ from phoenix.trace.openai import OpenAIInstrumentor
 from phoenix.trace.tracer import Tracer  # no longer supported
 
 tracer = Tracer(exporter=HttpExporter())  # no longer supported
-OpenAIInstrumentor(tracer).instrument()
+OpenAIInstrumentor(tracer).instrument()  # tracer argument is no longer supported
 ```
 
 #### New (v3.0.0)
@@ -37,7 +37,7 @@ from phoenix.trace.openai import OpenAIInstrumentor
 from phoenix.trace.tracer import Tracer  # no longer supported
 
 tracer = Tracer(exporter=HttpExporter(port=12345))  # no longer supported
-OpenAIInstrumentor(tracer).instrument()
+OpenAIInstrumentor(tracer).instrument()  # tracer argument is no longer supported
 ```
 
 #### New (v3.0.0)
@@ -79,6 +79,7 @@ set_global_handler("arize_phoenix")
 User should not pass Phoenix handler to a callback manager. Use the `set_global_handler` method above.
 
 ```python
+from llama_index.callbacks import CallbackManager
 from phoenix.trace.llama_index import OpenInferenceTraceCallbackHandler  # no longer supported
 
 callback_handler = OpenInferenceTraceCallbackHandler()  # no longer supported
@@ -112,10 +113,11 @@ Calling `.get_spans()` on a handler is no longer supported. Use `px.Client()` to
 
 #### Old (v2.x)
 ```python
+from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.trace.llama_index import OpenInferenceTraceCallbackHandler  # no longer supported
 
 handler = OpenInferenceTraceCallbackHandler()  # no longer supported
-TraceDataset.from_spans(handler.get_spans())  # no longer supported
+TraceDataset.from_spans(handler.get_spans())  # .get_spans() no longer supported
 ```
 
 #### New (v3.0.0)
@@ -135,7 +137,7 @@ px.Client().get_spans_dataframe()
 from phoenix.trace.langchain import LangChainInstrumentor, OpenInferenceTracer
 
 tracer = OpenInferenceTracer()  # no longer supported
-LangChainInstrumentor(tracer).instrument()
+LangChainInstrumentor(tracer).instrument()  # tracer argument is no longer supported
 ```
 
 #### New (v3.0.0)
@@ -172,10 +174,11 @@ Calling `.get_spans()` on a tracer is no longer supported. Use `px.Client()` to 
 
 #### Old (v2.x)
 ```python
+from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.trace.langchain import OpenInferenceTracer  # no longer supported
 
 tracer = OpenInferenceTracer()  # no longer supported
-TraceDataset.from_spans(tracer.get_spans())  # no longer supported
+TraceDataset.from_spans(tracer.get_spans())  # .get_spans() no longer supported
 ```
 
 #### New (v3.0.0)
