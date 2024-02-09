@@ -312,8 +312,6 @@ def encode(span: Span) -> otlp.Span:
             attributes[mime_type] = attributes[mime_type].value
 
     for key, value in span.attributes.items():
-        # if isinstance(value, np.ndarray):
-        #     value = value.tolist()
         if value is None:
             # None can't be transmitted by OTLP
             attributes.pop(key, None)
