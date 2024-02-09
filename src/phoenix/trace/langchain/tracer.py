@@ -12,8 +12,9 @@ logger = logging.getLogger(__name__)
 
 _DUMMY = "OpenInferenceTracer"
 _DEPRECATION_MESSAGE = (
-    f"DEFUNCT: `{__name__}.{_DUMMY}` is a defunct class in the current version of Phoenix, "
-    "and will be removed in the future."
+    f"`{__name__}.{_DUMMY}` is a defunct class in the current version of Phoenix, "
+    "and will be removed in the future. For a migration guide, see "
+    "https://github.com/Arize-ai/phoenix/blob/main/MIGRATION.md"
 )
 
 
@@ -25,7 +26,8 @@ class _DummyObject:
         logger.warning(_DEPRECATION_MESSAGE)
         logger.warning(
             "`.get_spans()` is a defunct method that does nothing, and will be removed "
-            "in the future."
+            "in the future. For a migration guide, see "
+            "https://github.com/Arize-ai/phoenix/blob/main/MIGRATION.md"
         )
         return iter(())
 
