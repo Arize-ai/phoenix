@@ -18,6 +18,8 @@ INSTRUMENTATION_MODERN_VERSION = (1, 0, 0)
 
 
 def _check_instrumentation_compatibility() -> bool:
+    if find_spec("llama_index") is None:
+        raise PackageNotFoundError("Missing `llama-index`. Install with `pip install llama-index`.")
     # split the version string into a tuple of integers
     llama_index_version = tuple(map(int, version("llama-index").split(".")[:3]))
     instrumentation_version = tuple(
@@ -70,12 +72,6 @@ class OpenInferenceTraceCallbackHandler(_OpenInferenceTraceCallbackHandler):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         _show_deprecation_warnings(self, *args, **kwargs)
-        llama_index_spec = find_spec("llama_index")
-        if llama_index_spec is None:
-            raise PackageNotFoundError(
-                "Missing `llama-index`. Install with `pip install llama-index`."
-            )
-        _check_instrumentation_compatibility()
         tracer_provider = trace_sdk.TracerProvider()
         tracer_provider.add_span_processor(SimpleSpanProcessor(_OpenInferenceExporter()))
         super().__init__(trace_api.get_tracer(__name__, __version__, tracer_provider))
