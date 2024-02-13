@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 LLAMA_INDEX_MODERN_VERSION = (0, 10, 0)
 INSTRUMENTATION_MODERN_VERSION = (1, 0, 0)
 
+
 def _check_instrumentation_compatibility() -> bool:
     # split the version string into a tuple of integers
     llama_index_version = tuple(map(int, version("llama-index").split(".")[:3]))
