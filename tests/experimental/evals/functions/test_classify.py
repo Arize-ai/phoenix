@@ -1198,7 +1198,6 @@ def test_run_evals_fails_gracefully_on_error(
     respx_mock: respx.mock,
     relevance_evaluator: LLMEvaluator,
 ) -> None:
-
     # simulate an error
     for matcher, response in [
         (
