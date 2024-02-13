@@ -102,7 +102,7 @@ def test_span_filter_by_eval_exceptions(spans, evals, eval_name):
 
 
 def test_span_filter_by_metadata(spans):
-    spans = list(islice(spans, 3))
+    spans = list(islice(spans, 4))
 
     sf = SpanFilter('metadata["odd index"] == 1')
     assert list(filter(sf, spans)) == [spans[1]]
