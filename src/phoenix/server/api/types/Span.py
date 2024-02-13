@@ -5,6 +5,8 @@ from enum import Enum
 from typing import Any, DefaultDict, Dict, List, Mapping, Optional, Sized, cast
 
 import strawberry
+from openinference.semconv.trace import EmbeddingAttributes, SpanAttributes
+from opentelemetry.semconv.trace import SpanAttributes as OTELSpanAttributes
 from strawberry import ID, UNSET
 from strawberry.types import Info
 
@@ -15,19 +17,18 @@ from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalM
 from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluation
 from phoenix.server.api.types.MimeType import MimeType
 from phoenix.trace.schemas import ComputedAttributes, SpanID
-from phoenix.trace.semantic_conventions import (
-    EMBEDDING_EMBEDDINGS,
-    EMBEDDING_VECTOR,
-    EXCEPTION_MESSAGE,
-    INPUT_MIME_TYPE,
-    INPUT_VALUE,
-    LLM_TOKEN_COUNT_COMPLETION,
-    LLM_TOKEN_COUNT_PROMPT,
-    LLM_TOKEN_COUNT_TOTAL,
-    OUTPUT_MIME_TYPE,
-    OUTPUT_VALUE,
-    RETRIEVAL_DOCUMENTS,
-)
+
+EMBEDDING_EMBEDDINGS = SpanAttributes.EMBEDDING_EMBEDDINGS
+EMBEDDING_VECTOR = EmbeddingAttributes.EMBEDDING_VECTOR
+EXCEPTION_MESSAGE = OTELSpanAttributes.EXCEPTION_MESSAGE
+INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
+INPUT_VALUE = SpanAttributes.INPUT_VALUE
+LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
+LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
+LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
+OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
+OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
+RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
 
 
 @strawberry.enum

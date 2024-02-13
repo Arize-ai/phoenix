@@ -6,23 +6,26 @@ from uuid import UUID, uuid4
 from warnings import warn
 
 import pandas as pd
+from openinference.semconv.trace import (
+    DocumentAttributes,
+    RerankerAttributes,
+    SpanAttributes,
+)
 from pandas import DataFrame, read_parquet
 from pyarrow import Schema, Table, parquet
 
+from phoenix.config import DATASET_DIR, GENERATED_DATASET_NAME_PREFIX, TRACE_DATASET_DIR
 from phoenix.datetime_utils import normalize_timestamps
 from phoenix.trace.errors import InvalidParquetMetadataError
+from phoenix.trace.schemas import ATTRIBUTE_PREFIX, CONTEXT_PREFIX, Span
+from phoenix.trace.span_evaluations import Evaluations, SpanEvaluations
+from phoenix.trace.span_json_decoder import json_to_span
+from phoenix.trace.span_json_encoder import span_to_json
 
-from ..config import DATASET_DIR, GENERATED_DATASET_NAME_PREFIX, TRACE_DATASET_DIR
-from .schemas import ATTRIBUTE_PREFIX, CONTEXT_PREFIX, Span
-from .semantic_conventions import (
-    DOCUMENT_METADATA,
-    RERANKER_INPUT_DOCUMENTS,
-    RERANKER_OUTPUT_DOCUMENTS,
-    RETRIEVAL_DOCUMENTS,
-)
-from .span_evaluations import Evaluations, SpanEvaluations
-from .span_json_decoder import json_to_span
-from .span_json_encoder import span_to_json
+DOCUMENT_METADATA = DocumentAttributes.DOCUMENT_METADATA
+RERANKER_INPUT_DOCUMENTS = RerankerAttributes.RERANKER_INPUT_DOCUMENTS
+RERANKER_OUTPUT_DOCUMENTS = RerankerAttributes.RERANKER_OUTPUT_DOCUMENTS
+RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
 
 # A set of columns that is required
 REQUIRED_COLUMNS = [
