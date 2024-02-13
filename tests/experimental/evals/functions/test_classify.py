@@ -1198,18 +1198,20 @@ def test_run_evals_fails_gracefully_on_error(
     respx_mock: respx.mock,
     relevance_evaluator: LLMEvaluator,
 ) -> None:
+
+    # simulate an error
     for matcher, response in [
         (
             M(content__contains="Paris is the capital of France."),
-            "relevant-explanation\nrelevant",  # missing delimiter
+            "relevant-explanation\nrelevant",
         ),
         (
             M(content__contains="Munich is the capital of Germany."),
-            "some-explanation\nLABEL: unparseable-label",  # unparseable-label
+            "some-explanation\nLABEL: unparseable-label",
         ),
         (
             M(content__contains="Washington, D.C. is the capital of the USA."),
-            "unrelated-explanation\nLABEL: unrelated",  # normal
+            "unrelated-explanation\nLABEL: unrelated",
         ),
     ]:
         respx_mock.route(matcher).mock(side_effect=Exception("spurious test error"))
