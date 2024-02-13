@@ -1,15 +1,15 @@
 from typing import List, Optional, Protocol, Union, cast
 
 import pandas as pd
+from openinference.semconv.trace import DocumentAttributes, SpanAttributes
 
 from phoenix.trace.dsl import SpanQuery
-from phoenix.trace.semantic_conventions import (
-    DOCUMENT_CONTENT,
-    DOCUMENT_SCORE,
-    INPUT_VALUE,
-    OUTPUT_VALUE,
-    RETRIEVAL_DOCUMENTS,
-)
+
+DOCUMENT_CONTENT = DocumentAttributes.DOCUMENT_CONTENT
+DOCUMENT_SCORE = DocumentAttributes.DOCUMENT_SCORE
+INPUT_VALUE = SpanAttributes.INPUT_VALUE
+OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
+RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
 
 INPUT = {"input": INPUT_VALUE}
 OUTPUT = {"output": OUTPUT_VALUE}

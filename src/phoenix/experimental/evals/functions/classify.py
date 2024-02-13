@@ -19,6 +19,7 @@ from typing import (
 )
 
 import pandas as pd
+from openinference.semconv.trace import DocumentAttributes, SpanAttributes
 from pandas import DataFrame
 from typing_extensions import TypeAlias
 
@@ -41,8 +42,11 @@ from phoenix.experimental.evals.utils import (
     parse_openai_function_call,
     snap_to_rail,
 )
-from phoenix.trace.semantic_conventions import DOCUMENT_CONTENT, INPUT_VALUE, RETRIEVAL_DOCUMENTS
 from phoenix.utilities.logging import printif
+
+DOCUMENT_CONTENT = DocumentAttributes.DOCUMENT_CONTENT
+INPUT_VALUE = SpanAttributes.INPUT_VALUE
+RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
 
 logger = logging.getLogger(__name__)
 

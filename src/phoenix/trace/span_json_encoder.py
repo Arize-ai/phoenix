@@ -5,12 +5,7 @@ from enum import Enum
 from typing import Any, List
 from uuid import UUID
 
-from .schemas import (
-    Span,
-    SpanContext,
-    SpanConversationAttributes,
-    SpanEvent,
-)
+from phoenix.trace.schemas import Span, SpanContext, SpanConversationAttributes, SpanEvent
 
 
 class SpanJSONEncoder(json.JSONEncoder):

@@ -1,3 +1,4 @@
+import inspect
 import json
 from binascii import hexlify, unhexlify
 from datetime import datetime, timezone
@@ -21,12 +22,23 @@ from typing import (
 
 import numpy as np
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
+from openinference.semconv import trace
+from openinference.semconv.trace import (
+    DocumentAttributes,
+    EmbeddingAttributes,
+    MessageAttributes,
+    SpanAttributes,
+    ToolCallAttributes,
+)
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
 from opentelemetry.util.types import Attributes, AttributeValue
 from typing_extensions import TypeAlias, assert_never
 
-import phoenix.trace.semantic_conventions as sem_conv
 from phoenix.trace.schemas import (
+    EXCEPTION_ESCAPED,
+    EXCEPTION_MESSAGE,
+    EXCEPTION_STACKTRACE,
+    EXCEPTION_TYPE,
     MimeType,
     Span,
     SpanContext,
@@ -37,18 +49,38 @@ from phoenix.trace.schemas import (
     SpanStatusCode,
     TraceID,
 )
-from phoenix.trace.semantic_conventions import (
-    DOCUMENT_METADATA,
-    EXCEPTION_ESCAPED,
-    EXCEPTION_MESSAGE,
-    EXCEPTION_STACKTRACE,
-    EXCEPTION_TYPE,
-    INPUT_MIME_TYPE,
-    LLM_PROMPT_TEMPLATE_VARIABLES,
-    OPENINFERENCE_SPAN_KIND,
-    OUTPUT_MIME_TYPE,
-    TOOL_PARAMETERS,
-)
+
+DOCUMENT_CONTENT = DocumentAttributes.DOCUMENT_CONTENT
+DOCUMENT_ID = DocumentAttributes.DOCUMENT_ID
+DOCUMENT_METADATA = DocumentAttributes.DOCUMENT_METADATA
+EMBEDDING_EMBEDDINGS = SpanAttributes.EMBEDDING_EMBEDDINGS
+EMBEDDING_MODEL_NAME = SpanAttributes.EMBEDDING_MODEL_NAME
+EMBEDDING_TEXT = EmbeddingAttributes.EMBEDDING_TEXT
+EMBEDDING_VECTOR = EmbeddingAttributes.EMBEDDING_VECTOR
+INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
+INPUT_VALUE = SpanAttributes.INPUT_VALUE
+LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
+LLM_INVOCATION_PARAMETERS = SpanAttributes.LLM_INVOCATION_PARAMETERS
+LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
+LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
+LLM_PROMPTS = SpanAttributes.LLM_PROMPTS
+LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
+LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
+LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
+MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
+MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON = MessageAttributes.MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON
+MESSAGE_FUNCTION_CALL_NAME = MessageAttributes.MESSAGE_FUNCTION_CALL_NAME
+MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
+MESSAGE_TOOL_CALLS = MessageAttributes.MESSAGE_TOOL_CALLS
+OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
+OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
+OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
+RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
+TOOL_CALL_FUNCTION_ARGUMENTS_JSON = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
+TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
+TOOL_PARAMETERS = SpanAttributes.TOOL_PARAMETERS
+LLM_PROMPT_TEMPLATE = SpanAttributes.LLM_PROMPT_TEMPLATE
+LLM_PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
 
 
 def decode(otlp_span: otlp.Span) -> Span:
@@ -186,7 +218,13 @@ def _decode_status(otlp_status: otlp.Status) -> Tuple[SpanStatusCode, StatusMess
 
 
 _SEMANTIC_CONVENTIONS: List[str] = sorted(
-    (getattr(sem_conv, name) for name in dir(sem_conv) if name.isupper()),
+    (
+        getattr(klass, attr)
+        for name in dir(trace)
+        if name.endswith("Attributes") and inspect.isclass(klass := getattr(trace, name))
+        for attr in dir(klass)
+        if attr.isupper()
+    ),
     reverse=True,
 )  # sorted so the longer strings go first
 
