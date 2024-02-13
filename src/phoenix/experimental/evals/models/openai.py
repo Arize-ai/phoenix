@@ -1,5 +1,6 @@
 import logging
 import os
+import warnings
 from dataclasses import dataclass, field, fields
 from typing import (
     TYPE_CHECKING,
@@ -131,8 +132,8 @@ class OpenAIModel(BaseEvalModel):
                 This will be removed in a future release."
             print(
                 warning_message,
-                DeprecationWarning,
             )
+            warnings.warn(warning_message, DeprecationWarning)
             self.model = self.model_name
             self.model_name = None
 
