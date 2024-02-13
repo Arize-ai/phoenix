@@ -31,21 +31,20 @@ def _check_instrumentation_compatibility() -> bool:
         and instrumentation_version >= INSTRUMENTATION_MODERN_VERSION
     ):
         raise IncompatibleLibraryVersionError(
-            f"""llama-index v{'.'.join(map(str, llama_index_version))} is not compatible with
-             openinference-instrumentation-llama-index
-             v{instrumentation_version}. Please either migrate llama-index to
-             at least 0.10.0 or downgrade openinference-instrumentation-llama-index via
-             `pip install openinference-instrumentation-llama-index<1.0.0`."""
+            f"llama-index v{'.'.join(map(str, llama_index_version))} is not compatible with "
+            f"openinference-instrumentation-llama-index v{instrumentation_version}."
+            "Please either migrate llama-index to at least 0.10.0 or downgrade "
+            "openinference-instrumentation-llama-index via "
+            "`pip install 'openinference-instrumentation-llama-index<1.0.0'`."
         )
     elif (
         llama_index_version >= LLAMA_INDEX_MODERN_VERSION
         and instrumentation_version < INSTRUMENTATION_MODERN_VERSION
     ):
         raise IncompatibleLibraryVersionError(
-            f"""llama-index v{'.'.join(map(str, llama_index_version))} is not compatible with
-             openinference-instrumentation-llama-index
-             v{instrumentation_version}. Please upgrade
-             openinference-instrumentation-llama-index to at least 1.0.0"""
+            f"llama-index v{'.'.join(map(str, llama_index_version))} is not compatible with "
+            f"openinference-instrumentation-llama-index v{instrumentation_version}."
+            "Please upgrade openinference-instrumentation-llama-index to at least 1.0.0"
         )
     # if the versions are compatible, return True
     return True
