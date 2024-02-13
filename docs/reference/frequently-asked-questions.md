@@ -1,8 +1,8 @@
 # Frequently Asked Questions
 
-## Can I configure a default port for Phoenix?
+## Can I use Azure OpenAI?
 
-You can set the default port for phoenix each time you launch the application from jupyter notebook with an optional argument `port` in [launch\_app()](https://github.com/Arize-ai/phoenix/blob/d21bbc8db4fc62989d127f8d2f7d5e7306bbb357/src/phoenix/session/session.py#L187).
+Yes, in fact this is probably the preferred way to interact with OpenAI if your enterprise requires data privacy. Getting the parameters right for Azure can be a bit tricky so check out the [models section for details.](../api/evaluation-models.md#azure-openai)
 
 ## Can I use Phoenix locally from a remote Jupyter instance?
 
