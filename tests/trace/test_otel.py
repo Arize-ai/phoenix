@@ -15,9 +15,12 @@ from openinference.semconv.trace import (
     ToolCallAttributes,
 )
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
-from opentelemetry.semconv.trace import SpanAttributes as OTELSpanAttributes
 from phoenix.trace.otel import _decode_identifier, _encode_identifier, _unflatten, decode, encode
 from phoenix.trace.schemas import (
+    EXCEPTION_ESCAPED,
+    EXCEPTION_MESSAGE,
+    EXCEPTION_STACKTRACE,
+    EXCEPTION_TYPE,
     Span,
     SpanContext,
     SpanEvent,
@@ -34,10 +37,6 @@ DOCUMENT_SCORE = DocumentAttributes.DOCUMENT_SCORE
 EMBEDDING_EMBEDDINGS = SpanAttributes.EMBEDDING_EMBEDDINGS
 EMBEDDING_TEXT = EmbeddingAttributes.EMBEDDING_TEXT
 EMBEDDING_VECTOR = EmbeddingAttributes.EMBEDDING_VECTOR
-EXCEPTION_ESCAPED = OTELSpanAttributes.EXCEPTION_ESCAPED
-EXCEPTION_MESSAGE = OTELSpanAttributes.EXCEPTION_MESSAGE
-EXCEPTION_STACKTRACE = OTELSpanAttributes.EXCEPTION_STACKTRACE
-EXCEPTION_TYPE = OTELSpanAttributes.EXCEPTION_TYPE
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
 LLM_PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
 MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE

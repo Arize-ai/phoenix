@@ -3,9 +3,9 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from openinference.semconv.trace import SpanAttributes
-from opentelemetry.semconv.trace import SpanAttributes as OTELSpanAttributes
 
 from phoenix.trace.schemas import (
+    EXCEPTION_MESSAGE,
     MimeType,
     Span,
     SpanContext,
@@ -20,7 +20,6 @@ from phoenix.trace.schemas import (
 
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
 OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
-EXCEPTION_MESSAGE = OTELSpanAttributes.EXCEPTION_MESSAGE
 
 
 def json_to_attributes(obj: Optional[Dict[str, Any]]) -> Dict[str, Any]:

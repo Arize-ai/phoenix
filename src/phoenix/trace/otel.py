@@ -31,11 +31,14 @@ from openinference.semconv.trace import (
     ToolCallAttributes,
 )
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
-from opentelemetry.semconv.trace import SpanAttributes as OTELSpanAttributes
 from opentelemetry.util.types import Attributes, AttributeValue
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.trace.schemas import (
+    EXCEPTION_ESCAPED,
+    EXCEPTION_MESSAGE,
+    EXCEPTION_STACKTRACE,
+    EXCEPTION_TYPE,
     MimeType,
     Span,
     SpanContext,
@@ -78,12 +81,6 @@ TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
 TOOL_PARAMETERS = SpanAttributes.TOOL_PARAMETERS
 LLM_PROMPT_TEMPLATE = SpanAttributes.LLM_PROMPT_TEMPLATE
 LLM_PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
-
-
-EXCEPTION_MESSAGE = OTELSpanAttributes.EXCEPTION_MESSAGE
-EXCEPTION_TYPE = OTELSpanAttributes.EXCEPTION_TYPE
-EXCEPTION_ESCAPED = OTELSpanAttributes.EXCEPTION_ESCAPED
-EXCEPTION_STACKTRACE = OTELSpanAttributes.EXCEPTION_STACKTRACE
 
 
 def decode(otlp_span: otlp.Span) -> Span:

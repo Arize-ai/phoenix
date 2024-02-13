@@ -4,12 +4,10 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-from opentelemetry.semconv.trace import SpanAttributes as OTELSpanAttributes
-
-EXCEPTION_MESSAGE = OTELSpanAttributes.EXCEPTION_MESSAGE
-EXCEPTION_TYPE = OTELSpanAttributes.EXCEPTION_TYPE
-EXCEPTION_ESCAPED = OTELSpanAttributes.EXCEPTION_ESCAPED
-EXCEPTION_STACKTRACE = OTELSpanAttributes.EXCEPTION_STACKTRACE
+EXCEPTION_TYPE = "exception.type"
+EXCEPTION_MESSAGE = "exception.message"
+EXCEPTION_ESCAPED = "exception.escaped"
+EXCEPTION_STACKTRACE = "exception.stacktrace"
 
 
 class SpanStatusCode(Enum):

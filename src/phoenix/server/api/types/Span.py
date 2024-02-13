@@ -6,7 +6,6 @@ from typing import Any, DefaultDict, Dict, List, Mapping, Optional, Sized, cast
 
 import strawberry
 from openinference.semconv.trace import EmbeddingAttributes, SpanAttributes
-from opentelemetry.semconv.trace import SpanAttributes as OTELSpanAttributes
 from strawberry import ID, UNSET
 from strawberry.types import Info
 
@@ -20,7 +19,6 @@ from phoenix.trace.schemas import ComputedAttributes, SpanID
 
 EMBEDDING_EMBEDDINGS = SpanAttributes.EMBEDDING_EMBEDDINGS
 EMBEDDING_VECTOR = EmbeddingAttributes.EMBEDDING_VECTOR
-EXCEPTION_MESSAGE = OTELSpanAttributes.EXCEPTION_MESSAGE
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
 INPUT_VALUE = SpanAttributes.INPUT_VALUE
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
@@ -88,7 +86,7 @@ class SpanEvent:
     ) -> "SpanEvent":
         return SpanEvent(
             name=event.name,
-            message=cast(str, event.attributes.get(EXCEPTION_MESSAGE) or ""),
+            message=cast(str, event.attributes.get(trace_schema.EXCEPTION_MESSAGE) or ""),
             timestamp=event.timestamp,
         )
 
