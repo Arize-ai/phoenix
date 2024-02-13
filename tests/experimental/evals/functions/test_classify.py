@@ -1193,6 +1193,63 @@ def test_run_evals_produces_expected_output_when_llm_outputs_unexpected_data(
     )
 
 
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_run_evals_fails_gracefully_on_error(
+    respx_mock: respx.mock,
+    relevance_evaluator: LLMEvaluator,
+) -> None:
+    # simulate an error
+    for matcher, response in [
+        (
+            M(content__contains="Paris is the capital of France."),
+            "relevant-explanation\nrelevant",
+        ),
+        (
+            M(content__contains="Munich is the capital of Germany."),
+            "some-explanation\nLABEL: unparseable-label",
+        ),
+        (
+            M(content__contains="Washington, D.C. is the capital of the USA."),
+            "unrelated-explanation\nLABEL: unrelated",
+        ),
+    ]:
+        respx_mock.route(matcher).mock(side_effect=Exception("spurious test error"))
+
+    df = pd.DataFrame(
+        [
+            {
+                "input": "What is the capital of France?",
+                "reference": "Paris is the capital of France.",
+            },
+            {
+                "input": "What is the capital of France?",
+                "reference": "Munich is the capital of Germany.",
+            },
+            {
+                "input": "What is the capital of France?",
+                "reference": "Washington, D.C. is the capital of the USA.",
+            },
+        ],
+    )
+    eval_dfs = run_evals(
+        dataframe=df,
+        evaluators=[relevance_evaluator],
+        provide_explanation=True,
+        use_function_calling_if_available=False,
+    )
+    assert len(eval_dfs) == 1
+    assert_frame_equal(
+        pd.DataFrame(
+            {
+                "label": [None, None, None],
+                "score": [None, None, None],
+                "explanation": [None, None, None],
+            },
+        ),
+        eval_dfs[0],
+    )
+
+
 def test_run_evals_with_empty_evaluators_returns_empty_list() -> None:
     eval_dfs = run_evals(
         dataframe=pd.DataFrame(),
