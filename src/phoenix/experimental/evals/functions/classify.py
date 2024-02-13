@@ -55,7 +55,7 @@ Label: TypeAlias = str
 Score: TypeAlias = Optional[float]
 Explanation: TypeAlias = Optional[str]
 Record: TypeAlias = Mapping[str, Any]
-RowIndex: TypeAlias = int
+Index: TypeAlias = int
 
 # snapped_response, explanation, response
 ParsedLLMResponse: TypeAlias = Tuple[Optional[str], Optional[str], str]
@@ -432,7 +432,7 @@ def run_evals(
         RunEvalsPayload(evaluator=evaluator, record=row)
         for evaluator, (_, row) in product(evaluators, dataframe.iterrows())
     ]
-    eval_results: List[DefaultDict[RowIndex, Dict[ColumnName, Union[Label, Explanation]]]] = [
+    eval_results: List[DefaultDict[Index, Dict[ColumnName, Union[Label, Explanation]]]] = [
         defaultdict(dict) for _ in range(len(evaluators))
     ]
     for index, (label, score, explanation) in enumerate(executor.run(payloads)):
