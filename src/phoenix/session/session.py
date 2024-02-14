@@ -490,7 +490,9 @@ def active_session() -> Optional[Session]:
     """
     Returns the active session if one exists, otherwise returns None
     """
-    return _session
+    if _session and _session.active:
+        return _session
+    return None
 
 
 def close_app() -> None:
