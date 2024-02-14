@@ -477,6 +477,7 @@ def launch_app(
             f"port {port} is not occupied by another process) or file an issue "
             f"with us at https://github.com/Arize-ai/phoenix"
         )
+        _session = None
         return None
 
     print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
