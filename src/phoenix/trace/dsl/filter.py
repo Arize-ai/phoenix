@@ -301,13 +301,13 @@ def _ast_evaluation_result_value(name: str, attr: str) -> ast.expr:
     return ast.parse(source, mode="eval").body
 
 
-def _ast_metadata_subscript(name: str) -> ast.expr:
+def _ast_metadata_subscript(key: str) -> ast.expr:
     source = (
         f"_MISSING if ("
         f"    _MD := span.attributes.get('metadata')"
         f") is None else ("
-        f"    _MISSING if ("
-        f"        _VALUE := _MD.get('{name}')"
+        f"    _MISSING if not hasattr(_MD, 'get') or ("
+        f"        _VALUE := _MD.get('{key}')"
         f"    ) is None else _VALUE"
         f")"
     )
