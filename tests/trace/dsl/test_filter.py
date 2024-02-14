@@ -103,7 +103,14 @@ def test_span_filter_by_eval_exceptions(spans, evals, eval_name):
         SpanFilter("evals[123].score < 0.5", evals=evals)
 
 
-Span = namedtuple("Span", "context")
+def test_span_filter_by_metadata(spans):
+    spans = list(islice(spans, 4))
+
+    sf = SpanFilter('metadata["odd index"] == 1')
+    assert list(filter(sf, spans)) == [spans[1]]
+
+
+Span = namedtuple("Span", "context attributes")
 Context = namedtuple("Context", "span_id")
 Evals = namedtuple("Evals", "get_span_evaluation")
 
@@ -123,4 +130,10 @@ def eval_name():
 
 @pytest.fixture
 def spans():
-    return (Span(context=Context(i)) for i in count())
+    return (
+        Span(
+            context=Context(i),
+            attributes={**({"metadata": {"odd index": i}} if i % 2 else {})},
+        )
+        for i in count()
+    )
