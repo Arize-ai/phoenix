@@ -272,7 +272,7 @@ def test_litellm_model_llm_generate(monkeypatch: pytest.MonkeyPatch):
         "Given {query} and a golden answer {reference}, generate an answer that returns True."
     )
 
-    model = LiteLLMModel(model_name="gpt-3.5-turbo", model_kwargs={"mock_response": True})
+    model = LiteLLMModel(model="gpt-3.5-turbo", model_kwargs={"mock_response": True})
 
     generated = llm_generate(dataframe=dataframe, template=template, model=model)
     assert generated.iloc[:, 0].tolist() == responses
