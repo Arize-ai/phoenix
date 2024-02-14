@@ -4,12 +4,10 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-from phoenix.trace.semantic_conventions import (
-    EXCEPTION_ESCAPED,
-    EXCEPTION_MESSAGE,
-    EXCEPTION_STACKTRACE,
-    EXCEPTION_TYPE,
-)
+EXCEPTION_TYPE = "exception.type"
+EXCEPTION_MESSAGE = "exception.message"
+EXCEPTION_ESCAPED = "exception.escaped"
+EXCEPTION_STACKTRACE = "exception.stacktrace"
 
 
 class SpanStatusCode(Enum):

@@ -1,4 +1,5 @@
 import logging
+import warnings
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class LiteLLMModel(BaseEvalModel):
-    model_name: str = "gpt-3.5-turbo"
+    model: str = "gpt-3.5-turbo"
     """The model name to use."""
     temperature: float = 0.0
     """What sampling temperature to use."""
@@ -34,9 +35,29 @@ class LiteLLMModel(BaseEvalModel):
     max_content_size: Optional[int] = None
     """If you're using a fine-tuned model, set this to the maximum content size"""
 
+    # Deprecated fields
+    model_name: Optional[str] = None
+    """
+    .. deprecated:: 3.0.0
+       use `model` instead. This will be removed in a future release.
+    """
+
     def __post_init__(self) -> None:
+        self._migrate_model_name()
         self._init_environment()
         self._init_model_encoding()
+
+    def _migrate_model_name(self) -> None:
+        if self.model_name is not None:
+            warning_message = "The `model_name` field is deprecated. Use `model` instead. \
+                This will be removed in a future release."
+            warnings.warn(
+                warning_message,
+                DeprecationWarning,
+            )
+            print(warning_message)
+            self.model = self.model_name
+            self.model_name = None
 
     def _init_environment(self) -> None:
         try:
@@ -44,12 +65,12 @@ class LiteLLMModel(BaseEvalModel):
             from litellm import validate_environment
 
             self._litellm = litellm
-            env_info = validate_environment(self._litellm.utils.get_llm_provider(self.model_name))
+            env_info = validate_environment(self._litellm.utils.get_llm_provider(self.model))
 
             if not env_info["keys_in_environment"]:
                 raise RuntimeError(
                     f"Missing environment variable(s): '{str(env_info['missing_keys'])}', for "
-                    f"model: {self.model_name}. \nFor additional information about the right "
+                    f"model: {self.model}. \nFor additional information about the right "
                     "environment variables for specific model providers:\n"
                     "https://docs.litellm.ai/docs/completion/input#provider-specific-params."
                 )
@@ -67,14 +88,14 @@ class LiteLLMModel(BaseEvalModel):
 
     @property
     def max_context_size(self) -> int:
-        context_size = self.max_content_size or self._litellm.get_max_tokens(self.model_name).get(
+        context_size = self.max_content_size or self._litellm.get_max_tokens(self.model).get(
             "max_tokens", None
         )
 
         if context_size is None:
             raise ValueError(
-                "Can't determine maximum context size. An unknown model name was "
-                + f"used: {self.model_name}."
+                "Can't determine maximum context size. An unknown model was "
+                + f"used: {self.model}."
             )
 
         return context_size
@@ -84,11 +105,11 @@ class LiteLLMModel(BaseEvalModel):
         raise NotImplementedError
 
     def get_tokens_from_text(self, text: str) -> List[int]:
-        result: List[int] = self._encoding(model=self.model_name, text=text)
+        result: List[int] = self._encoding(model=self.model, text=text)
         return result
 
     def get_text_from_tokens(self, tokens: List[int]) -> str:
-        return str(self._decoding(model=self.model_name, tokens=tokens))
+        return str(self._decoding(model=self.model, tokens=tokens))
 
     async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         return self._generate(prompt, **kwargs)
@@ -96,7 +117,7 @@ class LiteLLMModel(BaseEvalModel):
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         messages = self._get_messages_from_prompt(prompt)
         response = self._litellm.completion(
-            model=self.model_name,
+            model=self.model,
             messages=messages,
             temperature=self.temperature,
             max_tokens=self.max_tokens,

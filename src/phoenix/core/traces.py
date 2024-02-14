@@ -20,12 +20,13 @@ from typing import (
 
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 from ddsketch import DDSketch
+from openinference.semconv.trace import SpanAttributes
 from sortedcontainers import SortedKeyList
 from typing_extensions import TypeAlias
 from wrapt import ObjectProxy
 
+import phoenix.trace.schemas
 from phoenix.datetime_utils import right_open_time_range
-from phoenix.trace import semantic_conventions
 from phoenix.trace.otel import decode
 from phoenix.trace.schemas import (
     ATTRIBUTE_PREFIX,
@@ -33,12 +34,10 @@ from phoenix.trace.schemas import (
     CONTEXT_PREFIX,
     ComputedAttributes,
     Span,
-    SpanAttributes,
     SpanID,
     SpanStatusCode,
     TraceID,
 )
-from phoenix.trace.semantic_conventions import RETRIEVAL_DOCUMENTS
 
 END_OF_QUEUE = None  # sentinel value for queue termination
 
@@ -50,9 +49,9 @@ SPAN_ID = CONTEXT_PREFIX + "span_id"
 PARENT_ID = "parent_id"
 START_TIME = "start_time"
 END_TIME = "end_time"
-LLM_TOKEN_COUNT_TOTAL = ATTRIBUTE_PREFIX + semantic_conventions.LLM_TOKEN_COUNT_TOTAL
-LLM_TOKEN_COUNT_PROMPT = ATTRIBUTE_PREFIX + semantic_conventions.LLM_TOKEN_COUNT_PROMPT
-LLM_TOKEN_COUNT_COMPLETION = ATTRIBUTE_PREFIX + semantic_conventions.LLM_TOKEN_COUNT_COMPLETION
+LLM_TOKEN_COUNT_TOTAL = ATTRIBUTE_PREFIX + SpanAttributes.LLM_TOKEN_COUNT_TOTAL
+LLM_TOKEN_COUNT_PROMPT = ATTRIBUTE_PREFIX + SpanAttributes.LLM_TOKEN_COUNT_PROMPT
+LLM_TOKEN_COUNT_COMPLETION = ATTRIBUTE_PREFIX + SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 
 
 class ReadableSpan(ObjectProxy):  # type: ignore
@@ -73,7 +72,9 @@ class ReadableSpan(ObjectProxy):  # type: ignore
     @property
     def span(self) -> Span:
         span = decode(self._self_otlp_span)
-        span.attributes.update(cast(SpanAttributes, self._self_computed_values))
+        span.attributes.update(
+            cast(phoenix.trace.schemas.SpanAttributes, self._self_computed_values)
+        )
         # TODO: compute latency rank percent (which can change depending on how
         # many spans already ingested).
         return span
@@ -333,9 +334,13 @@ class Traces:
             self._token_count_total -= existing_span[LLM_TOKEN_COUNT_TOTAL] or 0
         self._token_count_total += new_span[LLM_TOKEN_COUNT_TOTAL] or 0
         # Update number of documents
-        num_documents_update = len(new_span.attributes.get(RETRIEVAL_DOCUMENTS) or ())
+        num_documents_update = len(
+            new_span.attributes.get(SpanAttributes.RETRIEVAL_DOCUMENTS) or ()
+        )
         if existing_span:
-            num_documents_update -= len(existing_span.attributes.get(RETRIEVAL_DOCUMENTS) or ())
+            num_documents_update -= len(
+                existing_span.attributes.get(SpanAttributes.RETRIEVAL_DOCUMENTS) or ()
+            )
         if num_documents_update:
             self._num_documents[span_id] += num_documents_update
         # Process previously orphaned spans, if any.

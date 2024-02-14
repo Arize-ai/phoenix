@@ -1,5 +1,6 @@
 import logging
 import os
+import warnings
 from dataclasses import dataclass, field, fields
 from typing import (
     TYPE_CHECKING,
@@ -64,8 +65,10 @@ class OpenAIModel(BaseEvalModel):
     An optional base URL to use for the OpenAI API. If not provided, will default
     to what's configured in OpenAI
     """
-    model_name: str = "gpt-4"
-    """Model name to use. In of azure, this is the deployment name such as gpt-35-instant"""
+    model: str = "gpt-4"
+    """
+    Model name to use. In of azure, this is the deployment name such as gpt-35-instant
+    """
     temperature: float = 0.0
     """What sampling temperature to use."""
     max_tokens: int = 256
@@ -106,7 +109,15 @@ class OpenAIModel(BaseEvalModel):
     azure_ad_token: Optional[str] = field(default=None)
     azure_ad_token_provider: Optional[Callable[[], str]] = field(default=None)
 
+    # Deprecated fields
+    model_name: Optional[str] = field(default=None)
+    """
+    .. deprecated:: 3.0.0
+       use `model` instead. This will be removed
+    """
+
     def __post_init__(self) -> None:
+        self._migrate_model_name()
         self._init_environment()
         self._init_open_ai()
         self._init_tiktoken()
@@ -114,6 +125,17 @@ class OpenAIModel(BaseEvalModel):
 
     def reload_client(self) -> None:
         self._init_open_ai()
+
+    def _migrate_model_name(self) -> None:
+        if self.model_name:
+            warning_message = "The `model_name` field is deprecated. Use `model` instead. \
+                This will be removed in a future release."
+            print(
+                warning_message,
+            )
+            warnings.warn(warning_message, DeprecationWarning)
+            self.model = self.model_name
+            self.model_name = None
 
     def _init_environment(self) -> None:
         try:
@@ -141,9 +163,7 @@ class OpenAIModel(BaseEvalModel):
         # For Azure, you need to provide the endpoint and the endpoint
         self._is_azure = bool(self.azure_endpoint)
 
-        self._model_uses_legacy_completion_api = self.model_name.startswith(
-            LEGACY_COMPLETION_API_MODELS
-        )
+        self._model_uses_legacy_completion_api = self.model.startswith(LEGACY_COMPLETION_API_MODELS)
         if self.api_key is None:
             api_key = os.getenv(OPENAI_API_KEY_ENVVAR_NAME)
             if api_key is None:
@@ -203,7 +223,7 @@ class OpenAIModel(BaseEvalModel):
 
     def _init_tiktoken(self) -> None:
         try:
-            encoding = self._tiktoken.encoding_for_model(self.model_name)
+            encoding = self._tiktoken.encoding_for_model(self.model)
         except KeyError:
             encoding = self._tiktoken.get_encoding("cl100k_base")
         self._tiktoken_encoding = encoding
@@ -333,20 +353,20 @@ class OpenAIModel(BaseEvalModel):
 
     @property
     def max_context_size(self) -> int:
-        model_name = self.model_name
+        model = self.model
         # handling finetuned models
-        if "ft-" in model_name:
-            model_name = self.model_name.split(":")[0]
-        if model_name == "gpt-4":
+        if "ft-" in model:
+            model = self.model.split(":")[0]
+        if model == "gpt-4":
             # Map gpt-4 to the current default
-            model_name = "gpt-4-0613"
+            model = "gpt-4-0613"
 
-        context_size = MODEL_TOKEN_LIMIT_MAPPING.get(model_name, None)
+        context_size = MODEL_TOKEN_LIMIT_MAPPING.get(model, None)
 
         if context_size is None:
             raise ValueError(
                 "Can't determine maximum context size. An unknown model name was "
-                f"used: {model_name}. Please provide a valid OpenAI model name. "
+                f"used: {model}. Please provide a valid OpenAI model name. "
                 "Known models are: " + ", ".join(MODEL_TOKEN_LIMIT_MAPPING.keys())
             )
 
@@ -355,7 +375,7 @@ class OpenAIModel(BaseEvalModel):
     @property
     def public_invocation_params(self) -> Dict[str, Any]:
         return {
-            **({"model": self.model_name}),
+            **({"model": self.model}),
             **self._default_params,
             **self.model_kwargs,
         }
@@ -388,8 +408,8 @@ class OpenAIModel(BaseEvalModel):
 
         Official documentation: https://github.com/openai/openai-cookbook/blob/main/examples/How_to_format_inputs_to_ChatGPT_models.ipynb
         """  # noqa
-        model_name = self.model_name
-        if model_name == "gpt-3.5-turbo-0301":
+        model = self.model
+        if model == "gpt-3.5-turbo-0301":
             tokens_per_message = 4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
             tokens_per_name = -1  # if there's a name, the role is omitted
         else:

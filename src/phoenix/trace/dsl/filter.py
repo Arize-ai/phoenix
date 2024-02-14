@@ -1,4 +1,5 @@
 import ast
+import inspect
 import sys
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
@@ -15,10 +16,10 @@ from typing import (
     cast,
 )
 
+from openinference.semconv import trace
 from typing_extensions import TypeGuard
 
 import phoenix.trace.v1 as pb
-from phoenix.trace import semantic_conventions
 from phoenix.trace.dsl.missing import MISSING
 from phoenix.trace.schemas import COMPUTED_PREFIX, ComputedAttributes, Span, SpanID
 
@@ -137,9 +138,11 @@ def _allowed_replacements() -> Iterator[Tuple[str, ast.expr]]:
         yield "span.context." + source_segment, ast_replacement
 
     for field_name in (
-        getattr(semantic_conventions, variable_name)
-        for variable_name in dir(semantic_conventions)
-        if variable_name.isupper()
+        getattr(klass, attr)
+        for name in dir(trace)
+        if name.endswith("Attributes") and inspect.isclass(klass := getattr(trace, name))
+        for attr in dir(klass)
+        if attr.isupper()
     ):
         source_segment = field_name
         ast_replacement = _ast_replacement(f"span.attributes.get('{field_name}')")

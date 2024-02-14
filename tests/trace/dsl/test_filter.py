@@ -6,8 +6,10 @@ from random import random
 import phoenix.trace.v1 as pb
 import pytest
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
+from openinference.semconv.trace import SpanAttributes
 from phoenix.trace.dsl.filter import SpanFilter, _validate_expression
-from phoenix.trace.semantic_conventions import LLM_TOKEN_COUNT_TOTAL
+
+LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
 
 
 def test_span_filter() -> None:

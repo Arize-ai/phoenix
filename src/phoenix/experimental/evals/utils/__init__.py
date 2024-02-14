@@ -32,7 +32,7 @@ def download_benchmark_dataset(task: str, dataset_name: str) -> pd.DataFrame:
         pandas.DataFrame: A pandas dataframe containing the data.
     """
     jsonl_file_name = f"{dataset_name}.jsonl"
-    url = f"http://storage.googleapis.com/arize-assets/phoenix/evals/{task}/{jsonl_file_name}.zip"
+    url = f"http://storage.googleapis.com/arize-phoenix-assets/evals/{task}/{jsonl_file_name}.zip"
     try:
         with urlopen(url) as response:
             zip_byte_stream = BytesIO(response.read())

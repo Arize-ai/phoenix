@@ -7,9 +7,20 @@ import numpy as np
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import pytest
 from google.protobuf.json_format import MessageToJson
+from openinference.semconv.trace import (
+    DocumentAttributes,
+    EmbeddingAttributes,
+    MessageAttributes,
+    SpanAttributes,
+    ToolCallAttributes,
+)
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
 from phoenix.trace.otel import _decode_identifier, _encode_identifier, _unflatten, decode, encode
 from phoenix.trace.schemas import (
+    EXCEPTION_ESCAPED,
+    EXCEPTION_MESSAGE,
+    EXCEPTION_STACKTRACE,
+    EXCEPTION_TYPE,
     Span,
     SpanContext,
     SpanEvent,
@@ -17,29 +28,24 @@ from phoenix.trace.schemas import (
     SpanKind,
     SpanStatusCode,
 )
-from phoenix.trace.semantic_conventions import (
-    DOCUMENT_CONTENT,
-    DOCUMENT_ID,
-    DOCUMENT_METADATA,
-    DOCUMENT_SCORE,
-    EMBEDDING_EMBEDDINGS,
-    EMBEDDING_TEXT,
-    EMBEDDING_VECTOR,
-    EXCEPTION_ESCAPED,
-    EXCEPTION_MESSAGE,
-    EXCEPTION_STACKTRACE,
-    EXCEPTION_TYPE,
-    LLM_OUTPUT_MESSAGES,
-    LLM_PROMPT_TEMPLATE_VARIABLES,
-    MESSAGE_ROLE,
-    MESSAGE_TOOL_CALLS,
-    OPENINFERENCE_SPAN_KIND,
-    RETRIEVAL_DOCUMENTS,
-    TOOL_CALL_FUNCTION_ARGUMENTS_JSON,
-    TOOL_CALL_FUNCTION_NAME,
-    TOOL_PARAMETERS,
-)
 from pytest import approx
+
+DOCUMENT_CONTENT = DocumentAttributes.DOCUMENT_CONTENT
+DOCUMENT_ID = DocumentAttributes.DOCUMENT_ID
+DOCUMENT_METADATA = DocumentAttributes.DOCUMENT_METADATA
+DOCUMENT_SCORE = DocumentAttributes.DOCUMENT_SCORE
+EMBEDDING_EMBEDDINGS = SpanAttributes.EMBEDDING_EMBEDDINGS
+EMBEDDING_TEXT = EmbeddingAttributes.EMBEDDING_TEXT
+EMBEDDING_VECTOR = EmbeddingAttributes.EMBEDDING_VECTOR
+LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
+LLM_PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
+MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
+MESSAGE_TOOL_CALLS = MessageAttributes.MESSAGE_TOOL_CALLS
+OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
+RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
+TOOL_CALL_FUNCTION_ARGUMENTS_JSON = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
+TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
+TOOL_PARAMETERS = SpanAttributes.TOOL_PARAMETERS
 
 
 def test_decode_encode(span):

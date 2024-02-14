@@ -19,12 +19,14 @@ from typing import (
 )
 
 import pandas as pd
+from openinference.semconv.trace import SpanAttributes
 
 from phoenix.trace.dsl import SpanFilter
 from phoenix.trace.dsl.filter import SupportsGetSpanEvaluation
 from phoenix.trace.schemas import ATTRIBUTE_PREFIX, CONTEXT_PREFIX, Span
-from phoenix.trace.semantic_conventions import RETRIEVAL_DOCUMENTS
 from phoenix.trace.span_json_encoder import span_to_json
+
+RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
 
 _SPAN_ID = "context.span_id"
 _PRESCRIBED_POSITION_PREFIXES = {
