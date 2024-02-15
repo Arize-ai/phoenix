@@ -31,6 +31,37 @@ LlamaIndex 0.8.36 and above supports One-Click!
 
 {% tabs %}
 {% tab title="One-Click" %}
+{% hint style="info" %}
+Using phoenix as a callback requires an install of \`llama-index-callbacks-arize-phoenix>1.3.0'
+{% endhint %}
+
+llama-index 0.10 introduced modular sub-packages. To use llama-index's one click,  you must install the small integration first:
+
+```bash
+pip install 'llama-index-callbacks-arize-phoenix>1.3.0'
+```
+
+```python
+# Phoenix can display in real time the traces automatically
+# collected from your LlamaIndex application.
+import phoenix as px
+# Look for a URL in the output to open the App in a browser.
+px.launch_app()
+# The App is initially empty, but as you proceed with the steps below,
+# traces will appear automatically as your LlamaIndex application runs.
+
+from llama_index.core import set_global_handler
+
+set_global_handler("arize_phoenix")
+
+# Run all of your LlamaIndex applications as usual and traces
+# will be collected and displayed in Phoenix.
+```
+{% endtab %}
+
+{% tab title="One-Click Legacy (<v0.10)" %}
+If you are using an older version of llamaIndex (pre-0.10), you can still use phoenix. You will have to be using `arize-phoenix>3.0.0` and downgrade `openinference-instrumentation-llama-index<1.0.0`
+
 ```python
 # Phoenix can display in real time the traces automatically
 # collected from your LlamaIndex application.

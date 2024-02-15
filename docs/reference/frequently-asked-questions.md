@@ -54,3 +54,9 @@ Simply run `exit` in the terminal/command prompt where you ran the port forwardi
 _If you are working on an API whose endpoints perform RAG, but would like the phoenix server not to be launched as another thread._&#x20;
 
 You can do this by configuring the following the environment variable PHOENIX\_COLLECTOR\_ENDPOINT to point to the server running in a different process or container. https://docs.arize.com/phoenix/environments
+
+
+
+## Can I use an older version of LlamaIndex?
+
+Yes you can! You will have to be using `arize-phoenix>3.0.0` and downgrade `openinference-instrumentation-llama-index<1.0.0`
