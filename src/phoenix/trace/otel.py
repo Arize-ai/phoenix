@@ -23,13 +23,7 @@ from typing import (
 import numpy as np
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 from openinference.semconv import trace
-from openinference.semconv.trace import (
-    DocumentAttributes,
-    EmbeddingAttributes,
-    MessageAttributes,
-    SpanAttributes,
-    ToolCallAttributes,
-)
+from openinference.semconv.trace import DocumentAttributes, SpanAttributes
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
 from opentelemetry.util.types import Attributes, AttributeValue
 from typing_extensions import TypeAlias, assert_never
@@ -50,37 +44,14 @@ from phoenix.trace.schemas import (
     TraceID,
 )
 
-DOCUMENT_CONTENT = DocumentAttributes.DOCUMENT_CONTENT
-DOCUMENT_ID = DocumentAttributes.DOCUMENT_ID
 DOCUMENT_METADATA = DocumentAttributes.DOCUMENT_METADATA
-EMBEDDING_EMBEDDINGS = SpanAttributes.EMBEDDING_EMBEDDINGS
-EMBEDDING_MODEL_NAME = SpanAttributes.EMBEDDING_MODEL_NAME
-EMBEDDING_TEXT = EmbeddingAttributes.EMBEDDING_TEXT
-EMBEDDING_VECTOR = EmbeddingAttributes.EMBEDDING_VECTOR
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
 INPUT_VALUE = SpanAttributes.INPUT_VALUE
-LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
-LLM_INVOCATION_PARAMETERS = SpanAttributes.LLM_INVOCATION_PARAMETERS
-LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
-LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
-LLM_PROMPTS = SpanAttributes.LLM_PROMPTS
-LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
-LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
-LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
-MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
-MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON = MessageAttributes.MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON
-MESSAGE_FUNCTION_CALL_NAME = MessageAttributes.MESSAGE_FUNCTION_CALL_NAME
-MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
-MESSAGE_TOOL_CALLS = MessageAttributes.MESSAGE_TOOL_CALLS
 METADATA = SpanAttributes.METADATA
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
 OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
-RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
-TOOL_CALL_FUNCTION_ARGUMENTS_JSON = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
-TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
 TOOL_PARAMETERS = SpanAttributes.TOOL_PARAMETERS
-LLM_PROMPT_TEMPLATE = SpanAttributes.LLM_PROMPT_TEMPLATE
 LLM_PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
 
 
