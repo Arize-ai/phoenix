@@ -78,6 +78,7 @@
 * [OpenAI](integrations/openai.md)
 * [Bedrock](integrations/bedrock.md)
 * [AutoGen](integrations/autogen-support.md)
+* [DSPy](integrations/dspy.md)
 * [Arize](integrations/bring-production-data-to-notebook-for-eda-or-retraining.md)
 
 ## 🏴☠ Programming Languages
