@@ -10,6 +10,7 @@ import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
 import {
+  Alert,
   Card,
   CardProps,
   Content,
@@ -91,6 +92,21 @@ type DocumentEvaluation = Span["documentEvaluations"][number];
  * A span attribute object that is a map of string to an unknown value
  */
 type AttributeObject = Record<string, unknown>;
+
+/**
+ * Hook that safely parses a JSON string.
+ */
+const useSafelyParsedJSON = (
+  jsonStr: string
+): { json: { [key: string]: unknown } | null; parseError?: unknown } => {
+  return useMemo(() => {
+    try {
+      return { json: JSON.parse(jsonStr) };
+    } catch (e) {
+      return { json: null, parseError: e };
+    }
+  }, [jsonStr]);
+};
 
 function isAttributeObject(value: unknown): value is AttributeObject {
   if (
@@ -425,11 +441,25 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
 
 function SpanInfo({ span }: { span: Span }) {
   const { spanKind, attributes } = span;
-
   // Parse the attributes once
-  const attributesObject = useMemo<{ [key: string]: unknown }>(() => {
-    return JSON.parse(attributes);
-  }, [attributes]);
+  const { json: attributesObject, parseError } =
+    useSafelyParsedJSON(attributes);
+
+  // Handle the case where the attributes are not a valid JSON object
+  if (parseError || !attributesObject) {
+    return (
+      <View padding="size-200">
+        <Flex direction="column" gap="size-200">
+          <Alert variant="warning" title="Un-parsable attributes">
+            {`Failed to parse span attributes. ${parseError instanceof Error ? parseError.message : ""}`}
+          </Alert>
+          <Card {...defaultCardProps} title="Attributes">
+            <View padding="size-100">{attributes}</View>
+          </Card>
+        </Flex>
+      </View>
+    );
+  }
 
   let content: ReactNode;
   switch (spanKind) {
@@ -1354,15 +1384,37 @@ const codeMirrorCSS = css`
     background-color: transparent;
   }
 `;
-function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
+function CodeBlock(props: { value: string; mimeType: MimeType }) {
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? undefined : nord;
+  // We need to make sure that the content can actually be displayed
+  // As JSON as we cannot fully trust the backend to always send valid JSON
+  const { value, mimeType } = useMemo(() => {
+    switch (props.mimeType) {
+      case "json":
+        try {
+          // Attempt to pretty print the JSON. This may fail if the JSON is invalid.
+          // E.g. sometimes it contains NANs due to poor JSON.dumps in the backend
+          return {
+            value: JSON.stringify(JSON.parse(props.value), null, 2),
+            mimeType: props.mimeType,
+          };
+        } catch (e) {
+          // Fall back to string
+          return { value: props.value, mimeType: "text" as const };
+        }
+      case "text":
+        return props;
+      default:
+        assertUnreachable(props.mimeType);
+    }
+  }, [props]);
   let content;
   switch (mimeType) {
     case "json":
       content = (
         <CodeMirror
-          value={JSON.stringify(JSON.parse(value), null, 2)}
+          value={value}
           basicSetup={{
             lineNumbers: true,
             foldGutter: true,
