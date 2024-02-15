@@ -76,6 +76,7 @@ experimental = [
 ]
 llama-index = [
   "llama-index==0.10.3",  # always pin to a version that keeps our notebooks working
+  "llama-index-callbacks-arize-phoenix>=0.1.2",
   "openinference-instrumentation-llama-index>=1.0.0",
 ]
 
