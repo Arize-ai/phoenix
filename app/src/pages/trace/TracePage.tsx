@@ -1401,7 +1401,7 @@ function CodeBlock(props: { value: string; mimeType: MimeType }) {
           };
         } catch (e) {
           // Fall back to string
-          return { value: props.value, mimeType: "text" };
+          return { value: props.value, mimeType: "text" as const };
         }
       case "text":
         return props;
