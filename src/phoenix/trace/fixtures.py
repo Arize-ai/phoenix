@@ -137,8 +137,6 @@ def _download_traces_fixture(
 def load_example_traces(use_case: str) -> TraceDataset:
     """
     Loads a trace dataframe by name.
-
-    NB: this functionality is under active construction.
     """
     fixture = _get_trace_fixture_by_name(use_case)
     return TraceDataset(json_lines_to_df(_download_traces_fixture(fixture)))

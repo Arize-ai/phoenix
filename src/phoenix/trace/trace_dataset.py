@@ -101,9 +101,12 @@ class TraceDataset:
     """
 
     name: str
+    """
+    A human readable name for the dataset.
+    """
     dataframe: pd.DataFrame
     evaluations: List[Evaluations] = []
-    _id: UUID = uuid4()
+    _id: UUID
     _data_file_name: str = "data.parquet"
 
     def __init__(
@@ -131,8 +134,10 @@ class TraceDataset:
             raise ValueError(
                 f"The dataframe is missing some required columns: {', '.join(missing_columns)}"
             )
+        self._id = uuid4()
         self.dataframe = normalize_dataframe(dataframe)
-        self.name = name or f"{GENERATED_DATASET_NAME_PREFIX}{str(uuid4())}"
+        # TODO: This is not used in any meaningful way. Should remove
+        self.name = name or f"{GENERATED_DATASET_NAME_PREFIX}{str(self._id)}"
         self.evaluations = list(evaluations)
 
     @classmethod
@@ -249,6 +254,8 @@ class TraceDataset:
             }
         )
         parquet.write_table(table, path)
+        print(f"💾 Trace dataset saved to under ID: {self._id}")
+        print(f"📂 Trace dataset path: {path}")
         return self._id
 
     @classmethod
@@ -288,7 +295,7 @@ class TraceDataset:
                 warn(f'Failed to load evaluations with id: "{eval_id}"')
         table = parquet.read_table(path)
         dataframe = table.to_pandas()
-        ds = cls(dataframe, dataset_name, evaluations)
+        ds = cls(dataframe=dataframe, name=dataset_name, evaluations=evaluations)
         ds._id = dataset_id
         return ds
 
