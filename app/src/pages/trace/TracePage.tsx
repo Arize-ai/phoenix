@@ -492,7 +492,22 @@ function SpanInfo({ span }: { span: Span }) {
     default:
       content = <SpanIO span={span} />;
   }
-  return <View padding="size-200">{content}</View>;
+
+  return (
+    <View padding="size-200">
+      <Flex direction="column" gap="size-200">
+        {content}
+        {attributesObject?.metadata ? (
+          <Card {...defaultCardProps} title="Metadata">
+            <CodeBlock
+              value={JSON.stringify(attributesObject.metadata)}
+              mimeType="json"
+            />
+          </Card>
+        ) : null}
+      </Flex>
+    </View>
+  );
 }
 
 function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
