@@ -5,8 +5,8 @@ A set of **highly experimental** helper functions to
       indexed by `context.span_id` and `document_position`
   - ingest evaluation results into Phoenix via HttpExporter
 """
+import logging
 import math
-from time import sleep
 from typing import (
     Any,
     Iterator,
@@ -16,14 +16,17 @@ from typing import (
     Union,
     cast,
 )
+from urllib.parse import urljoin
 
 import pandas as pd
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
-from tqdm import tqdm
 
 import phoenix.trace.v1 as pb
+from phoenix.config import get_env_collector_endpoint, get_env_host, get_env_port
+from phoenix.session.client import Client
 from phoenix.trace.dsl.helpers import get_qa_with_reference, get_retrieved_documents
 from phoenix.trace.exporter import HttpExporter
+from phoenix.trace.span_evaluations import Evaluations
 
 __all__ = [
     "get_retrieved_documents",
@@ -31,7 +34,7 @@ __all__ = [
     "add_evaluations",
 ]
 
-from phoenix.trace.span_evaluations import Evaluations
+logger = logging.getLogger(__name__)
 
 
 def encode_evaluations(evaluations: Evaluations) -> Iterator[pb.Evaluation]:
@@ -56,6 +59,10 @@ def add_evaluations(
     exporter: HttpExporter,
     evaluations: Evaluations,
 ) -> None:
+    logger.warning(
+        "This `add_evaluations` function is deprecated and will be removed in a future release. "
+        "Please use `px.Client().log_evaluations(evaluations)` instead."
+    )
     for evaluation in encode_evaluations(evaluations):
         exporter.export(evaluation)
 
@@ -132,14 +139,16 @@ def log_evaluations(
     host: Optional[str] = None,
     port: Optional[int] = None,
 ) -> None:
-    if not (n := sum(map(len, evals))):
-        return
-    exporter = HttpExporter(endpoint=endpoint, host=host, port=port)
-    for eval in filter(bool, evals):
-        add_evaluations(exporter, eval)
-    with tqdm(total=n, desc="Sending Evaluations") as pbar:
-        while n:
-            sleep(0.1)
-            n_left = exporter._queue.qsize()
-            n, diff = n_left, n - n_left
-            pbar.update(diff)
+    logger.warning(
+        "This `log_evaluations` function is deprecated and will be removed in a future release. "
+        "Please use `px.Client().log_evaluations(*evaluations)` instead."
+    )
+    host = host or get_env_host()
+    if host == "0.0.0.0":
+        host = "127.0.0.1"
+    port = port or get_env_port()
+    endpoint = endpoint or urljoin(
+        get_env_collector_endpoint() or f"http://{host}:{port}",
+        "/v1/traces",
+    )
+    Client(endpoint=endpoint).log_evaluations(*evals)

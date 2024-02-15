@@ -4,12 +4,24 @@ from dataclasses import dataclass, field
 from itertools import product
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Callable, List, Mapping, Optional, Sequence, Set, Tuple, Type, Union
+from typing import (
+    Any,
+    Callable,
+    List,
+    Mapping,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Type,
+    Union,
+)
 from uuid import UUID, uuid4
 
 import pandas as pd
 from pandas.api.types import is_integer_dtype, is_numeric_dtype, is_string_dtype
-from pyarrow import Schema, Table, parquet
+from pyarrow import RecordBatchStreamReader, Schema, Table, parquet
 
 from phoenix.config import TRACE_DATASET_DIR
 from phoenix.trace.errors import InvalidParquetMetadataError
@@ -179,10 +191,10 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
         return table
 
     @staticmethod
-    def from_pyarrow_table(table: Table) -> "Evaluations":
-        schema = table.schema
-        eval_id, eval_name, evaluations_cls = _parse_schema_metadata(schema)
-        dataframe = table.to_pandas()
+    def from_pyarrow_reader(reader: RecordBatchStreamReader) -> "Evaluations":
+        schema = reader.schema
+        evaluations_cls, eval_name, eval_id = ArizeMetadata.from_schema(schema)
+        dataframe = reader.read_pandas()
         evaluations = evaluations_cls(eval_name=eval_name, dataframe=dataframe)
         object.__setattr__(evaluations, "id", eval_id)
         return evaluations
@@ -230,7 +242,7 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
             id = UUID(id)
         path = Path(directory or TRACE_DATASET_DIR) / EVAL_PARQUET_FILE_NAME.format(id=id)
         schema = parquet.read_schema(path)
-        eval_id, eval_name, evaluations_cls = _parse_schema_metadata(schema)
+        evaluations_cls, eval_name, eval_id = ArizeMetadata.from_schema(schema)
         if id != eval_id:
             raise InvalidParquetMetadataError(
                 f"The input id {id} does not match the id {eval_id} in the parquet metadata. "
@@ -327,20 +339,32 @@ class TraceEvaluations(
     ...
 
 
-def _parse_schema_metadata(schema: Schema) -> Tuple[UUID, str, Type[Evaluations]]:
-    """
-    Validates and parses the pyarrow schema metadata.
-    """
-    try:
+class ArizeMetadata(NamedTuple):
+    eval_type: Union[Type[SpanEvaluations], Type[DocumentEvaluations], Type[TraceEvaluations]]
+    eval_name: str
+    eval_id: UUID
+
+    @staticmethod
+    def from_schema(schema: Schema) -> "ArizeMetadata":
         metadata = schema.metadata
-        arize_metadata = json.loads(metadata[b"arize"])
-        eval_classes = {subclass.__name__: subclass for subclass in Evaluations.__subclasses__()}
-        eval_id = UUID(arize_metadata["eval_id"])
-        if not isinstance((eval_name := arize_metadata["eval_name"]), str):
-            raise ValueError('Arize metadata must contain a string value for key "eval_name"')
-        evaluations_cls = eval_classes[arize_metadata["eval_type"]]
-        return eval_id, eval_name, evaluations_cls
-    except Exception as err:
-        raise InvalidParquetMetadataError(
-            "An error occurred while parsing parquet schema metadata"
-        ) from err
+        try:
+            arize_metadata = json.loads(metadata[b"arize"])
+            eval_id = UUID(arize_metadata["eval_id"])
+            eval_name = arize_metadata["eval_name"]
+            eval_type_str = arize_metadata["eval_type"]
+            eval_type: Union[
+                Type[SpanEvaluations], Type[DocumentEvaluations], Type[TraceEvaluations]
+            ]
+            if eval_type_str == "SpanEvaluations":
+                eval_type = SpanEvaluations
+            elif eval_type_str == "DocumentEvaluations":
+                eval_type = DocumentEvaluations
+            elif eval_type_str == "TraceEvaluations":
+                eval_type = TraceEvaluations
+            else:
+                raise ValueError(f"Unexpected eval_type: {eval_type_str}")
+        except Exception as err:
+            raise InvalidParquetMetadataError(
+                "An error occurred while parsing parquet schema metadata"
+            ) from err
+        return ArizeMetadata(eval_type, eval_name, eval_id)

@@ -10,8 +10,8 @@ from pandas.testing import assert_frame_equal
 from phoenix.trace import DocumentEvaluations, Evaluations, SpanEvaluations
 from phoenix.trace.span_evaluations import (
     EVAL_NAME_COLUMN_PREFIX,
+    ArizeMetadata,
     InvalidParquetMetadataError,
-    _parse_schema_metadata,
 )
 from pyarrow import parquet
 
@@ -204,4 +204,4 @@ def test_parse_schema_metadata_raise_error_on_invalid_metadata():
         }
     )
     with pytest.raises(InvalidParquetMetadataError):
-        _parse_schema_metadata(schema)
+        ArizeMetadata.from_schema(schema)
