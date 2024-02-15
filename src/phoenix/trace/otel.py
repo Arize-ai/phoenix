@@ -184,8 +184,8 @@ def _decode_value(any_value: AnyValue) -> Any:
 _JSON_STRING_ATTRIBUTES = (
     DOCUMENT_METADATA,
     LLM_PROMPT_TEMPLATE_VARIABLES,
-    TOOL_PARAMETERS,
     METADATA,
+    TOOL_PARAMETERS,
 )
 
 
