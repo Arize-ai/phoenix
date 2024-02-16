@@ -1,0 +1,15 @@
+{
+    "separate-pull-requests": true,
+    "sequential-calls": true,
+    "packages": {
+        ".": {
+            "package-name": "phoenix",
+            "release-type": "python",
+            "exclude-paths": ["packages"]
+        },
+        "packages/phoenix-eval": {
+            "package-name": "phoenix-eval",
+            "release-type": "python"
+        }
+    }
+}
