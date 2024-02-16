@@ -21,6 +21,12 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
 ]
 dynamic = ["version"]
+dependencies = [
+]
+
+[project.optional-dependencies]
+test = [
+]
 
 [project.urls]
 Documentation = "https://docs.arize.com/phoenix/"
@@ -53,10 +59,6 @@ pypi = [
   "twine upload --verbose dist/*",
 ]
 
-[tool.mypy]
-strict = true
-explicit_package_bases = true
-
 [tool.ruff]
 exclude = [".git", "__pycache__", ".tox", "dist"]
 extend-include = ["*.ipynb"]
@@ -72,3 +74,7 @@ force-single-line = false
 
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["E402", "E501"]
+
+[tool.mypy]
+strict = true
+explicit_package_bases = true
