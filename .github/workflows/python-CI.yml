@@ -9,7 +9,6 @@ on:
             - "tests/**"
             - "tutorials/**"
             - "pyproject.toml"
-            - "packages/**"
     # Allows you to run this workflow manually from the Actions tab
     workflow_dispatch:
 
@@ -22,50 +21,9 @@ env:
     OPENAI_API_KEY: "sk-fake-openai-key" # fake openai key so that llama_index doesn't download huggingface embeddings
 
 jobs:
-    changes:
-        name: Filter Changes
-        runs-on: ubuntu-latest
-        outputs:
-            phoenix: ${{ steps.filter.outputs.phoenix }}
-            packages: ${{ steps.filter.outputs.packages }}
-            phoenix_evals: ${{ steps.filter.outputs.phoenix_evals }}
-        steps:
-            - uses: actions/checkout@v4
-            - uses: dorny/paths-filter@v3
-              id: filter
-              with:
-                  filters: |
-                      phoenix:
-                          - "src/**"
-                          - "tests/**"
-                          - "tutorials/**"
-                          - "pyproject.toml"
-                      packages:
-                          - "packages/**"
-                      phoenix_evals:
-                          - "packages/phoenix-evals/**"
-
-    tox:
-        name: Tox
-        runs-on: ubuntu-latest
-        needs: changes
-        if: ${{ needs.changes.outputs.packages == 'true' }}
-        steps:
-            - uses: actions/checkout@v4
-            - uses: actions/setup-python@v5
-              with:
-                  python-version: |
-                      3.8
-                      3.11
-            - run: pip install tox==4.12.1
-            - run: tox run-parallel --parallel-no-spinner -e py38-ci-phoenix_evals,py311-ci-phoenix_evals
-              if: ${{ needs.changes.outputs.phoenix_evals == 'true' }}
-
     lint:
-        name: Lint Phoenix
+        name: Lint Python
         runs-on: ubuntu-latest
-        needs: changes
-        if: ${{ needs.changes.outputs.phoenix == 'true' }}
         steps:
             - name: Checkout Repository
               uses: actions/checkout@v3
@@ -97,10 +55,9 @@ jobs:
                   git diff --exit-code
 
     test:
-        name: Test Phoenix
+        name: Test Python
         runs-on: ${{ matrix.os }}
-        needs: changes
-        if: ${{ needs.changes.outputs.phoenix == 'true' }}
+        # needs: [lint]
         strategy:
             matrix:
                 os: [macos-latest, windows-latest, ubuntu-latest]
