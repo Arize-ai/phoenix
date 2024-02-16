@@ -11,21 +11,55 @@ name: release-please
 
 jobs:
   create-release:
-    name: Create release
     runs-on: ubuntu-latest
     outputs:
-      release_created: ${{ steps.release-please.outputs.release_created }}
+      phoenix_path: ${{ steps.parse.outputs.phoenix_path }}
+      package_path: ${{ steps.parse.outputs.package_path }}
     steps:
       - uses: google-github-actions/release-please-action@v4
         id: release-please
-        with:
-          release-type: python
+      - name: Parse release path
+        if: ${{ steps.release-please.outputs.releases_created == 'true' }}
+        id: parse
+        env:
+          PATHS_RELEASED: ${{ steps.release-please.outputs.paths_released }}
+        # We assume that only one path is released at a time
+        run: |
+          echo $PATHS_RELEASED | jq -r '.[0]' | while read -r PATH; do
+            case $PATH in 
+              packages/*)
+                echo "package_path=$PATH" >> $GITHUB_OUTPUT ;;
+              *)
+                echo "phoenix_path=$PATH" >> $GITHUB_OUTPUT ;;
+            esac
+          done
 
-  publish-to-pypi:
-    name: Publish to PyPI
+  publish-package:
+    name: Publish Package
     runs-on: ubuntu-latest
     needs: create-release
-    if: ${{ needs.create-release.outputs.release_created }}
+    if: ${{ needs.create-release.outputs.package_path != '' }}
+    defaults:
+      run:
+        working-directory: ${{ needs.create-release.outputs.package_path }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - run: python -m pip install hatch check_wheel_contents twine
+      - run: hatch build
+      - run: check-wheel-contents dist/*.whl
+      - run: twine upload --skip-existing --verbose dist/*
+        env:
+          TWINE_USERNAME: '__token__'
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+
+  publish-phoenix:
+    name: Publish Phoenix
+    runs-on: ubuntu-latest
+    needs: create-release
+    if: ${{ needs.create-release.outputs.phoenix_path != '' }}
     environment:
       name: pypi
       url: https://pypi.org/p/arize-phoenix
