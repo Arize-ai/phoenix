@@ -5,7 +5,13 @@
         ".": {
             "package-name": "phoenix",
             "release-type": "python",
+            "version-file": "src/phoenix/version.py",
             "exclude-paths": ["packages"]
+        },
+        "packages/phoenix-evals": {
+            "package-name": "phoenix-evals",
+            "release-type": "python",
+            "version-file": "packages/phoenix-evals/src/phoenix/evals/version.py"
         }
     },
     "bootstrap-sha": "213a2a3a62436b46ff3c07d8f06bf1c932320e76"
