@@ -24,7 +24,7 @@ The evaluations dataframe can be sent to Phoenix as follows. Note that the name 
 ```python
 from phoenix.trace import SpanEvaluations
 
-px.log_evaluations(
+px.Client().log_evaluations(
     SpanEvaluations(
         dataframe=qa_correctness_eval_df,
         eval_name="Q&A Correctness",
@@ -43,7 +43,7 @@ The evaluations dataframe can be sent to Phoenix as follows. Note that the name 
 ```python
 from phoenix.trace import DocumentEvaluations
 
-px.log_evaluations(
+px.Client().log_evaluations(
     DocumentEvaluations(
         dataframe=document_relevance_eval_df,
         eval_name="Relevance",
@@ -53,10 +53,10 @@ px.log_evaluations(
 
 ## Logging Multiple Evaluation DataFrames
 
-Multiple evaluation datasets can be logged by the same `px.log_evaluations()` function call.
+Multiple evaluation datasets can be logged by the same `px.Client().log_evaluations()` function call.
 
 ```
-px.log_evaluations(
+px.Client().log_evaluations(
     SpanEvaluations(
         dataframe=qa_correctness_eval_df,
         eval_name="Q&A Correctness",
