@@ -279,6 +279,7 @@ disallow_untyped_defs = true
 disallow_incomplete_defs  = true
 strict = true
 exclude = [
+  "packages/",
   "dist/",
   "scripts/data/",
   "sdist/",
@@ -305,7 +306,7 @@ module = [
 ignore_missing_imports = true
 
 [tool.ruff]
-exclude = [".git", "__pycache__", "docs/source/conf.py", "*_pb2.py*", "*.pyi"]
+exclude = ["packages", ".git", "__pycache__", "docs/source/conf.py", "*_pb2.py*", "*.pyi"]
 extend-include = ["*.ipynb"]
 ignore-init-module-imports = true
 line-length = 100
