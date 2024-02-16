@@ -2,7 +2,9 @@ import asyncio
 import gzip
 from typing import AsyncIterator
 
+import pyarrow as pa
 from google.protobuf.message import DecodeError
+from starlette.background import BackgroundTask
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
@@ -15,6 +17,8 @@ from starlette.status import (
 import phoenix.trace.v1 as pb
 from phoenix.core.evals import Evals
 from phoenix.server.api.routers.utils import table_to_bytes
+from phoenix.session.evaluation import encode_evaluations
+from phoenix.trace.span_evaluations import Evaluations
 
 
 class EvaluationHandler(HTTPEndpoint):
@@ -22,6 +26,8 @@ class EvaluationHandler(HTTPEndpoint):
 
     async def post(self, request: Request) -> Response:
         content_type = request.headers.get("content-type")
+        if content_type == "application/x-pandas-arrow":
+            return await self._process_pyarrow(request)
         if content_type != "application/x-protobuf":
             return Response(
                 content="Unsupported content type",
@@ -67,3 +73,30 @@ class EvaluationHandler(HTTPEndpoint):
             content=content(),
             media_type="application/x-pandas-arrow",
         )
+
+    async def _process_pyarrow(self, request: Request) -> Response:
+        body = await request.body()
+        try:
+            reader = pa.ipc.open_stream(body)
+        except pa.ArrowInvalid:
+            return Response(
+                content="Request body is not valid pyarrow",
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        try:
+            evaluations = Evaluations.from_pyarrow_reader(reader)
+        except Exception:
+            return Response(
+                content="Invalid data in request body",
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        return Response(
+            background=BackgroundTask(
+                self._add_evaluations,
+                evaluations,
+            )
+        )
+
+    async def _add_evaluations(self, evaluations: Evaluations) -> None:
+        for evaluation in encode_evaluations(evaluations):
+            self.evals.put(evaluation)
