@@ -62,7 +62,7 @@ qa_correctness_eval["score"] = (
 ).astype(int)
 
 # Logs the Evaluations back to the Phoenix User Interface (Optional)
-px.log_evaluations(
+px.Client().log_evaluations(
   SpanEvaluations(eval_name="Hallucination", dataframe=hallucination_eval),
   SpanEvaluations(eval_name="QA Correctness", dataframe=qa_correctness_eval),
 )
@@ -100,7 +100,7 @@ retrieved_documents_eval["score"] = (
     retrieved_documents_eval.label[~retrieved_documents_eval.label.isna()] == "relevant"
 ).astype(int)
 
-px.log_evaluations(DocumentEvaluations(eval_name="Relevance", dataframe=retrieved_documents_eval))
+px.Client().log_evaluations(DocumentEvaluations(eval_name="Relevance", dataframe=retrieved_documents_eval))
 
 ```
 

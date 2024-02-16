@@ -117,11 +117,11 @@ Log your evaluations to your running Phoenix session.
 ```python
 from phoenix.trace import DocumentEvaluations, SpanEvaluations
 
-px.log_evaluations(
+px.Client().log_evaluations(
     SpanEvaluations(eval_name="Hallucination", dataframe=hallucination_eval_df),
     SpanEvaluations(eval_name="QA Correctness", dataframe=qa_correctness_eval_df),
+    DocumentEvaluations(eval_name="Relevance", dataframe=relevance_eval_df),
 )
-px.log_evaluations(DocumentEvaluations(eval_name="Relevance", dataframe=relevance_eval_df))
 ```
 
 Your evaluations should now appear as annotations on your spans in Phoenix!
