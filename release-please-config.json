@@ -1,0 +1,12 @@
+{
+    "separate-pull-requests": true,
+    "sequential-calls": true,
+    "packages": {
+        ".": {
+            "package-name": "phoenix",
+            "release-type": "python",
+            "exclude-paths": ["packages"]
+        }
+    },
+    "bootstrap-sha": "213a2a3a62436b46ff3c07d8f06bf1c932320e76"
+}
