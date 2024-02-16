@@ -45,8 +45,8 @@ jobs:
                       phoenix_evals:
                           - "packages/phoenix-evals/**"
 
-    packages:
-        name: Packages CI
+    tox:
+        name: Tox
         runs-on: ubuntu-latest
         needs: changes
         if: ${{ needs.changes.outputs.packages == 'true' }}
@@ -62,7 +62,7 @@ jobs:
               if: ${{ needs.changes.outputs.phoenix_evals == 'true' }}
 
     lint:
-        name: Lint Python
+        name: Lint Phoenix
         runs-on: ubuntu-latest
         needs: changes
         if: ${{ needs.changes.outputs.phoenix == 'true' }}
@@ -97,7 +97,7 @@ jobs:
                   git diff --exit-code
 
     test:
-        name: Test Python
+        name: Test Phoenix
         runs-on: ${{ matrix.os }}
         needs: changes
         if: ${{ needs.changes.outputs.phoenix == 'true' }}
