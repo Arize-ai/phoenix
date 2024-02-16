@@ -4,18 +4,7 @@ from dataclasses import dataclass, field
 from itertools import product
 from pathlib import Path
 from types import MappingProxyType
-from typing import (
-    Any,
-    Callable,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-    Type,
-    Union,
-)
+from typing import Any, Callable, List, Mapping, Optional, Sequence, Set, Tuple, Type, Union
 from uuid import UUID, uuid4
 
 import pandas as pd
