@@ -1,4 +1,5 @@
 import json
+import sys
 from typing import Dict
 from unittest.mock import patch
 
@@ -242,6 +243,10 @@ def test_classify_tolerance_to_exceptions(
     assert "Exception in worker" in captured.out
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 9),
+    reason="https://github.com/BerriAI/litellm/issues/2005",
+)
 def test_litellm_model_llm_generate(monkeypatch: pytest.MonkeyPatch):
     """LiteLLM can return a `mock_response` from completion, we set it in model_kwargs to True"""
 
