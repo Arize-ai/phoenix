@@ -60,13 +60,15 @@ explicit_package_bases = true
 [tool.ruff]
 exclude = [".git", "__pycache__", ".tox", "dist"]
 extend-include = ["*.ipynb"]
-ignore-init-module-imports = true
 line-length = 100
-select = ["E", "F", "W", "I"]
 target-version = "py38"
+
+[tool.ruff.lint]
+ignore-init-module-imports = true
+select = ["E", "F", "W", "I"]
+
+[tool.ruff.lint.isort]
+force-single-line = false
 
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["E402", "E501"]
-
-[tool.ruff.isort]
-force-single-line = false
