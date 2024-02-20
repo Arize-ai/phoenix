@@ -6,7 +6,7 @@ import pandas as pd
 from phoenix.experimental.evals.functions.executor import (
     get_executor_on_sync_context,
 )
-from phoenix.experimental.evals.models import BaseModel, set_verbosity
+from phoenix.experimental.evals.models import BaseEvalModel, set_verbosity
 from phoenix.experimental.evals.templates import (
     PromptTemplate,
     map_template,
@@ -24,7 +24,7 @@ def _no_op_parser(response: str, response_index: int) -> Dict[str, str]:
 def llm_generate(
     dataframe: pd.DataFrame,
     template: Union[PromptTemplate, str],
-    model: BaseModel,
+    model: BaseEvalModel,
     system_instruction: Optional[str] = None,
     verbose: bool = False,
     output_parser: Optional[Callable[[str, int], Dict[str, Any]]] = None,

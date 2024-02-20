@@ -1,9 +1,9 @@
 import logging
 import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from phoenix.experimental.evals.models.base import BaseModel
+from phoenix.experimental.evals.models.base import BaseEvalModel
 
 if TYPE_CHECKING:
     from google.auth.credentials import Credentials  # type:ignore
@@ -14,7 +14,7 @@ MINIMUM_VERTEX_AI_VERSION = "1.33.0"
 
 
 @dataclass
-class VertexAIModel(BaseModel):
+class VertexAIModel(BaseEvalModel):
     project: Optional[str] = None
     "project (str): The default project to use when making API calls."
     location: Optional[str] = None
@@ -24,6 +24,12 @@ class VertexAIModel(BaseModel):
     model: str = "text-bison"
     tuned_model: Optional[str] = None
     "The name of a tuned model. If provided, model is ignored."
+    max_retries: int = 6
+    """Maximum number of retries to make when generating."""
+    retry_min_seconds: int = 10
+    """Minimum number of seconds to wait when retrying."""
+    retry_max_seconds: int = 60
+    """Maximum number of seconds to wait when retrying."""
     temperature: float = 0.0
     """What sampling temperature to use."""
     max_tokens: int = 256
@@ -54,7 +60,6 @@ class VertexAIModel(BaseModel):
         self._init_environment()
         self._init_vertex_ai()
         self._instantiate_model()
-        self._model_name = self.tuned_model or self.model
 
     def _migrate_model_name(self) -> None:
         if self.model_name is not None:
@@ -154,6 +159,20 @@ class VertexAIModel(BaseModel):
                 "top_k": self.top_k,
                 "top_p": self.top_p,
             }
+
+    def get_tokens_from_text(self, text: str) -> List[int]:
+        raise NotImplementedError
+
+    def get_text_from_tokens(self, tokens: List[int]) -> str:
+        raise NotImplementedError
+
+    @property
+    def max_context_size(self) -> int:
+        raise NotImplementedError
+
+    @property
+    def encoder(self):  # type:ignore
+        raise NotImplementedError
 
 
 def is_codey_model(model_name: str) -> bool:
