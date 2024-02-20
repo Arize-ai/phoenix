@@ -95,6 +95,7 @@ class SpanEvent:
 class Span:
     name: str
     status_code: SpanStatusCode
+    status_message: str
     start_time: datetime
     end_time: Optional[datetime]
     latency_ms: Optional[float]
@@ -228,6 +229,7 @@ def to_gql_span(span: trace_schema.Span) -> "Span":
     return Span(
         name=span.name,
         status_code=SpanStatusCode(span.status_code),
+        status_message=span.status_message,
         parent_id=cast(Optional[ID], span.parent_id),
         span_kind=SpanKind(span.span_kind),
         start_time=span.start_time,
