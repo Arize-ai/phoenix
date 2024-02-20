@@ -62,7 +62,7 @@ _DEPRECATION_WARNING = (
 
 def get_encoder(model: BaseModel) -> tiktoken.Encoding:
     try:
-        encoding = tiktoken.encoding_for_model(model.model_name)
+        encoding = tiktoken.encoding_for_model(model._model_name)
     except KeyError:
         encoding = tiktoken.get_encoding("cl100k_base")
     return encoding
@@ -70,7 +70,7 @@ def get_encoder(model: BaseModel) -> tiktoken.Encoding:
 
 def max_context_size(model: BaseModel) -> int:
     # default to 4096
-    return MODEL_TOKEN_LIMIT.get(model.model_name, 4096)
+    return MODEL_TOKEN_LIMIT.get(model._model_name, 4096)
 
 
 def get_tokens_from_text(encoder: tiktoken.Encoding, text: str) -> List[int]:

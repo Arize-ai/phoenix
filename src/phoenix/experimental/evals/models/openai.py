@@ -111,6 +111,7 @@ class OpenAIModel(BaseModel):
         self._init_environment()
         self._init_open_ai()
         self._init_rate_limiter()
+        self._model_name = self.model
 
     def reload_client(self) -> None:
         self._init_open_ai()

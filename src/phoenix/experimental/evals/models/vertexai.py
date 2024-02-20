@@ -60,6 +60,7 @@ class VertexAIModel(BaseModel):
         self._init_environment()
         self._init_vertex_ai()
         self._instantiate_model()
+        self._model_name = self.tuned_model or self.model
 
     def _migrate_model_name(self) -> None:
         if self.model_name is not None:

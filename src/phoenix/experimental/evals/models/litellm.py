@@ -42,6 +42,7 @@ class LiteLLMModel(BaseEvalModel):
     def __post_init__(self) -> None:
         self._migrate_model_name()
         self._init_environment()
+        self._model_name = self.model
 
     def _migrate_model_name(self) -> None:
         if self.model_name is not None:
