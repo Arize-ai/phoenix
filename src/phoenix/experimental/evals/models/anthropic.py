@@ -8,7 +8,7 @@ from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 
 @dataclass
 class AnthropicModel(BaseModel):
-    model_name: str = "claude-2.1"
+    model: str = "claude-2.1"
     """The model name to use."""
     temperature: float = 0.0
     """What sampling temperature to use."""
@@ -28,6 +28,7 @@ class AnthropicModel(BaseModel):
     def __post_init__(self) -> None:
         self._init_client()
         self._init_rate_limiter()
+        self._model_name = self.model
 
     def _init_client(self) -> None:
         try:
@@ -66,7 +67,7 @@ class AnthropicModel(BaseModel):
         invocation_parameters = self.invocation_parameters()
         invocation_parameters.update(kwargs)
         response = self._rate_limited_completion(
-            model=self.model_name,
+            model=self.model,
             prompt=self._format_prompt_for_claude(prompt),
             **invocation_parameters,
         )
@@ -94,7 +95,7 @@ class AnthropicModel(BaseModel):
         invocation_parameters = self.invocation_parameters()
         invocation_parameters.update(kwargs)
         response = await self._async_rate_limited_completion(
-            model=self.model_name,
+            model=self.model,
             prompt=self._format_prompt_for_claude(prompt),
             **invocation_parameters,
         )

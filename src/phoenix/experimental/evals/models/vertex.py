@@ -21,7 +21,7 @@ class GeminiModel(BaseModel):
     # The vertex SDK runs into connection pool limits at high concurrency
     default_concurrency: int = 5
 
-    model_name: str = "gemini-pro"
+    model: str = "gemini-pro"
     """The model name to use."""
     temperature: float = 0.0
     """What sampling temperature to use."""
@@ -37,6 +37,7 @@ class GeminiModel(BaseModel):
     def __post_init__(self) -> None:
         self._init_client()
         self._init_rate_limiter()
+        self._model_name = self.model
 
     def reload_client(self) -> None:
         self._init_client()
@@ -48,7 +49,7 @@ class GeminiModel(BaseModel):
 
             self._vertex = vertex
             self._gcp_exceptions = exceptions
-            self._model = self._vertex.GenerativeModel(self.model_name)
+            self._model = self._vertex.GenerativeModel(self.model)
         except ImportError:
             self._raise_import_error(
                 package_name="vertexai",

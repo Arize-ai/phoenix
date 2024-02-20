@@ -14,7 +14,7 @@ MINIMUM_BOTO_VERSION = "1.28.58"
 
 @dataclass
 class BedrockModel(BaseModel):
-    model_name: str = "anthropic.claude-v2"
+    model_id: str = "anthropic.claude-v2"
     """The model name to use."""
     temperature: float = 0.0
     """What sampling temperature to use."""
@@ -36,6 +36,7 @@ class BedrockModel(BaseModel):
     def __post_init__(self) -> None:
         self._init_client()
         self._init_rate_limiter()
+        self._model_name = self.model_id
 
     def _init_client(self) -> None:
         if not self.client:
@@ -64,7 +65,7 @@ class BedrockModel(BaseModel):
         contentType = "application/json"
 
         response = self._rate_limited_completion(
-            body=body, modelId=self.model_name, accept=accept, contentType=contentType
+            body=body, modelId=self.model_id, accept=accept, contentType=contentType
         )
 
         return self._parse_output(response) or ""
@@ -105,7 +106,7 @@ class BedrockModel(BaseModel):
     def _create_request_body(self, prompt: str) -> Dict[str, Any]:
         # The request formats for bedrock models differ
         # see https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters.html
-        if self.model_name.startswith("ai21"):
+        if self.model_id.startswith("ai21"):
             return {
                 **{
                     "prompt": prompt,
@@ -116,7 +117,7 @@ class BedrockModel(BaseModel):
                 },
                 **self.extra_parameters,
             }
-        elif self.model_name.startswith("anthropic"):
+        elif self.model_id.startswith("anthropic"):
             return {
                 **{
                     "prompt": self._format_prompt_for_claude(prompt),
@@ -129,9 +130,9 @@ class BedrockModel(BaseModel):
                 **self.extra_parameters,
             }
         else:
-            if not self.model_name.startswith("amazon"):
+            if not self.model_id.startswith("amazon"):
                 logger.warn(
-                    f"Unknown format for model {self.model_name}, returning titan format..."
+                    f"Unknown format for model {self.model_id}, returning titan format..."
                 )
             return {
                 **{
@@ -147,13 +148,13 @@ class BedrockModel(BaseModel):
             }
 
     def _parse_output(self, response: Any) -> Any:
-        if self.model_name.startswith("ai21"):
+        if self.model_id.startswith("ai21"):
             body = json.loads(response.get("body").read())
             return body.get("completions")[0].get("data").get("text")
-        elif self.model_name.startswith("anthropic"):
+        elif self.model_id.startswith("anthropic"):
             body = json.loads(response.get("body").read().decode())
             return body.get("completion")
-        elif self.model_name.startswith("amazon"):
+        elif self.model_id.startswith("amazon"):
             body = json.loads(response.get("body").read())
             return body.get("results")[0].get("outputText")
         else:

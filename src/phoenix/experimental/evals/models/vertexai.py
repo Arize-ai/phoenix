@@ -38,12 +38,12 @@ class VertexAIModel(BaseModel):
     "among the top-k most probable tokens. Top-k is ignored for Codey models."
 
     # Deprecated fields
-    model: Optional[str] = None
+    model_name: Optional[str] = None
     """
     .. deprecated:: 3.0.0
        use `model` instead. This will be removed in a future release.
     """
-    tuned_model: Optional[str] = None
+    tuned_model_name: Optional[str] = None
     """
     .. deprecated:: 3.0.0
        use `tuned_model` instead. This will be removed in a future release.
@@ -54,9 +54,10 @@ class VertexAIModel(BaseModel):
         self._init_environment()
         self._init_vertex_ai()
         self._instantiate_model()
+        self._model_name = self.tuned_model or self.model
 
     def _migrate_model_name(self) -> None:
-        if self.model is not None:
+        if self.model_name is not None:
             warning_message = (
                 "The `model_name` field is deprecated. Use `model` instead. "
                 + "This will be removed in a future release."
@@ -66,9 +67,9 @@ class VertexAIModel(BaseModel):
                 DeprecationWarning,
             )
             print(warning_message)
-            self.model = self.model
-            self.model = None
-        if self.tuned_model is not None:
+            self.model = self.model_name
+            self.model_name = None
+        if self.tuned_model_name is not None:
             warning_message = (
                 "`tuned_model_name` field is deprecated. Use `tuned_model` instead. "
                 + "This will be removed in a future release."
@@ -78,8 +79,8 @@ class VertexAIModel(BaseModel):
                 DeprecationWarning,
             )
             print(warning_message)
-            self.tuned_model = self.tuned_model
-            self.tuned_model = None
+            self.tuned_model = self.tuned_model_name
+            self.tuned_model_name = None
 
     def _init_environment(self) -> None:
         try:

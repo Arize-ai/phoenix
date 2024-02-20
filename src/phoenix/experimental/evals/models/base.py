@@ -49,7 +49,7 @@ class BaseModel(ABC):
 
     @property
     @abstractmethod
-    def model_name(self) -> str:
+    def _model_name(self) -> str:
         """
         A string identifier for the text model being used.
         """
