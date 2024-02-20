@@ -3,7 +3,7 @@ import { Sphere } from "@react-three/drei";
 
 import { usePointCloudContext } from "@phoenix/contexts";
 
-const POINT_RADIUS_MULTIPLIER = 1.5;
+const POINT_RADIUS_MULTIPLIER = 2;
 
 export function PointCloudPointHoverHalo({
   pointRadius,
@@ -36,7 +36,7 @@ export function PointCloudPointHoverHalo({
       scale={[pointSizeScale, pointSizeScale, pointSizeScale]}
     >
       {/* eslint-disable-next-line react/no-unknown-property */}
-      <meshMatcapMaterial color={color} opacity={0.5} transparent />
+      <meshMatcapMaterial color={color} opacity={0.7} transparent />
     </Sphere>
   );
 }

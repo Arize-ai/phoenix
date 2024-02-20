@@ -24,6 +24,9 @@ export function PointSelectionGrid(props: PointSelectionGridProps) {
   const selectionGridSize = usePointCloudContext(
     (state) => state.selectionGridSize
   );
+  const setHoveredEventId = usePointCloudContext(
+    (state) => state.setHoveredEventId
+  );
 
   return (
     <div
@@ -83,6 +86,12 @@ export function PointSelectionGrid(props: PointSelectionGridProps) {
                 group={group}
                 onClick={() => {
                   onItemSelected(event.id);
+                }}
+                onMouseOver={() => {
+                  setHoveredEventId(event.id);
+                }}
+                onMouseOut={() => {
+                  setHoveredEventId(null);
                 }}
                 color={color}
                 size={selectionGridSize}

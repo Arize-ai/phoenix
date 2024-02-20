@@ -1,3 +1,5 @@
+import logging
+import warnings
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
@@ -6,6 +8,7 @@ from phoenix.experimental.evals.models.base import BaseModel
 if TYPE_CHECKING:
     from google.auth.credentials import Credentials  # type:ignore
 
+logger = logging.getLogger(__name__)
 
 MINIMUM_VERTEX_AI_VERSION = "1.33.0"
 
@@ -18,9 +21,9 @@ class VertexAIModel(BaseModel):
     "location (str): The default location to use when making API calls. If not "
     "set defaults to us-central-1."
     credentials: Optional["Credentials"] = None
-    model_name: str = "text-bison"
-    tuned_model_name: Optional[str] = None
-    "The name of a tuned model. If provided, model_name is ignored."
+    model: str = "text-bison"
+    tuned_model: Optional[str] = None
+    "The name of a tuned model. If provided, model is ignored."
     temperature: float = 0.0
     """What sampling temperature to use."""
     max_tokens: int = 256
@@ -34,10 +37,49 @@ class VertexAIModel(BaseModel):
     "How the model selects tokens for output, the next token is selected from "
     "among the top-k most probable tokens. Top-k is ignored for Codey models."
 
+    # Deprecated fields
+    model: Optional[str] = None
+    """
+    .. deprecated:: 3.0.0
+       use `model` instead. This will be removed in a future release.
+    """
+    tuned_model: Optional[str] = None
+    """
+    .. deprecated:: 3.0.0
+       use `tuned_model` instead. This will be removed in a future release.
+    """
+
     def __post_init__(self) -> None:
+        self._migrate_model_name()
         self._init_environment()
         self._init_vertex_ai()
         self._instantiate_model()
+
+    def _migrate_model_name(self) -> None:
+        if self.model is not None:
+            warning_message = (
+                "The `model_name` field is deprecated. Use `model` instead. "
+                + "This will be removed in a future release."
+            )
+            warnings.warn(
+                warning_message,
+                DeprecationWarning,
+            )
+            print(warning_message)
+            self.model = self.model
+            self.model = None
+        if self.tuned_model is not None:
+            warning_message = (
+                "`tuned_model_name` field is deprecated. Use `tuned_model` instead. "
+                + "This will be removed in a future release."
+            )
+            warnings.warn(
+                warning_message,
+                DeprecationWarning,
+            )
+            print(warning_message)
+            self.tuned_model = self.tuned_model
+            self.tuned_model = None
 
     def _init_environment(self) -> None:
         try:
@@ -66,10 +108,10 @@ class VertexAIModel(BaseModel):
 
             model = TextGenerationModel
 
-        if self.tuned_model_name:
-            self._model = model.get_tuned_model(self.tuned_model_name)
+        if self.tuned_model:
+            self._model = model.get_tuned_model(self.tuned_model)
         else:
-            self._model = model.from_pretrained(self.model_name)
+            self._model = model.from_pretrained(self.model)
 
     def verbose_generation_info(self) -> str:
         return f"VertexAI invocation parameters: {self.invocation_params}"
@@ -87,7 +129,7 @@ class VertexAIModel(BaseModel):
 
     @property
     def is_codey_model(self) -> bool:
-        return is_codey_model(self.tuned_model_name or self.model_name)
+        return is_codey_model(self.tuned_model or self.model)
 
     @property
     def _init_params(self) -> Dict[str, Any]:

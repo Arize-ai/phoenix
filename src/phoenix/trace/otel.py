@@ -1,3 +1,4 @@
+import inspect
 import json
 from binascii import hexlify, unhexlify
 from datetime import datetime, timezone
@@ -19,13 +20,19 @@ from typing import (
     cast,
 )
 
+import numpy as np
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
+from openinference.semconv import trace
+from openinference.semconv.trace import DocumentAttributes, SpanAttributes
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
 from opentelemetry.util.types import Attributes, AttributeValue
 from typing_extensions import TypeAlias, assert_never
 
-import phoenix.trace.semantic_conventions as sem_conv
 from phoenix.trace.schemas import (
+    EXCEPTION_ESCAPED,
+    EXCEPTION_MESSAGE,
+    EXCEPTION_STACKTRACE,
+    EXCEPTION_TYPE,
     MimeType,
     Span,
     SpanContext,
@@ -36,18 +43,16 @@ from phoenix.trace.schemas import (
     SpanStatusCode,
     TraceID,
 )
-from phoenix.trace.semantic_conventions import (
-    DOCUMENT_METADATA,
-    EXCEPTION_ESCAPED,
-    EXCEPTION_MESSAGE,
-    EXCEPTION_STACKTRACE,
-    EXCEPTION_TYPE,
-    INPUT_MIME_TYPE,
-    LLM_PROMPT_TEMPLATE_VARIABLES,
-    OPENINFERENCE_SPAN_KIND,
-    OUTPUT_MIME_TYPE,
-    TOOL_PARAMETERS,
-)
+
+DOCUMENT_METADATA = DocumentAttributes.DOCUMENT_METADATA
+INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
+INPUT_VALUE = SpanAttributes.INPUT_VALUE
+METADATA = SpanAttributes.METADATA
+OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
+OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
+OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
+TOOL_PARAMETERS = SpanAttributes.TOOL_PARAMETERS
+LLM_PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
 
 
 def decode(otlp_span: otlp.Span) -> Span:
@@ -150,6 +155,7 @@ def _decode_value(any_value: AnyValue) -> Any:
 _JSON_STRING_ATTRIBUTES = (
     DOCUMENT_METADATA,
     LLM_PROMPT_TEMPLATE_VARIABLES,
+    METADATA,
     TOOL_PARAMETERS,
 )
 
@@ -185,7 +191,13 @@ def _decode_status(otlp_status: otlp.Status) -> Tuple[SpanStatusCode, StatusMess
 
 
 _SEMANTIC_CONVENTIONS: List[str] = sorted(
-    (getattr(sem_conv, name) for name in dir(sem_conv) if name.isupper()),
+    (
+        getattr(klass, attr)
+        for name in dir(trace)
+        if name.endswith("Attributes") and inspect.isclass(klass := getattr(trace, name))
+        for attr in dir(klass)
+        if attr.isupper()
+    ),
     reverse=True,
 )  # sorted so the longer strings go first
 
@@ -320,7 +332,11 @@ def encode(span: Span) -> otlp.Span:
                 attributes[key] = json.dumps(value)
             else:
                 attributes.update(_flatten_mapping(value, key))
-        elif not isinstance(value, str) and isinstance(value, Sequence) and _has_mapping(value):
+        elif (
+            not isinstance(value, str)
+            and (isinstance(value, Sequence) or isinstance(value, np.ndarray))
+            and _has_mapping(value)
+        ):
             attributes.pop(key, None)
             attributes.update(_flatten_sequence(value, key))
 
@@ -413,6 +429,8 @@ def _encode_attributes(attributes: Attributes) -> Iterator[KeyValue]:
     if not attributes:
         return
     for key, value in attributes.items():
+        if isinstance(value, np.ndarray):
+            value = value.tolist()
         yield KeyValue(key=key, value=_encode_value(value))
 
 

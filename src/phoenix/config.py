@@ -12,7 +12,7 @@ ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
 The endpoint traces and evals are sent to. This must be set if the Phoenix
 server is running on a remote instance.
 """
-ENV_WORKING_DIR = "PHOENIX_WORKING_DIR"
+ENV_PHOENIX_WORKING_DIR = "PHOENIX_WORKING_DIR"
 """
 The directory in which to save, load, and export datasets. This directory must
 be accessible by both the Phoenix server and the notebook environment.
@@ -45,7 +45,7 @@ def get_working_dir() -> Path:
     """
     Get the working directory for saving, loading, and exporting datasets.
     """
-    working_dir_str = os.getenv(ENV_WORKING_DIR)
+    working_dir_str = os.getenv(ENV_PHOENIX_WORKING_DIR)
     if working_dir_str is not None:
         return Path(working_dir_str)
     # Fall back to ~/.phoenix if PHOENIX_WORKING_DIR is not set
@@ -77,7 +77,9 @@ except Exception as e:
         f"⚠️ Failed to initialize the working directory at {WORKING_DIR} due to an error: {str(e)}"
     )
     print("⚠️ While phoenix will still run, you will not be able to save, load, or export data")
-    print("ℹ️ To change, set the `{ENV_WORKING_DIR}` environment variable before importing phoenix.")
+    print(
+        f"ℹ️ To change, set the `{ENV_PHOENIX_WORKING_DIR}` environment variable before importing phoenix."  # noqa: E501
+    )
 
 
 def get_exported_files(directory: Path) -> List[Path]:

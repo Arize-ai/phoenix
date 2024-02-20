@@ -3,16 +3,16 @@ from random import random
 
 import pandas as pd
 import pytest
+from openinference.semconv.trace import DocumentAttributes, SpanAttributes
 from pandas.testing import assert_frame_equal
 from phoenix.trace.dsl.query import Concatenation, Explosion, Projection, SpanQuery
 from phoenix.trace.schemas import ATTRIBUTE_PREFIX, CONTEXT_PREFIX
-from phoenix.trace.semantic_conventions import (
-    DOCUMENT_CONTENT,
-    DOCUMENT_SCORE,
-    INPUT_VALUE,
-    OUTPUT_VALUE,
-    RETRIEVAL_DOCUMENTS,
-)
+
+DOCUMENT_CONTENT = DocumentAttributes.DOCUMENT_CONTENT
+DOCUMENT_SCORE = DocumentAttributes.DOCUMENT_SCORE
+INPUT_VALUE = SpanAttributes.INPUT_VALUE
+OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
+RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
 
 Context = namedtuple("Context", "span_id trace_id")
 Span = namedtuple("Span", "context parent_id attributes")

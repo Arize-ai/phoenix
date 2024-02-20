@@ -6,23 +6,26 @@ from uuid import UUID, uuid4
 from warnings import warn
 
 import pandas as pd
+from openinference.semconv.trace import (
+    DocumentAttributes,
+    RerankerAttributes,
+    SpanAttributes,
+)
 from pandas import DataFrame, read_parquet
 from pyarrow import Schema, Table, parquet
 
+from phoenix.config import DATASET_DIR, GENERATED_DATASET_NAME_PREFIX, TRACE_DATASET_DIR
 from phoenix.datetime_utils import normalize_timestamps
 from phoenix.trace.errors import InvalidParquetMetadataError
+from phoenix.trace.schemas import ATTRIBUTE_PREFIX, CONTEXT_PREFIX, Span
+from phoenix.trace.span_evaluations import Evaluations, SpanEvaluations
+from phoenix.trace.span_json_decoder import json_to_span
+from phoenix.trace.span_json_encoder import span_to_json
 
-from ..config import DATASET_DIR, GENERATED_DATASET_NAME_PREFIX, TRACE_DATASET_DIR
-from .schemas import ATTRIBUTE_PREFIX, CONTEXT_PREFIX, Span
-from .semantic_conventions import (
-    DOCUMENT_METADATA,
-    RERANKER_INPUT_DOCUMENTS,
-    RERANKER_OUTPUT_DOCUMENTS,
-    RETRIEVAL_DOCUMENTS,
-)
-from .span_evaluations import Evaluations, SpanEvaluations
-from .span_json_decoder import json_to_span
-from .span_json_encoder import span_to_json
+DOCUMENT_METADATA = DocumentAttributes.DOCUMENT_METADATA
+RERANKER_INPUT_DOCUMENTS = RerankerAttributes.RERANKER_INPUT_DOCUMENTS
+RERANKER_OUTPUT_DOCUMENTS = RerankerAttributes.RERANKER_OUTPUT_DOCUMENTS
+RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
 
 # A set of columns that is required
 REQUIRED_COLUMNS = [
@@ -98,9 +101,12 @@ class TraceDataset:
     """
 
     name: str
+    """
+    A human readable name for the dataset.
+    """
     dataframe: pd.DataFrame
     evaluations: List[Evaluations] = []
-    _id: UUID = uuid4()
+    _id: UUID
     _data_file_name: str = "data.parquet"
 
     def __init__(
@@ -128,8 +134,10 @@ class TraceDataset:
             raise ValueError(
                 f"The dataframe is missing some required columns: {', '.join(missing_columns)}"
             )
+        self._id = uuid4()
         self.dataframe = normalize_dataframe(dataframe)
-        self.name = name or f"{GENERATED_DATASET_NAME_PREFIX}{str(uuid4())}"
+        # TODO: This is not used in any meaningful way. Should remove
+        self.name = name or f"{GENERATED_DATASET_NAME_PREFIX}{str(self._id)}"
         self.evaluations = list(evaluations)
 
     @classmethod
@@ -246,6 +254,8 @@ class TraceDataset:
             }
         )
         parquet.write_table(table, path)
+        print(f"💾 Trace dataset saved to under ID: {self._id}")
+        print(f"📂 Trace dataset path: {path}")
         return self._id
 
     @classmethod
@@ -285,7 +295,7 @@ class TraceDataset:
                 warn(f'Failed to load evaluations with id: "{eval_id}"')
         table = parquet.read_table(path)
         dataframe = table.to_pandas()
-        ds = cls(dataframe, dataset_name, evaluations)
+        ds = cls(dataframe=dataframe, name=dataset_name, evaluations=evaluations)
         ds._id = dataset_id
         return ds
 

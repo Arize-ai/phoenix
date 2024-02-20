@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import warnings
 from collections import defaultdict
+from itertools import product
 from typing import (
     Any,
     DefaultDict,
@@ -18,6 +19,7 @@ from typing import (
 )
 
 import pandas as pd
+from openinference.semconv.trace import DocumentAttributes, SpanAttributes
 from pandas import DataFrame
 from typing_extensions import TypeAlias
 
@@ -40,8 +42,11 @@ from phoenix.experimental.evals.utils import (
     parse_openai_function_call,
     snap_to_rail,
 )
-from phoenix.trace.semantic_conventions import DOCUMENT_CONTENT, INPUT_VALUE, RETRIEVAL_DOCUMENTS
 from phoenix.utilities.logging import printif
+
+DOCUMENT_CONTENT = DocumentAttributes.DOCUMENT_CONTENT
+INPUT_VALUE = SpanAttributes.INPUT_VALUE
+RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +59,7 @@ Label: TypeAlias = str
 Score: TypeAlias = Optional[float]
 Explanation: TypeAlias = Optional[str]
 Record: TypeAlias = Mapping[str, Any]
-EvaluatorIndex: TypeAlias = int
-RowIndex: TypeAlias = Any
+Index: TypeAlias = int
 
 # snapped_response, explanation, response
 ParsedLLMResponse: TypeAlias = Tuple[Optional[str], Optional[str], str]
@@ -343,8 +347,6 @@ def _get_contents_from_openinference_documents(documents: Iterable[Any]) -> List
 
 
 class RunEvalsPayload(NamedTuple):
-    evaluator_index: EvaluatorIndex
-    row_index: RowIndex
     evaluator: LLMEvaluator
     record: Record
 
@@ -404,23 +406,21 @@ def run_evals(
 
     async def _arun_eval(
         payload: RunEvalsPayload,
-    ) -> Tuple[EvaluatorIndex, RowIndex, Label, Score, Explanation]:
-        label, score, explanation = await payload.evaluator.aevaluate(
+    ) -> Tuple[Label, Score, Explanation]:
+        return await payload.evaluator.aevaluate(
             payload.record,
             provide_explanation=provide_explanation,
             use_function_calling_if_available=use_function_calling_if_available,
         )
-        return payload.evaluator_index, payload.row_index, label, score, explanation
 
     def _run_eval(
         payload: RunEvalsPayload,
-    ) -> Tuple[EvaluatorIndex, RowIndex, Label, Score, Explanation]:
-        label, score, explanation = payload.evaluator.evaluate(
+    ) -> Tuple[Label, Score, Explanation]:
+        return payload.evaluator.evaluate(
             payload.record,
             provide_explanation=provide_explanation,
             use_function_calling_if_available=use_function_calling_if_available,
         )
-        return payload.evaluator_index, payload.row_index, label, score, explanation
 
     executor = get_executor_on_sync_context(
         _run_eval,
@@ -428,24 +428,20 @@ def run_evals(
         concurrency=concurrency,
         tqdm_bar_format=get_tqdm_progress_bar_formatter("run_evals"),
         exit_on_error=True,
-        fallback_return_value=(None, None),
+        fallback_return_value=(None, None, None),
     )
+
+    total_records = len(dataframe)
     payloads = [
-        RunEvalsPayload(
-            evaluator_index=evaluator_index,
-            row_index=row_index,
-            evaluator=evaluator,
-            record=row.to_dict(),
-        )
-        # use the position of the row rather than the dataframe index, which is used
-        # to ensure the output dataframe has the same row order as the input dataframe
-        for row_index, (_, row) in enumerate(dataframe.iterrows())
-        for evaluator_index, evaluator in enumerate(evaluators)
+        RunEvalsPayload(evaluator=evaluator, record=row)
+        for evaluator, (_, row) in product(evaluators, dataframe.iterrows())
     ]
-    eval_results: List[DefaultDict[RowIndex, Dict[ColumnName, Union[Label, Explanation]]]] = [
+    eval_results: List[DefaultDict[Index, Dict[ColumnName, Union[Label, Explanation]]]] = [
         defaultdict(dict) for _ in range(len(evaluators))
     ]
-    for evaluator_index, row_index, label, score, explanation in executor.run(payloads):
+    for index, (label, score, explanation) in enumerate(executor.run(payloads)):
+        evaluator_index = index // total_records
+        row_index = index % total_records
         eval_results[evaluator_index][row_index]["label"] = label
         eval_results[evaluator_index][row_index]["score"] = score
         if provide_explanation:

@@ -1,4 +1,5 @@
 import ast
+import inspect
 import sys
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
@@ -15,10 +16,10 @@ from typing import (
     cast,
 )
 
+from openinference.semconv import trace
 from typing_extensions import TypeGuard
 
 import phoenix.trace.v1 as pb
-from phoenix.trace import semantic_conventions
 from phoenix.trace.dsl.missing import MISSING
 from phoenix.trace.schemas import COMPUTED_PREFIX, ComputedAttributes, Span, SpanID
 
@@ -137,9 +138,11 @@ def _allowed_replacements() -> Iterator[Tuple[str, ast.expr]]:
         yield "span.context." + source_segment, ast_replacement
 
     for field_name in (
-        getattr(semantic_conventions, variable_name)
-        for variable_name in dir(semantic_conventions)
-        if variable_name.isupper()
+        getattr(klass, attr)
+        for name in dir(trace)
+        if name.endswith("Attributes") and inspect.isclass(klass := getattr(trace, name))
+        for attr in dir(klass)
+        if attr.isupper()
     ):
         source_segment = field_name
         ast_replacement = _ast_replacement(f"span.attributes.get('{field_name}')")
@@ -163,8 +166,14 @@ class _Translator(ast.NodeTransformer):
         # In Python 3.9+, we can use `ast.unparse(node)` (no need for `source`).
         self._source = source
 
+    def visit_Subscript(self, node: ast.Subscript) -> Any:
+        if _is_metadata(node) and (key := _get_subscript_key(node)):
+            return _ast_metadata_subscript(key)
+        source_segment: str = cast(str, ast.get_source_segment(self._source, node))
+        raise SyntaxError(f"invalid expression: {source_segment}")  # TODO: add details
+
     def visit_Attribute(self, node: ast.Attribute) -> Any:
-        if _is_eval(node.value) and (eval_name := _get_eval_name(node.value)):
+        if _is_eval(node.value) and (eval_name := _get_subscript_key(node.value)):
             # e.g. `evals["name"].score`
             return _ast_evaluation_result_value(eval_name, node.attr)
         source_segment: str = cast(str, ast.get_source_segment(self._source, node))
@@ -206,9 +215,11 @@ def _validate_expression(
         if i == 0:
             if isinstance(node, (ast.BoolOp, ast.Compare)):
                 continue
+        elif _is_metadata(node):
+            continue
         elif _is_eval(node):
             # e.g. `evals["name"]`
-            if not (eval_name := _get_eval_name(node)) or (
+            if not (eval_name := _get_subscript_key(node)) or (
                 valid_eval_names is not None and eval_name not in valid_eval_names
             ):
                 source_segment = cast(str, ast.get_source_segment(source, node))
@@ -293,6 +304,19 @@ def _ast_evaluation_result_value(name: str, attr: str) -> ast.expr:
     return ast.parse(source, mode="eval").body
 
 
+def _ast_metadata_subscript(key: str) -> ast.expr:
+    source = (
+        f"_MISSING if ("
+        f"    _MD := span.attributes.get('metadata')"
+        f") is None else ("
+        f"    _MISSING if not hasattr(_MD, 'get') or ("
+        f"        _VALUE := _MD.get('{key}')"
+        f"    ) is None else _VALUE"
+        f")"
+    )
+    return ast.parse(source, mode="eval").body
+
+
 def _is_eval(node: Any) -> TypeGuard[ast.Subscript]:
     # e.g. `evals["name"]`
     return (
@@ -302,7 +326,16 @@ def _is_eval(node: Any) -> TypeGuard[ast.Subscript]:
     )
 
 
-def _get_eval_name(node: ast.Subscript) -> Optional[str]:
+def _is_metadata(node: Any) -> TypeGuard[ast.Subscript]:
+    # e.g. `metadata["name"]`
+    return (
+        isinstance(node, ast.Subscript)
+        and isinstance(value := node.value, ast.Name)
+        and value.id == "metadata"
+    )
+
+
+def _get_subscript_key(node: ast.Subscript) -> Optional[str]:
     if sys.version_info < (3, 9):
         # Note that `ast.Index` is deprecated in Python 3.9+, but is necessary
         # for Python 3.8 as part of `ast.Subscript`.

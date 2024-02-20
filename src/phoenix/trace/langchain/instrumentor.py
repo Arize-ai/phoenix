@@ -1,37 +1,31 @@
-from typing import Any, Optional
+import logging
+from importlib.metadata import PackageNotFoundError
+from importlib.util import find_spec
+from typing import Any
 
-from .tracer import OpenInferenceTracer
+from openinference.instrumentation.langchain import LangChainInstrumentor as Instrumentor
+from opentelemetry.sdk import trace as trace_sdk
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+from phoenix.trace.exporter import _OpenInferenceExporter
+from phoenix.trace.tracer import _show_deprecation_warnings
+
+logger = logging.getLogger(__name__)
 
 
-class LangChainInstrumentor:
-    """
-    Instruments the OpenInferenceTracer for LangChain automatically by patching the
-    BaseCallbackManager in LangChain.
-    """
+__all__ = ("LangChainInstrumentor",)
 
-    def __init__(self, tracer: Optional[OpenInferenceTracer] = None) -> None:
-        self._tracer = tracer if tracer is not None else OpenInferenceTracer()
+
+class LangChainInstrumentor(Instrumentor):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        _show_deprecation_warnings(self, *args, **kwargs)
+        if find_spec("langchain_core") is None:
+            raise PackageNotFoundError(
+                "Missing `langchain-core`. Install with `pip install langchain-core`."
+            )
+        super().__init__()
 
     def instrument(self) -> None:
-        try:
-            from langchain.callbacks.base import BaseCallbackManager
-        except ImportError:
-            # Raise a cleaner error if LangChain is not installed
-            raise ImportError(
-                "LangChain is not installed. Please install LangChain first to use the instrumentor"
-            )
-
-        source_init = BaseCallbackManager.__init__
-
-        # Keep track of the source init so we can tell if the patching occurred
-        self._source_callback_manager_init = source_init
-
-        tracer = self._tracer
-
-        # Patch the init method of the BaseCallbackManager to add the tracer
-        # to all callback managers
-        def patched_init(self: BaseCallbackManager, *args: Any, **kwargs: Any) -> None:
-            source_init(self, *args, **kwargs)
-            self.add_handler(tracer, True)
-
-        BaseCallbackManager.__init__ = patched_init
+        tracer_provider = trace_sdk.TracerProvider()
+        tracer_provider.add_span_processor(SimpleSpanProcessor(_OpenInferenceExporter()))
+        super().instrument(skip_dep_check=True, tracer_provider=tracer_provider)
