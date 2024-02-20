@@ -446,14 +446,13 @@ function SpanInfo({ span }: { span: Span }) {
   const { json: attributesObject, parseError } =
     useSafelyParsedJSON(attributes);
 
-  let statusDescription: ReactNode;
-  if (span.statusMessage) {
-    statusDescription = (
-      <Alert variant="warning" title="Status Description">
+  const statusDescription = useMemo(() => {
+    return span.statusMessage ? (
+      <Alert variant="danger" title="Status Description">
         {span.statusMessage}
       </Alert>
-    );
-  }
+    ) : null;
+  }, [span]);
 
   // Handle the case where the attributes are not a valid JSON object
   if (parseError || !attributesObject) {
