@@ -169,6 +169,7 @@ export function TracePage() {
               name
               spanKind
               statusCode: propagatedStatusCode
+              statusMessage
               startTime
               parentId
               latencyMs
@@ -445,11 +446,20 @@ function SpanInfo({ span }: { span: Span }) {
   const { json: attributesObject, parseError } =
     useSafelyParsedJSON(attributes);
 
+  const statusDescription = useMemo(() => {
+    return span.statusMessage ? (
+      <Alert variant="danger" title="Status Description">
+        {span.statusMessage}
+      </Alert>
+    ) : null;
+  }, [span]);
+
   // Handle the case where the attributes are not a valid JSON object
   if (parseError || !attributesObject) {
     return (
       <View padding="size-200">
         <Flex direction="column" gap="size-200">
+          {statusDescription}
           <Alert variant="warning" title="Un-parsable attributes">
             {`Failed to parse span attributes. ${parseError instanceof Error ? parseError.message : ""}`}
           </Alert>
@@ -496,6 +506,7 @@ function SpanInfo({ span }: { span: Span }) {
   return (
     <View padding="size-200">
       <Flex direction="column" gap="size-200">
+        {statusDescription}
         {content}
         {attributesObject?.metadata ? (
           <Card {...defaultCardProps} title="Metadata">

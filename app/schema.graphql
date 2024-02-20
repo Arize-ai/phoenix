@@ -612,6 +612,7 @@ enum SortDir {
 type Span {
   name: String!
   statusCode: SpanStatusCode!
+  statusMessage: String!
   startTime: DateTime!
   endTime: DateTime
   latencyMs: Float
