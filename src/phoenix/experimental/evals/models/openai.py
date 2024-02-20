@@ -3,6 +3,7 @@ import os
 import warnings
 from dataclasses import dataclass, field, fields
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -15,8 +16,11 @@ from typing import (
 )
 
 from phoenix.exceptions import PhoenixContextLimitExceeded
-from phoenix.experimental.evals.models.base import BaseModel
+from phoenix.experimental.evals.models.base import BaseEvalModel
 from phoenix.experimental.evals.models.rate_limiters import RateLimiter
+
+if TYPE_CHECKING:
+    from tiktoken import Encoding
 
 OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
 MINIMUM_OPENAI_VERSION = "1.0.0"
@@ -48,7 +52,7 @@ class AzureOptions:
 
 
 @dataclass
-class OpenAIModel(BaseModel):
+class OpenAIModel(BaseEvalModel):
     api_key: Optional[str] = field(repr=False, default=None)
     """Your OpenAI key. If not provided, will be read from the environment variable"""
     organization: Optional[str] = field(repr=False, default=None)
@@ -86,6 +90,12 @@ class OpenAIModel(BaseModel):
     """Batch size to use when passing multiple documents to generate."""
     request_timeout: Optional[Union[float, Tuple[float, float]]] = None
     """Timeout for requests to OpenAI completion API. Default is 600 seconds."""
+    max_retries: int = 20
+    """Maximum number of retries to make when generating."""
+    retry_min_seconds: int = 10
+    """Minimum number of seconds to wait when retrying."""
+    retry_max_seconds: int = 60
+    """Maximum number of seconds to wait when retrying."""
 
     # Azure options
     api_version: Optional[str] = field(default=None)
@@ -110,8 +120,8 @@ class OpenAIModel(BaseModel):
         self._migrate_model_name()
         self._init_environment()
         self._init_open_ai()
+        self._init_tiktoken()
         self._init_rate_limiter()
-        self._model_name = self.model
 
     def reload_client(self) -> None:
         self._init_open_ai()
@@ -139,6 +149,14 @@ class OpenAIModel(BaseModel):
                 package_display_name="OpenAI",
                 package_name="openai",
                 package_min_version=MINIMUM_OPENAI_VERSION,
+            )
+        try:
+            import tiktoken
+
+            self._tiktoken = tiktoken
+        except ImportError:
+            self._raise_import_error(
+                package_name="tiktoken",
             )
 
     def _init_open_ai(self) -> None:

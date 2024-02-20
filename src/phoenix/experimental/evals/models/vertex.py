@@ -1,10 +1,13 @@
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List
 
-from phoenix.experimental.evals.models.base import BaseModel
+from phoenix.experimental.evals.models.base import BaseEvalModel
 from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 from phoenix.utilities.logging import printif
+
+if TYPE_CHECKING:
+    from tiktoken import Encoding
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +20,7 @@ MODEL_TOKEN_LIMIT_MAPPING = {
 
 
 @dataclass
-class GeminiModel(BaseModel):
+class GeminiModel(BaseEvalModel):
     # The vertex SDK runs into connection pool limits at high concurrency
     default_concurrency: int = 5
 
@@ -33,11 +36,16 @@ class GeminiModel(BaseModel):
     """The cutoff where the model no longer selects the words"""
     stop_sequences: List[str] = field(default_factory=list)
     """If the model encounters a stop sequence, it stops generating further tokens. """
+    max_retries: int = 6
+    """Maximum number of retries to make when generating."""
+    retry_min_seconds: int = 10
+    """Minimum number of seconds to wait when retrying."""
+    retry_max_seconds: int = 60
+    """Maximum number of seconds to wait when retrying."""
 
     def __post_init__(self) -> None:
         self._init_client()
         self._init_rate_limiter()
-        self._model_name = self.model
 
     def reload_client(self) -> None:
         self._init_client()
@@ -63,6 +71,29 @@ class GeminiModel(BaseModel):
             maximum_per_second_request_rate=20,
             enforcement_window_minutes=1,
         )
+
+    @property
+    def encoder(self) -> "Encoding":
+        raise TypeError("Gemini models contain their own token counting")
+
+    def get_tokens_from_text(self, text: str) -> List[int]:
+        raise NotImplementedError
+
+    def get_text_from_tokens(self, tokens: List[int]) -> str:
+        raise NotImplementedError
+
+    @property
+    def max_context_size(self) -> int:
+        context_size = MODEL_TOKEN_LIMIT_MAPPING.get(self.model, None)
+
+        if context_size is None:
+            raise ValueError(
+                "Can't determine maximum context size. An unknown model name was "
+                + f"used: {self.model}. Please set the `max_content_size` argument"
+                + "when using fine-tuned models. "
+            )
+
+        return context_size
 
     @property
     def generation_config(self) -> Dict[str, Any]:

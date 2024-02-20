@@ -1,9 +1,12 @@
 import logging
 import warnings
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from phoenix.experimental.evals.models.base import BaseEvalModel
+
+if TYPE_CHECKING:
+    from tiktoken import Encoding
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +21,7 @@ class LiteLLMModel(BaseEvalModel):
     """The maximum number of tokens to generate in the completion."""
     top_p: float = 1
     """Total probability mass of tokens to consider at each step."""
-    num_retries: int = 0
+    num_retries: int = 6
     """Maximum number to retry a model if an RateLimitError, OpenAIError, or
     ServiceUnavailableError occurs."""
     request_timeout: int = 60
@@ -42,7 +45,7 @@ class LiteLLMModel(BaseEvalModel):
     def __post_init__(self) -> None:
         self._migrate_model_name()
         self._init_environment()
-        self._model_name = self.model
+        self._init_model_encoding()
 
     def _migrate_model_name(self) -> None:
         if self.model_name is not None:
