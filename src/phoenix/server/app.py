@@ -19,7 +19,7 @@ from strawberry.asgi import GraphQL
 from strawberry.schema import BaseSchema
 
 import phoenix
-from phoenix.config import SERVER_DIR
+from phoenix.config import SERVER_DIR, get_working_dir
 from phoenix.core.evals import Evals
 from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
@@ -75,6 +75,20 @@ class Static(StaticFiles):
         except Exception as e:
             raise e
         return response
+
+
+def files(request: Request) -> Response:
+    # List out the files in the working directory
+    trace_dataset_dir = get_working_dir() / "trace_datasets"
+    if trace_dataset_dir.is_dir():
+        trace_datasets = [f.name for f in trace_dataset_dir.iterdir()]
+    return templates.TemplateResponse(
+        "files.html",
+        context={
+            "trace_datasets": trace_datasets,
+            "request": request,
+        },
+    )
 
 
 class HeadersMiddleware(BaseHTTPMiddleware):
@@ -198,6 +212,10 @@ def create_app(
                     (Download,),
                     {"path": export_path},
                 ),
+            ),
+            Route(
+                "/files",
+                endpoint=files,
             ),
             Route(
                 "/graphql",
