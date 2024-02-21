@@ -123,7 +123,8 @@ def test_llm_classify(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    model = OpenAIModel()
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel()
 
     result = llm_classify(
         dataframe=dataframe,
@@ -167,7 +168,8 @@ def test_llm_classify_with_included_prompt_and_response(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    model = OpenAIModel()
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel()
 
     result = llm_classify(
         dataframe=dataframe,
@@ -212,7 +214,8 @@ def test_llm_classify_with_async(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    model = OpenAIModel()
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel()
 
     result = llm_classify(
         dataframe=dataframe,
@@ -248,7 +251,8 @@ def test_llm_classify_with_fn_call(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    model = OpenAIModel()
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel()
 
     result = llm_classify(
         dataframe=dataframe,
@@ -278,7 +282,8 @@ def test_classify_fn_call_no_explain(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    model = OpenAIModel()
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel()
 
     result = llm_classify(
         dataframe=dataframe,
@@ -316,7 +321,8 @@ def test_classify_fn_call_explain(
             return_value=httpx.Response(200, json={"choices": [{"message": message}]})
         )
 
-    model = OpenAIModel()
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel()
 
     result = llm_classify(
         dataframe=dataframe,
@@ -351,7 +357,8 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(
         payload = {"choices": [{"message": {"content": response}}]}
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    model = OpenAIModel()
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel()
 
     llm_classify(
         dataframe=dataframe,
@@ -383,7 +390,8 @@ def test_llm_classify_shows_retry_info(openai_api_key: str, capfd: pytest.Captur
     )
 
     with ExitStack() as stack:
-        model = OpenAIModel()
+        with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+            model = OpenAIModel()
 
         openai_retry_error = model._openai.APITimeoutError("test timeout")
         mock_openai = MagicMock()
@@ -505,7 +513,8 @@ def test_run_relevance_eval_standard_dataframe(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    model = OpenAIModel()
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel()
 
     relevance_classifications = run_relevance_eval(dataframe, model=model)
     assert relevance_classifications == [
@@ -529,7 +538,8 @@ def test_classify_tolerance_to_exceptions(
     respx_mock: respx.mock,
     capfd,
 ):
-    model = OpenAIModel()
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel()
     queries = classification_dataframe["input"].tolist()
     for query, response in zip(queries, classification_responses):
         matcher = M(content__contains=query)
@@ -646,7 +656,8 @@ def test_run_relevance_eval_openinference_dataframe(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    model = OpenAIModel()
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel()
 
     relevance_classifications = run_relevance_eval(dataframe, model=model)
     assert relevance_classifications == [
