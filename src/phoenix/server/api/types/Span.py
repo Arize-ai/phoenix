@@ -24,6 +24,7 @@ INPUT_VALUE = SpanAttributes.INPUT_VALUE
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
+METADATA = SpanAttributes.METADATA
 OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
@@ -107,6 +108,7 @@ class Span:
     attributes: str = strawberry.field(
         description="Span attributes as a JSON string",
     )
+    metadata: Optional[str]
     num_documents: Optional[int]
     token_count_total: Optional[int]
     token_count_prompt: Optional[int]
@@ -240,6 +242,7 @@ def to_gql_span(span: trace_schema.Span) -> "Span":
             _nested_attributes(_hide_embedding_vectors(span.attributes)),
             default=_json_encode,
         ),
+        metadata=_convert_metadata_to_string(span.attributes.get(METADATA)),
         num_documents=num_documents,
         token_count_total=cast(
             Optional[int],
@@ -327,3 +330,16 @@ def _hide_embedding_vectors(
         _embeddings.append(_embedding)
     _attributes[EMBEDDING_EMBEDDINGS] = _embeddings
     return _attributes
+
+
+def _convert_metadata_to_string(metadata: Any) -> Optional[str]:
+    """
+    Converts metadata to a string representation.
+    """
+
+    if metadata is None or isinstance(metadata, str):
+        return metadata
+    try:
+        return json.dumps(metadata)
+    except json.JSONDecodeError:
+        return str(metadata)

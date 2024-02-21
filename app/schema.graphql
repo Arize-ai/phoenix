@@ -624,6 +624,7 @@ type Span {
 
   """Span attributes as a JSON string"""
   attributes: String!
+  metadata: String
   numDocuments: Int
   tokenCountTotal: Int
   tokenCountPrompt: Int
