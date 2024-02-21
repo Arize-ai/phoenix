@@ -4,6 +4,7 @@ from typing import Any, Iterable, Iterator, Optional, Protocol
 
 import pandas as pd
 import strawberry
+from openinference.semconv.trace import SpanAttributes
 from strawberry import UNSET
 from typing_extensions import assert_never
 
@@ -13,7 +14,6 @@ from phoenix.core.traces import (
     START_TIME,
 )
 from phoenix.server.api.types.SortDir import SortDir
-from phoenix.trace import semantic_conventions
 from phoenix.trace.schemas import ComputedAttributes, Span, SpanID
 
 
@@ -22,9 +22,9 @@ class SpanColumn(Enum):
     startTime = START_TIME
     endTime = END_TIME
     latencyMs = ComputedAttributes.LATENCY_MS.value
-    tokenCountTotal = semantic_conventions.LLM_TOKEN_COUNT_TOTAL
-    tokenCountPrompt = semantic_conventions.LLM_TOKEN_COUNT_PROMPT
-    tokenCountCompletion = semantic_conventions.LLM_TOKEN_COUNT_COMPLETION
+    tokenCountTotal = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
+    tokenCountPrompt = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
+    tokenCountCompletion = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
     cumulativeTokenCountTotal = ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_TOTAL.value
     cumulativeTokenCountPrompt = ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_PROMPT.value
     cumulativeTokenCountCompletion = ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION.value

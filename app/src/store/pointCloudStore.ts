@@ -374,6 +374,10 @@ export interface PointCloudProps {
    * The overall metric for the point cloud
    */
   metric: MetricDefinition;
+  /**
+   * Search text for the selection panel
+   */
+  selectionSearchText: string;
 }
 
 export interface PointCloudState extends PointCloudProps {
@@ -488,6 +492,10 @@ export interface PointCloudState extends PointCloudProps {
    * Set the overall metric used in the point-cloud
    */
   setMetric(metric: MetricDefinition): void;
+  /**
+   * Set the selection search text
+   */
+  setSelectionSearchText: (text: string) => void;
 }
 
 const getDefaultColorScheme = () => {
@@ -620,6 +628,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       type: "drift",
       metric: "euclideanDistance",
     },
+    selectionSearchText: "",
   };
 
   const pointCloudStore: StateCreator<PointCloudState> = (set, get) => ({
@@ -712,7 +721,8 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       const sortedClusters = [...pointCloud.clusters].sort(clusterSortFn(sort));
       set({ clusterSort: sort, clusters: sortedClusters });
     },
-    setSelectedEventIds: (ids) => set({ selectedEventIds: ids }),
+    setSelectedEventIds: (ids) =>
+      set({ selectedEventIds: ids, selectionSearchText: "" }),
     setHoveredEventId: (id) => set({ hoveredEventId: id }),
     setHighlightedClusterId: (id) => set({ highlightedClusterId: id }),
     setSelectedClusterId: (id) =>
@@ -925,6 +935,8 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       });
       pointCloud.setClusters(clusters);
     },
+    setSelectionSearchText: (searchText: string) =>
+      set({ selectionSearchText: searchText }),
   });
 
   return create<PointCloudState>()(devtools(pointCloudStore));

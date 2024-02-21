@@ -5,6 +5,7 @@ from enum import Enum
 from typing import Any, DefaultDict, Dict, List, Mapping, Optional, Sized, cast
 
 import strawberry
+from openinference.semconv.trace import EmbeddingAttributes, SpanAttributes
 from strawberry import ID, UNSET
 from strawberry.types import Info
 
@@ -15,19 +16,17 @@ from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalM
 from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluation
 from phoenix.server.api.types.MimeType import MimeType
 from phoenix.trace.schemas import ComputedAttributes, SpanID
-from phoenix.trace.semantic_conventions import (
-    EMBEDDING_EMBEDDINGS,
-    EMBEDDING_VECTOR,
-    EXCEPTION_MESSAGE,
-    INPUT_MIME_TYPE,
-    INPUT_VALUE,
-    LLM_TOKEN_COUNT_COMPLETION,
-    LLM_TOKEN_COUNT_PROMPT,
-    LLM_TOKEN_COUNT_TOTAL,
-    OUTPUT_MIME_TYPE,
-    OUTPUT_VALUE,
-    RETRIEVAL_DOCUMENTS,
-)
+
+EMBEDDING_EMBEDDINGS = SpanAttributes.EMBEDDING_EMBEDDINGS
+EMBEDDING_VECTOR = EmbeddingAttributes.EMBEDDING_VECTOR
+INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
+INPUT_VALUE = SpanAttributes.INPUT_VALUE
+LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
+LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
+LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
+OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
+OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
+RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
 
 
 @strawberry.enum
@@ -87,7 +86,7 @@ class SpanEvent:
     ) -> "SpanEvent":
         return SpanEvent(
             name=event.name,
-            message=cast(str, event.attributes.get(EXCEPTION_MESSAGE) or ""),
+            message=cast(str, event.attributes.get(trace_schema.EXCEPTION_MESSAGE) or ""),
             timestamp=event.timestamp,
         )
 
@@ -96,6 +95,7 @@ class SpanEvent:
 class Span:
     name: str
     status_code: SpanStatusCode
+    status_message: str
     start_time: datetime
     end_time: Optional[datetime]
     latency_ms: Optional[float]
@@ -229,6 +229,7 @@ def to_gql_span(span: trace_schema.Span) -> "Span":
     return Span(
         name=span.name,
         status_code=SpanStatusCode(span.status_code),
+        status_message=span.status_message,
         parent_id=cast(Optional[ID], span.parent_id),
         span_kind=SpanKind(span.span_kind),
         start_time=span.start_time,

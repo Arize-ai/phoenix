@@ -42,6 +42,11 @@ dependencies = [
   "requests",
   "opentelemetry-sdk",
   "opentelemetry-proto",
+  "opentelemetry-exporter-otlp",
+  "openinference-semantic-conventions",
+  "openinference-instrumentation-langchain",
+  "openinference-instrumentation-llama-index",
+  "openinference-instrumentation-openai",
 ]
 dynamic = ["version"]
 
@@ -53,14 +58,14 @@ dev = [
   "nbqa",
   "ruff==0.1.5",
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
-  "pytest",
+  "pytest==7.4.4",
   "pytest-asyncio",
   "pytest-cov",
   "pytest-lazy-fixture",
   "strawberry-graphql[debug-server]==0.208.2",
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
-  "llama-index>=0.9.14",
+  "llama-index>=0.10.3",
   "langchain>=0.0.334",
   "litellm>=1.0.3",
   "google-cloud-aiplatform>=1.3",
@@ -70,7 +75,9 @@ experimental = [
   "tenacity",
 ]
 llama-index = [
-  "llama-index==0.9.14",  # always pin to a version that keeps our notebooks working
+  "llama-index==0.10.3",  # always pin to a version that keeps our notebooks working
+  "llama-index-callbacks-arize-phoenix>=0.1.2",
+  "openinference-instrumentation-llama-index>=1.0.0",
 ]
 
 [project.urls]
@@ -98,14 +105,14 @@ artifacts = ["src/phoenix/server/static"]
 [tool.hatch.envs.default]
 dependencies = [
   "pandas==1.4.0",
-  "pytest",
+  "pytest==7.4.4",
   "pytest-asyncio",
   "pytest-cov",
   "pytest-lazy-fixture",
   "arize",
   "langchain>=0.0.334",
   "litellm>=1.0.3",
-  "llama-index>=0.9.14",
+  "llama-index>=0.10.3",
   "openai>=1.0.0",
   "tenacity",
   "nltk==3.8.1",
@@ -125,7 +132,7 @@ dependencies = [
 dependencies = [
   "mypy==1.5.1",
   "pydantic==v1.10.14",  # for mypy
-  "llama-index>=0.9.14",
+  "llama-index<0.10.0",
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "types-psutil",
   "types-tqdm",
@@ -272,6 +279,7 @@ disallow_untyped_defs = true
 disallow_incomplete_defs  = true
 strict = true
 exclude = [
+  "packages/",
   "dist/",
   "scripts/data/",
   "sdist/",
@@ -298,7 +306,7 @@ module = [
 ignore_missing_imports = true
 
 [tool.ruff]
-exclude = [".git", "__pycache__", "docs/source/conf.py", "*_pb2.py*", "*.pyi"]
+exclude = ["packages", ".git", "__pycache__", "docs/source/conf.py", "*_pb2.py*", "*.pyi"]
 extend-include = ["*.ipynb"]
 ignore-init-module-imports = true
 line-length = 100

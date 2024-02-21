@@ -158,14 +158,14 @@ class GeminiModel(BaseEvalModel):
                     printif(
                         self._verbose, "The 'candidates' object does not have a 'text' attribute."
                     )
-                    printif(self._verbose, response.candidates[0])
+                    printif(self._verbose, str(response.candidates[0]))
                     candidate = ""
             else:
                 printif(
                     self._verbose,
                     "The 'candidates' attribute of 'response' is either not a list or is empty.",
                 )
-                printif(self._verbose, response)
+                printif(self._verbose, str(response))
                 candidate = ""
         else:
             printif(self._verbose, "The 'response' object does not have a 'candidates' attribute.")

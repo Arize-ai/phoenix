@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 
 import pandas as pd
 from pandas.api.types import is_integer_dtype, is_numeric_dtype, is_string_dtype
-from pyarrow import Schema, Table, parquet
+from pyarrow import RecordBatchStreamReader, Schema, Table, parquet
 
 from phoenix.config import TRACE_DATASET_DIR
 from phoenix.trace.errors import InvalidParquetMetadataError
@@ -179,10 +179,10 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
         return table
 
     @staticmethod
-    def from_pyarrow_table(table: Table) -> "Evaluations":
-        schema = table.schema
+    def from_pyarrow_reader(reader: RecordBatchStreamReader) -> "Evaluations":
+        schema = reader.schema
         eval_id, eval_name, evaluations_cls = _parse_schema_metadata(schema)
-        dataframe = table.to_pandas()
+        dataframe = reader.read_pandas()
         evaluations = evaluations_cls(eval_name=eval_name, dataframe=dataframe)
         object.__setattr__(evaluations, "id", eval_id)
         return evaluations

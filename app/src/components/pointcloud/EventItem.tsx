@@ -50,6 +50,14 @@ type EventItemProps = {
    */
   onClick?: () => void;
   /**
+   * event handler for when the user hovers on the event item
+   */
+  onMouseOver?: () => void;
+  /**
+   * event handler when the hover ends
+   */
+  onMouseOut?: () => void;
+  /**
    * The event's current grouping (color group)
    */
   group: string;
@@ -130,7 +138,8 @@ function getSecondaryPreviewType(
  * An item that represents a single model event. To be displayed in a grid / list
  */
 export function EventItem(props: EventItemProps) {
-  const { onClick, color, size, datasetName, group } = props;
+  const { onClick, onMouseOver, onMouseOut, color, size, datasetName, group } =
+    props;
   // Prioritize the image preview over raw text
   const primaryPreviewType = getPrimaryPreviewType(props);
   // only show the secondary preview for large size
@@ -170,6 +179,8 @@ export function EventItem(props: EventItemProps) {
         }
       `}
       onClick={onClick}
+      onMouseOver={onMouseOver}
+      onMouseOut={onMouseOut}
     >
       <div
         className="event-item__preview-wrap"

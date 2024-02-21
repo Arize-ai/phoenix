@@ -1,0 +1,80 @@
+[project]
+name = "arize-phoenix-evals"
+description = "LLM Evaluations"
+readme = "README.md"
+requires-python = ">=3.8, <3.12"
+license = "Elastic-2.0"
+license-files = { paths = ["LICENSE", "IP_NOTICE"] }
+keywords = [
+  "Observability",
+  "Monitoring",
+  "Explainability",
+]
+authors = [
+  { name = "Arize AI", email = "phoenix-devs@arize.com" },
+]
+classifiers = [
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+]
+dynamic = ["version"]
+dependencies = [
+]
+
+[project.optional-dependencies]
+test = [
+]
+
+[project.urls]
+Documentation = "https://docs.arize.com/phoenix/"
+Issues = "https://github.com/Arize-ai/phoenix/issues"
+Source = "https://github.com/Arize-ai/phoenix"
+
+[tool.hatch.version]
+path = "src/phoenix/evals/version.py"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/phoenix"]
+
+[tool.hatch.envs.publish]
+dependencies = [
+  "check-wheel-contents",
+  "twine",
+]
+
+[tool.hatch.envs.publish.scripts]
+testpypi = [
+  "check-wheel-contents dist/",
+  "twine upload --verbose --repository testpypi dist/*",
+]
+pypi = [
+  "check-wheel-contents dist/",
+  "twine upload --verbose dist/*",
+]
+
+[tool.ruff]
+exclude = [".git", "__pycache__", ".tox", "dist"]
+extend-include = ["*.ipynb"]
+line-length = 100
+target-version = "py38"
+
+[tool.ruff.lint]
+ignore-init-module-imports = true
+select = ["E", "F", "W", "I"]
+
+[tool.ruff.lint.isort]
+force-single-line = false
+
+[tool.ruff.lint.per-file-ignores]
+"*.ipynb" = ["E402", "E501"]
+
+[tool.mypy]
+strict = true
+explicit_package_bases = true
