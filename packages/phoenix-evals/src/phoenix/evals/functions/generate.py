@@ -3,16 +3,16 @@ from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import pandas as pd
 
-from phoenix.experimental.evals.functions.executor import (
+from evals.functions.executor import (
     get_executor_on_sync_context,
 )
-from phoenix.experimental.evals.models import BaseModel, set_verbosity
-from phoenix.experimental.evals.templates import (
+from evals.models import BaseModel, set_verbosity
+from evals.templates import (
     PromptTemplate,
     map_template,
     normalize_prompt_template,
 )
-from phoenix.experimental.evals.utils import get_tqdm_progress_bar_formatter
+from evals.utils import get_tqdm_progress_bar_formatter
 
 logger = logging.getLogger(__name__)
 
