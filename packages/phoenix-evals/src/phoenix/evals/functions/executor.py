@@ -8,7 +8,7 @@ from typing import Any, Callable, Coroutine, List, Optional, Protocol, Sequence,
 
 from tqdm.auto import tqdm
 
-from phoenix.exceptions import PhoenixException
+from evals.exceptions import PhoenixException
 
 logger = logging.getLogger(__name__)
 

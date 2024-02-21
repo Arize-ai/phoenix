@@ -8,9 +8,9 @@ from tqdm.asyncio import tqdm_asyncio
 from tqdm.auto import tqdm
 from typing_extensions import TypeVar
 
-from phoenix.experimental.evals.models.rate_limiters import RateLimiter
-from phoenix.experimental.evals.utils.threads import to_thread
-from phoenix.utilities.logging import printif
+from evals.models.rate_limiters import RateLimiter
+from evals.utils.threads import to_thread
+from evals.utils.logging import printif
 
 T = TypeVar("T", bound=type)
 

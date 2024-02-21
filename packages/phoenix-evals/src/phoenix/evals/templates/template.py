@@ -4,8 +4,8 @@ from typing import Callable, List, Mapping, Optional, Tuple, Union
 
 import pandas as pd
 
-from phoenix.exceptions import PhoenixException
-from phoenix.experimental.evals.utils import NOT_PARSABLE
+from evals.exceptions import PhoenixException
+from evals.utils import NOT_PARSABLE
 
 DEFAULT_START_DELIM = "{"
 DEFAULT_END_DELIM = "}"

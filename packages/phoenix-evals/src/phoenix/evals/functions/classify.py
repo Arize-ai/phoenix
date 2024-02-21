@@ -23,10 +23,10 @@ from openinference.semconv.trace import DocumentAttributes, SpanAttributes
 from pandas import DataFrame
 from typing_extensions import TypeAlias
 
-from phoenix.experimental.evals.evaluators import LLMEvaluator
-from phoenix.experimental.evals.functions.executor import get_executor_on_sync_context
-from phoenix.experimental.evals.models import BaseModel, OpenAIModel, set_verbosity
-from phoenix.experimental.evals.templates import (
+from evals.evaluators import LLMEvaluator
+from evals.functions.executor import get_executor_on_sync_context
+from evals.models import BaseModel, OpenAIModel, set_verbosity
+from evals.templates import (
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     ClassificationTemplate,
@@ -35,14 +35,14 @@ from phoenix.experimental.evals.templates import (
     map_template,
     normalize_classification_template,
 )
-from phoenix.experimental.evals.utils import (
+from evals.utils import (
     NOT_PARSABLE,
     get_tqdm_progress_bar_formatter,
     openai_function_call_kwargs,
     parse_openai_function_call,
     snap_to_rail,
 )
-from phoenix.utilities.logging import printif
+from evals.utils.logging import printif
 
 DOCUMENT_CONTENT = DocumentAttributes.DOCUMENT_CONTENT
 INPUT_VALUE = SpanAttributes.INPUT_VALUE
