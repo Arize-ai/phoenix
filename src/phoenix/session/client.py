@@ -2,7 +2,7 @@ import logging
 import weakref
 from datetime import datetime
 from io import BytesIO
-from typing import List, Optional, Union
+from typing import List, Optional, Union, cast
 from urllib.parse import urljoin
 
 import pandas as pd
@@ -110,8 +110,7 @@ class Client(TraceDataExtractor):
         while True:
             try:
                 with pa.ipc.open_stream(source) as reader:
-                    pa_table = reader.read_all()
-                    results.append(Evaluations.from_pyarrow_table(pa_table))
+                    results.append(Evaluations.from_pyarrow_reader(reader))
             except ArrowInvalid:
                 break
         return results
@@ -124,6 +123,18 @@ class Client(TraceDataExtractor):
                 f"Arize Phoenix is not running on {self._base_url}. Launch Phoenix "
                 f"with `import phoenix as px; px.launch_app()`"
             )
+
+    def log_evaluations(self, *evals: Evaluations) -> None:
+        for evaluation in evals:
+            table = evaluation.to_pyarrow_table()
+            sink = pa.BufferOutputStream()
+            with pa.ipc.new_stream(sink, table.schema) as writer:
+                writer.write_table(table)
+            self._session.post(
+                urljoin(self._base_url, "/v1/evaluations"),
+                data=cast(bytes, sink.getvalue().to_pybytes()),
+                headers={"content-type": "application/x-pandas-arrow"},
+            ).raise_for_status()
 
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:

@@ -39,22 +39,22 @@ Phoenix provides MLOps and LLMOps insights at lightning speed with zero-config o
 
 **Table of Contents**
 
-- [Installation](#installation)
-- [LLM Traces](#llm-traces)
-  - [Tracing with LlamaIndex](#tracing-with-llamaindex)
-  - [Tracing with LangChain](#tracing-with-langchain)
-- [LLM Evals](#llm-evals)
-- [Embedding Analysis](#embedding-analysis)
-  - [UMAP-based Exploratory Data Analysis](#umap-based-exploratory-data-analysis)
-  - [Cluster-driven Drift and Performance Analysis](#cluster-driven-drift-and-performance-analysis)
-  - [Exportable Clusters](#exportable-clusters)
-- [Retrieval-Augmented Generation Analysis](#retrieval-augmented-generation-analysis)
-- [Structured Data Analysis](#structured-data-analysis)
-- [Deploying Phoenix](#deploying-phoenix)
-- [Breaking Changes](#breaking-changes)
-- [Community](#community)
-- [Thanks](#thanks)
-- [Copyright, Patent, and License](#copyright-patent-and-license)
+-   [Installation](#installation)
+-   [LLM Traces](#llm-traces)
+    -   [Tracing with LlamaIndex](#tracing-with-llamaindex)
+    -   [Tracing with LangChain](#tracing-with-langchain)
+-   [LLM Evals](#llm-evals)
+-   [Embedding Analysis](#embedding-analysis)
+    -   [UMAP-based Exploratory Data Analysis](#umap-based-exploratory-data-analysis)
+    -   [Cluster-driven Drift and Performance Analysis](#cluster-driven-drift-and-performance-analysis)
+    -   [Exportable Clusters](#exportable-clusters)
+-   [Retrieval-Augmented Generation Analysis](#retrieval-augmented-generation-analysis)
+-   [Structured Data Analysis](#structured-data-analysis)
+-   [Deploying Phoenix](#deploying-phoenix)
+-   [Breaking Changes](#breaking-changes)
+-   [Community](#community)
+-   [Thanks](#thanks)
+-   [Copyright, Patent, and License](#copyright-patent-and-license)
 
 ## Installation
 
@@ -155,9 +155,8 @@ session = px.launch_app()
 
 from phoenix.trace.langchain import OpenInferenceTracer, LangChainInstrumentor
 
-# If no exporter is specified, the tracer will export to the locally running Phoenix server
-tracer = OpenInferenceTracer()
-LangChainInstrumentor(tracer).instrument()
+# By default, the traces will be exported to the locally running Phoenix server.
+LangChainInstrumentor().instrument()
 
 # Initialize your LangChain application
 from langchain.chains import RetrievalQA
@@ -392,7 +391,7 @@ For more information on deploying Phoenix, see the [Phoenix Deployment Guide](ht
 
 ## Breaking Changes
 
--   **v1.0.0** - Phoenix now exclusively supports the `openai>=1.0.0` sdk. If you are using an older version of the OpenAI SDK, you can continue to use `arize-phoenix==0.1.1`. However, we recommend upgrading to the latest version of the OpenAI SDK as it contains many improvements. If you are using Phoenix with LlamaIndex and and LangChain, you will have to upgrade to the versions of these packages that support the OpenAI `1.0.0` SDK as well (`llama-index>=0.8.64`, `langchain>=0.0.334`)
+see the [migration guide](./MIGRATION.md) for a list of breaking changes.
 
 ## Community
 

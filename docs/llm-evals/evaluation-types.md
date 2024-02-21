@@ -4,7 +4,7 @@ There are a multiple types of evaluations supported by the Phoenix Library. A ty
 
 &#x20;
 
-<figure><img src="../.gitbook/assets/eval_types.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/eval_types.png" alt=""><figcaption></figcaption></figure>
 
 Phoenix has options for all of the above though we highly recommend categorical options:
 

@@ -242,8 +242,9 @@ class ProcessSession(Session):
                 self.trace_dataset.name if self.trace_dataset is not None else None
             ),
         )
+        host = "127.0.0.1" if self.host == "0.0.0.0" else self.host
         self._client = Client(
-            endpoint=self.url,
+            endpoint=f"http://{host}:{self.port}",
             use_active_session_if_available=False,
         )
 
@@ -476,6 +477,7 @@ def launch_app(
             f"port {port} is not occupied by another process) or file an issue "
             f"with us at https://github.com/Arize-ai/phoenix"
         )
+        _session = None
         return None
 
     print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
@@ -488,7 +490,9 @@ def active_session() -> Optional[Session]:
     """
     Returns the active session if one exists, otherwise returns None
     """
-    return _session
+    if _session and _session.active:
+        return _session
+    return None
 
 
 def close_app() -> None:

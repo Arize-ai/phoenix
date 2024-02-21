@@ -1,7 +1,9 @@
 import logging
 import os
+import warnings
 from dataclasses import dataclass, field, fields
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -14,8 +16,11 @@ from typing import (
 )
 
 from phoenix.exceptions import PhoenixContextLimitExceeded
-from phoenix.experimental.evals.models.base import BaseModel
+from phoenix.experimental.evals.models.base import BaseEvalModel
 from phoenix.experimental.evals.models.rate_limiters import RateLimiter
+
+if TYPE_CHECKING:
+    from tiktoken import Encoding
 
 OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
 MINIMUM_OPENAI_VERSION = "1.0.0"
@@ -47,7 +52,7 @@ class AzureOptions:
 
 
 @dataclass
-class OpenAIModel(BaseModel):
+class OpenAIModel(BaseEvalModel):
     api_key: Optional[str] = field(repr=False, default=None)
     """Your OpenAI key. If not provided, will be read from the environment variable"""
     organization: Optional[str] = field(repr=False, default=None)
@@ -60,8 +65,10 @@ class OpenAIModel(BaseModel):
     An optional base URL to use for the OpenAI API. If not provided, will default
     to what's configured in OpenAI
     """
-    model_name: str = "gpt-4"
-    """Model name to use. In of azure, this is the deployment name such as gpt-35-instant"""
+    model: str = "gpt-4"
+    """
+    Model name to use. In of azure, this is the deployment name such as gpt-35-instant
+    """
     temperature: float = 0.0
     """What sampling temperature to use."""
     max_tokens: int = 256
@@ -83,6 +90,12 @@ class OpenAIModel(BaseModel):
     """Batch size to use when passing multiple documents to generate."""
     request_timeout: Optional[Union[float, Tuple[float, float]]] = None
     """Timeout for requests to OpenAI completion API. Default is 600 seconds."""
+    max_retries: int = 20
+    """Maximum number of retries to make when generating."""
+    retry_min_seconds: int = 10
+    """Minimum number of seconds to wait when retrying."""
+    retry_max_seconds: int = 60
+    """Maximum number of seconds to wait when retrying."""
 
     # Azure options
     api_version: Optional[str] = field(default=None)
@@ -96,13 +109,33 @@ class OpenAIModel(BaseModel):
     azure_ad_token: Optional[str] = field(default=None)
     azure_ad_token_provider: Optional[Callable[[], str]] = field(default=None)
 
+    # Deprecated fields
+    model_name: Optional[str] = field(default=None)
+    """
+    .. deprecated:: 3.0.0
+       use `model` instead. This will be removed
+    """
+
     def __post_init__(self) -> None:
+        self._migrate_model_name()
         self._init_environment()
         self._init_open_ai()
+        self._init_tiktoken()
         self._init_rate_limiter()
 
     def reload_client(self) -> None:
         self._init_open_ai()
+
+    def _migrate_model_name(self) -> None:
+        if self.model_name:
+            warning_message = "The `model_name` field is deprecated. Use `model` instead. \
+                This will be removed in a future release."
+            print(
+                warning_message,
+            )
+            warnings.warn(warning_message, DeprecationWarning)
+            self.model = self.model_name
+            self.model_name = None
 
     def _init_environment(self) -> None:
         try:
@@ -117,14 +150,20 @@ class OpenAIModel(BaseModel):
                 package_name="openai",
                 package_min_version=MINIMUM_OPENAI_VERSION,
             )
+        try:
+            import tiktoken
+
+            self._tiktoken = tiktoken
+        except ImportError:
+            self._raise_import_error(
+                package_name="tiktoken",
+            )
 
     def _init_open_ai(self) -> None:
         # For Azure, you need to provide the endpoint and the endpoint
         self._is_azure = bool(self.azure_endpoint)
 
-        self._model_uses_legacy_completion_api = self.model_name.startswith(
-            LEGACY_COMPLETION_API_MODELS
-        )
+        self._model_uses_legacy_completion_api = self.model.startswith(LEGACY_COMPLETION_API_MODELS)
         if self.api_key is None:
             api_key = os.getenv(OPENAI_API_KEY_ENVVAR_NAME)
             if api_key is None:
@@ -181,6 +220,13 @@ class OpenAIModel(BaseModel):
             base_url=(self.base_url or self._openai.base_url),
             max_retries=0,
         )
+
+    def _init_tiktoken(self) -> None:
+        try:
+            encoding = self._tiktoken.encoding_for_model(self.model)
+        except KeyError:
+            encoding = self._tiktoken.get_encoding("cl100k_base")
+        self._tiktoken_encoding = encoding
 
     def _get_azure_options(self) -> AzureOptions:
         options = {}
@@ -306,9 +352,30 @@ class OpenAIModel(BaseModel):
         return _completion(**kwargs)
 
     @property
+    def max_context_size(self) -> int:
+        model = self.model
+        # handling finetuned models
+        if "ft-" in model:
+            model = self.model.split(":")[0]
+        if model == "gpt-4":
+            # Map gpt-4 to the current default
+            model = "gpt-4-0613"
+
+        context_size = MODEL_TOKEN_LIMIT_MAPPING.get(model, None)
+
+        if context_size is None:
+            raise ValueError(
+                "Can't determine maximum context size. An unknown model name was "
+                f"used: {model}. Please provide a valid OpenAI model name. "
+                "Known models are: " + ", ".join(MODEL_TOKEN_LIMIT_MAPPING.keys())
+            )
+
+        return context_size
+
+    @property
     def public_invocation_params(self) -> Dict[str, Any]:
         return {
-            **({"model": self.model_name}),
+            **({"model": self.model}),
             **self._default_params,
             **self.model_kwargs,
         }
@@ -331,6 +398,40 @@ class OpenAIModel(BaseModel):
             "n": self.n,
             "timeout": self.request_timeout,
         }
+
+    @property
+    def encoder(self) -> "Encoding":
+        return self._tiktoken_encoding
+
+    def get_token_count_from_messages(self, messages: List[Dict[str, str]]) -> int:
+        """Return the number of tokens used by a list of messages.
+
+        Official documentation: https://github.com/openai/openai-cookbook/blob/main/examples/How_to_format_inputs_to_ChatGPT_models.ipynb
+        """  # noqa
+        model = self.model
+        if model == "gpt-3.5-turbo-0301":
+            tokens_per_message = 4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
+            tokens_per_name = -1  # if there's a name, the role is omitted
+        else:
+            tokens_per_message = 3
+            tokens_per_name = 1
+
+        token_count = 0
+        for message in messages:
+            token_count += tokens_per_message
+            for key, text in message.items():
+                token_count += len(self.get_tokens_from_text(text))
+                if key == "name":
+                    token_count += tokens_per_name
+        # every reply is primed with <|start|>assistant<|message|>
+        token_count += 3
+        return token_count
+
+    def get_tokens_from_text(self, text: str) -> List[int]:
+        return self.encoder.encode(text)
+
+    def get_text_from_tokens(self, tokens: List[int]) -> str:
+        return self.encoder.decode(tokens)
 
     @property
     def supports_function_calling(self) -> bool:

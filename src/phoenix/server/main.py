@@ -113,6 +113,12 @@ if __name__ == "__main__":
         "fixture", type=str, choices=[fixture.name for fixture in TRACES_FIXTURES]
     )
     trace_fixture_parser.add_argument("--simulate-streaming", type=bool)
+    demo_parser = subparsers.add_parser("demo")
+    demo_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
+    demo_parser.add_argument(
+        "trace_fixture", type=str, choices=[fixture.name for fixture in TRACES_FIXTURES]
+    )
+    demo_parser.add_argument("--simulate-streaming", action="store_true")
     args = parser.parse_args()
     export_path = Path(args.export_path) if args.export_path else EXPORT_DIR
     if args.command == "datasets":
@@ -140,6 +146,14 @@ if __name__ == "__main__":
             reference_dataset = None
     elif args.command == "trace-fixture":
         trace_dataset_name = args.fixture
+        simulate_streaming = args.simulate_streaming
+    elif args.command == "demo":
+        fixture_name = args.fixture
+        primary_dataset, reference_dataset, corpus_dataset = get_datasets(
+            fixture_name,
+            args.no_internet,
+        )
+        trace_dataset_name = args.trace_fixture
         simulate_streaming = args.simulate_streaming
 
     model = create_model_from_datasets(
