@@ -4,12 +4,6 @@ Helper functions for evaluating the retrieval step of retrieval-augmented genera
 
 from typing import List, Optional
 
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_random_exponential,
-)
-
 _EVALUATION_SYSTEM_MESSAGE = (
     "You will be given a query and a reference text. "
     "You must determine whether the reference text contains an answer to the input query. "
@@ -60,7 +54,6 @@ def compute_precisions_at_k(
     return precisions_at_k
 
 
-@retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6))
 def classify_relevance(query: str, document: str, model_name: str) -> Optional[bool]:
     """Given a query and a document, determines whether the document contains an answer to the
     query.

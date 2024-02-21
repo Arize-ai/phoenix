@@ -22,9 +22,21 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
+  "openinference-semantic-conventions",
+  "pandas",
+  "tqdm",
+  "typing-extensions>=4.5, <5",
 ]
 
 [project.optional-dependencies]
+dev = [
+  "anthropic",
+  "boto3",
+  "litellm>=1.0.3",
+  "openai>=1.0.0",
+  "tiktoken",
+  "vertexai",
+]
 test = [
 ]
 
