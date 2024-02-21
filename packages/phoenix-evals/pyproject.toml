@@ -38,6 +38,16 @@ dev = [
   "vertexai",
 ]
 test = [
+  "openinference-semantic-conventions",
+  "pandas",
+  "tqdm",
+  "typing-extensions>=4.5, <5",
+  "anthropic",
+  "boto3",
+  "litellm>=1.0.3",
+  "openai>=1.0.0",
+  "tiktoken",
+  "vertexai",
 ]
 
 [project.urls]
