@@ -131,9 +131,7 @@ class BedrockModel(BaseModel):
             }
         else:
             if not self.model_id.startswith("amazon"):
-                logger.warn(
-                    f"Unknown format for model {self.model_id}, returning titan format..."
-                )
+                logger.warn(f"Unknown format for model {self.model_id}, returning titan format...")
             return {
                 **{
                     "inputText": prompt,

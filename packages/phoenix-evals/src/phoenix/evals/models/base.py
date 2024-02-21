@@ -9,8 +9,8 @@ from tqdm.auto import tqdm
 from typing_extensions import TypeVar
 
 from evals.models.rate_limiters import RateLimiter
-from evals.utils.threads import to_thread
 from evals.utils.logging import printif
+from evals.utils.threads import to_thread
 
 T = TypeVar("T", bound=type)
 
