@@ -244,7 +244,7 @@ export function TracePage() {
             flex-direction: column;
           `}
         >
-          {rootSpan ? <TraceHeader rootSpan={rootSpan} /> : null}
+          <TraceHeader rootSpan={rootSpan} />
           <PanelGroup
             direction="horizontal"
             autoSaveId="trace-panel-group"
@@ -282,8 +282,12 @@ export function TracePage() {
   );
 }
 
-function TraceHeader({ rootSpan }: { rootSpan: Span }) {
-  const { latencyMs, statusCode, spanEvaluations } = rootSpan;
+function TraceHeader({ rootSpan }: { rootSpan: Span | null | undefined }) {
+  const { latencyMs, statusCode, spanEvaluations } = rootSpan ?? {
+    latencyMs: null,
+    statusCode: "UNSET",
+    spanEvaluations: [],
+  };
   const statusColor = useSpanStatusCodeColor(statusCode);
   const hasEvaluations = spanEvaluations.length;
   return (
