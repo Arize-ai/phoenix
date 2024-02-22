@@ -99,7 +99,9 @@ class Span:
     start_time: datetime
     end_time: Optional[datetime]
     latency_ms: Optional[float]
-    _parent_id: strawberry.Private[Optional[ID]]
+    parent_id: Optional[ID] = strawberry.field(
+        description="the parent span ID. If null, it is a root span"
+    )
     span_kind: SpanKind
     context: SpanContext
     attributes: str = strawberry.field(
@@ -128,19 +130,6 @@ class Span:
         description="Propagated status code that percolates up error status "
         "codes from descendant spans (children, grandchildren, etc.)",
     )
-
-    @strawberry.field()
-    def parent_id(
-        self,
-        info: Info[Context, None],
-    ) -> Optional[ID]:
-        if not self._parent_id:
-            return None
-        if (traces := info.context.traces) is None:
-            return None
-        if traces.span_exists(SpanID(str(self._parent_id))):
-            return self._parent_id
-        return None
 
     @strawberry.field(
         description="Evaluations associated with the span, e.g. if the span is "
@@ -238,7 +227,7 @@ def to_gql_span(span: trace_schema.Span) -> "Span":
         name=span.name,
         status_code=SpanStatusCode(span.status_code),
         status_message=span.status_message,
-        _parent_id=cast(Optional[ID], span.parent_id),
+        parent_id=cast(Optional[ID], span.parent_id),
         span_kind=SpanKind(span.span_kind),
         start_time=span.start_time,
         end_time=span.end_time,
