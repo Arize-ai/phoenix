@@ -22,10 +22,38 @@ classifiers = [
 ]
 version = "0.0.1"
 dependencies = [
+  "openinference-semantic-conventions",
+  "pandas",
+  "tqdm",
+  "typing-extensions>=4.5, <5",
 ]
 
 [project.optional-dependencies]
+dev = [
+  "anthropic",
+  "boto3",
+  "litellm>=1.0.3",
+  "openai>=1.0.0",
+  "tiktoken",
+  "vertexai",
+]
 test = [
+  "openinference-semantic-conventions",
+  "pandas",
+  "tqdm",
+  "typing-extensions>=4.5, <5",
+  "anthropic",
+  "boto3",
+  "litellm>=1.0.3",
+  "openai>=1.0.0",
+  "tiktoken",
+  "vertexai",
+  "respx",
+  "nest_asyncio",
+  "pytest==7.4.4",
+  "pytest-asyncio",
+  "pandas-stubs<=2.0.2.230605",
+  "types-tqdm",
 ]
 
 [project.urls]
@@ -73,5 +101,17 @@ force-single-line = false
 "*.ipynb" = ["E402", "E501"]
 
 [tool.mypy]
-strict = true
 explicit_package_bases = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs  = true
+strict = true
+exclude = [
+  "tests/",
+]
+
+[[tool.mypy.overrides]]
+module = [
+  "litellm",
+]
+ignore_missing_imports = true
