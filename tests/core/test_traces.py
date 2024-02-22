@@ -33,8 +33,8 @@ def test_ingestion(
         assert len(mock._spans) == i + 1, f"{i=}, {s=}"
 
         assert _id_str(otlp_span.span_id) in mock._spans, f"{i=}, {s=}"
-        span = mock._spans[_id_str(otlp_span.span_id)]
-        expected_token_count_total += span.attributes[SpanAttributes.LLM_TOKEN_COUNT_TOTAL]
+        latest_span = mock._spans[_id_str(otlp_span.span_id)]
+        expected_token_count_total += latest_span.attributes[SpanAttributes.LLM_TOKEN_COUNT_TOTAL]
         assert mock.token_count_total == expected_token_count_total, f"{i=}, {s=}"
 
         ingested_ids = {span.context.span_id for span in mock._spans.values()}
