@@ -41,7 +41,7 @@ def test_ingestion(
 
         # Check that all cumulative values are correct at all times. We do this by summing
         # up values from all connected descendants. A descendant is connected if all parents
-        # in between have been ingested. A disconected descendant does not propagate its value
+        # in between have been ingested. A disconnected descendant does not propagate its value
         # across a missing parent.
         for span_id in ingested_ids.intersection(child_ids.keys()):
             span = mock._spans[span_id]
