@@ -6,7 +6,7 @@ from urllib.request import urlopen
 from zipfile import ZipFile
 
 import pandas as pd
-from phoenix.evals.utils.logging import printif
+from tqdm.auto import tqdm
 
 # Rather than returning None, we return this string to indicate that the LLM output could not be
 # parsed.
@@ -169,3 +169,8 @@ def _default_openai_function(
             "required": required,
         },
     }
+
+
+def printif(condition: bool, *args: Any, **kwargs: Any) -> None:
+    if condition:
+        tqdm.write(*args, **kwargs)

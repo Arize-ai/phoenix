@@ -12,9 +12,9 @@ from phoenix.evals.utils import (
     NOT_PARSABLE,
     openai_function_call_kwargs,
     parse_openai_function_call,
+    printif,
     snap_to_rail,
 )
-from phoenix.evals.utils.logging import printif
 
 Record = Mapping[str, str]
 _TAB = " " * 4

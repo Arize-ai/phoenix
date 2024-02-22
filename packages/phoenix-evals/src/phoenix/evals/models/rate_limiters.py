@@ -5,7 +5,7 @@ from math import exp
 from typing import Any, Callable, Coroutine, Optional, Tuple, Type, TypeVar
 
 from phoenix.evals.exceptions import PhoenixException
-from phoenix.evals.utils.logging import printif
+from phoenix.evals.utils import printif
 from typing_extensions import ParamSpec
 
 ParameterSpec = ParamSpec("ParameterSpec")

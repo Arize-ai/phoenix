@@ -2,13 +2,9 @@ import logging
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Generator, List, Optional, Sequence
+from typing import Any, Generator, Optional, Sequence
 
 from phoenix.evals.models.rate_limiters import RateLimiter
-from phoenix.evals.utils.logging import printif
-from phoenix.evals.utils.threads import to_thread
-from tqdm.asyncio import tqdm_asyncio
-from tqdm.auto import tqdm
 from typing_extensions import TypeVar
 
 T = TypeVar("T", bound=type)
@@ -72,60 +68,6 @@ class BaseModel(ABC):
             )
         return self._generate(prompt=prompt, instruction=instruction, **kwargs)
 
-    async def async_call(self, prompt: str, instruction: Optional[str] = None) -> str:
-        """Run the LLM on the given prompt."""
-        if not isinstance(prompt, str):
-            raise TypeError(
-                "Invalid type for argument `prompt`. Expected a string but found "
-                f"{type(prompt)}. If you want to run the LLM on multiple prompts, use "
-                "`generate` instead."
-            )
-        if instruction is not None and not isinstance(instruction, str):
-            raise TypeError(
-                "Invalid type for argument `instruction`. Expected a string but found "
-                f"{type(instruction)}."
-            )
-        response = await self.agenerate(prompts=[prompt], instruction=instruction)
-        return response[0]
-
-    def generate(
-        self, prompts: List[str], instruction: Optional[str] = None, **kwargs: Any
-    ) -> List[str]:
-        printif(self._verbose, f"Generating responses for {len(prompts)} prompts...")
-        if extra_info := self.verbose_generation_info():
-            printif(self._verbose, extra_info)
-        if not is_list_of(prompts, str):
-            raise TypeError(
-                "Invalid type for argument `prompts`. Expected a list of strings "
-                f"but found {type(prompts)}."
-            )
-        try:
-            outputs = []
-            for prompt in tqdm(prompts, bar_format=TQDM_BAR_FORMAT):
-                output = self._generate(prompt=prompt, instruction=instruction, **kwargs)
-                logger.info(f"Prompt: {prompt}\nInstruction: {instruction}\nOutput: {output}")
-                outputs.append(output)
-
-        except (KeyboardInterrupt, Exception) as e:
-            raise e
-        return outputs
-
-    async def agenerate(self, prompts: List[str], instruction: Optional[str] = None) -> List[str]:
-        if not is_list_of(prompts, str):
-            raise TypeError(
-                "Invalid type for argument `prompts`. Expected a list of strings "
-                f"but found {type(prompts)}."
-            )
-        try:
-            result: List[str] = await tqdm_asyncio.gather(
-                *[self._agenerate(prompt=prompt, instruction=instruction) for prompt in prompts],
-                bar_format=TQDM_BAR_FORMAT,
-                ncols=100,
-            )
-        except (KeyboardInterrupt, Exception) as e:
-            raise e
-        return result
-
     def verbose_generation_info(self) -> str:
         # if defined, returns additional model-specific information to display if `generate` is
         # run with `verbose=True`
@@ -138,9 +80,6 @@ class BaseModel(ABC):
     @abstractmethod
     def _generate(self, prompt: str, **kwargs: Any) -> str:
         raise NotImplementedError
-
-    async def _agenerate(self, prompt: str, instruction: Optional[str]) -> str:
-        return str(await to_thread(self._generate, prompt=prompt, instruction=instruction))
 
     @staticmethod
     def _raise_import_error(

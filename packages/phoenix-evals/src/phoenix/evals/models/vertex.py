@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
-from phoenix.evals.utils.logging import printif
+from phoenix.evals.utils import printif
 
 logger = logging.getLogger(__name__)
 

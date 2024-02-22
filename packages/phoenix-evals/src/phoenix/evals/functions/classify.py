@@ -38,9 +38,9 @@ from phoenix.evals.utils import (
     get_tqdm_progress_bar_formatter,
     openai_function_call_kwargs,
     parse_openai_function_call,
+    printif,
     snap_to_rail,
 )
-from phoenix.evals.utils.logging import printif
 from typing_extensions import TypeAlias
 
 DOCUMENT_CONTENT = DocumentAttributes.DOCUMENT_CONTENT
