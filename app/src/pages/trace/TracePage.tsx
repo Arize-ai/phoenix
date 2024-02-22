@@ -229,9 +229,6 @@ export function TracePage() {
     return spansList.find((span) => span.parentId == null);
   }, [spansList]);
 
-  if (rootSpan == null) {
-    throw new Error("rootSpan is required to view a trace");
-  }
   return (
     <DialogContainer
       type="slideOver"
@@ -247,7 +244,7 @@ export function TracePage() {
             flex-direction: column;
           `}
         >
-          <TraceHeader rootSpan={rootSpan} />
+          {rootSpan ? <TraceHeader rootSpan={rootSpan} /> : null}
           <PanelGroup
             direction="horizontal"
             autoSaveId="trace-panel-group"
