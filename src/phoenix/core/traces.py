@@ -72,6 +72,10 @@ class ReadableSpan(ObjectProxy):  # type: ignore
     @property
     def span(self) -> Span:
         span = decode(self._self_otlp_span)
+        # FIXME: Our legacy files have the __computed__ attributes which interferes
+        # with our ability to add more computations. As a workaround, we discard the computed
+        # attribute if it exists.
+        span.attributes.pop(COMPUTED_PREFIX[:-1], None)
         span.attributes.update(
             cast(phoenix.trace.schemas.SpanAttributes, self._self_computed_values)
         )
