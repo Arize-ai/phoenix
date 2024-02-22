@@ -1,7 +1,7 @@
 from binascii import hexlify
 from collections import defaultdict, namedtuple
 from itertools import count, islice, permutations
-from typing import DefaultDict, Iterable, Set, Tuple
+from typing import DefaultDict, Iterable, Iterator, Set, Tuple
 
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import pytest
@@ -125,15 +125,13 @@ def _connected_descendant_ids(
     span_id: str,
     child_ids: DefaultDict[str, Set[str]],
     ingested_ids: Set[str],
-) -> Set[str]:
+) -> Iterator[str]:
     # A descendant is connected if all parents in between have been ingested.
-    ans = set()
     for id_ in child_ids.get(span_id) or ():
         if id_ not in ingested_ids:
             continue
-        ans.add(id_)
-        ans.update(_connected_descendant_ids(id_, child_ids, ingested_ids))
-    return ans
+        yield id_
+        yield from _connected_descendant_ids(id_, child_ids, ingested_ids)
 
 
 def _id_str(id_: bytes) -> str:
