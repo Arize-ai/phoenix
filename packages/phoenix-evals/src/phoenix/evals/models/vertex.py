@@ -37,14 +37,17 @@ class GeminiModel(BaseModel):
     def __post_init__(self) -> None:
         self._init_client()
         self._init_rate_limiter()
-        self._model_name = self.model
+
+    @property
+    def _model_name(self) -> str:
+        return self.model
 
     def reload_client(self) -> None:
         self._init_client()
 
     def _init_client(self) -> None:
         try:
-            from google.api_core import exceptions  # type:ignore
+            from google.api_core import exceptions
             from vertexai.preview import generative_models as vertex  # type:ignore
 
             self._vertex = vertex

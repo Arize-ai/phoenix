@@ -1,7 +1,13 @@
 from textwrap import indent
 from typing import List, Mapping, Optional, Tuple, Type
 
-from phoenix.evals.models import set_verbosity
+from phoenix.evals.models import BaseModel, OpenAIModel, set_verbosity
+from phoenix.evals.templates import (
+    ClassificationTemplate,
+    EvalCriteria,
+    PromptOptions,
+    PromptTemplate,
+)
 from phoenix.evals.utils import (
     NOT_PARSABLE,
     openai_function_call_kwargs,
@@ -9,9 +15,6 @@ from phoenix.evals.utils import (
     snap_to_rail,
 )
 from phoenix.evals.utils.logging import printif
-
-from .models import BaseModel, OpenAIModel
-from .templates import ClassificationTemplate, EvalCriteria, PromptOptions, PromptTemplate
 
 Record = Mapping[str, str]
 _TAB = " " * 4

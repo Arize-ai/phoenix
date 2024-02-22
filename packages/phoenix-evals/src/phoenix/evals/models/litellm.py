@@ -42,7 +42,10 @@ class LiteLLMModel(BaseModel):
     def __post_init__(self) -> None:
         self._migrate_model_name()
         self._init_environment()
-        self._model_name = self.model
+
+    @property
+    def _model_name(self) -> str:
+        return self.model
 
     def _migrate_model_name(self) -> None:
         if self.model_name is not None:

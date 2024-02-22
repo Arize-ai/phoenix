@@ -36,7 +36,10 @@ class BedrockModel(BaseModel):
     def __post_init__(self) -> None:
         self._init_client()
         self._init_rate_limiter()
-        self._model_name = self.model_id
+
+    @property
+    def _model_name(self) -> str:
+        return self.model_id
 
     def _init_client(self) -> None:
         if not self.client:

@@ -54,7 +54,10 @@ class VertexAIModel(BaseModel):
         self._init_environment()
         self._init_vertex_ai()
         self._instantiate_model()
-        self._model_name = self.tuned_model or self.model
+
+    @property
+    def _model_name(self) -> str:
+        return self.tuned_model or self.model
 
     def _migrate_model_name(self) -> None:
         if self.model_name is not None:
@@ -84,7 +87,7 @@ class VertexAIModel(BaseModel):
 
     def _init_environment(self) -> None:
         try:
-            import google.api_core.exceptions as google_exceptions  # type:ignore
+            import google.api_core.exceptions as google_exceptions
             import vertexai  # type:ignore
 
             self._vertexai = vertexai

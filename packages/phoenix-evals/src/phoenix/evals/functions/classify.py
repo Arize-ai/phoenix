@@ -151,8 +151,8 @@ def llm_classify(
     prompt_options = PromptOptions(provide_explanation=provide_explanation)
     prompts = map_template(dataframe, eval_template, options=prompt_options)
 
-    labels: List[Optional[str]] = [None] * len(dataframe)
-    explanations: List[Optional[str]] = [None] * len(dataframe)
+    labels: Iterable[Optional[str]] = [None] * len(dataframe)
+    explanations: Iterable[Optional[str]] = [None] * len(dataframe)
 
     printif(verbose, f"Using prompt:\n\n{eval_template.prompt(prompt_options)}")
     if generation_info := model.verbose_generation_info():

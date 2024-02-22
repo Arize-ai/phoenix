@@ -28,11 +28,14 @@ class AnthropicModel(BaseModel):
     def __post_init__(self) -> None:
         self._init_client()
         self._init_rate_limiter()
-        self._model_name = self.model
+
+    @property
+    def _model_name(self) -> str:
+        return self.model
 
     def _init_client(self) -> None:
         try:
-            import anthropic  # type:ignore
+            import anthropic
 
             self._anthropic = anthropic
             self.client = self._anthropic.Anthropic()
