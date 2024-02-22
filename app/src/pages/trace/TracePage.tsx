@@ -216,7 +216,7 @@ export function TracePage() {
     `,
     { traceId: traceId as string },
     {
-      fetchPolicy: "network-only",
+      fetchPolicy: "store-and-network",
     }
   );
   const spansList = data.spans.edges.map((edge) => edge.span);
