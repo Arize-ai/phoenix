@@ -6,8 +6,7 @@ import sys
 from typing import Any, List
 
 import tiktoken
-
-from ..models import BaseModel
+from phoenix.evals.models import BaseModel
 
 logger = logging.getLogger(__name__)
 
