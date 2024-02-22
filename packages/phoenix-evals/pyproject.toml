@@ -52,6 +52,8 @@ test = [
   "nest_asyncio",
   "pytest==7.4.4",
   "pytest-asyncio",
+  "pandas-stubs<=2.0.2.230605",
+  "types-tqdm",
 ]
 
 [project.urls]
