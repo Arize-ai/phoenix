@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, Mock
 
 import nest_asyncio
 import pytest
-from evals.functions.executor import (
+from phoenix.evals.functions.executor import (
     AsyncExecutor,
     SyncExecutor,
     get_executor_on_sync_context,

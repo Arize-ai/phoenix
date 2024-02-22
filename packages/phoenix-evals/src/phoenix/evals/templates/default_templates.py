@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from enum import Enum
 
-from evals.templates.template import ClassificationTemplate
+from phoenix.evals.templates.template import ClassificationTemplate
 
 RAG_RELEVANCY_PROMPT_RAILS_MAP = OrderedDict({True: "relevant", False: "unrelated"})
 RAG_RELEVANCY_PROMPT_BASE_TEMPLATE = """

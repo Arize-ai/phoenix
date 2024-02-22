@@ -7,9 +7,9 @@ import numpy as np
 import pandas as pd
 import pytest
 import respx
-from evals import OpenAIModel, llm_generate
-from evals.models.litellm import LiteLLMModel
-from evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
+from phoenix.evals import OpenAIModel, llm_generate
+from phoenix.evals.models.litellm import LiteLLMModel
+from phoenix.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 from respx.patterns import M
 
 

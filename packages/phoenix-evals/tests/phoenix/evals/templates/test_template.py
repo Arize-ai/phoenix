@@ -1,8 +1,8 @@
 import math
 
 import pytest
-from evals import RAG_RELEVANCY_PROMPT_TEMPLATE, ClassificationTemplate
-from evals.templates.template import InvalidClassificationTemplateError
+from phoenix.evals import RAG_RELEVANCY_PROMPT_TEMPLATE, ClassificationTemplate
+from phoenix.evals.templates.template import InvalidClassificationTemplateError
 
 
 def test_classification_template_raises_error_when_initialized_with_mismatched_labels_and_scores():

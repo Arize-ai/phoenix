@@ -3,7 +3,7 @@ import warnings
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from evals.models.base import BaseModel
+from phoenix.evals.models.base import BaseModel
 
 logger = logging.getLogger(__name__)
 

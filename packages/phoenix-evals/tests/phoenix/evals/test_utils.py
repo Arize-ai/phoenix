@@ -1,4 +1,4 @@
-from evals.utils import NOT_PARSABLE, snap_to_rail
+from phoenix.evals.utils import NOT_PARSABLE, snap_to_rail
 
 
 def test_snap_to_rail():

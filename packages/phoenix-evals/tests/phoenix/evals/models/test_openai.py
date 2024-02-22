@@ -1,6 +1,6 @@
 import pytest
-from evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME, OpenAIModel
 from openai import AzureOpenAI, OpenAI
+from phoenix.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME, OpenAIModel
 
 
 def test_openai_model(monkeypatch):

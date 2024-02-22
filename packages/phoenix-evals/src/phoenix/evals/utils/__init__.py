@@ -6,8 +6,7 @@ from urllib.request import urlopen
 from zipfile import ZipFile
 
 import pandas as pd
-
-from evals.utils.logging import printif
+from phoenix.evals.utils.logging import printif
 
 # Rather than returning None, we return this string to indicate that the LLM output could not be
 # parsed.

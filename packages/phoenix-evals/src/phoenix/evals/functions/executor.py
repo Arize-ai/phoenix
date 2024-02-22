@@ -6,9 +6,8 @@ import signal
 import traceback
 from typing import Any, Callable, Coroutine, List, Optional, Protocol, Sequence, Tuple, Union
 
+from phoenix.evals.exceptions import PhoenixException
 from tqdm.auto import tqdm
-
-from evals.exceptions import PhoenixException
 
 logger = logging.getLogger(__name__)
 

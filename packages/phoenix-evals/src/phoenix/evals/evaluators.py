@@ -1,14 +1,14 @@
 from textwrap import indent
 from typing import List, Mapping, Optional, Tuple, Type
 
-from evals.models import set_verbosity
-from evals.utils import (
+from phoenix.evals.models import set_verbosity
+from phoenix.evals.utils import (
     NOT_PARSABLE,
     openai_function_call_kwargs,
     parse_openai_function_call,
     snap_to_rail,
 )
-from evals.utils.logging import printif
+from phoenix.evals.utils.logging import printif
 
 from .models import BaseModel, OpenAIModel
 from .templates import ClassificationTemplate, EvalCriteria, PromptOptions, PromptTemplate

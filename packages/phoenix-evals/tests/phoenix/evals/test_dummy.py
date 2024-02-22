@@ -1,8 +1,8 @@
 """
 Dummy test file. Should be removed.
 """
-import evals.version
+import phoenix.evals.version
 
 
 def test_dummy() -> None:
-    assert evals.version.__version__
+    assert phoenix.evals.version.__version__

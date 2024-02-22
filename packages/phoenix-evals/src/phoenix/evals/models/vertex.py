@@ -2,9 +2,9 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
-from evals.models.base import BaseModel
-from evals.models.rate_limiters import RateLimiter
-from evals.utils.logging import printif
+from phoenix.evals.models.base import BaseModel
+from phoenix.evals.models.rate_limiters import RateLimiter
+from phoenix.evals.utils.logging import printif
 
 logger = logging.getLogger(__name__)
 

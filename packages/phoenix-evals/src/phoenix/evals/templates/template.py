@@ -3,9 +3,8 @@ from dataclasses import dataclass
 from typing import Callable, List, Mapping, Optional, Tuple, Union
 
 import pandas as pd
-
-from evals.exceptions import PhoenixException
-from evals.utils import NOT_PARSABLE
+from phoenix.evals.exceptions import PhoenixException
+from phoenix.evals.utils import NOT_PARSABLE
 
 DEFAULT_START_DELIM = "{"
 DEFAULT_END_DELIM = "}"

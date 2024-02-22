@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from evals.exceptions import PhoenixContextLimitExceeded
-from evals.models.base import BaseModel
-from evals.models.rate_limiters import RateLimiter
+from phoenix.evals.exceptions import PhoenixContextLimitExceeded
+from phoenix.evals.models.base import BaseModel
+from phoenix.evals.models.rate_limiters import RateLimiter
 
 
 @dataclass

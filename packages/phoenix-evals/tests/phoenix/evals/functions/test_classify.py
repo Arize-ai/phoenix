@@ -10,23 +10,23 @@ import pandas as pd
 import phoenix
 import pytest
 import respx
-from evals import (
+from pandas.core.frame import DataFrame
+from pandas.testing import assert_frame_equal
+from phoenix.evals import (
     NOT_PARSABLE,
     OpenAIModel,
     llm_classify,
     run_relevance_eval,
 )
-from evals.evaluators import LLMEvaluator
-from evals.functions.classify import (
+from phoenix.evals.evaluators import LLMEvaluator
+from phoenix.evals.functions.classify import (
     run_evals,
 )
-from evals.templates.default_templates import (
+from phoenix.evals.templates.default_templates import (
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_TEMPLATE,
 )
-from evals.utils import _EXPLANATION, _FUNCTION_NAME, _RESPONSE
-from pandas.core.frame import DataFrame
-from pandas.testing import assert_frame_equal
+from phoenix.evals.utils import _EXPLANATION, _FUNCTION_NAME, _RESPONSE
 from respx.patterns import M
 
 
@@ -57,11 +57,11 @@ def running_event_loop_mock(
 ) -> bool:
     running_event_loop_exists = request.param
     monkeypatch.setattr(
-        "phoenix.experimental.evals.functions.executor._running_event_loop_exists",
+        "phoenix.evals.functions.executor._running_event_loop_exists",
         lambda: running_event_loop_exists,
     )
     assert (
-        phoenix.experimental.evals.functions.executor._running_event_loop_exists()
+        phoenix.evals.functions.executor._running_event_loop_exists()
     ) is running_event_loop_exists, "mocked function should return the expected value"
     return running_event_loop_exists
 

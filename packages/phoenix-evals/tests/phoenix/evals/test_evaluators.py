@@ -2,7 +2,7 @@ import math
 from unittest.mock import MagicMock
 
 import pytest
-from evals import (
+from phoenix.evals import (
     NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     ClassificationTemplate,
@@ -10,7 +10,7 @@ from evals import (
     OpenAIModel,
     RelevanceEvaluator,
 )
-from evals.utils import _EXPLANATION, _RESPONSE
+from phoenix.evals.utils import _EXPLANATION, _RESPONSE
 
 
 @pytest.fixture

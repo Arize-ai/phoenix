@@ -4,13 +4,12 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Generator, List, Optional, Sequence
 
+from phoenix.evals.models.rate_limiters import RateLimiter
+from phoenix.evals.utils.logging import printif
+from phoenix.evals.utils.threads import to_thread
 from tqdm.asyncio import tqdm_asyncio
 from tqdm.auto import tqdm
 from typing_extensions import TypeVar
-
-from evals.models.rate_limiters import RateLimiter
-from evals.utils.logging import printif
-from evals.utils.threads import to_thread
 
 T = TypeVar("T", bound=type)
 
@@ -47,13 +46,13 @@ class BaseModel(ABC):
     _verbose: bool = False
     _rate_limiter: RateLimiter = field(default_factory=RateLimiter)
 
-    @property
-    @abstractmethod
-    def _model_name(self) -> str:
-        """
-        A string identifier for the text model being used.
-        """
-        ...
+    # @property
+    # @abstractmethod
+    # def _model_name(self) -> str:
+    #     """
+    #     A string identifier for the text model being used.
+    #     """
+    #     ...
 
     def reload_client(self) -> None:
         pass

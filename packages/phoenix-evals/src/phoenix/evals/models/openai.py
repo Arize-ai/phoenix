@@ -14,9 +14,9 @@ from typing import (
     get_origin,
 )
 
-from evals.exceptions import PhoenixContextLimitExceeded
-from evals.models.base import BaseModel
-from evals.models.rate_limiters import RateLimiter
+from phoenix.evals.exceptions import PhoenixContextLimitExceeded
+from phoenix.evals.models.base import BaseModel
+from phoenix.evals.models.rate_limiters import RateLimiter
 
 OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
 MINIMUM_OPENAI_VERSION = "1.0.0"
