@@ -26,7 +26,7 @@ from phoenix.evals.default_templates import (
     RAG_RELEVANCY_PROMPT_TEMPLATE,
 )
 from phoenix.evals.evaluators import LLMEvaluator
-from phoenix.evals.executor import get_executor_on_sync_context
+from phoenix.evals.executors import get_executor_on_sync_context
 from phoenix.evals.models import BaseModel, OpenAIModel, set_verbosity
 from phoenix.evals.templates import (
     ClassificationTemplate,

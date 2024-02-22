@@ -57,11 +57,11 @@ def running_event_loop_mock(
 ) -> bool:
     running_event_loop_exists = request.param
     monkeypatch.setattr(
-        "phoenix.evals.executor._running_event_loop_exists",
+        "phoenix.evals.executors._running_event_loop_exists",
         lambda: running_event_loop_exists,
     )
     assert (
-        phoenix.evals.executor._running_event_loop_exists()
+        phoenix.evals.executors._running_event_loop_exists()
     ) is running_event_loop_exists, "mocked function should return the expected value"
     return running_event_loop_exists
 

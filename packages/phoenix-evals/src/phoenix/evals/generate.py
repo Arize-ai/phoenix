@@ -2,7 +2,7 @@ import logging
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import pandas as pd
-from phoenix.evals.executor import (
+from phoenix.evals.executors import (
     get_executor_on_sync_context,
 )
 from phoenix.evals.models import BaseModel, set_verbosity
