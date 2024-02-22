@@ -1,3 +1,4 @@
+from .classify import llm_classify, run_evals, run_relevance_eval
 from .evaluators import (
     HallucinationEvaluator,
     LLMEvaluator,
@@ -6,7 +7,7 @@ from .evaluators import (
     SummarizationEvaluator,
     ToxicityEvaluator,
 )
-from .functions import llm_classify, llm_generate, run_evals, run_relevance_eval
+from .generate import llm_generate
 from .models import BedrockModel, LiteLLMModel, OpenAIModel, VertexAIModel
 from .retrievals import compute_precisions_at_k
 from .templates import (

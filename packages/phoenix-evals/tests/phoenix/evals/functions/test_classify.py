@@ -18,10 +18,10 @@ from phoenix.evals import (
     llm_classify,
     run_relevance_eval,
 )
-from phoenix.evals.evaluators import LLMEvaluator
-from phoenix.evals.functions.classify import (
+from phoenix.evals.classify import (
     run_evals,
 )
+from phoenix.evals.evaluators import LLMEvaluator
 from phoenix.evals.templates.default_templates import (
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_TEMPLATE,
@@ -57,11 +57,11 @@ def running_event_loop_mock(
 ) -> bool:
     running_event_loop_exists = request.param
     monkeypatch.setattr(
-        "phoenix.evals.functions.executor._running_event_loop_exists",
+        "phoenix.evals.executor._running_event_loop_exists",
         lambda: running_event_loop_exists,
     )
     assert (
-        phoenix.evals.functions.executor._running_event_loop_exists()
+        phoenix.evals.executor._running_event_loop_exists()
     ) is running_event_loop_exists, "mocked function should return the expected value"
     return running_event_loop_exists
 
