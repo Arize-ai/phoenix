@@ -214,7 +214,10 @@ export function TracePage() {
         }
       }
     `,
-    { traceId: traceId as string }
+    { traceId: traceId as string },
+    {
+      fetchPolicy: "network-only",
+    }
   );
   const spansList = data.spans.edges.map((edge) => edge.span);
   const urlSelectedSpanId = searchParams.get("selectedSpanId");
