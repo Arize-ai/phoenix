@@ -21,11 +21,11 @@ from phoenix.evals import (
 from phoenix.evals.classify import (
     run_evals,
 )
-from phoenix.evals.evaluators import LLMEvaluator
-from phoenix.evals.templates.default_templates import (
+from phoenix.evals.default_templates import (
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_TEMPLATE,
 )
+from phoenix.evals.evaluators import LLMEvaluator
 from phoenix.evals.utils import _EXPLANATION, _FUNCTION_NAME, _RESPONSE
 from respx.patterns import M
 

@@ -1,10 +1,10 @@
 from textwrap import indent
 from typing import List, Mapping, Optional, Tuple, Type
 
+from phoenix.evals.default_templates import EvalCriteria
 from phoenix.evals.models import BaseModel, OpenAIModel, set_verbosity
 from phoenix.evals.templates import (
     ClassificationTemplate,
-    EvalCriteria,
     PromptOptions,
     PromptTemplate,
 )

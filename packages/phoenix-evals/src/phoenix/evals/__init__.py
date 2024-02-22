@@ -1,16 +1,5 @@
 from .classify import llm_classify, run_evals, run_relevance_eval
-from .evaluators import (
-    HallucinationEvaluator,
-    LLMEvaluator,
-    QAEvaluator,
-    RelevanceEvaluator,
-    SummarizationEvaluator,
-    ToxicityEvaluator,
-)
-from .generate import llm_generate
-from .models import BedrockModel, LiteLLMModel, OpenAIModel, VertexAIModel
-from .retrievals import compute_precisions_at_k
-from .templates import (
+from .default_templates import (
     CODE_READABILITY_PROMPT_RAILS_MAP,
     CODE_READABILITY_PROMPT_TEMPLATE,
     HALLUCINATION_PROMPT_RAILS_MAP,
@@ -23,6 +12,19 @@ from .templates import (
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_RAILS_MAP,
     TOXICITY_PROMPT_TEMPLATE,
+)
+from .evaluators import (
+    HallucinationEvaluator,
+    LLMEvaluator,
+    QAEvaluator,
+    RelevanceEvaluator,
+    SummarizationEvaluator,
+    ToxicityEvaluator,
+)
+from .generate import llm_generate
+from .models import BedrockModel, LiteLLMModel, OpenAIModel, VertexAIModel
+from .retrievals import compute_precisions_at_k
+from .templates import (
     ClassificationTemplate,
     PromptTemplate,
 )

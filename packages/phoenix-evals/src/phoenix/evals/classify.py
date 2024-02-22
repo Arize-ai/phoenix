@@ -21,12 +21,14 @@ from typing import (
 import pandas as pd
 from openinference.semconv.trace import DocumentAttributes, SpanAttributes
 from pandas import DataFrame
+from phoenix.evals.default_templates import (
+    RAG_RELEVANCY_PROMPT_RAILS_MAP,
+    RAG_RELEVANCY_PROMPT_TEMPLATE,
+)
 from phoenix.evals.evaluators import LLMEvaluator
 from phoenix.evals.executor import get_executor_on_sync_context
 from phoenix.evals.models import BaseModel, OpenAIModel, set_verbosity
 from phoenix.evals.templates import (
-    RAG_RELEVANCY_PROMPT_RAILS_MAP,
-    RAG_RELEVANCY_PROMPT_TEMPLATE,
     ClassificationTemplate,
     PromptOptions,
     PromptTemplate,
