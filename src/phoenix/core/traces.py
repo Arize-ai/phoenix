@@ -325,12 +325,12 @@ class Traces:
             self._num_documents[span_id] += num_documents_update
 
     def _propagate_cumulative_values(self, span: ReadableSpan) -> None:
+        child_spans: Iterable[ReadableSpan] = self._child_spans.get(span.context.span_id) or ()
         for cumulative_attribute, attribute in _CUMULATIVE_ATTRIBUTES.items():
             span[cumulative_attribute] = span[attribute] or 0
+            for child_span in child_spans:
+                span[cumulative_attribute] += child_span[cumulative_attribute] or 0
         self._update_ancestors(span)
-        span_id = span.context.span_id
-        for child_span in self._child_spans[span_id]:
-            self._update_ancestors(child_span)
 
     def _update_ancestors(self, span: ReadableSpan) -> None:
         # Add cumulative values to each of the span's ancestors.
