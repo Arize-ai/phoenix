@@ -22,7 +22,6 @@ classifiers = [
 ]
 version = "0.0.2"
 dependencies = [
-  "openinference-semantic-conventions",
   "pandas",
   "tqdm",
   "typing-extensions>=4.5, <5",
