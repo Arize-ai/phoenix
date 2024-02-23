@@ -3,14 +3,14 @@
     "sequential-calls": true,
     "packages": {
         ".": {
-            "package-name": "phoenix",
+            "package-name": "arize-phoenix",
             "release-type": "python",
             "exclude-paths": ["packages"]
         },
         "packages/phoenix-evals": {
-            "package-name": "phoenix-evals",
+            "package-name": "arize-phoenix-evals",
             "release-type": "python"
         }
     },
-    "bootstrap-sha": "213a2a3a62436b46ff3c07d8f06bf1c932320e76"
+    "bootstrap-sha": "71840f7b1d7650e6407a0e6856fab128d1b42a40"
 }
