@@ -1,3 +1,5 @@
+import phoenix._evals as evals
+
 from .datasets.dataset import Dataset
 from .datasets.fixtures import ExampleDatasets, load_example
 from .datasets.schema import EmbeddingColumnNames, RetrievalEmbeddingColumnNames, Schema
@@ -7,7 +9,6 @@ from .session.session import NotebookEnvironment, Session, active_session, close
 from .trace.fixtures import load_example_traces
 from .trace.trace_dataset import TraceDataset
 from .version import __version__
-import phoenix._evals as evals
 
 # module level doc-string
 __doc__ = """
@@ -42,4 +43,5 @@ __all__ = [
     "NotebookEnvironment",
     "log_evaluations",
     "Client",
+    "evals",
 ]
