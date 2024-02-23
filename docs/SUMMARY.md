@@ -1,49 +1,46 @@
 # Table of contents
 
-* [Phoenix: AI Observability & Evaluation](README.md)
-* [Examples](notebooks.md)
-* [Installation](install-and-import-phoenix.md)
+* [Arize Phoenix](README.md)
+* [User Guide](user-guide.md)
 * [Environments](environments.md)
+* [Examples](notebooks.md)
 
-## 🔑 Quickstart
+## 🔭 Tracing
 
-* [Phoenix Traces](quickstart/llm-traces.md)
-* [Phoenix Evals](quickstart/evals.md)
-* [Phoenix Inferences](quickstart/phoenix-inferences/README.md)
-  * [Schemas and Datasets](quickstart/phoenix-inferences/inferences.md)
+* [Overview: Traces](tracing/overview.md)
+* [Quickstart: Traces](tracing/quickstart.md)
+* [Instrumentation](tracing/instrumentation/README.md)
+  * [OpenInference](tracing/instrumentation/open-inference.md)
+* [Collector](tracing/collector.md)
+* [Custom Spans](tracing/custom-spans.md)
 
-## 🔭 telemetry
+## 🧠 Evaluation
 
-* [Deploying Phoenix](telemetry/deploying-phoenix.md)
-* [Instrumentation](telemetry/instrumentation.md)
-* [Custom Spans](telemetry/custom-spans.md)
+* [Overview: Evals](evaluation/overview.md)
+* [Concept: Evaluation](evaluation/evaluation.md)
+* [Quickstart: Evals](evaluation/evals.md)
+* [Running Pre-Tested Evals](evaluation/running-pre-tested-evals/README.md)
+  * [Retrieval (RAG) Relevance](evaluation/running-pre-tested-evals/retrieval-rag-relevance.md)
+  * [Hallucinations](evaluation/running-pre-tested-evals/hallucinations.md)
+  * [Q\&A on Retrieved Data](evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data.md)
+  * [Toxicity](evaluation/running-pre-tested-evals/toxicity.md)
+  * [Code Generation Eval](evaluation/running-pre-tested-evals/code-generation-eval.md)
+  * [Summarization Eval](evaluation/running-pre-tested-evals/summarization-eval.md)
+  * [Reference (citation) Link Evals](evaluation/running-pre-tested-evals/reference-link-evals.md)
+  * [AI vs Human (Groundtruth)](evaluation/running-pre-tested-evals/ai-vs-human-groundtruth.md)
+* [Evaluation Types](evaluation/evaluation-types.md)
+* [Evals With Explanations](evaluation/evals-with-explanations.md)
+* [Building Your Own Evals](evaluation/building-your-own-evals.md)
+* [Quickstart Retrieval Evals](evaluation/quickstart-retrieval-evals/README.md)
+  * [Retrieval Evals on Document Chunks](evaluation/quickstart-retrieval-evals/retrieval-evals-on-document-chunks.md)
+* [Benchmarking Retrieval (RAG)](evaluation/benchmarking-retrieval-rag.md)
 
-## 💡 Concepts
+## 🌌 inferences
 
-* [LLM Observability](concepts/llm-observability.md)
-* [Traces and Spans](concepts/llm-traces.md)
-* [Evaluation](concepts/evaluation.md)
-* [Generating Embeddings](concepts/generating-embeddings.md)
-* [Embeddings Analysis](concepts/embeddings-analysis.md)
-
-## 🧠 LLM Evals
-
-* [Phoenix LLM Evals](llm-evals/llm-evals.md)
-* [Running Pre-Tested Evals](llm-evals/running-pre-tested-evals/README.md)
-  * [Retrieval (RAG) Relevance](llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md)
-  * [Hallucinations](llm-evals/running-pre-tested-evals/hallucinations.md)
-  * [Q\&A on Retrieved Data](llm-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md)
-  * [Toxicity](llm-evals/running-pre-tested-evals/toxicity.md)
-  * [Code Generation Eval](llm-evals/running-pre-tested-evals/code-generation-eval.md)
-  * [Summarization Eval](llm-evals/running-pre-tested-evals/summarization-eval.md)
-  * [Reference (citation) Link Evals](llm-evals/running-pre-tested-evals/reference-link-evals.md)
-  * [AI vs Human (Groundtruth)](llm-evals/running-pre-tested-evals/ai-vs-human-groundtruth.md)
-* [Evaluation Types](llm-evals/evaluation-types.md)
-* [Evals With Explanations](llm-evals/evals-with-explanations.md)
-* [Building Your Own Evals](llm-evals/building-your-own-evals.md)
-* [Quickstart Retrieval Evals](llm-evals/quickstart-retrieval-evals/README.md)
-  * [Retrieval Evals on Document Chunks](llm-evals/quickstart-retrieval-evals/retrieval-evals-on-document-chunks.md)
-* [Benchmarking Retrieval (RAG)](llm-evals/benchmarking-retrieval-rag.md)
+* [Quickstart: Inferences](inferences/quickstart.md)
+* [Schemas and Datasets](inferences/inferences.md)
+* [Generating Embeddings](inferences/generating-embeddings.md)
+* [Embeddings Analysis](inferences/embeddings-analysis.md)
 
 ## 🔮 Use Cases
 
@@ -63,7 +60,7 @@
 * [Extract Data from Spans](how-to/extract-data-from-spans.md)
 * [Use Example Datasets](how-to/use-example-datasets.md)
 
-## ⌨ API
+## ⌨️ API
 
 * [Dataset and Schema](api/dataset-and-schema.md)
 * [Session](api/session.md)
@@ -81,14 +78,12 @@
 * [DSPy](integrations/dspy.md)
 * [Arize](integrations/bring-production-data-to-notebook-for-eda-or-retraining.md)
 
-## 🏴☠ Programming Languages
+## 🏴‍☠️ Programming Languages
 
 * [JavaScript](programming-languages/javascript.md)
 
 ## 📚 Reference
 
-* [Embeddings](concepts/embeddings.md)
-* [OpenInference](concepts/open-inference.md)
 * [Frequently Asked Questions](reference/frequently-asked-questions.md)
 * [Contribute to Phoenix](reference/contribute-to-phoenix.md)
 

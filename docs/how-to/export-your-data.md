@@ -8,7 +8,7 @@ Phoenix is designed to be a pre-production tool that can be used to find interes
 
 * A subset of production data for re-labeling and training
 * A subset of data for fine-tuning an LLM
-* A set of [traces](../concepts/llm-traces.md) to run [LLM Evals](../llm-evals/llm-evals.md) with or to share with a teammate
+* A set of [traces](../tracing/overview.md) to run [LLM Evals](../evaluation/overview.md) with or to share with a teammate
 
 ## Exporting Traces
 

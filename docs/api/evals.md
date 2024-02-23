@@ -37,7 +37,7 @@ Evaluates a pandas dataframe using a set of user-specified evaluators that asses
 * **provide\_explanation** (bool, optional): If true, each output dataframe will contain an explanation column containing the LLM's reasoning for each evaluation.
 * **use\_function\_calling\_if\_available** (bool, optional): If true, function calling is used (if available) as a means to constrain the LLM outputs. With function calling, the LLM is instructed to provide its response as a structured JSON object, which is easier to parse.
 * **verbose** (bool, optional): If true, prints detailed information such as model invocation parameters, retries on failed requests, etc.
-* **concurrency** (int, optional): The number of concurrent workers if async submission is possible. If&#x20;
+* **concurrency** (int, optional): The number of concurrent workers if async submission is possible. If
 
 ### Returns
 
@@ -78,7 +78,7 @@ hallucination_eval_df, qa_correctness_eval_df = run_evals(
 
 Assuming your `dataframe` contains the "input", "reference", and "output" columns required by `HallucinationEvaluator` and `QAEvaluator`, your output dataframes should contain the results of the corresponding evaluator applied to the input dataframe, including columns for labels (e.g., "factual" or "hallucinated"), scores (e.g., 0 for factual labels, 1 for hallucinated labels), and explanations. If your dataframe was exported from your Phoenix session, you can then ingest the evaluations using `phoenix.log_evaluations` so that the evals will be visible as annotations inside Phoenix.
 
-For an end-to-end example, see the [evals quickstart](../quickstart/evals.md).
+For an end-to-end example, see the [evals quickstart](../evaluation/evals.md).
 
 ## phoenix.experimental.evals.PromptTemplate
 

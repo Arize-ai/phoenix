@@ -1,8 +1,8 @@
 # Quickstart Retrieval Evals
 
-In order to run retrieval Evals the following code can be used for quick analysis of common frameworks of LangChain and LlamaIndex.&#x20;
+In order to run retrieval Evals the following code can be used for quick analysis of common frameworks of LangChain and LlamaIndex.
 
-Independent of the framework you are instrumenting, Phoenix traces allow you to get retrieval data in a common dataframe format that follows the [OpenInference](../../concepts/open-inference.md) specification.&#x20;
+Independent of the framework you are instrumenting, Phoenix traces allow you to get retrieval data in a common dataframe format that follows the [OpenInference](../../tracing/instrumentation/open-inference.md) specification.
 
 ```python
 # Get traces from Phoenix into dataframe 
@@ -73,11 +73,11 @@ The Evals are available in dataframe locally and can be materilazed back to the 
 
 <figure><img src="../../.gitbook/assets/databricks_notebook_eval2.png" alt=""><figcaption><p>Evals in Phoenix UI</p></figcaption></figure>
 
-The snipit of code above links the Evals back to the spans they were generated against.&#x20;
+The snipit of code above links the Evals back to the spans they were generated against.
 
 ### Retrieval Chunk Evals
 
-[Retrieval Evals](../running-pre-tested-evals/retrieval-rag-relevance.md) are run on the individual chunks returned on retrieval. In addition to calculating chunk level metrics, Phoenix also calculates MRR and NDCG for the retrieved span.&#x20;
+[Retrieval Evals](../running-pre-tested-evals/retrieval-rag-relevance.md) are run on the individual chunks returned on retrieval. In addition to calculating chunk level metrics, Phoenix also calculates MRR and NDCG for the retrieved span.
 
 ```python
 

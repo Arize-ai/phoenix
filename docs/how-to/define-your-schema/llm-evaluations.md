@@ -11,7 +11,7 @@ description: >-
 
 ## Introduction
 
-An evaluation must have a `name` (e.g. "Q\&A Correctness") and its dataframe must contain identifiers for the subject of evaluation, e.g. a span or a document (more on that below), and values under either the `score`, `label`, or `explanation` columns. See [Evaluations](../../concepts/evaluation.md) for more information.
+An evaluation must have a `name` (e.g. "Q\&A Correctness") and its dataframe must contain identifiers for the subject of evaluation, e.g. a span or a document (more on that below), and values under either the `score`, `label`, or `explanation` columns. See [Evaluations](../../evaluation/evaluation.md) for more information.
 
 ## Span Evaluations
 
@@ -34,7 +34,7 @@ px.Client().log_evaluations(
 
 ## Document Evaluations
 
-A dataframe of document evaluations would look something like the table below. It must contain `span_id` and `document_position` as either indices or columns. `document_position` is the document's (zero-based) index in  the span's list of retrieved documents. Once ingested, Phoenix uses the `span_id` and `document_position` to associate the evaluation with its target span and document.
+A dataframe of document evaluations would look something like the table below. It must contain `span_id` and `document_position` as either indices or columns. `document_position` is the document's (zero-based) index in the span's list of retrieved documents. Once ingested, Phoenix uses the `span_id` and `document_position` to associate the evaluation with its target span and document.
 
 <table><thead><tr><th>span_id</th><th data-type="number">document_position</th><th>label</th><th data-type="number">score</th></tr></thead><tbody><tr><td>5B8EF798A381</td><td>0</td><td>relevant</td><td>1</td></tr><tr><td>5B8EF798A381</td><td>1</td><td>irrelevant</td><td>0</td></tr><tr><td>E19B7EC3GG02</td><td>0</td><td>relevant</td><td>1</td></tr></tbody></table>
 

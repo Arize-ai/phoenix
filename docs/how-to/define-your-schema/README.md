@@ -7,7 +7,7 @@ description: How to create Phoenix datasets and schemas for common data formats
 This guide shows you how to define a Phoenix dataset using your own data.
 
 {% hint style="info" %}
-* For a conceptual overview of the Phoenix API, including a high-level introduction to the notion of datasets and schemas, see [Phoenix Basics](../../quickstart/phoenix-inferences/inferences.md#schemas).
+* For a conceptual overview of the Phoenix API, including a high-level introduction to the notion of datasets and schemas, see [Phoenix Basics](../../inferences/inferences.md#schemas).
 * For a comprehensive description of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](../../api/dataset-and-schema.md).
 {% endhint %}
 
@@ -144,7 +144,7 @@ schema = px.Schema(
 Embedding features consist of vector data in addition to any unstructured data in the form of text or images that the vectors represent. Unlike normal features, a single embedding feature may span multiple columns of your dataframe. Use `px.EmbeddingColumnNames` to associate multiple dataframe columns with the same embedding feature.
 
 {% hint style="info" %}
-* For a conceptual overview of embeddings, see [Embeddings](../../concepts/embeddings.md).
+* For a conceptual overview of embeddings, see [Embeddings](broken-reference).
 * For a comprehensive description of `px.EmbeddingColumnNames`, see the [API reference](../../api/dataset-and-schema.md#phoenix.embeddingcolumnnames).
 {% endhint %}
 

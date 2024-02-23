@@ -5,28 +5,28 @@ description: >-
   measure it.
 ---
 
-# Evaluation
+# Concept: Evaluation
 
 Phoenix offers key modules to measure the quality of generated results as well as modules to measure retrieval quality.
 
-* [**Response Evaluation**](evaluation.md#response-evaluation): Does the response match the retrieved context? Does it also match the query?&#x20;
+* [**Response Evaluation**](evaluation.md#response-evaluation): Does the response match the retrieved context? Does it also match the query?
 * [**Retrieval Evaluation**](evaluation.md#retrieval-evaluation): Are the retrieved sources relevant to the query?
 
 ### Response Evaluation
 
 Evaluation of generated results can be challenging. Unlike traditional ML, the predicted results are not numeric or categorical, making it hard to define quantitative metrics for this problem.
 
-Phoenix offers [LLM Evaluations](broken-reference), a module designed to measure the quality of results. This module uses a "gold" LLM (e.g. GPT-4) to decide whether the generated answer is correct in a variety of ways.\
+Phoenix offers [LLM Evaluations](../concepts/broken-reference/), a module designed to measure the quality of results. This module uses a "gold" LLM (e.g. GPT-4) to decide whether the generated answer is correct in a variety of ways.\
 \
 Note that many of these evaluation criteria DO NOT require ground-truth labels. Evaluation can be done simply with a combination of the **input** (query), **output** (response), and **context**.
 
 LLM Evals supports the following response evaluation criteria:
 
-* [**QA Correctness**](../llm-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md) - Whether a question was correctly answered by the system based on the retrieved data. In contrast to retrieval Evals that are checks on chunks of data returned, this check is a system level check of a correct Q\&A.
-* [**Hallucinations**](../llm-evals/running-pre-tested-evals/hallucinations.md) **-** Designed to detect LLM hallucinations relative to retrieved context
-* [**Toxicity**](../llm-evals/running-pre-tested-evals/toxicity.md) -  Identify if the AI response is racist, biased, or toxic
+* [**QA Correctness**](running-pre-tested-evals/q-and-a-on-retrieved-data.md) - Whether a question was correctly answered by the system based on the retrieved data. In contrast to retrieval Evals that are checks on chunks of data returned, this check is a system level check of a correct Q\&A.
+* [**Hallucinations**](running-pre-tested-evals/hallucinations.md) **-** Designed to detect LLM hallucinations relative to retrieved context
+* [**Toxicity**](running-pre-tested-evals/toxicity.md) - Identify if the AI response is racist, biased, or toxic
 
-Response evaluations are a critical first step to figuring out whether your LLM App is running correctly.  Response evaluations can pinpoint specific executions (a.k.a. traces) that are performing badly and can be aggregated up so that you can track how your application is running as a whole.
+Response evaluations are a critical first step to figuring out whether your LLM App is running correctly. Response evaluations can pinpoint specific executions (a.k.a. traces) that are performing badly and can be aggregated up so that you can track how your application is running as a whole.
 
 <figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/screenshots/eval_aggregations.png?raw=true" alt=""><figcaption><p>Evaluations can be aggregated across executions to be used as KPIs</p></figcaption></figure>
 
@@ -34,11 +34,11 @@ Response evaluations are a critical first step to figuring out whether your LLM 
 
 Phoenix also provides evaluation of retrieval independently.
 
-The concept of retrieval evaluation is not new; given a set of relevance scores for a set of retrieved documents, we can evaluate retrievers using retrieval metrics like `precision`, `NDCG`,  `hit rate` and more.
+The concept of retrieval evaluation is not new; given a set of relevance scores for a set of retrieved documents, we can evaluate retrievers using retrieval metrics like `precision`, `NDCG`, `hit rate` and more.
 
 LLM Evals supports the following retrieval evaluation criteria:
 
-* [**Relevance**](../llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md) - Evaluates whether a retrieved document chunk contains an answer to the query.&#x20;
+* [**Relevance**](running-pre-tested-evals/retrieval-rag-relevance.md) - Evaluates whether a retrieved document chunk contains an answer to the query.
 
 <figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/blog/revlevance_eval_process.png?raw=true" alt=""><figcaption><p>Retrieval Evaluations can be run directly on application traces</p></figcaption></figure>
 
@@ -48,7 +48,7 @@ Retrieval is possibly the most important step in any LLM application as poor and
 
 <figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/blog/Evaluations.png?raw=true" alt=""><figcaption><p>Datasets that contain generative records can be fed into evals to produce evaluations for analysis</p></figcaption></figure>
 
-With Phoenix's LLM Evals, evaluation results (or just **Evaluations** for short) is a dataset consisting of 3 main columns:&#x20;
+With Phoenix's LLM Evals, evaluation results (or just **Evaluations** for short) is a dataset consisting of 3 main columns:
 
 * **label**: str \[optional] - a classification label for the evaluation (e.g. "hallucinated" vs "factual"). Can be used to calculate percentages (e.g. percent hallucinated) and can be used to filter down your data (e.g. `Evals["Hallucinations"].label == "hallucinated"`)
 * **score**: number \[optional] - a numeric score for the evaluation (e.g. 1 for good, 0 for bad). Scores are great way to sort your data to surface poorly performing examples and can be used to filter your data by a threshold.
@@ -78,13 +78,10 @@ With Phoenix, evaluations can be "attached" to the **spans** and **documents** c
 
 <figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/blog/evaluation_flow.png?raw=true" alt=""><figcaption><p>End-to-end evaluation flow</p></figcaption></figure>
 
-By following the above steps, you will have a full end-to-end flow for troubleshooting, evaluating, and root-causing an LLM application. By using LLM Evals in conjunction with Traces, you will be able to surface up problematic queries, get an explanation as to why the the generation is problematic (e.x. **hallucinated** because ...), and be able to identify which step of your generative app requires improvement (e.x. did the LLM hallucinate or was the LLM fed bad context?).\
-
+By following the above steps, you will have a full end-to-end flow for troubleshooting, evaluating, and root-causing an LLM application. By using LLM Evals in conjunction with Traces, you will be able to surface up problematic queries, get an explanation as to why the the generation is problematic (e.x. **hallucinated** because ...), and be able to identify which step of your generative app requires improvement (e.x. did the LLM hallucinate or was the LLM fed bad context?).\\
 
 <figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/screenshots/document_evals_on_traces.png?raw=true" alt=""><figcaption><p>In the above screenshot you can see how poor retrieval directly correlates with hallucinations</p></figcaption></figure>
 
-
-
-&#x20;For a full tutorial on LLM Ops, check out our tutorial below.
+For a full tutorial on LLM Ops, check out our tutorial below.
 
 {% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/llm_ops_overview.ipynb" %}

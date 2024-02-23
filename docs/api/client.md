@@ -34,7 +34,7 @@ A client for making HTTP requests to the Phoenix server for extracting/downloadi
 
 *   **get\_spans\_dataframe** -> Optional\[pandas.DataFrame]\
     \
-    Returns spans in a pandas.dataframe. Filters can be applied. See [LLM Traces](../concepts/llm-traces.md) for more about tracing your LLM application.\
+    Returns spans in a pandas.dataframe. Filters can be applied. See [LLM Traces](../tracing/overview.md) for more about tracing your LLM application.\
     \
     **Parameters**
 

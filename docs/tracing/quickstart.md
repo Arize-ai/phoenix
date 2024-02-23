@@ -2,19 +2,35 @@
 description: Inspect the inner-workings of your LLM Application using OpenInference Traces
 ---
 
-# Phoenix Traces
+# Quickstart: Traces
 
-## Streaming Traces to Phoenix
+## Overview
 
-The easiest method of using Phoenix traces with LLM frameworks (or direct OpenAI API) is to stream the execution of your application to a locally running Phoenix server. The traces collected during execution can then be stored for later use for things like validation, evaluation, and fine-tuning.
-
-The [traces](../concepts/llm-traces.md) can be collected and stored in the following ways:
-
-* **In Memory**: useful for debugging.
-* **Local File**: Persistent and good for offline local development. See [exports](../how-to/export-your-data.md)
-* **Cloud** (coming soon): Store your cloud buckets as as assets for later use
+Tracing is a powerful tool for understanding the behavior of your LLM application. Phoenix has best-in-class tracing capabilities, irregardless of what LLM framework you use.
 
 To get started with traces, you will first want to start a local Phoenix app.
+
+In your Jupyter or Colab environment, run the following command to install.
+
+{% tabs %}
+{% tab title="Using pip" %}
+```sh
+pip install arize-phoenix
+```
+{% endtab %}
+
+{% tab title="Using conda" %}
+```sh
+conda install -c conda-forge arize-phoenix
+```
+{% endtab %}
+{% endtabs %}
+
+Note that the above only installs dependencies that are necessary to run the application. Phoenix also has an experimental sub-module where you can find [LLM Evals](../evaluation/overview.md).
+
+```sh
+pip install arize-phoenix[experimental]
+```
 
 ```python
 import phoenix as px
@@ -152,7 +168,7 @@ Once you've executed a sufficient number of queries (or chats) to your applicati
 
 ## Trace Datasets
 
-Phoenix also support datasets that contain [OpenInference trace](../concepts/open-inference.md) data. This allows data from a LangChain and LlamaIndex running instance explored for analysis offline.
+Phoenix also support datasets that contain [OpenInference trace](instrumentation/open-inference.md) data. This allows data from a LangChain and LlamaIndex running instance explored for analysis offline.
 
 There are two ways to extract trace dataframes. The two ways for LangChain are described below.
 
@@ -177,7 +193,7 @@ For full details on how to export trace data, see [the detailed guide](../how-to
 In addition to launching phoenix on LlamaIndex and LangChain, teams can export trace data to a dataframe in order to run LLM Evals on the data.
 
 {% hint style="info" %}
-Learn more in the [evals quickstart](evals.md).
+Learn more in the [evals quickstart](../evaluation/evals.md).
 {% endhint %}
 
 ## Phoenix Tracing App
@@ -196,4 +212,4 @@ Phoenix can be used to understand and troubleshoot your by surfacing:
 * **Tool Descriptions -** view the description and function signature of the tools your LLM has been given access to
 * **LLM Function Calls** - if using OpenAI or other a model with function calls, you can view the function selection and function messages in the input messages to the LLM.\\
 
-[LLM Traces](../concepts/llm-traces.md) are a powerful way to troubleshoot and understand your application and can be leveraged to [evaluate](../llm-evals/llm-evals.md) the quality of your application. For a full list of notebooks that illustrate this in full-color, please check out the [notebooks section](../notebooks.md).
+[LLM Traces](overview.md) are a powerful way to troubleshoot and understand your application and can be leveraged to [evaluate](../evaluation/overview.md) the quality of your application. For a full list of notebooks that illustrate this in full-color, please check out the [notebooks section](../notebooks.md).

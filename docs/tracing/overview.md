@@ -2,7 +2,7 @@
 description: Tracing the execution of LLM powered applications using OpenInference Traces
 ---
 
-# LLM Traces
+# Overview: Traces
 
 ## What is LLM Traces and Observability?
 
@@ -12,7 +12,7 @@ The rise of LangChain and LlamaIndex for LLM app development has enabled develop
 
 LLM Traces and Observability lets us understand the system from the outside, by letting us ask questions about that system without knowing its inner workings. Furthermore, it allows us to easily troubleshoot and handle novel problems (i.e. “unknown unknowns”), and helps us answer the question, “Why is this happening?”
 
-In order to be able to ask those questions of a system, the application must be properly instrumented. That is, the application code must emit signals such as [traces](llm-traces.md#user-content-traces) and logs. An application is properly instrumented when developers don’t need to add more instrumentation to troubleshoot an issue, because they have all of the information they need.
+In order to be able to ask those questions of a system, the application must be properly instrumented. That is, the application code must emit signals such as [traces](overview.md#user-content-traces) and logs. An application is properly instrumented when developers don’t need to add more instrumentation to troubleshoot an issue, because they have all of the information they need.
 
 Phoenix's tracing module is the mechanism by which application code is instrumented, to help make a system observable.
 
