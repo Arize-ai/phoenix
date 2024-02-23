@@ -12,21 +12,21 @@ import pytest
 import respx
 from pandas.core.frame import DataFrame
 from pandas.testing import assert_frame_equal
-from phoenix.experimental.evals import (
+from phoenix.evals import (
     NOT_PARSABLE,
     OpenAIModel,
     llm_classify,
     run_relevance_eval,
 )
-from phoenix.experimental.evals.evaluators import LLMEvaluator
-from phoenix.experimental.evals.functions.classify import (
+from phoenix.evals.classify import (
     run_evals,
 )
-from phoenix.experimental.evals.templates.default_templates import (
+from phoenix.evals.default_templates import (
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_TEMPLATE,
 )
-from phoenix.experimental.evals.utils import _EXPLANATION, _FUNCTION_NAME, _RESPONSE
+from phoenix.evals.evaluators import LLMEvaluator
+from phoenix.evals.utils import _EXPLANATION, _FUNCTION_NAME, _RESPONSE
 from respx.patterns import M
 
 
@@ -57,11 +57,11 @@ def running_event_loop_mock(
 ) -> bool:
     running_event_loop_exists = request.param
     monkeypatch.setattr(
-        "phoenix.experimental.evals.functions.executor._running_event_loop_exists",
+        "phoenix.evals.executors._running_event_loop_exists",
         lambda: running_event_loop_exists,
     )
     assert (
-        phoenix.experimental.evals.functions.executor._running_event_loop_exists()
+        phoenix.evals.executors._running_event_loop_exists()
     ) is running_event_loop_exists, "mocked function should return the expected value"
     return running_event_loop_exists
 
@@ -123,8 +123,7 @@ def test_llm_classify(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel()
+    model = OpenAIModel()
 
     result = llm_classify(
         dataframe=dataframe,
@@ -168,8 +167,7 @@ def test_llm_classify_with_included_prompt_and_response(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel()
+    model = OpenAIModel()
 
     result = llm_classify(
         dataframe=dataframe,
@@ -214,8 +212,7 @@ def test_llm_classify_with_async(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel()
+    model = OpenAIModel()
 
     result = llm_classify(
         dataframe=dataframe,
@@ -251,8 +248,7 @@ def test_llm_classify_with_fn_call(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel()
+    model = OpenAIModel()
 
     result = llm_classify(
         dataframe=dataframe,
@@ -282,8 +278,7 @@ def test_classify_fn_call_no_explain(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel()
+    model = OpenAIModel()
 
     result = llm_classify(
         dataframe=dataframe,
@@ -321,8 +316,7 @@ def test_classify_fn_call_explain(
             return_value=httpx.Response(200, json={"choices": [{"message": message}]})
         )
 
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel()
+    model = OpenAIModel()
 
     result = llm_classify(
         dataframe=dataframe,
@@ -357,8 +351,7 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(
         payload = {"choices": [{"message": {"content": response}}]}
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel()
+    model = OpenAIModel()
 
     llm_classify(
         dataframe=dataframe,
@@ -390,8 +383,7 @@ def test_llm_classify_shows_retry_info(openai_api_key: str, capfd: pytest.Captur
     )
 
     with ExitStack() as stack:
-        with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-            model = OpenAIModel()
+        model = OpenAIModel()
 
         openai_retry_error = model._openai.APITimeoutError("test timeout")
         mock_openai = MagicMock()
@@ -513,8 +505,7 @@ def test_run_relevance_eval_standard_dataframe(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel()
+    model = OpenAIModel()
 
     relevance_classifications = run_relevance_eval(dataframe, model=model)
     assert relevance_classifications == [
@@ -538,8 +529,7 @@ def test_classify_tolerance_to_exceptions(
     respx_mock: respx.mock,
     capfd,
 ):
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel()
+    model = OpenAIModel()
     queries = classification_dataframe["input"].tolist()
     for query, response in zip(queries, classification_responses):
         matcher = M(content__contains=query)
@@ -656,8 +646,7 @@ def test_run_relevance_eval_openinference_dataframe(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel()
+    model = OpenAIModel()
 
     relevance_classifications = run_relevance_eval(dataframe, model=model)
     assert relevance_classifications == [
