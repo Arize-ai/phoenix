@@ -7,6 +7,7 @@ from .session.session import NotebookEnvironment, Session, active_session, close
 from .trace.fixtures import load_example_traces
 from .trace.trace_dataset import TraceDataset
 from .version import __version__
+import phoenix._evals as evals
 
 # module level doc-string
 __doc__ = """
