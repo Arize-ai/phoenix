@@ -44,10 +44,6 @@ Overview of Phoenix Tracing
 
 Check out a comprehensive list of example notebooks for LLM Traces, Evals, RAG Analysis, and more. &#x20;
 
-### [Use Cases](broken-reference)
-
-Learn about best practices, and how to get started with use case examples such as Q\&A with Retrieval, Summarization, and Chatbots.&#x20;
-
 ### [Community](https://join.slack.com/t/arize-ai/shared\_invite/zt-1ppbtg5dd-1CYmQO4dWF4zvXFiONTjMg)
 
 Join the Phoenix Slack community to ask questions, share findings, provide feedback, and connect with other developers.&#x20;
