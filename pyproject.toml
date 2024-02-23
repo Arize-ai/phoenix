@@ -310,7 +310,7 @@ ignore_missing_imports = true
 [tool.ruff]
 exclude = [
   "packages",
-  "src/phoenix/evals",
+  "src/phoenix/evals/",
   ".git",
   "__pycache__",
   "docs/source/conf.py",
