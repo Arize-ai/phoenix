@@ -17,7 +17,6 @@ from typing import (
 )
 
 import pandas as pd
-from openinference.semconv.trace import DocumentAttributes, SpanAttributes
 from pandas import DataFrame
 from phoenix.evals.evaluators import LLMEvaluator
 from phoenix.evals.executors import get_executor_on_sync_context
@@ -39,15 +38,8 @@ from phoenix.evals.utils import (
 )
 from typing_extensions import TypeAlias
 
-DOCUMENT_CONTENT = DocumentAttributes.DOCUMENT_CONTENT
-INPUT_VALUE = SpanAttributes.INPUT_VALUE
-RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
-
 logger = logging.getLogger(__name__)
 
-
-OPENINFERENCE_QUERY_COLUMN_NAME = "attributes." + INPUT_VALUE
-OPENINFERENCE_DOCUMENT_COLUMN_NAME = "attributes." + RETRIEVAL_DOCUMENTS
 
 ColumnName: TypeAlias = str
 Label: TypeAlias = str
