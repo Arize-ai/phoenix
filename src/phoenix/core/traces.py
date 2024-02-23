@@ -10,7 +10,6 @@ from typing import (
     Dict,
     Iterable,
     Iterator,
-    List,
     Optional,
     Set,
     SupportsFloat,
@@ -120,7 +119,6 @@ class Traces:
         self._parent_span_ids: Dict[SpanID, ParentSpanID] = {}
         self._traces: DefaultDict[TraceID, Set[ReadableSpan]] = defaultdict(set)
         self._child_spans: DefaultDict[SpanID, Set[ReadableSpan]] = defaultdict(set)
-        self._orphan_spans: DefaultDict[ParentSpanID, List[otlp.Span]] = defaultdict(list)
         self._num_documents: DefaultDict[SpanID, int] = defaultdict(int)
         self._start_time_sorted_spans: SortedKeyList[ReadableSpan] = SortedKeyList(
             key=lambda span: span.start_time,
@@ -239,7 +237,7 @@ class Traces:
 
     @property
     def span_count(self) -> int:
-        """Total number of spans (excluding orphan spans if any)"""
+        """Total number of spans"""
         return len(self._spans)
 
     @property
