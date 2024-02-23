@@ -6,7 +6,7 @@ from .evaluators import (
     SummarizationEvaluator,
     ToxicityEvaluator,
 )
-from .functions import llm_classify, llm_generate, run_evals, run_relevance_eval
+from .functions import llm_classify, llm_generate, run_evals
 from .models import BedrockModel, LiteLLMModel, OpenAIModel, VertexAIModel
 from .retrievals import compute_precisions_at_k
 from .templates import (
@@ -51,14 +51,10 @@ __all__ = [
     "QA_PROMPT_RAILS_MAP",
     "QA_PROMPT_TEMPLATE",
     "NOT_PARSABLE",
-    "run_relevance_eval",
     "run_evals",
     "LLMEvaluator",
-    "CodeReadabilityEvaluator",
     "HallucinationEvaluator",
-    "HumanVsAIEvaluator",
     "QAEvaluator",
-    "ReferenceLinkCorrectnessEvaluator",
     "RelevanceEvaluator",
     "SummarizationEvaluator",
     "ToxicityEvaluator",
