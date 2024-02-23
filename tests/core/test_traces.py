@@ -25,6 +25,7 @@ def test_ingestion(
     mock = MockTraces()
     trace_id = _id_str(otlp_trace[0].trace_id)
     expected_token_count_total = 0
+    ingested_ids = set()
     for i, s in enumerate(permutation):
         otlp_span = otlp_trace[s]
         mock._process_span(otlp_span)
@@ -36,8 +37,7 @@ def test_ingestion(
         latest_span = mock._spans[_id_str(otlp_span.span_id)]
         expected_token_count_total += latest_span.attributes[SpanAttributes.LLM_TOKEN_COUNT_TOTAL]
         assert mock.token_count_total == expected_token_count_total, f"{i=}, {s=}"
-
-        ingested_ids = {span.context.span_id for span in mock._spans.values()}
+        ingested_ids.add(latest_span.context.span_id)
 
         # Check that all cumulative values are correct at all times. We do this by summing
         # up values from all connected descendants. A descendant is connected if all parents

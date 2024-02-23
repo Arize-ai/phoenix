@@ -169,17 +169,17 @@ if __name__ == "__main__":
                 _get_trace_fixture_by_name(trace_dataset_name)
             )
         )
-        Thread(
-            target=_load_items,
-            args=(traces, fixture_spans, simulate_streaming),
-            daemon=True,
-        ).start()
+        # Thread(
+        #     target=_load_items,
+        #     args=(traces, fixture_spans, simulate_streaming),
+        #     daemon=True,
+        # ).start()
         fixture_evals = list(get_evals_from_fixture(trace_dataset_name))
-        Thread(
-            target=_load_items,
-            args=(evals, fixture_evals, simulate_streaming),
-            daemon=True,
-        ).start()
+    #         Thread(
+    #             target=_load_items,
+    #             args=(evals, fixture_evals, simulate_streaming),
+    #             daemon=True,
+    #         ).start()
     umap_params_list = args.umap_params.split(",")
     umap_params = UMAPParameters(
         min_dist=float(umap_params_list[0]),
