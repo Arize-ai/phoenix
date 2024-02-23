@@ -1,11 +1,9 @@
 import json
 from contextlib import ExitStack
-from itertools import product
 from typing import List
 from unittest.mock import MagicMock, patch
 
 import httpx
-import numpy as np
 import pandas as pd
 import phoenix
 import pytest
@@ -16,7 +14,6 @@ from phoenix.evals import (
     NOT_PARSABLE,
     OpenAIModel,
     llm_classify,
-    run_relevance_eval,
 )
 from phoenix.evals.classify import (
     run_evals,
@@ -412,114 +409,6 @@ def test_llm_classify_shows_retry_info(openai_api_key: str, capfd: pytest.Captur
     assert "Exception in worker on attempt 12" not in out, "Maximum retries should not be exceeded"
 
 
-@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
-def test_run_relevance_eval_standard_dataframe(
-    openai_api_key: str,
-    respx_mock: respx.mock,
-):
-    dataframe = pd.DataFrame(
-        [
-            {
-                "input": "What is Python?",
-                "reference": [
-                    "Python is a programming language.",
-                    "Ruby is a programming language.",
-                ],
-            },
-            {
-                "input": "Can you explain Python to me?",
-                "reference": np.array(
-                    [
-                        "Python is a programming language.",
-                        "Ruby is a programming language.",
-                    ]
-                ),
-            },
-            {
-                "input": "What is Ruby?",
-                "reference": [
-                    "Ruby is a programming language.",
-                ],
-            },
-            {
-                "input": "What is C++?",
-                "reference": [
-                    "Ruby is a programming language.",
-                    "C++ is a programming language.",
-                ],
-            },
-            {
-                "input": "What is C#?",
-                "reference": [],
-            },
-            {
-                "input": "What is Golang?",
-                "reference": None,
-            },
-            {
-                "input": None,
-                "reference": [
-                    "Python is a programming language.",
-                    "Ruby is a programming language.",
-                ],
-            },
-            {
-                "input": None,
-                "reference": None,
-            },
-        ]
-    )
-
-    queries = list(dataframe["input"])
-    references = list(dataframe["reference"])
-    keys = []
-    for query, refs in zip(queries, references):
-        refs = refs if refs is None else list(refs)
-        if query and refs:
-            keys.extend(product([query], refs))
-
-    responses = [
-        "relevant",
-        "unrelated",
-        "relevant",
-        "unrelated",
-        "\nrelevant ",
-        "unparsable",
-        "relevant",
-    ]
-
-    response_mapping = {key: response for key, response in zip(keys, responses)}
-    for (query, reference), response in response_mapping.items():
-        matcher = M(content__contains=query) & M(content__contains=reference)
-        payload = {
-            "choices": [
-                {
-                    "message": {
-                        "content": response,
-                    },
-                }
-            ],
-            "usage": {
-                "total_tokens": 1,
-            },
-        }
-        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
-
-    model = OpenAIModel()
-
-    relevance_classifications = run_relevance_eval(dataframe, model=model)
-    assert relevance_classifications == [
-        ["relevant", "unrelated"],
-        ["relevant", "unrelated"],
-        ["relevant"],
-        [NOT_PARSABLE, "relevant"],
-        [],
-        [],
-        [],
-        [],
-    ]
-
-
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions", assert_all_called=False)
 def test_classify_tolerance_to_exceptions(
     openai_api_key: str,
@@ -551,114 +440,6 @@ def test_classify_tolerance_to_exceptions(
     # Make sure there is a logger.error output
     captured = capfd.readouterr()
     assert "Exception in worker" in captured.out
-
-
-def test_run_relevance_eval_openinference_dataframe(
-    openai_api_key: str,
-    respx_mock: respx.mock,
-):
-    dataframe = pd.DataFrame(
-        [
-            {
-                "attributes.input.value": "What is Python?",
-                "attributes.retrieval.documents": [
-                    {"document.content": "Python is a programming language."},
-                    {"document.content": "Ruby is a programming language."},
-                ],
-            },
-            {
-                "attributes.input.value": "Can you explain Python to me?",
-                "attributes.retrieval.documents": np.array(
-                    [
-                        {"document.content": "Python is a programming language."},
-                        {"document.content": "Ruby is a programming language."},
-                    ]
-                ),
-            },
-            {
-                "attributes.input.value": "What is Ruby?",
-                "attributes.retrieval.documents": [
-                    {"document.content": "Ruby is a programming language."},
-                ],
-            },
-            {
-                "attributes.input.value": "What is C++?",
-                "attributes.retrieval.documents": [
-                    {"document.content": "Ruby is a programming language."},
-                    {"document.content": "C++ is a programming language."},
-                ],
-            },
-            {
-                "attributes.input.value": "What is C#?",
-                "attributes.retrieval.documents": [],
-            },
-            {
-                "attributes.input.value": "What is Golang?",
-                "attributes.retrieval.documents": None,
-            },
-            {
-                "attributes.input.value": None,
-                "attributes.retrieval.documents": [
-                    {"document.content": "Python is a programming language."},
-                    {"document.content": "Ruby is a programming language."},
-                ],
-            },
-            {
-                "attributes.input.value": None,
-                "attributes.retrieval.documents": None,
-            },
-        ]
-    )
-
-    queries = list(dataframe["attributes.input.value"])
-    references = list(dataframe["attributes.retrieval.documents"])
-    keys = []
-    for query, refs in zip(queries, references):
-        refs = refs if refs is None else list(refs)
-        if query and refs:
-            keys.extend(product([query], refs))
-    keys = [(query, ref["document.content"]) for query, ref in keys]
-
-    responses = [
-        "relevant",
-        "unrelated",
-        "relevant",
-        "unrelated",
-        "\nrelevant ",
-        "unparsable",
-        "relevant",
-    ]
-
-    response_mapping = {key: response for key, response in zip(keys, responses)}
-    for (query, reference), response in response_mapping.items():
-        matcher = M(content__contains=query) & M(content__contains=reference)
-        payload = {
-            "choices": [
-                {
-                    "message": {
-                        "content": response,
-                    },
-                }
-            ],
-            "usage": {
-                "total_tokens": 1,
-            },
-        }
-        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
-
-    model = OpenAIModel()
-
-    relevance_classifications = run_relevance_eval(dataframe, model=model)
-    assert relevance_classifications == [
-        ["relevant", "unrelated"],
-        ["relevant", "unrelated"],
-        ["relevant"],
-        [NOT_PARSABLE, "relevant"],
-        [],
-        [],
-        [],
-        [],
-    ]
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")

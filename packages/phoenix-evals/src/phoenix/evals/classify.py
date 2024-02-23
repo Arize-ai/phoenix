@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import warnings
 from collections import defaultdict
 from itertools import product
 from typing import (
@@ -15,16 +14,10 @@ from typing import (
     Optional,
     Tuple,
     Union,
-    cast,
 )
 
 import pandas as pd
-from openinference.semconv.trace import DocumentAttributes, SpanAttributes
 from pandas import DataFrame
-from phoenix.evals.default_templates import (
-    RAG_RELEVANCY_PROMPT_RAILS_MAP,
-    RAG_RELEVANCY_PROMPT_TEMPLATE,
-)
 from phoenix.evals.evaluators import LLMEvaluator
 from phoenix.evals.executors import get_executor_on_sync_context
 from phoenix.evals.models import BaseModel, OpenAIModel, set_verbosity
@@ -45,15 +38,8 @@ from phoenix.evals.utils import (
 )
 from typing_extensions import TypeAlias
 
-DOCUMENT_CONTENT = DocumentAttributes.DOCUMENT_CONTENT
-INPUT_VALUE = SpanAttributes.INPUT_VALUE
-RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
-
 logger = logging.getLogger(__name__)
 
-
-OPENINFERENCE_QUERY_COLUMN_NAME = "attributes." + INPUT_VALUE
-OPENINFERENCE_DOCUMENT_COLUMN_NAME = "attributes." + RETRIEVAL_DOCUMENTS
 
 ColumnName: TypeAlias = str
 Label: TypeAlias = str
@@ -218,133 +204,6 @@ def llm_classify(
         },
         index=dataframe.index,
     )
-
-
-def run_relevance_eval(
-    dataframe: pd.DataFrame,
-    model: BaseModel,
-    template: Union[ClassificationTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE,
-    rails: List[str] = list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
-    system_instruction: Optional[str] = None,
-    query_column_name: str = "input",
-    document_column_name: str = "reference",
-    verbose: bool = False,
-) -> List[List[str]]:
-    """
-    Given a pandas dataframe containing queries and retrieved documents, classifies the relevance of
-    each retrieved document to the corresponding query using an LLM.
-
-    Args:
-        dataframe (pd.DataFrame): A pandas dataframe containing queries and retrieved documents. If
-        both query_column_name and reference_column_name are present in the input dataframe, those
-        columns are used as inputs and should appear in the following format:
-
-        - The entries of the query column must be strings.
-        - The entries of the documents column must be lists of strings. Each list may contain an
-          arbitrary number of document texts retrieved for the corresponding query.
-
-        If the input dataframe is lacking either query_column_name or reference_column_name but has
-        query and retrieved document columns in OpenInference trace format named
-        "attributes.input.value" and "attributes.retrieval.documents", respectively, then those
-        columns are used as inputs and should appear in the following format:
-
-        - The entries of the query column must be strings.
-        - The entries of the document column must be lists of OpenInference document objects, each
-          object being a dictionary that stores the document text under the key "document.content".
-
-        This latter format is intended for running evaluations on exported OpenInference trace
-        dataframes. For more information on the OpenInference tracing specification, see
-        https://github.com/Arize-ai/openinference/.
-
-        model (BaseEvalModel): The model used for evaluation.
-
-        template (Union[PromptTemplate, str], optional): The template used for evaluation.
-
-        rails (List[str], optional): A list of strings representing the possible output classes of
-        the model's predictions.
-
-        query_column_name (str, optional): The name of the query column in the dataframe, which
-        should also be a template variable.
-
-        reference_column_name (str, optional): The name of the document column in the dataframe,
-        which should also be a template variable.
-
-        system_instruction (Optional[str], optional): An optional system message.
-
-        verbose (bool, optional): If True, prints detailed information to stdout such as model
-        invocation parameters and retry info. Default False.
-
-    Returns:
-        List[List[str]]: A list of relevant and not relevant classifications. The "shape" of the
-        list should mirror the "shape" of the retrieved documents column, in the sense that it has
-        the same length as the input dataframe and each sub-list has the same length as the
-        corresponding list in the retrieved documents column. The values in the sub-lists are either
-        entries from the rails argument or "NOT_PARSABLE" in the case where the LLM output could not
-        be parsed.
-    """
-
-    warnings.warn(
-        "run_relevance_eval will soon be deprecated. "
-        "Use run_evals with HallucinationEvaluator instead.",
-        DeprecationWarning,
-    )
-
-    with set_verbosity(model, verbose) as verbose_model:
-        query_column = dataframe.get(query_column_name)
-        document_column = dataframe.get(document_column_name)
-        if query_column is None or document_column is None:
-            openinference_query_column = dataframe.get(OPENINFERENCE_QUERY_COLUMN_NAME)
-            openinference_document_column = dataframe.get(OPENINFERENCE_DOCUMENT_COLUMN_NAME)
-            if openinference_query_column is None or openinference_document_column is None:
-                raise ValueError(
-                    f'Dataframe columns must include either "{query_column_name}" and '
-                    f'"{document_column_name}", or "{OPENINFERENCE_QUERY_COLUMN_NAME}" and '
-                    f'"{OPENINFERENCE_DOCUMENT_COLUMN_NAME}".'
-                )
-            query_column = openinference_query_column
-            document_column = openinference_document_column.map(
-                lambda docs: _get_contents_from_openinference_documents(docs)
-                if docs is not None
-                else None
-            )
-
-        queries = cast("pd.Series[str]", query_column).tolist()
-        document_lists = cast("pd.Series[str]", document_column).tolist()
-        indexes = []
-        expanded_queries = []
-        expanded_documents = []
-        for index, (query, documents) in enumerate(zip(queries, document_lists)):
-            if query is None or documents is None:
-                continue
-            for document in documents:
-                indexes.append(index)
-                expanded_queries.append(query)
-                expanded_documents.append(document)
-        predictions = llm_classify(
-            dataframe=pd.DataFrame(
-                {
-                    query_column_name: expanded_queries,
-                    document_column_name: expanded_documents,
-                }
-            ),
-            model=verbose_model,
-            template=template,
-            rails=rails,
-            system_instruction=system_instruction,
-            verbose=verbose,
-        ).iloc[:, 0]
-        outputs: List[List[str]] = [[] for _ in range(len(dataframe))]
-        for index, prediction in zip(indexes, predictions):
-            outputs[index].append(prediction)
-        return outputs
-
-
-def _get_contents_from_openinference_documents(documents: Iterable[Any]) -> List[Optional[str]]:
-    """
-    Get document contents from an iterable of OpenInference document objects, which are dictionaries
-    containing the document text under the "document.content" key.
-    """
-    return [doc.get(DOCUMENT_CONTENT) if isinstance(doc, dict) else None for doc in documents]
 
 
 class RunEvalsPayload(NamedTuple):

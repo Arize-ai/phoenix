@@ -1,4 +1,4 @@
-from .classify import llm_classify, run_evals, run_relevance_eval
+from .classify import llm_classify, run_evals
 from .default_templates import (
     CODE_READABILITY_PROMPT_RAILS_MAP,
     CODE_READABILITY_PROMPT_TEMPLATE,
@@ -54,14 +54,10 @@ __all__ = [
     "QA_PROMPT_RAILS_MAP",
     "QA_PROMPT_TEMPLATE",
     "NOT_PARSABLE",
-    "run_relevance_eval",
     "run_evals",
     "LLMEvaluator",
-    "CodeReadabilityEvaluator",
     "HallucinationEvaluator",
-    "HumanVsAIEvaluator",
     "QAEvaluator",
-    "ReferenceLinkCorrectnessEvaluator",
     "RelevanceEvaluator",
     "SummarizationEvaluator",
     "ToxicityEvaluator",
