@@ -214,7 +214,10 @@ export function TracePage() {
         }
       }
     `,
-    { traceId: traceId as string }
+    { traceId: traceId as string },
+    {
+      fetchPolicy: "store-and-network",
+    }
   );
   const spansList = data.spans.edges.map((edge) => edge.span);
   const urlSelectedSpanId = searchParams.get("selectedSpanId");
@@ -222,13 +225,11 @@ export function TracePage() {
   const selectedSpan = spansList.find(
     (span) => span.context.spanId === selectedSpanId
   );
-  const rootSpan = useMemo(() => {
-    return spansList.find((span) => span.parentId == null);
-  }, [spansList]);
+  const rootSpan =
+    useMemo(() => {
+      return spansList.find((span) => span.parentId == null);
+    }, [spansList]) || null;
 
-  if (rootSpan == null) {
-    throw new Error("rootSpan is required to view a trace");
-  }
   return (
     <DialogContainer
       type="slideOver"
@@ -282,8 +283,12 @@ export function TracePage() {
   );
 }
 
-function TraceHeader({ rootSpan }: { rootSpan: Span }) {
-  const { latencyMs, statusCode, spanEvaluations } = rootSpan;
+function TraceHeader({ rootSpan }: { rootSpan?: Span | null }) {
+  const { latencyMs, statusCode, spanEvaluations } = rootSpan ?? {
+    latencyMs: null,
+    statusCode: "UNSET",
+    spanEvaluations: [],
+  };
   const statusColor = useSpanStatusCodeColor(statusCode);
   const hasEvaluations = spanEvaluations.length;
   return (

@@ -213,10 +213,7 @@ class Span:
         if (traces := info.context.traces) is None:
             return []
         return [
-            to_gql_span(cast(trace_schema.Span, traces[span_id]))
-            for span_id in traces.get_descendant_span_ids(
-                cast(SpanID, self.context.span_id),
-            )
+            to_gql_span(span) for span in traces.get_descendant_spans(SpanID(self.context.span_id))
         ]
 
 
