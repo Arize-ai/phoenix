@@ -6,7 +6,7 @@
   "license": "None",
   "private": true,
   "dependencies": {
-    "@arizeai/components": "^1.1.1",
+    "@arizeai/components": "^1.1.2",
     "@arizeai/openinference-semantic-conventions": "^0.1.0",
     "@arizeai/point-cloud": "^3.0.4",
     "@codemirror/autocomplete": "^6.12.0",
@@ -94,6 +94,7 @@
     "dev:server:traces:llama_index_calculator_agent": "python3 -m phoenix.server.main trace-fixture llama_index_calculator_agent",
     "dev:server:traces:langchain_qa_with_sources": "python3 -m phoenix.server.main trace-fixture langchain_qa_with_sources",
     "dev:server:traces:random": "python3 -m phoenix.server.main trace-fixture random --simulate-streaming true",
+    "dev:server:demo": "python3 -m phoenix.server.main demo chatbot llama_index_rag",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ./src",
     "prettier": "prettier --write './src/**/*'",
