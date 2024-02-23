@@ -43,7 +43,7 @@ jobs:
                       packages:
                           - "packages/**"
                       phoenix_evals:
-                          - "packages/phoenix-evals/**"
+                          - "packages/arize-phoenix-evals/**"
 
     tox:
         name: Tox

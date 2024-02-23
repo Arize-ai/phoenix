@@ -7,8 +7,8 @@
             "release-type": "python",
             "exclude-paths": ["packages"]
         },
-        "packages/phoenix-evals": {
-            "package-name": "phoenix-evals",
+        "packages/arize-phoenix-evals": {
+            "package-name": "arize-phoenix-evals",
             "release-type": "python"
         }
     },
