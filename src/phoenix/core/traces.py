@@ -193,10 +193,6 @@ class Traces:
         for span in spans:
             yield span.span
 
-    def span_exists(self, span_id: SpanID) -> bool:
-        with self._lock:
-            return span_id in self._spans
-
     def get_num_documents(self, span_id: SpanID) -> int:
         with self._lock:
             return self._num_documents.get(span_id) or 0
