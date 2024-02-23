@@ -232,12 +232,12 @@ df = download_benchmark_dataset(
 df = df.sample(100)
 df = df.rename(
     columns={
-        "query_text": "query",
+        "query_text": "input",
         "document_text": "reference",
     },
 )
 model = OpenAIModel(
-    model_name="gpt-4",
+    model="gpt-4",
     temperature=0.0,
 )
 rails =list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values())
