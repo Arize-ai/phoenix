@@ -26,7 +26,7 @@ conda install -c conda-forge arize-phoenix
 {% endtab %}
 {% endtabs %}
 
-Note that the above only installs dependencies that are necessary to run the application. Phoenix also has an experimental sub-module where you can find [LLM Evals](../evaluation/overview.md).
+Note that the above only installs dependencies that are necessary to run the application. Phoenix also has an experimental sub-module where you can find [LLM Evals](../llm-evals/llm-evals.md).
 
 ```sh
 pip install arize-phoenix[experimental]
@@ -168,7 +168,7 @@ Once you've executed a sufficient number of queries (or chats) to your applicati
 
 ## Trace Datasets
 
-Phoenix also support datasets that contain [OpenInference trace](instrumentation/open-inference.md) data. This allows data from a LangChain and LlamaIndex running instance explored for analysis offline.
+Phoenix also support datasets that contain [OpenInference trace](../concepts/open-inference.md) data. This allows data from a LangChain and LlamaIndex running instance explored for analysis offline.
 
 There are two ways to extract trace dataframes. The two ways for LangChain are described below.
 
@@ -193,7 +193,7 @@ For full details on how to export trace data, see [the detailed guide](../how-to
 In addition to launching phoenix on LlamaIndex and LangChain, teams can export trace data to a dataframe in order to run LLM Evals on the data.
 
 {% hint style="info" %}
-Learn more in the [evals quickstart](../evaluation/evals.md).
+Learn more in the [evals quickstart](evals.md).
 {% endhint %}
 
 ## Phoenix Tracing App
@@ -212,4 +212,4 @@ Phoenix can be used to understand and troubleshoot your by surfacing:
 * **Tool Descriptions -** view the description and function signature of the tools your LLM has been given access to
 * **LLM Function Calls** - if using OpenAI or other a model with function calls, you can view the function selection and function messages in the input messages to the LLM.\\
 
-[LLM Traces](overview.md) are a powerful way to troubleshoot and understand your application and can be leveraged to [evaluate](../evaluation/overview.md) the quality of your application. For a full list of notebooks that illustrate this in full-color, please check out the [notebooks section](../notebooks.md).
+[LLM Traces](../concepts/llm-traces.md) are a powerful way to troubleshoot and understand your application and can be leveraged to [evaluate](../llm-evals/llm-evals.md) the quality of your application. For a full list of notebooks that illustrate this in full-color, please check out the [notebooks section](../notebooks.md).

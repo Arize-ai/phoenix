@@ -40,7 +40,7 @@ Step 3: If retrieval is not the issue, we should check if we even have the right
 
 <figure><img src="../.gitbook/assets/image (10).png" alt=""><figcaption></figcaption></figure>
 
-<table data-full-width="true"><thead><tr><th width="200">Question</th><th>Metric</th><th>Pros</th><th>Cons</th></tr></thead><tbody><tr><td>Is this a bad response to the answer?</td><td>User feedback or <a href="../evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data.md">LLM Eval for Q&#x26;A</a></td><td>Most relevant way to measure application</td><td>Hard to trace down specifically what to fix</td></tr><tr><td>Is the retrieved context relevant?</td><td><a href="../evaluation/running-pre-tested-evals/retrieval-rag-relevance.md">LLM Eval for Relevance</a></td><td>Directly measures effectiveness of retrieval</td><td>Requires additional LLMs calls</td></tr><tr><td>Is the knowledge base missing areas of user queries?</td><td>Query density (drift) - Phoenix generated</td><td>Highlights groups of queries with large distance from context</td><td>Identifies broad topics missing from knowledge base, but not small gaps</td></tr></tbody></table>
+<table data-full-width="true"><thead><tr><th width="200">Question</th><th>Metric</th><th>Pros</th><th>Cons</th></tr></thead><tbody><tr><td>Is this a bad response to the answer?</td><td>User feedback or <a href="../llm-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md">LLM Eval for Q&#x26;A</a></td><td>Most relevant way to measure application</td><td>Hard to trace down specifically what to fix</td></tr><tr><td>Is the retrieved context relevant?</td><td><a href="../llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md">LLM Eval for Relevance</a></td><td>Directly measures effectiveness of retrieval</td><td>Requires additional LLMs calls</td></tr><tr><td>Is the knowledge base missing areas of user queries?</td><td>Query density (drift) - Phoenix generated</td><td>Highlights groups of queries with large distance from context</td><td>Identifies broad topics missing from knowledge base, but not small gaps</td></tr></tbody></table>
 
 ## Using Phoenix Traces & Spans
 
@@ -62,7 +62,7 @@ Phoenix surfaces up clusters of similar queries that have poor feedback.
 
 ### Step 2: Irrelevant Documents Being Retrieved
 
-Phoenix can help uncover when irrelevant context is being retrieved using the [LLM Evals for Relevance](../evaluation/running-pre-tested-evals/retrieval-rag-relevance.md). You can look at a cluster's aggregate relevance metric with precision @k, NDCG, MRR, etc to identify where to improve. You can also look at a single prompt/response pair and see the relevance of documents.
+Phoenix can help uncover when irrelevant context is being retrieved using the [LLM Evals for Relevance](../llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md). You can look at a cluster's aggregate relevance metric with precision @k, NDCG, MRR, etc to identify where to improve. You can also look at a single prompt/response pair and see the relevance of documents.
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/RAG_LLM_assisted_evals.png" alt=""><figcaption></figcaption></figure>
 

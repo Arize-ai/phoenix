@@ -98,7 +98,7 @@ Follow the instructions in the cell output to open the Phoenix UI in your notebo
 
 ## View Available Traces
 
-Phoenix supports [LLM application Traces](../tracing/overview.md) and has examples that you can take a look at as well.\\
+Phoenix supports [LLM application Traces](../concepts/llm-traces.md) and has examples that you can take a look at as well.\\
 
 ```python
 px.load_example_traces?

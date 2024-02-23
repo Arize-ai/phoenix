@@ -78,7 +78,7 @@ hallucination_eval_df, qa_correctness_eval_df = run_evals(
 
 Assuming your `dataframe` contains the "input", "reference", and "output" columns required by `HallucinationEvaluator` and `QAEvaluator`, your output dataframes should contain the results of the corresponding evaluator applied to the input dataframe, including columns for labels (e.g., "factual" or "hallucinated"), scores (e.g., 0 for factual labels, 1 for hallucinated labels), and explanations. If your dataframe was exported from your Phoenix session, you can then ingest the evaluations using `phoenix.log_evaluations` so that the evals will be visible as annotations inside Phoenix.
 
-For an end-to-end example, see the [evals quickstart](../evaluation/evals.md).
+For an end-to-end example, see the [evals quickstart](../quickstart/evals.md).
 
 ## phoenix.experimental.evals.PromptTemplate
 

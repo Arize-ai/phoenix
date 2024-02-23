@@ -1,46 +1,46 @@
 # Table of contents
 
 * [Arize Phoenix](README.md)
-* [User Guide](user-guide.md)
+* [User Guide](concepts/llm-observability.md)
 * [Environments](environments.md)
 * [Examples](notebooks.md)
 
 ## 🔭 Tracing
 
-* [Overview: Traces](tracing/overview.md)
-* [Quickstart: Traces](tracing/quickstart.md)
-* [Instrumentation](tracing/instrumentation/README.md)
-  * [OpenInference](tracing/instrumentation/open-inference.md)
-* [Collector](tracing/collector.md)
-* [Custom Spans](tracing/custom-spans.md)
+* [Overview: Traces](concepts/llm-traces.md)
+* [Quickstart: Traces](quickstart/llm-traces.md)
+* [Instrumentation](telemetry/instrumentation.md)
+  * [OpenInference](concepts/open-inference.md)
+* [Collector](telemetry/deploying-phoenix.md)
+* [Custom Spans](telemetry/custom-spans.md)
 
 ## 🧠 Evaluation
 
-* [Overview: Evals](evaluation/overview.md)
-* [Concept: Evaluation](evaluation/evaluation.md)
-* [Quickstart: Evals](evaluation/evals.md)
-* [Running Pre-Tested Evals](evaluation/running-pre-tested-evals/README.md)
-  * [Retrieval (RAG) Relevance](evaluation/running-pre-tested-evals/retrieval-rag-relevance.md)
-  * [Hallucinations](evaluation/running-pre-tested-evals/hallucinations.md)
-  * [Q\&A on Retrieved Data](evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data.md)
-  * [Toxicity](evaluation/running-pre-tested-evals/toxicity.md)
-  * [Code Generation Eval](evaluation/running-pre-tested-evals/code-generation-eval.md)
-  * [Summarization Eval](evaluation/running-pre-tested-evals/summarization-eval.md)
-  * [Reference (citation) Link Evals](evaluation/running-pre-tested-evals/reference-link-evals.md)
-  * [AI vs Human (Groundtruth)](evaluation/running-pre-tested-evals/ai-vs-human-groundtruth.md)
-* [Evaluation Types](evaluation/evaluation-types.md)
-* [Evals With Explanations](evaluation/evals-with-explanations.md)
-* [Building Your Own Evals](evaluation/building-your-own-evals.md)
-* [Quickstart Retrieval Evals](evaluation/quickstart-retrieval-evals/README.md)
-  * [Retrieval Evals on Document Chunks](evaluation/quickstart-retrieval-evals/retrieval-evals-on-document-chunks.md)
-* [Benchmarking Retrieval (RAG)](evaluation/benchmarking-retrieval-rag.md)
+* [Overview: Evals](llm-evals/llm-evals.md)
+* [Concept: Evaluation](concepts/evaluation.md)
+* [Quickstart: Evals](quickstart/evals.md)
+* [Running Pre-Tested Evals](llm-evals/running-pre-tested-evals/README.md)
+  * [Retrieval (RAG) Relevance](llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md)
+  * [Hallucinations](llm-evals/running-pre-tested-evals/hallucinations.md)
+  * [Q\&A on Retrieved Data](llm-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md)
+  * [Toxicity](llm-evals/running-pre-tested-evals/toxicity.md)
+  * [Code Generation Eval](llm-evals/running-pre-tested-evals/code-generation-eval.md)
+  * [Summarization Eval](llm-evals/running-pre-tested-evals/summarization-eval.md)
+  * [Reference (citation) Link Evals](llm-evals/running-pre-tested-evals/reference-link-evals.md)
+  * [AI vs Human (Groundtruth)](llm-evals/running-pre-tested-evals/ai-vs-human-groundtruth.md)
+* [Evaluation Types](llm-evals/evaluation-types.md)
+* [Evals With Explanations](llm-evals/evals-with-explanations.md)
+* [Building Your Own Evals](llm-evals/building-your-own-evals.md)
+* [Quickstart Retrieval Evals](llm-evals/quickstart-retrieval-evals/README.md)
+  * [Retrieval Evals on Document Chunks](llm-evals/quickstart-retrieval-evals/retrieval-evals-on-document-chunks.md)
+* [Benchmarking Retrieval (RAG)](llm-evals/benchmarking-retrieval-rag.md)
 
 ## 🌌 inferences
 
-* [Quickstart: Inferences](inferences/quickstart.md)
-* [Schemas and Datasets](inferences/inferences.md)
-* [Generating Embeddings](inferences/generating-embeddings.md)
-* [Embeddings Analysis](inferences/embeddings-analysis.md)
+* [Quickstart: Inferences](quickstart/phoenix-inferences/README.md)
+* [Schemas and Datasets](quickstart/phoenix-inferences/inferences.md)
+* [Generating Embeddings](concepts/generating-embeddings.md)
+* [Embeddings Analysis](concepts/embeddings-analysis.md)
 
 ## 🔮 Use Cases
 

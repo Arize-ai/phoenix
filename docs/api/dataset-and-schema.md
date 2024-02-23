@@ -90,8 +90,8 @@ Assigns the columns of a pandas dataframe to the appropriate model dimensions (p
 * **prediction\_score\_column\_name** (Optional\[str]): The name of the dataframe's predicted score column, if one exists. Predicted scores are used for regression problems with continuous numerical model output.
 * **actual\_label\_column\_name** (Optional\[str]): The name of the dataframe's actual label column, if one exists. Actual (i.e., ground truth) labels are used for classification problems with categorical model output.
 * **actual\_score\_column\_name** (Optional\[str]): The name of the dataframe's actual score column, if one exists. Actual (i.e., ground truth) scores are used for regression problems with continuous numerical output.
-* **prompt\_column\_names** (Optional\[[EmbeddingColumnNames](dataset-and-schema.md#phoenix.embeddingcolumnnames)]): An instance of [EmbeddingColumnNames](dataset-and-schema.md#phoenix.embeddingcolumnnames) delineating the column names of an [LLM](../user-guide.md) model's _prompt_ embedding vector, _prompt_ text, and optionally links to external resources.
-* **response\_column\_names** (Optional\[[EmbeddingColumnNames](dataset-and-schema.md#phoenix.embeddingcolumnnames)]): An instance of [EmbeddingColumnNames](dataset-and-schema.md#phoenix.embeddingcolumnnames) delineating the column names of an [LLM](../user-guide.md) model's _response_ embedding vector, _response_ text, and optionally links to external resources.
+* **prompt\_column\_names** (Optional\[[EmbeddingColumnNames](dataset-and-schema.md#phoenix.embeddingcolumnnames)]): An instance of [EmbeddingColumnNames](dataset-and-schema.md#phoenix.embeddingcolumnnames) delineating the column names of an [LLM](../concepts/llm-observability.md) model's _prompt_ embedding vector, _prompt_ text, and optionally links to external resources.
+* **response\_column\_names** (Optional\[[EmbeddingColumnNames](dataset-and-schema.md#phoenix.embeddingcolumnnames)]): An instance of [EmbeddingColumnNames](dataset-and-schema.md#phoenix.embeddingcolumnnames) delineating the column names of an [LLM](../concepts/llm-observability.md) model's _response_ embedding vector, _response_ text, and optionally links to external resources.
 * **embedding\_feature\_column\_names** (Optional\[Dict\[str, [EmbeddingColumnNames](dataset-and-schema.md#phoenix.embeddingcolumnnames)]]): A dictionary mapping the name of each embedding feature to an instance of [EmbeddingColumnNames](dataset-and-schema.md#phoenix.embeddingcolumnnames) if any embedding features exist, otherwise, None. Each instance of [EmbeddingColumnNames](dataset-and-schema.md#phoenix.embeddingcolumnnames) associates one or more dataframe columns containing vector data, image links, or text with the same embedding feature. Note that the keys of the dictionary are user-specified names that appear in the Phoenix UI and do not refer to columns of the dataframe.
 * **excluded\_column\_names** (Optional\[List\[str]]): The names of the dataframe columns to be excluded from the implicitly inferred list of feature column names. This field should only be used for implicit feature discovery, i.e., when `feature_column_names` is unused and the dataframe contains feature columns not explicitly included in the schema.
 
@@ -136,18 +136,18 @@ class TraceDataset(
 )
 ```
 
-Wraps a dataframe that is a flattened representation of spans and traces. Note that it does not require a Schema. See [LLM Traces](../tracing/overview.md) on how to monitor your LLM application using traces. Because Phoenix can also receive traces from your LLM application directly in real time, `TraceDataset` is mostly used for loading trace data that has been previously saved to file.
+Wraps a dataframe that is a flattened representation of spans and traces. Note that it does not require a Schema. See [LLM Traces](../concepts/llm-traces.md) on how to monitor your LLM application using traces. Because Phoenix can also receive traces from your LLM application directly in real time, `TraceDataset` is mostly used for loading trace data that has been previously saved to file.
 
 **\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/trace/trace\_dataset.py)**]**
 
 ### **Parameters**
 
-* **dataframe** (pandas.dataframe): a dataframe each row of which is a flattened representation of a span. See [LLM Traces](../tracing/overview.md) for more on traces and spans.
+* **dataframe** (pandas.dataframe): a dataframe each row of which is a flattened representation of a span. See [LLM Traces](../concepts/llm-traces.md) for more on traces and spans.
 * **name** (str): The name used to identify the dataset in the application. If not provided, a random name will be generated.
 
 ### Attributes
 
-* **dataframe** (pandas.dataframe): a dataframe each row of which is a flattened representation of a span. See [LLM Traces](../tracing/overview.md) for more on traces and spans.
+* **dataframe** (pandas.dataframe): a dataframe each row of which is a flattened representation of a span. See [LLM Traces](../concepts/llm-traces.md) for more on traces and spans.
 * **name** (Optional\[str]): The name used to identify the dataset in the application.
 
 ### Usage

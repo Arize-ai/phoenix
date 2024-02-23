@@ -16,15 +16,15 @@ Phoenix offers key modules to measure the quality of generated results as well a
 
 Evaluation of generated results can be challenging. Unlike traditional ML, the predicted results are not numeric or categorical, making it hard to define quantitative metrics for this problem.
 
-Phoenix offers [LLM Evaluations](../concepts/broken-reference/), a module designed to measure the quality of results. This module uses a "gold" LLM (e.g. GPT-4) to decide whether the generated answer is correct in a variety of ways.\
+Phoenix offers [LLM Evaluations](broken-reference/), a module designed to measure the quality of results. This module uses a "gold" LLM (e.g. GPT-4) to decide whether the generated answer is correct in a variety of ways.\
 \
 Note that many of these evaluation criteria DO NOT require ground-truth labels. Evaluation can be done simply with a combination of the **input** (query), **output** (response), and **context**.
 
 LLM Evals supports the following response evaluation criteria:
 
-* [**QA Correctness**](running-pre-tested-evals/q-and-a-on-retrieved-data.md) - Whether a question was correctly answered by the system based on the retrieved data. In contrast to retrieval Evals that are checks on chunks of data returned, this check is a system level check of a correct Q\&A.
-* [**Hallucinations**](running-pre-tested-evals/hallucinations.md) **-** Designed to detect LLM hallucinations relative to retrieved context
-* [**Toxicity**](running-pre-tested-evals/toxicity.md) - Identify if the AI response is racist, biased, or toxic
+* [**QA Correctness**](../llm-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md) - Whether a question was correctly answered by the system based on the retrieved data. In contrast to retrieval Evals that are checks on chunks of data returned, this check is a system level check of a correct Q\&A.
+* [**Hallucinations**](../llm-evals/running-pre-tested-evals/hallucinations.md) **-** Designed to detect LLM hallucinations relative to retrieved context
+* [**Toxicity**](../llm-evals/running-pre-tested-evals/toxicity.md) - Identify if the AI response is racist, biased, or toxic
 
 Response evaluations are a critical first step to figuring out whether your LLM App is running correctly. Response evaluations can pinpoint specific executions (a.k.a. traces) that are performing badly and can be aggregated up so that you can track how your application is running as a whole.
 
@@ -38,7 +38,7 @@ The concept of retrieval evaluation is not new; given a set of relevance scores 
 
 LLM Evals supports the following retrieval evaluation criteria:
 
-* [**Relevance**](running-pre-tested-evals/retrieval-rag-relevance.md) - Evaluates whether a retrieved document chunk contains an answer to the query.
+* [**Relevance**](../llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md) - Evaluates whether a retrieved document chunk contains an answer to the query.
 
 <figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/blog/revlevance_eval_process.png?raw=true" alt=""><figcaption><p>Retrieval Evaluations can be run directly on application traces</p></figcaption></figure>
 
