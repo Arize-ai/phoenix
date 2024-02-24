@@ -94,6 +94,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/phoenix"]
+exclude = ["src/phoenix/evals/"]
 artifacts = ["src/phoenix/server/static"]
 
 [tool.hatch.build]
@@ -101,6 +102,7 @@ only-packages = true
 
 [tool.hatch.build.targets.sdist]
 packages = ["src/phoenix"]
+exclude = ["src/phoenix/evals/"]
 artifacts = ["src/phoenix/server/static"]
 
 [tool.hatch.envs.default]
