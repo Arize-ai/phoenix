@@ -1,5 +1,8 @@
-import phoenix._evals as evals
+import sys
+from importlib.abc import Loader, MetaPathFinder
+from importlib.machinery import ModuleSpec
 
+# import phoenix._evals as evals
 from .datasets.dataset import Dataset
 from .datasets.fixtures import ExampleDatasets, load_example
 from .datasets.schema import EmbeddingColumnNames, RetrievalEmbeddingColumnNames, Schema
@@ -45,3 +48,26 @@ __all__ = [
     "Client",
     "evals",
 ]
+
+
+class PhoenixEvalsFinder(MetaPathFinder):
+    def find_spec(self, fullname, path, target=None):
+        if fullname == "phoenix.evals":
+            return ModuleSpec(fullname, PhoenixEvalsLoader())
+        return None
+
+
+class PhoenixEvalsLoader(Loader):
+    def create_module(self, spec):
+        # Return None to indicate Python should create a new module
+        return None
+
+    def exec_module(self, module):
+        # Instead of executing any code, raise an ImportError with your message
+        raise ImportError(
+            "The optional `phoenix.evals` package is not installed. "
+            "Please install `phoenix` with the `evals` extra: `pip install phoenix[evals]`."
+        )
+
+
+sys.meta_path.append(PhoenixEvalsFinder())
