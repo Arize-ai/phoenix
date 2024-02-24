@@ -11,7 +11,7 @@
 * [Quickstart: Traces](quickstart/llm-traces.md)
 * [Instrumentation](telemetry/instrumentation.md)
   * [OpenInference](concepts/open-inference.md)
-* [Collector](telemetry/deploying-phoenix.md)
+* [Deployment](telemetry/deploying-phoenix.md)
 * [Custom Spans](telemetry/custom-spans.md)
 
 ## 🧠 Evaluation
@@ -33,7 +33,7 @@
 * [Building Your Own Evals](llm-evals/building-your-own-evals.md)
 * [Quickstart Retrieval Evals](llm-evals/quickstart-retrieval-evals/README.md)
   * [Retrieval Evals on Document Chunks](llm-evals/quickstart-retrieval-evals/retrieval-evals-on-document-chunks.md)
-* [Benchmarking Retrieval (RAG)](llm-evals/benchmarking-retrieval-rag.md)
+* [Benchmarking Retrieval](llm-evals/benchmarking-retrieval-rag.md)
 
 ## 🌌 inferences
 

@@ -15,10 +15,6 @@ You will:
   * **Hallucinations:** Is your application making up false information?
 * Ingest the evaluations into Phoenix to see the results annotated on the corresponding spans and traces.
 
-Let's get started!
-
-First, install Phoenix with `pip install arize-phoenix`.
-
 To get you up and running quickly, we'll download some pre-existing trace data collected from a LlamaIndex application (in practice, this data would be collected by [instrumenting your LLM application](llm-traces.md) with an OpenInference-compatible tracer).
 
 ```python
