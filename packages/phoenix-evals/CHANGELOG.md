@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.5](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.0.4...arize-phoenix-evals-v0.0.5) (2024-02-24)
+
+
+### Bug Fixes
+
+* **evals:** reference link template export ([#2393](https://github.com/Arize-ai/phoenix/issues/2393)) ([d9e21b7](https://github.com/Arize-ai/phoenix/commit/d9e21b7cb6f4c9cc9c863623696f3987f96dd174))
+
 ## [0.0.4](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.0.3...arize-phoenix-evals-v0.0.4) (2024-02-24)
 
 
