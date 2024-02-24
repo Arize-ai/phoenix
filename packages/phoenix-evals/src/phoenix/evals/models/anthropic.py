@@ -17,7 +17,7 @@ class AnthropicModel(BaseModel):
     top_p: float = 1
     """Total probability mass of tokens to consider at each step."""
     top_k: int = 256
-    """The cutoff where the model no longer selects the words"""
+    """The cutoff where the model no longer selects the words."""
     stop_sequences: List[str] = field(default_factory=list)
     """If the model encounters a stop sequence, it stops generating further tokens."""
     extra_parameters: Dict[str, Any] = field(default_factory=dict)
