@@ -1,3 +1,9 @@
+import sys
+from importlib.abc import Loader, MetaPathFinder
+from importlib.machinery import ModuleSpec
+from types import ModuleType
+from typing import Any, Optional
+
 from .datasets.dataset import Dataset
 from .datasets.fixtures import ExampleDatasets, load_example
 from .datasets.schema import EmbeddingColumnNames, RetrievalEmbeddingColumnNames, Schema
@@ -41,4 +47,26 @@ __all__ = [
     "NotebookEnvironment",
     "log_evaluations",
     "Client",
+    "evals",
 ]
+
+
+class PhoenixEvalsFinder(MetaPathFinder):
+    def find_spec(self, fullname: Any, path: Any, target: Any = None) -> Optional[ModuleSpec]:
+        if fullname == "phoenix.evals":
+            return ModuleSpec(fullname, PhoenixEvalsLoader())
+        return None
+
+
+class PhoenixEvalsLoader(Loader):
+    def create_module(self, spec: ModuleSpec) -> None:
+        return None
+
+    def exec_module(self, module: ModuleType) -> None:
+        raise ImportError(
+            "The optional `phoenix.evals` package is not installed. "
+            "Please install `phoenix` with the `evals` extra: `pip install 'arize-phoenix[evals]'`."
+        )
+
+
+sys.meta_path.append(PhoenixEvalsFinder())

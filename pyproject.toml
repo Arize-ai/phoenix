@@ -71,6 +71,9 @@ dev = [
   "google-cloud-aiplatform>=1.3",
   "anthropic",
 ]
+evals = [
+  "arize-phoenix-evals>=0.0.3",
+]
 experimental = [
   "tenacity",
 ]
