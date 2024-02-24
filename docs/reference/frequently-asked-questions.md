@@ -60,3 +60,15 @@ You can do this by configuring the following the environment variable PHOENIX\_C
 ## Can I use an older version of LlamaIndex?
 
 Yes you can! You will have to be using `arize-phoenix>3.0.0` and downgrade `openinference-instrumentation-llama-index<1.0.0`
+
+
+
+## Running on SageMaker
+
+With SageMaker notebooks, phoenix leverages the [jupyter-server-proy](https://github.com/jupyterhub/jupyter-server-proxy) to host the server under `proxy/6006.`Note, that phoenix will automatically try to detect that you are running in SageMaker but you can declare the notebook runtime via a parameter to `launch_app` or an environment variable
+
+```python
+import os
+
+os.environ["PHOENIX_NOTEBOOK_ENV"] = "sagemaker"
+```

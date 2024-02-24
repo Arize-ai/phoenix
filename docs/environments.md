@@ -15,35 +15,17 @@ Looking how to deploy Phoenix outside of the notebook for production use? Checko
 
 <table data-view="cards"><thead><tr><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td><strong>In the notebook</strong></td><td>Run phoenix in the notebook as you run experiments</td><td><a href="environments.md#notebooks">#notebooks</a></td><td><a href=".gitbook/assets/notebook.png">notebook.png</a></td></tr><tr><td><strong>As a Container</strong></td><td>Start a long-running collector</td><td><a href="environments.md#container">#container</a></td><td><a href=".gitbook/assets/docker.png">docker.png</a></td></tr><tr><td><strong>From the Terminal</strong></td><td>Run phoenix via the CLI </td><td><a href="environments.md#terminal">#terminal</a></td><td><a href=".gitbook/assets/terminal.png">terminal.png</a></td></tr></tbody></table>
 
-### Notebooks
 
-Currently phoenix supports local, colab, databricks, and SageMaker notebooks.
 
-{% hint style="warning" %}
-Note, phoenix only supports running the phoenix server via the notebook for SageMaker notebooks. It cannot setup proxy requests for SageMaker studio since there is no support of jupyter-server-proxy
-{% endhint %}
+### Notebook
 
-#### SageMaker
+To start phoenix in the notebook environment, run:
 
-With SageMaker notebooks, phoenix leverages the [jupyter-server-proy](https://github.com/jupyterhub/jupyter-server-proxy) to host the server under `proxy/6006.`Note, that phoenix will automatically try to detect that you are running in SageMaker but you can declare the notebook runtime via a parameter to `launch_app` or an environment variable
-
-{% tabs %}
-{% tab title="Environment Variable" %}
-```python
-import os
-
-os.environ["PHOENIX_NOTEBOOK_ENV"] = "sagemaker"
-```
-{% endtab %}
-
-{% tab title="Launch Parameter" %}
 ```python
 import phoenix as px
 
-px.launch_app(notebook_environment="sagemaker")
+session = px.launch_app()
 ```
-{% endtab %}
-{% endtabs %}
 
 ### Container
 
