@@ -15,9 +15,7 @@ Looking how to deploy Phoenix outside of the notebook for production use? Checko
 
 <table data-view="cards"><thead><tr><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td><strong>In the notebook</strong></td><td>Run phoenix in the notebook as you run experiments</td><td><a href="environments.md#notebooks">#notebooks</a></td><td><a href=".gitbook/assets/notebook.png">notebook.png</a></td></tr><tr><td><strong>As a Container</strong></td><td>Start a long-running collector</td><td><a href="environments.md#container">#container</a></td><td><a href=".gitbook/assets/docker.png">docker.png</a></td></tr><tr><td><strong>From the Terminal</strong></td><td>Run phoenix via the CLI </td><td><a href="environments.md#terminal">#terminal</a></td><td><a href=".gitbook/assets/terminal.png">terminal.png</a></td></tr></tbody></table>
 
-
-
-### Notebook
+### Notebooks
 
 To start phoenix in the notebook environment, run:
 
