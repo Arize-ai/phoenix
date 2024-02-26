@@ -255,18 +255,20 @@ export function TracePage() {
             `}
           >
             <Panel defaultSize={30} minSize={10} maxSize={40}>
-              <TraceTree
-                spans={spansList}
-                selectedSpanId={selectedSpanId}
-                onSpanClick={(spanId) => {
-                  setSearchParams(
-                    {
-                      selectedSpanId: spanId,
-                    },
-                    { replace: true }
-                  );
-                }}
-              />
+              <ScrollingPanelContent>
+                <TraceTree
+                  spans={spansList}
+                  selectedSpanId={selectedSpanId}
+                  onSpanClick={(spanId) => {
+                    setSearchParams(
+                      {
+                        selectedSpanId: spanId,
+                      },
+                      { replace: true }
+                    );
+                  }}
+                />
+              </ScrollingPanelContent>
             </Panel>
             <PanelResizeHandle css={resizeHandleCSS} />
             <Panel>
@@ -356,6 +358,20 @@ function ScrollingTabsWrapper({ children }: PropsWithChildren) {
             overflow-y: auto;
           }
         }
+      `}
+    >
+      {children}
+    </div>
+  );
+}
+
+function ScrollingPanelContent({ children }: PropsWithChildren) {
+  return (
+    <div
+      data-testid="scrolling-panel-content"
+      css={css`
+        height: 100%;
+        overflow-y: auto;
       `}
     >
       {children}
