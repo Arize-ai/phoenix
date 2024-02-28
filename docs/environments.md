@@ -57,18 +57,6 @@ import os
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://123.456.789:6006"
 ```
 {% endtab %}
-
-{% tab title="Set Endpoint in Code" %}
-```python
-from phoenix.trace.tracer import Tracer
-from phoenix.trace.exporter import HttpExporter
-from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
-
-
-tracer = Tracer(exporter=HttpExporter(endpoint="http://123.456.789:6006"))
-OpenAIInstrumentor(tracer).instrument()
-```
-{% endtab %}
 {% endtabs %}
 
 Note that the above is only necessary if your application is running in a Jupyter notebook. If you are trying to deploy your application and have phoenix collect traces via a container, please consult the [deployment guide.](telemetry/deploying-phoenix.md)
