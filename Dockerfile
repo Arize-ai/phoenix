@@ -27,6 +27,9 @@ RUN cd /phoenix/app && npm install && npm run build && rm -rf /phoenix/app
 
 FROM builder
 
+# delete symbolic links
+RUN find . -xtype l -delete
+
 # Install any needed packages 
 RUN pip install .
 
