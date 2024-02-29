@@ -11,7 +11,8 @@
 FROM python:3.10-slim as builder
 
 # Install nodejs
-RUN apt-get update && apt-get upgrade -y &&\
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-intall-recommends \
+    build-essential \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - &&\
     apt-get install -y nodejs npm
 
