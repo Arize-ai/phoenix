@@ -104,8 +104,7 @@ artifacts = ["src/phoenix/server/static"]
 only-packages = true
 
 [tool.hatch.build.targets.sdist]
-packages = ["src/phoenix"]
-exclude = ["src/phoenix/evals/"]
+exclude = ["src/phoenix/evals/", "packages/"]
 artifacts = ["src/phoenix/server/static"]
 
 [tool.hatch.envs.default]
