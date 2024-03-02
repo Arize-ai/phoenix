@@ -33,7 +33,6 @@ dev = [
   "boto3",
   "litellm>=1.0.3",
   "openai>=1.0.0",
-  "tiktoken",
   "vertexai",
 ]
 test = [
@@ -45,7 +44,6 @@ test = [
   "boto3",
   "litellm>=1.0.3",
   "openai>=1.0.0",
-  "tiktoken",
   "vertexai",
   "respx",
   "nest_asyncio",
