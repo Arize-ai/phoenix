@@ -1,6 +1,21 @@
-from typing import List
+"""
+Token processing functions for supported models. This module is being deprecated.
+"""
+
+import logging
+import sys
+from typing import Any, List
 
 from ..models import BaseEvalModel
+
+logger = logging.getLogger(__name__)
+
+_DEPRECATION_WARNING = (
+    "The processing module is being deprecated. For advanced token processing, please use the "
+    "encoding approach recommended by the model provider. For example, OpenAI models can use the "
+    "`tiktoken` library to encode and decode text. For other models, please refer to the model "
+    "provider's documentation."
+)
 
 
 def truncate_text_by_model(model: BaseEvalModel, text: str, token_buffer: int = 0) -> str:
@@ -42,3 +57,20 @@ def concatenate_and_truncate_chunks(
         str: _description_
     """
     return truncate_text_by_model(model=model, text=" ".join(chunks), token_buffer=token_buffer)
+
+
+class _DEPRECATED_MODULE:
+    __all__ = ("truncate_text_by_model", "concatenate_and_truncate_chunks")
+
+    def __getattr__(self, name: str) -> Any:
+        if name == "truncate_text_by_model":
+            logger.warning(_DEPRECATION_WARNING)
+            return truncate_text_by_model
+        if name == "concatenate_and_truncate_chunks":
+            logger.warning(_DEPRECATION_WARNING)
+            return concatenate_and_truncate_chunks
+        raise AttributeError(f"module {__name__} has no attribute {name}")
+
+
+# See e.g. https://stackoverflow.com/a/7668273
+sys.modules[__name__] = _DEPRECATED_MODULE()  # type: ignore
