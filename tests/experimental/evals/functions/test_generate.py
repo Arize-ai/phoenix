@@ -1,4 +1,5 @@
 import json
+import sys
 from typing import Dict
 from unittest.mock import patch
 
@@ -7,7 +8,6 @@ import numpy as np
 import pandas as pd
 import pytest
 import respx
-import sys
 from phoenix.experimental.evals import OpenAIModel, llm_generate
 from phoenix.experimental.evals.models.litellm import LiteLLMModel
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
