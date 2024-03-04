@@ -26,6 +26,8 @@ class BedrockModel(BaseModel):
     """The cutoff where the model no longer selects the words"""
     stop_sequences: List[str] = field(default_factory=list)
     """If the model encounters a stop sequence, it stops generating further tokens."""
+    session: Any = None
+    """A bedrock session. If provided, a new bedrock client will be created using this session."""
     client: Any = None
     """The bedrock session client. If unset, a new one is created with boto3."""
     max_content_size: Optional[int] = None
@@ -43,15 +45,18 @@ class BedrockModel(BaseModel):
 
     def _init_client(self) -> None:
         if not self.client:
-            try:
-                import boto3  # type:ignore
+            if self.session:
+                self.client = self.session.client("bedrock-runtime")
+            else:
+                try:
+                    import boto3  # type:ignore
 
-                self.client = boto3.client("bedrock-runtime")
-            except ImportError:
-                self._raise_import_error(
-                    package_name="boto3",
-                    package_min_version=MINIMUM_BOTO_VERSION,
-                )
+                    self.client = boto3.client("bedrock-runtime")
+                except ImportError:
+                    self._raise_import_error(
+                        package_name="boto3",
+                        package_min_version=MINIMUM_BOTO_VERSION,
+                    )
 
     def _init_rate_limiter(self) -> None:
         self._rate_limiter = RateLimiter(
