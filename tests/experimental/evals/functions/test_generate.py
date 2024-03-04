@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import respx
+import sys
 from phoenix.experimental.evals import OpenAIModel, llm_generate
 from phoenix.experimental.evals.models.litellm import LiteLLMModel
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
@@ -242,6 +243,10 @@ def test_classify_tolerance_to_exceptions(
     assert "Exception in worker" in captured.out
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 9),
+    reason="https://github.com/BerriAI/litellm/issues/2005",
+)
 def test_litellm_model_llm_generate(monkeypatch: pytest.MonkeyPatch):
     """LiteLLM can return a `mock_response` from completion, we set it in model_kwargs to True"""
 
