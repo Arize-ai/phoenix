@@ -67,7 +67,7 @@ __all__ = [
 
 
 logger.warning(
-    "Evals are moving out of experimental."
+    "Evals are moving out of experimental. "
     "Install the evals extra with `pip install arize-phoenix[evals]` and import `phoenix.evals`. "
     "For more info, see the [migration guide](https://github.com/Arize-ai/phoenix/blob/main/MIGRATION.md)."
 )
