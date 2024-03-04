@@ -155,8 +155,8 @@ const defaultCardProps: Partial<CardProps> = {
 export function TracePage() {
   const { traceId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { projectId } = useParams();
   const navigate = useNavigate();
-
   const data = useLazyLoadQuery<TracePageQuery>(
     graphql`
       query TracePageQuery($traceId: ID!) {
@@ -234,9 +234,9 @@ export function TracePage() {
     <DialogContainer
       type="slideOver"
       isDismissable
-      onDismiss={() => navigate("/tracing")}
+      onDismiss={() => navigate(`/projects/${projectId}`)}
     >
-      <Dialog size="XL" title="Trace Details">
+      <Dialog size="fullscreen" title="Trace Details">
         <main
           css={css`
             flex: 1 1 auto;

@@ -342,7 +342,7 @@ export function TracesTable(props: TracesTableProps) {
       cell: ({ getValue, row }) => {
         const { spanId, traceId } = row.original.context;
         return (
-          <Link to={`/tracing/traces/${traceId}?selectedSpanId=${spanId}`}>
+          <Link to={`traces/${traceId}?selectedSpanId=${spanId}`}>
             {getValue() as string}
           </Link>
         );

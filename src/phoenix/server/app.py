@@ -36,6 +36,8 @@ templates = Jinja2Templates(directory=SERVER_DIR / "templates")
 
 
 class AppConfig(NamedTuple):
+    has_inferences: bool
+    """ Whether the model has inferences (e.g. a primary dataset) """
     has_corpus: bool
     min_dist: float
     n_neighbors: int
@@ -64,6 +66,7 @@ class Static(StaticFiles):
             response = templates.TemplateResponse(
                 "index.html",
                 context={
+                    "has_inferences": self._app_config.has_inferences,
                     "has_corpus": self._app_config.has_corpus,
                     "min_dist": self._app_config.min_dist,
                     "n_neighbors": self._app_config.n_neighbors,
@@ -209,6 +212,7 @@ def create_app(
                 app=Static(
                     directory=SERVER_DIR / "static",
                     app_config=AppConfig(
+                        has_inferences=model.is_empty is not True,
                         has_corpus=corpus is not None,
                         min_dist=umap_params.min_dist,
                         n_neighbors=umap_params.n_neighbors,

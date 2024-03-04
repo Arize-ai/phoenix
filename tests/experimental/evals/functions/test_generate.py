@@ -1,5 +1,4 @@
 import json
-import sys
 from typing import Dict
 from unittest.mock import patch
 
