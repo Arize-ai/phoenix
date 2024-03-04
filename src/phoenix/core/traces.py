@@ -122,17 +122,10 @@ class Traces:
         weakref.finalize(self, self._queue.put, END_OF_QUEUE)
         self._lock = RLock()
         self._projects: DefaultDict[_ProjectName, _Project] = defaultdict(_Project)
-        self._num_documents: DefaultDict[SpanID, int] = defaultdict(int)
-        self._last_updated_at: Optional[datetime] = None
         self._start_consumer()
 
     def put(self, item: _QueueItem) -> None:
         self._queue.put(item)
-
-    def get_project_names(self) -> Iterator[str]:
-        with self._lock:
-            project_names = tuple(self._projects.keys())
-        yield from project_names
 
     def get_trace(
         self,
