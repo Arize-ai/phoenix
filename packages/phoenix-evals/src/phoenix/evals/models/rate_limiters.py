@@ -133,8 +133,7 @@ class AdaptiveTokenBucket:
                 continue
 
 
-class RateLimitError(PhoenixException):
-    ...
+class RateLimitError(PhoenixException): ...
 
 
 class RateLimiter:

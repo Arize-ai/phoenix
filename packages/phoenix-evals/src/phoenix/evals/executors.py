@@ -20,8 +20,7 @@ _unset = Unset()
 
 
 class Executor(Protocol):
-    def run(self, inputs: Sequence[Any]) -> List[Any]:
-        ...
+    def run(self, inputs: Sequence[Any]) -> List[Any]: ...
 
 
 class AsyncExecutor(Executor):

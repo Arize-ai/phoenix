@@ -12,36 +12,36 @@ def _get_embedding_dimensions(
     embedding_dimensions: List[EmbeddingDimension] = []
     embedding_features: EmbeddingFeatures = {}
 
-    primary_embedding_features: Optional[
-        EmbeddingFeatures
-    ] = primary_dataset.schema.embedding_feature_column_names
+    primary_embedding_features: Optional[EmbeddingFeatures] = (
+        primary_dataset.schema.embedding_feature_column_names
+    )
     if primary_embedding_features is not None:
         embedding_features.update(primary_embedding_features)
-    primary_prompt_column_names: Optional[
-        EmbeddingColumnNames
-    ] = primary_dataset.schema.prompt_column_names
+    primary_prompt_column_names: Optional[EmbeddingColumnNames] = (
+        primary_dataset.schema.prompt_column_names
+    )
     if primary_prompt_column_names is not None:
         embedding_features.update({"prompt": primary_prompt_column_names})
-    primary_response_column_names: Optional[
-        Union[str, EmbeddingColumnNames]
-    ] = primary_dataset.schema.response_column_names
+    primary_response_column_names: Optional[Union[str, EmbeddingColumnNames]] = (
+        primary_dataset.schema.response_column_names
+    )
     if isinstance(primary_response_column_names, EmbeddingColumnNames):
         embedding_features.update({"response": primary_response_column_names})
 
     if reference_dataset is not None:
-        reference_embedding_features: Optional[
-            EmbeddingFeatures
-        ] = reference_dataset.schema.embedding_feature_column_names
+        reference_embedding_features: Optional[EmbeddingFeatures] = (
+            reference_dataset.schema.embedding_feature_column_names
+        )
         if reference_embedding_features is not None:
             embedding_features.update(reference_embedding_features)
-        reference_prompt_column_names: Optional[
-            EmbeddingColumnNames
-        ] = reference_dataset.schema.prompt_column_names
+        reference_prompt_column_names: Optional[EmbeddingColumnNames] = (
+            reference_dataset.schema.prompt_column_names
+        )
         if reference_prompt_column_names is not None:
             embedding_features.update({"prompt": reference_prompt_column_names})
-        reference_response_column_names: Optional[
-            Union[str, EmbeddingColumnNames]
-        ] = reference_dataset.schema.response_column_names
+        reference_response_column_names: Optional[Union[str, EmbeddingColumnNames]] = (
+            reference_dataset.schema.response_column_names
+        )
         if isinstance(reference_response_column_names, EmbeddingColumnNames):
             embedding_features.update({"response": reference_response_column_names})
 
