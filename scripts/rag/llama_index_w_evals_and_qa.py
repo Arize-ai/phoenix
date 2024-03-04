@@ -10,7 +10,6 @@ import time
 from typing import Dict, List
 
 import cohere
-import llama_index
 import numpy as np
 import pandas as pd
 import phoenix as px
@@ -19,20 +18,24 @@ import requests
 import tiktoken
 from bs4 import BeautifulSoup
 from llama_index.core import (
-    LLMPredictor,
+    Document,
     ServiceContext,
     StorageContext,
     VectorStoreIndex,
     load_index_from_storage,
+    set_global_handler,
 )
 from llama_index.core.callbacks import CallbackManager, LlamaDebugHandler
 from llama_index.core.indices.query.query_transform import HyDEQueryTransform
 from llama_index.core.indices.query.query_transform.base import StepDecomposeQueryTransform
 from llama_index.core.node_parser import SimpleNodeParser
 from llama_index.core.query_engine import MultiStepQueryEngine, TransformQueryEngine
+from llama_index.legacy import (
+    LLMPredictor,
+)
+from llama_index.legacy.postprocessor.cohere_rerank import CohereRerank
+from llama_index.legacy.readers.web import BeautifulSoupWebReader
 from llama_index.llms.openai import OpenAI
-from llama_index.postprocessor.cohere_rerank import CohereRerank
-from llama_index.readers.web import BeautifulSoupWebReader
 from openinference.semconv.trace import DocumentAttributes, SpanAttributes
 from phoenix.evals import (
     OpenAIModel,
@@ -544,12 +547,15 @@ def main():
         with open(raw_docs_filepath, "rb") as file:
             documents = pickle.load(file)
 
+    # convert legacy documents to new format
+    documents = [Document(**document.__dict__) for document in documents]
+
     # Look for a URL in the output to open the App in a browser.
     px.launch_app()
     # The App is initially empty, but as you proceed with the steps below,
     # traces will appear automatically as your LlamaIndex application runs.
 
-    llama_index.set_global_handler("arize_phoenix")
+    set_global_handler("arize_phoenix")
 
     # Run all of your LlamaIndex applications as usual and traces
     # will be collected and displayed in Phoenix.
