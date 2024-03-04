@@ -33,10 +33,12 @@
         "respx",
         "rgba",
         "seafoam",
+        "templating",
         "tensorboard",
         "tiktoken",
         "tracedataset",
         "UMAP",
+        "websockets",
         "xlarge",
         "Zustand"
     ],

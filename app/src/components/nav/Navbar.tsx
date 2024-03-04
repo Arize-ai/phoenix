@@ -1,14 +1,20 @@
 import React, { PropsWithChildren, ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, NavLink as RRNavLink } from "react-router-dom";
 import { css, Theme } from "@emotion/react";
 
-import { Icons } from "@arizeai/components";
+import {
+  Icons,
+  Text,
+  Tooltip,
+  TooltipTrigger,
+  TriggerWrap,
+} from "@arizeai/components";
 
 import { useTheme } from "@phoenix/contexts";
 
 import { Logo } from "./Logo";
 
-const navCSS = css`
+const topNavCSS = css`
   padding: var(--px-spacing-med) var(--px-spacing-lg);
   border-bottom: 1px solid var(--ac-global-color-grey-200);
   background-color: var(--ac-global-color-grey-75);
@@ -17,6 +23,17 @@ const navCSS = css`
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
+`;
+
+const sideNavCSS = css`
+  padding: var(--px-spacing-med);
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--px-spacing-med);
+  background-color: var(--ac-global-color-grey-75);
+  border-right: 1px solid var(--ac-global-color-grey-200);
+  height: 100vh;
 `;
 
 const navIconCSS = css`
@@ -37,9 +54,6 @@ const brandCSS = (theme: Theme) => css`
   color: var(--ac-global-text-color-900);
   font-size: ${theme.typography.sizes.large.fontSize}px;
   text-decoration: none;
-  svg {
-    margin-right: ${theme.spacing.margin16}px;
-  }
 `;
 
 const GitHubSVG = () => (
@@ -109,6 +123,46 @@ export function Brand() {
   );
 }
 
-export function Navbar({ children }: { children: ReactNode }) {
-  return <nav css={navCSS}>{children}</nav>;
+export function TopNavbar({ children }: { children: ReactNode }) {
+  return <nav css={topNavCSS}>{children}</nav>;
+}
+
+export function SideNavbar({ children }: { children: ReactNode }) {
+  return <nav css={sideNavCSS}>{children}</nav>;
+}
+
+export function NavLink(
+  props: PropsWithChildren<{ to: string; text: string }>
+) {
+  return (
+    <TooltipTrigger delay={0} placement="right" offset={12}>
+      <TriggerWrap>
+        <RRNavLink
+          to={props.to}
+          css={css`
+            color: var(--ac-global-text-color-500);
+            background-color: transparent;
+            border-radius: var(--ac-global-rounding-small);
+            display: block;
+            transition: color 0.2s ease-in-out;
+            &.active {
+              color: var(--ac-global-text-color-900);
+              background-color: var(--ac-global-color-primary-300);
+            }
+            &:hover {
+              color: var(--ac-global-text-color-900);
+            }
+            & > * {
+              padding: var(--ac-global-dimension-size-50);
+            }
+          `}
+        >
+          {props.children}
+        </RRNavLink>
+      </TriggerWrap>
+      <Tooltip>
+        <Text weight="heavy">{props.text}</Text>
+      </Tooltip>
+    </TooltipTrigger>
+  );
 }

@@ -115,14 +115,9 @@ dependencies = [
   "pytest-cov",
   "pytest-lazy-fixture",
   "arize",
-  "langchain>=0.0.334",
   "litellm>=1.0.3",
-  "llama-index>=0.10.3",
   "openai>=1.0.0",
   "tenacity",
-  "nltk==3.8.1",
-  "sentence-transformers==2.2.2",
-  "pydantic<2",  # for @root_validator in llama-index
   "requests",
   "protobuf==3.20",  # version minimum (for tests)
   "responses",
@@ -136,8 +131,7 @@ dependencies = [
 [tool.hatch.envs.type]
 dependencies = [
   "mypy==1.5.1",
-  "pydantic==v1.10.14",  # for mypy
-  "llama-index<0.10.0",
+  "tenacity",
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "types-psutil",
   "types-tqdm",

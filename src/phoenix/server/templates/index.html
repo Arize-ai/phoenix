@@ -31,7 +31,8 @@
             // injected into the client before React runs
             value: Object.freeze({
                 basename: "{{basename}}",
-                hasCorpus: Boolean("{{has_corpus}}"),
+                hasInferences: Boolean("{{has_inferences}}" == "True"),
+                hasCorpus: Boolean("{{has_corpus}}" == "True"),
                 UMAP: {
                   minDist: parseFloat("{{min_dist}}"),
                   nNeighbors: parseInt("{{n_neighbors}}"),
