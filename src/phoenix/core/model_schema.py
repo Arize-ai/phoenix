@@ -52,8 +52,7 @@ from phoenix.config import GENERATED_DATASET_NAME_PREFIX
 from phoenix.datetime_utils import floor_to_minute
 
 
-class DimensionRole(IntEnum):
-    ...
+class DimensionRole(IntEnum): ...
 
 
 @unique
@@ -151,8 +150,7 @@ class CompositeDimensionSpec(SchemaSpec, ABC):
         ...
 
     @abstractmethod
-    def __iter__(self) -> Iterator[str]:
-        ...
+    def __iter__(self) -> Iterator[str]: ...
 
 
 @dataclass(frozen=True)
@@ -311,12 +309,10 @@ class Column:
             object.__setattr__(self, "name", _rand_str())
 
     @overload
-    def __call__(self, data: pd.DataFrame) -> "pd.Series[Any]":
-        ...
+    def __call__(self, data: pd.DataFrame) -> "pd.Series[Any]": ...
 
     @overload
-    def __call__(self, data: "pd.Series[Any]") -> Any:
-        ...
+    def __call__(self, data: "pd.Series[Any]") -> Any: ...
 
     def __call__(self, data: DataFrameOrSeries) -> Any:
         """Extracts a value from series, or a series from a dataframe. If
@@ -569,8 +565,7 @@ class ModelData(ObjectProxy, ABC):  # type: ignore
 
     @property
     @abstractmethod
-    def null_value(self) -> Any:
-        ...
+    def null_value(self) -> Any: ...
 
     def __getitem__(self, key: Any) -> Any:
         if _is_column_key(key):
@@ -614,12 +609,10 @@ class Event(ModelData):
         return np.nan
 
     @overload
-    def __getitem__(self, key: ColumnKey) -> Any:
-        ...
+    def __getitem__(self, key: ColumnKey) -> Any: ...
 
     @overload
-    def __getitem__(self, key: Any) -> Any:
-        ...
+    def __getitem__(self, key: Any) -> Any: ...
 
     def __getitem__(self, key: Any) -> Any:
         return super().__getitem__(key)
@@ -668,12 +661,10 @@ class Events(ModelData):
             )
 
     @overload
-    def __getitem__(self, key: ColumnKey) -> "pd.Series[Any]":
-        ...
+    def __getitem__(self, key: ColumnKey) -> "pd.Series[Any]": ...
 
     @overload
-    def __getitem__(self, key: List[RowId]) -> "Events":
-        ...
+    def __getitem__(self, key: List[RowId]) -> "Events": ...
 
     def __getitem__(self, key: Any) -> Any:
         if isinstance(key, list):
@@ -728,12 +719,10 @@ class Dataset(Events):
         return pd.Index(self[PREDICTION_ID])
 
     @overload
-    def __getitem__(self, key: ColumnKey) -> "pd.Series[Any]":
-        ...
+    def __getitem__(self, key: ColumnKey) -> "pd.Series[Any]": ...
 
     @overload
-    def __getitem__(self, key: List[RowId]) -> Events:
-        ...
+    def __getitem__(self, key: List[RowId]) -> Events: ...
 
     def __getitem__(self, key: Any) -> Any:
         if isinstance(key, list):
@@ -1030,32 +1019,25 @@ class Model:
         return ans
 
     @overload
-    def __getitem__(self, key: Type[Dataset]) -> Iterator[Dataset]:
-        ...
+    def __getitem__(self, key: Type[Dataset]) -> Iterator[Dataset]: ...
 
     @overload
-    def __getitem__(self, key: DatasetRole) -> Dataset:
-        ...
+    def __getitem__(self, key: DatasetRole) -> Dataset: ...
 
     @overload
-    def __getitem__(self, key: ColumnKey) -> Dimension:
-        ...
+    def __getitem__(self, key: ColumnKey) -> Dimension: ...
 
     @overload
-    def __getitem__(self, key: MultiDimensionKey) -> Iterator[Dimension]:
-        ...
+    def __getitem__(self, key: MultiDimensionKey) -> Iterator[Dimension]: ...
 
     @overload
-    def __getitem__(self, key: Type[ScalarDimension]) -> Iterator[ScalarDimension]:
-        ...
+    def __getitem__(self, key: Type[ScalarDimension]) -> Iterator[ScalarDimension]: ...
 
     @overload
-    def __getitem__(self, key: Type[EmbeddingDimension]) -> Iterator[EmbeddingDimension]:
-        ...
+    def __getitem__(self, key: Type[EmbeddingDimension]) -> Iterator[EmbeddingDimension]: ...
 
     @overload
-    def __getitem__(self, key: Type[Dimension]) -> Iterator[Dimension]:
-        ...
+    def __getitem__(self, key: Type[Dimension]) -> Iterator[Dimension]: ...
 
     @overload
     def __getitem__(
@@ -1064,8 +1046,7 @@ class Model:
             MultiDimensionKey,
             Union[Type[ScalarDimension], Type[EmbeddingDimension]],
         ],
-    ) -> Iterator[Dimension]:
-        ...
+    ) -> Iterator[Dimension]: ...
 
     def __getitem__(self, key: Any) -> Any:
         if key is Dataset:
@@ -1124,8 +1105,7 @@ class Model:
         obj: DimensionRole,
         cls: Type[Dimension] = ScalarDimension,
         **kwargs: Any,
-    ) -> Dimension:
-        ...
+    ) -> Dimension: ...
 
     @overload
     def _new_dimension(
@@ -1133,16 +1113,14 @@ class Model:
         obj: Name,
         cls: Type[Dimension] = ScalarDimension,
         **kwargs: Any,
-    ) -> Dimension:
-        ...
+    ) -> Dimension: ...
 
     @overload
     def _new_dimension(
         self,
         obj: Dimension,
         **kwargs: Any,
-    ) -> Dimension:
-        ...
+    ) -> Dimension: ...
 
     def _new_dimension(
         self, obj: Any, cls: Type[Dimension] = ScalarDimension, **kwargs: Any

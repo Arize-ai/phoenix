@@ -33,12 +33,10 @@ class Metric(ABC):
             return self.initial_value
 
     @abstractmethod
-    def calc(self, dataframe: pd.DataFrame) -> Any:
-        ...
+    def calc(self, dataframe: pd.DataFrame) -> Any: ...
 
     @abstractmethod
-    def operands(self) -> List[Column]:
-        ...
+    def operands(self) -> List[Column]: ...
 
     def __call__(
         self,

@@ -22,8 +22,7 @@ class TraceDataExtractor(ABC):
         start_time: Optional[datetime] = None,
         stop_time: Optional[datetime] = None,
         root_spans_only: Optional[bool] = None,
-    ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
-        ...
+    ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]: ...
 
     def get_spans_dataframe(
         self,
@@ -44,8 +43,7 @@ class TraceDataExtractor(ABC):
         )
 
     @abstractmethod
-    def get_evaluations(self) -> List[Evaluations]:
-        ...
+    def get_evaluations(self) -> List[Evaluations]: ...
 
     def get_trace_dataset(self) -> Optional[TraceDataset]:
         if (dataframe := self.get_spans_dataframe()) is None:

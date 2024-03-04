@@ -323,8 +323,7 @@ class DocumentEvaluations(
 class TraceEvaluations(
     Evaluations,
     index_names=MappingProxyType({("context.trace_id", "trace_id"): is_string_dtype}),
-):
-    ...
+): ...
 
 
 def _parse_schema_metadata(schema: Schema) -> Tuple[UUID, str, Type[Evaluations]]:

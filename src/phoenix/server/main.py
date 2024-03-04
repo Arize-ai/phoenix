@@ -60,8 +60,7 @@ _Item = TypeVar("_Item", contravariant=True)
 
 
 class _SupportsPut(Protocol[_Item]):
-    def put(self, item: _Item) -> None:
-        ...
+    def put(self, item: _Item) -> None: ...
 
 
 def _load_items(

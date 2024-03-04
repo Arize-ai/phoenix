@@ -15,8 +15,7 @@ from starlette.status import HTTP_415_UNSUPPORTED_MEDIA_TYPE, HTTP_422_UNPROCESS
 
 
 class SupportsPutSpan(Protocol):
-    def put(self, span: Span) -> None:
-        ...
+    def put(self, span: Span) -> None: ...
 
 
 class TraceHandler(HTTPEndpoint):
