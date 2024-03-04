@@ -2,7 +2,13 @@ import React, { PropsWithChildren, ReactNode } from "react";
 import { Link, NavLink as RRNavLink } from "react-router-dom";
 import { css, Theme } from "@emotion/react";
 
-import { Icons } from "@arizeai/components";
+import {
+  Icons,
+  Text,
+  Tooltip,
+  TooltipTrigger,
+  TriggerWrap,
+} from "@arizeai/components";
 
 import { useTheme } from "@phoenix/contexts";
 
@@ -125,29 +131,38 @@ export function SideNavbar({ children }: { children: ReactNode }) {
   return <nav css={sideNavCSS}>{children}</nav>;
 }
 
-export function NavLink(props: PropsWithChildren<{ to: string }>) {
+export function NavLink(
+  props: PropsWithChildren<{ to: string; text: string }>
+) {
   return (
-    <RRNavLink
-      to={props.to}
-      css={css`
-        color: var(--ac-global-text-color-500);
-        background-color: transparent;
-        border-radius: var(--ac-global-rounding-small);
-        display: block;
-        transition: color 0.2s ease-in-out;
-        &.active {
-          color: var(--ac-global-text-color-900);
-          background-color: var(--ac-global-color-primary-300);
-        }
-        &:hover {
-          color: var(--ac-global-text-color-900);
-        }
-        & > * {
-          padding: var(--ac-global-dimension-size-50);
-        }
-      `}
-    >
-      {props.children}
-    </RRNavLink>
+    <TooltipTrigger delay={0} placement="right" offset={12}>
+      <TriggerWrap>
+        <RRNavLink
+          to={props.to}
+          css={css`
+            color: var(--ac-global-text-color-500);
+            background-color: transparent;
+            border-radius: var(--ac-global-rounding-small);
+            display: block;
+            transition: color 0.2s ease-in-out;
+            &.active {
+              color: var(--ac-global-text-color-900);
+              background-color: var(--ac-global-color-primary-300);
+            }
+            &:hover {
+              color: var(--ac-global-text-color-900);
+            }
+            & > * {
+              padding: var(--ac-global-dimension-size-50);
+            }
+          `}
+        >
+          {props.children}
+        </RRNavLink>
+      </TriggerWrap>
+      <Tooltip>
+        <Text weight="heavy">{props.text}</Text>
+      </Tooltip>
+    </TooltipTrigger>
   );
 }

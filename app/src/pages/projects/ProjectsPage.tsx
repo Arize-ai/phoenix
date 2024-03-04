@@ -1,6 +1,6 @@
 import React from "react";
 
-import { Alert, Flex, Text, View } from "@arizeai/components";
+import { Alert, Flex, View } from "@arizeai/components";
 
 import { Link } from "@phoenix/components";
 
@@ -12,7 +12,7 @@ export function ProjectsPage() {
         <Link to="/projects/default">default project</Link>
       </Alert>
       <View padding="size-200">
-        <Link to="/projects/default">Go to your default project ➡</Link>
+        <Link to="/projects/default">Go to your default project</Link>
       </View>
     </Flex>
   );

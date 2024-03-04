@@ -93,13 +93,13 @@ function SideNav() {
       <ul css={sideLinksCSS}>
         {hasInferences && (
           <li>
-            <NavLink to="/model">
+            <NavLink to="/model" text="Model">
               <Icon svg={<Icons.Cube />} />
             </NavLink>
           </li>
         )}
         <li>
-          <NavLink to="/projects/default">
+          <NavLink to="/projects/default" text="Projects">
             <Icon svg={<Icons.Grid />} />
           </NavLink>
         </li>
