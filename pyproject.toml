@@ -56,7 +56,7 @@ dev = [
   "hatch",
   "jupyter",
   "nbqa",
-  "ruff==0.1.5",
+  "ruff==0.3.0",
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "pytest==7.4.4",
   "pytest-asyncio",
@@ -144,7 +144,7 @@ dependencies = [
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
-  "ruff~=0.1.5",
+  "ruff==0.3.0",
 ]
 
 [tool.hatch.envs.notebooks]
@@ -201,12 +201,12 @@ check = [
 
 [tool.hatch.envs.style.scripts]
 check = [
-  "ruff .",
   "ruff format --check --diff .",
+  "ruff check .",
 ]
 fix = [
   "ruff format .",
-  "ruff --fix .",
+  "ruff check --fix .",
 ]
 
 [tool.hatch.envs.notebooks.scripts]
@@ -309,6 +309,7 @@ ignore_missing_imports = true
 exclude = [
   "packages",
   "src/phoenix/evals/",
+  "dist/",
   ".git",
   "__pycache__",
   "docs/source/conf.py",
@@ -316,13 +317,15 @@ exclude = [
   "*.pyi",
 ]
 extend-include = ["*.ipynb"]
-ignore-init-module-imports = true
 line-length = 100
-select = ["E", "F", "W", "I"]
 target-version = "py38"
 
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["E402", "E501"]
 
-[tool.ruff.isort]
+[tool.ruff.lint]
+ignore-init-module-imports = true
+select = ["E", "F", "W", "I"]
+
+[tool.ruff.lint.isort]
 force-single-line = false

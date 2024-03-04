@@ -443,8 +443,7 @@ class Query:
 
 
 @strawberry.type
-class Mutation(ExportEventsMutation):
-    ...
+class Mutation(ExportEventsMutation): ...
 
 
 schema = strawberry.Schema(query=Query, mutation=Mutation)

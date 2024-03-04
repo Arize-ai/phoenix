@@ -2,6 +2,7 @@
 This module is defunct and will be removed in the future. It's currently
 maintaining a dummy class to avoid breaking any import code.
 """
+
 import logging
 import sys
 from typing import Any, Iterator, Protocol
@@ -12,8 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class SpanExporter(Protocol):
-    def export(self, _: Any) -> None:
-        ...
+    def export(self, _: Any) -> None: ...
 
 
 _DEFUNCT_MSG = (

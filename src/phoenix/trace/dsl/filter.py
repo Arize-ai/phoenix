@@ -29,8 +29,7 @@ _VALID_EVAL_ATTRIBUTES: Tuple[str, ...] = tuple(
 
 
 class SupportsGetSpanEvaluation(Protocol):
-    def get_span_evaluation(self, span_id: SpanID, name: str) -> Optional[pb.Evaluation]:
-        ...
+    def get_span_evaluation(self, span_id: SpanID, name: str) -> Optional[pb.Evaluation]: ...
 
 
 @dataclass(frozen=True)

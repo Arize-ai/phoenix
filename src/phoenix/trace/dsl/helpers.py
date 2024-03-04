@@ -21,8 +21,9 @@ IS_RETRIEVER = "span_kind == 'RETRIEVER'"
 
 
 class CanQuerySpans(Protocol):
-    def query_spans(self, *query: SpanQuery) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
-        ...
+    def query_spans(
+        self, *query: SpanQuery
+    ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]: ...
 
 
 def get_retrieved_documents(obj: CanQuerySpans) -> pd.DataFrame:

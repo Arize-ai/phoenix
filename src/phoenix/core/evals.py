@@ -33,15 +33,15 @@ class Evals:
         self._trace_evaluations_by_name: DefaultDict[
             EvaluationName, Dict[TraceID, pb.Evaluation]
         ] = defaultdict(dict)
-        self._evaluations_by_trace_id: DefaultDict[
-            TraceID, Dict[EvaluationName, pb.Evaluation]
-        ] = defaultdict(dict)
-        self._span_evaluations_by_name: DefaultDict[
-            EvaluationName, Dict[SpanID, pb.Evaluation]
-        ] = defaultdict(dict)
-        self._evaluations_by_span_id: DefaultDict[
-            SpanID, Dict[EvaluationName, pb.Evaluation]
-        ] = defaultdict(dict)
+        self._evaluations_by_trace_id: DefaultDict[TraceID, Dict[EvaluationName, pb.Evaluation]] = (
+            defaultdict(dict)
+        )
+        self._span_evaluations_by_name: DefaultDict[EvaluationName, Dict[SpanID, pb.Evaluation]] = (
+            defaultdict(dict)
+        )
+        self._evaluations_by_span_id: DefaultDict[SpanID, Dict[EvaluationName, pb.Evaluation]] = (
+            defaultdict(dict)
+        )
         self._span_evaluation_labels: DefaultDict[EvaluationName, Set[str]] = defaultdict(set)
         self._document_evaluations_by_span_id: DefaultDict[
             SpanID, DefaultDict[EvaluationName, Dict[DocumentPosition, pb.Evaluation]]
