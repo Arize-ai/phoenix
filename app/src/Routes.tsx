@@ -1,8 +1,14 @@
 import React from "react";
-import { createRoutesFromElements, Route, RouterProvider } from "react-router";
+import {
+  createRoutesFromElements,
+  redirect,
+  Route,
+  RouterProvider,
+} from "react-router";
 import { createBrowserRouter } from "react-router-dom";
 
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
+import { ProjectsPage } from "./pages/projects/ProjectsPage";
 import { TracingHomePage } from "./pages/tracing";
 import {
   dimensionLoader,
@@ -17,6 +23,10 @@ import {
   TracePage,
   TracingRoot,
 } from "./pages";
+
+type ProjectInfo = {
+  projectName: string;
+};
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -54,13 +64,27 @@ const router = createBrowserRouter(
       </Route>
       <Route
         path="/tracing"
-        handle={{ crumb: () => "tracing" }}
-        element={<TracingRoot />}
-      >
-        <Route index element={<TracingHomePage />} />
-        <Route element={<TracingHomePage />}>
-          <Route path="traces">
-            <Route path=":traceId" element={<TracePage />} />
+        loader={() => {
+          // TODO this is a temporary change until the migration to projects is complete
+          return redirect("/projects/default");
+        }}
+      />
+      <Route path="/projects" handle={{ crumb: () => "projects" }}>
+        <Route index element={<ProjectsPage />} />
+        <Route
+          path=":projectId"
+          element={<TracingRoot />}
+          loader={(): ProjectInfo => {
+            // TODO this will actually load the project name
+            return { projectName: "default" };
+          }}
+          handle={{ crumb: (data: ProjectInfo) => data.projectName }}
+        >
+          <Route index element={<TracingHomePage />} />
+          <Route element={<TracingHomePage />}>
+            <Route path="traces">
+              <Route path=":traceId" element={<TracePage />} />
+            </Route>
           </Route>
         </Route>
       </Route>
