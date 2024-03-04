@@ -1,8 +1,4 @@
 import logging
-import sys
-from typing import Any
-
-from wrapt import ObjectProxy
 
 from .evaluators import (
     HallucinationEvaluator,
@@ -70,16 +66,8 @@ __all__ = [
 ]
 
 
-class _DeprecatedModuleWrapper(ObjectProxy):  # type: ignore
-    def __getattr__(self, name: str) -> Any:
-        value = self.__wrapped__.__getattr__(name)
-        logger.warning(
-            "Evals are moving out of experimental."
-            "Install the evals extra with `pip install arize-phoenix[evals]` and "
-            f"import `phoenix.evals.{name}`. "
-            "For more info, see the [migration guide](https://github.com/Arize-ai/phoenix/blob/main/MIGRATION.md)."
-        )
-        return value
-
-
-sys.modules[__name__] = _DeprecatedModuleWrapper(sys.modules[__name__])
+logger.warning(
+    "Evals are moving out of experimental."
+    "Install the evals extra with `pip install arize-phoenix[evals]` and import `phoenix.evals`. "
+    "For more info, see the [migration guide](https://github.com/Arize-ai/phoenix/blob/main/MIGRATION.md)."
+)
