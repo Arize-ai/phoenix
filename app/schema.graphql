@@ -566,8 +566,8 @@ type Query {
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
-  streamingLastUpdatedAt: DateTime
-  spans(timeRange: TimeRange, traceIds: [ID!], first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String): SpanConnection!
+  streamingLastUpdatedAt(projectName: String): DateTime
+  spans(timeRange: TimeRange, traceIds: [ID!], first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String, projectName: String): SpanConnection!
 
   """
   Names of all available evaluations for spans. (The list contains no duplicates.)
@@ -576,9 +576,9 @@ type Query {
 
   """Names of available document evaluations."""
   documentEvaluationNames(spanId: ID): [String!]!
-  spanEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): EvaluationSummary
-  documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
-  traceDatasetInfo: TraceDatasetInfo
+  spanEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String, projectName: String): EvaluationSummary
+  documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String, projectName: String): DocumentEvaluationSummary
+  traceDatasetInfo(projectName: String): TraceDatasetInfo
   validateSpanFilterCondition(condition: String!): ValidationResult!
 }
 

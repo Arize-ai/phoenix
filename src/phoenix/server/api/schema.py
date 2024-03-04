@@ -205,10 +205,11 @@ class Query:
     def streaming_last_updated_at(
         self,
         info: Info[Context, None],
+        project_name: Optional[str] = UNSET,
     ) -> Optional[datetime]:
         last_updated_at: Optional[datetime] = None
         if (traces := info.context.traces) is not None and (
-            traces_last_updated_at := traces.last_updated_at
+            traces_last_updated_at := traces.last_updated_at(project_name)
         ) is not None:
             last_updated_at = (
                 traces_last_updated_at
@@ -238,6 +239,7 @@ class Query:
         sort: Optional[SpanSort] = UNSET,
         root_spans_only: Optional[bool] = UNSET,
         filter_condition: Optional[str] = UNSET,
+        project_name: Optional[str] = UNSET,
     ) -> Connection[Span]:
         args = ConnectionArgs(
             first=first,
@@ -261,9 +263,12 @@ class Query:
                 start_time=time_range.start if time_range else None,
                 stop_time=time_range.end if time_range else None,
                 root_spans_only=root_spans_only,
+                project_name=project_name,
             )
         else:
-            spans = chain.from_iterable(map(traces.get_trace, map(TraceID, trace_ids)))
+            spans = chain.from_iterable(
+                traces.get_trace(trace_id, project_name) for trace_id in map(TraceID, trace_ids)
+            )
         if predicate:
             spans = filter(predicate, spans)
         if sort:
@@ -304,6 +309,7 @@ class Query:
         evaluation_name: str,
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
+        project_name: Optional[str] = UNSET,
     ) -> Optional[EvaluationSummary]:
         if (evals := info.context.evals) is None:
             return None
@@ -324,6 +330,7 @@ class Query:
             start_time=time_range.start if time_range else None,
             stop_time=time_range.end if time_range else None,
             span_ids=span_ids,
+            project_name=project_name,
         )
         if predicate:
             spans = filter(predicate, spans)
@@ -350,6 +357,7 @@ class Query:
         evaluation_name: str,
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
+        project_name: Optional[str] = UNSET,
     ) -> Optional[DocumentEvaluationSummary]:
         if (evals := info.context.evals) is None:
             return None
@@ -365,13 +373,14 @@ class Query:
             start_time=time_range.start if time_range else None,
             stop_time=time_range.end if time_range else None,
             span_ids=span_ids,
+            project_name=project_name,
         )
         if predicate:
             spans = filter(predicate, spans)
         metrics_collection = []
         for span in spans:
             span_id = span.context.span_id
-            num_documents = traces.get_num_documents(span_id)
+            num_documents = traces.get_num_documents(span_id, project_name)
             if not num_documents:
                 continue
             evaluation_scores = evals.get_document_evaluation_scores(
@@ -391,16 +400,19 @@ class Query:
     def trace_dataset_info(
         self,
         info: Info[Context, None],
+        project_name: Optional[str] = UNSET,
     ) -> Optional[TraceDatasetInfo]:
         if (traces := info.context.traces) is None:
             return None
-        if not (span_count := traces.span_count):
+        if not (span_count := traces.span_count(project_name)):
             return None
         start_time, stop_time = cast(
             Tuple[datetime, datetime],
-            traces.right_open_time_range,
+            traces.right_open_time_range(project_name),
         )
-        latency_ms_p50, latency_ms_p99 = traces.root_span_latency_ms_quantiles(0.50, 0.99)
+        latency_ms_p50, latency_ms_p99 = traces.root_span_latency_ms_quantiles(
+            0.50, 0.99, project_name=project_name
+        )
         return TraceDatasetInfo(
             start_time=start_time,
             end_time=stop_time,
