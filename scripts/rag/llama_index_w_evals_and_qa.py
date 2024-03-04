@@ -10,36 +10,38 @@ import time
 from typing import Dict, List
 
 import cohere
-import llama_index
 import numpy as np
 import pandas as pd
 import phoenix as px
 import phoenix.experimental.evals.templates.default_templates as templates
 import requests
+import tiktoken
 from bs4 import BeautifulSoup
-from llama_index import (
-    LLMPredictor,
+from llama_index.core import (
+    Document,
     ServiceContext,
     StorageContext,
     VectorStoreIndex,
-    download_loader,
     load_index_from_storage,
+    set_global_handler,
 )
-from llama_index.callbacks import CallbackManager, LlamaDebugHandler
-from llama_index.indices.query.query_transform import HyDEQueryTransform
-from llama_index.indices.query.query_transform.base import StepDecomposeQueryTransform
-from llama_index.llms import OpenAI
-from llama_index.node_parser import SimpleNodeParser
-from llama_index.postprocessor.cohere_rerank import CohereRerank
-from llama_index.query_engine.multistep_query_engine import MultiStepQueryEngine
-from llama_index.query_engine.transform_query_engine import TransformQueryEngine
+from llama_index.core.callbacks import CallbackManager, LlamaDebugHandler
+from llama_index.core.indices.query.query_transform import HyDEQueryTransform
+from llama_index.core.indices.query.query_transform.base import StepDecomposeQueryTransform
+from llama_index.core.node_parser import SimpleNodeParser
+from llama_index.core.query_engine import MultiStepQueryEngine, TransformQueryEngine
+from llama_index.legacy import (
+    LLMPredictor,
+)
+from llama_index.legacy.postprocessor.cohere_rerank import CohereRerank
+from llama_index.legacy.readers.web import BeautifulSoupWebReader
+from llama_index.llms.openai import OpenAI
 from openinference.semconv.trace import DocumentAttributes, SpanAttributes
-from phoenix.experimental.evals import (
+from phoenix.evals import (
     OpenAIModel,
     llm_classify,
 )
-from phoenix.experimental.evals.functions.processing import concatenate_and_truncate_chunks
-from phoenix.experimental.evals.models import BaseEvalModel, set_verbosity
+from phoenix.evals.models import BaseModel, set_verbosity
 
 # from phoenix.experimental.evals.templates import NOT_PARSABLE
 from plotresults import (
@@ -62,6 +64,104 @@ INPUT_VALUE = SpanAttributes.INPUT_VALUE
 RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
 OPENINFERENCE_QUERY_COLUMN_NAME = "attributes." + INPUT_VALUE
 OPENINFERENCE_DOCUMENT_COLUMN_NAME = "attributes." + RETRIEVAL_DOCUMENTS
+
+OPENAI_MODEL_TOKEN_LIMIT_MAPPING = {
+    "gpt-3.5-turbo-instruct": 4096,
+    "gpt-3.5-turbo-0301": 4096,
+    "gpt-3.5-turbo-0613": 4096,  # Current gpt-3.5-turbo default
+    "gpt-3.5-turbo-16k-0613": 16385,
+    "gpt-4-0314": 8192,
+    "gpt-4-0613": 8192,  # Current gpt-4 default
+    "gpt-4-32k-0314": 32768,
+    "gpt-4-32k-0613": 32768,
+    "gpt-4-1106-preview": 128000,
+    "gpt-4-vision-preview": 128000,
+}
+
+ANTHROPIC_MODEL_TOKEN_LIMIT_MAPPING = {
+    "claude-2.1": 200000,
+    "claude-2.0": 100000,
+    "claude-instant-1.2": 100000,
+}
+
+# https://cloud.google.com/vertex-ai/docs/generative-ai/learn/models
+GEMINI_MODEL_TOKEN_LIMIT_MAPPING = {
+    "gemini-pro": 32760,
+    "gemini-pro-vision": 16384,
+}
+
+BEDROCK_MODEL_TOKEN_LIMIT_MAPPING = {
+    "anthropic.claude-instant-v1": 100 * 1024,
+    "anthropic.claude-v1": 100 * 1024,
+    "anthropic.claude-v2": 100 * 1024,
+    "amazon.titan-text-express-v1": 8 * 1024,
+    "ai21.j2-mid-v1": 8 * 1024,
+    "ai21.j2-ultra-v1": 8 * 1024,
+}
+
+MODEL_TOKEN_LIMIT = {
+    **OPENAI_MODEL_TOKEN_LIMIT_MAPPING,
+    **ANTHROPIC_MODEL_TOKEN_LIMIT_MAPPING,
+    **GEMINI_MODEL_TOKEN_LIMIT_MAPPING,
+    **BEDROCK_MODEL_TOKEN_LIMIT_MAPPING,
+}
+
+
+def get_encoder(model: BaseModel) -> tiktoken.Encoding:
+    try:
+        encoding = tiktoken.encoding_for_model(model._model_name)
+    except KeyError:
+        encoding = tiktoken.get_encoding("cl100k_base")
+    return encoding
+
+
+def max_context_size(model: BaseModel) -> int:
+    # default to 4096
+    return MODEL_TOKEN_LIMIT.get(model._model_name, 4096)
+
+
+def get_tokens_from_text(encoder: tiktoken.Encoding, text: str) -> List[int]:
+    return encoder.encode(text)
+
+
+def get_text_from_tokens(encoder: tiktoken.Encoding, tokens: List[int]) -> str:
+    return encoder.decode(tokens)
+
+
+def truncate_text_by_model(model: BaseModel, text: str, token_buffer: int = 0) -> str:
+    """Truncates text using a give model token limit.
+    Args:
+        model (BaseModel): The model to use as reference.
+        text (str): The text to be truncated.
+        token_buffer (int, optional): The number of tokens to be left as buffer. For example, if the
+        `model` has a token limit of 1,000 and we want to leave a buffer of 50, the text will be
+        truncated such that the resulting text comprises 950 tokens. Defaults to 0.
+    Returns:
+        str: Truncated text
+    """
+    encoder = get_encoder(model)
+    max_token_count = max_context_size(model) - token_buffer
+    tokens = get_tokens_from_text(encoder, text)
+    if len(tokens) > max_token_count:
+        return get_text_from_tokens(encoder, tokens[:max_token_count]) + "..."
+    return text
+
+
+def concatenate_and_truncate_chunks(chunks: List[str], model: BaseModel, token_buffer: int) -> str:
+    """_summary_"""
+    """Given a list of `chunks` of text, this function will return the concatenated chunks
+    truncated to a token limit given by the `model` and `token_buffer`. See the function
+    `truncate_text_by_model` for information on the truncation process.
+    Args:
+        chunks (List[str]): A list of pieces of text.
+        model (BaseModel): The model to use as reference.
+        token_buffer (int): The number of tokens to be left as buffer. For example, if the
+        `model` has a token limit of 1,000 and we want to leave a buffer of 50, the text will be
+        truncated such that the resulting text comprises 950 tokens. Defaults to 0.
+    Returns:
+        str: A prompt string that fits within a model's context window.
+    """
+    return truncate_text_by_model(model=model, text=" ".join(chunks), token_buffer=token_buffer)
 
 
 # URL and Website download utilities
@@ -183,7 +283,7 @@ def run_experiments(
     web_title,
     save_dir,
     llama_index_model,
-    eval_model: BaseEvalModel,
+    eval_model: BaseModel,
     template: str,
 ):
     logger.info(f"LAMAINDEX MODEL : {llama_index_model}")
@@ -304,7 +404,7 @@ def run_experiments(
 # Running the main Phoenix Evals both Q&A and Retrieval
 def df_evals(
     df: pd.DataFrame,
-    model: BaseEvalModel,
+    model: BaseModel,
     formatted_evals_column: str,
     template: str,
 ):
@@ -434,7 +534,6 @@ def main():
         logger.info(f"LOADED {len(urls)} URLS")
 
         logger.info("GRABBING DOCUMENTS")
-        BeautifulSoupWebReader = download_loader("BeautifulSoupWebReader")
         logger.info("LOADING DOCUMENTS FROM URLS")
         # You need to 'pip install lxml'
         loader = BeautifulSoupWebReader()
@@ -448,12 +547,15 @@ def main():
         with open(raw_docs_filepath, "rb") as file:
             documents = pickle.load(file)
 
+    # convert legacy documents to new format
+    documents = [Document(**document.__dict__) for document in documents]
+
     # Look for a URL in the output to open the App in a browser.
     px.launch_app()
     # The App is initially empty, but as you proceed with the steps below,
     # traces will appear automatically as your LlamaIndex application runs.
 
-    llama_index.set_global_handler("arize_phoenix")
+    set_global_handler("arize_phoenix")
 
     # Run all of your LlamaIndex applications as usual and traces
     # will be collected and displayed in Phoenix.
