@@ -73,6 +73,9 @@ class BedrockModel(BaseModel):
 
         return self._parse_output(response) or ""
 
+    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+        return self._generate(prompt, **kwargs)
+
     def _rate_limited_completion(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
 
