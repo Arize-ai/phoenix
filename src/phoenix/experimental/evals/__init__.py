@@ -1,3 +1,5 @@
+import logging
+
 from .evaluators import (
     HallucinationEvaluator,
     LLMEvaluator,
@@ -27,6 +29,8 @@ from .templates import (
 )
 from .utils import NOT_PARSABLE, download_benchmark_dataset
 
+logger = logging.getLogger(__name__)
+
 __all__ = [
     "compute_precisions_at_k",
     "download_benchmark_dataset",
@@ -54,12 +58,16 @@ __all__ = [
     "run_relevance_eval",
     "run_evals",
     "LLMEvaluator",
-    "CodeReadabilityEvaluator",
     "HallucinationEvaluator",
-    "HumanVsAIEvaluator",
     "QAEvaluator",
-    "ReferenceLinkCorrectnessEvaluator",
     "RelevanceEvaluator",
     "SummarizationEvaluator",
     "ToxicityEvaluator",
 ]
+
+
+logger.warning(
+    "Evals are moving out of experimental. "
+    "Install the evals extra with `pip install arize-phoenix[evals]` and import `phoenix.evals`. "
+    "For more info, see the [migration guide](https://github.com/Arize-ai/phoenix/blob/main/MIGRATION.md)."
+)
