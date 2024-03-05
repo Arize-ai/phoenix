@@ -4,6 +4,7 @@ from unittest import mock
 
 from models import LiteLLMModel
 
+
 @mock.patch.dict(os.environ, {"OLLAMA_API_BASE": "just to make litellm.validate_environment happy"}, clear=True)
 @mock.patch("litellm.llms.ollama.get_ollama_response")
 def test_selfhosted_ollama_via_model_kwargs(get_ollama_response):
@@ -23,6 +24,7 @@ def test_selfhosted_ollama_via_model_kwargs(get_ollama_response):
     assert call_args[0] == "http://hosted.olla.ma:11434"
     assert call_args[1] == "monstral"
     assert "How much is the fish?" in call_args[2]
+
 
 @mock.patch.dict(os.environ, {"OLLAMA_API_BASE": "http://hosted.olla.ma:11434"}, clear=True)
 @mock.patch("litellm.llms.ollama.get_ollama_response")
