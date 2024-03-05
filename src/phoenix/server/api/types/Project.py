@@ -17,9 +17,18 @@ class Project(Node):
         self,
         info: Info[Context, None],
     ) -> int:
-        if (traces := info.context.traces) is None or not (span_count := traces.span_count):
+        if (traces := info.context.traces) is None:
             return 0
-        return span_count
+        return traces.span_count
+
+    @strawberry.field
+    def token_count_total(
+        self,
+        info: Info[Context, None],
+    ) -> int:
+        if (traces := info.context.traces) is None:
+            return 0
+        return traces.token_count_total
 
     @strawberry.field
     def latency_ms_p50(
