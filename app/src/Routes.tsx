@@ -8,8 +8,8 @@ import {
 import { createBrowserRouter } from "react-router-dom";
 
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
-import { ProjectsPage } from "./pages/projects/ProjectsPage";
 import { ProjectPage } from "./pages/project";
+import { ProjectsPage } from "./pages/projects/ProjectsPage";
 import {
   dimensionLoader,
   DimensionPage,
