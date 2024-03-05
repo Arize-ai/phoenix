@@ -15,13 +15,13 @@ In your Jupyter or Colab environment, run the following command to install.
 {% tabs %}
 {% tab title="Using pip" %}
 ```sh
-pip install arize-phoenix
+pip install arize-phoenix[evals]
 ```
 {% endtab %}
 
 {% tab title="Using conda" %}
 ```sh
-conda install -c conda-forge arize-phoenix
+conda install -c conda-forge arize-phoenix[evals]
 ```
 {% endtab %}
 {% endtabs %}
