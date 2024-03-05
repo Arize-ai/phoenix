@@ -10,10 +10,11 @@ from typing import (
     Dict,
     Iterable,
     Iterator,
+    Mapping,
     Optional,
     Set,
-    SupportsFloat,
     Tuple,
+    Union,
     cast,
 )
 
@@ -24,15 +25,10 @@ from sortedcontainers import SortedKeyList
 from typing_extensions import TypeAlias
 from wrapt import ObjectProxy
 
-import phoenix.trace.schemas
 from phoenix.datetime_utils import right_open_time_range
 from phoenix.trace.otel import decode
 from phoenix.trace.schemas import (
-    ATTRIBUTE_PREFIX,
-    COMPUTED_PREFIX,
-    CONTEXT_PREFIX,
     ComputedAttributes,
-    Span,
     SpanID,
     SpanStatusCode,
     TraceID,
@@ -40,61 +36,25 @@ from phoenix.trace.schemas import (
 
 END_OF_QUEUE = None  # sentinel value for queue termination
 
-NAME = "name"
-STATUS_CODE = "status_code"
-SPAN_KIND = "span_kind"
-TRACE_ID = CONTEXT_PREFIX + "trace_id"
-SPAN_ID = CONTEXT_PREFIX + "span_id"
-PARENT_ID = "parent_id"
-START_TIME = "start_time"
-END_TIME = "end_time"
-LLM_TOKEN_COUNT_TOTAL = ATTRIBUTE_PREFIX + SpanAttributes.LLM_TOKEN_COUNT_TOTAL
-LLM_TOKEN_COUNT_PROMPT = ATTRIBUTE_PREFIX + SpanAttributes.LLM_TOKEN_COUNT_PROMPT
-LLM_TOKEN_COUNT_COMPLETION = ATTRIBUTE_PREFIX + SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 
-
-class ReadableSpan(ObjectProxy):  # type: ignore
+class WrappedSpan(ObjectProxy):  # type: ignore
     """
-    A wrapped a protobuf Span, with access methods and ability to decode to
-    a python span. It's meant to be interface layer separating use from
-    implementation. It can also provide computed values that are not intrinsic
-    to the span, e.g. the latency rank percent which can change as more spans
-    are ingested, and would need to be re-computed on the fly.
+    A wrapped Span object with __getitem__ and __setitem__ methods for accessing
+    computed attributes.
     """
 
     def __init__(self, otlp_span: otlp.Span) -> None:
         span = decode(otlp_span)
         super().__init__(span)
-        self._self_otlp_span = otlp_span
-        self._self_computed_values: Dict[str, SupportsFloat] = {}
+        self._self_computed_values: Dict[ComputedAttributes, float] = {}
 
-    @property
-    def span(self) -> Span:
-        span = decode(self._self_otlp_span)
-        # FIXME: Our legacy files have the __computed__ attributes which interferes
-        # with our ability to add more computations. As a workaround, we discard the computed
-        # attribute if it exists.
-        span.attributes.pop(COMPUTED_PREFIX[:-1], None)
-        span.attributes.update(
-            cast(phoenix.trace.schemas.SpanAttributes, self._self_computed_values)
-        )
-        # TODO: compute latency rank percent (which can change depending on how
-        # many spans already ingested).
-        return span
-
-    def __getitem__(self, key: str) -> Any:
-        if key.startswith(COMPUTED_PREFIX):
+    def __getitem__(self, key: Union[str, ComputedAttributes]) -> Any:
+        if isinstance(key, ComputedAttributes):
             return self._self_computed_values.get(key)
-        if key.startswith(CONTEXT_PREFIX):
-            suffix_key = key[len(CONTEXT_PREFIX) :]
-            return getattr(self.__wrapped__.context, suffix_key, None)
-        if key.startswith(ATTRIBUTE_PREFIX):
-            suffix_key = key[len(ATTRIBUTE_PREFIX) :]
-            return self.__wrapped__.attributes.get(suffix_key)
-        return getattr(self.__wrapped__, key, None)
+        return self.__wrapped__.attributes.get(key)
 
-    def __setitem__(self, key: str, value: Any) -> None:
-        if not key.startswith(COMPUTED_PREFIX):
+    def __setitem__(self, key: ComputedAttributes, value: Any) -> None:
+        if not isinstance(key, ComputedAttributes):
             raise KeyError(f"{key} is not a computed value")
         self._self_computed_values[key] = value
 
@@ -115,19 +75,19 @@ class Traces:
         # Putting `None` as the sentinel value for queue termination.
         weakref.finalize(self, self._queue.put, END_OF_QUEUE)
         self._lock = RLock()
-        self._spans: Dict[SpanID, ReadableSpan] = {}
+        self._spans: Dict[SpanID, WrappedSpan] = {}
         self._parent_span_ids: Dict[SpanID, ParentSpanID] = {}
-        self._traces: DefaultDict[TraceID, Set[ReadableSpan]] = defaultdict(set)
-        self._child_spans: DefaultDict[SpanID, Set[ReadableSpan]] = defaultdict(set)
+        self._traces: DefaultDict[TraceID, Set[WrappedSpan]] = defaultdict(set)
+        self._child_spans: DefaultDict[SpanID, Set[WrappedSpan]] = defaultdict(set)
         self._num_documents: DefaultDict[SpanID, int] = defaultdict(int)
-        self._start_time_sorted_spans: SortedKeyList[ReadableSpan] = SortedKeyList(
+        self._start_time_sorted_spans: SortedKeyList[WrappedSpan] = SortedKeyList(
             key=lambda span: span.start_time,
         )
-        self._start_time_sorted_root_spans: SortedKeyList[ReadableSpan] = SortedKeyList(
+        self._start_time_sorted_root_spans: SortedKeyList[WrappedSpan] = SortedKeyList(
             key=lambda span: span.start_time,
         )
-        self._latency_sorted_root_spans: SortedKeyList[ReadableSpan] = SortedKeyList(
-            key=lambda span: span[ComputedAttributes.LATENCY_MS.value],
+        self._latency_sorted_root_spans: SortedKeyList[WrappedSpan] = SortedKeyList(
+            key=lambda span: span[ComputedAttributes.LATENCY_MS],
         )
         self._root_span_latency_ms_sketch = DDSketch()
         self._token_count_total: int = 0
@@ -137,14 +97,13 @@ class Traces:
     def put(self, span: Optional[otlp.Span] = None) -> None:
         self._queue.put(span)
 
-    def get_trace(self, trace_id: TraceID) -> Iterator[Span]:
+    def get_trace(self, trace_id: TraceID) -> Iterator[WrappedSpan]:
         with self._lock:
             # make a copy because source data can mutate during iteration
             if not (trace := self._traces.get(trace_id)):
                 return
             spans = tuple(trace)
-        for span in spans:
-            yield span.span
+        yield from spans
 
     def get_spans(
         self,
@@ -152,7 +111,7 @@ class Traces:
         stop_time: Optional[datetime] = None,
         root_spans_only: Optional[bool] = False,
         span_ids: Optional[Iterable[SpanID]] = None,
-    ) -> Iterator[Span]:
+    ) -> Iterator[WrappedSpan]:
         if not self._spans:
             return
         min_start_time, max_stop_time = cast(
@@ -188,8 +147,7 @@ class Traces:
                         reverse=True,  # most recent spans first
                     )
                 )
-        for span in spans:
-            yield span.span
+        yield from spans
 
     def get_num_documents(self, span_id: SpanID) -> int:
         with self._lock:
@@ -217,11 +175,11 @@ class Traces:
             )
         yield from values
 
-    def get_descendant_spans(self, span_id: SpanID) -> Iterator[Span]:
+    def get_descendant_spans(self, span_id: SpanID) -> Iterator[WrappedSpan]:
         for span in self._get_descendant_spans(span_id):
-            yield span.span
+            yield span
 
-    def _get_descendant_spans(self, span_id: SpanID) -> Iterator[ReadableSpan]:
+    def _get_descendant_spans(self, span_id: SpanID) -> Iterator[WrappedSpan]:
         with self._lock:
             # make a copy because source data can mutate during iteration
             if not (child_spans := self._child_spans.get(span_id)):
@@ -255,12 +213,6 @@ class Traces:
         max_start_time = last_span.start_time
         return right_open_time_range(min_start_time, max_start_time)
 
-    def __getitem__(self, span_id: SpanID) -> Optional[Span]:
-        with self._lock:
-            if span := self._spans.get(span_id):
-                return span.span
-        return None
-
     def _start_consumer(self) -> None:
         Thread(
             target=MethodType(
@@ -276,7 +228,7 @@ class Traces:
                 self._process_span(item)
 
     def _process_span(self, otlp_span: otlp.Span) -> None:
-        span = ReadableSpan(otlp_span)
+        span = WrappedSpan(otlp_span)
         span_id = span.context.span_id
         if span_id in self._spans:
             # Update is not allowed.
@@ -291,12 +243,12 @@ class Traces:
         # Add computed attributes to span
         start_time = span.start_time
         end_time = span.end_time
-        span[ComputedAttributes.LATENCY_MS.value] = latency = (
+        span[ComputedAttributes.LATENCY_MS] = latency = (
             end_time - start_time
         ).total_seconds() * 1000
         if is_root_span:
             self._root_span_latency_ms_sketch.add(latency)
-        span[ComputedAttributes.ERROR_COUNT.value] = int(span.status_code is SpanStatusCode.ERROR)
+        span[ComputedAttributes.ERROR_COUNT] = int(span.status_code is SpanStatusCode.ERROR)
 
         # Store the new span (after adding computed attributes)
         self._spans[span_id] = span
@@ -312,7 +264,7 @@ class Traces:
         # when they should refresh the page.
         self._last_updated_at = datetime.now(timezone.utc)
 
-    def _update_cached_statistics(self, span: ReadableSpan) -> None:
+    def _update_cached_statistics(self, span: WrappedSpan) -> None:
         # Update statistics for quick access later
         span_id = span.context.span_id
         if token_count_update := span.attributes.get(SpanAttributes.LLM_TOKEN_COUNT_TOTAL):
@@ -322,15 +274,15 @@ class Traces:
         ):
             self._num_documents[span_id] += num_documents_update
 
-    def _propagate_cumulative_values(self, span: ReadableSpan) -> None:
-        child_spans: Iterable[ReadableSpan] = self._child_spans.get(span.context.span_id) or ()
+    def _propagate_cumulative_values(self, span: WrappedSpan) -> None:
+        child_spans: Iterable[WrappedSpan] = self._child_spans.get(span.context.span_id) or ()
         for cumulative_attribute, attribute in _CUMULATIVE_ATTRIBUTES.items():
             span[cumulative_attribute] = span[attribute] or 0
             for child_span in child_spans:
                 span[cumulative_attribute] += child_span[cumulative_attribute] or 0
         self._update_ancestors(span)
 
-    def _update_ancestors(self, span: ReadableSpan) -> None:
+    def _update_ancestors(self, span: WrappedSpan) -> None:
         # Add cumulative values to each of the span's ancestors.
         span_id = span.context.span_id
         for attribute in _CUMULATIVE_ATTRIBUTES.keys():
@@ -340,22 +292,24 @@ class Traces:
     def _add_value_to_span_ancestors(
         self,
         span_id: SpanID,
-        attribute_name: str,
+        attribute: ComputedAttributes,
         value: float,
     ) -> None:
         while parent_span_id := self._parent_span_ids.get(span_id):
             if not (parent_span := self._spans.get(parent_span_id)):
                 return
-            cumulative_value = parent_span[attribute_name] or 0
-            parent_span[attribute_name] = cumulative_value + value
+            cumulative_value = parent_span[attribute] or 0
+            parent_span[attribute] = cumulative_value + value
             span_id = parent_span_id
 
 
-_CUMULATIVE_ATTRIBUTES = MappingProxyType(
-    {
-        ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_TOTAL.value: LLM_TOKEN_COUNT_TOTAL,
-        ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_PROMPT.value: LLM_TOKEN_COUNT_PROMPT,
-        ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION.value: LLM_TOKEN_COUNT_COMPLETION,
-        ComputedAttributes.CUMULATIVE_ERROR_COUNT.value: ComputedAttributes.ERROR_COUNT.value,
-    }
+_CUMULATIVE_ATTRIBUTES: Mapping[ComputedAttributes, Union[str, ComputedAttributes]] = (
+    MappingProxyType(
+        {
+            ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_TOTAL: SpanAttributes.LLM_TOKEN_COUNT_TOTAL,  # noqa: E501
+            ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_PROMPT: SpanAttributes.LLM_TOKEN_COUNT_PROMPT,  # noqa: E501
+            ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION: SpanAttributes.LLM_TOKEN_COUNT_COMPLETION,  # noqa: E501
+            ComputedAttributes.CUMULATIVE_ERROR_COUNT: ComputedAttributes.ERROR_COUNT,
+        }
+    )
 )

@@ -45,9 +45,9 @@ def test_ingestion(
         # across a missing parent.
         for span_id in ingested_ids.intersection(child_ids.keys()):
             span = mock._spans[span_id]
-            assert span[
-                ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_TOTAL.value
-            ] == span.attributes[SpanAttributes.LLM_TOKEN_COUNT_TOTAL] + sum(
+            assert span[ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_TOTAL] == span.attributes[
+                SpanAttributes.LLM_TOKEN_COUNT_TOTAL
+            ] + sum(
                 mock._spans[descendant_id].attributes[SpanAttributes.LLM_TOKEN_COUNT_TOTAL]
                 for descendant_id in _connected_descendant_ids(span_id, child_ids, ingested_ids)
             ), f"{i=}, {s=}, {span_id=}"
