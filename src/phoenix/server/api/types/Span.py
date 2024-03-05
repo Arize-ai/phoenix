@@ -108,7 +108,9 @@ class Span:
     attributes: str = strawberry.field(
         description="Span attributes as a JSON string",
     )
-    metadata: Optional[str]
+    metadata: Optional[str] = strawberry.field(
+        description="Metadata as a JSON string",
+    )
     num_documents: Optional[int]
     token_count_total: Optional[int]
     token_count_prompt: Optional[int]
