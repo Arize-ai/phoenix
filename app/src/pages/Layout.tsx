@@ -29,6 +29,7 @@ const mainViewCSS = css`
   flex: 1 1 auto;
   height: 100%;
   overflow: hidden;
+  padding-left: var(--px-nav-collapsed-width);
 `;
 const contentCSS = css`
   flex: 1 1 auto;
@@ -49,9 +50,7 @@ const linksCSS = css`
 const sideLinksCSS = css`
   display: flex;
   flex-direction: column;
-  align-items: center;
-
-  gap: var(--ac-global-dimension-size-100);
+  gap: var(--ac-global-dimension-size-50);
 `;
 
 export function Layout() {
@@ -93,15 +92,19 @@ function SideNav() {
       <ul css={sideLinksCSS}>
         {hasInferences && (
           <li>
-            <NavLink to="/model" text="Model">
-              <Icon svg={<Icons.Cube />} />
-            </NavLink>
+            <NavLink
+              to="/model"
+              text="Model"
+              icon={<Icon svg={<Icons.Cube />} />}
+            />
           </li>
         )}
         <li>
-          <NavLink to="/projects/default" text="Projects">
-            <Icon svg={<Icons.Grid />} />
-          </NavLink>
+          <NavLink
+            to="/projects/default"
+            text="Projects"
+            icon={<Icon svg={<Icons.Grid />} />}
+          />
         </li>
       </ul>
     </SideNavbar>

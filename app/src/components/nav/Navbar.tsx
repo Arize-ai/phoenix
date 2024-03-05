@@ -1,14 +1,8 @@
-import React, { PropsWithChildren, ReactNode } from "react";
+import React, { PropsWithChildren, ReactNode, useState } from "react";
 import { Link, NavLink as RRNavLink } from "react-router-dom";
 import { css, Theme } from "@emotion/react";
 
-import {
-  Icons,
-  Text,
-  Tooltip,
-  TooltipTrigger,
-  TriggerWrap,
-} from "@arizeai/components";
+import { Icons, Text } from "@arizeai/components";
 
 import { useTheme } from "@phoenix/contexts";
 
@@ -26,14 +20,24 @@ const topNavCSS = css`
 `;
 
 const sideNavCSS = css`
-  padding: var(--px-spacing-med);
+  padding: var(--px-spacing-lg) var(--px-spacing-med);
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: var(--px-spacing-med);
   background-color: var(--ac-global-color-grey-75);
   border-right: 1px solid var(--ac-global-color-grey-200);
+  box-sizing: border-box;
   height: 100vh;
+  position: fixed;
+  width: var(--px-nav-collapsed-width);
+  z-index: 1;
+  transition:
+    width 0.15s cubic-bezier(0, 0.57, 0.21, 0.99),
+    box-shadow 0.15s cubic-bezier(0, 0.57, 0.21, 0.99);
+  &[data-expanded="true"] {
+    width: var(--px-nav-expanded-width);
+    box-shadow: 0 0 30px 0 rgba(0, 0, 0, 0.2);
+  }
 `;
 
 const navIconCSS = css`
@@ -54,6 +58,7 @@ const brandCSS = (theme: Theme) => css`
   color: var(--ac-global-text-color-900);
   font-size: ${theme.typography.sizes.large.fontSize}px;
   text-decoration: none;
+  margin: 0 0 var(--px-spacing-lg) 0;
 `;
 
 const GitHubSVG = () => (
@@ -128,41 +133,55 @@ export function TopNavbar({ children }: { children: ReactNode }) {
 }
 
 export function SideNavbar({ children }: { children: ReactNode }) {
-  return <nav css={sideNavCSS}>{children}</nav>;
+  const [isHovered, setIsHovered] = useState(false);
+  return (
+    <nav
+      data-expanded={isHovered}
+      css={sideNavCSS}
+      onMouseOver={() => {
+        setIsHovered(true);
+      }}
+      onMouseOut={() => {
+        setIsHovered(false);
+      }}
+    >
+      {children}
+    </nav>
+  );
 }
 
-export function NavLink(
-  props: PropsWithChildren<{ to: string; text: string }>
-) {
+export function NavLink(props: { to: string; text: string; icon: ReactNode }) {
   return (
-    <TooltipTrigger delay={0} placement="right" offset={12}>
-      <TriggerWrap>
-        <RRNavLink
-          to={props.to}
-          css={css`
-            color: var(--ac-global-text-color-500);
-            background-color: transparent;
-            border-radius: var(--ac-global-rounding-small);
-            display: block;
-            transition: color 0.2s ease-in-out;
-            &.active {
-              color: var(--ac-global-text-color-900);
-              background-color: var(--ac-global-color-primary-300);
-            }
-            &:hover {
-              color: var(--ac-global-text-color-900);
-            }
-            & > * {
-              padding: var(--ac-global-dimension-size-50);
-            }
-          `}
-        >
-          {props.children}
-        </RRNavLink>
-      </TriggerWrap>
-      <Tooltip>
-        <Text weight="heavy">{props.text}</Text>
-      </Tooltip>
-    </TooltipTrigger>
+    <RRNavLink
+      to={props.to}
+      css={css`
+        color: var(--ac-global-text-color-500);
+        background-color: transparent;
+        border-radius: var(--ac-global-rounding-small);
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        overflow: hidden;
+        transition:
+          color 0.2s ease-in-out,
+          background-color 0.2s ease-in-out;
+        text-decoration: none;
+        &.active {
+          color: var(--ac-global-text-color-900);
+          background-color: var(--ac-global-color-primary-300);
+        }
+        &:hover:not(.active) {
+          color: var(--ac-global-text-color-900);
+          background-color: var(--ac-global-color-grey-100);
+        }
+        & > .ac-icon-wrap {
+          padding: var(--ac-global-dimension-size-50);
+          display: inline-block;
+        }
+      `}
+    >
+      {props.icon}
+      <Text>{props.text}</Text>
+    </RRNavLink>
   );
 }
