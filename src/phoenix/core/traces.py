@@ -29,6 +29,7 @@ from phoenix.datetime_utils import right_open_time_range
 from phoenix.trace.otel import decode
 from phoenix.trace.schemas import (
     ComputedAttributes,
+    Span,
     SpanID,
     SpanStatusCode,
     TraceID,
@@ -43,8 +44,7 @@ class WrappedSpan(ObjectProxy):  # type: ignore
     computed attributes.
     """
 
-    def __init__(self, otlp_span: otlp.Span) -> None:
-        span = decode(otlp_span)
+    def __init__(self, span: Span) -> None:
         super().__init__(span)
         self._self_computed_values: Dict[ComputedAttributes, Union[float, int]] = {}
 
@@ -228,7 +228,7 @@ class Traces:
                 self._process_span(item)
 
     def _process_span(self, otlp_span: otlp.Span) -> None:
-        span = WrappedSpan(otlp_span)
+        span = WrappedSpan(decode(otlp_span))
         span_id = span.context.span_id
         if span_id in self._spans:
             # Update is not allowed.
