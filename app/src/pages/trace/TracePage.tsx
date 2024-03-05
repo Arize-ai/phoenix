@@ -76,8 +76,8 @@ import {
 import { assertUnreachable, isStringArray } from "@phoenix/typeUtils";
 import { formatFloat, numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import { EvaluationLabel } from "../tracing/EvaluationLabel";
-import { RetrievalEvaluationLabel } from "../tracing/RetrievalEvaluationLabel";
+import { EvaluationLabel } from "../project/EvaluationLabel";
+import { RetrievalEvaluationLabel } from "../project/RetrievalEvaluationLabel";
 
 import {
   MimeType,
