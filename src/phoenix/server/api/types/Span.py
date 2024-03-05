@@ -343,5 +343,5 @@ def _convert_metadata_to_string(metadata: Any) -> Optional[str]:
         return metadata
     try:
         return json.dumps(metadata)
-    except json.JSONDecodeError:
+    except Exception:
         return str(metadata)
