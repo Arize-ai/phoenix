@@ -137,6 +137,7 @@ dependencies = [
   "types-tqdm",
   "types-requests",
   "types-protobuf",
+  "types-setuptools",
   "openai>=1.0.0",
   "litellm>=1.0.3",
 ]
