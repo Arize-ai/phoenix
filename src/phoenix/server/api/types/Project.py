@@ -19,5 +19,15 @@ class Project(Node):
     ) -> Optional[float]:
         if (traces := info.context.traces) is None:
             return None
-        (latency_ms_p50,) = traces.root_span_latency_ms_quantiles(0.50)
-        return latency_ms_p50
+        (latency,) = traces.root_span_latency_ms_quantiles(0.50)
+        return latency
+
+    @strawberry.field
+    def latency_ms_p99(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[float]:
+        if (traces := info.context.traces) is None:
+            return None
+        (latency,) = traces.root_span_latency_ms_quantiles(0.99)
+        return latency
