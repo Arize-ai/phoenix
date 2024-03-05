@@ -20,6 +20,7 @@ from phoenix.server.api.input_types.Coordinates import (
 )
 from phoenix.server.api.input_types.SpanSort import SpanSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
+from phoenix.server.api.types.Project import Project
 from phoenix.trace.dsl import SpanFilter
 from phoenix.trace.schemas import SpanID, TraceID
 
@@ -49,6 +50,22 @@ from .types.ValidationResult import ValidationResult
 @strawberry.type
 class Query:
     @strawberry.field
+    def projects(
+        self,
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[Cursor] = UNSET,
+        before: Optional[Cursor] = UNSET,
+    ) -> Connection[Project]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, Cursor) else None,
+            last=last,
+            before=before if isinstance(before, Cursor) else None,
+        )
+        return connection_from_list(data=[Project(id_attr=0, name="default")], args=args)
+
+    @strawberry.field
     def functionality(self, info: Info[Context, None]) -> "Functionality":
         has_model_inferences = not info.context.model.is_empty
         has_traces = info.context.traces is not None
@@ -70,7 +87,8 @@ class Query:
         elif type_name == "EmbeddingDimension":
             embedding_dimension = info.context.model.embedding_dimensions[node_id]
             return to_gql_embedding_dimension(node_id, embedding_dimension)
-
+        elif type_name == "Project":
+            return Project(id_attr=0, name="default")  # TODO: implement ID
         raise Exception(f"Unknown node type: {type}")
 
     @strawberry.field

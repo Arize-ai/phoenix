@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2b024c4cf600164323036eb74471d99b>>
+ * @generated SignedSource<<08e3918a01d02058f35ef68a3d964127>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -168,6 +168,13 @@ return {
                     "storageKey": null
                   },
                   (v2/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "metadata",
+                    "storageKey": null
+                  },
                   {
                     "alias": null,
                     "args": null,
@@ -394,16 +401,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7f0c0725ede73b9b9a0b699c79366f99",
+    "cacheID": "4fc1e3cbc4ee75c5e0222f4abf714ae0",
     "id": null,
     "metadata": {},
     "name": "SpansTableSpansQuery",
     "operationKind": "query",
-    "text": "query SpansTableSpansQuery(\n  $after: String = null\n  $filterCondition: String = null\n  $first: Int = 100\n  $sort: SpanSort = {col: startTime, dir: desc}\n) {\n  ...SpansTable_spans_1XEuU\n}\n\nfragment SpanColumnSelector_evaluations on Query {\n  spanEvaluationNames\n}\n\nfragment SpansTable_spans_1XEuU on Query {\n  ...SpanColumnSelector_evaluations\n  spans(first: $first, after: $after, sort: $sort, filterCondition: $filterCondition) {\n    edges {\n      span: node {\n        spanKind\n        name\n        statusCode\n        startTime\n        latencyMs\n        tokenCountTotal\n        tokenCountPrompt\n        tokenCountCompletion\n        context {\n          spanId\n          traceId\n        }\n        input {\n          value\n          mimeType\n        }\n        output {\n          value\n          mimeType\n        }\n        spanEvaluations {\n          name\n          label\n          score\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query SpansTableSpansQuery(\n  $after: String = null\n  $filterCondition: String = null\n  $first: Int = 100\n  $sort: SpanSort = {col: startTime, dir: desc}\n) {\n  ...SpansTable_spans_1XEuU\n}\n\nfragment SpanColumnSelector_evaluations on Query {\n  spanEvaluationNames\n}\n\nfragment SpansTable_spans_1XEuU on Query {\n  ...SpanColumnSelector_evaluations\n  spans(first: $first, after: $after, sort: $sort, filterCondition: $filterCondition) {\n    edges {\n      span: node {\n        spanKind\n        name\n        metadata\n        statusCode\n        startTime\n        latencyMs\n        tokenCountTotal\n        tokenCountPrompt\n        tokenCountCompletion\n        context {\n          spanId\n          traceId\n        }\n        input {\n          value\n          mimeType\n        }\n        output {\n          value\n          mimeType\n        }\n        spanEvaluations {\n          name\n          label\n          score\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8d3fa17cdca050881d99ff36537ac42b";
+(node as any).hash = "082400e749303a7ce666b3477b63dea0";
 
 export default node;
