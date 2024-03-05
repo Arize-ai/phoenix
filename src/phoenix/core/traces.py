@@ -46,7 +46,7 @@ class WrappedSpan(ObjectProxy):  # type: ignore
     def __init__(self, otlp_span: otlp.Span) -> None:
         span = decode(otlp_span)
         super().__init__(span)
-        self._self_computed_values: Dict[ComputedAttributes, float] = {}
+        self._self_computed_values: Dict[ComputedAttributes, Union[float, int]] = {}
 
     def __getitem__(self, key: Union[str, ComputedAttributes]) -> Any:
         if isinstance(key, ComputedAttributes):
