@@ -86,6 +86,7 @@ export function SpansTable(props: SpansTableProps) {
               span: node {
                 spanKind
                 name
+                metadata
                 statusCode
                 startTime
                 latencyMs
@@ -253,6 +254,12 @@ export function SpansTable(props: SpansTableProps) {
     {
       header: "output",
       accessorKey: "output.value",
+      cell: TextCell,
+      enableSorting: false,
+    },
+    {
+      header: "metadata",
+      accessorKey: "metadata",
       cell: TextCell,
       enableSorting: false,
     },

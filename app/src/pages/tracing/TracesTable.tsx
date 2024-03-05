@@ -118,6 +118,7 @@ export function TracesTable(props: TracesTableProps) {
               rootSpan: node {
                 spanKind
                 name
+                metadata
                 statusCode: propagatedStatusCode
                 startTime
                 latencyMs
@@ -357,6 +358,12 @@ export function TracesTable(props: TracesTableProps) {
     {
       header: "output",
       accessorKey: "output.value",
+      enableSorting: false,
+      cell: TextCell,
+    },
+    {
+      header: "metadata",
+      accessorKey: "metadata",
       enableSorting: false,
       cell: TextCell,
     },

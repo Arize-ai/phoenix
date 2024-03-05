@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8624559b359e328134fb2dd3a56ff196>>
+ * @generated SignedSource<<35138808ca481c3c2d92a34338b360e4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -62,6 +62,7 @@ export type TracesTable_spans$data = {
           readonly value: string;
         } | null;
         readonly latencyMs: number | null;
+        readonly metadata: string | null;
         readonly name: string;
         readonly output: {
           readonly value: string;
@@ -352,6 +353,13 @@ return {
               "selections": [
                 (v1/*: any*/),
                 (v2/*: any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "metadata",
+                  "storageKey": null
+                },
                 (v3/*: any*/),
                 (v4/*: any*/),
                 (v5/*: any*/),
@@ -490,6 +498,6 @@ return {
 };
 })();
 
-(node as any).hash = "0d9c0b6da977229d4c340f577a02c55d";
+(node as any).hash = "d875fb6df668e874cc43e6593af76f1b";
 
 export default node;
