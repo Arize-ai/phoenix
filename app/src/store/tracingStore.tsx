@@ -29,7 +29,9 @@ export interface TracingState extends TracingProps {
 export const createTracingStore = (initialProps?: Partial<TracingProps>) => {
   const tracingStore: StateCreator<TracingState> = (set) => ({
     ...initialProps,
-    columnVisibility: {},
+    columnVisibility: {
+      metadata: false,
+    },
     evaluationVisibility: {},
     setColumnVisibility: (columnVisibility) => {
       set({ columnVisibility });
