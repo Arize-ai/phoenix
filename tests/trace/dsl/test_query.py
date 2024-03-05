@@ -256,7 +256,7 @@ def test_join(spans):
 def spans():
     return (
         Span(
-            context=Context(span_id=0, trace_id=99),
+            context=Context(span_id="0", trace_id="99"),
             parent_id=None,
             attributes={
                 INPUT_VALUE: "000",
@@ -264,8 +264,8 @@ def spans():
             },
         ),
         Span(
-            context=Context(span_id=1, trace_id=99),
-            parent_id=0,
+            context=Context(span_id="1", trace_id="99"),
+            parent_id="0",
             attributes={
                 RETRIEVAL_DOCUMENTS: [
                     {
@@ -276,8 +276,8 @@ def spans():
             },
         ),
         Span(
-            context=Context(span_id=2, trace_id=99),
-            parent_id=1,
+            context=Context(span_id="2", trace_id="99"),
+            parent_id="1",
             attributes={
                 "12": [1, 2],
                 OUTPUT_VALUE: "222",
