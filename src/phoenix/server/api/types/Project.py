@@ -24,6 +24,16 @@ class Project(Node):
         return start_time
 
     @strawberry.field
+    def end_time(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[datetime]:
+        if (traces := info.context.traces) is None:
+            return None
+        _, end_time = traces.right_open_time_range
+        return end_time
+
+    @strawberry.field
     def record_count(
         self,
         info: Info[Context, None],
