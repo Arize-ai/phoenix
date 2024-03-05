@@ -44,6 +44,7 @@ _CONVERT_TO_STRING = (
     "context.span_id",
     "context.trace_id",
     "parent_id",
+    "span_kind",
 )
 
 
