@@ -13,6 +13,15 @@ class Project(Node):
     name: str
 
     @strawberry.field
+    def record_count(
+        self,
+        info: Info[Context, None],
+    ) -> int:
+        if (traces := info.context.traces) is None or not (span_count := traces.span_count):
+            return 0
+        return span_count
+
+    @strawberry.field
     def latency_ms_p50(
         self,
         info: Info[Context, None],
