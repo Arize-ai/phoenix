@@ -534,6 +534,27 @@ type Point3D {
   z: Float!
 }
 
+type Project implements Node {
+  id: GlobalID!
+  name: String!
+  startTime: DateTime
+  endTime: DateTime
+  recordCount: Int!
+  tokenCountTotal: Int!
+  latencyMsP50: Float
+  latencyMsP99: Float
+}
+
+type ProjectConnection {
+  pageInfo: PageInfo!
+  edges: [ProjectEdge!]!
+}
+
+type ProjectEdge {
+  node: Project!
+  cursor: String!
+}
+
 type PromptResponse {
   """The prompt submitted to the LLM"""
   prompt: String
@@ -543,6 +564,7 @@ type PromptResponse {
 }
 
 type Query {
+  projects(first: Int = 50, last: Int, after: String, before: String): ProjectConnection!
   functionality: Functionality!
   model: Model!
   node(id: GlobalID!): Node!
