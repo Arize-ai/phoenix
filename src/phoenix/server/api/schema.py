@@ -50,15 +50,6 @@ from .types.ValidationResult import ValidationResult
 @strawberry.type
 class Query:
     @strawberry.field
-    def functionality(self, info: Info[Context, None]) -> "Functionality":
-        has_model_inferences = not info.context.model.is_empty
-        has_traces = info.context.traces is not None
-        return Functionality(
-            model_inferences=has_model_inferences,
-            tracing=has_traces,
-        )
-
-    @strawberry.field
     def projects(
         self,
         first: Optional[int] = 50,
@@ -73,6 +64,15 @@ class Query:
             before=before if isinstance(before, Cursor) else None,
         )
         return connection_from_list(data=[Project(id_attr=0, name="default")], args=args)
+
+    @strawberry.field
+    def functionality(self, info: Info[Context, None]) -> "Functionality":
+        has_model_inferences = not info.context.model.is_empty
+        has_traces = info.context.traces is not None
+        return Functionality(
+            model_inferences=has_model_inferences,
+            tracing=has_traces,
+        )
 
     @strawberry.field
     def model(self) -> Model:
