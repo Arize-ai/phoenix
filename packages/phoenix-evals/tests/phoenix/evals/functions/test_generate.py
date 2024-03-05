@@ -242,9 +242,9 @@ def test_generate_tolerance_to_exceptions(
     assert df["output"].tolist() == [
         '{ "category": "programming", "language": "Python" }',
         '{ "category": "programming", "language": "Python" }',
-        'generation-failed',
-        'generation-failed',
-        'gobbledygook',
+        "generation-failed",
+        "generation-failed",
+        "gobbledygook",
     ]
     assert df.index.tolist() == dataframe.index.tolist()
 
@@ -311,14 +311,14 @@ def test_generate_properly_mixes_column_outputs(
     assert response_column[1] == '{ "category": "programming", "language": "Python" }'
     assert isnan(response_column[2])
     assert isnan(response_column[3])
-    assert response_column[4] == 'gobbledygook'
+    assert response_column[4] == "gobbledygook"
 
     # the error messages fall back to the "output" column
     output_column = df["output"].tolist()
     assert isnan(output_column[0])
     assert isnan(output_column[1])
-    assert output_column[2] == 'generation-failed'
-    assert output_column[3] == 'generation-failed'
+    assert output_column[2] == "generation-failed"
+    assert output_column[3] == "generation-failed"
     assert isnan(output_column[4])
 
     assert df.index.tolist() == dataframe.index.tolist()
