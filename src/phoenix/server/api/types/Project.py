@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 import strawberry
@@ -11,6 +12,16 @@ from .node import Node
 @strawberry.type
 class Project(Node):
     name: str
+
+    @strawberry.field
+    def start_time(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[datetime]:
+        if (traces := info.context.traces) is None:
+            return None
+        start_time, _ = traces.right_open_time_range
+        return start_time
 
     @strawberry.field
     def record_count(
