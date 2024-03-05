@@ -18,7 +18,7 @@ from phoenix.trace.schemas import ComputedAttributes, SpanID
 class SpanColumn(Enum):
     startTime = "start_time"
     endTime = "end_time"
-    latencyMs = ComputedAttributes.LATENCY_MS.value
+    latencyMs = ComputedAttributes.LATENCY_MS
     tokenCountTotal = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
     tokenCountPrompt = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
     tokenCountCompletion = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
