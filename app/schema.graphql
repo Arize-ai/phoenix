@@ -537,6 +537,12 @@ type Point3D {
 type Project implements Node {
   id: GlobalID!
   name: String!
+  startTime: DateTime
+  endTime: DateTime
+  recordCount: Int!
+  tokenCountTotal: Int!
+  latencyMsP50: Float
+  latencyMsP99: Float
 }
 
 type ProjectConnection {
@@ -558,8 +564,8 @@ type PromptResponse {
 }
 
 type Query {
-  functionality: Functionality!
   projects(first: Int = 50, last: Int, after: String, before: String): ProjectConnection!
+  functionality: Functionality!
   model: Model!
   node(id: GlobalID!): Node!
   clusters(clusters: [ClusterInput!]!): [Cluster!]!
