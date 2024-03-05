@@ -5,11 +5,11 @@ import { css } from "@emotion/react";
 
 import { TabPane, Tabs } from "@arizeai/components";
 
-import { TracingHomePageQuery } from "./__generated__/TracingHomePageQuery.graphql";
+import { ProjectPageQuery } from "./__generated__/ProjectPageQuery.graphql";
+import { ProjectPageHeader } from "./ProjectPageHeader";
 import { SpansTable } from "./SpansTable";
 import { StreamToggle } from "./StreamToggle";
 import { TracesTable } from "./TracesTable";
-import { TracingHomePageHeader } from "./TracingHomePageHeader";
 
 const mainCSS = css`
   flex: 1 1 auto;
@@ -36,13 +36,13 @@ const mainCSS = css`
   }
 `;
 
-export function TracingHomePage() {
-  const data = useLazyLoadQuery<TracingHomePageQuery>(
+export function ProjectPage() {
+  const data = useLazyLoadQuery<ProjectPageQuery>(
     graphql`
-      query TracingHomePageQuery {
+      query ProjectPageQuery {
         ...SpansTable_spans
         ...TracesTable_spans
-        ...TracingHomePageHeader_stats
+        ...ProjectPageHeader_stats
         ...StreamToggle_data
       }
     `,
@@ -53,10 +53,7 @@ export function TracingHomePage() {
   );
   return (
     <main css={mainCSS}>
-      <TracingHomePageHeader
-        query={data}
-        extra={<StreamToggle query={data} />}
-      />
+      <ProjectPageHeader query={data} extra={<StreamToggle query={data} />} />
       <Tabs>
         <TabPane name="Traces">
           {({ isSelected }) => {

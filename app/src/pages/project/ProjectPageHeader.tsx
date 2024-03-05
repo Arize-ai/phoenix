@@ -8,13 +8,13 @@ import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import { TracingHomePageHeader_stats$key } from "./__generated__/TracingHomePageHeader_stats.graphql";
-import { TracingHomePageHeaderQuery } from "./__generated__/TracingHomePageHeaderQuery.graphql";
+import { ProjectPageHeader_stats$key } from "./__generated__/ProjectPageHeader_stats.graphql";
+import { ProjectPageHeaderQuery } from "./__generated__/ProjectPageHeaderQuery.graphql";
 import { DocumentEvaluationSummary } from "./DocumentEvaluationSummary";
 import { EvaluationSummary } from "./EvaluationSummary";
 
-export function TracingHomePageHeader(props: {
-  query: TracingHomePageHeader_stats$key;
+export function ProjectPageHeader(props: {
+  query: ProjectPageHeader_stats$key;
   /**
    * the extra component displayed on the right side of the header
    */
@@ -23,12 +23,12 @@ export function TracingHomePageHeader(props: {
   const { extra } = props;
   const { fetchKey } = useStreamState();
   const [data, refetch] = useRefetchableFragment<
-    TracingHomePageHeaderQuery,
-    TracingHomePageHeader_stats$key
+    ProjectPageHeaderQuery,
+    ProjectPageHeader_stats$key
   >(
     graphql`
-      fragment TracingHomePageHeader_stats on Query
-      @refetchable(queryName: "TracingHomePageHeaderQuery") {
+      fragment ProjectPageHeader_stats on Query
+      @refetchable(queryName: "ProjectPageHeaderQuery") {
         totalTraces: spans(rootSpansOnly: true) {
           pageInfo {
             totalCount

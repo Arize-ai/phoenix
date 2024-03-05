@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<04c83d3d78b0deb499bdf250b59941ee>>
+ * @generated SignedSource<<73a30c7c229b3c595175dbf429fce859>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,13 +10,13 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type TracingHomePageHeaderQuery$variables = {};
-export type TracingHomePageHeaderQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"TracingHomePageHeader_stats">;
+export type ProjectPageHeaderQuery$variables = {};
+export type ProjectPageHeaderQuery$data = {
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectPageHeader_stats">;
 };
-export type TracingHomePageHeaderQuery = {
-  response: TracingHomePageHeaderQuery$data;
-  variables: TracingHomePageHeaderQuery$variables;
+export type ProjectPageHeaderQuery = {
+  response: ProjectPageHeaderQuery$data;
+  variables: ProjectPageHeaderQuery$variables;
 };
 
 const node: ConcreteRequest = {
@@ -24,12 +24,12 @@ const node: ConcreteRequest = {
     "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
-    "name": "TracingHomePageHeaderQuery",
+    "name": "ProjectPageHeaderQuery",
     "selections": [
       {
         "args": null,
         "kind": "FragmentSpread",
-        "name": "TracingHomePageHeader_stats"
+        "name": "ProjectPageHeader_stats"
       }
     ],
     "type": "Query",
@@ -39,7 +39,7 @@ const node: ConcreteRequest = {
   "operation": {
     "argumentDefinitions": [],
     "kind": "Operation",
-    "name": "TracingHomePageHeaderQuery",
+    "name": "ProjectPageHeaderQuery",
     "selections": [
       {
         "alias": "totalTraces",
@@ -139,15 +139,15 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "776446b6c16605a140c7f3fca1073bfa",
+    "cacheID": "c378f55e69ccb0cfd2ec6626ffb77ac4",
     "id": null,
     "metadata": {},
-    "name": "TracingHomePageHeaderQuery",
+    "name": "ProjectPageHeaderQuery",
     "operationKind": "query",
-    "text": "query TracingHomePageHeaderQuery {\n  ...TracingHomePageHeader_stats\n}\n\nfragment TracingHomePageHeader_stats on Query {\n  totalTraces: spans(rootSpansOnly: true) {\n    pageInfo {\n      totalCount\n    }\n  }\n  traceDatasetInfo {\n    startTime\n    endTime\n    tokenCountTotal\n    latencyMsP50\n    latencyMsP99\n  }\n  spanEvaluationNames\n  documentEvaluationNames\n}\n"
+    "text": "query ProjectPageHeaderQuery {\n  ...ProjectPageHeader_stats\n}\n\nfragment ProjectPageHeader_stats on Query {\n  totalTraces: spans(rootSpansOnly: true) {\n    pageInfo {\n      totalCount\n    }\n  }\n  traceDatasetInfo {\n    startTime\n    endTime\n    tokenCountTotal\n    latencyMsP50\n    latencyMsP99\n  }\n  spanEvaluationNames\n  documentEvaluationNames\n}\n"
   }
 };
 
-(node as any).hash = "631360b4ed0a5a26238d4c2aea1bd759";
+(node as any).hash = "b5e575b779dea4366253bbfde728abe0";
 
 export default node;

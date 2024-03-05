@@ -8,8 +8,8 @@ import {
 import { createBrowserRouter } from "react-router-dom";
 
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
+import { ProjectPage } from "./pages/project";
 import { ProjectsPage } from "./pages/projects/ProjectsPage";
-import { TracingHomePage } from "./pages/tracing";
 import {
   dimensionLoader,
   DimensionPage,
@@ -80,8 +80,8 @@ const router = createBrowserRouter(
           }}
           handle={{ crumb: (data: ProjectInfo) => data.projectName }}
         >
-          <Route index element={<TracingHomePage />} />
-          <Route element={<TracingHomePage />}>
+          <Route index element={<ProjectPage />} />
+          <Route element={<ProjectPage />}>
             <Route path="traces">
               <Route path=":traceId" element={<TracePage />} />
             </Route>
