@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<da8e05e3cfba3521983985fc289eeb47>>
+ * @generated SignedSource<<0e8a1d9549aa9f35470a20914cfcf687>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,44 +9,25 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Query } from 'relay-runtime';
-export type homeLoaderQuery$variables = {};
-export type homeLoaderQuery$data = {
-  readonly functionality: {
-    readonly modelInferences: boolean;
-  };
+export type ProjectsPageQuery$variables = {};
+export type ProjectsPageQuery$data = {
   readonly projects: {
     readonly edges: ReadonlyArray<{
       readonly project: {
         readonly id: string;
+        readonly name: string;
+        readonly recordCount: number;
       };
     }>;
   };
 };
-export type homeLoaderQuery = {
-  response: homeLoaderQuery$data;
-  variables: homeLoaderQuery$variables;
+export type ProjectsPageQuery = {
+  response: ProjectsPageQuery$data;
+  variables: ProjectsPageQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
 var v0 = [
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "Functionality",
-    "kind": "LinkedField",
-    "name": "functionality",
-    "plural": false,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "modelInferences",
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
-  },
   {
     "alias": null,
     "args": null,
@@ -77,6 +58,20 @@ var v0 = [
                 "kind": "ScalarField",
                 "name": "id",
                 "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "name",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "recordCount",
+                "storageKey": null
               }
             ],
             "storageKey": null
@@ -93,7 +88,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
-    "name": "homeLoaderQuery",
+    "name": "ProjectsPageQuery",
     "selections": (v0/*: any*/),
     "type": "Query",
     "abstractKey": null
@@ -102,20 +97,20 @@ return {
   "operation": {
     "argumentDefinitions": [],
     "kind": "Operation",
-    "name": "homeLoaderQuery",
+    "name": "ProjectsPageQuery",
     "selections": (v0/*: any*/)
   },
   "params": {
-    "cacheID": "1e5891dd28a695ec1fc504659d641b37",
+    "cacheID": "6debffa2f065166d98910a99b3fb8d0b",
     "id": null,
     "metadata": {},
-    "name": "homeLoaderQuery",
+    "name": "ProjectsPageQuery",
     "operationKind": "query",
-    "text": "query homeLoaderQuery {\n  functionality {\n    modelInferences\n  }\n  projects {\n    edges {\n      project: node {\n        id\n      }\n    }\n  }\n}\n"
+    "text": "query ProjectsPageQuery {\n  projects {\n    edges {\n      project: node {\n        id\n        name\n        recordCount\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e2022661bc6153e1c8cc2c94257a2d47";
+(node as any).hash = "c1fd81b97a1dc91090c7162f03e9b7b4";
 
 export default node;
