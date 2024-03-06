@@ -1,10 +1,5 @@
 import React from "react";
-import {
-  createRoutesFromElements,
-  redirect,
-  Route,
-  RouterProvider,
-} from "react-router";
+import { createRoutesFromElements, Route, RouterProvider } from "react-router";
 import { createBrowserRouter } from "react-router-dom";
 
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
