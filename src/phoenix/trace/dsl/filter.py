@@ -60,12 +60,7 @@ class SpanFilter:
             bool,
             eval(
                 self.compiled,
-                {
-                    "span": span,
-                    "_MISSING": MISSING,
-                    "evals": self.evals,
-                    "ComputedAttributes": ComputedAttributes,
-                },
+                {"span": span, "_MISSING": MISSING, "evals": self.evals},
             ),
         )
 
