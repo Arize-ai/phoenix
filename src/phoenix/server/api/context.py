@@ -6,7 +6,6 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.websockets import WebSocket
 
-from phoenix.core.evals import Evals
 from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
 
@@ -19,4 +18,3 @@ class Context:
     export_path: Path
     corpus: Optional[Model] = None
     traces: Optional[Traces] = None
-    evals: Optional[Evals] = None

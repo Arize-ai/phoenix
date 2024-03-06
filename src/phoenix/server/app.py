@@ -20,12 +20,10 @@ from strawberry.schema import BaseSchema
 
 import phoenix
 from phoenix.config import SERVER_DIR
-from phoenix.core.evals import Evals
 from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context
-from phoenix.server.api.routers.evaluation_handler import EvaluationHandler
 from phoenix.server.api.routers.span_handler import SpanHandler
 from phoenix.server.api.routers.trace_handler import TraceHandler
 from phoenix.server.api.schema import schema
@@ -100,12 +98,10 @@ class GraphQLWithContext(GraphQL):  # type: ignore
         graphiql: bool = False,
         corpus: Optional[Model] = None,
         traces: Optional[Traces] = None,
-        evals: Optional[Evals] = None,
     ) -> None:
         self.model = model
         self.corpus = corpus
         self.traces = traces
-        self.evals = evals
         self.export_path = export_path
         super().__init__(schema, graphiql=graphiql)
 
@@ -120,7 +116,6 @@ class GraphQLWithContext(GraphQL):  # type: ignore
             model=self.model,
             corpus=self.corpus,
             traces=self.traces,
-            evals=self.evals,
             export_path=self.export_path,
         )
 
@@ -150,7 +145,6 @@ def create_app(
     umap_params: UMAPParameters,
     corpus: Optional[Model] = None,
     traces: Optional[Traces] = None,
-    evals: Optional[Evals] = None,
     debug: bool = False,
     read_only: bool = False,
 ) -> Starlette:
@@ -159,7 +153,6 @@ def create_app(
         model=model,
         corpus=corpus,
         traces=traces,
-        evals=evals,
         export_path=export_path,
         graphiql=True,
     )
@@ -174,21 +167,11 @@ def create_app(
             else [
                 Route(
                     "/v1/spans",
-                    type("SpanEndpoint", (SpanHandler,), {"traces": traces, "evals": evals}),
+                    type("SpanEndpoint", (SpanHandler,), {"traces": traces}),
                 ),
                 Route(
                     "/v1/traces",
                     type("TraceEndpoint", (TraceHandler,), {"queue": traces}),
-                ),
-            ]
-        )
-        + (
-            []
-            if evals is None or read_only
-            else [
-                Route(
-                    "/v1/evaluations",
-                    type("EvaluationsEndpoint", (EvaluationHandler,), {"evals": evals}),
                 ),
             ]
         )
