@@ -25,8 +25,8 @@ def test_ingestion(
         otlp_span = otlp_trace[s]
         mock.add(ReadableSpan(otlp_span))
 
-        assert len(mock._traces[trace_id]) == i + 1, f"{i=}, {s=}"
-        assert len(mock) == i + 1, f"{i=}, {s=}"
+        assert len(list(mock.get_trace(trace_id))) == i + 1, f"{i=}, {s=}"
+        assert mock.span_count == i + 1, f"{i=}, {s=}"
 
         assert _id_str(otlp_span.span_id) in mock._spans, f"{i=}, {s=}"
         latest_span = mock._spans[_id_str(otlp_span.span_id)]

@@ -418,6 +418,7 @@ class _Spans:
         if span_id in self._spans:
             # Update is not allowed.
             return
+
         parent_span_id = span.parent_id
         is_root_span = parent_span_id is None
         if not is_root_span:
@@ -489,7 +490,11 @@ class _Spans:
 
 class _Evals:
     def __init__(self) -> None:
-        self.last_updated_at: Optional[datetime] = None
+        self._last_updated_at: Optional[datetime] = None
+
+    @property
+    def last_updated_at(self) -> Optional[datetime]:
+        return self._last_updated_at
 
 
 _CUMULATIVE_ATTRIBUTES = MappingProxyType(
