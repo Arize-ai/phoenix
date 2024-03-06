@@ -112,28 +112,25 @@ _ProjectName: TypeAlias = str
 
 _DEFAULT_PROJECT_NAME: str = "default"
 
-_QueueItem = Optional[Union[otlp.Span, Tuple[otlp.Span, Optional[_ProjectName]]]]
+_SpanItem = Union[otlp.Span, Tuple[otlp.Span, Optional[_ProjectName]]]
 
 
 class Traces:
     def __init__(self) -> None:
-        self._queue: "SimpleQueue[_QueueItem]" = SimpleQueue()
+        self._span_queue: "SimpleQueue[Optional[_SpanItem]]" = SimpleQueue()
         # Putting `None` as the sentinel value for queue termination.
-        weakref.finalize(self, self._queue.put, END_OF_QUEUE)
+        weakref.finalize(self, self._span_queue.put, END_OF_QUEUE)
         self._lock = RLock()
         self._projects: DefaultDict[_ProjectName, "Project"] = defaultdict(
             Project,
             {_DEFAULT_PROJECT_NAME: Project()},
         )
-        self._start_consumer()
+        self._start_consumers()
 
     def get_projects(self) -> Iterator[Tuple[str, "Project"]]:
         with self._lock:
             projects = tuple(self._projects.items())
         yield from projects
-
-    def put(self, item: _QueueItem) -> None:
-        self._queue.put(item)
 
     def get_trace(self, trace_id: TraceID) -> Iterator[Span]:
         with self._lock:
@@ -205,17 +202,21 @@ class Traces:
                 return None, None
         return project.right_open_time_range
 
-    def _start_consumer(self) -> None:
+    def put(self, item: _SpanItem) -> None:
+        self._span_queue.put(item)
+
+    def _start_consumers(self) -> None:
         Thread(
             target=MethodType(
                 self.__class__._consume_spans,
                 weakref.proxy(self),
             ),
+            args=(self._span_queue,),
             daemon=True,
         ).start()
 
-    def _consume_spans(self) -> None:
-        while (item := self._queue.get()) is not END_OF_QUEUE:
+    def _consume_spans(self, queue: "SimpleQueue[Optional[_SpanItem]]") -> None:
+        while (item := queue.get()) is not END_OF_QUEUE:
             project_name = None
             if isinstance(item, tuple):
                 otlp_span, project_name = item
