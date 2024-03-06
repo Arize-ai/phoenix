@@ -311,6 +311,7 @@ class _Spans:
 
     def get_trace(self, trace_id: TraceID) -> Iterator[Span]:
         with self._lock:
+            # make a copy because source data can mutate during iteration
             if not (trace := self._traces.get(trace_id)):
                 return
             spans = tuple(trace)
