@@ -14,7 +14,6 @@ from typing import (
     Set,
     SupportsFloat,
     Tuple,
-    Union,
     cast,
 )
 
@@ -112,7 +111,7 @@ _ProjectName: TypeAlias = str
 
 _DEFAULT_PROJECT_NAME: str = "default"
 
-_SpanItem = Union[otlp.Span, Tuple[otlp.Span, Optional[_ProjectName]]]
+_SpanItem = Tuple[otlp.Span, _ProjectName]
 
 
 class Traces:
@@ -202,8 +201,14 @@ class Traces:
                 return None, None
         return project.right_open_time_range
 
-    def put(self, item: _SpanItem) -> None:
-        self._span_queue.put(item)
+    def put(
+        self,
+        item: otlp.Span,
+        project_name: Optional[str] = None,
+    ) -> None:
+        if not project_name:
+            project_name = _DEFAULT_PROJECT_NAME
+        self._span_queue.put((item, project_name))
 
     def _start_consumers(self) -> None:
         Thread(
@@ -217,13 +222,7 @@ class Traces:
 
     def _consume_spans(self, queue: "SimpleQueue[Optional[_SpanItem]]") -> None:
         while (item := queue.get()) is not END_OF_QUEUE:
-            project_name = None
-            if isinstance(item, tuple):
-                otlp_span, project_name = item
-            else:
-                otlp_span = item
-            if not project_name:
-                project_name = _DEFAULT_PROJECT_NAME
+            otlp_span, project_name = item
             span = ReadableSpan(otlp_span)
             with self._lock:
                 project = self._projects[project_name]
