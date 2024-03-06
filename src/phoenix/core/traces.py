@@ -121,8 +121,10 @@ class Traces:
         # Putting `None` as the sentinel value for queue termination.
         weakref.finalize(self, self._queue.put, END_OF_QUEUE)
         self._lock = RLock()
-        self._projects: DefaultDict[_ProjectName, "Project"] = defaultdict(Project)
-        self._projects[_DEFAULT_PROJECT_NAME] = Project()
+        self._projects: DefaultDict[_ProjectName, "Project"] = defaultdict(
+            Project,
+            {_DEFAULT_PROJECT_NAME: Project()},
+        )
         self._start_consumer()
 
     def get_projects(self) -> Iterator[Tuple[str, "Project"]]:
@@ -289,9 +291,9 @@ class _Spans:
     def __init__(self) -> None:
         self._lock = RLock()
         self._spans: Dict[SpanID, ReadableSpan] = {}
+        self._parent_span_ids: Dict[SpanID, _ParentSpanID] = {}
         self._traces: DefaultDict[TraceID, Set[ReadableSpan]] = defaultdict(set)
         self._child_spans: DefaultDict[SpanID, Set[ReadableSpan]] = defaultdict(set)
-        self._parent_span_ids: Dict[SpanID, _ParentSpanID] = {}
         self._num_documents: DefaultDict[SpanID, int] = defaultdict(int)
         self._start_time_sorted_spans: SortedKeyList[ReadableSpan] = SortedKeyList(
             key=lambda span: span.start_time,
@@ -363,15 +365,17 @@ class _Spans:
         root_spans_only: Optional[bool] = False,
         span_ids: Optional[Iterable[SpanID]] = None,
     ) -> Iterator[Span]:
-        with self._lock:
-            if start_time is None or stop_time is None:
-                min_start_time, max_stop_time = cast(
-                    Tuple[datetime, datetime],
-                    self.right_open_time_range,
-                )
-                start_time = start_time or min_start_time
-                stop_time = stop_time or max_stop_time
-            if span_ids is not None:
+        if not self._spans:
+            return
+        if start_time is None or stop_time is None:
+            min_start_time, max_stop_time = cast(
+                Tuple[datetime, datetime],
+                self.right_open_time_range,
+            )
+            start_time = start_time or min_start_time
+            stop_time = stop_time or max_stop_time
+        if span_ids is not None:
+            with self._lock:
                 spans = tuple(
                     span
                     for span_id in span_ids
@@ -381,13 +385,14 @@ class _Spans:
                         and (not root_spans_only or span.parent_id is None)
                     )
                 )
-            else:
-                sorted_spans = (
-                    self._start_time_sorted_root_spans
-                    if root_spans_only
-                    else self._start_time_sorted_spans
-                )
-                # make a copy because source data can mutate during iteration
+        else:
+            sorted_spans = (
+                self._start_time_sorted_root_spans
+                if root_spans_only
+                else self._start_time_sorted_spans
+            )
+            # make a copy because source data can mutate during iteration
+            with self._lock:
                 spans = tuple(
                     sorted_spans.irange_key(
                         start_time.astimezone(timezone.utc),
@@ -398,21 +403,6 @@ class _Spans:
                 )
         for span in spans:
             yield span.span
-
-    @property
-    def token_count_total(self) -> int:
-        return self._token_count_total
-
-    @property
-    def right_open_time_range(self) -> Tuple[Optional[datetime], Optional[datetime]]:
-        with self._lock:
-            if not self._start_time_sorted_spans:
-                return None, None
-            first_span = self._start_time_sorted_spans[0]
-            last_span = self._start_time_sorted_spans[-1]
-        min_start_time = first_span.start_time
-        max_start_time = last_span.start_time
-        return right_open_time_range(min_start_time, max_start_time)
 
     def get_num_documents(self, span_id: SpanID) -> int:
         with self._lock:
@@ -436,6 +426,21 @@ class _Spans:
         for child_span in spans:
             yield child_span
             yield from self._get_descendant_spans(child_span.context.span_id)
+
+    @property
+    def token_count_total(self) -> int:
+        return self._token_count_total
+
+    @property
+    def right_open_time_range(self) -> Tuple[Optional[datetime], Optional[datetime]]:
+        with self._lock:
+            if not self._start_time_sorted_spans:
+                return None, None
+            first_span = self._start_time_sorted_spans[0]
+            last_span = self._start_time_sorted_spans[-1]
+        min_start_time = first_span.start_time
+        max_start_time = last_span.start_time
+        return right_open_time_range(min_start_time, max_start_time)
 
     def _update_cached_statistics(self, span: ReadableSpan) -> None:
         # Update statistics for quick access later
