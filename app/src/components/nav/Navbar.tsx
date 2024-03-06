@@ -1,23 +1,17 @@
-import React, { PropsWithChildren, ReactNode } from "react";
+import React, { ReactNode, useState } from "react";
 import { Link, NavLink as RRNavLink } from "react-router-dom";
 import { css, Theme } from "@emotion/react";
 
-import {
-  Icons,
-  Text,
-  Tooltip,
-  TooltipTrigger,
-  TriggerWrap,
-} from "@arizeai/components";
+import { Icon, Icons, Text } from "@arizeai/components";
 
 import { useTheme } from "@phoenix/contexts";
 
 import { Logo } from "./Logo";
 
 const topNavCSS = css`
-  padding: var(--px-spacing-med) var(--px-spacing-lg);
-  border-bottom: 1px solid var(--ac-global-color-grey-200);
-  background-color: var(--ac-global-color-grey-75);
+  padding: var(--px-spacing-med) var(--px-spacing-med) var(--px-spacing-med)
+    12px;
+  border-bottom: 1px solid var(--ac-global-color-grey-100);
   flex: none;
   display: flex;
   flex-direction: row;
@@ -26,27 +20,50 @@ const topNavCSS = css`
 `;
 
 const sideNavCSS = css`
-  padding: var(--px-spacing-med);
+  padding: var(--px-spacing-lg) var(--px-spacing-med);
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: var(--px-spacing-med);
   background-color: var(--ac-global-color-grey-75);
   border-right: 1px solid var(--ac-global-color-grey-200);
+  box-sizing: border-box;
   height: 100vh;
+  position: fixed;
+  width: var(--px-nav-collapsed-width);
+  z-index: 1;
+  transition:
+    width 0.15s cubic-bezier(0, 0.57, 0.21, 0.99),
+    box-shadow 0.15s cubic-bezier(0, 0.57, 0.21, 0.99);
+  &[data-expanded="true"] {
+    width: var(--px-nav-expanded-width);
+    box-shadow: 0 0 30px 0 rgba(0, 0, 0, 0.2);
+  }
 `;
 
-const navIconCSS = css`
-  padding: var(--ac-global-static-size-100);
-  width: 20px;
-  height: 20px;
-  display: block;
-  svg {
-    fill: var(--ac-global-text-color-500);
-    transition: fill 0.2s ease-in-out;
+const navLinkCSS = css`
+  width: 100%;
+  color: var(--ac-global-text-color-500);
+  background-color: transparent;
+  border-radius: var(--ac-global-rounding-small);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  overflow: hidden;
+  transition:
+    color 0.2s ease-in-out,
+    background-color 0.2s ease-in-out;
+  text-decoration: none;
+  &.active {
+    color: var(--ac-global-text-color-900);
+    background-color: var(--ac-global-color-primary-300);
   }
-  &:hover svg {
-    fill: var(--ac-global-text-color-900);
+  &:hover:not(.active) {
+    color: var(--ac-global-text-color-900);
+    background-color: var(--ac-global-color-grey-200);
+  }
+  & > .ac-icon-wrap {
+    padding: var(--ac-global-dimension-size-50);
+    display: inline-block;
   }
 `;
 
@@ -54,6 +71,7 @@ const brandCSS = (theme: Theme) => css`
   color: var(--ac-global-text-color-900);
   font-size: ${theme.typography.sizes.large.fontSize}px;
   text-decoration: none;
+  margin: 0 0 var(--px-spacing-lg) 0;
 `;
 
 const GitHubSVG = () => (
@@ -73,35 +91,32 @@ const GitHubSVG = () => (
   </svg>
 );
 
-function IconLink(props: PropsWithChildren<{ href: string }>) {
+function ExternalLink(props: { href: string; icon: ReactNode; text: string }) {
   return (
-    <a href={props.href} target="_blank" css={navIconCSS} rel="noreferrer">
-      {props.children}
+    <a href={props.href} target="_blank" css={navLinkCSS} rel="noreferrer">
+      {props.icon}
+      <Text>{props.text}</Text>
     </a>
-  );
-}
-
-function IconButton(props: PropsWithChildren<{ onClick: () => void }>) {
-  return (
-    <button css={navIconCSS} onClick={props.onClick} className="button--reset">
-      {props.children}
-    </button>
   );
 }
 
 export function GitHubLink() {
   return (
-    <IconLink href="https://github.com/arize-ai/phoenix">
-      <GitHubSVG />
-    </IconLink>
+    <ExternalLink
+      href="https://github.com/arize-ai/phoenix"
+      icon={<Icon svg={<GitHubSVG />} />}
+      text="Repository"
+    />
   );
 }
 
 export function DocsLink() {
   return (
-    <IconLink href="https://docs.arize.com/phoenix">
-      <Icons.BookFilled />
-    </IconLink>
+    <ExternalLink
+      href="https://docs.arize.com/phoenix"
+      icon={<Icon svg={<Icons.BookFilled />} />}
+      text="Documentation"
+    />
   );
 }
 
@@ -109,9 +124,14 @@ export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   const isDark = theme === "dark";
   return (
-    <IconButton onClick={() => setTheme(isDark ? "light" : "dark")}>
-      {isDark ? <Icons.MoonOutline /> : <Icons.SunOutline />}
-    </IconButton>
+    <button
+      css={navLinkCSS}
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+      className="button--reset"
+    >
+      <Icon svg={isDark ? <Icons.MoonOutline /> : <Icons.SunOutline />} />
+      <Text>{isDark ? "Dark" : "Light"}</Text>
+    </button>
   );
 }
 
@@ -128,41 +148,28 @@ export function TopNavbar({ children }: { children: ReactNode }) {
 }
 
 export function SideNavbar({ children }: { children: ReactNode }) {
-  return <nav css={sideNavCSS}>{children}</nav>;
+  const [isHovered, setIsHovered] = useState(false);
+  return (
+    <nav
+      data-expanded={isHovered}
+      css={sideNavCSS}
+      onMouseOver={() => {
+        setIsHovered(true);
+      }}
+      onMouseOut={() => {
+        setIsHovered(false);
+      }}
+    >
+      {children}
+    </nav>
+  );
 }
 
-export function NavLink(
-  props: PropsWithChildren<{ to: string; text: string }>
-) {
+export function NavLink(props: { to: string; text: string; icon: ReactNode }) {
   return (
-    <TooltipTrigger delay={0} placement="right" offset={12}>
-      <TriggerWrap>
-        <RRNavLink
-          to={props.to}
-          css={css`
-            color: var(--ac-global-text-color-500);
-            background-color: transparent;
-            border-radius: var(--ac-global-rounding-small);
-            display: block;
-            transition: color 0.2s ease-in-out;
-            &.active {
-              color: var(--ac-global-text-color-900);
-              background-color: var(--ac-global-color-primary-300);
-            }
-            &:hover {
-              color: var(--ac-global-text-color-900);
-            }
-            & > * {
-              padding: var(--ac-global-dimension-size-50);
-            }
-          `}
-        >
-          {props.children}
-        </RRNavLink>
-      </TriggerWrap>
-      <Tooltip>
-        <Text weight="heavy">{props.text}</Text>
-      </Tooltip>
-    </TooltipTrigger>
+    <RRNavLink to={props.to} css={navLinkCSS}>
+      {props.icon}
+      <Text>{props.text}</Text>
+    </RRNavLink>
   );
 }
