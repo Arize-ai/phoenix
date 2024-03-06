@@ -8,6 +8,7 @@ from threading import Thread
 from time import sleep, time
 from typing import Iterable, Optional, Protocol, TypeVar
 
+import pkg_resources
 from uvicorn import Config, Server
 
 from phoenix.config import EXPORT_DIR, get_env_host, get_env_port, get_pids_path
@@ -33,6 +34,31 @@ from phoenix.trace.otel import encode
 from phoenix.trace.span_json_decoder import json_string_to_span
 
 logger = logging.getLogger(__name__)
+
+_WELCOME_MESSAGE = """
+
+██████╗ ██╗  ██╗ ██████╗ ███████╗███╗   ██╗██╗██╗  ██╗
+██╔══██╗██║  ██║██╔═══██╗██╔════╝████╗  ██║██║╚██╗██╔╝
+██████╔╝███████║██║   ██║█████╗  ██╔██╗ ██║██║ ╚███╔╝
+██╔═══╝ ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║██║ ██╔██╗
+██║     ██║  ██║╚██████╔╝███████╗██║ ╚████║██║██╔╝ ██╗
+╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝ v{0}
+
+|
+|  🌎 Join our Community 🌎
+|  https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q
+|
+|  ⭐️ Leave us a Star ⭐️
+|  https://github.com/Arize-ai/phoenix
+|
+|  📚 Documentation 📚
+|  https://docs.arize.com/phoenix
+|
+|  🚀 Phoenix Server 🚀
+|  Phoenix UI: http://{1}:{2}
+|  Log traces: /v1/traces over HTTP
+|
+"""
 
 
 def _write_pid_file_when_ready(
@@ -201,4 +227,12 @@ if __name__ == "__main__":
     port = args.port or get_env_port()
     server = Server(config=Config(app, host=host, port=port))
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
+
+    # Print information about the server
+    phoenix_version = pkg_resources.get_distribution("arize-phoenix").version
+    print(
+        _WELCOME_MESSAGE.format(phoenix_version, host if host != "0.0.0.0" else "localhost", port)
+    )
+
+    # Start the server
     server.run()

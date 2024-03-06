@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import React, {
   startTransition,
   useEffect,
@@ -9,8 +10,10 @@ import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {
   ColumnDef,
+  ExpandedState,
   flexRender,
   getCoreRowModel,
+  getExpandedRowModel,
   getSortedRowModel,
   SortingState,
   useReactTable,
@@ -20,21 +23,24 @@ import { css } from "@emotion/react";
 import { Flex, Icon, Icons, View } from "@arizeai/components";
 
 import { Link } from "@phoenix/components/Link";
+import { TextCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
-import { TextCell } from "@phoenix/components/table/TextCell";
+import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
+import { ISpanItem } from "@phoenix/components/trace/types";
+import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import {
-  SpansTable_spans$key,
   SpanStatusCode,
-} from "./__generated__/SpansTable_spans.graphql";
-import { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.graphql";
+  TracesTable_spans$key,
+} from "./__generated__/TracesTable_spans.graphql";
+import { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
 import { EvaluationLabel } from "./EvaluationLabel";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
@@ -47,25 +53,50 @@ import {
   getGqlSort,
 } from "./tableUtils";
 import { TokenCount } from "./TokenCount";
-type SpansTableProps = {
-  query: SpansTable_spans$key;
+type TracesTableProps = {
+  query: TracesTable_spans$key;
 };
 
 const PAGE_SIZE = 100;
 
-export function SpansTable(props: SpansTableProps) {
-  const { fetchKey } = useStreamState();
+/**
+ * A nested table row is a span with a children that recursively
+ * contains more nested table rows.
+ */
+type NestedSpanTableRow<TSpan extends ISpanItem> = TSpan & {
+  children: NestedSpanTableRow<TSpan>[];
+};
+
+/**
+ * Recursively create a nested table rows to display the span tree
+ * as a table.
+ */
+function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(
+  children: SpanTreeNode<TSpan>[]
+): NestedSpanTableRow<TSpan>[] {
+  const normalizedSpanTreeChildren: NestedSpanTableRow<TSpan>[] = [];
+  for (const child of children) {
+    const normalizedChild = {
+      ...child.span,
+      children: spanTreeToNestedSpanTableRows(child.children),
+    };
+    normalizedSpanTreeChildren.push(normalizedChild);
+  }
+  return normalizedSpanTreeChildren;
+}
+
+export function TracesTable(props: TracesTableProps) {
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
-  const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const navigate = useNavigate();
+  const { fetchKey } = useStreamState();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
-    usePaginationFragment<SpansTableSpansQuery, SpansTable_spans$key>(
+    usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
       graphql`
-        fragment SpansTable_spans on Query
-        @refetchable(queryName: "SpansTableSpansQuery")
+        fragment TracesTable_spans on Query
+        @refetchable(queryName: "TracesTableQuery")
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 100 }
@@ -76,33 +107,34 @@ export function SpansTable(props: SpansTableProps) {
           filterCondition: { type: "String", defaultValue: null }
         ) {
           ...SpanColumnSelector_evaluations
-          spans(
+          rootSpans: spans(
             first: $first
             after: $after
             sort: $sort
+            rootSpansOnly: true
             filterCondition: $filterCondition
-          ) @connection(key: "SpansTable_spans") {
+          ) @connection(key: "TracesTable_rootSpans") {
             edges {
-              span: node {
+              rootSpan: node {
                 spanKind
                 name
-                statusCode
+                metadata
+                statusCode: propagatedStatusCode
                 startTime
                 latencyMs
-                tokenCountTotal
-                tokenCountPrompt
-                tokenCountCompletion
-                context {
-                  spanId
-                  traceId
-                }
+                tokenCountTotal: cumulativeTokenCountTotal
+                tokenCountPrompt: cumulativeTokenCountPrompt
+                tokenCountCompletion: cumulativeTokenCountCompletion
+                parentId
                 input {
                   value
-                  mimeType
                 }
                 output {
                   value
-                  mimeType
+                }
+                context {
+                  spanId
+                  traceId
                 }
                 spanEvaluations {
                   name
@@ -114,6 +146,38 @@ export function SpansTable(props: SpansTableProps) {
                   ndcg
                   precision
                   hit
+                }
+                descendants {
+                  spanKind
+                  name
+                  statusCode: propagatedStatusCode
+                  startTime
+                  latencyMs
+                  parentId
+                  tokenCountTotal
+                  tokenCountPrompt
+                  tokenCountCompletion
+                  input {
+                    value
+                  }
+                  output {
+                    value
+                  }
+                  context {
+                    spanId
+                    traceId
+                  }
+                  spanEvaluations {
+                    name
+                    label
+                    score
+                  }
+                  documentRetrievalMetrics {
+                    evaluationName
+                    ndcg
+                    precision
+                    hit
+                  }
                 }
               }
             }
@@ -131,9 +195,14 @@ export function SpansTable(props: SpansTableProps) {
       (name) => evaluationVisibility[name]
     );
   }, [evaluationVisibility]);
-
   const tableData = useMemo(() => {
-    const tableData = data.spans.edges.map(({ span }) => span);
+    const tableData = data.rootSpans.edges.map(({ rootSpan }) => {
+      // Construct the set of spans over which you want to construct the tree
+      const spanTree = createSpanTree([rootSpan, ...rootSpan.descendants]);
+      // Unwrap the root span from the span tree and return it
+      const [root] = spanTreeToNestedSpanTableRows(spanTree);
+      return root;
+    });
 
     return tableData;
   }, [data]);
@@ -179,8 +248,10 @@ export function SpansTable(props: SpansTableProps) {
       header: "evaluations",
       accessorKey: "spanEvaluations",
       enableSorting: false,
-
       cell: ({ row }) => {
+        const hasNoEvaluations =
+          row.original.spanEvaluations.length === 0 &&
+          row.original.documentRetrievalMetrics.length === 0;
         return (
           <Flex direction="row" gap="size-50" wrap="wrap">
             {row.original.spanEvaluations.map((evaluation) => {
@@ -215,20 +286,54 @@ export function SpansTable(props: SpansTableProps) {
                 </>
               );
             })}
+            {hasNoEvaluations ? "--" : null}
           </Flex>
         );
       },
     },
     ...dynamicEvaluationColumns,
   ];
+
   const columns: ColumnDef<TableRow>[] = [
     {
-      header: "kind",
+      header: () => {
+        return (
+          <Flex gap="size-50" direction="row" alignItems="center">
+            <TableExpandButton
+              isExpanded={table.getIsAllRowsExpanded()}
+              onClick={table.getToggleAllRowsExpandedHandler()}
+              aria-label="Expand all rows"
+            />
+            kind
+          </Flex>
+        );
+      },
+      enableSorting: false,
       accessorKey: "spanKind",
       maxSize: 100,
-      enableSorting: false,
-      cell: ({ getValue }) => {
-        return <SpanKindLabel spanKind={getValue() as string} />;
+      cell: (props) => {
+        return (
+          <div
+            css={css`
+              // Since rows are flattened by default,
+              // we can use the row.depth property
+              // and paddingLeft to visually indicate the depth
+              // of the row
+              padding-left: ${props.row.depth * 2}rem;
+            `}
+          >
+            <Flex gap="size-50">
+              {props.row.getCanExpand() ? (
+                <TableExpandButton
+                  isExpanded={props.row.getIsExpanded()}
+                  onClick={props.row.getToggleExpandedHandler()}
+                  aria-label="Expand row"
+                />
+              ) : null}
+              <SpanKindLabel spanKind={props.getValue() as string} />
+            </Flex>
+          </div>
+        );
       },
     },
     {
@@ -238,7 +343,7 @@ export function SpansTable(props: SpansTableProps) {
       cell: ({ getValue, row }) => {
         const { spanId, traceId } = row.original.context;
         return (
-          <Link to={`${traceId}?selectedSpanId=${spanId}`}>
+          <Link to={`traces/${traceId}?selectedSpanId=${spanId}`}>
             {getValue() as string}
           </Link>
         );
@@ -247,16 +352,22 @@ export function SpansTable(props: SpansTableProps) {
     {
       header: "input",
       accessorKey: "input.value",
-      cell: TextCell,
       enableSorting: false,
+      cell: TextCell,
     },
     {
       header: "output",
       accessorKey: "output.value",
-      cell: TextCell,
       enableSorting: false,
+      cell: TextCell,
     },
-    ...evaluationColumns, // TODO: consider hiding this column if there are no evals. For now we want people to know that there are evals
+    {
+      header: "metadata",
+      accessorKey: "metadata",
+      enableSorting: false,
+      cell: TextCell,
+    },
+    ...evaluationColumns, // TODO: consider hiding this column is there is no evals. For now show it
     {
       header: "start time",
       accessorKey: "startTime",
@@ -271,11 +382,13 @@ export function SpansTable(props: SpansTableProps) {
         if (value === null || typeof value !== "number") {
           return null;
         }
+
         return <LatencyText latencyMs={value} />;
       },
     },
     {
       header: "total tokens",
+      minSize: 80,
       accessorKey: "tokenCountTotal",
       cell: ({ row, getValue }) => {
         const value = getValue();
@@ -304,16 +417,17 @@ export function SpansTable(props: SpansTableProps) {
   useEffect(() => {
     //if the sorting changes, we need to reset the pagination
     const sort = sorting[0];
-
     startTransition(() => {
       refetch(
         {
           sort: sort ? getGqlSort(sort) : DEFAULT_SORT,
           after: null,
           first: PAGE_SIZE,
-          filterCondition,
+          filterCondition: filterCondition,
         },
-        { fetchPolicy: "store-and-network" }
+        {
+          fetchPolicy: "store-and-network",
+        }
       );
     });
   }, [sorting, refetch, filterCondition, fetchKey]);
@@ -333,16 +447,22 @@ export function SpansTable(props: SpansTableProps) {
     },
     [hasNext, isLoadingNext, loadNext]
   );
+  const [expanded, setExpanded] = useState<ExpandedState>({});
+  const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
+    onExpandedChange: setExpanded,
+    getSubRows: (row) => row.children,
     state: {
       sorting,
+      expanded,
       columnVisibility,
     },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
@@ -383,6 +503,7 @@ export function SpansTable(props: SpansTableProps) {
                   <th colSpan={header.colSpan} key={header.id}>
                     {header.isPlaceholder ? null : (
                       <div
+                        data-sortable={header.column.getCanSort()}
                         {...{
                           className: header.column.getCanSort()
                             ? "cursor-pointer"
@@ -426,9 +547,7 @@ export function SpansTable(props: SpansTableProps) {
                   <tr
                     key={row.id}
                     onClick={() =>
-                      navigate(
-                        `traces/${row.original.context.traceId}?selectedSpanId=${row.original.context.spanId}`
-                      )
+                      navigate(`traces/${row.original.context.traceId}`)
                     }
                   >
                     {row.getVisibleCells().map((cell) => {

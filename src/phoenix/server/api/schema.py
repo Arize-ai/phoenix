@@ -20,6 +20,7 @@ from phoenix.server.api.input_types.Coordinates import (
 )
 from phoenix.server.api.input_types.SpanSort import SpanSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
+from phoenix.server.api.types.Project import Project
 from phoenix.trace.dsl import SpanFilter
 from phoenix.trace.schemas import SpanID, TraceID
 
@@ -49,6 +50,31 @@ from .types.ValidationResult import ValidationResult
 @strawberry.type
 class Query:
     @strawberry.field
+    def projects(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[Cursor] = UNSET,
+        before: Optional[Cursor] = UNSET,
+    ) -> Connection[Project]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, Cursor) else None,
+            last=last,
+            before=before if isinstance(before, Cursor) else None,
+        )
+        data = (
+            []
+            if (traces := info.context.traces) is None
+            else [
+                Project(id_attr=i, name=name, project=project)
+                for i, (name, project) in enumerate(traces.get_projects())
+            ]
+        )
+        return connection_from_list(data=data, args=args)
+
+    @strawberry.field
     def functionality(self, info: Info[Context, None]) -> "Functionality":
         has_model_inferences = not info.context.model.is_empty
         has_traces = info.context.traces is not None
@@ -70,6 +96,13 @@ class Query:
         elif type_name == "EmbeddingDimension":
             embedding_dimension = info.context.model.embedding_dimensions[node_id]
             return to_gql_embedding_dimension(node_id, embedding_dimension)
+        elif type_name == "Project":
+            if (traces := info.context.traces) is not None:
+                projects = dict(enumerate(traces.get_projects()))
+                if (project_item := projects.get(node_id)) is not None:
+                    (name, project) = project_item
+                    return Project(id_attr=node_id, name=name, project=project)
+            raise Exception(f"Unknown project: {id}")
 
         raise Exception(f"Unknown node type: {type}")
 
@@ -263,7 +296,9 @@ class Query:
                 root_spans_only=root_spans_only,
             )
         else:
-            spans = chain.from_iterable(map(traces.get_trace, map(TraceID, trace_ids)))
+            spans = chain.from_iterable(
+                traces.get_trace(trace_id) for trace_id in map(TraceID, trace_ids)
+            )
         if predicate:
             spans = filter(predicate, spans)
         if sort:

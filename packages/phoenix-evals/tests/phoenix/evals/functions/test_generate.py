@@ -1,5 +1,6 @@
 import json
 import sys
+from math import isnan
 from typing import Dict
 
 import httpx
@@ -185,7 +186,7 @@ def test_llm_generate_with_output_parser(monkeypatch: pytest.MonkeyPatch, respx_
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions", assert_all_called=False)
-def test_classify_tolerance_to_exceptions(
+def test_generate_tolerance_to_exceptions(
     monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock, capfd
 ):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
@@ -216,6 +217,8 @@ def test_classify_tolerance_to_exceptions(
         '{ "category": "programming", "language": "C++" }',
         "gobbledygook",
     ]
+    dataframe.index = ["python1", "python2", "cpp1", "cpp2", "gibberish"]
+
     queries = dataframe["query"].tolist()
     for query, response in zip(queries, responses):
         matcher = M(content__contains=query)
@@ -236,6 +239,89 @@ def test_classify_tolerance_to_exceptions(
     # Make sure there is a logger.error output
     captured = capfd.readouterr()
     assert "Exception in worker" in captured.out
+    assert df["output"].tolist() == [
+        '{ "category": "programming", "language": "Python" }',
+        '{ "category": "programming", "language": "Python" }',
+        "generation-failed",
+        "generation-failed",
+        "gobbledygook",
+    ]
+    assert df.index.tolist() == dataframe.index.tolist()
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions", assert_all_called=False)
+def test_generate_properly_mixes_column_outputs(
+    monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock, capfd
+):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    model = OpenAIModel()
+    dataframe = pd.DataFrame(
+        [
+            {
+                "query": "What is Python?",
+            },
+            {
+                "query": "What is Python?",
+            },
+            {
+                "query": "What is C++?",
+            },
+            {
+                "query": "What is C++?",
+            },
+            {
+                "query": "gobbledygook",
+            },
+        ]
+    )
+    responses = [
+        '{ "category": "programming", "language": "Python" }',
+        '{ "category": "programming", "language": "Python" }',
+        '{ "category": "programming", "language": "C++" }',
+        '{ "category": "programming", "language": "C++" }',
+        "gobbledygook",
+    ]
+    dataframe.index = ["python1", "python2", "cpp1", "cpp2", "gibberish"]
+
+    queries = dataframe["query"].tolist()
+    for query, response in zip(queries, responses):
+        matcher = M(content__contains=query)
+        # Simulate an error on the second query
+        if query == "What is C++?":
+            response = httpx.Response(500, json={"error": "Internal Server Error"})
+        else:
+            response = httpx.Response(200, json={"choices": [{"message": {"content": response}}]})
+        respx_mock.route(matcher).mock(return_value=response)
+
+    df = llm_generate(
+        dataframe=dataframe,
+        template="Given {query}, generate output",
+        model=model,
+        output_parser=lambda x, y: {"response": x},  # rename the output column to "response"
+    )
+
+    assert df is not None
+    # Make sure there is a logger.error output
+    captured = capfd.readouterr()
+    assert "Exception in worker" in captured.out
+
+    # the "response" column should contain the successfully returned responses
+    response_column = df["response"].tolist()
+    assert response_column[0] == '{ "category": "programming", "language": "Python" }'
+    assert response_column[1] == '{ "category": "programming", "language": "Python" }'
+    assert isnan(response_column[2])
+    assert isnan(response_column[3])
+    assert response_column[4] == "gobbledygook"
+
+    # the error messages fall back to the "output" column
+    output_column = df["output"].tolist()
+    assert isnan(output_column[0])
+    assert isnan(output_column[1])
+    assert output_column[2] == "generation-failed"
+    assert output_column[3] == "generation-failed"
+    assert isnan(output_column[4])
+
+    assert df.index.tolist() == dataframe.index.tolist()
 
 
 @pytest.mark.skipif(

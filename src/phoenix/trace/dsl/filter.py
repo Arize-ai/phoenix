@@ -156,7 +156,7 @@ def _allowed_replacements() -> Iterator[Tuple[str, ast.expr]]:
 
     for computed_attribute in ComputedAttributes:
         source_segment = computed_attribute.value
-        ast_replacement = _ast_replacement(f"span[ComputedAttributes('{source_segment}')]")
+        ast_replacement = _ast_replacement(f"span.get_computed_value('{source_segment}')")
         yield source_segment, ast_replacement
 
 

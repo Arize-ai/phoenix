@@ -9,7 +9,7 @@ from strawberry import UNSET
 from typing_extensions import assert_never
 
 import phoenix.trace.v1 as pb
-from phoenix.core.traces import WrappedSpan
+from phoenix.core.project import WrappedSpan
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.trace.schemas import ComputedAttributes, SpanID
 

@@ -38,13 +38,9 @@ _ALIASES = {
     "trace_id": "context.trace_id",
 }
 
-# Because UUIDs is not convertible to Parquet,
-# they need to be converted to string.
-_CONVERT_TO_STRING = (
-    "context.span_id",
-    "context.trace_id",
-    "parent_id",
-)
+# Because span_kind is an enum, it needs to be converted to string,
+# so it's serializable by pyarrow.
+_CONVERT_TO_STRING = ("span_kind",)
 
 
 def _unalias(key: str) -> str:
