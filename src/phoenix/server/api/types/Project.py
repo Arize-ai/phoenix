@@ -3,7 +3,7 @@ from typing import Optional
 
 import strawberry
 
-from phoenix.core.traces import Project as CoreProject
+from phoenix.core.project import Project as CoreProject
 from phoenix.server.api.types.node import Node
 
 

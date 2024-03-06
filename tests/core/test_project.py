@@ -7,7 +7,7 @@ import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import pytest
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
-from phoenix.core.traces import ReadableSpan, _Spans
+from phoenix.core.project import ReadableSpan, _Spans
 from phoenix.trace.schemas import ComputedAttributes
 
 
