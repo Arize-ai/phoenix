@@ -98,7 +98,7 @@ class Query:
             return to_gql_embedding_dimension(node_id, embedding_dimension)
         elif type_name == "Project":
             if (traces := info.context.traces) is not None:
-                projects = dict(enumerate(traces.get_projects()))                
+                projects = dict(enumerate(traces.get_projects()))
                 if (project_item := projects.get(node_id)) is not None:
                     (name, project) = project_item
                     return Project(id_attr=node_id, name=name, project=project)
