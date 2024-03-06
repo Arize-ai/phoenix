@@ -97,8 +97,14 @@ class Query:
             embedding_dimension = info.context.model.embedding_dimensions[node_id]
             return to_gql_embedding_dimension(node_id, embedding_dimension)
         elif type_name == "Project":
-            # TODO: implement ID
-            ...
+            if (traces := info.context.traces) is not None:
+                projects_list = [proj for proj in traces.get_projects()]
+                project_item = projects_list[node_id]
+                if project_item is not None:
+                    (name, project) = project_item
+                    return Project(id_attr=node_id, name=name, project=project)
+            raise Exception(f"Unknown project: {id}")
+
         raise Exception(f"Unknown node type: {type}")
 
     @strawberry.field
