@@ -32,7 +32,7 @@ export async function homeLoader(_args: LoaderFunctionArgs) {
 
   if (data?.functionality.modelInferences) {
     return redirect("/model");
-  } else if (data?.projects.edges && data?.projects.edges.length) {
+  } else if (data?.projects.edges?.length) {
     const projectId = data?.projects.edges[0].project.id;
     return redirect(`/projects/${projectId}`);
   } else {
