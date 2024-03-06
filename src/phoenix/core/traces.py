@@ -401,7 +401,7 @@ class _Spans:
 
     @property
     def trace_count(self) -> int:
-        """Total number of spans"""
+        """Total number of traces"""
         return len(self._traces)
 
     @property
