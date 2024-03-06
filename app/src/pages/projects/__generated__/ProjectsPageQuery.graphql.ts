@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0e8a1d9549aa9f35470a20914cfcf687>>
+ * @generated SignedSource<<02f0fee9e6528678da8c62f3d1177ce7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,9 +14,12 @@ export type ProjectsPageQuery$data = {
   readonly projects: {
     readonly edges: ReadonlyArray<{
       readonly project: {
+        readonly endTime: string | null;
         readonly id: string;
+        readonly latencyMsP50: number | null;
         readonly name: string;
         readonly recordCount: number;
+        readonly tokenCountTotal: number;
       };
     }>;
   };
@@ -72,6 +75,27 @@ var v0 = [
                 "kind": "ScalarField",
                 "name": "recordCount",
                 "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "endTime",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "latencyMsP50",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "tokenCountTotal",
+                "storageKey": null
               }
             ],
             "storageKey": null
@@ -101,16 +125,16 @@ return {
     "selections": (v0/*: any*/)
   },
   "params": {
-    "cacheID": "6debffa2f065166d98910a99b3fb8d0b",
+    "cacheID": "6e3630875b4da4264cfac49468a42fbd",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageQuery {\n  projects {\n    edges {\n      project: node {\n        id\n        name\n        recordCount\n      }\n    }\n  }\n}\n"
+    "text": "query ProjectsPageQuery {\n  projects {\n    edges {\n      project: node {\n        id\n        name\n        recordCount\n        endTime\n        latencyMsP50\n        tokenCountTotal\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c1fd81b97a1dc91090c7162f03e9b7b4";
+(node as any).hash = "5638e7d02041a68fc85c06e6cd486211";
 
 export default node;
