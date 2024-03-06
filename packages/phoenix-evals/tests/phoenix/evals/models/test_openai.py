@@ -1,7 +1,5 @@
-import unittest
 from unittest import mock
 
-import openai
 import pytest
 from openai import AzureOpenAI, OpenAI
 from phoenix.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME, OpenAIModel
