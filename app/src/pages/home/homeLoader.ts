@@ -17,7 +17,13 @@ export async function homeLoader(_args: LoaderFunctionArgs) {
       query homeLoaderQuery {
         functionality {
           modelInferences
-          tracing
+        }
+        projects {
+          edges {
+            project: node {
+              id
+            }
+          }
         }
       }
     `,
@@ -26,8 +32,9 @@ export async function homeLoader(_args: LoaderFunctionArgs) {
 
   if (data?.functionality.modelInferences) {
     return redirect("/model");
-  } else if (data?.functionality.tracing) {
-    return redirect("/projects/default");
+  } else if (data?.projects.edges?.length) {
+    const projectId = data?.projects.edges[0].project.id;
+    return redirect(`/projects/${projectId}`);
   } else {
     throw new Error("No functionality available");
   }
