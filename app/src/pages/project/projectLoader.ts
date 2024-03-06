@@ -15,8 +15,8 @@ export async function projectLoader(args: LoaderFunctionArgs) {
     graphql`
       query projectLoaderQuery($id: GlobalID!) {
         project: node(id: $id) {
+          id
           ... on Project {
-            id
             name
           }
         }

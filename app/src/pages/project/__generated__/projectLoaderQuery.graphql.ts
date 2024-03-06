@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<da8a4c08f4fba2a43324dd4620cfec3b>>
+ * @generated SignedSource<<2b1f0fe7ad134a9df68b9629ee8aa6c5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,7 +14,7 @@ export type projectLoaderQuery$variables = {
 };
 export type projectLoaderQuery$data = {
   readonly project: {
-    readonly id?: string;
+    readonly id: string;
     readonly name?: string;
   };
 };
@@ -46,11 +46,18 @@ v2 = {
   "storageKey": null
 },
 v3 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "name",
-  "storageKey": null
+  "kind": "InlineFragment",
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "name",
+      "storageKey": null
+    }
+  ],
+  "type": "Project",
+  "abstractKey": null
 };
 return {
   "fragment": {
@@ -67,15 +74,8 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          {
-            "kind": "InlineFragment",
-            "selections": [
-              (v2/*: any*/),
-              (v3/*: any*/)
-            ],
-            "type": "Project",
-            "abstractKey": null
-          }
+          (v2/*: any*/),
+          (v3/*: any*/)
         ],
         "storageKey": null
       }
@@ -104,35 +104,24 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v2/*: any*/),
-          {
-            "kind": "InlineFragment",
-            "selections": [
-              (v3/*: any*/)
-            ],
-            "type": "Project",
-            "abstractKey": null
-          }
+          (v3/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "ec00861a8ec75a861486e4e9e330ae88",
+    "cacheID": "04c84b5bc2a01477851d347af75dcc11",
     "id": null,
     "metadata": {},
     "name": "projectLoaderQuery",
     "operationKind": "query",
-    "text": "query projectLoaderQuery(\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      id\n      name\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query projectLoaderQuery(\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    id\n    ... on Project {\n      name\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f5e0934b6d1796990cca3e6fe8e25087";
+(node as any).hash = "3d31e323c06df38ec2eaa6f3adb55e79";
 
 export default node;
