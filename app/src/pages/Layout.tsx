@@ -2,7 +2,7 @@ import React, { Suspense, useMemo } from "react";
 import { Outlet } from "react-router";
 import { css } from "@emotion/react";
 
-import { Icon, Icons } from "@arizeai/components";
+import { Flex, Icon, Icons } from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
 import {
@@ -29,6 +29,7 @@ const mainViewCSS = css`
   flex: 1 1 auto;
   height: 100%;
   overflow: hidden;
+  padding-left: var(--px-nav-collapsed-width);
 `;
 const contentCSS = css`
   flex: 1 1 auto;
@@ -37,21 +38,19 @@ const contentCSS = css`
   height: 100%;
 `;
 
-const linksCSS = css`
+const bottomLinksCSS = css`
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   margin: 0;
   list-style: none;
-  gap: var(--ac-global-dimension-size-100);
+  gap: var(--ac-global-dimension-size-50);
   padding-inline-start: 0;
 `;
 
 const sideLinksCSS = css`
   display: flex;
   flex-direction: column;
-  align-items: center;
-
-  gap: var(--ac-global-dimension-size-100);
+  gap: var(--ac-global-dimension-size-50);
 `;
 
 export function Layout() {
@@ -61,17 +60,6 @@ export function Layout() {
       <div css={mainViewCSS}>
         <TopNavbar>
           <NavBreadcrumb />
-          <ul css={linksCSS}>
-            <li>
-              <DocsLink />
-            </li>
-            <li>
-              <GitHubLink />
-            </li>
-            <li>
-              <ThemeToggle />
-            </li>
-          </ul>
         </TopNavbar>
         <div data-testid="content" css={contentCSS}>
           <Suspense fallback={<Loading />}>
@@ -90,20 +78,37 @@ function SideNav() {
   return (
     <SideNavbar>
       <Brand />
-      <ul css={sideLinksCSS}>
-        {hasInferences && (
+      <Flex direction="column" justifyContent="space-between" flex="1 1 auto">
+        <ul css={sideLinksCSS}>
+          {hasInferences && (
+            <li>
+              <NavLink
+                to="/model"
+                text="Model"
+                icon={<Icon svg={<Icons.Cube />} />}
+              />
+            </li>
+          )}
           <li>
-            <NavLink to="/model" text="Model">
-              <Icon svg={<Icons.Cube />} />
-            </NavLink>
+            <NavLink
+              to="/projects/default"
+              text="Projects"
+              icon={<Icon svg={<Icons.Grid />} />}
+            />
           </li>
-        )}
-        <li>
-          <NavLink to="/projects/default" text="Projects">
-            <Icon svg={<Icons.Grid />} />
-          </NavLink>
-        </li>
-      </ul>
+        </ul>
+        <ul css={bottomLinksCSS}>
+          <li>
+            <DocsLink />
+          </li>
+          <li>
+            <GitHubLink />
+          </li>
+          <li>
+            <ThemeToggle />
+          </li>
+        </ul>
+      </Flex>
     </SideNavbar>
   );
 }

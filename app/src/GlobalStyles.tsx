@@ -82,6 +82,9 @@ export function GlobalStyles() {
           --px-font-size-lg: ${theme.typography.sizes.large.fontSize}px;
 
           --px-gradient-bar-height: 8px;
+
+          --px-nav-collapsed-width: 45px;
+          --px-nav-expanded-width: 200px;
         }
 
         .ac-theme--dark {
