@@ -276,7 +276,7 @@ class Project:
 
     @property
     def span_count(self) -> int:
-        return len(self._spans)
+        return self._spans.span_count
 
     @property
     def token_count_total(self) -> int:
@@ -307,48 +307,6 @@ class _Spans:
         self._root_span_latency_ms_sketch = DDSketch()
         self._token_count_total: int = 0
         self._last_updated_at: Optional[datetime] = None
-
-    def __len__(self) -> int:
-        return len(self._spans)
-
-    def add(self, span: ReadableSpan) -> None:
-        with self._lock:
-            if (span_id := span.context.span_id) in self._spans:
-                # Update is not allowed.
-                return
-            parent_span_id = span.parent_id
-            is_root_span = parent_span_id is None
-            if not is_root_span:
-                self._child_spans[parent_span_id].add(span)
-                self._parent_span_ids[span_id] = parent_span_id
-
-            # Add computed attributes to span
-            start_time = span.start_time
-            end_time = span.end_time
-            span[ComputedAttributes.LATENCY_MS.value] = latency = (
-                end_time - start_time
-            ).total_seconds() * 1000
-            if is_root_span:
-                self._root_span_latency_ms_sketch.add(latency)
-            span[ComputedAttributes.ERROR_COUNT.value] = int(
-                span.status_code is SpanStatusCode.ERROR
-            )
-
-            # Store the new span (after adding computed attributes)
-            self._spans[span_id] = span
-            self._traces[span.context.trace_id].add(span)
-            self._start_time_sorted_spans.add(span)
-            if is_root_span:
-                self._start_time_sorted_root_spans.add(span)
-                self._latency_sorted_root_spans.add(span)
-            self._propagate_cumulative_values(span)
-            self._update_cached_statistics(span)
-
-            self._last_updated_at = datetime.now(timezone.utc)
-
-    @property
-    def last_updated_at(self) -> Optional[datetime]:
-        return self._last_updated_at
 
     def get_trace(self, trace_id: TraceID) -> Iterator[Span]:
         with self._lock:
@@ -428,6 +386,15 @@ class _Spans:
             yield from self._get_descendant_spans(child_span.context.span_id)
 
     @property
+    def last_updated_at(self) -> Optional[datetime]:
+        return self._last_updated_at
+
+    @property
+    def span_count(self) -> int:
+        """Total number of spans"""
+        return len(self._spans)
+
+    @property
     def token_count_total(self) -> int:
         return self._token_count_total
 
@@ -441,6 +408,45 @@ class _Spans:
         min_start_time = first_span.start_time
         max_start_time = last_span.start_time
         return right_open_time_range(min_start_time, max_start_time)
+
+    def add(self, span: ReadableSpan) -> None:
+        with self._lock:
+            self._add_span(span)
+
+    def _add_span(self, span: ReadableSpan) -> None:
+        span_id = span.context.span_id
+        if span_id in self._spans:
+            # Update is not allowed.
+            return
+        parent_span_id = span.parent_id
+        is_root_span = parent_span_id is None
+        if not is_root_span:
+            self._child_spans[parent_span_id].add(span)
+            self._parent_span_ids[span_id] = parent_span_id
+
+        # Add computed attributes to span
+        start_time = span.start_time
+        end_time = span.end_time
+        span[ComputedAttributes.LATENCY_MS.value] = latency = (
+            end_time - start_time
+        ).total_seconds() * 1000
+        if is_root_span:
+            self._root_span_latency_ms_sketch.add(latency)
+        span[ComputedAttributes.ERROR_COUNT.value] = int(span.status_code is SpanStatusCode.ERROR)
+
+        # Store the new span (after adding computed attributes)
+        self._spans[span_id] = span
+        self._traces[span.context.trace_id].add(span)
+        self._start_time_sorted_spans.add(span)
+        if is_root_span:
+            self._start_time_sorted_root_spans.add(span)
+            self._latency_sorted_root_spans.add(span)
+        self._propagate_cumulative_values(span)
+        self._update_cached_statistics(span)
+
+        # Update last updated timestamp, letting users know
+        # when they should refresh the page.
+        self._last_updated_at = datetime.now(timezone.utc)
 
     def _update_cached_statistics(self, span: ReadableSpan) -> None:
         # Update statistics for quick access later
