@@ -279,6 +279,10 @@ class Project:
         return self._spans.span_count
 
     @property
+    def trace_count(self) -> int:
+        return self._spans.trace_count
+
+    @property
     def token_count_total(self) -> int:
         return self._spans.token_count_total
 
@@ -394,6 +398,11 @@ class _Spans:
     def span_count(self) -> int:
         """Total number of spans"""
         return len(self._spans)
+
+    @property
+    def trace_count(self) -> int:
+        """Total number of spans"""
+        return len(self._traces)
 
     @property
     def token_count_total(self) -> int:
