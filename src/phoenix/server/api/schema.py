@@ -52,6 +52,7 @@ class Query:
     @strawberry.field
     def projects(
         self,
+        info: Info[Context, None],
         first: Optional[int] = 50,
         last: Optional[int] = UNSET,
         after: Optional[Cursor] = UNSET,
@@ -63,7 +64,15 @@ class Query:
             last=last,
             before=before if isinstance(before, Cursor) else None,
         )
-        return connection_from_list(data=[Project(id_attr=0, name="default")], args=args)
+        data = (
+            []
+            if (traces := info.context.traces) is None
+            else [
+                Project(id_attr=i, name=name, project=project)
+                for i, (name, project) in enumerate(traces.get_projects())
+            ]
+        )
+        return connection_from_list(data=data, args=args)
 
     @strawberry.field
     def functionality(self, info: Info[Context, None]) -> "Functionality":
@@ -88,7 +97,8 @@ class Query:
             embedding_dimension = info.context.model.embedding_dimensions[node_id]
             return to_gql_embedding_dimension(node_id, embedding_dimension)
         elif type_name == "Project":
-            return Project(id_attr=0, name="default")  # TODO: implement ID
+            # TODO: implement ID
+            ...
         raise Exception(f"Unknown node type: {type}")
 
     @strawberry.field
@@ -281,7 +291,9 @@ class Query:
                 root_spans_only=root_spans_only,
             )
         else:
-            spans = chain.from_iterable(map(traces.get_trace, map(TraceID, trace_ids)))
+            spans = chain.from_iterable(
+                traces.get_trace(trace_id) for trace_id in map(TraceID, trace_ids)
+            )
         if predicate:
             spans = filter(predicate, spans)
         if sort:

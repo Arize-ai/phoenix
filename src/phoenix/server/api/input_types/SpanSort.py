@@ -9,18 +9,14 @@ from strawberry import UNSET
 from typing_extensions import assert_never
 
 import phoenix.trace.v1 as pb
-from phoenix.core.traces import (
-    END_TIME,
-    START_TIME,
-)
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.trace.schemas import ComputedAttributes, Span, SpanID
 
 
 @strawberry.enum
 class SpanColumn(Enum):
-    startTime = START_TIME
-    endTime = END_TIME
+    startTime = "start_time"
+    endTime = "end_time"
     latencyMs = ComputedAttributes.LATENCY_MS.value
     tokenCountTotal = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
     tokenCountPrompt = SpanAttributes.LLM_TOKEN_COUNT_PROMPT

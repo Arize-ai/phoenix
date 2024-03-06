@@ -7,13 +7,8 @@ import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import pytest
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
-from phoenix.core.traces import Traces
+from phoenix.core.project import ReadableSpan, _Spans
 from phoenix.trace.schemas import ComputedAttributes
-
-
-class MockTraces(Traces):
-    def _start_consumer(self) -> None:
-        pass
 
 
 @pytest.mark.parametrize("permutation", list(permutations(range(5))))
@@ -22,16 +17,16 @@ def test_ingestion(
     permutation: Tuple[int, ...],
     child_ids: DefaultDict[str, Set[str]],
 ) -> None:
-    mock = MockTraces()
+    mock = _Spans()
     trace_id = _id_str(otlp_trace[0].trace_id)
     expected_token_count_total = 0
     ingested_ids = set()
     for i, s in enumerate(permutation):
         otlp_span = otlp_trace[s]
-        mock._process_span(otlp_span)
+        mock.add(ReadableSpan(otlp_span))
 
-        assert len(mock._traces[trace_id]) == i + 1, f"{i=}, {s=}"
-        assert len(mock._spans) == i + 1, f"{i=}, {s=}"
+        assert len(list(mock.get_trace(trace_id))) == i + 1, f"{i=}, {s=}"
+        assert mock.span_count == i + 1, f"{i=}, {s=}"
 
         assert _id_str(otlp_span.span_id) in mock._spans, f"{i=}, {s=}"
         latest_span = mock._spans[_id_str(otlp_span.span_id)]
@@ -56,7 +51,7 @@ def test_ingestion(
 def test_get_descendant_span_ids(spans) -> None:
     spans = list(islice(spans, 6))
     span_ids = [span.context.span_id for span in spans]
-    mock = MockTraces()
+    mock = _Spans()
     mock._child_spans.update(
         {
             span_ids[1]: {spans[2], spans[3]},
@@ -64,12 +59,12 @@ def test_get_descendant_span_ids(spans) -> None:
             span_ids[4]: {spans[5]},
         }
     )
-    assert set(mock._get_descendant_spans(span_ids[0])) == set()
-    assert set(mock._get_descendant_spans(span_ids[1])) == set(spans[2:])
-    assert set(mock._get_descendant_spans(span_ids[2])) == set(spans[4:])
-    assert set(mock._get_descendant_spans(span_ids[3])) == set()
-    assert set(mock._get_descendant_spans(span_ids[4])) == set(spans[5:])
-    assert set(mock._get_descendant_spans(span_ids[5])) == set()
+    assert set(mock.get_descendant_spans(span_ids[0])) == set()
+    assert set(mock.get_descendant_spans(span_ids[1])) == set(spans[2:])
+    assert set(mock.get_descendant_spans(span_ids[2])) == set(spans[4:])
+    assert set(mock.get_descendant_spans(span_ids[3])) == set()
+    assert set(mock.get_descendant_spans(span_ids[4])) == set(spans[5:])
+    assert set(mock.get_descendant_spans(span_ids[5])) == set()
 
 
 Span = namedtuple("Span", "context")
