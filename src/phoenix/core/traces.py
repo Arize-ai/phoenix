@@ -25,7 +25,7 @@ from sortedcontainers import SortedKeyList
 from typing_extensions import TypeAlias
 from wrapt import ObjectProxy
 
-import phoenix.trace.schemas
+import phoenix.trace
 from phoenix.datetime_utils import right_open_time_range
 from phoenix.trace.otel import decode
 from phoenix.trace.schemas import (
@@ -121,28 +121,23 @@ class Traces:
         # Putting `None` as the sentinel value for queue termination.
         weakref.finalize(self, self._queue.put, END_OF_QUEUE)
         self._lock = RLock()
-        self._projects: DefaultDict[_ProjectName, _Project] = defaultdict(_Project)
+        self._projects: DefaultDict[_ProjectName, "Project"] = defaultdict(Project)
+        self._projects[_DEFAULT_PROJECT_NAME] = Project()
         self._start_consumer()
+
+    def get_projects(self) -> Iterator[Tuple[str, "Project"]]:
+        with self._lock:
+            projects = tuple(self._projects.items())
+        yield from projects
 
     def put(self, item: _QueueItem) -> None:
         self._queue.put(item)
 
-    def get_trace(
-        self,
-        trace_id: TraceID,
-        project_name: Optional[str] = None,
-    ) -> Iterator[Span]:
-        if not project_name:
-            project_name = _DEFAULT_PROJECT_NAME
+    def get_trace(self, trace_id: TraceID) -> Iterator[Span]:
         with self._lock:
-            if not (project := self._projects.get(project_name)):
+            if not (project := self._projects.get(_DEFAULT_PROJECT_NAME)):
                 return
-            # make a copy because source data can mutate during iteration
-            if not (trace := project.traces.get(trace_id)):
-                return
-            spans = tuple(trace)
-        for span in spans:
-            yield span.span
+        yield from project.get_trace(trace_id)
 
     def get_spans(
         self,
@@ -150,146 +145,65 @@ class Traces:
         stop_time: Optional[datetime] = None,
         root_spans_only: Optional[bool] = False,
         span_ids: Optional[Iterable[SpanID]] = None,
-        project_name: Optional[str] = None,
     ) -> Iterator[Span]:
-        if not project_name:
-            project_name = _DEFAULT_PROJECT_NAME
         with self._lock:
-            if not (project := self._projects.get(project_name)):
+            if not (project := self._projects.get(_DEFAULT_PROJECT_NAME)):
                 return
-            min_start_time, max_stop_time = cast(
-                Tuple[datetime, datetime],
-                self.right_open_time_range(project_name),
-            )
-            start_time = start_time or min_start_time
-            stop_time = stop_time or max_stop_time
-            if span_ids is not None:
-                spans = tuple(
-                    span
-                    for span_id in span_ids
-                    if (
-                        (span := project.spans.get(span_id))
-                        and start_time <= span.start_time < stop_time
-                        and (not root_spans_only or span.parent_id is None)
-                    )
-                )
-            else:
-                project = self._projects.get(project_name)
-                if not project:
-                    return
-                sorted_spans = (
-                    project.start_time_sorted_root_spans
-                    if root_spans_only
-                    else project.start_time_sorted_spans
-                )
-                # make a copy because source data can mutate during iteration
-                spans = tuple(
-                    sorted_spans.irange_key(
-                        start_time.astimezone(timezone.utc),
-                        stop_time.astimezone(timezone.utc),
-                        inclusive=(True, False),
-                        reverse=True,  # most recent spans first
-                    )
-                )
-        for span in spans:
-            yield span.span
+        yield from project.get_spans(start_time, stop_time, root_spans_only, span_ids)
 
-    def get_num_documents(
-        self,
-        span_id: SpanID,
-        project_name: Optional[str] = None,
-    ) -> int:
-        if not project_name:
-            project_name = _DEFAULT_PROJECT_NAME
+    def get_num_documents(self, span_id: SpanID) -> int:
         with self._lock:
-            if not (project := self._projects.get(project_name)):
+            if not (project := self._projects.get(_DEFAULT_PROJECT_NAME)):
                 return 0
-            return project.num_documents.get(span_id) or 0
+        return project.get_num_documents(span_id)
 
-    def root_span_latency_ms_quantiles(
-        self,
-        *probabilities: float,
-        project_name: Optional[str] = None,
-    ) -> Iterator[Optional[float]]:
+    def root_span_latency_ms_quantiles(self, *probabilities: float) -> Iterator[Optional[float]]:
         """Root span latency quantiles in milliseconds"""
-        if not project_name:
-            project_name = _DEFAULT_PROJECT_NAME
         with self._lock:
-            if not (project := self._projects.get(project_name)):
+            if not (project := self._projects.get(_DEFAULT_PROJECT_NAME)):
                 for _ in probabilities:
                     yield None
                 return
-            values = tuple(
-                project.root_span_latency_ms_sketch.get_quantile_value(probability)
-                for probability in probabilities
-            )
+        values = tuple(
+            project.root_span_latency_ms_quantiles(probability) for probability in probabilities
+        )
         yield from values
 
-    def get_descendant_spans(
-        self,
-        span_id: SpanID,
-        project_name: Optional[str] = None,
-    ) -> Iterator[Span]:
-        if not project_name:
-            project_name = _DEFAULT_PROJECT_NAME
+    def get_descendant_spans(self, span_id: SpanID) -> Iterator[Span]:
         with self._lock:
-            if not (project := self._projects.get(project_name)):
+            if not (project := self._projects.get(_DEFAULT_PROJECT_NAME)):
                 return
-            spans = tuple(project.get_descendant_spans(span_id))
-        for span in spans:
-            yield span.span
-
-    def last_updated_at(
-        self,
-        project_name: Optional[str] = None,
-    ) -> Optional[datetime]:
-        if not project_name:
-            project_name = _DEFAULT_PROJECT_NAME
-        with self._lock:
-            if not (project := self._projects.get(project_name)):
-                return None
-            return project.last_updated_at
-
-    def span_count(
-        self,
-        project_name: Optional[str] = None,
-    ) -> int:
-        """Total number of spans"""
-        if not project_name:
-            project_name = _DEFAULT_PROJECT_NAME
-        with self._lock:
-            if not (project := self._projects.get(project_name)):
-                return 0
-            return len(project.spans)
+        yield from project.get_descendant_spans(span_id)
 
     @property
-    def token_count_total(
-        self,
-        project_name: Optional[str] = None,
-    ) -> int:
-        if not project_name:
-            project_name = _DEFAULT_PROJECT_NAME
+    def last_updated_at(self) -> Optional[datetime]:
+        with self._lock:
+            if not (project := self._projects.get(_DEFAULT_PROJECT_NAME)):
+                return None
+        return project.last_updated_at
+
+    @property
+    def span_count(self) -> int:
+        """Total number of spans"""
+        project_name = _DEFAULT_PROJECT_NAME
         with self._lock:
             if not (project := self._projects.get(project_name)):
                 return 0
-            return project.token_count_total
+        return project.span_count
 
-    def right_open_time_range(
-        self,
-        project_name: Optional[str] = None,
-    ) -> Tuple[Optional[datetime], Optional[datetime]]:
-        if not project_name:
-            project_name = _DEFAULT_PROJECT_NAME
+    @property
+    def token_count_total(self) -> int:
         with self._lock:
-            if not (project := self._projects.get(project_name)):
+            if not (project := self._projects.get(_DEFAULT_PROJECT_NAME)):
+                return 0
+        return project.token_count_total
+
+    @property
+    def right_open_time_range(self) -> Tuple[Optional[datetime], Optional[datetime]]:
+        with self._lock:
+            if not (project := self._projects.get(_DEFAULT_PROJECT_NAME)):
                 return None, None
-            if not project.start_time_sorted_spans:
-                return None, None
-            first_span = project.start_time_sorted_spans[0]
-            last_span = project.start_time_sorted_spans[-1]
-        min_start_time = first_span.start_time
-        max_start_time = last_span.start_time
-        return right_open_time_range(min_start_time, max_start_time)
+        return project.right_open_time_range
 
     def _start_consumer(self) -> None:
         Thread(
@@ -309,45 +223,104 @@ class Traces:
                 otlp_span = item
             if not project_name:
                 project_name = _DEFAULT_PROJECT_NAME
+            span = ReadableSpan(otlp_span)
             with self._lock:
-                span = ReadableSpan(otlp_span)
                 project = self._projects[project_name]
-                project.add(span)
+            project.add_span(span)
 
 
-class _Project:
+class Project:
     def __init__(self) -> None:
-        self.spans: Dict[SpanID, ReadableSpan] = {}
-        self.traces: DefaultDict[TraceID, Set[ReadableSpan]] = defaultdict(set)
-        self.child_spans: DefaultDict[SpanID, Set[ReadableSpan]] = defaultdict(set)
-        self.parent_span_ids: Dict[SpanID, _ParentSpanID] = {}
-        self.num_documents: DefaultDict[SpanID, int] = defaultdict(int)
-        self.start_time_sorted_spans: SortedKeyList[ReadableSpan] = SortedKeyList(
+        self._spans = _Spans()
+        self._evals = _Evals()
+
+    @property
+    def last_updated_at(self) -> Optional[datetime]:
+        spans_last_updated_at = self._spans.last_updated_at
+        evals_last_updated_at = self._evals.last_updated_at
+        if (
+            not spans_last_updated_at
+            or evals_last_updated_at
+            and evals_last_updated_at > spans_last_updated_at
+        ):
+            return evals_last_updated_at
+        return spans_last_updated_at
+
+    def add_span(self, span: ReadableSpan) -> None:
+        self._spans.add(span)
+
+    def add_eval(self, _: Any) -> None: ...
+
+    def get_trace(self, trace_id: TraceID) -> Iterator[Span]:
+        yield from self._spans.get_trace(trace_id)
+
+    def get_spans(
+        self,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+        root_spans_only: Optional[bool] = False,
+        span_ids: Optional[Iterable[SpanID]] = None,
+    ) -> Iterator[Span]:
+        yield from self._spans.get_spans(start_time, stop_time, root_spans_only, span_ids)
+
+    def get_num_documents(self, span_id: SpanID) -> int:
+        return self._spans.get_num_documents(span_id)
+
+    def root_span_latency_ms_quantiles(self, probability: float) -> Optional[float]:
+        """Root span latency quantiles in milliseconds"""
+        return self._spans.root_span_latency_ms_quantiles(probability)
+
+    def get_descendant_spans(self, span_id: SpanID) -> Iterator[Span]:
+        spans = tuple(self._spans.get_descendant_spans(span_id))
+        for span in spans:
+            yield span.span
+
+    @property
+    def span_count(self) -> int:
+        return len(self._spans)
+
+    @property
+    def token_count_total(self) -> int:
+        return self._spans.token_count_total
+
+    @property
+    def right_open_time_range(self) -> Tuple[Optional[datetime], Optional[datetime]]:
+        return self._spans.right_open_time_range
+
+
+class _Spans:
+    def __init__(self) -> None:
+        self._spans: Dict[SpanID, ReadableSpan] = {}
+        self._traces: DefaultDict[TraceID, Set[ReadableSpan]] = defaultdict(set)
+        self._child_spans: DefaultDict[SpanID, Set[ReadableSpan]] = defaultdict(set)
+        self._parent_span_ids: Dict[SpanID, _ParentSpanID] = {}
+        self._num_documents: DefaultDict[SpanID, int] = defaultdict(int)
+        self._start_time_sorted_spans: SortedKeyList[ReadableSpan] = SortedKeyList(
             key=lambda span: span.start_time,
         )
-        self.start_time_sorted_root_spans: SortedKeyList[ReadableSpan] = SortedKeyList(
+        self._start_time_sorted_root_spans: SortedKeyList[ReadableSpan] = SortedKeyList(
             key=lambda span: span.start_time,
         )
-        self.latency_sorted_root_spans: SortedKeyList[ReadableSpan] = SortedKeyList(
+        self._latency_sorted_root_spans: SortedKeyList[ReadableSpan] = SortedKeyList(
             key=lambda span: span[ComputedAttributes.LATENCY_MS.value],
         )
-        self.root_span_latency_ms_sketch = DDSketch()
-        self.token_count_total: int = 0
-        self.last_updated_at: Optional[datetime] = None
+        self._root_span_latency_ms_sketch = DDSketch()
+        self._token_count_total: int = 0
+        self._last_updated_at: Optional[datetime] = None
 
-    def __bool__(self) -> bool:
-        return bool(self.start_time_sorted_spans)
+    def __len__(self) -> int:
+        return len(self._spans)
 
     def add(self, span: ReadableSpan) -> None:
-        if (span_id := span.context.span_id) in self.spans:
+        if (span_id := span.context.span_id) in self._spans:
             # Update is not allowed.
             return
 
         parent_span_id = span.parent_id
         is_root_span = parent_span_id is None
         if not is_root_span:
-            self.child_spans[parent_span_id].add(span)
-            self.parent_span_ids[span_id] = parent_span_id
+            self._child_spans[parent_span_id].add(span)
+            self._parent_span_ids[span_id] = parent_span_id
 
         # Add computed attributes to span
         start_time = span.start_time
@@ -356,40 +329,116 @@ class _Project:
             end_time - start_time
         ).total_seconds() * 1000
         if is_root_span:
-            self.root_span_latency_ms_sketch.add(latency)
+            self._root_span_latency_ms_sketch.add(latency)
         span[ComputedAttributes.ERROR_COUNT.value] = int(span.status_code is SpanStatusCode.ERROR)
 
         # Store the new span (after adding computed attributes)
-        self.spans[span_id] = span
-        self.traces[span.context.trace_id].add(span)
-        self.start_time_sorted_spans.add(span)
+        self._spans[span_id] = span
+        self._traces[span.context.trace_id].add(span)
+        self._start_time_sorted_spans.add(span)
         if is_root_span:
-            self.start_time_sorted_root_spans.add(span)
-            self.latency_sorted_root_spans.add(span)
+            self._start_time_sorted_root_spans.add(span)
+            self._latency_sorted_root_spans.add(span)
         self._propagate_cumulative_values(span)
         self._update_cached_statistics(span)
 
-        self.last_updated_at = datetime.now(timezone.utc)
+        self._last_updated_at = datetime.now(timezone.utc)
+
+    @property
+    def last_updated_at(self) -> Optional[datetime]:
+        return self._last_updated_at
+
+    def get_trace(self, trace_id: TraceID) -> Iterator[Span]:
+        if not (spans := self._traces.get(trace_id)):
+            return
+        for span in tuple(spans):
+            yield span.span
+
+    def get_spans(
+        self,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+        root_spans_only: Optional[bool] = False,
+        span_ids: Optional[Iterable[SpanID]] = None,
+    ) -> Iterator[Span]:
+        if start_time is None or stop_time is None:
+            min_start_time, max_stop_time = cast(
+                Tuple[datetime, datetime],
+                self.right_open_time_range,
+            )
+            start_time = start_time or min_start_time
+            stop_time = stop_time or max_stop_time
+        if span_ids is not None:
+            spans = tuple(
+                span
+                for span_id in span_ids
+                if (
+                    (span := self._spans.get(span_id))
+                    and start_time <= span.start_time < stop_time
+                    and (not root_spans_only or span.parent_id is None)
+                )
+            )
+        else:
+            sorted_spans = (
+                self._start_time_sorted_root_spans
+                if root_spans_only
+                else self._start_time_sorted_spans
+            )
+            # make a copy because source data can mutate during iteration
+            spans = tuple(
+                sorted_spans.irange_key(
+                    start_time.astimezone(timezone.utc),
+                    stop_time.astimezone(timezone.utc),
+                    inclusive=(True, False),
+                    reverse=True,  # most recent spans first
+                )
+            )
+        for span in spans:
+            yield span.span
+
+    @property
+    def token_count_total(self) -> int:
+        return self._token_count_total
+
+    @property
+    def right_open_time_range(self) -> Tuple[Optional[datetime], Optional[datetime]]:
+        if not self._start_time_sorted_spans:
+            return None, None
+        first_span = self._start_time_sorted_spans[0]
+        last_span = self._start_time_sorted_spans[-1]
+        min_start_time = first_span.start_time
+        max_start_time = last_span.start_time
+        return right_open_time_range(min_start_time, max_start_time)
+
+    def get_num_documents(self, span_id: SpanID) -> int:
+        return self._num_documents.get(span_id) or 0
+
+    def root_span_latency_ms_quantiles(self, probability: float) -> Optional[float]:
+        """Root span latency quantiles in milliseconds"""
+        return self._root_span_latency_ms_sketch.get_quantile_value(probability)
 
     def get_descendant_spans(self, span_id: SpanID) -> Iterator[ReadableSpan]:
-        if not (child_spans := self.child_spans.get(span_id)):
+        yield from self._get_descendant_spans(span_id)
+
+    def _get_descendant_spans(self, span_id: SpanID) -> Iterator[ReadableSpan]:
+        if not (child_spans := self._child_spans.get(span_id)):
             return
         for child_span in child_spans:
             yield child_span
-            yield from self.get_descendant_spans(child_span.context.span_id)
+            yield from self._get_descendant_spans(child_span.context.span_id)
 
     def _update_cached_statistics(self, span: ReadableSpan) -> None:
         # Update statistics for quick access later
         span_id = span.context.span_id
         if token_count_update := span.attributes.get(SpanAttributes.LLM_TOKEN_COUNT_TOTAL):
-            self.token_count_total += token_count_update
+            self._token_count_total += token_count_update
         if num_documents_update := len(
             span.attributes.get(SpanAttributes.RETRIEVAL_DOCUMENTS) or ()
         ):
-            self.num_documents[span_id] += num_documents_update
+            self._num_documents[span_id] += num_documents_update
 
     def _propagate_cumulative_values(self, span: ReadableSpan) -> None:
-        child_spans: Iterable[ReadableSpan] = self.child_spans.get(span.context.span_id) or ()
+        child_spans: Iterable[ReadableSpan] = self._child_spans.get(span.context.span_id) or ()
         for cumulative_attribute, attribute in _CUMULATIVE_ATTRIBUTES.items():
             span[cumulative_attribute] = span[attribute] or 0
             for child_span in child_spans:
@@ -409,12 +458,17 @@ class _Project:
         attribute_name: str,
         value: float,
     ) -> None:
-        while parent_span_id := self.parent_span_ids.get(span_id):
-            if not (parent_span := self.spans.get(parent_span_id)):
+        while parent_span_id := self._parent_span_ids.get(span_id):
+            if not (parent_span := self._spans.get(parent_span_id)):
                 return
             cumulative_value = parent_span[attribute_name] or 0
             parent_span[attribute_name] = cumulative_value + value
             span_id = parent_span_id
+
+
+class _Evals:
+    def __init__(self) -> None:
+        self.last_updated_at: Optional[datetime] = None
 
 
 _CUMULATIVE_ATTRIBUTES = MappingProxyType(
