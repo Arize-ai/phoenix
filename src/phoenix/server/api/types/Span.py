@@ -145,9 +145,9 @@ class Span:
         self,
         info: Info[Context, None],
     ) -> List[SpanEvaluation]:
-        if not (traces := info.context.traces):
-            return []
-        if not (project := traces.get_project(DEFAULT_PROJECT_NAME)):
+        if not (traces := info.context.traces) or not (
+            project := traces.get_project(DEFAULT_PROJECT_NAME)
+        ):
             return []
         span_id = SpanID(str(self.context.span_id))
         return [
@@ -167,9 +167,9 @@ class Span:
         self,
         info: Info[Context, None],
     ) -> List[DocumentEvaluation]:
-        if not (traces := info.context.traces):
-            return []
-        if not (project := traces.get_project(DEFAULT_PROJECT_NAME)):
+        if not (traces := info.context.traces) or not (
+            project := traces.get_project(DEFAULT_PROJECT_NAME)
+        ):
             return []
         span_id = SpanID(str(self.context.span_id))
         return [
@@ -185,9 +185,11 @@ class Span:
         info: Info[Context, None],
         evaluation_name: Optional[str] = UNSET,
     ) -> List[DocumentRetrievalMetrics]:
-        if not self.num_documents or not (traces := info.context.traces):
-            return []
-        if not (project := traces.get_project(DEFAULT_PROJECT_NAME)):
+        if (
+            not self.num_documents
+            or not (traces := info.context.traces)
+            or not (project := traces.get_project(DEFAULT_PROJECT_NAME))
+        ):
             return []
         span_id = SpanID(str(self.context.span_id))
         all_document_evaluation_names = project.get_document_evaluation_names(span_id)

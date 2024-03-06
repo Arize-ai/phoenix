@@ -10,6 +10,7 @@ from strawberry import ID, UNSET
 from strawberry.types import Info
 from typing_extensions import Annotated
 
+from phoenix.core.project import DEFAULT_PROJECT_NAME
 from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.helpers import ensure_list
@@ -24,7 +25,6 @@ from phoenix.server.api.types.Project import Project
 from phoenix.trace.dsl import SpanFilter
 from phoenix.trace.schemas import SpanID, TraceID
 
-from ...core.project import DEFAULT_PROJECT_NAME
 from .context import Context
 from .input_types.TimeRange import TimeRange
 from .types.DatasetInfo import TraceDatasetInfo
