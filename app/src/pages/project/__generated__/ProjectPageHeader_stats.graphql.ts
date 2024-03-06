@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c43e21acde97e1dacfbd9d6acb6099f0>>
+ * @generated SignedSource<<6571ee2476b990ebdd373e0919479cf5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type TracingHomePageHeader_stats$data = {
+export type ProjectPageHeader_stats$data = {
   readonly documentEvaluationNames: ReadonlyArray<string>;
   readonly spanEvaluationNames: ReadonlyArray<string>;
   readonly totalTraces: {
@@ -25,11 +25,11 @@ export type TracingHomePageHeader_stats$data = {
     readonly startTime: string;
     readonly tokenCountTotal: number;
   } | null;
-  readonly " $fragmentType": "TracingHomePageHeader_stats";
+  readonly " $fragmentType": "ProjectPageHeader_stats";
 };
-export type TracingHomePageHeader_stats$key = {
-  readonly " $data"?: TracingHomePageHeader_stats$data;
-  readonly " $fragmentSpreads": FragmentRefs<"TracingHomePageHeader_stats">;
+export type ProjectPageHeader_stats$key = {
+  readonly " $data"?: ProjectPageHeader_stats$data;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectPageHeader_stats">;
 };
 
 const node: ReaderFragment = {
@@ -39,10 +39,10 @@ const node: ReaderFragment = {
     "refetch": {
       "connection": null,
       "fragmentPathInResult": [],
-      "operation": require('./TracingHomePageHeaderQuery.graphql')
+      "operation": require('./ProjectPageHeaderQuery.graphql')
     }
   },
-  "name": "TracingHomePageHeader_stats",
+  "name": "ProjectPageHeader_stats",
   "selections": [
     {
       "alias": "totalTraces",
@@ -144,6 +144,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "631360b4ed0a5a26238d4c2aea1bd759";
+(node as any).hash = "b5e575b779dea4366253bbfde728abe0";
 
 export default node;
