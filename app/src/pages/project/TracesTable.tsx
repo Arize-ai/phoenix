@@ -54,7 +54,7 @@ import {
 } from "./tableUtils";
 import { TokenCount } from "./TokenCount";
 type TracesTableProps = {
-  query: TracesTable_spans$key;
+  project: TracesTable_spans$key;
 };
 
 const PAGE_SIZE = 100;
@@ -184,7 +184,7 @@ export function TracesTable(props: TracesTableProps) {
           }
         }
       `,
-      props.query
+      props.project
     );
 
   const evaluationVisibility = useTracingContext(

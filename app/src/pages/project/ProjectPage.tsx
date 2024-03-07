@@ -72,7 +72,7 @@ export function ProjectPage() {
             return (
               isSelected && (
                 <Suspense>
-                  <TracesTable query={data.project} />
+                  <TracesTable project={data.project} />
                 </Suspense>
               )
             );
