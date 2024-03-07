@@ -44,7 +44,8 @@ class SpanHandler(HTTPEndpoint):
     async def get(self, request: Request) -> Response:
         payload = await request.json()
         queries = payload.pop("queries", [])
-        if not (project := self.traces.get_project(DEFAULT_PROJECT_NAME)):
+        project_name = payload.pop("project_name", None) or DEFAULT_PROJECT_NAME
+        if not (project := self.traces.get_project(project_name)):
             return Response(status_code=HTTP_404_NOT_FOUND)
         loop = asyncio.get_running_loop()
         valid_eval_names = (
@@ -73,7 +74,7 @@ class SpanHandler(HTTPEndpoint):
             None,
             partial(
                 query_spans,
-                self.traces,
+                project,
                 *span_queries,
                 start_time=from_iso_format(payload.get("start_time")),
                 stop_time=from_iso_format(payload.get("stop_time")),

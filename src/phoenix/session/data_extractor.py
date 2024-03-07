@@ -22,6 +22,7 @@ class TraceDataExtractor(ABC):
         start_time: Optional[datetime] = None,
         stop_time: Optional[datetime] = None,
         root_spans_only: Optional[bool] = None,
+        project_name: Optional[str] = None,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]: ...
 
     def get_spans_dataframe(
@@ -31,6 +32,7 @@ class TraceDataExtractor(ABC):
         start_time: Optional[datetime] = None,
         stop_time: Optional[datetime] = None,
         root_spans_only: Optional[bool] = None,
+        project_name: Optional[str] = None,
     ) -> Optional[pd.DataFrame]:
         return cast(
             Optional[pd.DataFrame],
@@ -39,14 +41,21 @@ class TraceDataExtractor(ABC):
                 start_time=start_time,
                 stop_time=stop_time,
                 root_spans_only=root_spans_only,
+                project_name=project_name,
             ),
         )
 
     @abstractmethod
-    def get_evaluations(self) -> List[Evaluations]: ...
+    def get_evaluations(
+        self,
+        project_name: Optional[str] = None,
+    ) -> List[Evaluations]: ...
 
-    def get_trace_dataset(self) -> Optional[TraceDataset]:
-        if (dataframe := self.get_spans_dataframe()) is None:
+    def get_trace_dataset(
+        self,
+        project_name: Optional[str] = None,
+    ) -> Optional[TraceDataset]:
+        if (dataframe := self.get_spans_dataframe(project_name=project_name)) is None:
             return None
-        evaluations = self.get_evaluations()
+        evaluations = self.get_evaluations(project_name=project_name)
         return TraceDataset(dataframe=dataframe, evaluations=evaluations)

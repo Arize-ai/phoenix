@@ -259,15 +259,20 @@ class ProcessSession(Session):
         start_time: Optional[datetime] = None,
         stop_time: Optional[datetime] = None,
         root_spans_only: Optional[bool] = None,
+        project_name: Optional[str] = None,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
         return self._client.query_spans(
             *queries,
             start_time=start_time,
             stop_time=stop_time,
             root_spans_only=root_spans_only,
+            project_name=project_name,
         )
 
-    def get_evaluations(self) -> List[Evaluations]:
+    def get_evaluations(
+        self,
+        project_name: Optional[str] = None,
+    ) -> List[Evaluations]:
         return self._client.get_evaluations()
 
 
@@ -325,12 +330,14 @@ class ThreadSession(Session):
         start_time: Optional[datetime] = None,
         stop_time: Optional[datetime] = None,
         root_spans_only: Optional[bool] = None,
+        project_name: Optional[str] = None,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
-        if (traces := self.traces) is None:
+        if not (traces := self.traces) or not (
+            project := traces.get_project(project_name or DEFAULT_PROJECT_NAME)
+        ):
             return None
         if not queries:
             queries = (SpanQuery(),)
-        project = traces.get_project(DEFAULT_PROJECT_NAME)
         valid_eval_names = project.get_span_evaluation_names() if project else ()
         queries = tuple(
             SpanQuery.from_dict(
@@ -341,7 +348,7 @@ class ThreadSession(Session):
             for query in queries
         )
         results = query_spans(
-            traces,
+            project,
             *queries,
             start_time=start_time,
             stop_time=stop_time,
@@ -352,8 +359,13 @@ class ThreadSession(Session):
             return None if df.shape == (0, 0) else df
         return results
 
-    def get_evaluations(self) -> List[Evaluations]:
-        if not (traces := self.traces) or not (project := traces.get_project(DEFAULT_PROJECT_NAME)):
+    def get_evaluations(
+        self,
+        project_name: Optional[str] = None,
+    ) -> List[Evaluations]:
+        if not (traces := self.traces) or not (
+            project := traces.get_project(project_name or DEFAULT_PROJECT_NAME)
+        ):
             return []
         return project.export_evaluations()
 

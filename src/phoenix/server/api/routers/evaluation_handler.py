@@ -54,8 +54,10 @@ class EvaluationHandler(HTTPEndpoint):
         self.traces.put(evaluation)
         return Response()
 
-    async def get(self, _: Request) -> Response:
-        project = self.traces.get_project(DEFAULT_PROJECT_NAME)
+    async def get(self, request: Request) -> Response:
+        payload = await request.json()
+        project_name = payload.pop("project_name", None) or DEFAULT_PROJECT_NAME
+        project = self.traces.get_project(project_name)
         if not project:
             return Response(status_code=HTTP_404_NOT_FOUND)
         loop = asyncio.get_running_loop()
