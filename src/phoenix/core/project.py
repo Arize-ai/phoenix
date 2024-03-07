@@ -302,10 +302,10 @@ class _Spans:
         start_time: Optional[datetime] = None,
         stop_time: Optional[datetime] = None,
     ) -> int:
-        """Total number of spans"""
         _index = self._start_time_sorted_spans.bisect_key_left
-        start: int = _index(start_time) if start_time else 0
-        stop: int = _index(stop_time) if stop_time else len(self._spans)
+        with self._lock:
+            start: int = _index(start_time) if start_time else 0
+            stop: int = _index(stop_time) if stop_time else len(self._spans)
         return stop - start
 
     def trace_count(
@@ -313,10 +313,10 @@ class _Spans:
         start_time: Optional[datetime] = None,
         stop_time: Optional[datetime] = None,
     ) -> int:
-        """Total number of traces"""
         _index = self._start_time_sorted_root_spans.bisect_key_left
-        start: int = _index(start_time) if start_time else 0
-        stop: int = _index(stop_time) if stop_time else len(self._traces)
+        with self._lock:
+            start: int = _index(start_time) if start_time else 0
+            stop: int = _index(stop_time) if stop_time else len(self._traces)
         return stop - start
 
     @property
