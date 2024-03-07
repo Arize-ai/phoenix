@@ -11,7 +11,6 @@ from strawberry.types import Info
 from typing_extensions import Annotated
 
 from phoenix.core.project import DEFAULT_PROJECT_NAME
-from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
@@ -30,7 +29,6 @@ from .input_types.TimeRange import TimeRange
 from .types.DatasetInfo import TraceDatasetInfo
 from .types.DatasetRole import AncillaryDatasetRole, DatasetRole
 from .types.Dimension import to_gql_dimension
-from .types.DocumentEvaluationSummary import DocumentEvaluationSummary
 from .types.EmbeddingDimension import (
     DEFAULT_CLUSTER_SELECTION_EPSILON,
     DEFAULT_MIN_CLUSTER_SIZE,
@@ -375,50 +373,6 @@ class Query:
             return None
         labels = project.get_span_evaluation_labels(evaluation_name)
         return EvaluationSummary(evaluations, labels)
-
-    @strawberry.field
-    def document_evaluation_summary(
-        self,
-        info: Info[Context, None],
-        evaluation_name: str,
-        time_range: Optional[TimeRange] = UNSET,
-        filter_condition: Optional[str] = UNSET,
-    ) -> Optional[DocumentEvaluationSummary]:
-        if not (traces := info.context.traces) or not (
-            project := traces.get_project(DEFAULT_PROJECT_NAME)
-        ):
-            return None
-        predicate = (
-            SpanFilter(condition=filter_condition, evals=project) if filter_condition else None
-        )
-        span_ids = project.get_document_evaluation_span_ids(evaluation_name)
-        if not span_ids:
-            return None
-        spans = traces.get_spans(
-            start_time=time_range.start if time_range else None,
-            stop_time=time_range.end if time_range else None,
-            span_ids=span_ids,
-        )
-        if predicate:
-            spans = filter(predicate, spans)
-        metrics_collection = []
-        for span in spans:
-            span_id = span.context.span_id
-            num_documents = traces.get_num_documents(span_id)
-            if not num_documents:
-                continue
-            evaluation_scores = project.get_document_evaluation_scores(
-                span_id=span_id,
-                evaluation_name=evaluation_name,
-                num_documents=num_documents,
-            )
-            metrics_collection.append(RetrievalMetrics(evaluation_scores))
-        if not metrics_collection:
-            return None
-        return DocumentEvaluationSummary(
-            evaluation_name=evaluation_name,
-            metrics_collection=metrics_collection,
-        )
 
     @strawberry.field
     def trace_dataset_info(

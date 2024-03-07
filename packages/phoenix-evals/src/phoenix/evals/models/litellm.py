@@ -65,7 +65,7 @@ class LiteLLMModel(BaseModel):
             from litellm import validate_environment
 
             self._litellm = litellm
-            env_info = validate_environment(self._litellm.utils.get_llm_provider(self.model))
+            env_info = validate_environment(self.model)
 
             if not env_info["keys_in_environment"] and env_info["missing_keys"]:
                 raise RuntimeError(
