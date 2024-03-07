@@ -15,14 +15,15 @@ from starlette.status import (
 )
 
 import phoenix.trace.v1 as pb
-from phoenix.core.evals import Evals
+from phoenix.core.project import DEFAULT_PROJECT_NAME
+from phoenix.core.traces import Traces
 from phoenix.server.api.routers.utils import table_to_bytes
 from phoenix.session.evaluation import encode_evaluations
 from phoenix.trace.span_evaluations import Evaluations
 
 
 class EvaluationHandler(HTTPEndpoint):
-    evals: Evals
+    traces: Traces
 
     async def post(self, request: Request) -> Response:
         content_type = request.headers.get("content-type")
@@ -50,14 +51,17 @@ class EvaluationHandler(HTTPEndpoint):
                 content="Request body is invalid",
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
             )
-        self.evals.put(evaluation)
+        self.traces.put(evaluation)
         return Response()
 
     async def get(self, _: Request) -> Response:
+        project = self.traces.get_project(DEFAULT_PROJECT_NAME)
+        if not project:
+            return Response(status_code=HTTP_404_NOT_FOUND)
         loop = asyncio.get_running_loop()
         results = await loop.run_in_executor(
             None,
-            self.evals.export_evaluations,
+            project.export_evaluations,
         )
         if not results:
             return Response(status_code=HTTP_404_NOT_FOUND)
@@ -99,4 +103,4 @@ class EvaluationHandler(HTTPEndpoint):
 
     async def _add_evaluations(self, evaluations: Evaluations) -> None:
         for evaluation in encode_evaluations(evaluations):
-            self.evals.put(evaluation)
+            self.traces.put(evaluation)
