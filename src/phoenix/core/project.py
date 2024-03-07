@@ -133,13 +133,19 @@ class Project:
     def get_descendant_spans(self, span_id: SpanID) -> Iterator[WrappedSpan]:
         yield from self._spans.get_descendant_spans(span_id)
 
-    @property
-    def span_count(self) -> int:
-        return self._spans.span_count
+    def span_count(
+        self,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+    ) -> int:
+        return self._spans.span_count(start_time, stop_time)
 
-    @property
-    def trace_count(self) -> int:
-        return self._spans.trace_count
+    def trace_count(
+        self,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+    ) -> int:
+        return self._spans.trace_count(start_time, stop_time)
 
     @property
     def token_count_total(self) -> int:
@@ -291,15 +297,27 @@ class _Spans:
     def last_updated_at(self) -> Optional[datetime]:
         return self._last_updated_at
 
-    @property
-    def span_count(self) -> int:
-        """Total number of spans"""
-        return len(self._spans)
+    def span_count(
+        self,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+    ) -> int:
+        _index = self._start_time_sorted_spans.bisect_key_left
+        with self._lock:
+            start: int = _index(start_time) if start_time else 0
+            stop: int = _index(stop_time) if stop_time else len(self._spans)
+        return stop - start
 
-    @property
-    def trace_count(self) -> int:
-        """Total number of traces"""
-        return len(self._traces)
+    def trace_count(
+        self,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+    ) -> int:
+        _index = self._start_time_sorted_root_spans.bisect_key_left
+        with self._lock:
+            start: int = _index(start_time) if start_time else 0
+            stop: int = _index(stop_time) if stop_time else len(self._traces)
+        return stop - start
 
     @property
     def token_count_total(self) -> int:

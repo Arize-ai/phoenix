@@ -31,7 +31,7 @@ dependencies = [
 dev = [
   "anthropic>0.18.0",
   "boto3",
-  "litellm>=1.0.3",
+  "litellm>=1.28.9",
   "openai>=1.0.0",
   "vertexai",
 ]
@@ -42,7 +42,7 @@ test = [
   "typing-extensions>=4.5, <5",
   "anthropic>=0.18.0",
   "boto3",
-  "litellm>=1.0.3",
+  "litellm>=1.28.9",
   "openai>=1.0.0",
   "vertexai",
   "respx",

@@ -539,7 +539,8 @@ type Project implements Node {
   name: String!
   startTime: DateTime
   endTime: DateTime
-  recordCount: Int!
+  recordCount(timeRange: TimeRange): Int!
+  traceCount(timeRange: TimeRange): Int!
   tokenCountTotal: Int!
   latencyMsP50: Float
   latencyMsP99: Float

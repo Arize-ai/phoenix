@@ -39,8 +39,22 @@ class Project(Node):
         return end_time
 
     @strawberry.field
-    def record_count(self) -> int:
-        return self.project.span_count
+    def record_count(
+        self,
+        time_range: Optional[TimeRange] = UNSET,
+    ) -> int:
+        if not time_range:
+            return self.project.span_count()
+        return self.project.span_count(time_range.start, time_range.end)
+
+    @strawberry.field
+    def trace_count(
+        self,
+        time_range: Optional[TimeRange] = UNSET,
+    ) -> int:
+        if not time_range:
+            return self.project.trace_count()
+        return self.project.trace_count(time_range.start, time_range.end)
 
     @strawberry.field
     def token_count_total(self) -> int:
@@ -73,7 +87,7 @@ class Project(Node):
             last=last,
             before=before if isinstance(before, Cursor) else None,
         )
-        if not (project := self.project).span_count:
+        if not (project := self.project).span_count():
             return connection_from_list(data=[], args=args)
         predicate = (
             SpanFilter(
