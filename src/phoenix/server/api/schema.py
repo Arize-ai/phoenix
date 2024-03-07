@@ -99,9 +99,9 @@ class Query:
             return to_gql_embedding_dimension(node_id, embedding_dimension)
         elif type_name == "Project":
             if (traces := info.context.traces) is not None:
-                projects = dict(enumerate(traces.get_projects()))
-                if (project_item := projects.get(node_id)) is not None:
-                    (name, project) = project_item
+                projects = list(traces.get_projects())
+                if node_id < len(projects):
+                    name, project = projects[node_id]
                     return Project(id_attr=node_id, name=name, project=project)
             raise Exception(f"Unknown project: {id}")
 
