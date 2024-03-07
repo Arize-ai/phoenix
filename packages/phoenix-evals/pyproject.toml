@@ -20,7 +20,7 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
 ]
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
   "pandas",
   "tqdm",
