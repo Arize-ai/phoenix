@@ -43,7 +43,7 @@ dependencies = [
   "opentelemetry-sdk",
   "opentelemetry-proto",
   "opentelemetry-exporter-otlp",
-  "openinference-semantic-conventions>=0.1.4",
+  "openinference-semantic-conventions>=0.1.5",
   "openinference-instrumentation-langchain>=0.1.11",
   "openinference-instrumentation-llama-index>=1.1.1",
   "openinference-instrumentation-openai>=0.1.3",
