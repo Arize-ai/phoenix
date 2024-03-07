@@ -49,7 +49,8 @@ export function ProjectPage() {
       }
     `,
     {
-      projectId: projectId as string,
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      projectId: projectId!,
     },
     {
       fetchPolicy: "store-and-network",
