@@ -8,7 +8,7 @@ from phoenix.evals.models.rate_limiters import RateLimiter
 MINIMUM_ANTHROPIC_VERSION = "0.18.0"
 
 
-def anthropic_version(version_str: str) -> Tuple:
+def anthropic_version(version_str: str) -> Tuple[int, ...]:
     return tuple(map(int, version_str.split(".")))
 
 
@@ -136,7 +136,7 @@ class AnthropicModel(BaseModel):
 
         return await _async_completion(**kwargs)
 
-    def _format_prompt_for_claude(self, prompt: str) -> str:
+    def _format_prompt_for_claude(self, prompt: str) -> List[Dict[str, str]]:
         # the Anthropic messages API expects a list of messages
         return [
             {"role": "user", "content": prompt},
