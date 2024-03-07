@@ -45,9 +45,9 @@ export function ProjectPage() {
         project: node(id: $projectId) {
           ... on Project {
             ...SpansTable_spans
+            ...TracesTable_spans
           }
         }
-        ...TracesTable_spans
         ...ProjectPageHeader_stats
         ...StreamToggle_data
       }
@@ -69,7 +69,7 @@ export function ProjectPage() {
             return (
               isSelected && (
                 <Suspense>
-                  <TracesTable query={data} />
+                  <TracesTable query={data.project} />
                 </Suspense>
               )
             );

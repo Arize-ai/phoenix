@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a01b512707a5f826b750d912f69a0241>>
+ * @generated SignedSource<<669fadd557967601f1d3d6e603c65b08>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,9 +13,7 @@ export type SpanKind = "agent" | "chain" | "embedding" | "llm" | "reranker" | "r
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type TracesTable_spans$data = {
-  readonly project: {
-    readonly " $fragmentSpreads": FragmentRefs<"SpanColumnSelector_evaluations">;
-  };
+  readonly id: string;
   readonly rootSpans: {
     readonly edges: ReadonlyArray<{
       readonly rootSpan: {
@@ -85,6 +83,7 @@ export type TracesTable_spans$data = {
       };
     }>;
   };
+  readonly " $fragmentSpreads": FragmentRefs<"SpanColumnSelector_evaluations">;
   readonly " $fragmentType": "TracesTable_spans";
 };
 export type TracesTable_spans$key = {
@@ -275,10 +274,6 @@ return {
       "name": "first"
     },
     {
-      "kind": "RootArgument",
-      "name": "projectId"
-    },
-    {
       "defaultValue": {
         "col": "startTime",
         "dir": "desc"
@@ -306,33 +301,19 @@ return {
         "backward": null,
         "path": (v0/*: any*/)
       },
-      "fragmentPathInResult": [],
-      "operation": require('./TracesTableQuery.graphql')
+      "fragmentPathInResult": [
+        "node"
+      ],
+      "operation": require('./TracesTableQuery.graphql'),
+      "identifierField": "id"
     }
   },
   "name": "TracesTable_spans",
   "selections": [
     {
-      "alias": "project",
-      "args": [
-        {
-          "kind": "Variable",
-          "name": "id",
-          "variableName": "projectId"
-        }
-      ],
-      "concreteType": null,
-      "kind": "LinkedField",
-      "name": "node",
-      "plural": false,
-      "selections": [
-        {
-          "args": null,
-          "kind": "FragmentSpread",
-          "name": "SpanColumnSelector_evaluations"
-        }
-      ],
-      "storageKey": null
+      "args": null,
+      "kind": "FragmentSpread",
+      "name": "SpanColumnSelector_evaluations"
     },
     {
       "alias": "rootSpans",
@@ -514,13 +495,20 @@ return {
         }
       ],
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "id",
+      "storageKey": null
     }
   ],
-  "type": "Query",
+  "type": "Project",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "e93fae2596b7ed90bbf4fd563d210e89";
+(node as any).hash = "834fc464dace944d3249ad311c7502f7";
 
 export default node;

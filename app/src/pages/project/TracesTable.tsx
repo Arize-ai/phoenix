@@ -95,7 +95,7 @@ export function TracesTable(props: TracesTableProps) {
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
       graphql`
-        fragment TracesTable_spans on Query
+        fragment TracesTable_spans on Project
         @refetchable(queryName: "TracesTableQuery")
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
@@ -106,9 +106,7 @@ export function TracesTable(props: TracesTableProps) {
           }
           filterCondition: { type: "String", defaultValue: null }
         ) {
-          project: node(id: $projectId) {
-            ...SpanColumnSelector_evaluations
-          }
+          ...SpanColumnSelector_evaluations
           rootSpans: spans(
             first: $first
             after: $after
@@ -486,7 +484,7 @@ export function TracesTable(props: TracesTableProps) {
       >
         <Flex direction="row" gap="size-100" width="100%" alignItems="center">
           <SpanFilterConditionField onValidCondition={setFilterCondition} />
-          <SpanColumnSelector columns={computedColumns} query={data.project} />
+          <SpanColumnSelector columns={computedColumns} query={data} />
         </Flex>
       </View>
       <div
