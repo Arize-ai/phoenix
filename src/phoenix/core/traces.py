@@ -99,7 +99,7 @@ class Traces:
         with self._lock:
             if not (project := self._projects.get(project_name)):
                 return 0
-        return project.span_count
+        return project.span_count()
 
     @property
     def token_count_total(self) -> int:
