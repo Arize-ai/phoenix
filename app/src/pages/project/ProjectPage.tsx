@@ -50,7 +50,7 @@ export function ProjectPage() {
     `,
     {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      projectId: projectId!,
+      projectId: projectId as string,
     },
     {
       fetchPolicy: "store-and-network",
