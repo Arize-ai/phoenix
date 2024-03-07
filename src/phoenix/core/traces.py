@@ -14,10 +14,11 @@ from phoenix.core.project import (
     DEFAULT_PROJECT_NAME,
     END_OF_QUEUE,
     Project,
-    ReadableSpan,
+    WrappedSpan,
     _ProjectName,
 )
-from phoenix.trace.schemas import Span, SpanID, TraceID
+from phoenix.trace.otel import decode
+from phoenix.trace.schemas import SpanID, TraceID
 
 _SpanItem = Tuple[otlp.Span, _ProjectName]
 _EvalItem = Tuple[pb.Evaluation, _ProjectName]
@@ -46,7 +47,7 @@ class Traces:
             projects = tuple(self._projects.items())
         yield from projects
 
-    def get_trace(self, trace_id: TraceID) -> Iterator[Span]:
+    def get_trace(self, trace_id: TraceID) -> Iterator[WrappedSpan]:
         with self._lock:
             if not (project := self._projects.get(DEFAULT_PROJECT_NAME)):
                 return
@@ -58,7 +59,7 @@ class Traces:
         stop_time: Optional[datetime] = None,
         root_spans_only: Optional[bool] = False,
         span_ids: Optional[Iterable[SpanID]] = None,
-    ) -> Iterator[Span]:
+    ) -> Iterator[WrappedSpan]:
         with self._lock:
             if not (project := self._projects.get(DEFAULT_PROJECT_NAME)):
                 return
@@ -80,7 +81,7 @@ class Traces:
         for probability in probabilities:
             yield project.root_span_latency_ms_quantiles(probability)
 
-    def get_descendant_spans(self, span_id: SpanID) -> Iterator[Span]:
+    def get_descendant_spans(self, span_id: SpanID) -> Iterator[WrappedSpan]:
         with self._lock:
             if not (project := self._projects.get(DEFAULT_PROJECT_NAME)):
                 return
@@ -145,7 +146,7 @@ class Traces:
     def _consume_spans(self, queue: "SimpleQueue[Optional[_SpanItem]]") -> None:
         while (item := queue.get()) is not END_OF_QUEUE:
             otlp_span, project_name = item
-            span = ReadableSpan(otlp_span)
+            span = decode(otlp_span)
             with self._lock:
                 project = self._projects[project_name]
             project.add_span(span)

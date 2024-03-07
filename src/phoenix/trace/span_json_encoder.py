@@ -2,11 +2,10 @@ import json
 from dataclasses import asdict
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Mapping
+from typing import Any, List
 from uuid import UUID
 
 from phoenix.trace.schemas import (
-    COMPUTED_PREFIX,
     Span,
     SpanContext,
     SpanConversationAttributes,
@@ -40,7 +39,7 @@ class SpanJSONEncoder(json.JSONEncoder):
                 "end_time": obj.end_time,
                 "status_code": obj.status_code,
                 "status_message": obj.status_message,
-                "attributes": _remove_computed_attributes(obj.attributes),
+                "attributes": obj.attributes,
                 "events": [self.default(event) for event in obj.events],
                 "conversation": obj.conversation,
             }
@@ -55,7 +54,3 @@ def span_to_json(span: Span) -> str:
 
 def spans_to_jsonl(spans: List[Span]) -> str:
     return "\n".join(span_to_json(span) for span in spans)
-
-
-def _remove_computed_attributes(attributes: Mapping[str, Any]) -> Dict[str, Any]:
-    return {key: value for key, value in attributes.items() if not key.startswith(COMPUTED_PREFIX)}

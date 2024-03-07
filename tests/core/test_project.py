@@ -7,7 +7,8 @@ import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import pytest
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
-from phoenix.core.project import ReadableSpan, _Spans
+from phoenix.core.project import Project, _Spans
+from phoenix.trace.otel import decode
 from phoenix.trace.schemas import ComputedAttributes
 
 
@@ -17,21 +18,22 @@ def test_ingestion(
     permutation: Tuple[int, ...],
     child_ids: DefaultDict[str, Set[str]],
 ) -> None:
-    mock = _Spans()
+    project = Project()
+    _spans = project._spans._spans
     trace_id = _id_str(otlp_trace[0].trace_id)
     expected_token_count_total = 0
     ingested_ids = set()
     for i, s in enumerate(permutation):
         otlp_span = otlp_trace[s]
-        mock.add(ReadableSpan(otlp_span))
+        project.add_span(decode(otlp_span))
 
-        assert len(list(mock.get_trace(trace_id))) == i + 1, f"{i=}, {s=}"
-        assert mock.span_count == i + 1, f"{i=}, {s=}"
+        assert len(list(project.get_trace(trace_id))) == i + 1, f"{i=}, {s=}"
+        assert project.span_count == i + 1, f"{i=}, {s=}"
 
-        assert _id_str(otlp_span.span_id) in mock._spans, f"{i=}, {s=}"
-        latest_span = mock._spans[_id_str(otlp_span.span_id)]
+        assert _id_str(otlp_span.span_id) in _spans, f"{i=}, {s=}"
+        latest_span = next(project.get_spans(span_ids=[_id_str(otlp_span.span_id)]))
         expected_token_count_total += latest_span.attributes[SpanAttributes.LLM_TOKEN_COUNT_TOTAL]
-        assert mock.token_count_total == expected_token_count_total, f"{i=}, {s=}"
+        assert project.token_count_total == expected_token_count_total, f"{i=}, {s=}"
         ingested_ids.add(latest_span.context.span_id)
 
         # Check that all cumulative values are correct at all times. We do this by summing
@@ -39,12 +41,14 @@ def test_ingestion(
         # in between have been ingested. A disconnected descendant does not propagate its value
         # across a missing parent.
         for span_id in ingested_ids.intersection(child_ids.keys()):
-            span = mock._spans[span_id]
-            assert span[
-                ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_TOTAL.value
-            ] == span.attributes[SpanAttributes.LLM_TOKEN_COUNT_TOTAL] + sum(
-                mock._spans[descendant_id].attributes[SpanAttributes.LLM_TOKEN_COUNT_TOTAL]
-                for descendant_id in _connected_descendant_ids(span_id, child_ids, ingested_ids)
+            span = next(project.get_spans(span_ids=[span_id]))
+            assert span[ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_TOTAL] == span.attributes[
+                SpanAttributes.LLM_TOKEN_COUNT_TOTAL
+            ] + sum(
+                span.attributes[SpanAttributes.LLM_TOKEN_COUNT_TOTAL]
+                for span in project.get_spans(
+                    span_ids=list(_connected_descendant_ids(span_id, child_ids, ingested_ids))
+                )
             ), f"{i=}, {s=}, {span_id=}"
 
 

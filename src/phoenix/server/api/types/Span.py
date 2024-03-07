@@ -10,7 +10,7 @@ from strawberry import ID, UNSET
 from strawberry.types import Info
 
 import phoenix.trace.schemas as trace_schema
-from phoenix.core.project import DEFAULT_PROJECT_NAME
+from phoenix.core.project import DEFAULT_PROJECT_NAME, WrappedSpan
 from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
@@ -230,7 +230,7 @@ class Span:
         ]
 
 
-def to_gql_span(span: trace_schema.Span) -> "Span":
+def to_gql_span(span: WrappedSpan) -> "Span":
     events: List[SpanEvent] = list(map(SpanEvent.from_event, span.events))
     input_value = cast(Optional[str], span.attributes.get(INPUT_VALUE))
     output_value = cast(Optional[str], span.attributes.get(OUTPUT_VALUE))
@@ -244,7 +244,7 @@ def to_gql_span(span: trace_schema.Span) -> "Span":
         span_kind=SpanKind(span.span_kind),
         start_time=span.start_time,
         end_time=span.end_time,
-        latency_ms=cast(Optional[float], span.attributes.get(ComputedAttributes.LATENCY_MS.value)),
+        latency_ms=cast(Optional[float], span[ComputedAttributes.LATENCY_MS]),
         context=SpanContext(
             trace_id=cast(ID, span.context.trace_id),
             span_id=cast(ID, span.context.span_id),
@@ -269,19 +269,19 @@ def to_gql_span(span: trace_schema.Span) -> "Span":
         ),
         cumulative_token_count_total=cast(
             Optional[int],
-            span.attributes.get(ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_TOTAL.value),
+            span[ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_TOTAL],
         ),
         cumulative_token_count_prompt=cast(
             Optional[int],
-            span.attributes.get(ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_PROMPT.value),
+            span[ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_PROMPT],
         ),
         cumulative_token_count_completion=cast(
             Optional[int],
-            span.attributes.get(ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION.value),
+            span[ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION],
         ),
         propagated_status_code=(
             SpanStatusCode.ERROR
-            if span.attributes.get(ComputedAttributes.CUMULATIVE_ERROR_COUNT.value)
+            if span[ComputedAttributes.CUMULATIVE_ERROR_COUNT]
             else SpanStatusCode(span.status_code)
         ),
         events=events,
