@@ -47,9 +47,9 @@ export function ProjectPage() {
             ...SpansTable_spans
             ...TracesTable_spans
             ...ProjectPageHeader_stats
+            ...StreamToggle_data
           }
         }
-        ...StreamToggle_data
       }
     `,
     {

@@ -18,7 +18,7 @@ export function StreamToggle(props: { query: StreamToggle_data$key }) {
 
   const [lastUpdatedAt, refetchLastUpdatedAt] = useRefetchableFragment(
     graphql`
-      fragment StreamToggle_data on Query
+      fragment StreamToggle_data on Project
       @refetchable(queryName: "StreamToggleRefetchQuery") {
         streamingLastUpdatedAt
       }

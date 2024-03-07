@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<73b3327c12e75474768eb6d99fadd420>>
+ * @generated SignedSource<<2f0657e3c6c1e4c08c7c88f0fc67c6ed>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,6 +11,7 @@
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type StreamToggle_data$data = {
+  readonly id: string;
   readonly streamingLastUpdatedAt: string | null;
   readonly " $fragmentType": "StreamToggle_data";
 };
@@ -25,8 +26,11 @@ const node: ReaderFragment = {
   "metadata": {
     "refetch": {
       "connection": null,
-      "fragmentPathInResult": [],
-      "operation": require('./StreamToggleRefetchQuery.graphql')
+      "fragmentPathInResult": [
+        "node"
+      ],
+      "operation": require('./StreamToggleRefetchQuery.graphql'),
+      "identifierField": "id"
     }
   },
   "name": "StreamToggle_data",
@@ -37,12 +41,19 @@ const node: ReaderFragment = {
       "kind": "ScalarField",
       "name": "streamingLastUpdatedAt",
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "id",
+      "storageKey": null
     }
   ],
-  "type": "Query",
+  "type": "Project",
   "abstractKey": null
 };
 
-(node as any).hash = "5a87fc2da6f4964259d4eaaaed28e26a";
+(node as any).hash = "30a8f0bcf1aa6021b2c9a47866f5dc49";
 
 export default node;
