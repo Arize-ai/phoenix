@@ -332,11 +332,12 @@ class ThreadSession(Session):
         root_spans_only: Optional[bool] = None,
         project_name: Optional[str] = None,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
-        if (traces := self.traces) is None:
+        if not (traces := self.traces) or not (
+            project := traces.get_project(project_name or DEFAULT_PROJECT_NAME)
+        ):
             return None
         if not queries:
             queries = (SpanQuery(),)
-        project = traces.get_project(project_name or DEFAULT_PROJECT_NAME)
         valid_eval_names = project.get_span_evaluation_names() if project else ()
         queries = tuple(
             SpanQuery.from_dict(
