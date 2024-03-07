@@ -41,8 +41,8 @@ export function ProjectPage() {
   const { projectId } = useParams();
   const data = useLazyLoadQuery<ProjectPageQuery>(
     graphql`
-      query ProjectPageQuery($projectId: GlobalID!) {
-        project: node(id: $projectId) {
+      query ProjectPageQuery($id: GlobalID!) {
+        project: node(id: $id) {
           ... on Project {
             ...SpansTable_spans
             ...TracesTable_spans
@@ -54,7 +54,7 @@ export function ProjectPage() {
     `,
     {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      projectId: projectId as string,
+      id: projectId as string,
     },
     {
       fetchPolicy: "store-and-network",
