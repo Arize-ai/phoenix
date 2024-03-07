@@ -83,7 +83,7 @@ export function ProjectPage() {
             return (
               isSelected && (
                 <Suspense>
-                  <SpansTable query={data.project} />
+                  <SpansTable project={data.project} />
                 </Suspense>
               )
             );

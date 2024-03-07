@@ -48,7 +48,7 @@ import {
 } from "./tableUtils";
 import { TokenCount } from "./TokenCount";
 type SpansTableProps = {
-  query: SpansTable_spans$key;
+  project: SpansTable_spans$key;
 };
 
 const PAGE_SIZE = 100;
@@ -121,7 +121,7 @@ export function SpansTable(props: SpansTableProps) {
           }
         }
       `,
-      props.query
+      props.project
     );
 
   const evaluationVisibility = useTracingContext(
