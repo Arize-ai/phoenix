@@ -609,7 +609,6 @@ type Query {
   """Names of available document evaluations."""
   documentEvaluationNames(spanId: ID): [String!]!
   spanEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): EvaluationSummary
-  documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   traceDatasetInfo: TraceDatasetInfo
   validateSpanFilterCondition(condition: String!): ValidationResult!
 }

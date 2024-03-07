@@ -1,5 +1,6 @@
 import React, { startTransition, Suspense, useEffect } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
+import { useParams } from "react-router";
 
 import {
   Flex,
@@ -23,14 +24,21 @@ type DocumentEvaluationSummaryProps = {
 export function DocumentEvaluationSummary({
   evaluationName,
 }: DocumentEvaluationSummaryProps) {
+  const { projectId } = useParams();
   const data = useLazyLoadQuery<DocumentEvaluationSummaryQuery>(
     graphql`
-      query DocumentEvaluationSummaryQuery($evaluationName: String!) {
-        ...DocumentEvaluationSummaryValueFragment
-          @arguments(evaluationName: $evaluationName)
+      query DocumentEvaluationSummaryQuery(
+        $evaluationName: String!
+        $id: GlobalID!
+      ) {
+        project: node(id: $id) {
+          ...DocumentEvaluationSummaryValueFragment
+            @arguments(evaluationName: $evaluationName)
+        }
       }
     `,
     {
+      id: projectId as string,
       evaluationName,
     }
   );
@@ -40,7 +48,10 @@ export function DocumentEvaluationSummary({
         {evaluationName}
       </Text>
       <Suspense fallback={<Text textSize="xlarge">--</Text>}>
-        <EvaluationSummaryValue evaluationName={evaluationName} query={data} />
+        <EvaluationSummaryValue
+          evaluationName={evaluationName}
+          project={data?.project}
+        />
       </Suspense>
     </Flex>
   );
@@ -48,16 +59,16 @@ export function DocumentEvaluationSummary({
 
 function EvaluationSummaryValue(props: {
   evaluationName: string;
-  query: DocumentEvaluationSummaryValueFragment$key;
+  project: DocumentEvaluationSummaryValueFragment$key;
 }) {
-  const { query } = props;
+  const { project } = props;
   const { fetchKey } = useStreamState();
   const [data, refetch] = useRefetchableFragment<
     DocumentEvaluationSummaryQuery,
     DocumentEvaluationSummaryValueFragment$key
   >(
     graphql`
-      fragment DocumentEvaluationSummaryValueFragment on Query
+      fragment DocumentEvaluationSummaryValueFragment on Project
       @refetchable(queryName: "DocumentEvaluationSummaryValueQuery")
       @argumentDefinitions(evaluationName: { type: "String!" }) {
         documentEvaluationSummary(evaluationName: $evaluationName) {
@@ -68,7 +79,7 @@ function EvaluationSummaryValue(props: {
         }
       }
     `,
-    query
+    project
   );
 
   // Refetch the evaluation summary if the fetchKey changes
