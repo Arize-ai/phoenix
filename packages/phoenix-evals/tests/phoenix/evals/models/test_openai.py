@@ -1,3 +1,5 @@
+from unittest import mock
+
 import pytest
 from openai import AzureOpenAI, OpenAI
 from phoenix.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME, OpenAIModel
@@ -63,3 +65,23 @@ def test_model_name_deprecation(monkeypatch):
         model = OpenAIModel(model_name="gpt-4-turbo-preview")
     assert model.model == "gpt-4-turbo-preview"
     assert model.model_name is None
+
+
+@mock.patch("openai.resources.chat.completions.Completions.create")
+def test_selfhosted(completions_create):
+    mock_completion = mock.Mock()
+    mock_completion.model_dump.return_value = {
+        "choices": [{"message": {"function_call": False, "content": "42 per tail"}}]}
+
+    completions_create.return_value = mock_completion
+    lllmm = OpenAIModel(model="monstral",
+                        base_url="http://hosted.openai.me:8000/v1",
+                        api_key="bogus")
+    result = lllmm("How much is the fish?")
+
+    assert result == "42 per tail"
+    assert "http://hosted.openai.me:8000/v1" in str(lllmm._client.base_url)
+    assert lllmm._client.api_key == "bogus"
+    call_args = completions_create.call_args[1]
+    assert call_args["model"] == "monstral"
+    assert call_args["messages"][0]["content"] == "How much is the fish?"
