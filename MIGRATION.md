@@ -2,7 +2,7 @@
 
 ## Migrating from `phoenix.experimental.evals` to `phoenix.evals`
 
--   **v4.0.0** - Phoenix has now moved promoted the `evals` module out of experimental and can be installed as a separate extra.
+- Phoenix has now moved promoted the `evals` module out of experimental and can be installed as a separate extra.
 
 ### Installing and Using the `evals` module
 
