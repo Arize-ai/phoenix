@@ -24,7 +24,14 @@ from .evaluators import (
     ToxicityEvaluator,
 )
 from .generate import llm_generate
-from .models import BedrockModel, LiteLLMModel, OpenAIModel, VertexAIModel
+from .models import (
+    AnthropicModel,
+    BedrockModel,
+    GeminiModel,
+    LiteLLMModel,
+    OpenAIModel,
+    VertexAIModel,
+)
 from .retrievals import compute_precisions_at_k
 from .templates import (
     ClassificationTemplate,
@@ -38,6 +45,8 @@ __all__ = [
     "llm_classify",
     "llm_generate",
     "OpenAIModel",
+    "AnthropicModel",
+    "GeminiModel",
     "VertexAIModel",
     "BedrockModel",
     "LiteLLMModel",
