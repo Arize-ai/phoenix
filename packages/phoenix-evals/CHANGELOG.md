@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.1.0...arize-phoenix-evals-v0.2.0) (2024-03-07)
+
+
+### Features
+
+* Update `AnthropicModel` to use `messages` API ([#2489](https://github.com/Arize-ai/phoenix/issues/2489)) ([5aa3842](https://github.com/Arize-ai/phoenix/commit/5aa3842d3e3d8a1fe21fb62c594032474899fb81))
+
+
+### Bug Fixes
+
+* `llm_generate` now preserves input index when constructing the output ([#2441](https://github.com/Arize-ai/phoenix/issues/2441)) ([ee36987](https://github.com/Arize-ai/phoenix/commit/ee369874649ac36fadcce3322cf87cf22d04aed4))
+
 ## [0.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.0.5...arize-phoenix-evals-v0.1.0) (2024-03-05)
 
 
