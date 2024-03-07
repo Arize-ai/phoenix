@@ -540,6 +540,7 @@ type Project implements Node {
   startTime: DateTime
   endTime: DateTime
   recordCount: Int!
+  traceCount: Int!
   tokenCountTotal: Int!
   latencyMsP50: Float
   latencyMsP99: Float

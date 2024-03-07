@@ -34,6 +34,10 @@ class Project(Node):
         return self.project.span_count
 
     @strawberry.field
+    def trace_count(self) -> int:
+        return self.project.trace_count
+
+    @strawberry.field
     def token_count_total(self) -> int:
         return self.project.token_count_total
 
