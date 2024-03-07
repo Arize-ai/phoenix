@@ -46,9 +46,9 @@ export function ProjectPage() {
           ... on Project {
             ...SpansTable_spans
             ...TracesTable_spans
+            ...ProjectPageHeader_stats
           }
         }
-        ...ProjectPageHeader_stats
         ...StreamToggle_data
       }
     `,
@@ -62,7 +62,10 @@ export function ProjectPage() {
   );
   return (
     <main css={mainCSS}>
-      <ProjectPageHeader query={data} extra={<StreamToggle query={data} />} />
+      <ProjectPageHeader
+        query={data.project}
+        extra={<StreamToggle query={data} />}
+      />
       <Tabs>
         <TabPane name="Traces">
           {({ isSelected }) => {

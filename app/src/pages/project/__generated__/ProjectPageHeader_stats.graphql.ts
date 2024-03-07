@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7560bcf97be5594273c89f98039f8ef0>>
+ * @generated SignedSource<<1d7547a9853a320462e1ebb586bb1dbd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,12 +12,11 @@ import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ProjectPageHeader_stats$data = {
   readonly documentEvaluationNames: ReadonlyArray<string>;
-  readonly project: {
-    readonly latencyMsP50?: number | null;
-    readonly latencyMsP99?: number | null;
-    readonly tokenCountTotal?: number;
-  };
+  readonly id: string;
+  readonly latencyMsP50: number | null;
+  readonly latencyMsP99: number | null;
   readonly spanEvaluationNames: ReadonlyArray<string>;
+  readonly tokenCountTotal: number;
   readonly totalTraces: {
     readonly pageInfo: {
       readonly totalCount: number;
@@ -31,18 +30,16 @@ export type ProjectPageHeader_stats$key = {
 };
 
 const node: ReaderFragment = {
-  "argumentDefinitions": [
-    {
-      "kind": "RootArgument",
-      "name": "projectId"
-    }
-  ],
+  "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": {
     "refetch": {
       "connection": null,
-      "fragmentPathInResult": [],
-      "operation": require('./ProjectPageHeaderQuery.graphql')
+      "fragmentPathInResult": [
+        "node"
+      ],
+      "operation": require('./ProjectPageHeaderQuery.graphql'),
+      "identifierField": "id"
     }
   },
   "name": "ProjectPageHeader_stats",
@@ -83,48 +80,24 @@ const node: ReaderFragment = {
       "storageKey": "spans(rootSpansOnly:true)"
     },
     {
-      "alias": "project",
-      "args": [
-        {
-          "kind": "Variable",
-          "name": "id",
-          "variableName": "projectId"
-        }
-      ],
-      "concreteType": null,
-      "kind": "LinkedField",
-      "name": "node",
-      "plural": false,
-      "selections": [
-        {
-          "kind": "InlineFragment",
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "tokenCountTotal",
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "latencyMsP50",
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "latencyMsP99",
-              "storageKey": null
-            }
-          ],
-          "type": "Project",
-          "abstractKey": null
-        }
-      ],
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "tokenCountTotal",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "latencyMsP50",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "latencyMsP99",
       "storageKey": null
     },
     {
@@ -140,12 +113,19 @@ const node: ReaderFragment = {
       "kind": "ScalarField",
       "name": "documentEvaluationNames",
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "id",
+      "storageKey": null
     }
   ],
-  "type": "Query",
+  "type": "Project",
   "abstractKey": null
 };
 
-(node as any).hash = "5f21b34435eb35302b40edaafa608240";
+(node as any).hash = "50ee316a2b5ae9de1292994b38b55852";
 
 export default node;

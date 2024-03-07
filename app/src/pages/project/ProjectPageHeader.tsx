@@ -27,19 +27,17 @@ export function ProjectPageHeader(props: {
     ProjectPageHeader_stats$key
   >(
     graphql`
-      fragment ProjectPageHeader_stats on Query
+      fragment ProjectPageHeader_stats on Project
       @refetchable(queryName: "ProjectPageHeaderQuery") {
         totalTraces: spans(rootSpansOnly: true) {
           pageInfo {
             totalCount
           }
         }
-        project: node(id: $projectId) {
-          ... on Project {
-            tokenCountTotal
-            latencyMsP50
-            latencyMsP99
-          }
+        ... on Project {
+          tokenCountTotal
+          latencyMsP50
+          latencyMsP99
         }
         spanEvaluationNames
         documentEvaluationNames
@@ -55,9 +53,9 @@ export function ProjectPageHeader(props: {
     });
   }, [fetchKey, refetch]);
 
-  const latencyMsP50 = data?.project.latencyMsP50;
-  const latencyMsP99 = data?.project.latencyMsP99;
-  const tokenCountTotal = data?.project.tokenCountTotal;
+  const latencyMsP50 = data?.latencyMsP50;
+  const latencyMsP99 = data?.latencyMsP99;
+  const tokenCountTotal = data?.tokenCountTotal;
   const spanEvaluationNames = data?.spanEvaluationNames;
   const documentEvaluationNames = data?.documentEvaluationNames;
 
