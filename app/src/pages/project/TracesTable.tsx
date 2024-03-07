@@ -486,7 +486,7 @@ export function TracesTable(props: TracesTableProps) {
       >
         <Flex direction="row" gap="size-100" width="100%" alignItems="center">
           <SpanFilterConditionField onValidCondition={setFilterCondition} />
-          <SpanColumnSelector columns={computedColumns} query={data} />
+          <SpanColumnSelector columns={computedColumns} query={data.project} />
         </Flex>
       </View>
       <div
