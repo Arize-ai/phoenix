@@ -87,7 +87,7 @@ class Project(Node):
             last=last,
             before=before if isinstance(before, Cursor) else None,
         )
-        if not (project := self.project).span_count:
+        if not (project := self.project).span_count():
             return connection_from_list(data=[], args=args)
         predicate = (
             SpanFilter(
