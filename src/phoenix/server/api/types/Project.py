@@ -4,12 +4,9 @@ from typing import List, Optional
 
 import strawberry
 from strawberry import ID, UNSET
-from strawberry.types import Info
 
-from phoenix.core.project import DEFAULT_PROJECT_NAME
 from phoenix.core.project import Project as CoreProject
 from phoenix.metrics.retrieval_metrics import RetrievalMetrics
-from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.SpanSort import SpanSort
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
@@ -60,7 +57,6 @@ class Project(Node):
     @strawberry.field
     def spans(
         self,
-        info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
         trace_ids: Optional[List[ID]] = UNSET,
         first: Optional[int] = 50,
@@ -77,9 +73,7 @@ class Project(Node):
             last=last,
             before=before if isinstance(before, Cursor) else None,
         )
-        if not (traces := info.context.traces) or not (
-            project := traces.get_project(DEFAULT_PROJECT_NAME)
-        ):
+        if not (project := self.project).span_count:
             return connection_from_list(data=[], args=args)
         predicate = (
             SpanFilter(
@@ -90,14 +84,14 @@ class Project(Node):
             else None
         )
         if not trace_ids:
-            spans = traces.get_spans(
+            spans = project.get_spans(
                 start_time=time_range.start if time_range else None,
                 stop_time=time_range.end if time_range else None,
                 root_spans_only=root_spans_only,
             )
         else:
             spans = chain.from_iterable(
-                traces.get_trace(trace_id) for trace_id in map(TraceID, trace_ids)
+                project.get_trace(trace_id) for trace_id in map(TraceID, trace_ids)
             )
         if predicate:
             spans = filter(predicate, spans)
