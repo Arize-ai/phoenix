@@ -4,6 +4,7 @@ import zlib
 from typing import Iterable, Optional
 
 from google.protobuf.message import DecodeError
+from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
@@ -56,6 +57,6 @@ class TraceHandler(HTTPEndpoint):
 
 def _get_project_name(attributes: Iterable[KeyValue]) -> Optional[str]:
     for kv in attributes:
-        if kv.key == "openinference.project.name" and (v := kv.value.string_value):
+        if kv.key == ResourceAttributes.PROJECT_NAME and (v := kv.value.string_value):
             return v
     return None

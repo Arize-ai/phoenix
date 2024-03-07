@@ -171,7 +171,11 @@ def create_app(
                 ),
                 Route(
                     "/v1/traces",
-                    type("TraceEndpoint", (TraceHandler,), {"queue": traces}),
+                    type("TraceEndpoint", (TraceHandler,), {"traces": traces}),
+                ),
+                Route(
+                    "/v1/evaluations",
+                    type("EvaluationEndpoint", (EvaluationHandler,), {"traces": traces}),
                 ),
             ]
         )

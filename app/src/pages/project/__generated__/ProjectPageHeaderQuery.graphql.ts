@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<73a30c7c229b3c595175dbf429fce859>>
+ * @generated SignedSource<<b86ceec32138cc2734af56d541a8afd4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,9 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type ProjectPageHeaderQuery$variables = {};
+export type ProjectPageHeaderQuery$variables = {
+  projectId: string;
+};
 export type ProjectPageHeaderQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"ProjectPageHeader_stats">;
 };
@@ -19,9 +21,17 @@ export type ProjectPageHeaderQuery = {
   variables: ProjectPageHeaderQuery$variables;
 };
 
-const node: ConcreteRequest = {
+const node: ConcreteRequest = (function(){
+var v0 = [
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "projectId"
+  }
+];
+return {
   "fragment": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "ProjectPageHeaderQuery",
@@ -37,7 +47,7 @@ const node: ConcreteRequest = {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "ProjectPageHeaderQuery",
     "selections": [
@@ -77,46 +87,63 @@ const node: ConcreteRequest = {
         "storageKey": "spans(rootSpansOnly:true)"
       },
       {
-        "alias": null,
-        "args": null,
-        "concreteType": "TraceDatasetInfo",
+        "alias": "project",
+        "args": [
+          {
+            "kind": "Variable",
+            "name": "id",
+            "variableName": "projectId"
+          }
+        ],
+        "concreteType": null,
         "kind": "LinkedField",
-        "name": "traceDatasetInfo",
+        "name": "node",
         "plural": false,
         "selections": [
           {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
-            "name": "startTime",
+            "name": "__typename",
             "storageKey": null
+          },
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "tokenCountTotal",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "latencyMsP50",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "latencyMsP99",
+                "storageKey": null
+              }
+            ],
+            "type": "Project",
+            "abstractKey": null
+          },
+          {
+            "kind": "TypeDiscriminator",
+            "abstractKey": "__isNode"
           },
           {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
-            "name": "endTime",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "tokenCountTotal",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "latencyMsP50",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "latencyMsP99",
+            "name": "id",
             "storageKey": null
           }
         ],
@@ -139,15 +166,16 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "c378f55e69ccb0cfd2ec6626ffb77ac4",
+    "cacheID": "8f5491fab41f220e2295358885e1f824",
     "id": null,
     "metadata": {},
     "name": "ProjectPageHeaderQuery",
     "operationKind": "query",
-    "text": "query ProjectPageHeaderQuery {\n  ...ProjectPageHeader_stats\n}\n\nfragment ProjectPageHeader_stats on Query {\n  totalTraces: spans(rootSpansOnly: true) {\n    pageInfo {\n      totalCount\n    }\n  }\n  traceDatasetInfo {\n    startTime\n    endTime\n    tokenCountTotal\n    latencyMsP50\n    latencyMsP99\n  }\n  spanEvaluationNames\n  documentEvaluationNames\n}\n"
+    "text": "query ProjectPageHeaderQuery(\n  $projectId: GlobalID!\n) {\n  ...ProjectPageHeader_stats\n}\n\nfragment ProjectPageHeader_stats on Query {\n  totalTraces: spans(rootSpansOnly: true) {\n    pageInfo {\n      totalCount\n    }\n  }\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      tokenCountTotal\n      latencyMsP50\n      latencyMsP99\n    }\n    __isNode: __typename\n    id\n  }\n  spanEvaluationNames\n  documentEvaluationNames\n}\n"
   }
 };
+})();
 
-(node as any).hash = "b5e575b779dea4366253bbfde728abe0";
+(node as any).hash = "5f21b34435eb35302b40edaafa608240";
 
 export default node;

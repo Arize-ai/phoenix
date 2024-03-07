@@ -1,6 +1,7 @@
 import React, { Suspense } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Outlet } from "react-router";
+import { useParams } from "react-router";
 import { css } from "@emotion/react";
 
 import { TabPane, Tabs } from "@arizeai/components";
@@ -37,16 +38,20 @@ const mainCSS = css`
 `;
 
 export function ProjectPage() {
+  const { projectId } = useParams();
   const data = useLazyLoadQuery<ProjectPageQuery>(
     graphql`
-      query ProjectPageQuery {
+      query ProjectPageQuery($projectId: GlobalID!) {
         ...SpansTable_spans
         ...TracesTable_spans
         ...ProjectPageHeader_stats
         ...StreamToggle_data
       }
     `,
-    {},
+    {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      projectId: projectId as string,
+    },
     {
       fetchPolicy: "store-and-network",
     }
