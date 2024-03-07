@@ -543,6 +543,16 @@ type Project implements Node {
   tokenCountTotal: Int!
   latencyMsP50: Float
   latencyMsP99: Float
+
+  """
+  Names of all available evaluations for spans. (The list contains no duplicates.)
+  """
+  spanEvaluationNames: [String!]!
+
+  """Names of available document evaluations."""
+  documentEvaluationNames(spanId: ID): [String!]!
+  spanEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): EvaluationSummary
+  documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
 }
 
 type ProjectConnection {

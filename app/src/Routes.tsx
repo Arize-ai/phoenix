@@ -1,14 +1,10 @@
 import React from "react";
-import {
-  createRoutesFromElements,
-  redirect,
-  Route,
-  RouterProvider,
-} from "react-router";
+import { createRoutesFromElements, Route, RouterProvider } from "react-router";
 import { createBrowserRouter } from "react-router-dom";
 
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
-import { ProjectPage } from "./pages/project";
+import { projectLoader, ProjectPage } from "./pages/project";
+import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
 import { ProjectsPage } from "./pages/projects/ProjectsPage";
 import {
   dimensionLoader,
@@ -23,10 +19,6 @@ import {
   TracePage,
   TracingRoot,
 } from "./pages";
-
-type ProjectInfo = {
-  projectName: string;
-};
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -62,23 +54,15 @@ const router = createBrowserRouter(
           />
         </Route>
       </Route>
-      <Route
-        path="/tracing"
-        loader={() => {
-          // TODO this is a temporary change until the migration to projects is complete
-          return redirect("/projects/default");
-        }}
-      />
       <Route path="/projects" handle={{ crumb: () => "projects" }}>
         <Route index element={<ProjectsPage />} />
         <Route
           path=":projectId"
           element={<TracingRoot />}
-          loader={(): ProjectInfo => {
-            // TODO this will actually load the project name
-            return { projectName: "default" };
+          loader={projectLoader}
+          handle={{
+            crumb: (data: projectLoaderQuery$data) => data.project.name,
           }}
-          handle={{ crumb: (data: ProjectInfo) => data.projectName }}
         >
           <Route index element={<ProjectPage />} />
           <Route element={<ProjectPage />}>

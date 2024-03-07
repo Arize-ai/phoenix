@@ -34,12 +34,12 @@ export function ProjectPageHeader(props: {
             totalCount
           }
         }
-        traceDatasetInfo {
-          startTime
-          endTime
-          tokenCountTotal
-          latencyMsP50
-          latencyMsP99
+        project: node(id: $projectId) {
+          ... on Project {
+            tokenCountTotal
+            latencyMsP50
+            latencyMsP99
+          }
         }
         spanEvaluationNames
         documentEvaluationNames
@@ -55,9 +55,9 @@ export function ProjectPageHeader(props: {
     });
   }, [fetchKey, refetch]);
 
-  const latencyMsP50 = data?.traceDatasetInfo?.latencyMsP50;
-  const latencyMsP99 = data?.traceDatasetInfo?.latencyMsP99;
-  const tokenCountTotal = data?.traceDatasetInfo?.tokenCountTotal;
+  const latencyMsP50 = data?.project.latencyMsP50;
+  const latencyMsP99 = data?.project.latencyMsP99;
+  const tokenCountTotal = data?.project.tokenCountTotal;
   const spanEvaluationNames = data?.spanEvaluationNames;
   const documentEvaluationNames = data?.documentEvaluationNames;
 

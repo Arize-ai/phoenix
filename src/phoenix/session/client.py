@@ -57,6 +57,7 @@ class Client(TraceDataExtractor):
         start_time: Optional[datetime] = None,
         stop_time: Optional[datetime] = None,
         root_spans_only: Optional[bool] = None,
+        project_name: Optional[str] = None,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
         if not queries:
             queries = (SpanQuery(),)
@@ -66,6 +67,7 @@ class Client(TraceDataExtractor):
                 start_time=start_time,
                 stop_time=stop_time,
                 root_spans_only=root_spans_only,
+                project_name=project_name,
             )
         response = self._session.get(
             url=urljoin(self._base_url, "/v1/spans"),
@@ -74,6 +76,7 @@ class Client(TraceDataExtractor):
                 "start_time": _to_iso_format(start_time),
                 "stop_time": _to_iso_format(stop_time),
                 "root_spans_only": root_spans_only,
+                "project_name": project_name,
             },
         )
         if response.status_code == 404:
@@ -95,10 +98,16 @@ class Client(TraceDataExtractor):
             return None if df.shape == (0, 0) else df
         return results
 
-    def get_evaluations(self) -> List[Evaluations]:
+    def get_evaluations(
+        self,
+        project_name: Optional[str] = None,
+    ) -> List[Evaluations]:
         if self._use_active_session_if_available and (session := px.active_session()):
-            return session.get_evaluations()
-        response = self._session.get(urljoin(self._base_url, "/v1/evaluations"))
+            return session.get_evaluations(project_name=project_name)
+        response = self._session.get(
+            urljoin(self._base_url, "/v1/evaluations"),
+            json={"project_name": project_name},
+        )
         if response.status_code == 404:
             logger.info("No evaluations found.")
             return []

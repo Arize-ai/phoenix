@@ -10,6 +10,7 @@ from strawberry import ID, UNSET
 from strawberry.types import Info
 from typing_extensions import Annotated
 
+from phoenix.core.project import DEFAULT_PROJECT_NAME
 from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.helpers import ensure_list
@@ -248,14 +249,6 @@ class Query:
                 if last_updated_at is None
                 else max(last_updated_at, traces_last_updated_at)
             )
-        if (evals := info.context.evals) is not None and (
-            evals_last_updated_at := evals.last_updated_at
-        ) is not None:
-            last_updated_at = (
-                evals_last_updated_at
-                if last_updated_at is None
-                else max(last_updated_at, evals_last_updated_at)
-            )
         return last_updated_at
 
     @strawberry.field
@@ -278,13 +271,14 @@ class Query:
             last=last,
             before=before if isinstance(before, Cursor) else None,
         )
-        if (traces := info.context.traces) is None:
+        if not (traces := info.context.traces) or not (
+            project := traces.get_project(DEFAULT_PROJECT_NAME)
+        ):
             return connection_from_list(data=[], args=args)
-        evals = info.context.evals
         predicate = (
             SpanFilter(
                 condition=filter_condition,
-                evals=evals,
+                evals=project,
             )
             if filter_condition
             else None
@@ -302,7 +296,7 @@ class Query:
         if predicate:
             spans = filter(predicate, spans)
         if sort:
-            spans = sort(spans, evals=evals)
+            spans = sort(spans, evals=project)
         data = list(map(to_gql_span, spans))
         return connection_from_list(data=data, args=args)
 
@@ -314,9 +308,11 @@ class Query:
         self,
         info: Info[Context, None],
     ) -> List[str]:
-        if (evals := info.context.evals) is None:
+        if not (traces := info.context.traces) or not (
+            project := traces.get_project(DEFAULT_PROJECT_NAME)
+        ):
             return []
-        return evals.get_span_evaluation_names()
+        return project.get_span_evaluation_names()
 
     @strawberry.field(
         description="Names of available document evaluations.",
@@ -326,9 +322,11 @@ class Query:
         info: Info[Context, None],
         span_id: Optional[ID] = UNSET,
     ) -> List[str]:
-        if (evals := info.context.evals) is None:
+        if not (traces := info.context.traces) or not (
+            project := traces.get_project(DEFAULT_PROJECT_NAME)
+        ):
             return []
-        return evals.get_document_evaluation_names(
+        return project.get_document_evaluation_names(
             None if span_id is UNSET else SpanID(span_id),
         )
 
@@ -340,19 +338,19 @@ class Query:
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
     ) -> Optional[EvaluationSummary]:
-        if (evals := info.context.evals) is None:
-            return None
-        if (traces := info.context.traces) is None:
+        if not (traces := info.context.traces) or not (
+            project := traces.get_project(DEFAULT_PROJECT_NAME)
+        ):
             return None
         predicate = (
             SpanFilter(
                 condition=filter_condition,
-                evals=evals,
+                evals=project,
             )
             if filter_condition
             else None
         )
-        span_ids = evals.get_span_evaluation_span_ids(evaluation_name)
+        span_ids = project.get_span_evaluation_span_ids(evaluation_name)
         if not span_ids:
             return None
         spans = traces.get_spans(
@@ -366,7 +364,7 @@ class Query:
             evaluation
             for span in spans
             if (
-                evaluation := evals.get_span_evaluation(
+                evaluation := project.get_span_evaluation(
                     span.context.span_id,
                     evaluation_name,
                 )
@@ -375,7 +373,7 @@ class Query:
         )
         if not evaluations:
             return None
-        labels = evals.get_span_evaluation_labels(evaluation_name)
+        labels = project.get_span_evaluation_labels(evaluation_name)
         return EvaluationSummary(evaluations, labels)
 
     @strawberry.field
@@ -386,14 +384,14 @@ class Query:
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
     ) -> Optional[DocumentEvaluationSummary]:
-        if (evals := info.context.evals) is None:
-            return None
-        if (traces := info.context.traces) is None:
+        if not (traces := info.context.traces) or not (
+            project := traces.get_project(DEFAULT_PROJECT_NAME)
+        ):
             return None
         predicate = (
-            SpanFilter(condition=filter_condition, evals=evals) if filter_condition else None
+            SpanFilter(condition=filter_condition, evals=project) if filter_condition else None
         )
-        span_ids = evals.get_document_evaluation_span_ids(evaluation_name)
+        span_ids = project.get_document_evaluation_span_ids(evaluation_name)
         if not span_ids:
             return None
         spans = traces.get_spans(
@@ -409,7 +407,7 @@ class Query:
             num_documents = traces.get_num_documents(span_id)
             if not num_documents:
                 continue
-            evaluation_scores = evals.get_document_evaluation_scores(
+            evaluation_scores = project.get_document_evaluation_scores(
                 span_id=span_id,
                 evaluation_name=evaluation_name,
                 num_documents=num_documents,
@@ -449,12 +447,13 @@ class Query:
     def validate_span_filter_condition(
         self, info: Info[Context, None], condition: str
     ) -> ValidationResult:
-        evals = info.context.evals
-        valid_eval_names = evals.get_span_evaluation_names() if evals else ()
+        traces = info.context.traces
+        project = traces.get_project(DEFAULT_PROJECT_NAME) if traces else None
+        valid_eval_names = project.get_span_evaluation_names() if project else ()
         try:
             SpanFilter(
                 condition=condition,
-                evals=evals,
+                evals=project,
                 valid_eval_names=valid_eval_names,
             )
             return ValidationResult(is_valid=True, error_message=None)

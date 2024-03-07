@@ -28,8 +28,8 @@ from phoenix.config import (
     get_env_port,
     get_exported_files,
 )
-from phoenix.core.evals import Evals
 from phoenix.core.model_schema_adapter import create_model_from_datasets
+from phoenix.core.project import DEFAULT_PROJECT_NAME
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
@@ -130,12 +130,9 @@ class Session(TraceDataExtractor, ABC):
         if trace_dataset:
             for span in trace_dataset.to_spans():
                 self.traces.put(encode(span))
-
-        self.evals: Evals = Evals()
-        if trace_dataset:
             for evaluations in trace_dataset.evaluations:
                 for pb_evaluation in encode_evaluations(evaluations):
-                    self.evals.put(pb_evaluation)
+                    self.traces.put(pb_evaluation)
 
         self.host = host or get_env_host()
         self.port = port or get_env_port()
@@ -262,15 +259,20 @@ class ProcessSession(Session):
         start_time: Optional[datetime] = None,
         stop_time: Optional[datetime] = None,
         root_spans_only: Optional[bool] = None,
+        project_name: Optional[str] = None,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
         return self._client.query_spans(
             *queries,
             start_time=start_time,
             stop_time=stop_time,
             root_spans_only=root_spans_only,
+            project_name=project_name,
         )
 
-    def get_evaluations(self) -> List[Evaluations]:
+    def get_evaluations(
+        self,
+        project_name: Optional[str] = None,
+    ) -> List[Evaluations]:
         return self._client.get_evaluations()
 
 
@@ -303,7 +305,6 @@ class ThreadSession(Session):
             model=self.model,
             corpus=self.corpus,
             traces=self.traces,
-            evals=self.evals,
             umap_params=self.umap_parameters,
         )
         self.server = ThreadServer(
@@ -329,22 +330,25 @@ class ThreadSession(Session):
         start_time: Optional[datetime] = None,
         stop_time: Optional[datetime] = None,
         root_spans_only: Optional[bool] = None,
+        project_name: Optional[str] = None,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
-        if (traces := self.traces) is None:
+        if not (traces := self.traces) or not (
+            project := traces.get_project(project_name or DEFAULT_PROJECT_NAME)
+        ):
             return None
         if not queries:
             queries = (SpanQuery(),)
-        valid_eval_names = self.evals.get_span_evaluation_names() if self.evals else ()
+        valid_eval_names = project.get_span_evaluation_names() if project else ()
         queries = tuple(
             SpanQuery.from_dict(
                 query.to_dict(),
-                evals=self.evals,
+                evals=project,
                 valid_eval_names=valid_eval_names,
             )
             for query in queries
         )
         results = query_spans(
-            traces,
+            project,
             *queries,
             start_time=start_time,
             stop_time=stop_time,
@@ -355,8 +359,15 @@ class ThreadSession(Session):
             return None if df.shape == (0, 0) else df
         return results
 
-    def get_evaluations(self) -> List[Evaluations]:
-        return self.evals.export_evaluations()
+    def get_evaluations(
+        self,
+        project_name: Optional[str] = None,
+    ) -> List[Evaluations]:
+        if not (traces := self.traces) or not (
+            project := traces.get_project(project_name or DEFAULT_PROJECT_NAME)
+        ):
+            return []
+        return project.export_evaluations()
 
 
 def launch_app(

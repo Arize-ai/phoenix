@@ -91,7 +91,7 @@ function SideNav() {
           )}
           <li>
             <NavLink
-              to="/projects/default"
+              to="/projects"
               text="Projects"
               icon={<Icon svg={<Icons.Grid />} />}
             />
