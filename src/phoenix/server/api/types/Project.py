@@ -213,3 +213,9 @@ class Project(Node):
             evaluation_name=evaluation_name,
             metrics_collection=metrics_collection,
         )
+
+    @strawberry.field
+    def streaming_last_updated_at(
+        self,
+    ) -> Optional[datetime]:
+        return self.project.last_updated_at
