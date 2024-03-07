@@ -23,7 +23,7 @@ export function ProjectsPage() {
             project: node {
               id
               name
-              recordCount
+              traceCount
               endTime
               latencyMsP50
               tokenCountTotal
@@ -86,7 +86,7 @@ function ProjectItem({
 }: {
   project: ProjectsPageQuery$data["projects"]["edges"][number]["project"];
 }) {
-  const { endTime, recordCount, tokenCountTotal, latencyMsP50 } = project;
+  const { endTime, traceCount, tokenCountTotal, latencyMsP50 } = project;
   const lastUpdatedText = useMemo(() => {
     if (endTime) {
       return `Last updated  ${formatDistance(new Date(endTime), new Date(), { addSuffix: true })}`;
@@ -122,11 +122,10 @@ function ProjectItem({
       </Flex>
       <Flex direction="row" justifyContent="space-between">
         <Flex direction="column" flex="none">
-          {/* TODO swap out for number of traces */}
           <Text elementType="h3" textSize="medium" color="text-700">
-            Total Spans
+            Total Traces
           </Text>
-          <Text textSize="xlarge">{intFormatter(recordCount)}</Text>
+          <Text textSize="xlarge">{intFormatter(traceCount)}</Text>
         </Flex>
         <Flex direction="column" flex="none">
           <Text elementType="h3" textSize="medium" color="text-700">

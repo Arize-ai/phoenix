@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<02f0fee9e6528678da8c62f3d1177ce7>>
+ * @generated SignedSource<<20221955c9e331578e3572d28a8f15d2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,8 +18,8 @@ export type ProjectsPageQuery$data = {
         readonly id: string;
         readonly latencyMsP50: number | null;
         readonly name: string;
-        readonly recordCount: number;
         readonly tokenCountTotal: number;
+        readonly traceCount: number;
       };
     }>;
   };
@@ -73,7 +73,7 @@ var v0 = [
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
-                "name": "recordCount",
+                "name": "traceCount",
                 "storageKey": null
               },
               {
@@ -125,16 +125,16 @@ return {
     "selections": (v0/*: any*/)
   },
   "params": {
-    "cacheID": "6e3630875b4da4264cfac49468a42fbd",
+    "cacheID": "c764e9c84a8e587d4cd443e5a89d9d08",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageQuery {\n  projects {\n    edges {\n      project: node {\n        id\n        name\n        recordCount\n        endTime\n        latencyMsP50\n        tokenCountTotal\n      }\n    }\n  }\n}\n"
+    "text": "query ProjectsPageQuery {\n  projects {\n    edges {\n      project: node {\n        id\n        name\n        traceCount\n        endTime\n        latencyMsP50\n        tokenCountTotal\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5638e7d02041a68fc85c06e6cd486211";
+(node as any).hash = "30cecd830090138aa83f855b3ebdc323";
 
 export default node;

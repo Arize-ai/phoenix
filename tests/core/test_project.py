@@ -28,7 +28,7 @@ def test_ingestion(
         project.add_span(decode(otlp_span))
 
         assert len(list(project.get_trace(trace_id))) == i + 1, f"{i=}, {s=}"
-        assert project.span_count == i + 1, f"{i=}, {s=}"
+        assert project.span_count() == i + 1, f"{i=}, {s=}"
 
         assert _id_str(otlp_span.span_id) in _spans, f"{i=}, {s=}"
         latest_span = next(project.get_spans(span_ids=[_id_str(otlp_span.span_id)]))
