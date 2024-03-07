@@ -6,7 +6,6 @@ from threading import RLock, Thread
 from types import MethodType
 from typing import DefaultDict, Iterable, Iterator, Optional, Tuple, Union
 
-from opentelemetry.proto.trace.v1 import trace_pb2 as otlp
 from typing_extensions import assert_never
 
 import phoenix.trace.v1 as pb
@@ -17,10 +16,9 @@ from phoenix.core.project import (
     WrappedSpan,
     _ProjectName,
 )
-from phoenix.trace.otel import decode
-from phoenix.trace.schemas import SpanID, TraceID
+from phoenix.trace.schemas import Span, SpanID, TraceID
 
-_SpanItem = Tuple[otlp.Span, _ProjectName]
+_SpanItem = Tuple[Span, _ProjectName]
 _EvalItem = Tuple[pb.Evaluation, _ProjectName]
 
 
@@ -119,12 +117,12 @@ class Traces:
 
     def put(
         self,
-        item: Union[otlp.Span, pb.Evaluation],
+        item: Union[Span, pb.Evaluation],
         project_name: Optional[str] = None,
     ) -> None:
         if not project_name:
             project_name = DEFAULT_PROJECT_NAME
-        if isinstance(item, otlp.Span):
+        if isinstance(item, Span):
             self._span_queue.put((item, project_name))
         elif isinstance(item, pb.Evaluation):
             self._eval_queue.put((item, project_name))
@@ -145,8 +143,7 @@ class Traces:
 
     def _consume_spans(self, queue: "SimpleQueue[Optional[_SpanItem]]") -> None:
         while (item := queue.get()) is not END_OF_QUEUE:
-            otlp_span, project_name = item
-            span = decode(otlp_span)
+            span, project_name = item
             with self._lock:
                 project = self._projects[project_name]
             project.add_span(span)

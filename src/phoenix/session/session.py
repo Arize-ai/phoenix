@@ -41,7 +41,6 @@ from phoenix.session.data_extractor import TraceDataExtractor
 from phoenix.session.evaluation import encode_evaluations
 from phoenix.trace import Evaluations
 from phoenix.trace.dsl.query import SpanQuery
-from phoenix.trace.otel import encode
 from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.utilities import query_spans
 
@@ -129,7 +128,7 @@ class Session(TraceDataExtractor, ABC):
         self.traces = Traces()
         if trace_dataset:
             for span in trace_dataset.to_spans():
-                self.traces.put(encode(span))
+                self.traces.put(span)
             for evaluations in trace_dataset.evaluations:
                 for pb_evaluation in encode_evaluations(evaluations):
                     self.traces.put(pb_evaluation)
