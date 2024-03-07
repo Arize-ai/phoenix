@@ -442,7 +442,12 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
               {...defaultCardProps}
               titleExtra={attributesContextualHelp}
             >
-              <CodeBlock value={selectedSpan.attributes} mimeType="json" />
+              <CopyToClipboard
+                text={selectedSpan.attributes}
+                padding="size-100"
+              >
+                <CodeBlock value={selectedSpan.attributes} mimeType="json" />
+              </CopyToClipboard>
             </Card>
           </View>
         </TabPane>
@@ -654,7 +659,9 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
           ) : null}
           {hasInput ? (
             <TabPane name="Input" hidden={!hasInput}>
-              <CodeBlock {...input} />
+              <CopyToClipboard text={input.value}>
+                <CodeBlock {...input} />
+              </CopyToClipboard>
             </TabPane>
           ) : null}
           {hasPromptTemplateObject ? (
@@ -672,10 +679,13 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                       <Text color="text-700" fontStyle="italic">
                         prompt template
                       </Text>
-                      <CodeBlock
-                        value={promptTemplateObject.template}
-                        mimeType="text"
-                      />
+                      <pre
+                        css={css`
+                          white-space: pre-wrap;
+                        `}
+                      >
+                        {promptTemplateObject.template}
+                      </pre>
                     </CopyToClipboard>
                   </View>
                   <View
@@ -786,7 +796,11 @@ function RetrieverSpanInfo(props: {
   return (
     <Flex direction="column" gap="size-200">
       <Card title="Input" {...defaultCardProps}>
-        {hasInput ? <CodeBlock {...input} /> : null}
+        {hasInput ? (
+          <CopyToClipboard text={input.value} padding="size-100">
+            <CodeBlock {...input} />
+          </CopyToClipboard>
+        ) : null}
       </Card>
       {hasDocuments ? (
         <Card
@@ -1434,7 +1448,9 @@ function SpanIO({ span }: { span: Span }) {
           titleExtra={attributesContextualHelp}
           {...defaultCardProps}
         >
-          <CodeBlock value={span.attributes} mimeType="json" />
+          <CopyToClipboard text={span.attributes} padding="size-100">
+            <CodeBlock value={span.attributes} mimeType="json" />
+          </CopyToClipboard>
         </Card>
       ) : null}
     </Flex>
