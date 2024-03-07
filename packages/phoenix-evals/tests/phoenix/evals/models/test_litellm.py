@@ -1,10 +1,16 @@
 import os
+import sys
 import unittest
 from unittest import mock
 
+import pytest
 from phoenix.evals import LiteLLMModel
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 9),
+    reason="https://github.com/BerriAI/litellm/issues/2005",
+)
 @mock.patch.dict(
     os.environ, {"OLLAMA_API_BASE": "just to make litellm.validate_environment happy"}, clear=True
 )
@@ -28,6 +34,10 @@ def test_selfhosted_ollama_via_model_kwargs(get_ollama_response):
     assert "How much is the fish?" in call_args[2]
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 9),
+    reason="https://github.com/BerriAI/litellm/issues/2005",
+)
 @mock.patch.dict(os.environ, {"OLLAMA_API_BASE": "http://hosted.olla.ma:11434"}, clear=True)
 @mock.patch("litellm.llms.ollama.get_ollama_response")
 def test_selfhosted_ollama_via_env(get_ollama_response):
