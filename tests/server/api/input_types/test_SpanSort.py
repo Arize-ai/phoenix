@@ -1,24 +1,27 @@
 from collections import namedtuple
-from itertools import count, islice
 from random import random
 
 import phoenix.trace.v1 as pb
 import pytest
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
+from openinference.semconv.trace import SpanAttributes
+from phoenix.core.traces import WrappedSpan
 from phoenix.server.api.input_types.SpanSort import EvalAttr, EvalResultKey, SpanColumn, SpanSort
 from phoenix.server.api.types.SortDir import SortDir
 
 
-@pytest.mark.parametrize("col", [SpanColumn.endTime, SpanColumn.latencyMs])
+@pytest.mark.parametrize(
+    "col", [SpanColumn.endTime, SpanColumn.latencyMs, SpanColumn.tokenCountTotal]
+)
 def test_sort_by_col(spans, col):
-    span0, span1, span2 = islice(spans, 3)
+    span0, span1, span2, span3, span4 = spans
     sort = SpanSort(col=col, dir=SortDir.desc)
-    assert list(sort([span0, span1, span2])) == [span2, span0, span1]
+    assert list(sort(spans)) == [span4, span2, span0, span1, span3]
 
 
 @pytest.mark.parametrize("eval_attr", list(EvalAttr))
 def test_sort_by_eval(spans, evals, eval_name, eval_attr):
-    span0, span1, span2 = islice(spans, 3)
+    span0, span1, span2 = spans[:3]
 
     eval_result_key = EvalResultKey(name=eval_name, attr=eval_attr)
     sort = SpanSort(eval_result_key=eval_result_key, dir=SortDir.desc)
@@ -50,11 +53,16 @@ def eval_name():
 
 @pytest.fixture
 def spans():
-    return (
-        Span(
-            context=Context(i),
-            end_time=None if i % 2 else i,
-            attributes={} if i % 2 else {SpanColumn.latencyMs.value: i},
+    _spans = []
+    for i in range(5):
+        span = WrappedSpan(
+            Span(
+                context=Context(i),
+                end_time=None if i % 2 else i,
+                attributes={} if i % 2 else {SpanAttributes.LLM_TOKEN_COUNT_TOTAL: i},
+            )
         )
-        for i in count()
-    )
+        if i % 2 == 0:
+            span[SpanColumn.latencyMs.value] = i
+        _spans.append(span)
+    return _spans

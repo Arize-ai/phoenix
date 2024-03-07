@@ -15,6 +15,7 @@ from starlette.responses import Response
 from starlette.status import HTTP_415_UNSUPPORTED_MEDIA_TYPE, HTTP_422_UNPROCESSABLE_ENTITY
 
 from phoenix.core.traces import Traces
+from phoenix.trace.otel import decode
 
 
 class TraceHandler(HTTPEndpoint):
@@ -50,7 +51,7 @@ class TraceHandler(HTTPEndpoint):
             project_name = _get_project_name(resource_spans.resource.attributes)
             for scope_span in resource_spans.scope_spans:
                 for span in scope_span.spans:
-                    self.traces.put(span, project_name=project_name)
+                    self.traces.put(decode(span), project_name=project_name)
                     await asyncio.sleep(0)
         return Response()
 

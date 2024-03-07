@@ -9,21 +9,22 @@ from strawberry import UNSET
 from typing_extensions import assert_never
 
 import phoenix.trace.v1 as pb
+from phoenix.core.project import WrappedSpan
 from phoenix.server.api.types.SortDir import SortDir
-from phoenix.trace.schemas import ComputedAttributes, Span, SpanID
+from phoenix.trace.schemas import ComputedAttributes, SpanID
 
 
 @strawberry.enum
 class SpanColumn(Enum):
     startTime = "start_time"
     endTime = "end_time"
-    latencyMs = ComputedAttributes.LATENCY_MS.value
+    latencyMs = ComputedAttributes.LATENCY_MS
     tokenCountTotal = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
     tokenCountPrompt = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
     tokenCountCompletion = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
-    cumulativeTokenCountTotal = ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_TOTAL.value
-    cumulativeTokenCountPrompt = ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_PROMPT.value
-    cumulativeTokenCountCompletion = ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION.value
+    cumulativeTokenCountTotal = ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_TOTAL
+    cumulativeTokenCountPrompt = ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_PROMPT
+    cumulativeTokenCountCompletion = ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION
 
 
 @strawberry.enum
@@ -53,9 +54,9 @@ class SpanSort:
 
     def __call__(
         self,
-        spans: Iterable[Span],
+        spans: Iterable[WrappedSpan],
         evals: Optional[SupportsGetSpanEvaluation] = None,
-    ) -> Iterator[Span]:
+    ) -> Iterator[WrappedSpan]:
         """
         Sorts the spans by the given key (column or eval) and direction
         """
@@ -77,16 +78,16 @@ class SpanSort:
         )
 
 
-def _get_column_value(span: Span, span_column: SpanColumn) -> Any:
+def _get_column_value(span: WrappedSpan, span_column: SpanColumn) -> Any:
     if span_column is SpanColumn.startTime:
         return span.start_time
     if span_column is SpanColumn.endTime:
         return span.end_time
-    return span.attributes.get(span_column.value)
+    return span[span_column.value]
 
 
 def _get_eval_result_value(
-    span: Span,
+    span: WrappedSpan,
     eval_name: str,
     eval_attr: EvalAttr,
     evals: Optional[SupportsGetSpanEvaluation] = None,

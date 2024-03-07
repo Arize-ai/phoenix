@@ -21,7 +21,7 @@ from typing_extensions import TypeGuard
 
 import phoenix.trace.v1 as pb
 from phoenix.trace.dsl.missing import MISSING
-from phoenix.trace.schemas import COMPUTED_PREFIX, ComputedAttributes, Span, SpanID
+from phoenix.trace.schemas import ComputedAttributes, Span, SpanID
 
 _VALID_EVAL_ATTRIBUTES: Tuple[str, ...] = tuple(
     field.name for field in pb.Evaluation.Result.DESCRIPTOR.fields
@@ -150,9 +150,8 @@ def _allowed_replacements() -> Iterator[Tuple[str, ast.expr]]:
         yield "span.attributes." + source_segment, ast_replacement
 
     for computed_attribute in ComputedAttributes:
-        field_name = computed_attribute.value
-        source_segment = field_name[len(COMPUTED_PREFIX) :]
-        ast_replacement = _ast_replacement(f"span.attributes.get('{field_name}')")
+        source_segment = computed_attribute.value
+        ast_replacement = _ast_replacement(f"span.get_computed_value('{source_segment}')")
         yield source_segment, ast_replacement
 
 
