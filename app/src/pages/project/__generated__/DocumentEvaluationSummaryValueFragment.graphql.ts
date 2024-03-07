@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2f6369590a2e70f9b5d347c0fcafdb3c>>
+ * @generated SignedSource<<4fab02541ae0d031779d474322c75e4f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,6 +17,7 @@ export type DocumentEvaluationSummaryValueFragment$data = {
     readonly hitRate: number | null;
     readonly meanReciprocalRank: number | null;
   } | null;
+  readonly id: string;
   readonly " $fragmentType": "DocumentEvaluationSummaryValueFragment";
 };
 export type DocumentEvaluationSummaryValueFragment$key = {
@@ -36,8 +37,11 @@ const node: ReaderFragment = {
   "metadata": {
     "refetch": {
       "connection": null,
-      "fragmentPathInResult": [],
-      "operation": require('./DocumentEvaluationSummaryValueQuery.graphql')
+      "fragmentPathInResult": [
+        "node"
+      ],
+      "operation": require('./DocumentEvaluationSummaryValueQuery.graphql'),
+      "identifierField": "id"
     }
   },
   "name": "DocumentEvaluationSummaryValueFragment",
@@ -86,12 +90,19 @@ const node: ReaderFragment = {
         }
       ],
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "id",
+      "storageKey": null
     }
   ],
-  "type": "Query",
+  "type": "Project",
   "abstractKey": null
 };
 
-(node as any).hash = "2713c6e621dbac0dec917c29a08fff7b";
+(node as any).hash = "7ff5a61c190ffed0761777c61a4fb476";
 
 export default node;

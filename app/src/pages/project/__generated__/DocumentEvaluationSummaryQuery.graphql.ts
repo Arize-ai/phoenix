@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<62516cb9f93f0d9d71df1831613fd731>>
+ * @generated SignedSource<<03812852687a08d6acc62d5ee9ac312e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,9 +12,12 @@ import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DocumentEvaluationSummaryQuery$variables = {
   evaluationName: string;
+  id: string;
 };
 export type DocumentEvaluationSummaryQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"DocumentEvaluationSummaryValueFragment">;
+  readonly project: {
+    readonly " $fragmentSpreads": FragmentRefs<"DocumentEvaluationSummaryValueFragment">;
+  };
 };
 export type DocumentEvaluationSummaryQuery = {
   response: DocumentEvaluationSummaryQuery$data;
@@ -27,9 +30,21 @@ var v0 = [
     "defaultValue": null,
     "kind": "LocalArgument",
     "name": "evaluationName"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "id"
   }
 ],
 v1 = [
+  {
+    "kind": "Variable",
+    "name": "id",
+    "variableName": "id"
+  }
+],
+v2 = [
   {
     "kind": "Variable",
     "name": "evaluationName",
@@ -44,9 +59,20 @@ return {
     "name": "DocumentEvaluationSummaryQuery",
     "selections": [
       {
+        "alias": "project",
         "args": (v1/*: any*/),
-        "kind": "FragmentSpread",
-        "name": "DocumentEvaluationSummaryValueFragment"
+        "concreteType": null,
+        "kind": "LinkedField",
+        "name": "node",
+        "plural": false,
+        "selections": [
+          {
+            "args": (v2/*: any*/),
+            "kind": "FragmentSpread",
+            "name": "DocumentEvaluationSummaryValueFragment"
+          }
+        ],
+        "storageKey": null
       }
     ],
     "type": "Query",
@@ -59,40 +85,76 @@ return {
     "name": "DocumentEvaluationSummaryQuery",
     "selections": [
       {
-        "alias": null,
+        "alias": "project",
         "args": (v1/*: any*/),
-        "concreteType": "DocumentEvaluationSummary",
+        "concreteType": null,
         "kind": "LinkedField",
-        "name": "documentEvaluationSummary",
+        "name": "node",
         "plural": false,
         "selections": [
           {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
-            "name": "averageNdcg",
+            "name": "__typename",
             "storageKey": null
+          },
+          {
+            "kind": "TypeDiscriminator",
+            "abstractKey": "__isNode"
           },
           {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
-            "name": "averagePrecision",
+            "name": "id",
             "storageKey": null
           },
           {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "meanReciprocalRank",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "hitRate",
-            "storageKey": null
+            "kind": "InlineFragment",
+            "selections": [
+              {
+                "alias": null,
+                "args": (v2/*: any*/),
+                "concreteType": "DocumentEvaluationSummary",
+                "kind": "LinkedField",
+                "name": "documentEvaluationSummary",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "averageNdcg",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "averagePrecision",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "meanReciprocalRank",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "hitRate",
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": null
+              }
+            ],
+            "type": "Project",
+            "abstractKey": null
           }
         ],
         "storageKey": null
@@ -100,16 +162,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "128887370326e6f31e211ff48094572a",
+    "cacheID": "cb9a115c548038fe9e6d8f82ee295bc6",
     "id": null,
     "metadata": {},
     "name": "DocumentEvaluationSummaryQuery",
     "operationKind": "query",
-    "text": "query DocumentEvaluationSummaryQuery(\n  $evaluationName: String!\n) {\n  ...DocumentEvaluationSummaryValueFragment_qsFcK\n}\n\nfragment DocumentEvaluationSummaryValueFragment_qsFcK on Query {\n  documentEvaluationSummary(evaluationName: $evaluationName) {\n    averageNdcg\n    averagePrecision\n    meanReciprocalRank\n    hitRate\n  }\n}\n"
+    "text": "query DocumentEvaluationSummaryQuery(\n  $evaluationName: String!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ...DocumentEvaluationSummaryValueFragment_qsFcK\n    __isNode: __typename\n    id\n  }\n}\n\nfragment DocumentEvaluationSummaryValueFragment_qsFcK on Project {\n  documentEvaluationSummary(evaluationName: $evaluationName) {\n    averageNdcg\n    averagePrecision\n    meanReciprocalRank\n    hitRate\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "bf75586dafc4a88ba9529c86783e3933";
+(node as any).hash = "e640f629267b8990db5f218c0f04fdca";
 
 export default node;
