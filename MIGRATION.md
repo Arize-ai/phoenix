@@ -1,14 +1,12 @@
 # Migrations
 
-## v3.x to v4.0.0
+## Migrating from `phoenix.experimental.evals` to `phoenix.evals`
 
 -   **v4.0.0** - Phoenix has now moved promoted the `evals` module out of experimental and can be installed as a separate extra.
 
-### Phoenix Evals
+### Installing and Using the `evals` module
 
-#### Installing and Using the `evals` module
-
-##### Old (v3.x)
+#### Old
 
 ```shell
 pip install arize-phoenix[experimental]
@@ -22,7 +20,7 @@ model = OpenAIModel()
 
 ```
 
-##### New (v4.0.0)
+#### New
 
 ```shell
 pip install arize-phoenix[evals]
@@ -33,9 +31,9 @@ from phoenix.evals import OpenAIModel
 from phoenix.evals import llm_classify
 ```
 
-#### Token counting has been removed `evals`
+### Token counting has been removed `evals`
 
-##### Old (v3.x)
+#### Old
 
 ```python
 from phoenix.experimental.evals import OpenAIModel
@@ -48,32 +46,32 @@ model.get_tokens_from_text(...)  # no longer supported in phoenix.evals
 model.get_text_from_tokens(...)  # no longer supported in phoenix.evals
 ```
 
-#### `BaseEvalModel` has been renamed to `BaseModel`
+### `BaseEvalModel` has been renamed to `BaseModel`
 
 When implementing a custom model wrapper for use with Phoenix, the base class has been renamed.
 
-##### Old (v3.x)
+#### Old
 
 ```python
 from phoenix.experimental.evals.models import BaseEvalModel  # renamed to BaseModel
 ```
 
-##### New (v4.0.0)
+#### New
 
 ```python
 from phoenix.evals.models import BaseModel
 ```
 
-#### Some modules in `phoenix.evals` have been relocated and renamed
+### Some modules in `phoenix.evals` have been relocated and renamed
 
-##### Old (v3.x)
+#### Old
 
 ```python
 from phoenix.experimental.evals.functions import classify, generate
 from phoenix.experimental.evals.templates import default_templates, template
 ```
 
-##### New (v4.0.0)
+#### New
 
 ```python
 from phoenix.evals import classify, generate
