@@ -64,7 +64,7 @@ export function ProjectPage() {
     <main css={mainCSS}>
       <ProjectPageHeader
         project={data.project}
-        extra={<StreamToggle query={data.project} />}
+        extra={<StreamToggle project={data.project} />}
       />
       <Tabs>
         <TabPane name="Traces">
