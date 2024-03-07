@@ -29,7 +29,7 @@ from phoenix.trace.fixtures import (
     _get_trace_fixture_by_name,
     get_evals_from_fixture,
 )
-from phoenix.trace.otel import encode
+from phoenix.trace.otel import decode, encode
 from phoenix.trace.span_json_decoder import json_string_to_span
 
 logger = logging.getLogger(__name__)
@@ -187,7 +187,9 @@ if __name__ == "__main__":
     traces = Traces()
     if trace_dataset_name is not None:
         fixture_spans = list(
-            encode(json_string_to_span(json_span))
+            # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
+            # `encode` removes the hyphens in the UUIDs.
+            decode(encode(json_string_to_span(json_span)))
             for json_span in _download_traces_fixture(
                 _get_trace_fixture_by_name(trace_dataset_name)
             )
