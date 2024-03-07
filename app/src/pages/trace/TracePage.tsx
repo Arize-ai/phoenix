@@ -1402,14 +1402,16 @@ function LLMPromptsList({ prompts }: { prompts: string[] }) {
               borderRadius="medium"
               padding="size-100"
             >
-              <pre
-                css={css`
-                  text-wrap: wrap;
-                  margin: 0;
-                `}
-              >
-                {prompt}
-              </pre>
+              <CopyToClipboard text={prompt}>
+                <pre
+                  css={css`
+                    text-wrap: wrap;
+                    margin: 0;
+                  `}
+                >
+                  {prompt}
+                </pre>
+              </CopyToClipboard>
             </View>
           </li>
         );
