@@ -543,6 +543,7 @@ type Project implements Node {
   tokenCountTotal: Int!
   latencyMsP50: Float
   latencyMsP99: Float
+  spans(timeRange: TimeRange, traceIds: [ID!], first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String): SpanConnection!
 
   """
   Names of all available evaluations for spans. (The list contains no duplicates.)
