@@ -71,17 +71,18 @@ def test_model_name_deprecation(monkeypatch):
 def test_selfhosted(completions_create):
     mock_completion = mock.Mock()
     mock_completion.model_dump.return_value = {
-        "choices": [{"message": {"function_call": False, "content": "42 per tail"}}]}
+        "choices": [{"message": {"function_call": False, "content": "42 per tail"}}]
+    }
 
     completions_create.return_value = mock_completion
-    lllmm = OpenAIModel(model="monstral",
-                        base_url="http://hosted.openai.me:8000/v1",
-                        api_key="bogus")
-    result = lllmm("How much is the fish?")
+    model = OpenAIModel(
+        model="monstral", base_url="http://hosted.openai.me:8000/v1", api_key="bogus"
+    )
+    result = model("How much is the fish?")
 
     assert result == "42 per tail"
-    assert "http://hosted.openai.me:8000/v1" in str(lllmm._client.base_url)
-    assert lllmm._client.api_key == "bogus"
+    assert "http://hosted.openai.me:8000/v1" in str(model._client.base_url)
+    assert model._client.api_key == "bogus"
     call_args = completions_create.call_args[1]
     assert call_args["model"] == "monstral"
     assert call_args["messages"][0]["content"] == "How much is the fish?"
