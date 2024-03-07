@@ -106,7 +106,9 @@ export function TracesTable(props: TracesTableProps) {
           }
           filterCondition: { type: "String", defaultValue: null }
         ) {
-          ...SpanColumnSelector_evaluations
+          project: node(id: $projectId) {
+            ...SpanColumnSelector_evaluations
+          }
           rootSpans: spans(
             first: $first
             after: $after

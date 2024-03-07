@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<35138808ca481c3c2d92a34338b360e4>>
+ * @generated SignedSource<<a01b512707a5f826b750d912f69a0241>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,6 +13,9 @@ export type SpanKind = "agent" | "chain" | "embedding" | "llm" | "reranker" | "r
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type TracesTable_spans$data = {
+  readonly project: {
+    readonly " $fragmentSpreads": FragmentRefs<"SpanColumnSelector_evaluations">;
+  };
   readonly rootSpans: {
     readonly edges: ReadonlyArray<{
       readonly rootSpan: {
@@ -82,7 +85,6 @@ export type TracesTable_spans$data = {
       };
     }>;
   };
-  readonly " $fragmentSpreads": FragmentRefs<"SpanColumnSelector_evaluations">;
   readonly " $fragmentType": "TracesTable_spans";
 };
 export type TracesTable_spans$key = {
@@ -273,6 +275,10 @@ return {
       "name": "first"
     },
     {
+      "kind": "RootArgument",
+      "name": "projectId"
+    },
+    {
       "defaultValue": {
         "col": "startTime",
         "dir": "desc"
@@ -307,9 +313,26 @@ return {
   "name": "TracesTable_spans",
   "selections": [
     {
-      "args": null,
-      "kind": "FragmentSpread",
-      "name": "SpanColumnSelector_evaluations"
+      "alias": "project",
+      "args": [
+        {
+          "kind": "Variable",
+          "name": "id",
+          "variableName": "projectId"
+        }
+      ],
+      "concreteType": null,
+      "kind": "LinkedField",
+      "name": "node",
+      "plural": false,
+      "selections": [
+        {
+          "args": null,
+          "kind": "FragmentSpread",
+          "name": "SpanColumnSelector_evaluations"
+        }
+      ],
+      "storageKey": null
     },
     {
       "alias": "rootSpans",
@@ -498,6 +521,6 @@ return {
 };
 })();
 
-(node as any).hash = "d875fb6df668e874cc43e6593af76f1b";
+(node as any).hash = "e93fae2596b7ed90bbf4fd563d210e89";
 
 export default node;

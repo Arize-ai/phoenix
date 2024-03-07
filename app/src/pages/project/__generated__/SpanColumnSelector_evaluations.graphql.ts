@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2569806cc3e1f358f0d70c528aed6826>>
+ * @generated SignedSource<<9db5417ea510c52a55a92eee37bad681>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -33,10 +33,10 @@ const node: ReaderFragment = {
       "storageKey": null
     }
   ],
-  "type": "Query",
+  "type": "Project",
   "abstractKey": null
 };
 
-(node as any).hash = "6cb10f157751687d641be9002cfb97a8";
+(node as any).hash = "b15c9caa847912fdb7b07a0c01a69ed9";
 
 export default node;

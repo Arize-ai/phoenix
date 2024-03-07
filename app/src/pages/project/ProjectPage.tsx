@@ -42,7 +42,11 @@ export function ProjectPage() {
   const data = useLazyLoadQuery<ProjectPageQuery>(
     graphql`
       query ProjectPageQuery($projectId: GlobalID!) {
-        ...SpansTable_spans
+        project: node(id: $projectId) {
+          ... on Project {
+            ...SpansTable_spans
+          }
+        }
         ...TracesTable_spans
         ...ProjectPageHeader_stats
         ...StreamToggle_data

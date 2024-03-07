@@ -140,7 +140,7 @@ function EvaluationColumnSelector({
 }: Pick<SpanColumnSelectorProps, "query">) {
   const data = useFragment<SpanColumnSelector_evaluations$key>(
     graphql`
-      fragment SpanColumnSelector_evaluations on Query {
+      fragment SpanColumnSelector_evaluations on Project {
         spanEvaluationNames
       }
     `,
