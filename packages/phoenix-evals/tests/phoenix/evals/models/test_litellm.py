@@ -2,7 +2,7 @@ import os
 import unittest
 from unittest import mock
 
-from models import LiteLLMModel
+from phoenix.evals import LiteLLMModel
 
 
 @mock.patch.dict(
