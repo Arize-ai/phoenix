@@ -6,7 +6,7 @@
   "license": "None",
   "private": true,
   "dependencies": {
-    "@arizeai/components": "^1.1.4",
+    "@arizeai/components": "^1.1.5",
     "@arizeai/openinference-semantic-conventions": "^0.1.0",
     "@arizeai/point-cloud": "^3.0.4",
     "@codemirror/autocomplete": "^6.12.0",
