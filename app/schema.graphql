@@ -555,6 +555,7 @@ type Project implements Node {
   documentEvaluationNames(spanId: ID): [String!]!
   spanEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): EvaluationSummary
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
+  streamingLastUpdatedAt: DateTime
 }
 
 type ProjectConnection {
