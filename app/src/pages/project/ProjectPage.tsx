@@ -63,7 +63,7 @@ export function ProjectPage() {
   return (
     <main css={mainCSS}>
       <ProjectPageHeader
-        query={data.project}
+        project={data.project}
         extra={<StreamToggle query={data.project} />}
       />
       <Tabs>

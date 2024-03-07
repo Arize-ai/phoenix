@@ -14,7 +14,7 @@ import { DocumentEvaluationSummary } from "./DocumentEvaluationSummary";
 import { EvaluationSummary } from "./EvaluationSummary";
 
 export function ProjectPageHeader(props: {
-  query: ProjectPageHeader_stats$key;
+  project: ProjectPageHeader_stats$key;
   /**
    * the extra component displayed on the right side of the header
    */
@@ -43,7 +43,7 @@ export function ProjectPageHeader(props: {
         documentEvaluationNames
       }
     `,
-    props.query
+    props.project
   );
 
   // Refetch the count of traces if the fetchKey changes
