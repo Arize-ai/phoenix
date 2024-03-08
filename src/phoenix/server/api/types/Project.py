@@ -19,6 +19,7 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.Span import Span, to_gql_span
+from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.trace.dsl import SpanFilter
 from phoenix.trace.schemas import SpanID, TraceID
 
@@ -219,3 +220,19 @@ class Project(Node):
         self,
     ) -> Optional[datetime]:
         return self.project.last_updated_at
+
+    @strawberry.field
+    def validate_span_filter_condition(self, condition: str) -> ValidationResult:
+        valid_eval_names = self.project.get_span_evaluation_names()
+        try:
+            SpanFilter(
+                condition=condition,
+                evals=self.project,
+                valid_eval_names=valid_eval_names,
+            )
+            return ValidationResult(is_valid=True, error_message=None)
+        except SyntaxError as e:
+            return ValidationResult(
+                is_valid=False,
+                error_message=e.msg,
+            )
