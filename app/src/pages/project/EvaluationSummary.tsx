@@ -50,7 +50,7 @@ export function EvaluationSummary({ evaluationName }: EvaluationSummaryProps) {
       <Suspense fallback={<Text textSize="xlarge">--</Text>}>
         <EvaluationSummaryValue
           evaluationName={evaluationName}
-          query={data.project}
+          project={data.project}
         />
       </Suspense>
     </Flex>
@@ -59,9 +59,9 @@ export function EvaluationSummary({ evaluationName }: EvaluationSummaryProps) {
 
 function EvaluationSummaryValue(props: {
   evaluationName: string;
-  query: EvaluationSummaryValueFragment$key;
+  project: EvaluationSummaryValueFragment$key;
 }) {
-  const { query } = props;
+  const { project } = props;
   const { fetchKey } = useStreamState();
   const [data, refetch] = useRefetchableFragment<
     EvaluationSummaryQuery,
@@ -80,7 +80,7 @@ function EvaluationSummaryValue(props: {
         }
       }
     `,
-    query
+    project
   );
 
   // Refetch the evaluation summary if the fetchKey changes
