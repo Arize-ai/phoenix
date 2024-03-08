@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0b5d234b144a2ab3da675ce891ebb049>>
+ * @generated SignedSource<<f149717fc7aa75fbb721bce209691f06>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -269,51 +269,50 @@ v21 = {
   ],
   "storageKey": null
 },
-v22 = {
-  "kind": "Literal",
-  "name": "rootSpansOnly",
-  "value": true
-},
-v23 = [
+v22 = [
   (v3/*: any*/),
-  (v22/*: any*/),
+  {
+    "kind": "Literal",
+    "name": "rootSpansOnly",
+    "value": true
+  },
   (v4/*: any*/)
 ],
-v24 = {
+v23 = {
   "alias": "statusCode",
   "args": null,
   "kind": "ScalarField",
   "name": "propagatedStatusCode",
   "storageKey": null
 },
-v25 = {
+v24 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "parentId",
   "storageKey": null
 },
-v26 = [
+v25 = [
   (v15/*: any*/)
 ],
-v27 = {
+v26 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "input",
   "plural": false,
-  "selections": (v26/*: any*/),
+  "selections": (v25/*: any*/),
   "storageKey": null
 },
-v28 = {
+v27 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "output",
   "plural": false,
-  "selections": (v26/*: any*/),
+  "selections": (v25/*: any*/),
   "storageKey": null
 };
 return {
@@ -332,31 +331,24 @@ return {
         "plural": false,
         "selections": [
           {
-            "kind": "InlineFragment",
-            "selections": [
-              {
-                "args": null,
-                "kind": "FragmentSpread",
-                "name": "SpansTable_spans"
-              },
-              {
-                "args": null,
-                "kind": "FragmentSpread",
-                "name": "TracesTable_spans"
-              },
-              {
-                "args": null,
-                "kind": "FragmentSpread",
-                "name": "ProjectPageHeader_stats"
-              },
-              {
-                "args": null,
-                "kind": "FragmentSpread",
-                "name": "StreamToggle_data"
-              }
-            ],
-            "type": "Project",
-            "abstractKey": null
+            "args": null,
+            "kind": "FragmentSpread",
+            "name": "SpansTable_spans"
+          },
+          {
+            "args": null,
+            "kind": "FragmentSpread",
+            "name": "TracesTable_spans"
+          },
+          {
+            "args": null,
+            "kind": "FragmentSpread",
+            "name": "ProjectPageHeader_stats"
+          },
+          {
+            "args": null,
+            "kind": "FragmentSpread",
+            "name": "StreamToggle_data"
           }
         ],
         "storageKey": null
@@ -489,7 +481,7 @@ return {
               },
               {
                 "alias": "rootSpans",
-                "args": (v23/*: any*/),
+                "args": (v22/*: any*/),
                 "concreteType": "SpanConnection",
                 "kind": "LinkedField",
                 "name": "spans",
@@ -514,7 +506,7 @@ return {
                           (v6/*: any*/),
                           (v7/*: any*/),
                           (v8/*: any*/),
-                          (v24/*: any*/),
+                          (v23/*: any*/),
                           (v9/*: any*/),
                           (v10/*: any*/),
                           {
@@ -538,9 +530,9 @@ return {
                             "name": "cumulativeTokenCountCompletion",
                             "storageKey": null
                           },
-                          (v25/*: any*/),
+                          (v24/*: any*/),
+                          (v26/*: any*/),
                           (v27/*: any*/),
-                          (v28/*: any*/),
                           (v14/*: any*/),
                           (v17/*: any*/),
                           (v18/*: any*/),
@@ -554,15 +546,15 @@ return {
                             "selections": [
                               (v6/*: any*/),
                               (v7/*: any*/),
-                              (v24/*: any*/),
+                              (v23/*: any*/),
                               (v9/*: any*/),
                               (v10/*: any*/),
-                              (v25/*: any*/),
+                              (v24/*: any*/),
                               (v11/*: any*/),
                               (v12/*: any*/),
                               (v13/*: any*/),
+                              (v26/*: any*/),
                               (v27/*: any*/),
-                              (v28/*: any*/),
                               (v14/*: any*/),
                               (v17/*: any*/),
                               (v18/*: any*/)
@@ -583,7 +575,7 @@ return {
               },
               {
                 "alias": "rootSpans",
-                "args": (v23/*: any*/),
+                "args": (v22/*: any*/),
                 "filters": [
                   "sort",
                   "rootSpansOnly",
@@ -595,35 +587,11 @@ return {
                 "name": "spans"
               },
               {
-                "alias": "totalTraces",
-                "args": [
-                  (v22/*: any*/)
-                ],
-                "concreteType": "SpanConnection",
-                "kind": "LinkedField",
-                "name": "spans",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "PageInfo",
-                    "kind": "LinkedField",
-                    "name": "pageInfo",
-                    "plural": false,
-                    "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "totalCount",
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": "spans(rootSpansOnly:true)"
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "traceCount",
+                "storageKey": null
               },
               (v11/*: any*/),
               {
@@ -664,16 +632,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "bd77e26ec4416baf9c75c15cb30c9951",
+    "cacheID": "754cc7f87a17b0f1316dc0304935f306",
     "id": null,
     "metadata": {},
     "name": "ProjectPageQuery",
     "operationKind": "query",
-    "text": "query ProjectPageQuery(\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      ...SpansTable_spans\n      ...TracesTable_spans\n      ...ProjectPageHeader_stats\n      ...StreamToggle_data\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  totalTraces: spans(rootSpansOnly: true) {\n    pageInfo {\n      totalCount\n    }\n  }\n  tokenCountTotal\n  latencyMsP50\n  latencyMsP99\n  spanEvaluationNames\n  documentEvaluationNames\n  id\n}\n\nfragment SpanColumnSelector_evaluations on Project {\n  spanEvaluationNames\n}\n\nfragment SpansTable_spans on Project {\n  ...SpanColumnSelector_evaluations\n  spans(first: 100, sort: {col: startTime, dir: desc}) {\n    edges {\n      span: node {\n        spanKind\n        name\n        metadata\n        statusCode\n        startTime\n        latencyMs\n        tokenCountTotal\n        tokenCountPrompt\n        tokenCountCompletion\n        context {\n          spanId\n          traceId\n        }\n        input {\n          value\n          mimeType\n        }\n        output {\n          value\n          mimeType\n        }\n        spanEvaluations {\n          name\n          label\n          score\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment StreamToggle_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n\nfragment TracesTable_spans on Project {\n  ...SpanColumnSelector_evaluations\n  rootSpans: spans(first: 100, sort: {col: startTime, dir: desc}, rootSpansOnly: true) {\n    edges {\n      rootSpan: node {\n        spanKind\n        name\n        metadata\n        statusCode: propagatedStatusCode\n        startTime\n        latencyMs\n        tokenCountTotal: cumulativeTokenCountTotal\n        tokenCountPrompt: cumulativeTokenCountPrompt\n        tokenCountCompletion: cumulativeTokenCountCompletion\n        parentId\n        input {\n          value\n        }\n        output {\n          value\n        }\n        context {\n          spanId\n          traceId\n        }\n        spanEvaluations {\n          name\n          label\n          score\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        descendants {\n          spanKind\n          name\n          statusCode: propagatedStatusCode\n          startTime\n          latencyMs\n          parentId\n          tokenCountTotal\n          tokenCountPrompt\n          tokenCountCompletion\n          input {\n            value\n          }\n          output {\n            value\n          }\n          context {\n            spanId\n            traceId\n          }\n          spanEvaluations {\n            name\n            label\n            score\n          }\n          documentRetrievalMetrics {\n            evaluationName\n            ndcg\n            precision\n            hit\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ProjectPageQuery(\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ...SpansTable_spans\n    ...TracesTable_spans\n    ...ProjectPageHeader_stats\n    ...StreamToggle_data\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  traceCount\n  tokenCountTotal\n  latencyMsP50\n  latencyMsP99\n  spanEvaluationNames\n  documentEvaluationNames\n  id\n}\n\nfragment SpanColumnSelector_evaluations on Project {\n  spanEvaluationNames\n}\n\nfragment SpansTable_spans on Project {\n  ...SpanColumnSelector_evaluations\n  spans(first: 100, sort: {col: startTime, dir: desc}) {\n    edges {\n      span: node {\n        spanKind\n        name\n        metadata\n        statusCode\n        startTime\n        latencyMs\n        tokenCountTotal\n        tokenCountPrompt\n        tokenCountCompletion\n        context {\n          spanId\n          traceId\n        }\n        input {\n          value\n          mimeType\n        }\n        output {\n          value\n          mimeType\n        }\n        spanEvaluations {\n          name\n          label\n          score\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment StreamToggle_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n\nfragment TracesTable_spans on Project {\n  ...SpanColumnSelector_evaluations\n  rootSpans: spans(first: 100, sort: {col: startTime, dir: desc}, rootSpansOnly: true) {\n    edges {\n      rootSpan: node {\n        spanKind\n        name\n        metadata\n        statusCode: propagatedStatusCode\n        startTime\n        latencyMs\n        tokenCountTotal: cumulativeTokenCountTotal\n        tokenCountPrompt: cumulativeTokenCountPrompt\n        tokenCountCompletion: cumulativeTokenCountCompletion\n        parentId\n        input {\n          value\n        }\n        output {\n          value\n        }\n        context {\n          spanId\n          traceId\n        }\n        spanEvaluations {\n          name\n          label\n          score\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        descendants {\n          spanKind\n          name\n          statusCode: propagatedStatusCode\n          startTime\n          latencyMs\n          parentId\n          tokenCountTotal\n          tokenCountPrompt\n          tokenCountCompletion\n          input {\n            value\n          }\n          output {\n            value\n          }\n          context {\n            spanId\n            traceId\n          }\n          spanEvaluations {\n            name\n            label\n            score\n          }\n          documentRetrievalMetrics {\n            evaluationName\n            ndcg\n            precision\n            hit\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "040857be05240902e2e8db2c64456109";
+(node as any).hash = "a9885971bfc03157f236c67d91b67960";
 
 export default node;

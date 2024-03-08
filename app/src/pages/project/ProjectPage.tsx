@@ -43,12 +43,10 @@ export function ProjectPage() {
     graphql`
       query ProjectPageQuery($id: GlobalID!) {
         project: node(id: $id) {
-          ... on Project {
-            ...SpansTable_spans
-            ...TracesTable_spans
-            ...ProjectPageHeader_stats
-            ...StreamToggle_data
-          }
+          ...SpansTable_spans
+          ...TracesTable_spans
+          ...ProjectPageHeader_stats
+          ...StreamToggle_data
         }
       }
     `,

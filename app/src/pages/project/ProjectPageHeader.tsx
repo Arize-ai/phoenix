@@ -29,16 +29,10 @@ export function ProjectPageHeader(props: {
     graphql`
       fragment ProjectPageHeader_stats on Project
       @refetchable(queryName: "ProjectPageHeaderQuery") {
-        totalTraces: spans(rootSpansOnly: true) {
-          pageInfo {
-            totalCount
-          }
-        }
-        ... on Project {
-          tokenCountTotal
-          latencyMsP50
-          latencyMsP99
-        }
+        traceCount
+        tokenCountTotal
+        latencyMsP50
+        latencyMsP99
         spanEvaluationNames
         documentEvaluationNames
       }

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<40774f6c4a16712279127aa96d45b28c>>
+ * @generated SignedSource<<17a291ff3a779b575dec13cb4a15bbb2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -101,39 +101,11 @@ return {
             "kind": "InlineFragment",
             "selections": [
               {
-                "alias": "totalTraces",
-                "args": [
-                  {
-                    "kind": "Literal",
-                    "name": "rootSpansOnly",
-                    "value": true
-                  }
-                ],
-                "concreteType": "SpanConnection",
-                "kind": "LinkedField",
-                "name": "spans",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "PageInfo",
-                    "kind": "LinkedField",
-                    "name": "pageInfo",
-                    "plural": false,
-                    "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "totalCount",
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": "spans(rootSpansOnly:true)"
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "traceCount",
+                "storageKey": null
               },
               {
                 "alias": null,
@@ -180,16 +152,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "36bd9db8ea1281da20da8f504d406f25",
+    "cacheID": "bd4c59adfff0b38f6f4357e861b797de",
     "id": null,
     "metadata": {},
     "name": "ProjectPageHeaderQuery",
     "operationKind": "query",
-    "text": "query ProjectPageHeaderQuery(\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectPageHeader_stats\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  totalTraces: spans(rootSpansOnly: true) {\n    pageInfo {\n      totalCount\n    }\n  }\n  tokenCountTotal\n  latencyMsP50\n  latencyMsP99\n  spanEvaluationNames\n  documentEvaluationNames\n  id\n}\n"
+    "text": "query ProjectPageHeaderQuery(\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectPageHeader_stats\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  traceCount\n  tokenCountTotal\n  latencyMsP50\n  latencyMsP99\n  spanEvaluationNames\n  documentEvaluationNames\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "50ee316a2b5ae9de1292994b38b55852";
+(node as any).hash = "e18ca825b86a66619e25ff123f147ff4";
 
 export default node;

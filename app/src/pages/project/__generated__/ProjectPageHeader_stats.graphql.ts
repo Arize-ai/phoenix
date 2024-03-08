@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1d7547a9853a320462e1ebb586bb1dbd>>
+ * @generated SignedSource<<be91bef1354011680eb90dfb7a005548>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,11 +17,7 @@ export type ProjectPageHeader_stats$data = {
   readonly latencyMsP99: number | null;
   readonly spanEvaluationNames: ReadonlyArray<string>;
   readonly tokenCountTotal: number;
-  readonly totalTraces: {
-    readonly pageInfo: {
-      readonly totalCount: number;
-    };
-  };
+  readonly traceCount: number;
   readonly " $fragmentType": "ProjectPageHeader_stats";
 };
 export type ProjectPageHeader_stats$key = {
@@ -45,39 +41,11 @@ const node: ReaderFragment = {
   "name": "ProjectPageHeader_stats",
   "selections": [
     {
-      "alias": "totalTraces",
-      "args": [
-        {
-          "kind": "Literal",
-          "name": "rootSpansOnly",
-          "value": true
-        }
-      ],
-      "concreteType": "SpanConnection",
-      "kind": "LinkedField",
-      "name": "spans",
-      "plural": false,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "PageInfo",
-          "kind": "LinkedField",
-          "name": "pageInfo",
-          "plural": false,
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "totalCount",
-              "storageKey": null
-            }
-          ],
-          "storageKey": null
-        }
-      ],
-      "storageKey": "spans(rootSpansOnly:true)"
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "traceCount",
+      "storageKey": null
     },
     {
       "alias": null,
@@ -126,6 +94,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "50ee316a2b5ae9de1292994b38b55852";
+(node as any).hash = "e18ca825b86a66619e25ff123f147ff4";
 
 export default node;
