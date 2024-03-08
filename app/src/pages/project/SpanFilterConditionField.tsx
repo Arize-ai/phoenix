@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useState,
 } from "react";
+import { useParams } from "react-router";
 import { autocompletion, CompletionContext } from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
 import { EditorView, keymap } from "@codemirror/view";
@@ -177,7 +178,7 @@ function filterConditionCompletions(context: CompletionContext) {
 /**
  * Async server-side validation of the filter condition expression
  */
-async function isConditionValid(condition: string) {
+async function isConditionValid(condition: string, projectId: string) {
   if (!condition) {
     return {
       isValid: true,
@@ -188,20 +189,27 @@ async function isConditionValid(condition: string) {
     await fetchQuery<SpanFilterConditionFieldValidationQuery>(
       environment,
       graphql`
-        query SpanFilterConditionFieldValidationQuery($condition: String!) {
-          validateSpanFilterCondition(condition: $condition) {
-            isValid
-            errorMessage
+        query SpanFilterConditionFieldValidationQuery(
+          $condition: String!
+          $id: GlobalID!
+        ) {
+          project: node(id: $id) {
+            ... on Project {
+              validateSpanFilterCondition(condition: $condition) {
+                isValid
+                errorMessage
+              }
+            }
           }
         }
       `,
-      { condition }
+      { condition, id: projectId }
     ).toPromise();
   // Satisfy the type checker
   if (!validationResult) {
     throw new Error("Filter condition validation is null");
   }
-  return validationResult.validateSpanFilterCondition;
+  return validationResult.project.validateSpanFilterCondition;
 }
 
 const extensions = [
@@ -246,19 +254,22 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
     },
     [filterCondition, setFilterCondition]
   );
+  const { projectId } = useParams();
 
   useEffect(() => {
-    isConditionValid(deferredFilterCondition).then((result) => {
-      if (!result.isValid && result.errorMessage) {
-        setErrorMessage(result.errorMessage);
-      } else {
-        setErrorMessage("");
-        startTransition(() => {
-          onValidCondition(deferredFilterCondition);
-        });
+    isConditionValid(deferredFilterCondition, projectId as string).then(
+      (result) => {
+        if (!result?.isValid && result?.errorMessage) {
+          setErrorMessage(result.errorMessage);
+        } else {
+          setErrorMessage("");
+          startTransition(() => {
+            onValidCondition(deferredFilterCondition);
+          });
+        }
       }
-    });
-  }, [onValidCondition, deferredFilterCondition]);
+    );
+  }, [onValidCondition, deferredFilterCondition, projectId]);
 
   const hasError = errorMessage !== "";
   const hasCondition = filterCondition !== "";
