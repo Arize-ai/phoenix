@@ -5,7 +5,9 @@ description: >-
   customize and customize the LLM spans
 ---
 
-# Custom Spans
+# Manual Instrumentation
+
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/Ways-to-collect-data-for-Arize-and-Phoenix.png" alt=""><figcaption></figcaption></figure>
 
 Phoenix and OpenInference use OpenTelemetry Trace API to create spans. Because Phoenix supports OpenTelemetry, this means that you can perform manual instrumentation, no LLM framework required!  This guide will help you understand how to create and customize spans using OpenTelemetry Trace API.
 

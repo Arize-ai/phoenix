@@ -43,7 +43,7 @@ The above launches a Phoenix server that acts as a trace collector for any LLM a
 
 The `launch_app` command will spit out a URL for you to view the Phoenix UI. You can access this url again at any time via the [session](../api/session.md).\
 \
-Now that phoenix is up and running, you can now run a [LlamaIndex](../tracing/llamaindex.md) or [LangChain](../tracing/langchain.md) application OR just run the OpenAI API and debug your application as the traces stream in.
+Now that phoenix is up and running, you can now run a [LlamaIndex](../tracing/instrumentation/llamaindex.md) or [LangChain](../tracing/instrumentation/langchain.md) application OR just run the OpenAI API and debug your application as the traces stream in.
 
 {% tabs %}
 {% tab title="LlamaIndex" %}
@@ -81,7 +81,7 @@ query_engine = index.as_query_engine()
 query_engine.query("What is OpenInference tracing?")
 ```
 
-See the [integrations guide](../tracing/llamaindex.md#traces) for the full details as well as support for older versions of LlamaIndex
+See the [integrations guide](../tracing/instrumentation/llamaindex.md#traces) for the full details as well as support for older versions of LlamaIndex
 {% endtab %}
 
 {% tab title="LangChain" %}
@@ -116,7 +116,7 @@ chain = RetrievalQA.from_chain_type(
 response = chain.run("What is OpenInference tracing?")
 ```
 
-See the [integration guide](../tracing/langchain.md#traces) for details
+See the [integration guide](../tracing/instrumentation/langchain.md#traces) for details
 {% endtab %}
 
 {% tab title="OpenAI API" %}
@@ -168,7 +168,7 @@ Once you've executed a sufficient number of queries (or chats) to your applicati
 
 ## Trace Datasets
 
-Phoenix also support datasets that contain [OpenInference trace](../concepts/open-inference.md) data. This allows data from a LangChain and LlamaIndex running instance explored for analysis offline.
+Phoenix also support datasets that contain [OpenInference trace](../tracing/instrumentation/open-inference/) data. This allows data from a LangChain and LlamaIndex running instance explored for analysis offline.
 
 There are two ways to extract trace dataframes. The two ways for LangChain are described below.
 
