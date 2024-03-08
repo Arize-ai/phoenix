@@ -2,7 +2,7 @@
 description: Tracing the execution of LLM powered applications using OpenInference Traces
 ---
 
-# LLM Traces
+# Overview: Traces
 
 ## What is LLM Traces and Observability?
 

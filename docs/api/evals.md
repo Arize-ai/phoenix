@@ -37,7 +37,7 @@ Evaluates a pandas dataframe using a set of user-specified evaluators that asses
 * **provide\_explanation** (bool, optional): If true, each output dataframe will contain an explanation column containing the LLM's reasoning for each evaluation.
 * **use\_function\_calling\_if\_available** (bool, optional): If true, function calling is used (if available) as a means to constrain the LLM outputs. With function calling, the LLM is instructed to provide its response as a structured JSON object, which is easier to parse.
 * **verbose** (bool, optional): If true, prints detailed information such as model invocation parameters, retries on failed requests, etc.
-* **concurrency** (int, optional): The number of concurrent workers if async submission is possible. If&#x20;
+* **concurrency** (int, optional): The number of concurrent workers if async submission is possible. If
 
 ### Returns
 

@@ -6,8 +6,6 @@ description: >-
 
 # Environments
 
-<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/environments.png" alt=""><figcaption><p>Phoenix can be run locally, via a cloud notebook, or as a container</p></figcaption></figure>
-
 Phoenix app is first and foremost an application that can be run just in in your notebook! This makes it an extremely flexible app since it can be accessed directly as you iterate on your AI-powered app!\
 
 
@@ -19,33 +17,13 @@ Looking how to deploy Phoenix outside of the notebook for production use? Checko
 
 ### Notebooks
 
-Currently phoenix supports local, colab, databricks, and SageMaker notebooks.
+To start phoenix in the notebook environment, run:
 
-{% hint style="warning" %}
-Note, phoenix only supports running the phoenix server via the notebook for SageMaker notebooks. It cannot setup proxy requests for SageMaker studio since there is no support of jupyter-server-proxy
-{% endhint %}
-
-#### SageMaker
-
-With SageMaker notebooks, phoenix leverages the [jupyter-server-proy](https://github.com/jupyterhub/jupyter-server-proxy) to host the server under `proxy/6006.`Note, that phoenix will automatically try to detect that you are running in SageMaker but you can declare the notebook runtime via a parameter to `launch_app` or an environment variable
-
-{% tabs %}
-{% tab title="Environment Variable" %}
-```python
-import os
-
-os.environ["PHOENIX_NOTEBOOK_ENV"] = "sagemaker"
-```
-{% endtab %}
-
-{% tab title="Launch Parameter" %}
 ```python
 import phoenix as px
 
-px.launch_app(notebook_environment="sagemaker")
+session = px.launch_app()
 ```
-{% endtab %}
-{% endtabs %}
 
 ### Container
 
@@ -77,18 +55,6 @@ If you deploy the phoenix server (collector) to a remote machine, you will have 
 import os
 
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://123.456.789:6006"
-```
-{% endtab %}
-
-{% tab title="Set Endpoint in Code" %}
-```python
-from phoenix.trace.tracer import Tracer
-from phoenix.trace.exporter import HttpExporter
-from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
-
-
-tracer = Tracer(exporter=HttpExporter(endpoint="http://123.456.789:6006"))
-OpenAIInstrumentor(tracer).instrument()
 ```
 {% endtab %}
 {% endtabs %}

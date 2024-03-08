@@ -109,7 +109,7 @@ class EmbeddingColumnNames(
 )
 ```
 
-A dataclass that associates one or more columns of a dataframe with an [embedding](../concepts/embeddings.md) feature. Instances of this class are only used as values in a dictionary passed to the `embedding_feature_column_names` field of [Schema](dataset-and-schema.md#phoenix.schema).
+A dataclass that associates one or more columns of a dataframe with an [embedding](broken-reference) feature. Instances of this class are only used as values in a dictionary passed to the `embedding_feature_column_names` field of [Schema](dataset-and-schema.md#phoenix.schema).
 
 **\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/datasets/schema.py)**]**
 
