@@ -82,8 +82,8 @@
 
 ## 📚 Reference
 
-* [Deployment](reference/deploying-phoenix.md)
 * [Environments](environments.md)
+* [Deployment](reference/deploying-phoenix.md)
 * [Frequently Asked Questions](reference/frequently-asked-questions.md)
 * [Contribute to Phoenix](reference/contribute-to-phoenix.md)
 
