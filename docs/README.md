@@ -10,10 +10,10 @@ Phoenix is built by [Arize AI](https://www.arize.com), the company behind the th
 
 ## Install Phoenix
 
-In your Jupyter or Colab environment, run the following command to install.
-
 {% tabs %}
 {% tab title="Using pip" %}
+In your Jupyter or Colab environment, run the following command to install.
+
 ```sh
 pip install arize-phoenix[evals]
 ```
@@ -23,6 +23,14 @@ pip install arize-phoenix[evals]
 ```sh
 conda install -c conda-forge arize-phoenix[evals]
 ```
+{% endtab %}
+
+{% tab title="Container" %}
+Phoenix can also run via a container. The image can be found at:
+
+{% embed url="https://hub.docker.com/r/arizephoenix/phoenix" %}
+
+Checkout the [environments section](environments.md) and [deployment guide](reference/deploying-phoenix.md) for details.
 {% endtab %}
 {% endtabs %}
 
