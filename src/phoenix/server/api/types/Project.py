@@ -223,12 +223,11 @@ class Project(Node):
 
     @strawberry.field
     def validate_span_filter_condition(self, condition: str) -> ValidationResult:
-        project = self.project
-        valid_eval_names = project.get_span_evaluation_names() if project else ()
+        valid_eval_names = self.project.get_span_evaluation_names()
         try:
             SpanFilter(
                 condition=condition,
-                evals=project,
+                evals=self.project,
                 valid_eval_names=valid_eval_names,
             )
             return ValidationResult(is_valid=True, error_message=None)
