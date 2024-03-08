@@ -1,12 +1,12 @@
 ---
-description: Evaluate, troubleshoot, and fine-tune your LLM, CV, and NLP models.
+description: AI Observability and Evaluation
 ---
 
 # Arize Phoenix
 
-Phoenix is an open-source observability designed for experimentation, evaluation, and troubleshooting.
-
-It allows AI Engineers and Data Scientists to quickly visualize their data, evaluate performance, track down issues & insights, and easily export to improve.
+Phoenix is an open-source observability library designed for experimentation, evaluation, and troubleshooting. It allows AI Engineers and Data Scientists to quickly visualize their data, evaluate performance, track down issues, and export data to improve.\
+\
+Phoenix is built by [Arize AI](https://www.arize.com), the company behind the the industry-leading AI observability platform,  and a set of core contributors.
 
 ## Install Phoenix
 
