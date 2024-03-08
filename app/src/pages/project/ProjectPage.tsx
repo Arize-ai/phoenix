@@ -41,16 +41,18 @@ export function ProjectPage() {
   const { projectId } = useParams();
   const data = useLazyLoadQuery<ProjectPageQuery>(
     graphql`
-      query ProjectPageQuery($projectId: GlobalID!) {
-        ...SpansTable_spans
-        ...TracesTable_spans
-        ...ProjectPageHeader_stats
-        ...StreamToggle_data
+      query ProjectPageQuery($id: GlobalID!) {
+        project: node(id: $id) {
+          ...SpansTable_spans
+          ...TracesTable_spans
+          ...ProjectPageHeader_stats
+          ...StreamToggle_data
+        }
       }
     `,
     {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      projectId: projectId as string,
+      id: projectId as string,
     },
     {
       fetchPolicy: "store-and-network",
@@ -58,14 +60,17 @@ export function ProjectPage() {
   );
   return (
     <main css={mainCSS}>
-      <ProjectPageHeader query={data} extra={<StreamToggle query={data} />} />
+      <ProjectPageHeader
+        project={data.project}
+        extra={<StreamToggle project={data.project} />}
+      />
       <Tabs>
         <TabPane name="Traces">
           {({ isSelected }) => {
             return (
               isSelected && (
                 <Suspense>
-                  <TracesTable query={data} />
+                  <TracesTable project={data.project} />
                 </Suspense>
               )
             );
@@ -76,7 +81,7 @@ export function ProjectPage() {
             return (
               isSelected && (
                 <Suspense>
-                  <SpansTable query={data} />
+                  <SpansTable project={data.project} />
                 </Suspense>
               )
             );

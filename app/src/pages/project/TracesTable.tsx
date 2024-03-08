@@ -54,7 +54,7 @@ import {
 } from "./tableUtils";
 import { TokenCount } from "./TokenCount";
 type TracesTableProps = {
-  query: TracesTable_spans$key;
+  project: TracesTable_spans$key;
 };
 
 const PAGE_SIZE = 100;
@@ -95,7 +95,7 @@ export function TracesTable(props: TracesTableProps) {
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
       graphql`
-        fragment TracesTable_spans on Query
+        fragment TracesTable_spans on Project
         @refetchable(queryName: "TracesTableQuery")
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
@@ -184,7 +184,7 @@ export function TracesTable(props: TracesTableProps) {
           }
         }
       `,
-      props.query
+      props.project
     );
 
   const evaluationVisibility = useTracingContext(

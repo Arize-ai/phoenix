@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b86ceec32138cc2734af56d541a8afd4>>
+ * @generated SignedSource<<17a291ff3a779b575dec13cb4a15bbb2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,10 +11,12 @@
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ProjectPageHeaderQuery$variables = {
-  projectId: string;
+  id: string;
 };
 export type ProjectPageHeaderQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"ProjectPageHeader_stats">;
+  readonly node: {
+    readonly " $fragmentSpreads": FragmentRefs<"ProjectPageHeader_stats">;
+  };
 };
 export type ProjectPageHeaderQuery = {
   response: ProjectPageHeaderQuery$data;
@@ -26,7 +28,14 @@ var v0 = [
   {
     "defaultValue": null,
     "kind": "LocalArgument",
-    "name": "projectId"
+    "name": "id"
+  }
+],
+v1 = [
+  {
+    "kind": "Variable",
+    "name": "id",
+    "variableName": "id"
   }
 ];
 return {
@@ -37,9 +46,20 @@ return {
     "name": "ProjectPageHeaderQuery",
     "selections": [
       {
-        "args": null,
-        "kind": "FragmentSpread",
-        "name": "ProjectPageHeader_stats"
+        "alias": null,
+        "args": (v1/*: any*/),
+        "concreteType": null,
+        "kind": "LinkedField",
+        "name": "node",
+        "plural": false,
+        "selections": [
+          {
+            "args": null,
+            "kind": "FragmentSpread",
+            "name": "ProjectPageHeader_stats"
+          }
+        ],
+        "storageKey": null
       }
     ],
     "type": "Query",
@@ -52,49 +72,8 @@ return {
     "name": "ProjectPageHeaderQuery",
     "selections": [
       {
-        "alias": "totalTraces",
-        "args": [
-          {
-            "kind": "Literal",
-            "name": "rootSpansOnly",
-            "value": true
-          }
-        ],
-        "concreteType": "SpanConnection",
-        "kind": "LinkedField",
-        "name": "spans",
-        "plural": false,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "concreteType": "PageInfo",
-            "kind": "LinkedField",
-            "name": "pageInfo",
-            "plural": false,
-            "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "totalCount",
-                "storageKey": null
-              }
-            ],
-            "storageKey": null
-          }
-        ],
-        "storageKey": "spans(rootSpansOnly:true)"
-      },
-      {
-        "alias": "project",
-        "args": [
-          {
-            "kind": "Variable",
-            "name": "id",
-            "variableName": "projectId"
-          }
-        ],
+        "alias": null,
+        "args": (v1/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -108,8 +87,26 @@ return {
             "storageKey": null
           },
           {
+            "kind": "TypeDiscriminator",
+            "abstractKey": "__isNode"
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "id",
+            "storageKey": null
+          },
+          {
             "kind": "InlineFragment",
             "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "traceCount",
+                "storageKey": null
+              },
               {
                 "alias": null,
                 "args": null,
@@ -130,52 +127,41 @@ return {
                 "kind": "ScalarField",
                 "name": "latencyMsP99",
                 "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "spanEvaluationNames",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "documentEvaluationNames",
+                "storageKey": null
               }
             ],
             "type": "Project",
             "abstractKey": null
-          },
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "id",
-            "storageKey": null
           }
         ],
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "spanEvaluationNames",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "documentEvaluationNames",
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "8f5491fab41f220e2295358885e1f824",
+    "cacheID": "bd4c59adfff0b38f6f4357e861b797de",
     "id": null,
     "metadata": {},
     "name": "ProjectPageHeaderQuery",
     "operationKind": "query",
-    "text": "query ProjectPageHeaderQuery(\n  $projectId: GlobalID!\n) {\n  ...ProjectPageHeader_stats\n}\n\nfragment ProjectPageHeader_stats on Query {\n  totalTraces: spans(rootSpansOnly: true) {\n    pageInfo {\n      totalCount\n    }\n  }\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      tokenCountTotal\n      latencyMsP50\n      latencyMsP99\n    }\n    __isNode: __typename\n    id\n  }\n  spanEvaluationNames\n  documentEvaluationNames\n}\n"
+    "text": "query ProjectPageHeaderQuery(\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectPageHeader_stats\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  traceCount\n  tokenCountTotal\n  latencyMsP50\n  latencyMsP99\n  spanEvaluationNames\n  documentEvaluationNames\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5f21b34435eb35302b40edaafa608240";
+(node as any).hash = "e18ca825b86a66619e25ff123f147ff4";
 
 export default node;

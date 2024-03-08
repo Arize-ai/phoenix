@@ -14,7 +14,7 @@ import { DocumentEvaluationSummary } from "./DocumentEvaluationSummary";
 import { EvaluationSummary } from "./EvaluationSummary";
 
 export function ProjectPageHeader(props: {
-  query: ProjectPageHeader_stats$key;
+  project: ProjectPageHeader_stats$key;
   /**
    * the extra component displayed on the right side of the header
    */
@@ -27,25 +27,17 @@ export function ProjectPageHeader(props: {
     ProjectPageHeader_stats$key
   >(
     graphql`
-      fragment ProjectPageHeader_stats on Query
+      fragment ProjectPageHeader_stats on Project
       @refetchable(queryName: "ProjectPageHeaderQuery") {
-        totalTraces: spans(rootSpansOnly: true) {
-          pageInfo {
-            totalCount
-          }
-        }
-        project: node(id: $projectId) {
-          ... on Project {
-            tokenCountTotal
-            latencyMsP50
-            latencyMsP99
-          }
-        }
+        traceCount
+        tokenCountTotal
+        latencyMsP50
+        latencyMsP99
         spanEvaluationNames
         documentEvaluationNames
       }
     `,
-    props.query
+    props.project
   );
 
   // Refetch the count of traces if the fetchKey changes
@@ -55,9 +47,9 @@ export function ProjectPageHeader(props: {
     });
   }, [fetchKey, refetch]);
 
-  const latencyMsP50 = data?.project.latencyMsP50;
-  const latencyMsP99 = data?.project.latencyMsP99;
-  const tokenCountTotal = data?.project.tokenCountTotal;
+  const latencyMsP50 = data?.latencyMsP50;
+  const latencyMsP99 = data?.latencyMsP99;
+  const tokenCountTotal = data?.tokenCountTotal;
   const spanEvaluationNames = data?.spanEvaluationNames;
   const documentEvaluationNames = data?.documentEvaluationNames;
 
@@ -114,9 +106,7 @@ export function ProjectPageHeader(props: {
               <Text elementType="h3" textSize="medium" color="text-700">
                 Total Traces
               </Text>
-              <Text textSize="xlarge">
-                {intFormatter(data?.totalTraces.pageInfo.totalCount)}
-              </Text>
+              <Text textSize="xlarge">{intFormatter(data?.traceCount)}</Text>
             </Flex>
             <Flex direction="column" flex="none">
               <Text elementType="h3" textSize="medium" color="text-700">

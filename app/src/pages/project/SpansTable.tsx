@@ -48,7 +48,7 @@ import {
 } from "./tableUtils";
 import { TokenCount } from "./TokenCount";
 type SpansTableProps = {
-  query: SpansTable_spans$key;
+  project: SpansTable_spans$key;
 };
 
 const PAGE_SIZE = 100;
@@ -64,7 +64,7 @@ export function SpansTable(props: SpansTableProps) {
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SpansTableSpansQuery, SpansTable_spans$key>(
       graphql`
-        fragment SpansTable_spans on Query
+        fragment SpansTable_spans on Project
         @refetchable(queryName: "SpansTableSpansQuery")
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
@@ -121,7 +121,7 @@ export function SpansTable(props: SpansTableProps) {
           }
         }
       `,
-      props.query
+      props.project
     );
 
   const evaluationVisibility = useTracingContext(

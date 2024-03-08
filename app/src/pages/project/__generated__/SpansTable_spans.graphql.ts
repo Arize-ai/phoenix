@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0c0f197110af3e7edd821b13fe21886b>>
+ * @generated SignedSource<<7f4ad0f33e1ac0edcd6008a44ce15006>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,6 +14,7 @@ export type SpanKind = "agent" | "chain" | "embedding" | "llm" | "reranker" | "r
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type SpansTable_spans$data = {
+  readonly id: string;
   readonly spans: {
     readonly edges: ReadonlyArray<{
       readonly span: {
@@ -132,8 +133,11 @@ return {
         "backward": null,
         "path": (v0/*: any*/)
       },
-      "fragmentPathInResult": [],
-      "operation": require('./SpansTableSpansQuery.graphql')
+      "fragmentPathInResult": [
+        "node"
+      ],
+      "operation": require('./SpansTableSpansQuery.graphql'),
+      "identifierField": "id"
     }
   },
   "name": "SpansTable_spans",
@@ -403,13 +407,20 @@ return {
         }
       ],
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "id",
+      "storageKey": null
     }
   ],
-  "type": "Query",
+  "type": "Project",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "082400e749303a7ce666b3477b63dea0";
+(node as any).hash = "1fe874dea544c69e592c2772fd84f698";
 
 export default node;

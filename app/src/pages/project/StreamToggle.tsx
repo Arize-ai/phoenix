@@ -13,17 +13,17 @@ import { StreamToggle_data$key } from "./__generated__/StreamToggle_data.graphql
  */
 const REFRESH_INTERVAL_MS = 2000;
 
-export function StreamToggle(props: { query: StreamToggle_data$key }) {
+export function StreamToggle(props: { project: StreamToggle_data$key }) {
   const { isStreaming, setIsStreaming, setFetchKey } = useStreamState();
 
   const [lastUpdatedAt, refetchLastUpdatedAt] = useRefetchableFragment(
     graphql`
-      fragment StreamToggle_data on Query
+      fragment StreamToggle_data on Project
       @refetchable(queryName: "StreamToggleRefetchQuery") {
         streamingLastUpdatedAt
       }
     `,
-    props.query
+    props.project
   );
   // Keep track of the loaded lastUpdatedAt, so we can detect when it changes
   const loadedLastUpdatedAtRef = useRef<string | null>(

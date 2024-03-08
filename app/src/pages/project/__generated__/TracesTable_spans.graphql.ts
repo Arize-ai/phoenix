@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<35138808ca481c3c2d92a34338b360e4>>
+ * @generated SignedSource<<669fadd557967601f1d3d6e603c65b08>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,6 +13,7 @@ export type SpanKind = "agent" | "chain" | "embedding" | "llm" | "reranker" | "r
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type TracesTable_spans$data = {
+  readonly id: string;
   readonly rootSpans: {
     readonly edges: ReadonlyArray<{
       readonly rootSpan: {
@@ -300,8 +301,11 @@ return {
         "backward": null,
         "path": (v0/*: any*/)
       },
-      "fragmentPathInResult": [],
-      "operation": require('./TracesTableQuery.graphql')
+      "fragmentPathInResult": [
+        "node"
+      ],
+      "operation": require('./TracesTableQuery.graphql'),
+      "identifierField": "id"
     }
   },
   "name": "TracesTable_spans",
@@ -491,13 +495,20 @@ return {
         }
       ],
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "id",
+      "storageKey": null
     }
   ],
-  "type": "Query",
+  "type": "Project",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "d875fb6df668e874cc43e6593af76f1b";
+(node as any).hash = "834fc464dace944d3249ad311c7502f7";
 
 export default node;
