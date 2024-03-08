@@ -1,17 +1,16 @@
 # Table of contents
 
 * [Arize Phoenix](README.md)
-* [User Guide](user-guide.md)
+* [User Guide](llm-observability.md)
 * [Examples](notebooks.md)
 
 ## 🔭 Tracing
 
 * [Overview: Traces](concepts/llm-traces.md)
 * [Quickstart: Traces](quickstart/llm-traces.md)
-* [Instrumentation](telemetry/instrumentation.md)
+* [Auto Instrumentation](telemetry/instrumentation.md)
   * [OpenInference](concepts/open-inference.md)
-* [Deployment](telemetry/deploying-phoenix.md)
-* [Custom Spans](telemetry/custom-spans.md)
+* [Manual Instrumentation](telemetry/custom-spans.md)
 
 ## 🧠 Evaluation
 
@@ -83,7 +82,8 @@
 
 ## 📚 Reference
 
-* [Environments](reference/environments.md)
+* [Deployment](reference/deploying-phoenix.md)
+* [Environments](environments.md)
 * [Frequently Asked Questions](reference/frequently-asked-questions.md)
 * [Contribute to Phoenix](reference/contribute-to-phoenix.md)
 

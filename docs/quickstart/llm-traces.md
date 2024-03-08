@@ -28,10 +28,6 @@ conda install -c conda-forge arize-phoenix[evals]
 
 Note that the above only installs dependencies that are necessary to run the application. Phoenix also has an experimental sub-module where you can find [LLM Evals](../llm-evals/llm-evals.md).
 
-```sh
-pip install arize-phoenix[experimental]
-```
-
 ```python
 import phoenix as px
 session = px.launch_app()

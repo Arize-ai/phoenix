@@ -2,7 +2,7 @@
 description: How to use phoenix outside of the notebook environment.
 ---
 
-# Collector
+# Deployment
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/deployment.png" alt=""><figcaption><p>The phoenix server can be run as a collector of spans over OTLP</p></figcaption></figure>
 
@@ -48,7 +48,7 @@ Note that the above scripts and templates are provided purely as examples
 
 In order to make your LLM application observable, it must be instrumented. That is, the code must emit traces. The instrumented data must then be sent to an Observability backend, in our case the Phoenix server.
 
-Phoenix collects traces from your running application using OTLP (OpenTelemetry Protocol). Notably, Phoenix accepts traces produced via instrumentation provided by [OpenInference](https://github.com/Arize-ai/openinference). OpenInference instrumentations automatically instrument your code so that LLM Traces can be exported and collected by Phoenix. To learn more about instrumentation, check out the full details [here](instrumentation.md).
+Phoenix collects traces from your running application using OTLP (OpenTelemetry Protocol). Notably, Phoenix accepts traces produced via instrumentation provided by [OpenInference](https://github.com/Arize-ai/openinference). OpenInference instrumentations automatically instrument your code so that LLM Traces can be exported and collected by Phoenix. To learn more about instrumentation, check out the full details [here](../telemetry/instrumentation.md).
 
 OpenInference currently supports instrumenting your application in both Python and Javascript.  For each of these languages, you will first need to install the `opentelemetry` and `openinference` packages necessary to trace your application.
 

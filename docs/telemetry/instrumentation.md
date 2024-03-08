@@ -4,9 +4,7 @@ description: >-
   applications.
 ---
 
-# Instrumentation
-
-<figure><img src="../.gitbook/assets/integrations (1).png" alt=""><figcaption><p>Instrumentations available via OpenInference</p></figcaption></figure>
+# Auto Instrumentation
 
 In order to make a system observable, it must be **instrumented**: That is, code from the system’s components must emit traces.
 
