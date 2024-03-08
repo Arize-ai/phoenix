@@ -4,7 +4,7 @@ description: How to connect to OpenInference compliant data via a llama_index ca
 
 # LlamaIndex
 
-[LlamaIndex](https://github.com/run-llama/llama\_index) (GPT Index) is a data framework for your LLM application. It's a powerful framework by which you can build an application that leverages RAG (retrieval-augmented generation) to super-charge an LLM with your own data. RAG is an extremely powerful LLM application model because it lets you harness the power of LLMs such as OpenAI's GPT but tuned to your data and use-case.
+[LlamaIndex](https://github.com/run-llama/llama\_index) is a data framework for your LLM application. It's a powerful framework by which you can build an application that leverages RAG (retrieval-augmented generation) to super-charge an LLM with your own data. RAG is an extremely powerful LLM application model because it lets you harness the power of LLMs such as OpenAI's GPT but tuned to your data and use-case.
 
 However when building out a retrieval system, a lot can go wrong that can be detrimental to the user-experience of your question and answer system. Phoenix provides two different ways to gain insights into your LLM application: [OpenInference](open-inference/) inference records and [OpenInference](open-inference/) tracing.
 
