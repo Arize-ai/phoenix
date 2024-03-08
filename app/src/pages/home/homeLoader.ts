@@ -22,6 +22,7 @@ export async function homeLoader(_args: LoaderFunctionArgs) {
           edges {
             project: node {
               id
+              endTime
             }
           }
         }
@@ -33,6 +34,11 @@ export async function homeLoader(_args: LoaderFunctionArgs) {
   if (data?.functionality.modelInferences) {
     return redirect("/model");
   } else if (data?.projects.edges?.length) {
+    for (const { project } of data.projects.edges) {
+      if (project.endTime != null) {
+        return redirect(`/projects/${project.id}`);
+      }
+    }
     const projectId = data?.projects.edges[0].project.id;
     return redirect(`/projects/${projectId}`);
   } else {
