@@ -13,9 +13,9 @@
   * [LangChain](tracing/instrumentation/langchain.md)
   * [OpenAI](tracing/instrumentation/openai.md)
   * [DSPy](tracing/instrumentation/dspy.md)
+  * [Bedrock](tracing/instrumentation/bedrock.md)
   * [AutoGen](tracing/instrumentation/autogen-support.md)
-  * [OpenInference](tracing/instrumentation/open-inference/README.md)
-    * [Bedrock](tracing/instrumentation/open-inference/bedrock.md)
+  * [OpenInference](tracing/instrumentation/open-inference.md)
 * [Manual Instrumentation](telemetry/custom-spans.md)
 
 ## 🧠 Evaluation
