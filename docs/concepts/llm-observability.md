@@ -4,7 +4,7 @@ description: >-
   software system: the application, the prompt, and the response.
 ---
 
-# LLM Observability
+# User Guide
 
 ## 5 Pillars of LLM Observability
 

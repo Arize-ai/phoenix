@@ -24,6 +24,7 @@
         "numpy",
         "openai",
         "openinference",
+        "OTLP",
         "postprocessors",
         "pydantic",
         "quickstart",

@@ -77,3 +77,4 @@ When you're done using Phoenix, gracefully shut down your running background ses
 ```python
 px.close_app()
 ```
+
