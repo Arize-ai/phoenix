@@ -224,7 +224,7 @@ export function TracePage() {
       fetchPolicy: "store-and-network",
     }
   );
-const spansList = useMemo(() => {
+  const spansList = useMemo(() => {
     const gqlSpans =
       data.project.spans || ([] as NonNullable<typeof data.project.spans>);
     return gqlSpans.edges.map((edge) => edge.span);
