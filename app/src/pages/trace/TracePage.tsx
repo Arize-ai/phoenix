@@ -1479,7 +1479,6 @@ function CopyToClipboard({
     <div
       css={css`
         position: relative;
-
         .copy-to-clipboard-button {
           transition: opacity 0.2s ease-in-out;
           opacity: 0;
