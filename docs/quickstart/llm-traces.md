@@ -6,7 +6,7 @@ description: Inspect the inner-workings of your LLM Application using OpenInfere
 
 ## Overview
 
-Tracing is a powerful tool for understanding the behavior of your LLM application. Phoenix has best-in-class tracing capabilities, irregardless of what LLM framework you use.
+Tracing is a powerful tool for understanding the behavior of your LLM application. Phoenix has best-in-class tracing, irregardless of what framework you use.
 
 To get started with traces, you will first want to start a local Phoenix app.
 
@@ -26,7 +26,7 @@ conda install -c conda-forge arize-phoenix[evals]
 {% endtab %}
 {% endtabs %}
 
-Note that the above only installs dependencies that are necessary to run the application. Phoenix also has an experimental sub-module where you can find [LLM Evals](../llm-evals/llm-evals.md).
+To get started, launch the phoenix app.
 
 ```python
 import phoenix as px
