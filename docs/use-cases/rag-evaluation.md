@@ -500,7 +500,7 @@ We have now evaluated our RAG system's retrieval performance. Let's send these e
 ```python
 from phoenix.trace import DocumentEvaluations, SpanEvaluations
 
-px.Client().log_evaluations(
+px.log_evaluations(
     SpanEvaluations(dataframe=ndcg_at_2, eval_name="ndcg@2"),
     SpanEvaluations(dataframe=precision_at_2, eval_name="precision@2"),
     DocumentEvaluations(dataframe=retrieved_documents_relevance_df, eval_name="relevance"),
@@ -578,7 +578,7 @@ Since we have evaluated our RAG system's QA performance and Hallucinations perfo
 ```python
 from phoenix.trace import SpanEvaluations
 
-px.Client().log_evaluations(
+px.log_evaluations(
     SpanEvaluations(dataframe=qa_correctness_eval_df, eval_name="Q&A Correctness"),
     SpanEvaluations(dataframe=hallucination_eval_df, eval_name="Hallucination"),
 )

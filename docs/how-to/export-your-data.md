@@ -18,7 +18,29 @@ The easiest way to gather traces that have been collected by Phoenix is to direc
 px.Client().get_spans_dataframe('span_kind == "RETRIEVER"')
 ```
 
-Notice that the `get_spans_dataframe` method supports a Python expression as an optional `str` parameter so you can filter down your data to specific traces you care about. For full details, consult the [Client](../api/client.md) API docs.
+Notice that the `get_spans_dataframe` method supports a Python expression as an optional `str` parameter so you can filter down your data to specific traces you care about. For full details, consult the [Session API docs](../api/session.md).
+
+You can also directly get the spans from the tracer or callback:
+
+```python
+from phoenix.trace.langchain import OpenInferenceTracer
+
+tracer = OpenInferenceTracer()
+
+# Run the application with the tracer
+chain.run(query, callbacks=[tracer])
+
+# When you are ready to analyze the data, you can convert the traces
+ds = TraceDataset.from_spans(tracer.get_spans())
+
+# Print the dataframe
+ds.dataframe.head()
+
+# Re-initialize the app with the trace dataset
+px.launch_app(trace=ds)
+```
+
+Note that the above calls `get_spans` on a LangChain tracer but the same exact method exists on the `OpenInferenceCallback` for LlamaIndex as well.
 
 ## Exporting Embeddings
 

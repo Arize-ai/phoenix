@@ -27,21 +27,38 @@ Once you have started a Phoenix server, you can start your LangChain application
 
 {% tabs %}
 {% tab title="Instrument Langchain" %}
-We recommend that you instrument your entire LangChain application to maximize visibility. To do this, we will use the `LangChainInstrumentor`.
+We recommend that you instrument your entire LangChain application to maximize visibility. To do this, we will use the `LangChainInstrumentor` to add the `OpenInferenceTracer` to every chain in your application.\
+
 
 ```python
-from phoenix.trace.langchain import LangChainInstrumentor
+from phoenix.trace.langchain import OpenInferenceTracer, LangChainInstrumentor
 
-# By default, the traces will be exported to the locally running Phoenix 
-# server. If a different endpoint is desired, change the environment
-# variable os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = ...
-LangChainInstrumentor().instrument()
+# If no exporter is specified, the tracer will export to the locally running Phoenix server
+tracer = OpenInferenceTracer()
+# If no tracer is specified, a tracer is constructed for you
+LangChainInstrumentor(tracer).instrument()
 
 # Initialize your LangChain application
 
 # Note that we do not have to pass in the tracer as a callback here
 # since the above instrumented LangChain in it's entirety.
 response = chain.run(query)
+```
+{% endtab %}
+
+{% tab title="Use callbacks" %}
+If you only want traces from parts of your application, you can pass in the tracer to the parts that you care about.
+
+```python
+from phoenix.trace.langchain import OpenInferenceTracer
+
+# If no exporter is specified, the tracer will export to the locally running Phoenix server
+tracer = OpenInferenceTracer()
+
+# Initialize your LangChain application
+
+# Instrument the execution of the runs with the tracer. By default the tracer uses an HTTPExporter
+response = chain.run(query, callbacks=[tracer])
 ```
 {% endtab %}
 {% endtabs %}
@@ -56,13 +73,29 @@ px.active_session().view()
 
 #### Saving Traces
 
-If you would like to save your traces to a file for later use, you can directly extract the traces as a dataframe from Phoenix using `px.Client`.
+If you would like to save your traces to a file for later use, you can directly extract the traces from the `tracer`
+
+To directly extract the traces from the `tracer`, dump the traces from the tracer into a file (we recommend `jsonl` for readability).
 
 ```python
-px.Client().get_spans_dataframe()
+from phoenix.trace.span_json_encoder import spans_to_jsonl
+with open("trace.jsonl", "w") as f:
+    f.write(spans_to_jsonl(tracer.get_spans()))
 ```
 
-In this way, you can store and communicate interesting traces that you may want to use to share with a team or to use later down the line to fine-tune an LLM or model.
+Now you can save this file for later inspection. To launch the app with the file generated above, simply pass the contents in the file above via a `TraceDataset`
+
+```python
+from phoenix.trace.utils import json_lines_to_df
+
+json_lines = []
+with open("trace.jsonl", "r") as f:
+        json_lines = cast(List[str], f.readlines())
+trace_ds = TraceDataset(json_lines_to_df(json_lines))
+px.launch_app(trace=trace_ds)
+```
+
+In this way, you can use files as a means to store and communicate interesting traces that you may want to use to share with a team or to use later down the line to fine-tune an LLM or model.
 
 #### Working Example with Traces
 

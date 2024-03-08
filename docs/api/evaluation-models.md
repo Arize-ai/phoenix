@@ -46,8 +46,6 @@ class OpenAIModel:
     """How many completions to generate for each prompt."""
     model_kwargs: Dict[str, Any] = field(default_factory=dict)
     """Holds any model parameters valid for `create` call not explicitly specified."""
-    batch_size: int = 20
-    """Batch size to use when passing multiple documents to generate."""
     request_timeout: Optional[Union[float, Tuple[float, float]]] = None
     """Timeout for requests to OpenAI completion API. Default is 600 seconds."""
     max_retries: int = 20
@@ -79,14 +77,6 @@ model = OpenAIModel(
     api_version="2023-09-15-preview",
 )
 ```
-
-{% hint style="info" %}
-Note that the `model_name` param is actually the `engine` of your deployment.  You may get a `DeploymentNotFound` error if this parameter is not correct. You can find your engine param in the Azure OpenAI playground.\
-\
-
-{% endhint %}
-
-<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/azure_openai_engine.png" alt=""><figcaption><p>How to find the model param in Azure</p></figcaption></figure>
 
 Azure OpenAI supports specific options:
 

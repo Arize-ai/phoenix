@@ -63,16 +63,7 @@ A client for making HTTP requests to the Phoenix server for extracting/downloadi
 
 * **get\_trace\_dataset** -> Optional\[TraceDataset]\
   \
-  Returns the trace dataset containing spans and evaluations.\
-
-*   **log\_evaluations** -> None\
-    \
-    Send evaluations to Phoenix. See [#logging-multiple-evaluation-dataframes](../how-to/define-your-schema/llm-evaluations.md#logging-multiple-evaluation-dataframes "mention")for usage.\
-
-
-    **Parameters**
-
-    * **\*evaluations** (Evaluations): One or more Evaluations datasets. See [llm-evaluations.md](../how-to/define-your-schema/llm-evaluations.md "mention")for more details.
+  Returns the trace dataset containing spans and evaluations.
 
 ### Usage
 

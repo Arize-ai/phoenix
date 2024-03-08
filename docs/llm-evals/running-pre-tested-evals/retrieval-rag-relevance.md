@@ -85,3 +85,27 @@ The above runs the RAG relevancy LLM template against the dataframe df.
 | Throughput  | GPT-4   | GPT-4 Turbo | GPT-3.5 |
 | ----------- | ------- | ----------- | ------- |
 | 100 Samples | 113 Sec | 61 sec      | 73 Sec  |
+
+### Concatenating Retrieved References&#x20;
+
+In order to run the RAG relevance eval, you need to concatenate all of the chunks into a single string that is inserted into the Eval check.
+
+<figure><img src="../../.gitbook/assets/chunks_concat (1).png" alt=""><figcaption></figcaption></figure>
+
+The above drawing shows the query and chunks returned for the query, those chunks are put into the reference variable of the Eval template.&#x20;
+
+```python
+from phoenix.experimental.evals.functions.processing import concatenate_and_truncate_chunks
+
+model = OpenAIModel(model_name="gpt-4", temperature=0.0) # Needed to get token size supported
+# Then use the function in a single call to collect and truncate reference.
+df["reference_text"] = df["retrieved_chunk_list"].apply(
+    lambda chunks: concatenate_and_truncate_chunks(chunks=chunks, model=model, token_buffer=700)
+)
+```
+
+
+
+{% hint style="info" %}
+Phoenix has options for not truncating the context window for Evals. Please drop a note in support if you want to test the MAP & Refine for Evals.
+{% endhint %}
