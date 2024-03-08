@@ -556,6 +556,7 @@ type Project implements Node {
   spanEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): EvaluationSummary
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
+  validateSpanFilterCondition(condition: String!): ValidationResult!
 }
 
 type ProjectConnection {
