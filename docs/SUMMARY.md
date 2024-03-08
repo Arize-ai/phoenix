@@ -1,7 +1,7 @@
 # Table of contents
 
 * [Arize Phoenix](README.md)
-* [User Guide](concepts/llm-observability.md)
+* [User Guide](user-guide.md)
 * [Examples](notebooks.md)
 
 ## 🔭 Tracing

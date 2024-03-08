@@ -125,10 +125,16 @@ See the [integration guide](../integrations/langchain.md#traces) for details
 
 {% tab title="OpenAI API" %}
 ```python
-from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
+import os
+from openai import OpenAI
 from phoenix.trace.openai import OpenAIInstrumentor
 
+# Initialize OpenAI auto-instrumentation
 OpenAIInstrumentor().instrument()
+
+# Initialize an OpenAI client
+# note you must have the OPENAI_API_KEY environment variable set
+client = OpenAI()
 
 # Define a conversation with a user message
 conversation = [
@@ -137,16 +143,14 @@ conversation = [
 ]
 
 # Generate a response from the assistant
-response = openai.ChatCompletion.create(
+response = client.chat.completions.create(
     model="gpt-3.5-turbo",
     messages=conversation,
 )
 
 # Extract and print the assistant's reply
-assistant_reply = response['choices'][0]['message']['content']
-
-#The traces will be available in the Phoenix App for the above messsages
-
+# The traces will be available in the Phoenix App for the above messsages
+assistant_reply = response.choices[0].message.content
 ```
 {% endtab %}
 

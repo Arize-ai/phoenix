@@ -4,7 +4,7 @@ description: Evaluate, troubleshoot, and fine-tune your LLM, CV, and NLP models.
 
 # Arize Phoenix
 
-Phoenix is an open-source observability designed for experimentation, evaluation, and troubleshooting. The toolset is designed to ingest [inference data](quickstart/phoenix-inferences/inferences.md) for [LLMs](concepts/llm-observability.md), CV, NLP, and tabular datasets as well as act as a trace collector for [LLM traces](quickstart/llm-traces.md). It allows AI Engineers and Data Scientists to quickly visualize their data, evaluate performance, track down issues, and export data to improve.&#x20;
+Phoenix is an open-source observability designed for experimentation, evaluation, and troubleshooting. The toolset is designed to ingest [inference data](quickstart/phoenix-inferences/inferences.md) for [LLMs](user-guide.md), CV, NLP, and tabular datasets as well as act as a trace collector for [LLM traces](quickstart/llm-traces.md). It allows AI Engineers and Data Scientists to quickly visualize their data, evaluate performance, track down issues, and export data to improve.&#x20;
 
 ## Install Phoenix
 
