@@ -602,19 +602,6 @@ type Query {
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
-  streamingLastUpdatedAt: DateTime
-  spans(timeRange: TimeRange, traceIds: [ID!], first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String): SpanConnection!
-
-  """
-  Names of all available evaluations for spans. (The list contains no duplicates.)
-  """
-  spanEvaluationNames: [String!]!
-
-  """Names of available document evaluations."""
-  documentEvaluationNames(spanId: ID): [String!]!
-  spanEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): EvaluationSummary
-  traceDatasetInfo: TraceDatasetInfo
-  validateSpanFilterCondition(condition: String!): ValidationResult!
 }
 
 type Retrieval {
@@ -804,26 +791,6 @@ interface TimeSeries {
 type TimeSeriesDataPoint {
   timestamp: DateTime!
   value: Float
-}
-
-type TraceDatasetInfo {
-  """The start bookend of the data"""
-  startTime: DateTime!
-
-  """The end bookend of the data"""
-  endTime: DateTime!
-
-  """The record count of the data"""
-  recordCount: Int!
-
-  """Count of total (prompt + completion) tokens in the trace data"""
-  tokenCountTotal: Int!
-
-  """Root span latency p50 quantile in milliseconds"""
-  latencyMsP50: Float
-
-  """Root span latency p99 quantile in milliseconds"""
-  latencyMsP99: Float
 }
 
 type UMAPPoint {

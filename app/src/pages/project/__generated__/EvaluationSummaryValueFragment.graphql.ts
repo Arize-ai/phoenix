@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<aa18477479bd9f9226851a3b7175d7e5>>
+ * @generated SignedSource<<14afc41c1acf9b4706d6f096affa7151>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,6 +11,7 @@
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type EvaluationSummaryValueFragment$data = {
+  readonly id: string;
   readonly spanEvaluationSummary: {
     readonly labelFractions: ReadonlyArray<{
       readonly fraction: number;
@@ -37,8 +38,11 @@ const node: ReaderFragment = {
   "metadata": {
     "refetch": {
       "connection": null,
-      "fragmentPathInResult": [],
-      "operation": require('./EvaluationSummaryValueQuery.graphql')
+      "fragmentPathInResult": [
+        "node"
+      ],
+      "operation": require('./EvaluationSummaryValueQuery.graphql'),
+      "identifierField": "id"
     }
   },
   "name": "EvaluationSummaryValueFragment",
@@ -91,12 +95,19 @@ const node: ReaderFragment = {
         }
       ],
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "id",
+      "storageKey": null
     }
   ],
-  "type": "Query",
+  "type": "Project",
   "abstractKey": null
 };
 
-(node as any).hash = "f014d6fd36312661220d2f080f257f1d";
+(node as any).hash = "7a04af8ec5267dc13f778d7ee088691a";
 
 export default node;

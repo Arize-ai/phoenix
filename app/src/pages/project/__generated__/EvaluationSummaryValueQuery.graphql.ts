@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<62f5fd32349c04f1ffba3460fc0670ce>>
+ * @generated SignedSource<<1ca05331feed5049450215752f1dac3a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,9 +12,12 @@ import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type EvaluationSummaryValueQuery$variables = {
   evaluationName: string;
+  id: string;
 };
 export type EvaluationSummaryValueQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"EvaluationSummaryValueFragment">;
+  readonly node: {
+    readonly " $fragmentSpreads": FragmentRefs<"EvaluationSummaryValueFragment">;
+  };
 };
 export type EvaluationSummaryValueQuery = {
   response: EvaluationSummaryValueQuery$data;
@@ -27,9 +30,21 @@ var v0 = [
     "defaultValue": null,
     "kind": "LocalArgument",
     "name": "evaluationName"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "id"
   }
 ],
 v1 = [
+  {
+    "kind": "Variable",
+    "name": "id",
+    "variableName": "id"
+  }
+],
+v2 = [
   {
     "kind": "Variable",
     "name": "evaluationName",
@@ -44,9 +59,20 @@ return {
     "name": "EvaluationSummaryValueQuery",
     "selections": [
       {
+        "alias": null,
         "args": (v1/*: any*/),
-        "kind": "FragmentSpread",
-        "name": "EvaluationSummaryValueFragment"
+        "concreteType": null,
+        "kind": "LinkedField",
+        "name": "node",
+        "plural": false,
+        "selections": [
+          {
+            "args": (v2/*: any*/),
+            "kind": "FragmentSpread",
+            "name": "EvaluationSummaryValueFragment"
+          }
+        ],
+        "storageKey": null
       }
     ],
     "type": "Query",
@@ -61,42 +87,78 @@ return {
       {
         "alias": null,
         "args": (v1/*: any*/),
-        "concreteType": "EvaluationSummary",
+        "concreteType": null,
         "kind": "LinkedField",
-        "name": "spanEvaluationSummary",
+        "name": "node",
         "plural": false,
         "selections": [
           {
             "alias": null,
             "args": null,
-            "concreteType": "LabelFraction",
-            "kind": "LinkedField",
-            "name": "labelFractions",
-            "plural": true,
-            "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "label",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "fraction",
-                "storageKey": null
-              }
-            ],
+            "kind": "ScalarField",
+            "name": "__typename",
             "storageKey": null
+          },
+          {
+            "kind": "TypeDiscriminator",
+            "abstractKey": "__isNode"
           },
           {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
-            "name": "meanScore",
+            "name": "id",
             "storageKey": null
+          },
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              {
+                "alias": null,
+                "args": (v2/*: any*/),
+                "concreteType": "EvaluationSummary",
+                "kind": "LinkedField",
+                "name": "spanEvaluationSummary",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "LabelFraction",
+                    "kind": "LinkedField",
+                    "name": "labelFractions",
+                    "plural": true,
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "label",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "fraction",
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "meanScore",
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": null
+              }
+            ],
+            "type": "Project",
+            "abstractKey": null
           }
         ],
         "storageKey": null
@@ -104,16 +166,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d00b543e90ed3ac9800b3fa441e1c496",
+    "cacheID": "ec476c88443196a472ace6723b0ff2c9",
     "id": null,
     "metadata": {},
     "name": "EvaluationSummaryValueQuery",
     "operationKind": "query",
-    "text": "query EvaluationSummaryValueQuery(\n  $evaluationName: String!\n) {\n  ...EvaluationSummaryValueFragment_qsFcK\n}\n\nfragment EvaluationSummaryValueFragment_qsFcK on Query {\n  spanEvaluationSummary(evaluationName: $evaluationName) {\n    labelFractions {\n      label\n      fraction\n    }\n    meanScore\n  }\n}\n"
+    "text": "query EvaluationSummaryValueQuery(\n  $evaluationName: String!\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...EvaluationSummaryValueFragment_qsFcK\n    __isNode: __typename\n    id\n  }\n}\n\nfragment EvaluationSummaryValueFragment_qsFcK on Project {\n  spanEvaluationSummary(evaluationName: $evaluationName) {\n    labelFractions {\n      label\n      fraction\n    }\n    meanScore\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f014d6fd36312661220d2f080f257f1d";
+(node as any).hash = "7a04af8ec5267dc13f778d7ee088691a";
 
 export default node;

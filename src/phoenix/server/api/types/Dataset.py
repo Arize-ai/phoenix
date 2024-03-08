@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Iterable, List, Optional, Set, Union
 
 import strawberry
@@ -8,14 +9,16 @@ import phoenix.core.model_schema as ms
 from phoenix.core.model_schema import FEATURE, TAG, ScalarDimension
 
 from ..input_types.DimensionInput import DimensionInput
-from .DatasetInfo import DatasetInfo
 from .DatasetRole import AncillaryDatasetRole, DatasetRole
 from .Dimension import Dimension, to_gql_dimension
 from .Event import Event, create_event, create_event_id, parse_event_ids_by_dataset_role
 
 
 @strawberry.type
-class Dataset(DatasetInfo):
+class Dataset:
+    start_time: datetime = strawberry.field(description="The start bookend of the data")
+    end_time: datetime = strawberry.field(description="The end bookend of the data")
+    record_count: int = strawberry.field(description="The record count of the data")
     dataset: strawberry.Private[ms.Dataset]
     dataset_role: strawberry.Private[Union[DatasetRole, AncillaryDatasetRole]]
     model: strawberry.Private[ms.Model]

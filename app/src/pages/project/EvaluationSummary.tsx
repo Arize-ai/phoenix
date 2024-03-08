@@ -1,5 +1,6 @@
 import React, { startTransition, Suspense, useEffect } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
+import { useParams } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
 
 import {
@@ -26,15 +27,19 @@ type EvaluationSummaryProps = {
   evaluationName: string;
 };
 export function EvaluationSummary({ evaluationName }: EvaluationSummaryProps) {
+  const { projectId } = useParams();
   const data = useLazyLoadQuery<EvaluationSummaryQuery>(
     graphql`
-      query EvaluationSummaryQuery($evaluationName: String!) {
-        ...EvaluationSummaryValueFragment
-          @arguments(evaluationName: $evaluationName)
+      query EvaluationSummaryQuery($id: GlobalID!, $evaluationName: String!) {
+        project: node(id: $id) {
+          ...EvaluationSummaryValueFragment
+            @arguments(evaluationName: $evaluationName)
+        }
       }
     `,
     {
       evaluationName,
+      id: projectId as string,
     }
   );
   return (
@@ -43,7 +48,10 @@ export function EvaluationSummary({ evaluationName }: EvaluationSummaryProps) {
         {evaluationName}
       </Text>
       <Suspense fallback={<Text textSize="xlarge">--</Text>}>
-        <EvaluationSummaryValue evaluationName={evaluationName} query={data} />
+        <EvaluationSummaryValue
+          evaluationName={evaluationName}
+          project={data.project}
+        />
       </Suspense>
     </Flex>
   );
@@ -51,16 +59,16 @@ export function EvaluationSummary({ evaluationName }: EvaluationSummaryProps) {
 
 function EvaluationSummaryValue(props: {
   evaluationName: string;
-  query: EvaluationSummaryValueFragment$key;
+  project: EvaluationSummaryValueFragment$key;
 }) {
-  const { query } = props;
+  const { project } = props;
   const { fetchKey } = useStreamState();
   const [data, refetch] = useRefetchableFragment<
     EvaluationSummaryQuery,
     EvaluationSummaryValueFragment$key
   >(
     graphql`
-      fragment EvaluationSummaryValueFragment on Query
+      fragment EvaluationSummaryValueFragment on Project
       @refetchable(queryName: "EvaluationSummaryValueQuery")
       @argumentDefinitions(evaluationName: { type: "String!" }) {
         spanEvaluationSummary(evaluationName: $evaluationName) {
@@ -72,7 +80,7 @@ function EvaluationSummaryValue(props: {
         }
       }
     `,
-    query
+    project
   );
 
   // Refetch the evaluation summary if the fetchKey changes

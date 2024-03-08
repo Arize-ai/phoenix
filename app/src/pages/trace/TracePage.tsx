@@ -86,7 +86,9 @@ import {
 } from "./__generated__/TracePageQuery.graphql";
 import { SpanEvaluationsTable } from "./SpanEvaluationsTable";
 
-type Span = TracePageQuery$data["spans"]["edges"][number]["span"];
+type Span = NonNullable<
+  TracePageQuery$data["project"]["spans"]
+>["edges"][number]["span"];
 type DocumentEvaluation = Span["documentEvaluations"][number];
 /**
  * A span attribute object that is a map of string to an unknown value
@@ -153,82 +155,88 @@ const defaultCardProps: Partial<CardProps> = {
  * A page that shows the details of a trace (e.g. a collection of spans)
  */
 export function TracePage() {
-  const { traceId } = useParams();
+  const { traceId, projectId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { projectId } = useParams();
   const navigate = useNavigate();
   const data = useLazyLoadQuery<TracePageQuery>(
     graphql`
-      query TracePageQuery($traceId: ID!) {
-        spans(traceIds: [$traceId], sort: { col: startTime, dir: asc }) {
-          edges {
-            span: node {
-              context {
-                spanId
+      query TracePageQuery($traceId: ID!, $id: GlobalID!) {
+        project: node(id: $id) {
+          ... on Project {
+            spans(traceIds: [$traceId], sort: { col: startTime, dir: asc }) {
+              edges {
+                span: node {
+                  context {
+                    spanId
+                  }
+                  name
+                  spanKind
+                  statusCode: propagatedStatusCode
+                  statusMessage
+                  startTime
+                  parentId
+                  latencyMs
+                  tokenCountTotal
+                  tokenCountPrompt
+                  tokenCountCompletion
+                  input {
+                    value
+                    mimeType
+                  }
+                  output {
+                    value
+                    mimeType
+                  }
+                  attributes
+                  events {
+                    name
+                    message
+                    timestamp
+                  }
+                  spanEvaluations {
+                    name
+                    label
+                    score
+                  }
+                  documentRetrievalMetrics {
+                    evaluationName
+                    ndcg
+                    precision
+                    hit
+                  }
+                  documentEvaluations {
+                    documentPosition
+                    name
+                    label
+                    score
+                    explanation
+                  }
+                  ...SpanEvaluationsTable_evals
+                }
               }
-              name
-              spanKind
-              statusCode: propagatedStatusCode
-              statusMessage
-              startTime
-              parentId
-              latencyMs
-              tokenCountTotal
-              tokenCountPrompt
-              tokenCountCompletion
-              input {
-                value
-                mimeType
-              }
-              output {
-                value
-                mimeType
-              }
-              attributes
-              events {
-                name
-                message
-                timestamp
-              }
-              spanEvaluations {
-                name
-                label
-                score
-              }
-              documentRetrievalMetrics {
-                evaluationName
-                ndcg
-                precision
-                hit
-              }
-              documentEvaluations {
-                documentPosition
-                name
-                label
-                score
-                explanation
-              }
-              ...SpanEvaluationsTable_evals
             }
           }
         }
       }
     `,
-    { traceId: traceId as string },
+    { traceId: traceId as string, id: projectId as string },
     {
       fetchPolicy: "store-and-network",
     }
   );
-  const spansList = data.spans.edges.map((edge) => edge.span);
+  const spansList = useMemo(() => {
+    const gqlSpans =
+      data.project.spans || ([] as NonNullable<typeof data.project.spans>);
+    return gqlSpans.edges.map((edge) => edge.span);
+  }, [data]);
   const urlSelectedSpanId = searchParams.get("selectedSpanId");
   const selectedSpanId = urlSelectedSpanId ?? spansList[0].context.spanId;
   const selectedSpan = spansList.find(
     (span) => span.context.spanId === selectedSpanId
   );
-  const rootSpan =
-    useMemo(() => {
-      return spansList.find((span) => span.parentId == null);
-    }, [spansList]) || null;
+  const rootSpan = useMemo(() => {
+    return spansList.find((span) => span.parentId == null) || null;
+  }, [spansList]);
 
   return (
     <DialogContainer
@@ -285,7 +293,7 @@ export function TracePage() {
   );
 }
 
-function TraceHeader({ rootSpan }: { rootSpan?: Span | null }) {
+function TraceHeader({ rootSpan }: { rootSpan: Span | null }) {
   const { latencyMs, statusCode, spanEvaluations } = rootSpan ?? {
     latencyMs: null,
     statusCode: "UNSET",
