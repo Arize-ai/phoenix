@@ -106,9 +106,7 @@ export function ProjectPageHeader(props: {
               <Text elementType="h3" textSize="medium" color="text-700">
                 Total Traces
               </Text>
-              <Text textSize="xlarge">
-                {intFormatter(data?.totalTraces.pageInfo.totalCount)}
-              </Text>
+              <Text textSize="xlarge">{intFormatter(data?.traceCount)}</Text>
             </Flex>
             <Flex direction="column" flex="none">
               <Text elementType="h3" textSize="medium" color="text-700">
