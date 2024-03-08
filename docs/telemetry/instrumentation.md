@@ -1,7 +1,5 @@
 ---
-description: >-
-  How OpenInference facilitates automatic and manual instrumentation of
-  applications.
+description: How OpenInference facilitates automatic instrumentation of applications.
 ---
 
 # Auto Instrumentation
