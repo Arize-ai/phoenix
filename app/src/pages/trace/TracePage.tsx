@@ -234,10 +234,9 @@ export function TracePage() {
   const selectedSpan = spansList.find(
     (span) => span.context.spanId === selectedSpanId
   );
-  const rootSpan =
-    useMemo(() => {
-      return spansList.find((span) => span.parentId == null);
-    }, [spansList]) || null;
+  const rootSpan = useMemo(() => {
+    return spansList.find((span) => span.parentId == null) || null;
+  }, [spansList]);
 
   return (
     <DialogContainer
@@ -294,7 +293,7 @@ export function TracePage() {
   );
 }
 
-function TraceHeader({ rootSpan }: { rootSpan?: Span | null }) {
+function TraceHeader({ rootSpan }: { rootSpan: Span | null }) {
   const { latencyMs, statusCode, spanEvaluations } = rootSpan ?? {
     latencyMs: null,
     statusCode: "UNSET",
