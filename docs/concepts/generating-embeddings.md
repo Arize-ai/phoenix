@@ -1,6 +1,6 @@
 # Generating Embeddings
 
-Phoenix supports any type of dense [embedding](broken-reference) generated for almost any type of data.
+Phoenix supports any type of dense [embedding](embeddings.md) generated for almost any type of data.
 
 But what if I don't have embeddings handy? Well, that is not a problem. The model data can be analyzed by the embeddings Auto-Generated for Phoenix.
 

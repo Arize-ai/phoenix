@@ -38,7 +38,7 @@ When two datasets are used to initialize phoenix, the clusters are automatically
 
 ### UMAP Point-Cloud
 
-Phoenix projects the embeddings you provided into lower dimensional space (3 dimensions) using a dimension reduction algorithm called [UMAP](https://github.com/lmcinnes/umap) (stands for Uniform Manifold Approximation and Projection).  This lets us understand how your [embeddings have encoded semantic meaning](broken-reference) in a visually understandable way.\
+Phoenix projects the embeddings you provided into lower dimensional space (3 dimensions) using a dimension reduction algorithm called [UMAP](https://github.com/lmcinnes/umap) (stands for Uniform Manifold Approximation and Projection).  This lets us understand how your [embeddings have encoded semantic meaning](embeddings.md) in a visually understandable way.\
 \
 In addition to the point-cloud, another dimension we have at our disposal is color (and in some cases shape). Out of the box phoenix let's you assign colors to the UMAP point-cloud by dimension (features, tags, predictions, actuals), performance (correctness which distinguishes true positives and true negatives from the incorrect predictions), and dataset (to highlight areas of drift). This helps you explore your point-cloud from different perspectives depending on what you are looking for.
 

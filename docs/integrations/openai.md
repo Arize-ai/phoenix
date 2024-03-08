@@ -30,7 +30,10 @@ from phoenix.trace.tracer import Tracer
 from phoenix.trace.exporter import HttpExporter
 from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
 
-OpenAIInstrumentor().instrument()
+
+tracer = Tracer(exporter=HttpExporter())
+OpenAIInstrumentor(tracer).instrument()
+
 ```
 
 All subsequent calls to the `ChatCompletion` interface will now report informational spans to Phoenix. These traces and spans are viewable within the Phoenix UI.
@@ -43,12 +46,30 @@ px.active_session().url
 px.active_session().view()
 ```
 
+####
+
 #### Saving Traces
 
-If you would like to save your traces to a file for later use, you can directly extract the traces as a dataframe from Phoenix using `px.Client`.
+If you would like to save your traces to a file for later use, you can directly extract the traces from the `tracer`
+
+To directly extract the traces from the `tracer`, dump the traces from the tracer into a file (we recommend `jsonl` for readability).
 
 ```python
-px.Client().get_spans_dataframe()
+from phoenix.trace.span_json_encoder import spans_to_jsonl
+with open("trace.jsonl", "w") as f:
+    f.write(spans_to_jsonl(tracer.get_spans()))
 ```
 
-In this way, you can store and communicate interesting traces that you may want to use to share with a team or to use later down the line to fine-tune an LLM or model.
+Now you can save this file for later inspection. To launch the app with the file generated above, simply pass the contents in the file above via a `TraceDataset`
+
+```python
+from phoenix.trace.utils import json_lines_to_df
+
+json_lines = []
+with open("trace.jsonl", "r") as f:
+        json_lines = cast(List[str], f.readlines())
+trace_ds = TraceDataset(json_lines_to_df(json_lines))
+px.launch_app(trace=trace_ds)
+```
+
+In this way, you can use files as a means to store and communicate interesting traces that you may want to use to share with a team or to use later down the line to fine-tune an LLM or model.

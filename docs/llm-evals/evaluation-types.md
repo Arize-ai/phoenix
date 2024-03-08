@@ -94,7 +94,7 @@ The Phoenix library does support numeric score Evals if you would like to use th
 You are a helpful AI bot that checks for grammatical, spelling and typing errors 
 in a document context. You are going to return a continous score for the 
 document based on the percent of grammatical and typing errors. The score should be 
-between 10 and 1. A score of 1 will be no grammatical errors in any word, 
+between 10 and 1. A score of 1 will be no grmatical errors in any word, 
 a score of 2 will be 20% of words have errors, a 5 score will be 50% errors, 
 a score of 7 is 70%, and a 10 score will be all words in the context have a 
 grammatical errors.

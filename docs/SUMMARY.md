@@ -1,24 +1,28 @@
 # Table of contents
 
-* [Arize Phoenix](README.md)
-* [User Guide](concepts/llm-observability.md)
-* [Environments](environments.md)
+* [Phoenix: AI Observability & Evaluation](README.md)
 * [Examples](notebooks.md)
+* [Installation](install-and-import-phoenix.md)
+* [Environments](environments.md)
 
-## 🔭 Tracing
+## 🔑 Quickstart
 
-* [Overview: Traces](concepts/llm-traces.md)
-* [Quickstart: Traces](quickstart/llm-traces.md)
-* [Instrumentation](telemetry/instrumentation.md)
-  * [OpenInference](concepts/open-inference.md)
-* [Deployment](telemetry/deploying-phoenix.md)
-* [Custom Spans](telemetry/custom-spans.md)
+* [Phoenix Traces](quickstart/llm-traces.md)
+* [Phoenix Evals](quickstart/evals.md)
+* [Phoenix Inferences](quickstart/phoenix-inferences/README.md)
+  * [Schemas and Datasets](quickstart/phoenix-inferences/inferences.md)
 
-## 🧠 Evaluation
+## 💡 Concepts
 
-* [Overview: Evals](llm-evals/llm-evals.md)
-* [Concept: Evaluation](concepts/evaluation.md)
-* [Quickstart: Evals](quickstart/evals.md)
+* [LLM Observability](concepts/llm-observability.md)
+* [Traces and Spans](concepts/llm-traces.md)
+* [Evaluation](concepts/evaluation.md)
+* [Generating Embeddings](concepts/generating-embeddings.md)
+* [Embeddings Analysis](concepts/embeddings-analysis.md)
+
+## 🧠 LLM Evals
+
+* [Phoenix LLM Evals](llm-evals/llm-evals.md)
 * [Running Pre-Tested Evals](llm-evals/running-pre-tested-evals/README.md)
   * [Retrieval (RAG) Relevance](llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md)
   * [Hallucinations](llm-evals/running-pre-tested-evals/hallucinations.md)
@@ -33,14 +37,7 @@
 * [Building Your Own Evals](llm-evals/building-your-own-evals.md)
 * [Quickstart Retrieval Evals](llm-evals/quickstart-retrieval-evals/README.md)
   * [Retrieval Evals on Document Chunks](llm-evals/quickstart-retrieval-evals/retrieval-evals-on-document-chunks.md)
-* [Benchmarking Retrieval](llm-evals/benchmarking-retrieval-rag.md)
-
-## 🌌 inferences
-
-* [Quickstart: Inferences](quickstart/phoenix-inferences/README.md)
-* [Schemas and Datasets](quickstart/phoenix-inferences/inferences.md)
-* [Generating Embeddings](concepts/generating-embeddings.md)
-* [Embeddings Analysis](concepts/embeddings-analysis.md)
+* [Benchmarking Retrieval (RAG)](llm-evals/benchmarking-retrieval-rag.md)
 
 ## 🔮 Use Cases
 
@@ -60,7 +57,13 @@
 * [Extract Data from Spans](how-to/extract-data-from-spans.md)
 * [Use Example Datasets](how-to/use-example-datasets.md)
 
-## ⌨️ API
+## 🔭 telemetry
+
+* [Deploying Phoenix](telemetry/deploying-phoenix.md)
+* [Instrumentation](telemetry/instrumentation.md)
+* [Custom Spans](telemetry/custom-spans.md)
+
+## ⌨ API
 
 * [Dataset and Schema](api/dataset-and-schema.md)
 * [Session](api/session.md)
@@ -75,15 +78,16 @@
 * [OpenAI](integrations/openai.md)
 * [Bedrock](integrations/bedrock.md)
 * [AutoGen](integrations/autogen-support.md)
-* [DSPy](integrations/dspy.md)
 * [Arize](integrations/bring-production-data-to-notebook-for-eda-or-retraining.md)
 
-## 🏴‍☠️ Programming Languages
+## 🏴☠ Programming Languages
 
 * [JavaScript](programming-languages/javascript.md)
 
 ## 📚 Reference
 
+* [Embeddings](concepts/embeddings.md)
+* [OpenInference](concepts/open-inference.md)
 * [Frequently Asked Questions](reference/frequently-asked-questions.md)
 * [Contribute to Phoenix](reference/contribute-to-phoenix.md)
 
