@@ -10,6 +10,12 @@
 * [Quickstart: Traces](quickstart/llm-traces.md)
 * [Auto Instrumentation](telemetry/instrumentation.md)
   * [OpenInference](concepts/open-inference.md)
+* [LlamaIndex](tracing/llamaindex.md)
+* [LangChain](tracing/langchain.md)
+* [OpenAI](tracing/openai.md)
+* [DSPy](tracing/dspy.md)
+* [Bedrock](tracing/bedrock.md)
+* [AutoGen](tracing/autogen-support.md)
 * [Manual Instrumentation](telemetry/custom-spans.md)
 
 ## 🧠 Evaluation
@@ -68,12 +74,6 @@
 
 ## 🔌 INTEGRATIONS
 
-* [LlamaIndex](integrations/llamaindex.md)
-* [LangChain](integrations/langchain.md)
-* [OpenAI](integrations/openai.md)
-* [Bedrock](integrations/bedrock.md)
-* [AutoGen](integrations/autogen-support.md)
-* [DSPy](integrations/dspy.md)
 * [Arize](integrations/bring-production-data-to-notebook-for-eda-or-retraining.md)
 
 ## 🏴‍☠️ Programming Languages
