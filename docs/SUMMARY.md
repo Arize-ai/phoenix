@@ -2,7 +2,6 @@
 
 * [Arize Phoenix](README.md)
 * [User Guide](concepts/llm-observability.md)
-* [Environments](environments.md)
 * [Examples](notebooks.md)
 
 ## 🔭 Tracing
@@ -84,6 +83,7 @@
 
 ## 📚 Reference
 
+* [Environments](reference/environments.md)
 * [Frequently Asked Questions](reference/frequently-asked-questions.md)
 * [Contribute to Phoenix](reference/contribute-to-phoenix.md)
 
