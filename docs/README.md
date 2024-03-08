@@ -34,10 +34,6 @@ Checkout the [environments section](environments.md) and [deployment guide](refe
 {% endtab %}
 {% endtabs %}
 
-{% hint style="info" %}
-Looking to run Phoenix outside of a notebook? Phoenix also runs on the command line and via containers. Checkout the [environments section](environments.md) for details.
-{% endhint %}
-
 ## Quickstarts
 
 Running Phoenix for the first time? Select a quickstart below.&#x20;
