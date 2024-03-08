@@ -58,7 +58,7 @@ import {
   ToolAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
 
-import { ExternalLink } from "@phoenix/components";
+import { CopyToClipboardButton, ExternalLink } from "@phoenix/components";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanItem } from "@phoenix/components/trace/SpanItem";
@@ -442,7 +442,12 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
               {...defaultCardProps}
               titleExtra={attributesContextualHelp}
             >
-              <CodeBlock value={selectedSpan.attributes} mimeType="json" />
+              <CopyToClipboard
+                text={selectedSpan.attributes}
+                padding="size-100"
+              >
+                <CodeBlock value={selectedSpan.attributes} mimeType="json" />
+              </CopyToClipboard>
             </Card>
           </View>
         </TabPane>
@@ -654,7 +659,9 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
           ) : null}
           {hasInput ? (
             <TabPane name="Input" hidden={!hasInput}>
-              <CodeBlock {...input} />
+              <CopyToClipboard text={input.value}>
+                <CodeBlock {...input} />
+              </CopyToClipboard>
             </TabPane>
           ) : null}
           {hasPromptTemplateObject ? (
@@ -668,13 +675,18 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                     borderWidth="thin"
                     padding="size-200"
                   >
-                    <Text color="text-700" fontStyle="italic">
-                      prompt template
-                    </Text>
-                    <CodeBlock
-                      value={promptTemplateObject.template}
-                      mimeType="text"
-                    />
+                    <CopyToClipboard text={promptTemplateObject.template}>
+                      <Text color="text-700" fontStyle="italic">
+                        prompt template
+                      </Text>
+                      <pre
+                        css={css`
+                          white-space: pre-wrap;
+                        `}
+                      >
+                        {promptTemplateObject.template}
+                      </pre>
+                    </CopyToClipboard>
                   </View>
                   <View
                     borderRadius="medium"
@@ -683,13 +695,17 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                     borderWidth="thin"
                     padding="size-200"
                   >
-                    <Text color="text-700" fontStyle="italic">
-                      template variables
-                    </Text>
-                    <CodeBlock
-                      value={JSON.stringify(promptTemplateObject.variables)}
-                      mimeType="json"
-                    />
+                    <CopyToClipboard
+                      text={JSON.stringify(promptTemplateObject.variables)}
+                    >
+                      <Text color="text-700" fontStyle="italic">
+                        template variables
+                      </Text>
+                      <CodeBlock
+                        value={JSON.stringify(promptTemplateObject.variables)}
+                        mimeType="json"
+                      />
+                    </CopyToClipboard>
                   </View>
                 </Flex>
               </View>
@@ -699,12 +715,17 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             <LLMPromptsList prompts={prompts} />
           </TabPane>
           <TabPane name="Invocation Params" hidden={!hasInvocationParams}>
-            <CodeBlock
-              {...{
-                mimeType: "json",
-                value: invocation_parameters_str,
-              }}
-            />
+            <CopyToClipboard
+              text={invocation_parameters_str}
+              padding="size-100"
+            >
+              <CodeBlock
+                {...{
+                  mimeType: "json",
+                  value: invocation_parameters_str,
+                }}
+              />
+            </CopyToClipboard>
           </TabPane>
         </Tabs>
       </TabbedCard>
@@ -718,7 +739,9 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             ) : null}
             {hasOutput ? (
               <TabPane name="Output" hidden={!hasOutput}>
-                <CodeBlock {...output} />
+                <CopyToClipboard text={output.value} padding="size-100">
+                  <CodeBlock {...output} />
+                </CopyToClipboard>
               </TabPane>
             ) : null}
           </Tabs>
@@ -773,7 +796,11 @@ function RetrieverSpanInfo(props: {
   return (
     <Flex direction="column" gap="size-200">
       <Card title="Input" {...defaultCardProps}>
-        {hasInput ? <CodeBlock {...input} /> : null}
+        {hasInput ? (
+          <CopyToClipboard text={input.value} padding="size-100">
+            <CodeBlock {...input} />
+          </CopyToClipboard>
+        ) : null}
       </Card>
       {hasDocuments ? (
         <Card
@@ -1270,64 +1297,66 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
       padding="size-200"
       {...messageStyles}
     >
-      <Flex direction="column" alignItems="start">
-        <Text color="text-700" fontStyle="italic">
-          {role}
-          {message[MESSAGE_NAME] ? `: ${message[MESSAGE_NAME]}` : ""}
-        </Text>
-        {messageContent ? (
-          <pre
-            css={css`
-              text-wrap: wrap;
-              margin: var(--ac-global-dimension-static-size-100) 0;
-            `}
-          >
-            {message[MESSAGE_CONTENT]}
-          </pre>
-        ) : null}
-        {toolCalls.length > 0
-          ? toolCalls.map((toolCall, idx) => {
-              return (
-                <pre
-                  key={idx}
-                  css={css`
-                    text-wrap: wrap;
-                    margin: var(--ac-global-dimension-static-size-100) 0;
-                  `}
-                >
-                  {toolCall[TOOL_CALL_FUNCTION_NAME] as string}(
-                  {JSON.stringify(
-                    JSON.parse(
-                      toolCall[TOOL_CALL_FUNCTION_ARGUMENTS_JSON] as string
-                    ),
-                    null,
-                    2
-                  )}
-                  )
-                </pre>
-              );
-            })
-          : null}
-        {/*functionCall is deprecated and is superseded by toolCalls, so we don't expect both to be present*/}
-        {hasFunctionCall ? (
-          <pre
-            css={css`
-              text-wrap: wrap;
-              margin: var(--ac-global-dimension-static-size-100) 0;
-            `}
-          >
-            {message[MESSAGE_FUNCTION_CALL_NAME] as string}(
-            {JSON.stringify(
-              JSON.parse(
-                message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] as string
-              ),
-              null,
-              2
-            )}
-            )
-          </pre>
-        ) : null}
-      </Flex>
+      <CopyToClipboard text={messageContent || JSON.stringify(message)}>
+        <Flex direction="column" alignItems="start">
+          <Text color="text-700" fontStyle="italic">
+            {role}
+            {message[MESSAGE_NAME] ? `: ${message[MESSAGE_NAME]}` : ""}
+          </Text>
+          {messageContent ? (
+            <pre
+              css={css`
+                text-wrap: wrap;
+                margin: var(--ac-global-dimension-static-size-100) 0;
+              `}
+            >
+              {message[MESSAGE_CONTENT]}
+            </pre>
+          ) : null}
+          {toolCalls.length > 0
+            ? toolCalls.map((toolCall, idx) => {
+                return (
+                  <pre
+                    key={idx}
+                    css={css`
+                      text-wrap: wrap;
+                      margin: var(--ac-global-dimension-static-size-100) 0;
+                    `}
+                  >
+                    {toolCall[TOOL_CALL_FUNCTION_NAME] as string}(
+                    {JSON.stringify(
+                      JSON.parse(
+                        toolCall[TOOL_CALL_FUNCTION_ARGUMENTS_JSON] as string
+                      ),
+                      null,
+                      2
+                    )}
+                    )
+                  </pre>
+                );
+              })
+            : null}
+          {/*functionCall is deprecated and is superseded by toolCalls, so we don't expect both to be present*/}
+          {hasFunctionCall ? (
+            <pre
+              css={css`
+                text-wrap: wrap;
+                margin: var(--ac-global-dimension-static-size-100) 0;
+              `}
+            >
+              {message[MESSAGE_FUNCTION_CALL_NAME] as string}(
+              {JSON.stringify(
+                JSON.parse(
+                  message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] as string
+                ),
+                null,
+                2
+              )}
+              )
+            </pre>
+          ) : null}
+        </Flex>
+      </CopyToClipboard>
     </View>
   );
 }
@@ -1373,14 +1402,16 @@ function LLMPromptsList({ prompts }: { prompts: string[] }) {
               borderRadius="medium"
               padding="size-100"
             >
-              <pre
-                css={css`
-                  text-wrap: wrap;
-                  margin: 0;
-                `}
-              >
-                {prompt}
-              </pre>
+              <CopyToClipboard text={prompt}>
+                <pre
+                  css={css`
+                    text-wrap: wrap;
+                    margin: 0;
+                  `}
+                >
+                  {prompt}
+                </pre>
+              </CopyToClipboard>
             </View>
           </li>
         );
@@ -1396,7 +1427,9 @@ function SpanIO({ span }: { span: Span }) {
     <Flex direction="column" gap="size-200">
       {input && input.value != null ? (
         <Card title="Input" {...defaultCardProps}>
-          <CodeBlock {...input} />
+          <CopyToClipboard text={input.value} padding="size-100">
+            <CodeBlock {...input} />
+          </CopyToClipboard>
         </Card>
       ) : null}
       {output && output.value != null ? (
@@ -1406,7 +1439,9 @@ function SpanIO({ span }: { span: Span }) {
           backgroundColor="green-100"
           borderColor="green-700"
         >
-          <CodeBlock {...output} />
+          <CopyToClipboard text={output.value} padding="size-100">
+            <CodeBlock {...output} />
+          </CopyToClipboard>
         </Card>
       ) : null}
       {isMissingIO ? (
@@ -1415,7 +1450,9 @@ function SpanIO({ span }: { span: Span }) {
           titleExtra={attributesContextualHelp}
           {...defaultCardProps}
         >
-          <CodeBlock value={span.attributes} mimeType="json" />
+          <CopyToClipboard text={span.attributes} padding="size-100">
+            <CodeBlock value={span.attributes} mimeType="json" />
+          </CopyToClipboard>
         </Card>
       ) : null}
     </Flex>
@@ -1424,13 +1461,43 @@ function SpanIO({ span }: { span: Span }) {
 
 const codeMirrorCSS = css`
   .cm-content {
-    padding: var(--ac-global-dimension-static-size-100) 0;
+    padding: var(--ac-global-dimension-static-size-200) 0;
   }
   .cm-editor,
   .cm-gutters {
     background-color: transparent;
   }
 `;
+
+function CopyToClipboard({
+  text,
+  children,
+  padding,
+}: PropsWithChildren<{ text: string; padding?: "size-100" }>) {
+  const paddingValue = padding ? `var(--ac-global-dimension-${padding})` : "0";
+  return (
+    <div
+      css={css`
+        position: relative;
+        .copy-to-clipboard-button {
+          transition: opacity 0.2s ease-in-out;
+          opacity: 0;
+          position: absolute;
+          right: ${paddingValue};
+          top: ${paddingValue};
+          z-index: 1;
+        }
+        &:hover .copy-to-clipboard-button {
+          opacity: 1;
+        }
+      `}
+    >
+      <CopyToClipboardButton text={text} />
+      {children}
+    </div>
+  );
+}
+
 function CodeBlock(props: { value: string; mimeType: MimeType }) {
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? undefined : nord;
