@@ -814,6 +814,11 @@ type UMAPPoints {
   contextRetrievals: [Retrieval!]!
 }
 
+type ValidationResult {
+  isValid: Boolean!
+  errorMessage: String
+}
+
 enum VectorDriftMetric {
   euclideanDistance
 }
