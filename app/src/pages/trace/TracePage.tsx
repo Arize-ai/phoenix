@@ -224,8 +224,11 @@ export function TracePage() {
       fetchPolicy: "store-and-network",
     }
   );
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  const spansList = data.project.spans!.edges.map((edge) => edge.span);
+const spansList = useMemo(() => {
+    const gqlSpans =
+      data.project.spans || ([] as NonNullable<typeof data.project.spans>);
+    return gqlSpans.edges.map((edge) => edge.span);
+  }, [data]);
   const urlSelectedSpanId = searchParams.get("selectedSpanId");
   const selectedSpanId = urlSelectedSpanId ?? spansList[0].context.spanId;
   const selectedSpan = spansList.find(
