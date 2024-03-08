@@ -602,9 +602,6 @@ type Query {
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
-
-  """Names of available document evaluations."""
-  documentEvaluationNames(spanId: ID): [String!]!
 }
 
 type Retrieval {

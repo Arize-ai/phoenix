@@ -8,7 +8,6 @@ from strawberry import ID, UNSET
 from strawberry.types import Info
 from typing_extensions import Annotated
 
-from phoenix.core.project import DEFAULT_PROJECT_NAME
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
@@ -18,7 +17,6 @@ from phoenix.server.api.input_types.Coordinates import (
 )
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Project import Project
-from phoenix.trace.schemas import SpanID
 
 from .context import Context
 from .types.DatasetRole import AncillaryDatasetRole, DatasetRole
@@ -222,22 +220,6 @@ class Query:
 
         return to_gql_clusters(
             clustered_events=clustered_events,
-        )
-
-    @strawberry.field(
-        description="Names of available document evaluations.",
-    )  # type: ignore
-    def document_evaluation_names(
-        self,
-        info: Info[Context, None],
-        span_id: Optional[ID] = UNSET,
-    ) -> List[str]:
-        if not (traces := info.context.traces) or not (
-            project := traces.get_project(DEFAULT_PROJECT_NAME)
-        ):
-            return []
-        return project.get_document_evaluation_names(
-            None if span_id is UNSET else SpanID(span_id),
         )
 
 
