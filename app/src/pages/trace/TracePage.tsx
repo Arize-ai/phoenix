@@ -1297,7 +1297,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
       padding="size-200"
       {...messageStyles}
     >
-      <CopyToClipboard text={messageContent}>
+      <CopyToClipboard text={messageContent || JSON.stringify(message)}>
         <Flex direction="column" alignItems="start">
           <Text color="text-700" fontStyle="italic">
             {role}
