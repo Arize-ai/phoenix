@@ -17,15 +17,17 @@ INSTRUMENTATION_MODERN_VERSION = (1, 0, 0)
 
 
 def _check_instrumentation_compatibility() -> bool:
+    llama_index_version_str = None
     try:
         llama_index_version_str = version("llama-index")
     except PackageNotFoundError:
-        llama_index_version_str = None
+        pass
 
+    llama_index_core_version_str = None
     try:
         llama_index_core_version_str = version("llama-index-core")
     except PackageNotFoundError:
-        llama_index_core_version_str = None
+        pass
 
     instrumentation_version_str = version("openinference-instrumentation-llama-index")
     instrumentation_version = _parse_semantic_version(instrumentation_version_str)
