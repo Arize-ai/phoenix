@@ -26,10 +26,10 @@ from phoenix.config import (
     ENV_PHOENIX_COLLECTOR_ENDPOINT,
     get_env_host,
     get_env_port,
+    get_env_project_name,
     get_exported_files,
 )
 from phoenix.core.model_schema_adapter import create_model_from_datasets
-from phoenix.core.project import DEFAULT_PROJECT_NAME
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
@@ -331,8 +331,25 @@ class ThreadSession(Session):
         root_spans_only: Optional[bool] = None,
         project_name: Optional[str] = None,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
+        """
+        Queries the spans in the project based on the provided parameters.
+
+        Args:
+            queries: Variable-length argument list of SpanQuery objects
+            representing the queries to be executed. start_time: Optional
+            datetime object representing the start time of the query. stop_time:
+            Optional datetime object representing the stop time of the query.
+            root_spans_only: Optional boolean indicating whether to include only
+            root spans in the results. project_name: Optional string
+            representing the name of the project to query. Defaults to the project name
+            set in the environment variable `PHOENIX_PROJECT_NAME` or 'default' if not set.
+
+        Returns:
+            Optional pandas DataFrame or list of DataFrames containing the query
+            results.
+        """
         if not (traces := self.traces) or not (
-            project := traces.get_project(project_name or DEFAULT_PROJECT_NAME)
+            project := traces.get_project(project_name or get_env_project_name())
         ):
             return None
         if not queries:
@@ -362,9 +379,20 @@ class ThreadSession(Session):
         self,
         project_name: Optional[str] = None,
     ) -> List[Evaluations]:
-        if not (traces := self.traces) or not (
-            project := traces.get_project(project_name or DEFAULT_PROJECT_NAME)
-        ):
+        """
+        Get the evaluations for a project.
+
+        Args:
+            project_name (str, optional): The name of the project. If not
+            provided, the project name set in the environment variable
+            `PHOENIX_PROJECT_NAME` will be used. Otherwise, 'default' will be used.
+
+        Returns:
+            List[Evaluations]: A list of evaluations for the specified project.
+
+        """
+        project_name = project_name or get_env_project_name()
+        if not (traces := self.traces) or not (project := traces.get_project(project_name)):
             return []
         return project.export_evaluations()
 

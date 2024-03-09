@@ -3,6 +3,8 @@ import tempfile
 from pathlib import Path
 from typing import List, Optional
 
+from phoenix.core.project import DEFAULT_PROJECT_NAME
+
 # Phoenix environment variables
 ENV_PHOENIX_PORT = "PHOENIX_PORT"
 ENV_PHOENIX_HOST = "PHOENIX_HOST"
@@ -16,6 +18,10 @@ ENV_PHOENIX_WORKING_DIR = "PHOENIX_WORKING_DIR"
 """
 The directory in which to save, load, and export datasets. This directory must
 be accessible by both the Phoenix server and the notebook environment.
+"""
+ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME"
+"""
+The project name to use when logging traces and evals. defaults to 'default'.
 """
 
 
@@ -113,3 +119,7 @@ def get_env_host() -> str:
 
 def get_env_collector_endpoint() -> Optional[str]:
     return os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT)
+
+
+def get_env_project_name() -> str:
+    return os.getenv(ENV_PHOENIX_PROJECT_NAME) or DEFAULT_PROJECT_NAME
