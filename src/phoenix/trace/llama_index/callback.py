@@ -3,10 +3,13 @@ from importlib.metadata import PackageNotFoundError, version
 from importlib.util import find_spec
 from typing import Any
 
+from openinference.semconv.resource import ResourceAttributes
 from opentelemetry import trace as trace_api
 from opentelemetry.sdk import trace as trace_sdk
+from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
+from phoenix.config import get_env_project_name
 from phoenix.trace.errors import IncompatibleLibraryVersionError
 from phoenix.trace.exporter import _OpenInferenceExporter
 from phoenix.trace.tracer import _show_deprecation_warnings
@@ -72,6 +75,8 @@ class OpenInferenceTraceCallbackHandler(_OpenInferenceTraceCallbackHandler):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         _show_deprecation_warnings(self, *args, **kwargs)
-        tracer_provider = trace_sdk.TracerProvider()
+        tracer_provider = trace_sdk.TracerProvider(
+            resource=Resource({ResourceAttributes.PROJECT_NAME: get_env_project_name()})
+        )
         tracer_provider.add_span_processor(SimpleSpanProcessor(_OpenInferenceExporter()))
         super().__init__(trace_api.get_tracer(__name__, __version__, tracer_provider))

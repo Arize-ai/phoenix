@@ -11,7 +11,12 @@ from pyarrow import ArrowInvalid
 from requests import Session
 
 import phoenix as px
-from phoenix.config import get_env_collector_endpoint, get_env_host, get_env_port
+from phoenix.config import (
+    get_env_collector_endpoint,
+    get_env_host,
+    get_env_port,
+    get_env_project_name,
+)
 from phoenix.session.data_extractor import TraceDataExtractor
 from phoenix.trace import Evaluations
 from phoenix.trace.dsl import SpanQuery
@@ -59,6 +64,7 @@ class Client(TraceDataExtractor):
         root_spans_only: Optional[bool] = None,
         project_name: Optional[str] = None,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
+        project_name = project_name or get_env_project_name()
         if not queries:
             queries = (SpanQuery(),)
         if self._use_active_session_if_available and (session := px.active_session()):
@@ -102,6 +108,7 @@ class Client(TraceDataExtractor):
         self,
         project_name: Optional[str] = None,
     ) -> List[Evaluations]:
+        project_name = project_name or get_env_project_name()
         if self._use_active_session_if_available and (session := px.active_session()):
             return session.get_evaluations(project_name=project_name)
         response = self._session.get(
