@@ -65,12 +65,11 @@ def _get_version_if_installed(package_name: str) -> Optional[str]:
         return None
 
 
-def _parse_semantic_version(semver_string: str) -> Tuple[int, int, int]:
+def _parse_semantic_version(semver_string: str) -> Tuple[int, ...]:
     """
     Parse a semantic version string into a tuple of integers.
     """
-    major, minor, patch = semver_string.split(".")[:3]
-    return int(major), int(minor), int(patch)
+    return tuple(map(int, semver_string.split(".")[:3]))
 
 
 if _check_instrumentation_compatibility():
