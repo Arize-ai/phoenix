@@ -1,10 +1,10 @@
 ---
-description: Tracing the execution of LLM powered applications using OpenInference Traces
+description: Tracing the execution of LLM applications using Telemetry
 ---
 
 # Overview: Traces
 
-## What is LLM Traces and Observability?
+## What are LLM Traces?
 
 The rise of LangChain and LlamaIndex for LLM app development has enabled developers to move quickly in building applications powered by LLMs. The abstractions created by these frameworks can accelerate development, but also make it hard to debug the LLM app. Take the below example where a RAG application be written in a few lines of code but in reality has a very complex run tree.
 

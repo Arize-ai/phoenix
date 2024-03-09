@@ -8,13 +8,9 @@ description: How to connect to OpenInference compliant data via a llama_index ca
 
 However when building out a retrieval system, a lot can go wrong that can be detrimental to the user-experience of your question and answer system. Phoenix provides two different ways to gain insights into your LLM application: [OpenInference](open-inference.md) inference records and [OpenInference](open-inference.md) tracing.
 
-<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td><p><strong>Analyze using Traces</strong></p><p>Trace through the execution of your application hierarchically</p></td><td></td><td></td><td><a href="llamaindex.md#traces">#traces</a></td><td><a href="../../.gitbook/assets/Screenshot 2023-09-27 at 1.51.45 PM.png">Screenshot 2023-09-27 at 1.51.45 PM.png</a></td></tr><tr><td><strong>Analyze using Inferences</strong></td><td>Perform drift and retrieval analysis via inference DataFrames</td><td></td><td><a href="llamaindex.md#inferences">#inferences</a></td><td><a href="../../.gitbook/assets/Screenshot 2023-09-27 at 1.53.06 PM.png">Screenshot 2023-09-27 at 1.53.06 PM.png</a></td></tr></tbody></table>
+<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td><strong>Analyze using Traces</strong></td><td>Trace  the execution of your application</td><td></td><td><a href="llamaindex.md#traces">#traces</a></td><td><a href="../../.gitbook/assets/Screenshot 2023-09-27 at 1.51.45 PM.png">Screenshot 2023-09-27 at 1.51.45 PM.png</a></td></tr><tr><td><strong>Analyze using Inferences</strong></td><td>Perform drift and retrieval analysis via inference DataFrames</td><td></td><td><a href="llamaindex.md#inferences">#inferences</a></td><td><a href="../../.gitbook/assets/Screenshot 2023-09-27 at 1.53.06 PM.png">Screenshot 2023-09-27 at 1.53.06 PM.png</a></td></tr></tbody></table>
 
 ### Traces
-
-Traces provide telemetry data about the execution of your LLM application. They are a great way to understand the internals of your LlamaIndex application and to troubleshoot problems related to things like retrieval and tool execution.
-
-To extract traces from your LlamaIndex application, you will have to add Phoenix's `OpenInferenceTraceCallback` to your LlamaIndex application. A callback (in this case a OpenInference `Tracer`) is a class that automatically accumulates traces (sometimes referred to as `spans`) as your application executes. The OpenInference \`Tracer\`\` is a tracer that is specifically designed to work with Phoenix and by default exports the traces to a locally running phoenix server.
 
 To view traces in Phoenix, you will first have to start a Phoenix server. You can do this by running the following:
 
@@ -87,18 +83,6 @@ To view the traces in Phoenix, simply open the UI in your browser.
 ```python
 px.active_session().view()
 ```
-
-#### Saving Traces
-
-If you would like to save your traces to a file for later use, you can directly extract the traces as a dataframe from Phoenix using `px.Client`.
-
-```python
-px.Client().get_spans_dataframe()
-```
-
-In this way, you can store and communicate interesting traces that you may want to use to share with a team or to use later down the line to fine-tune an LLM or model.
-
-#### Working Example with Traces
 
 For a fully working example of tracing with LlamaIndex, checkout our colab notebook.
 
@@ -174,10 +158,3 @@ Note that Parquet is just an example file format, you can use any file format of
 
 For the full guidance on how to materialize your data in files, consult the [LlamaIndex notebook](https://github.com/run-llama/llama\_index/blob/main/docs/examples/callbacks/OpenInferenceCallback.ipynb).
 
-#### Working Example with Inferences
-
-For a fully working example, checkout our colab notebook.
-
-{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/llama_index_search_and_retrieval_tutorial.ipynb" %}
-Troubleshooting an LLM application using the OpenInferenceCallback
-{% endembed %}
