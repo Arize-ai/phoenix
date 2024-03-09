@@ -32,7 +32,7 @@ npm install @opentelemetry/api @opentelemetry/resources @opentelemetry/semantic-
 
 Install OpenInference instrumentation packages. Below is an example of adding instrumentation for OpenAI as well as the semantic conventions for OpenInference.
 
-<pre class="language-bash"><code class="lang-bash"><strong>npm install @arizeai/openinfernece-instrumentation-openai @arizeai/openinference-semantic-conventions
+<pre class="language-bash"><code class="lang-bash"><strong>npm install @arizeai/openinference-instrumentation-openai @arizeai/openinference-semantic-conventions
 </strong></code></pre>
 
 #### Initialize the SDK <a href="#initialize-the-sdk" id="initialize-the-sdk"></a>
