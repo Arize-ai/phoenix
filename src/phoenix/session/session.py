@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import warnings
 from abc import ABC, abstractmethod
 from collections import UserList
 from datetime import datetime
@@ -24,6 +25,8 @@ import pandas as pd
 from phoenix.config import (
     ENV_NOTEBOOK_ENV,
     ENV_PHOENIX_COLLECTOR_ENDPOINT,
+    ENV_PHOENIX_HOST,
+    ENV_PHOENIX_PORT,
     get_env_host,
     get_env_port,
     get_exported_files,
@@ -453,6 +456,29 @@ def launch_app(
         nb_env: Optional[NotebookEnvironment] = NotebookEnvironment(notebook_environment.lower())
     else:
         nb_env = notebook_environment
+
+    if port is not None:
+        warning_message = (
+            "❗️ The launch_app `port` parameter is deprecated and "
+            "will be removed in a future release. "
+            f"Use the `{ENV_PHOENIX_PORT}` environment variable instead."
+        )
+        print(warning_message)
+        warnings.warn(
+            warning_message,
+            DeprecationWarning,
+        )
+    if host is not None:
+        warning_message = (
+            "❗️ The launch_app `host` parameter is deprecated and "
+            "will be removed in a future release. "
+            f"Use the `{ENV_PHOENIX_HOST}` environment variable instead."
+        )
+        print(warning_message)
+        warnings.warn(
+            warning_message,
+            DeprecationWarning,
+        )
 
     host = host or get_env_host()
     port = port or get_env_port()
