@@ -1,7 +1,6 @@
 import logging
 from importlib.metadata import PackageNotFoundError, version
-from importlib.util import find_spec
-from typing import Any
+from typing import Any, Optional, Tuple
 
 from openinference.semconv.resource import ResourceAttributes
 from opentelemetry import trace as trace_api
@@ -21,37 +20,59 @@ INSTRUMENTATION_MODERN_VERSION = (1, 0, 0)
 
 
 def _check_instrumentation_compatibility() -> bool:
-    if find_spec("llama_index") is None:
-        raise PackageNotFoundError("Missing `llama-index`. Install with `pip install llama-index`.")
-    # split the version string into a tuple of integers
-    llama_index_version_str = version("llama-index")
-    llama_index_version = tuple(map(int, llama_index_version_str.split(".")[:3]))
+    llama_index_version_str = _get_version_if_installed("llama-index")
+    llama_index_installed = llama_index_version_str is not None
+    llama_index_core_version_str = _get_version_if_installed("llama-index-core")
+    llama_index_core_installed = modern_llama_index_installed = (
+        llama_index_core_version_str is not None
+    )
     instrumentation_version_str = version("openinference-instrumentation-llama-index")
-    instrumentation_version = tuple(map(int, instrumentation_version_str.split(".")[:3]))
-    # check if the llama_index version is compatible with the instrumentation version
-    if (
-        llama_index_version < LLAMA_INDEX_MODERN_VERSION
+    instrumentation_version = _parse_semantic_version(instrumentation_version_str)
+
+    if not llama_index_installed and not llama_index_core_installed:
+        raise PackageNotFoundError(
+            "Missing `llama_index`. "
+            "Install with `pip install llama-index` or "
+            "`pip install llama-index-core` for a minimal installation."
+        )
+    elif modern_llama_index_installed and instrumentation_version < INSTRUMENTATION_MODERN_VERSION:
+        raise IncompatibleLibraryVersionError(
+            f"llama-index-core v{llama_index_core_version_str} is not compatible with "
+            f"openinference-instrumentation-llama-index v{instrumentation_version_str}. "
+            "Please upgrade openinference-instrumentation-llama-index to at least 1.0.0 via "
+            "`pip install 'openinference-instrumentation-llama-index>=1.0.0'`."
+        )
+    elif (
+        llama_index_installed
+        and llama_index_version_str
+        and _parse_semantic_version(llama_index_version_str) < LLAMA_INDEX_MODERN_VERSION
         and instrumentation_version >= INSTRUMENTATION_MODERN_VERSION
     ):
         raise IncompatibleLibraryVersionError(
             f"llama-index v{llama_index_version_str} is not compatible with "
-            f"openinference-instrumentation-llama-index v{instrumentation_version_str}."
+            f"openinference-instrumentation-llama-index v{instrumentation_version_str}. "
             "Please either migrate llama-index to at least 0.10.0 or downgrade "
             "openinference-instrumentation-llama-index via "
             "`pip install 'openinference-instrumentation-llama-index<1.0.0'`."
         )
-    elif (
-        llama_index_version >= LLAMA_INDEX_MODERN_VERSION
-        and instrumentation_version < INSTRUMENTATION_MODERN_VERSION
-    ):
-        raise IncompatibleLibraryVersionError(
-            f"llama-index v{llama_index_version_str} is not compatible with "
-            f"openinference-instrumentation-llama-index v{instrumentation_version_str}."
-            "Please upgrade openinference-instrumentation-llama-index to at least 1.0.0"
-            "`pip install 'openinference-instrumentation-llama-index>=1.0.0'`."
-        )
-    # if the versions are compatible, return True
     return True
+
+
+def _get_version_if_installed(package_name: str) -> Optional[str]:
+    """
+    Gets the version of the package if it is installed, otherwise, returns None.
+    """
+    try:
+        return version(package_name)
+    except PackageNotFoundError:
+        return None
+
+
+def _parse_semantic_version(semver_string: str) -> Tuple[int, ...]:
+    """
+    Parse a semantic version string into a tuple of integers.
+    """
+    return tuple(map(int, semver_string.split(".")[:3]))
 
 
 if _check_instrumentation_compatibility():
