@@ -3,8 +3,6 @@ import tempfile
 from pathlib import Path
 from typing import List, Optional
 
-from phoenix.core.project import DEFAULT_PROJECT_NAME
-
 # Phoenix environment variables
 ENV_PHOENIX_PORT = "PHOENIX_PORT"
 ENV_PHOENIX_HOST = "PHOENIX_HOST"
@@ -122,4 +120,4 @@ def get_env_collector_endpoint() -> Optional[str]:
 
 
 def get_env_project_name() -> str:
-    return os.getenv(ENV_PHOENIX_PROJECT_NAME) or DEFAULT_PROJECT_NAME
+    return os.getenv(ENV_PHOENIX_PROJECT_NAME) or "config"
