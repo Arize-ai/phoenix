@@ -334,19 +334,28 @@ class ThreadSession(Session):
         """
         Queries the spans in the project based on the provided parameters.
 
-        Args:
-            queries: Variable-length argument list of SpanQuery objects
-            representing the queries to be executed. start_time: Optional
-            datetime object representing the start time of the query. stop_time:
-            Optional datetime object representing the stop time of the query.
-            root_spans_only: Optional boolean indicating whether to include only
-            root spans in the results. project_name: Optional string
-            representing the name of the project to query. Defaults to the project name
-            set in the environment variable `PHOENIX_PROJECT_NAME` or 'default' if not set.
+        Parameters
+        ----------
+            queries : *SpanQuery
+                Variable-length argument list of SpanQuery objects representing
+                the queries to be executed.
+
+            start_time : datetime, optional
+                 datetime representing the start time of the query.
+
+            stop_time : datetime, optional
+                datetime representing the stop time of the query.
+
+            root_spans_only : boolean, optional
+                whether to include only root spans in the results.
+
+            project_name : (string, optional)
+                name of the project to query. Defaults to the project name set
+                in the environment variable `PHOENIX_PROJECT_NAME` or 'default' if not set.
 
         Returns:
-            Optional pandas DataFrame or list of DataFrames containing the query
-            results.
+            results : DataFrame
+                DataFrame or list of DataFrames containing the query results.
         """
         if not (traces := self.traces) or not (
             project := traces.get_project(project_name or get_env_project_name())
@@ -382,13 +391,17 @@ class ThreadSession(Session):
         """
         Get the evaluations for a project.
 
-        Args:
-            project_name (str, optional): The name of the project. If not
-            provided, the project name set in the environment variable
-            `PHOENIX_PROJECT_NAME` will be used. Otherwise, 'default' will be used.
+        Parameters
+        ----------
+            project_name :  str, optional
+                The name of the project. If not provided, the project name set
+                in the environment variable `PHOENIX_PROJECT_NAME` will be used.
+                Otherwise, 'default' will be used.
 
-        Returns:
-            List[Evaluations]: A list of evaluations for the specified project.
+        Returns
+        -------
+            evaluations : List[Evaluations]
+                A list of evaluations for the specified project.
 
         """
         project_name = project_name or get_env_project_name()

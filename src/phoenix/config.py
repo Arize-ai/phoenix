@@ -120,4 +120,4 @@ def get_env_collector_endpoint() -> Optional[str]:
 
 
 def get_env_project_name() -> str:
-    return os.getenv(ENV_PHOENIX_PROJECT_NAME) or "config"
+    return os.getenv(ENV_PHOENIX_PROJECT_NAME) or "default"
