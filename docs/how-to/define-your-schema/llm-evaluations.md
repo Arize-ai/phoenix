@@ -11,7 +11,7 @@ description: >-
 
 ## Introduction
 
-An evaluation must have a `name` (e.g. "Q\&A Correctness") and its dataframe must contain identifiers for the subject of evaluation, e.g. a span or a document (more on that below), and values under either the `score`, `label`, or `explanation` columns. See [Evaluations](../../concepts/evaluation.md) for more information.
+An evaluation must have a `name` (e.g. "Q\&A Correctness") and its dataframe must contain identifiers for the subject of evaluation, e.g. a span or a document (more on that below), and values under either the `score`, `label`, or `explanation` columns. See [Evaluations](../../evaluation/evaluation/) for more information.
 
 ## Span Evaluations
 

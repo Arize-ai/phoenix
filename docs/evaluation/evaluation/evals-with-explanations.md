@@ -35,7 +35,7 @@ relevance_classifications = llm_classify(
 
 The flag above can be set with any of the templates or your own custom templates. The example below is from a relevance Evaluation.&#x20;
 
-<figure><img src="../.gitbook/assets/explanation.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/explanation.png" alt=""><figcaption></figcaption></figure>
 
 
 

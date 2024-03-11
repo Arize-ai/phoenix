@@ -5,26 +5,26 @@ description: >-
   measure it.
 ---
 
-# Concept: Evaluation
+# Concepts: Evaluation
 
 Phoenix offers key modules to measure the quality of generated results as well as modules to measure retrieval quality.
 
-* [**Response Evaluation**](evaluation.md#response-evaluation): Does the response match the retrieved context? Does it also match the query?
-* [**Retrieval Evaluation**](evaluation.md#retrieval-evaluation): Are the retrieved sources relevant to the query?
+* [**Response Evaluation**](./#response-evaluation): Does the response match the retrieved context? Does it also match the query?
+* [**Retrieval Evaluation**](./#retrieval-evaluation): Are the retrieved sources relevant to the query?
 
 ### Response Evaluation
 
 Evaluation of generated results can be challenging. Unlike traditional ML, the predicted results are not numeric or categorical, making it hard to define quantitative metrics for this problem.
 
-Phoenix offers [LLM Evaluations](broken-reference/), a module designed to measure the quality of results. This module uses a "gold" LLM (e.g. GPT-4) to decide whether the generated answer is correct in a variety of ways.\
+Phoenix offers [LLM Evaluations](../../concepts/broken-reference/), a module designed to measure the quality of results. This module uses a "gold" LLM (e.g. GPT-4) to decide whether the generated answer is correct in a variety of ways.\
 \
 Note that many of these evaluation criteria DO NOT require ground-truth labels. Evaluation can be done simply with a combination of the **input** (query), **output** (response), and **context**.
 
 LLM Evals supports the following response evaluation criteria:
 
-* [**QA Correctness**](../llm-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md) - Whether a question was correctly answered by the system based on the retrieved data. In contrast to retrieval Evals that are checks on chunks of data returned, this check is a system level check of a correct Q\&A.
-* [**Hallucinations**](../llm-evals/running-pre-tested-evals/hallucinations.md) **-** Designed to detect LLM hallucinations relative to retrieved context
-* [**Toxicity**](../llm-evals/running-pre-tested-evals/toxicity.md) - Identify if the AI response is racist, biased, or toxic
+* [**QA Correctness**](../../llm-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md) - Whether a question was correctly answered by the system based on the retrieved data. In contrast to retrieval Evals that are checks on chunks of data returned, this check is a system level check of a correct Q\&A.
+* [**Hallucinations**](../../llm-evals/running-pre-tested-evals/hallucinations.md) **-** Designed to detect LLM hallucinations relative to retrieved context
+* [**Toxicity**](../../llm-evals/running-pre-tested-evals/toxicity.md) - Identify if the AI response is racist, biased, or toxic
 
 Response evaluations are a critical first step to figuring out whether your LLM App is running correctly. Response evaluations can pinpoint specific executions (a.k.a. traces) that are performing badly and can be aggregated up so that you can track how your application is running as a whole.
 
@@ -38,7 +38,7 @@ The concept of retrieval evaluation is not new; given a set of relevance scores 
 
 LLM Evals supports the following retrieval evaluation criteria:
 
-* [**Relevance**](../llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md) - Evaluates whether a retrieved document chunk contains an answer to the query.
+* [**Relevance**](../../llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md) - Evaluates whether a retrieved document chunk contains an answer to the query.
 
 <figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/blog/revlevance_eval_process.png?raw=true" alt=""><figcaption><p>Retrieval Evaluations can be run directly on application traces</p></figcaption></figure>
 
@@ -73,7 +73,7 @@ With Phoenix, evaluations can be "attached" to the **spans** and **documents** c
 
 1. **Querying and downloading data** - query the spans collected by phoenix and materialize them into DataFrames to be used for evaluation (e.g. question and answer data, documents data).
 2. **Running Evaluations** - the data queried in step 1 can be fed into LLM Evals to produce evaluation results.
-3. **Logging Evaluations** - the evaluations performed in the above step can be logged back to Phoenix to be attached to spans and documents for evaluating responses and retrieval. See [here](../how-to/define-your-schema/llm-evaluations.md) on how to log evaluations to Phoenix.
+3. **Logging Evaluations** - the evaluations performed in the above step can be logged back to Phoenix to be attached to spans and documents for evaluating responses and retrieval. See [here](../../how-to/define-your-schema/llm-evaluations.md) on how to log evaluations to Phoenix.
 4. **Sorting and Filtering by Evaluation** - once the evaluations have been logged back to Phoenix, the spans become instantly sortable and filterable by the evaluation values that you attached to the spans. (An example of an evaluation filter would be `Eval["hallucination"].label == "hallucinated"`)
 
 <figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/blog/evaluation_flow.png?raw=true" alt=""><figcaption><p>End-to-end evaluation flow</p></figcaption></figure>
