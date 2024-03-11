@@ -1,4 +1,3 @@
-import random
 from typing import Iterator
 
 import pytest
@@ -12,19 +11,19 @@ from opentelemetry.context import (
 from phoenix.trace import suppress_tracing
 
 
-def test_suppress_tracing(num: float):
+def test_suppress_tracing(obj: object):
     with suppress_tracing():
         assert get_value(_SUPPRESS_INSTRUMENTATION_KEY) is True
-    assert get_value(_SUPPRESS_INSTRUMENTATION_KEY) == num
+    assert get_value(_SUPPRESS_INSTRUMENTATION_KEY) is obj
 
 
 @pytest.fixture(autouse=True)
-def instrument(num: float) -> Iterator[None]:
-    token = attach(set_value(_SUPPRESS_INSTRUMENTATION_KEY, num))
+def instrument(obj: object) -> Iterator[None]:
+    token = attach(set_value(_SUPPRESS_INSTRUMENTATION_KEY, obj))
     yield
     detach(token)
 
 
 @pytest.fixture
-def num() -> float:
-    return random.random()
+def obj() -> object:
+    return object()
