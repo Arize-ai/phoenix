@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from collections import UserList
 from datetime import datetime
 from enum import Enum
+from importlib.util import find_spec
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import (
@@ -619,9 +620,11 @@ def _is_colab() -> bool:
 
 def _is_sagemaker() -> bool:
     """Determines whether this is in a SageMaker notebook"""
+    if find_spec("sagemaker") is None:
+        return False
     try:
-        import sagemaker  # type: ignore # noqa: F401
-    except ImportError:
+        _get_sagemaker_notebook_base_url()
+    except Exception:
         return False
     try:
         from IPython.core.getipython import get_ipython
