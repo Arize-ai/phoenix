@@ -4,10 +4,9 @@ import weakref
 from queue import SimpleQueue
 from threading import Thread
 from types import MethodType
-from typing import Any, Optional, Union
+from typing import Any, Optional
 from urllib.parse import urljoin
 
-import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import requests
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from requests import Session
@@ -15,15 +14,13 @@ from typing_extensions import TypeAlias, assert_never
 
 import phoenix.trace.v1 as pb
 from phoenix.config import get_env_collector_endpoint, get_env_host, get_env_port
-from phoenix.trace.otel import encode
-from phoenix.trace.schemas import Span
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 END_OF_QUEUE = None  # sentinel value for queue termination
 
-Message: TypeAlias = Union[otlp.Span, pb.Evaluation]
+Message: TypeAlias = pb.Evaluation
 
 
 class NoOpExporter:
@@ -52,7 +49,7 @@ class HttpExporter:
         port: Optional[int] = None,
     ) -> None:
         """
-        Span/Evaluation Exporter using HTTP.
+        Evaluation Exporter using HTTP.
 
         Parameters
         ----------
@@ -90,10 +87,8 @@ class HttpExporter:
         weakref.finalize(self, self._queue.put, END_OF_QUEUE)
         self._start_consumer()
 
-    def export(self, item: Union[Span, pb.Evaluation]) -> None:
-        if isinstance(item, Span):
-            self._queue.put(encode(item))
-        elif isinstance(item, pb.Evaluation):
+    def export(self, item: pb.Evaluation) -> None:
+        if isinstance(item, pb.Evaluation):
             self._queue.put(item)
         else:
             logger.exception(f"unrecognized item type: {type(item)}")
@@ -121,8 +116,6 @@ class HttpExporter:
             logger.exception(e)
 
     def _url(self, message: Message) -> str:
-        if isinstance(message, otlp.Span):
-            return urljoin(self._base_url, "/v1/spans")
         if isinstance(message, pb.Evaluation):
             return urljoin(self._base_url, "/v1/evaluations")
         logger.exception(f"unrecognized message type: {type(message)}")
