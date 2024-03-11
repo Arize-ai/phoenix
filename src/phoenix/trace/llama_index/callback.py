@@ -11,7 +11,6 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from phoenix.config import get_env_project_name
 from phoenix.trace.errors import IncompatibleLibraryVersionError
 from phoenix.trace.exporter import _OpenInferenceExporter
-from phoenix.trace.tracer import _show_deprecation_warnings
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +94,6 @@ class OpenInferenceTraceCallbackHandler(_OpenInferenceTraceCallbackHandler):
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        _show_deprecation_warnings(self, *args, **kwargs)
         tracer_provider = trace_sdk.TracerProvider(
             resource=Resource({ResourceAttributes.PROJECT_NAME: get_env_project_name()})
         )

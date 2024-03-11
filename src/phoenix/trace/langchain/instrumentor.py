@@ -11,7 +11,6 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
 from phoenix.config import get_env_project_name
 from phoenix.trace.exporter import _OpenInferenceExporter
-from phoenix.trace.tracer import _show_deprecation_warnings
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +20,6 @@ __all__ = ("LangChainInstrumentor",)
 
 class LangChainInstrumentor(Instrumentor):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        _show_deprecation_warnings(self, *args, **kwargs)
         if find_spec("langchain_core") is None:
             raise PackageNotFoundError(
                 "Missing `langchain-core`. Install with `pip install langchain-core`."
