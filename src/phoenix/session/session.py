@@ -4,9 +4,9 @@ import os
 import warnings
 from abc import ABC, abstractmethod
 from collections import UserList
-from contextlib import redirect_stdout
 from datetime import datetime
 from enum import Enum
+from importlib.util import find_spec
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import (
@@ -620,11 +620,7 @@ def _is_colab() -> bool:
 
 def _is_sagemaker() -> bool:
     """Determines whether this is in a SageMaker notebook"""
-    try:
-        with open(os.devnull, "w") as devnull:
-            with redirect_stdout(devnull):
-                import sagemaker  # type: ignore # noqa: F401
-    except ImportError:
+    if find_spec("sagemaker") is None:
         return False
     try:
         _get_sagemaker_notebook_base_url()
