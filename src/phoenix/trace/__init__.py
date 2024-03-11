@@ -14,7 +14,7 @@ __all__ = [
 
 
 @contextlib.contextmanager
-def suppress_instrumentation() -> Iterator[None]:
+def suppress_tracing() -> Iterator[None]:
     """Context manager to pause OpenTelemetry instrumentation."""
     try:
         from opentelemetry.context import _SUPPRESS_INSTRUMENTATION_KEY, attach, detach, set_value
