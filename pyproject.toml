@@ -1,6 +1,6 @@
 [project]
 name = "arize-phoenix"
-description = "ML Observability in your notebook"
+description = "AI Observability and Evaluation"
 readme = "README.md"
 requires-python = ">=3.8, <3.12"
 license = "Elastic-2.0"
