@@ -4,6 +4,7 @@ import os
 import warnings
 from abc import ABC, abstractmethod
 from collections import UserList
+from contextlib import redirect_stdout
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -19,10 +20,6 @@ from typing import (
     Set,
     Union,
 )
-import sys
-import os
-from contextlib import contextmanager
-
 
 import pandas as pd
 
@@ -621,21 +618,12 @@ def _is_colab() -> bool:
     return get_ipython() is not None
 
 
-@contextmanager
-def suppress_stdout():
-    original_stdout = sys.stdout
-    sys.stdout = open(os.devnull, 'w')
-    try:
-        yield
-    finally:
-        sys.stdout.close()
-        sys.stdout = original_stdout
-
 def _is_sagemaker() -> bool:
     """Determines whether this is in a SageMaker notebook"""
     try:
-        with suppress_stdout():
-            import sagemaker  # type: ignore # noqa: F401
+        with open(os.devnull, "w") as devnull:
+            with redirect_stdout(devnull):
+                import sagemaker  # type: ignore # noqa: F401
     except ImportError:
         return False
     try:
