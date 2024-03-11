@@ -10,7 +10,7 @@ from strawberry import ID, UNSET
 from strawberry.types import Info
 
 import phoenix.trace.schemas as trace_schema
-from phoenix.core.project import DEFAULT_PROJECT_NAME, WrappedSpan
+from phoenix.core.project import DEFAULT_PROJECT_NAME, Project, WrappedSpan
 from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
@@ -95,6 +95,7 @@ class SpanEvent:
 
 @strawberry.type
 class Span:
+    project: strawberry.Private[Project]
     name: str
     status_code: SpanStatusCode
     status_message: str
@@ -185,14 +186,10 @@ class Span:
         info: Info[Context, None],
         evaluation_name: Optional[str] = UNSET,
     ) -> List[DocumentRetrievalMetrics]:
-        if (
-            not self.num_documents
-            or not (traces := info.context.traces)
-            or not (project := traces.get_project(DEFAULT_PROJECT_NAME))
-        ):
+        if not self.num_documents:
             return []
         span_id = SpanID(str(self.context.span_id))
-        all_document_evaluation_names = project.get_document_evaluation_names(span_id)
+        all_document_evaluation_names = self.project.get_document_evaluation_names(span_id)
         if not all_document_evaluation_names:
             return []
         if evaluation_name is UNSET:
@@ -203,7 +200,7 @@ class Span:
             evaluation_names = [evaluation_name]
         retrieval_metrics = []
         for name in evaluation_names:
-            evaluation_scores = project.get_document_evaluation_scores(
+            evaluation_scores = self.project.get_document_evaluation_scores(
                 span_id=span_id,
                 evaluation_name=name,
                 num_documents=self.num_documents,
@@ -223,20 +220,20 @@ class Span:
         self,
         info: Info[Context, None],
     ) -> List["Span"]:
-        if (traces := info.context.traces) is None:
-            return []
         return [
-            to_gql_span(span) for span in traces.get_descendant_spans(SpanID(self.context.span_id))
+            to_gql_span(span, self.project)
+            for span in self.project.get_descendant_spans(SpanID(self.context.span_id))
         ]
 
 
-def to_gql_span(span: WrappedSpan) -> "Span":
+def to_gql_span(span: WrappedSpan, project: Project) -> "Span":
     events: List[SpanEvent] = list(map(SpanEvent.from_event, span.events))
     input_value = cast(Optional[str], span.attributes.get(INPUT_VALUE))
     output_value = cast(Optional[str], span.attributes.get(OUTPUT_VALUE))
     retrieval_documents = span.attributes.get(RETRIEVAL_DOCUMENTS)
     num_documents = len(retrieval_documents) if isinstance(retrieval_documents, Sized) else None
     return Span(
+        project=project,
         name=span.name,
         status_code=SpanStatusCode(span.status_code),
         status_message=span.status_message,

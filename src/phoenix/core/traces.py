@@ -1,10 +1,9 @@
 import weakref
 from collections import defaultdict
-from datetime import datetime
 from queue import SimpleQueue
 from threading import RLock, Thread
 from types import MethodType
-from typing import DefaultDict, Iterable, Iterator, Optional, Tuple, Union
+from typing import DefaultDict, Iterator, Optional, Tuple, Union
 
 from typing_extensions import assert_never
 
@@ -13,10 +12,9 @@ from phoenix.core.project import (
     DEFAULT_PROJECT_NAME,
     END_OF_QUEUE,
     Project,
-    WrappedSpan,
     _ProjectName,
 )
-from phoenix.trace.schemas import Span, SpanID, TraceID
+from phoenix.trace.schemas import Span
 
 _SpanItem = Tuple[Span, _ProjectName]
 _EvalItem = Tuple[pb.Evaluation, _ProjectName]
@@ -44,76 +42,6 @@ class Traces:
         with self._lock:
             projects = tuple(self._projects.items())
         yield from projects
-
-    def get_trace(self, trace_id: TraceID) -> Iterator[WrappedSpan]:
-        with self._lock:
-            if not (project := self._projects.get(DEFAULT_PROJECT_NAME)):
-                return
-        yield from project.get_trace(trace_id)
-
-    def get_spans(
-        self,
-        start_time: Optional[datetime] = None,
-        stop_time: Optional[datetime] = None,
-        root_spans_only: Optional[bool] = False,
-        span_ids: Optional[Iterable[SpanID]] = None,
-    ) -> Iterator[WrappedSpan]:
-        with self._lock:
-            if not (project := self._projects.get(DEFAULT_PROJECT_NAME)):
-                return
-        yield from project.get_spans(start_time, stop_time, root_spans_only, span_ids)
-
-    def get_num_documents(self, span_id: SpanID) -> int:
-        with self._lock:
-            if not (project := self._projects.get(DEFAULT_PROJECT_NAME)):
-                return 0
-        return project.get_num_documents(span_id)
-
-    def root_span_latency_ms_quantiles(self, *probabilities: float) -> Iterator[Optional[float]]:
-        """Root span latency quantiles in milliseconds"""
-        with self._lock:
-            if not (project := self._projects.get(DEFAULT_PROJECT_NAME)):
-                for _ in probabilities:
-                    yield None
-                return
-        for probability in probabilities:
-            yield project.root_span_latency_ms_quantiles(probability)
-
-    def get_descendant_spans(self, span_id: SpanID) -> Iterator[WrappedSpan]:
-        with self._lock:
-            if not (project := self._projects.get(DEFAULT_PROJECT_NAME)):
-                return
-        yield from project.get_descendant_spans(span_id)
-
-    @property
-    def last_updated_at(self) -> Optional[datetime]:
-        with self._lock:
-            if not (project := self._projects.get(DEFAULT_PROJECT_NAME)):
-                return None
-        return project.last_updated_at
-
-    @property
-    def span_count(self) -> int:
-        """Total number of spans"""
-        project_name = DEFAULT_PROJECT_NAME
-        with self._lock:
-            if not (project := self._projects.get(project_name)):
-                return 0
-        return project.span_count()
-
-    @property
-    def token_count_total(self) -> int:
-        with self._lock:
-            if not (project := self._projects.get(DEFAULT_PROJECT_NAME)):
-                return 0
-        return project.token_count_total
-
-    @property
-    def right_open_time_range(self) -> Tuple[Optional[datetime], Optional[datetime]]:
-        with self._lock:
-            if not (project := self._projects.get(DEFAULT_PROJECT_NAME)):
-                return None, None
-        return project.right_open_time_range
 
     def put(
         self,

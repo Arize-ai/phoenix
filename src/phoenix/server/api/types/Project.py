@@ -112,7 +112,7 @@ class Project(Node):
             spans = filter(predicate, spans)
         if sort:
             spans = sort(spans, evals=project)
-        data = list(map(to_gql_span, spans))
+        data = [to_gql_span(span, project) for span in spans]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field(
