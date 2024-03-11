@@ -5,7 +5,7 @@ import phoenix.trace.v1 as pb
 import pytest
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
 from openinference.semconv.trace import SpanAttributes
-from phoenix.core.traces import WrappedSpan
+from phoenix.core.project import WrappedSpan
 from phoenix.server.api.input_types.SpanSort import EvalAttr, EvalResultKey, SpanColumn, SpanSort
 from phoenix.server.api.types.SortDir import SortDir
 
