@@ -6,8 +6,9 @@
 
 ## 🔭 Tracing
 
-* [Overview: Traces](concepts/llm-traces.md)
-* [Quickstart: Traces](quickstart/llm-traces.md)
+* [Overview: Tracing](concepts/llm-traces.md)
+* [Quickstart: Tracing](quickstart/llm-traces.md)
+* [Concepts: Tracing](tracing/concepts-tracing.md)
 * [Auto Instrumentation](telemetry/instrumentation.md)
   * [LlamaIndex](tracing/instrumentation/llamaindex.md)
   * [LangChain](tracing/instrumentation/langchain.md)
@@ -21,8 +22,8 @@
 ## 🧠 Evaluation
 
 * [Overview: Evals](llm-evals/llm-evals.md)
-* [Concept: Evaluation](concepts/evaluation.md)
 * [Quickstart: Evals](quickstart/evals.md)
+* [Concepts: Evaluation](concepts/evaluation.md)
 * [Running Pre-Tested Evals](llm-evals/running-pre-tested-evals/README.md)
   * [Retrieval (RAG) Relevance](llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md)
   * [Hallucinations](llm-evals/running-pre-tested-evals/hallucinations.md)
