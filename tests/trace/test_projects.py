@@ -13,3 +13,14 @@ def test_enable_tracing_can_dynamically_modify_resource_project():
     assert ResourceAttributes.PROJECT_NAME not in pre_override.resource.attributes
     assert with_override.resource.attributes[ResourceAttributes.PROJECT_NAME] == "override-project"
     assert ResourceAttributes.PROJECT_NAME not in post_override.resource.attributes
+
+
+def test_nested_project_overrides():
+    with enable_tracing(project_name="project1"):
+        with_override = ReadableSpan(name="override")
+        with enable_tracing(project_name="project2"):
+            nested_override = ReadableSpan(name="nested-override")
+        post_nested_override = ReadableSpan(name="post-nested-override")
+    assert with_override.resource.attributes[ResourceAttributes.PROJECT_NAME] == "project1"
+    assert nested_override.resource.attributes[ResourceAttributes.PROJECT_NAME] == "project2"
+    assert post_nested_override.resource.attributes[ResourceAttributes.PROJECT_NAME] == "project1"
