@@ -73,7 +73,7 @@
   },
   "scripts": {
     "prebuild": "rimraf ../src/phoenix/server/static",
-    "build": "npm run build:static & npm run build:relay && npm run build:ts",
+    "build": "npm run prebuild && npm run build:static & npm run build:relay && npm run build:ts",
     "build:static": "cpy ./static ../src/phoenix/server",
     "build:ts": "node ./esbuild.config.mjs",
     "build:relay": "relay-compiler",
