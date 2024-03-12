@@ -25,7 +25,15 @@ def project_override_wrapper(project_name: str) -> Callable[..., None]:
     return wrapper
 
 
-class enable_tracing:
+class using_project:
+    """
+    A context manager that switches the project for all spans created within the context.
+
+    This is useful for managing projects in notebook environments, however this should not be used
+    in production environments or complicated OpenTelemetry setups, as dynamically modifying the
+    span resource can lead to unexpected behavior.
+    """
+
     def __init__(self, project_name: str) -> None:
         self.project_name = project_name
 
@@ -44,3 +52,4 @@ class enable_tracing:
         traceback: Optional[types.TracebackType],
     ) -> None:
         setattr(trace.ReadableSpan, "__init__", self.unwrapped_init)
+        self.unwrapped_init = None
