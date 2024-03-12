@@ -6,7 +6,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-import { TextCell } from "@phoenix/components/table";
+import { PreformattedTextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 
@@ -31,7 +31,7 @@ const columns = [
   {
     header: "explanation",
     accessorKey: "explanation",
-    Cell: TextCell,
+    cell: PreformattedTextCell,
     size: 400,
   },
 ];
@@ -90,16 +90,22 @@ export function SpanEvaluationsTable(props: {
         <tbody>
           {table.getRowModel().rows.map((row) => (
             <tr key={row.id}>
-              {row.getVisibleCells().map((cell) => (
-                <td
-                  key={cell.id}
-                  style={{
-                    width: cell.column.getSize(),
-                  }}
-                >
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              ))}
+              {row.getVisibleCells().map((cell) => {
+                const node = flexRender(
+                  cell.column.columnDef.cell,
+                  cell.getContext()
+                );
+                return (
+                  <td
+                    key={cell.id}
+                    style={{
+                      width: cell.column.getSize(),
+                    }}
+                  >
+                    {node}
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>
