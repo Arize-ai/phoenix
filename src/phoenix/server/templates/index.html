@@ -1,51 +1,47 @@
 <!DOCTYPE html>
 <html>
-
-<head>
-  <title>Phoenix</title>
-  <link rel="icon" href="{{basename}}/favicon.ico" type="image/x-icon">
-  </link>
-  <meta charset="UTF-8" />
-  <meta name="title" content="Arize Phoenix" />
-  <meta name="description" content="AI Observability & Evaluation" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta property="og:title" content="Arize Phoenix" />
-  <meta property="og:description" content="AI Observability & Evaluation" />
-  <meta property="og:image"
-    content="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/main/images/socal/social-preview-horizontal.jpg" />
-  <meta name="theme-color" content="#ffffff" />
-  <link rel="stylesheet" src="{{basename}}/{{indexname}}.css">
-  </link>
-  <link rel="stylesheet"
-    href="https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400;500;700;900&display=swap" />
-  <script src="{{basename}}/modernizr.js"></script>
-</head>
-
-<body>
-  <div id="root"></div>
-  <script>(function () {
-      // Request Info:
-      // URL: {{request.url}}
-      // Base URL: {{request.base_url}}
-      // Root Path: {{root_path}}
-      Object.defineProperty(window, "Config", {
-        // Place any server-side injected config here
-        // E.g. default UMAP parameters etc. that needs to be
-        // injected into the client before React runs
-        value: Object.freeze({
-          basename: "{{basename}}",
-          hasInferences: Boolean("{{has_inferences}}" == "True"),
-          hasCorpus: Boolean("{{has_corpus}}" == "True"),
-          UMAP: {
-            minDist: parseFloat("{{min_dist}}"),
-            nNeighbors: parseInt("{{n_neighbors}}"),
-            nSamples: parseInt("{{n_samples}}"),
-          }
-        }),
-        writable: false
-      });
+  <head>
+    <title>Phoenix</title>
+    <link rel="icon" href="{{basename}}/favicon.ico" type="image/x-icon"></link>
+    <meta charset="UTF-8" />
+    <meta name="title" content="Arize Phoenix" />
+    <meta name="description" content="AI Observability & Evaluation" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta property="og:title" content="Arize Phoenix" />
+    <meta property="og:description" content="AI Observability & Evaluation" />
+    <meta property="og:image" content="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/main/images/socal/social-preview-horizontal.jpg" />
+    <meta name="theme-color" content="#ffffff" />
+    <link rel="stylesheet" src="{{basename}}/index.css"></link>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400;500;700;900&display=swap"
+    />
+    <script src="{{basename}}/modernizr.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>(function() {
+        // Request Info:
+        // URL: {{request.url}}
+        // Base URL: {{request.base_url}}
+        // Root Path: {{root_path}}
+        Object.defineProperty(window, "Config", {
+            // Place any server-side injected config here
+            // E.g. default UMAP parameters etc. that needs to be
+            // injected into the client before React runs
+            value: Object.freeze({
+                basename: "{{basename}}",
+                hasInferences: Boolean("{{has_inferences}}" == "True"),
+                hasCorpus: Boolean("{{has_corpus}}" == "True"),
+                UMAP: {
+                  minDist: parseFloat("{{min_dist}}"),
+                  nNeighbors: parseInt("{{n_neighbors}}"),
+                  nSamples: parseInt("{{n_samples}}"),
+                }
+            }),
+            writable: false
+        });
     })()</script>
-  <script type="module" src="{{basename}}/{{indexname}}.js"></script>
-</body>
-
+    <script type="module" src="{{basename}}/index.js"></script>
+  </body>
 </html>

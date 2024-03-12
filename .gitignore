@@ -12,7 +12,6 @@ sdist
 
 # Server static files
 /src/phoenix/server/static/*
-/src/phoenix/server/static_metadata.json
 
 # Data files
 *.csv

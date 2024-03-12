@@ -1,8 +1,6 @@
-import json
-from dataclasses import dataclass, field
 import logging
 from pathlib import Path
-from typing import Any, Optional, Union, List
+from typing import Any, NamedTuple, Optional, Union
 
 from starlette.applications import Starlette
 from starlette.datastructures import QueryParams
@@ -21,7 +19,7 @@ from strawberry.asgi import GraphQL
 from strawberry.schema import BaseSchema
 
 import phoenix
-from phoenix.config import SERVER_DIR, STATIC_DIR
+from phoenix.config import SERVER_DIR
 from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
 from phoenix.pointcloud.umap_parameters import UMAPParameters
@@ -36,23 +34,14 @@ logger = logging.getLogger(__name__)
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
 
 
-@dataclass
-class AppConfig:
+class AppConfig(NamedTuple):
     has_inferences: bool
     """ Whether the model has inferences (e.g. a primary dataset) """
     has_corpus: bool
     min_dist: float
     n_neighbors: int
     n_samples: int
-    static_build_id: Optional[str] = field(init=False)
-    """Base file name for the JS and CSS files in static assets."""
 
-    def __post_init__(self):
-        try:
-            with open(SERVER_DIR / "static_metadata.json") as f:
-                static_metadata = json.load(f)
-        except FileNotFoundError:
-            raise ValueError
 
 class Static(StaticFiles):
     "Static file serving with a fallback to index.html"
@@ -83,7 +72,6 @@ class Static(StaticFiles):
                     "n_samples": self._app_config.n_samples,
                     "basename": request.scope.get("root_path", ""),
                     "request": request,
-                    "indexname":
                 },
             )
         except Exception as e:
@@ -210,7 +198,7 @@ def create_app(
             Mount(
                 "/",
                 app=Static(
-                    directory=STATIC_DIR,
+                    directory=SERVER_DIR / "static",
                     app_config=AppConfig(
                         has_inferences=model.is_empty is not True,
                         has_corpus=corpus is not None,
