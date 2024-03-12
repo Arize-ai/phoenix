@@ -19,7 +19,8 @@ def project_override_wrapper(project_name: str) -> Callable[..., None]:
             {
                 **instance._resource.attributes,
                 ResourceAttributes.PROJECT_NAME: project_name,
-            }
+            },
+            instance._resource.schema_url,
         )
 
     return wrapper
