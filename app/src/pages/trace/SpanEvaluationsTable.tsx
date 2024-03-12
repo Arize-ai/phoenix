@@ -90,22 +90,16 @@ export function SpanEvaluationsTable(props: {
         <tbody>
           {table.getRowModel().rows.map((row) => (
             <tr key={row.id}>
-              {row.getVisibleCells().map((cell) => {
-                const node = flexRender(
-                  cell.column.columnDef.cell,
-                  cell.getContext()
-                );
-                return (
-                  <td
-                    key={cell.id}
-                    style={{
-                      width: cell.column.getSize(),
-                    }}
-                  >
-                    {node}
-                  </td>
-                );
-              })}
+              {row.getVisibleCells().map((cell) => (
+                <td
+                  key={cell.id}
+                  style={{
+                    width: cell.column.getSize(),
+                  }}
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
+              ))}
             </tr>
           ))}
         </tbody>
