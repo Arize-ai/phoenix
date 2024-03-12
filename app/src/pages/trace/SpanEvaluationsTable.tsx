@@ -6,7 +6,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-import { TextCell } from "@phoenix/components/table";
+import { PreformattedTextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 
@@ -31,7 +31,7 @@ const columns = [
   {
     header: "explanation",
     accessorKey: "explanation",
-    Cell: TextCell,
+    cell: PreformattedTextCell,
     size: 400,
   },
 ];
