@@ -60,6 +60,8 @@ PHOENIX_DIR = Path(__file__).resolve().parent
 # Server config
 SERVER_DIR = PHOENIX_DIR / "server"
 # The host the server will run on after launch_app is called
+STATIC_DIR = SERVER_DIR / "static"
+# The directory containing static assets
 HOST = "0.0.0.0"
 # The port the server will run on after launch_app is called
 PORT = 6006
