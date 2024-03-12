@@ -1,6 +1,7 @@
 import contextlib
 from typing import Iterator
 
+from .projects import using_project
 from .span_evaluations import DocumentEvaluations, Evaluations, SpanEvaluations, TraceEvaluations
 from .trace_dataset import TraceDataset
 
@@ -10,6 +11,7 @@ __all__ = [
     "SpanEvaluations",
     "DocumentEvaluations",
     "TraceEvaluations",
+    "using_project",
 ]
 
 
