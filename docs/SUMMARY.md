@@ -9,6 +9,9 @@
 * [Overview: Tracing](concepts/llm-traces.md)
 * [Quickstart: Tracing](quickstart/llm-traces.md)
 * [Concepts: Tracing](tracing/concepts-tracing.md)
+* [How-to: Traces](tracing/how-to-traces/README.md)
+  * [Customize Traces](tracing/how-to-traces/customize-traces.md)
+  * [Extract Data from Traces](tracing/how-to-traces/extract-data-from-spans.md)
 * [Auto Instrumentation](telemetry/instrumentation.md)
   * [LlamaIndex](tracing/instrumentation/llamaindex.md)
   * [LangChain](tracing/instrumentation/langchain.md)
@@ -62,7 +65,6 @@
   * [Corpus Data](how-to/define-your-schema/corpus-data.md)
 * [Manage the App](how-to/manage-the-app.md)
 * [Export Your Data](how-to/export-your-data.md)
-* [Extract Data from Spans](how-to/extract-data-from-spans.md)
 * [Use Example Datasets](how-to/use-example-datasets.md)
 
 ## ⌨️ API

@@ -5,7 +5,7 @@ description: >-
   traces into a pandas dataframe.
 ---
 
-# Extract Data from Spans
+# Extract Data from Traces
 
 ## Quick Links
 
@@ -26,7 +26,7 @@ Traces often come with a heterogeneous mixture of data under different span kind
 
 Let's say we want to extract the retrieved documents into a DataFrame that looks something like the table below, where `input` denotes the query for the retriever, `reference` denotes the content of each document, and `document_position` denotes the (zero-based) index in each span's list of retrieved documents.
 
-Note that this DataFrame can be used directly as input for the [Retrieval (RAG) Relevance evaluations](../llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md#how-to-run-the-eval).
+Note that this DataFrame can be used directly as input for the [Retrieval (RAG) Relevance evaluations](../../llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md#how-to-run-the-eval).
 
 | context.span\_id | document\_position | input                                            | reference                                                |
 | ---------------- | ------------------ | ------------------------------------------------ | -------------------------------------------------------- |
@@ -88,7 +88,7 @@ query = SpanQuery().where(
 
 #### Filtering Spans by Evaluation Results
 
-Filtering spans by evaluation results, e.g. `score` or `label`, can be done via a special syntax. The name of the evaluation is specified as an indexer on the special keyword `evals`. The example below filters for spans with the `incorrect` label on their `correctness` evaluations. (See [here](../llm-evals/running-pre-tested-evals/) for how to compute evaluations for traces, and [here](define-your-schema/llm-evaluations.md) for how to ingest those results back to Phoenix.)
+Filtering spans by evaluation results, e.g. `score` or `label`, can be done via a special syntax. The name of the evaluation is specified as an indexer on the special keyword `evals`. The example below filters for spans with the `incorrect` label on their `correctness` evaluations. (See [here](../../llm-evals/running-pre-tested-evals/) for how to compute evaluations for traces, and [here](../../how-to/define-your-schema/llm-evaluations.md) for how to ingest those results back to Phoenix.)
 
 ```python
 query = SpanQuery().where(
@@ -205,11 +205,11 @@ px.Client().query_spans(query)
 
 ### Retrieval (RAG) Relevance Evaluations
 
-To extract the dataframe input for [Retrieval (RAG) Relevance evaluations](../llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md#how-to-run-the-eval), we can apply the query described in the [Example](extract-data-from-spans.md#example), or leverage the [helper](extract-data-from-spans.md#retrieved-documents) function implementing the same query.
+To extract the dataframe input for [Retrieval (RAG) Relevance evaluations](../../llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md#how-to-run-the-eval), we can apply the query described in the [Example](extract-data-from-spans.md#example), or leverage the [helper](extract-data-from-spans.md#retrieved-documents) function implementing the same query.
 
 ### Q\&A on Retrieved Data Evaluations
 
-To extract the dataframe input to the [Q\&A on Retrieved Data evaluations](../llm-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md#how-to-run-the-eval), we can use a [helper](extract-data-from-spans.md#q-and-a-on-retrieved-data) function or use the following query (which is what's inside the helper function). This query applies techniques described in the [Advanced Usage](extract-data-from-spans.md#advanced-usage) section.
+To extract the dataframe input to the [Q\&A on Retrieved Data evaluations](../../llm-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md#how-to-run-the-eval), we can use a [helper](extract-data-from-spans.md#q-and-a-on-retrieved-data) function or use the following query (which is what's inside the helper function). This query applies techniques described in the [Advanced Usage](extract-data-from-spans.md#advanced-usage) section.
 
 ```python
 import pandas as pd
@@ -250,7 +250,7 @@ Phoenix also provides helper functions that executes predefined queries for the 
 
 ### Retrieved Documents
 
-The query shown in the [example](extract-data-from-spans.md#example) can be done more simply with a helper function as follows. The output dataframe can be used directly as input for the [Retrieval (RAG) Relevance evaluations](../llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md#how-to-run-the-eval).
+The query shown in the [example](extract-data-from-spans.md#example) can be done more simply with a helper function as follows. The output dataframe can be used directly as input for the [Retrieval (RAG) Relevance evaluations](../../llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md#how-to-run-the-eval).
 
 ```python
 from phoenix.session.evaluation import get_retrieved_documents
@@ -261,7 +261,7 @@ retrieved_documents
 
 ### Q\&A on Retrieved Data
 
-To extract the dataframe input to the [Q\&A on Retrieved Data evaluations](../llm-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md#how-to-run-the-eval), we can use the following helper function.
+To extract the dataframe input to the [Q\&A on Retrieved Data evaluations](../../llm-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md#how-to-run-the-eval), we can use the following helper function.
 
 ```python
 from phoenix.session.evaluation import get_qa_with_reference
