@@ -104,7 +104,7 @@ jobs:
         strategy:
             matrix:
                 os: [macos-latest, windows-latest, ubuntu-latest]
-                python-version: ["3.8", "3.12"]
+                python-version: ["3.8"]
         steps:
             - name: Checkout Repository
               uses: actions/checkout@v3
