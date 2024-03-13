@@ -15,11 +15,13 @@ from starlette.responses import Response
 from starlette.status import HTTP_415_UNSUPPORTED_MEDIA_TYPE, HTTP_422_UNPROCESSABLE_ENTITY
 
 from phoenix.core.traces import Traces
+from phoenix.experimental.spanstore import SpanStore
 from phoenix.trace.otel import decode
 
 
 class TraceHandler(HTTPEndpoint):
     traces: Traces
+    store: SpanStore
 
     async def post(self, request: Request) -> Response:
         content_type = request.headers.get("content-type")
@@ -47,6 +49,7 @@ class TraceHandler(HTTPEndpoint):
                 content="Request body is invalid ExportTraceServiceRequest",
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
             )
+        self.store.save(req)
         for resource_spans in req.resource_spans:
             project_name = _get_project_name(resource_spans.resource.attributes)
             for scope_span in resource_spans.scope_spans:

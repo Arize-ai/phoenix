@@ -22,6 +22,7 @@ import phoenix
 from phoenix.config import SERVER_DIR
 from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
+from phoenix.experimental.spanstore import SpanStore
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context
 from phoenix.server.api.routers.evaluation_handler import EvaluationHandler
@@ -147,6 +148,7 @@ def create_app(
     umap_params: UMAPParameters,
     corpus: Optional[Model] = None,
     traces: Optional[Traces] = None,
+    span_store: Optional[SpanStore] = None,
     debug: bool = False,
     read_only: bool = False,
 ) -> Starlette:
@@ -173,7 +175,7 @@ def create_app(
                 ),
                 Route(
                     "/v1/traces",
-                    type("TraceEndpoint", (TraceHandler,), {"traces": traces}),
+                    type("TraceEndpoint", (TraceHandler,), {"traces": traces, "store": span_store}),
                 ),
                 Route(
                     "/v1/evaluations",

@@ -9,13 +9,23 @@ from time import sleep, time
 from typing import Iterable, Optional, Protocol, TypeVar
 
 import pkg_resources
+from openinference.semconv.resource import ResourceAttributes
+from opentelemetry.proto.common.v1.common_pb2 import KeyValue
 from uvicorn import Config, Server
 
-from phoenix.config import EXPORT_DIR, get_env_host, get_env_port, get_pids_path
+from phoenix.config import (
+    EXPORT_DIR,
+    get_env_host,
+    get_env_port,
+    get_pids_path,
+    get_span_store_dir,
+)
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
 from phoenix.datasets.fixtures import FIXTURES, get_datasets
+from phoenix.experimental.spanstore import SpanStore
+from phoenix.experimental.spanstore.file import FileSpanStoreImpl
 from phoenix.pointcloud.umap_parameters import (
     DEFAULT_MIN_DIST,
     DEFAULT_N_NEIGHBORS,
@@ -99,6 +109,22 @@ def _load_items(
         queue.put(item)
 
 
+def _load_from_store(traces: Traces, span_store: SpanStore) -> None:
+    for req in span_store.load():
+        for resource_spans in req.resource_spans:
+            project_name = _get_project_name(resource_spans.resource.attributes)
+            for scope_span in resource_spans.scope_spans:
+                for span in scope_span.spans:
+                    traces.put(decode(span), project_name=project_name)
+
+
+def _get_project_name(attributes: Iterable[KeyValue]) -> Optional[str]:
+    for kv in attributes:
+        if kv.key == ResourceAttributes.PROJECT_NAME and (v := kv.value.string_value):
+            return v
+    return None
+
+
 DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_SAMPLES}"
 
 if __name__ == "__main__":
@@ -124,6 +150,8 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_false")
     subparsers = parser.add_subparsers(dest="command", required=True)
     serve_parser = subparsers.add_parser("serve")
+    experimental_parser = subparsers.add_parser("extremely-dangerously-experimental-span-storage")
+    experimental_parser.add_argument("--storage-path", type=str, required=False)
     datasets_parser = subparsers.add_parser("datasets")
     datasets_parser.add_argument("--primary", type=str, required=True)
     datasets_parser.add_argument("--reference", type=str, required=False)
@@ -145,6 +173,7 @@ if __name__ == "__main__":
     demo_parser.add_argument("--simulate-streaming", action="store_true")
     args = parser.parse_args()
     export_path = Path(args.export_path) if args.export_path else EXPORT_DIR
+    span_store: Optional[SpanStore] = None
     if args.command == "datasets":
         primary_dataset_name = args.primary
         reference_dataset_name = args.reference
@@ -179,12 +208,19 @@ if __name__ == "__main__":
         )
         trace_dataset_name = args.trace_fixture
         simulate_streaming = args.simulate_streaming
+    elif args.command == "extremely-dangerously-experimental-span-storage":
+        span_store_path = (
+            get_span_store_dir() if args.storage_path is None else Path(args.storage_path)
+        )
+        span_store = FileSpanStoreImpl(span_store_path)
 
     model = create_model_from_datasets(
         primary_dataset,
         reference_dataset,
     )
     traces = Traces()
+    if span_store:
+        Thread(target=_load_from_store, args=(traces, span_store), daemon=True).start()
     if trace_dataset_name is not None:
         fixture_spans = list(
             # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
@@ -221,6 +257,7 @@ if __name__ == "__main__":
         corpus=None if corpus_dataset is None else create_model_from_datasets(corpus_dataset),
         debug=args.debug,
         read_only=read_only,
+        span_store=span_store,
     )
     host = args.host or get_env_host()
     port = args.port or get_env_port()
