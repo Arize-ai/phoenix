@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.2.0...arize-phoenix-evals-v0.3.0) (2024-03-13)
+
+
+### Features
+
+* add phoenix-evals support for python 3.12 ([#2554](https://github.com/Arize-ai/phoenix/issues/2554)) ([efb6a76](https://github.com/Arize-ai/phoenix/commit/efb6a764a2aaecfff271b2cd7b7569771989a6a1))
+
 ## [0.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.1.0...arize-phoenix-evals-v0.2.0) (2024-03-07)
 
 
