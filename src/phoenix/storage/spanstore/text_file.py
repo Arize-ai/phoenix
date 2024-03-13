@@ -30,11 +30,11 @@ class TextFileSpanStoreImpl:
 
     def load(self) -> Iterator[TracesData]:
         queue: _Queue = SimpleQueue()
-        Thread(target=self._load_data_from_projects, args=(queue,)).start()
+        Thread(target=self._load_traces_data, args=(queue,)).start()
         while (item := queue.get()) is not _END_OF_QUEUE:
             yield item
 
-    def _load_data_from_projects(self, queue: _Queue) -> None:
+    def _load_traces_data(self, queue: _Queue) -> None:
         """Load traces data from all projects into the queue"""
         for project in self._projects.values():
             project.load(queue)
@@ -44,9 +44,9 @@ class TextFileSpanStoreImpl:
 class _Project:
     def __init__(self, name: str, root: Path) -> None:
         self._path = root / f"project.{_b64encode(name.encode())}"
-        self._spans_path = self._path / "spans"
-        self._spans_path.mkdir(parents=True, exist_ok=True)
-        self._spans = _Spans(self._spans_path / "spans.txt")
+        spans_path = self._path / "spans"
+        spans_path.mkdir(parents=True, exist_ok=True)
+        self._spans = _Spans(spans_path / "spans.txt")
 
     def save(self, traces_data: TracesData) -> None:
         self._spans.save(traces_data)
