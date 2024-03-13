@@ -49,3 +49,18 @@ LlamaIndexInstrumentor().instrument()
 {% endtab %}
 {% endtabs %}
 
+## Switching projects in a notebook
+
+While working with Phoenix inside a notebook, we provide a utility to temporarily associate spans with different projects.
+
+{% tabs %}
+{% tab title="Notebook" %}
+```python
+from phoenix.trace import using_project
+
+with using_project("override"):
+    # all spans created within this context will be associated with
+    # the "override" project.
+```
+{% endtab %}
+{% endtabs %}

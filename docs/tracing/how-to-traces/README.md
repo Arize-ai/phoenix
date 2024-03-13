@@ -12,6 +12,7 @@ description: Guides on how to use traces
 ## Customize Traces
 
 * [How to log to a specific project](customize-traces.md#log-to-a-specific-project)
+* [How to switch projects in a notebook](./#customize-traces)
 * [How to add auto-instrumentation](../../telemetry/instrumentation.md)
 * [How to create custom spans](../../telemetry/custom-spans.md)
 
