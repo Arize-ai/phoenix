@@ -12,15 +12,14 @@
 * [How-to: Traces](tracing/how-to-traces/README.md)
   * [Customize Traces](tracing/how-to-traces/customize-traces.md)
   * [Extract Data from Traces](tracing/how-to-traces/extract-data-from-spans.md)
-* [Auto Instrumentation](telemetry/instrumentation.md)
-  * [LlamaIndex](tracing/instrumentation/llamaindex.md)
-  * [LangChain](tracing/instrumentation/langchain.md)
-  * [OpenAI](tracing/instrumentation/openai.md)
-  * [DSPy](tracing/instrumentation/dspy.md)
-  * [Bedrock](tracing/instrumentation/bedrock.md)
-  * [AutoGen](tracing/instrumentation/autogen-support.md)
-  * [OpenInference](tracing/instrumentation/open-inference.md)
-* [Manual Instrumentation](telemetry/custom-spans.md)
+  * [Auto Instrumentation](tracing/how-to-traces/instrumentation/README.md)
+    * [LlamaIndex](tracing/how-to-traces/instrumentation/llamaindex.md)
+    * [LangChain](tracing/how-to-traces/instrumentation/langchain.md)
+    * [OpenAI](tracing/how-to-traces/instrumentation/openai.md)
+    * [DSPy](tracing/how-to-traces/instrumentation/dspy.md)
+    * [Bedrock](tracing/how-to-traces/instrumentation/bedrock.md)
+    * [AutoGen](tracing/how-to-traces/instrumentation/autogen-support.md)
+  * [Manual Instrumentation](tracing/how-to-traces/custom-spans.md)
 
 ## 🧠 Evaluation
 
@@ -88,6 +87,7 @@
 * [Environments](environments.md)
 * [Deployment](reference/deploying-phoenix.md)
 * [Frequently Asked Questions](reference/frequently-asked-questions.md)
+* [OpenInference](reference/open-inference.md)
 * [Contribute to Phoenix](reference/contribute-to-phoenix.md)
 
 ***

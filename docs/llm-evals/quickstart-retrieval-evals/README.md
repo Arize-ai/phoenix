@@ -1,8 +1,8 @@
-# Quickstart Retrieval Evals
+# Quickstart: Retrieval Evals
 
 In order to run retrieval Evals the following code can be used for quick analysis of common frameworks of LangChain and LlamaIndex.
 
-Independent of the framework you are instrumenting, Phoenix traces allow you to get retrieval data in a common dataframe format that follows the [OpenInference](../../tracing/instrumentation/open-inference.md) specification.
+Independent of the framework you are instrumenting, Phoenix traces allow you to get retrieval data in a common dataframe format that follows the [OpenInference](../../reference/open-inference.md) specification.
 
 ```python
 # Get traces from Phoenix into dataframe 
