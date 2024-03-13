@@ -6,7 +6,6 @@
 ### Features
 
 * add arize-phoenix support for python 3.12 ([#2555](https://github.com/Arize-ai/phoenix/issues/2555)) ([aac0cd5](https://github.com/Arize-ai/phoenix/commit/aac0cd5b3e7367fb1e791bad3bf80345520b75ea))
-* add phoenix-evals support for python 3.12 ([#2554](https://github.com/Arize-ai/phoenix/issues/2554)) ([efb6a76](https://github.com/Arize-ai/phoenix/commit/efb6a764a2aaecfff271b2cd7b7569771989a6a1))
 
 ## [3.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v3.11.1...arize-phoenix-v3.12.0) (2024-03-13)
 
