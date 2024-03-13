@@ -82,7 +82,6 @@ _ParentSpanID: TypeAlias = SpanID
 _ChildSpanID: TypeAlias = SpanID
 _ProjectName: TypeAlias = str
 
-DEFAULT_PROJECT_NAME: str = "default"
 
 EvaluationName: TypeAlias = str
 DocumentPosition: TypeAlias = int

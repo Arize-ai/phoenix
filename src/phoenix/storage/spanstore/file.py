@@ -3,12 +3,12 @@ from collections import deque
 from pathlib import Path
 from queue import SimpleQueue
 from threading import RLock, Thread
-from typing import Deque, Iterable, Iterator, Optional, Tuple
+from typing import Deque, Iterator, Optional, Tuple
 
-from openinference.semconv.resource import ResourceAttributes
-from opentelemetry.proto.common.v1.common_pb2 import KeyValue
 from opentelemetry.proto.trace.v1.trace_pb2 import TracesData
 from typing_extensions import TypeAlias
+
+from phoenix.utilities.project import get_project_name
 
 _Queue: TypeAlias = "SimpleQueue[Optional[TracesData]]"
 
@@ -25,7 +25,7 @@ class FileSpanStoreImpl:
 
     def save(self, req: TracesData) -> None:
         for resource_spans in req.resource_spans:
-            project_name = _get_project_name(resource_spans.resource.attributes)
+            project_name = get_project_name(resource_spans.resource.attributes)
             if project_name not in self.projects:
                 self.projects[project_name] = _Project(project_name, self.directory_path)
             self.projects[project_name].save(
@@ -61,13 +61,6 @@ class _Project:
         for line in lines:
             req = TracesData.FromString(_b64decode(line))
             queue.put(req)
-
-
-def _get_project_name(attributes: Iterable[KeyValue]) -> str:
-    for kv in attributes:
-        if kv.key == ResourceAttributes.PROJECT_NAME and (v := kv.value.string_value):
-            return v
-    return "default"
 
 
 def _load_projects(directory_path: Path) -> Iterator[Tuple[str, _Project]]:

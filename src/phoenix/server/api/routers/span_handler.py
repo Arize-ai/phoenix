@@ -7,11 +7,11 @@ from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
 
-from phoenix.core.project import DEFAULT_PROJECT_NAME
 from phoenix.core.traces import Traces
 from phoenix.server.api.routers.utils import df_to_bytes, from_iso_format
 from phoenix.trace.dsl import SpanQuery
 from phoenix.utilities import query_spans
+from phoenix.utilities.project import DEFAULT_PROJECT_NAME
 
 
 class SpanHandler(HTTPEndpoint):

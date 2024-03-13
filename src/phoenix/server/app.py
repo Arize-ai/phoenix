@@ -22,13 +22,13 @@ import phoenix
 from phoenix.config import SERVER_DIR
 from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
-from phoenix.experimental.spanstore import SpanStore
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context
 from phoenix.server.api.routers.evaluation_handler import EvaluationHandler
 from phoenix.server.api.routers.span_handler import SpanHandler
 from phoenix.server.api.routers.trace_handler import TraceHandler
 from phoenix.server.api.schema import schema
+from phoenix.storage.spanstore import SpanStore
 
 logger = logging.getLogger(__name__)
 

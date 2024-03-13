@@ -9,8 +9,6 @@ from time import sleep, time
 from typing import Iterable, Optional, Protocol, TypeVar
 
 import pkg_resources
-from openinference.semconv.resource import ResourceAttributes
-from opentelemetry.proto.common.v1.common_pb2 import KeyValue
 from uvicorn import Config, Server
 
 from phoenix.config import (
@@ -24,8 +22,6 @@ from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
 from phoenix.datasets.fixtures import FIXTURES, get_datasets
-from phoenix.experimental.spanstore import SpanStore
-from phoenix.experimental.spanstore.file import FileSpanStoreImpl
 from phoenix.pointcloud.umap_parameters import (
     DEFAULT_MIN_DIST,
     DEFAULT_N_NEIGHBORS,
@@ -33,6 +29,8 @@ from phoenix.pointcloud.umap_parameters import (
     UMAPParameters,
 )
 from phoenix.server.app import create_app
+from phoenix.storage.spanstore import SpanStore
+from phoenix.storage.spanstore.file import FileSpanStoreImpl
 from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
     _download_traces_fixture,
@@ -41,6 +39,7 @@ from phoenix.trace.fixtures import (
 )
 from phoenix.trace.otel import decode, encode
 from phoenix.trace.span_json_decoder import json_string_to_span
+from phoenix.utilities.project import get_project_name
 
 logger = logging.getLogger(__name__)
 
@@ -112,17 +111,10 @@ def _load_items(
 def _load_from_store(traces: Traces, span_store: SpanStore) -> None:
     for req in span_store.load():
         for resource_spans in req.resource_spans:
-            project_name = _get_project_name(resource_spans.resource.attributes)
+            project_name = get_project_name(resource_spans.resource.attributes)
             for scope_span in resource_spans.scope_spans:
                 for span in scope_span.spans:
                     traces.put(decode(span), project_name=project_name)
-
-
-def _get_project_name(attributes: Iterable[KeyValue]) -> Optional[str]:
-    for kv in attributes:
-        if kv.key == ResourceAttributes.PROJECT_NAME and (v := kv.value.string_value):
-            return v
-    return None
 
 
 DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_SAMPLES}"

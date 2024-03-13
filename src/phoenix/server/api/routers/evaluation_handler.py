@@ -15,11 +15,11 @@ from starlette.status import (
 )
 
 import phoenix.trace.v1 as pb
-from phoenix.core.project import DEFAULT_PROJECT_NAME
 from phoenix.core.traces import Traces
 from phoenix.server.api.routers.utils import table_to_bytes
 from phoenix.session.evaluation import encode_evaluations
 from phoenix.trace.span_evaluations import Evaluations
+from phoenix.utilities.project import DEFAULT_PROJECT_NAME
 
 
 class EvaluationHandler(HTTPEndpoint):
