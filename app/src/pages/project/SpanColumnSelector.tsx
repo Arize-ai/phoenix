@@ -89,49 +89,56 @@ function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
   );
 
   return (
-    <View paddingTop="size-50" paddingBottom="size-50">
-      <View
-        borderBottomColor="dark"
-        borderBottomWidth="thin"
-        paddingBottom="size-50"
-      >
-        <div css={columCheckboxItemCSS}>
-          <label>
-            <input
-              type="checkbox"
-              name={"toggle-all"}
-              checked={allVisible}
-              onChange={onToggleAll}
-            />
-            span columns
-          </label>
-        </div>
+    <div
+      css={css`
+        overflow-y: auto;
+        max-height: calc(100vh - 200px);
+      `}
+    >
+      <View paddingTop="size-50" paddingBottom="size-50">
+        <View
+          borderBottomColor="dark"
+          borderBottomWidth="thin"
+          paddingBottom="size-50"
+        >
+          <div css={columCheckboxItemCSS}>
+            <label>
+              <input
+                type="checkbox"
+                name={"toggle-all"}
+                checked={allVisible}
+                onChange={onToggleAll}
+              />
+              span columns
+            </label>
+          </div>
+        </View>
+        <ul>
+          {columns.map((column) => {
+            const stateValue = columnVisibility[column.id];
+            const isVisible = stateValue == null ? true : stateValue;
+            const name =
+              typeof column.columnDef.header == "string"
+                ? column.columnDef.header
+                : column.id;
+            return (
+              <li key={column.id} css={columCheckboxItemCSS}>
+                <label>
+                  <input
+                    type="checkbox"
+                    name={column.id}
+                    checked={isVisible}
+                    onChange={onCheckboxChange}
+                  />
+                  {name}
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+        <EvaluationColumnSelector {...props} />
       </View>
-      <ul>
-        {columns.map((column) => {
-          const stateValue = columnVisibility[column.id];
-          const isVisible = stateValue == null ? true : stateValue;
-          const name =
-            typeof column.columnDef.header == "string"
-              ? column.columnDef.header
-              : column.id;
-          return (
-            <li key={column.id} css={columCheckboxItemCSS}>
-              <label>
-                <input
-                  type="checkbox"
-                  name={column.id}
-                  checked={isVisible}
-                  onChange={onCheckboxChange}
-                />
-                {name}
-              </label>
-            </li>
-          );
-        })}
-      </ul>
-      <EvaluationColumnSelector {...props} />
-    </View>
+    </div>
   );
 }
 
