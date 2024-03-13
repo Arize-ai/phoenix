@@ -46,7 +46,7 @@ dependencies = [
   "opentelemetry-exporter-otlp",
   "openinference-semantic-conventions>=0.1.5",
   "openinference-instrumentation-langchain>=0.1.12",
-  "openinference-instrumentation-llama-index>=1.1.1",
+  "openinference-instrumentation-llama-index>=1.2.0",
   "openinference-instrumentation-openai>=0.1.4",
 ]
 dynamic = ["version"]
@@ -81,7 +81,7 @@ experimental = [
 llama-index = [
   "llama-index==0.10.3",  # always pin to a version that keeps our notebooks working
   "llama-index-callbacks-arize-phoenix>=0.1.2",
-  "openinference-instrumentation-llama-index>=1.0.0",
+  "openinference-instrumentation-llama-index>=1.2.0",
 ]
 
 [project.urls]
