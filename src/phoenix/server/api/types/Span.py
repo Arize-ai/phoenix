@@ -10,13 +10,14 @@ from strawberry import ID, UNSET
 from strawberry.types import Info
 
 import phoenix.trace.schemas as trace_schema
-from phoenix.core.project import DEFAULT_PROJECT_NAME, Project, WrappedSpan
+from phoenix.core.project import Project, WrappedSpan
 from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
 from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluation
 from phoenix.server.api.types.MimeType import MimeType
 from phoenix.trace.schemas import ComputedAttributes, SpanID
+from phoenix.utilities.project import DEFAULT_PROJECT_NAME
 
 EMBEDDING_EMBEDDINGS = SpanAttributes.EMBEDDING_EMBEDDINGS
 EMBEDDING_VECTOR = EmbeddingAttributes.EMBEDDING_VECTOR

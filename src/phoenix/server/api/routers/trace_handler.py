@@ -1,25 +1,27 @@
 import asyncio
 import gzip
 import zlib
-from typing import Iterable, Optional
+from typing import Optional
 
 from google.protobuf.message import DecodeError
-from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
-from opentelemetry.proto.common.v1.common_pb2 import KeyValue
+from opentelemetry.proto.trace.v1.trace_pb2 import TracesData
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.status import HTTP_415_UNSUPPORTED_MEDIA_TYPE, HTTP_422_UNPROCESSABLE_ENTITY
 
 from phoenix.core.traces import Traces
+from phoenix.storage.spanstore import SpanStore
 from phoenix.trace.otel import decode
+from phoenix.utilities.project import get_project_name
 
 
 class TraceHandler(HTTPEndpoint):
     traces: Traces
+    store: Optional[SpanStore]
 
     async def post(self, request: Request) -> Response:
         content_type = request.headers.get("content-type")
@@ -47,17 +49,12 @@ class TraceHandler(HTTPEndpoint):
                 content="Request body is invalid ExportTraceServiceRequest",
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
             )
+        if self.store:
+            self.store.save(TracesData(resource_spans=req.resource_spans))
         for resource_spans in req.resource_spans:
-            project_name = _get_project_name(resource_spans.resource.attributes)
+            project_name = get_project_name(resource_spans.resource.attributes)
             for scope_span in resource_spans.scope_spans:
                 for span in scope_span.spans:
                     self.traces.put(decode(span), project_name=project_name)
                     await asyncio.sleep(0)
         return Response()
-
-
-def _get_project_name(attributes: Iterable[KeyValue]) -> Optional[str]:
-    for kv in attributes:
-        if kv.key == ResourceAttributes.PROJECT_NAME and (v := kv.value.string_value):
-            return v
-    return None

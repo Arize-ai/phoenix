@@ -56,6 +56,13 @@ def get_working_dir() -> Path:
     return Path.home().resolve() / ".phoenix"
 
 
+def get_storage_dir() -> Path:
+    """
+    Get the directory for storing traces.
+    """
+    return get_working_dir() / "storage"
+
+
 PHOENIX_DIR = Path(__file__).resolve().parent
 # Server config
 SERVER_DIR = PHOENIX_DIR / "server"
