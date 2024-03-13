@@ -7,10 +7,3 @@ class SpanStore(Protocol):
     def save(self, req: TracesData) -> None: ...
 
     def load(self) -> Iterator[TracesData]: ...
-
-
-class NoOpSpanStoreImpl:
-    def save(self, req: TracesData) -> None: ...
-
-    def load(self) -> Iterator[TracesData]:
-        yield from ()

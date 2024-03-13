@@ -109,8 +109,8 @@ def _load_items(
 
 
 def _load_from_store(traces: Traces, span_store: SpanStore) -> None:
-    for req in span_store.load():
-        for resource_spans in req.resource_spans:
+    for traces_data in span_store.load():
+        for resource_spans in traces_data.resource_spans:
             project_name = get_project_name(resource_spans.resource.attributes)
             for scope_span in resource_spans.scope_spans:
                 for span in scope_span.spans:

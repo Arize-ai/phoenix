@@ -58,7 +58,7 @@ def get_working_dir() -> Path:
 
 def get_storage_dir() -> Path:
     """
-    Get the directory for storing e.g. spans.
+    Get the directory for storing traces.
     """
     return get_working_dir() / "storage"
 
