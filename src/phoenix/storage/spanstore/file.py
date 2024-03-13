@@ -1,9 +1,8 @@
 from base64 import urlsafe_b64decode, urlsafe_b64encode
-from collections import deque
 from pathlib import Path
 from queue import SimpleQueue
 from threading import RLock, Thread
-from typing import Deque, Iterator, Optional, Tuple
+from typing import Iterator, Optional, Tuple
 
 from opentelemetry.proto.trace.v1.trace_pb2 import TracesData
 from typing_extensions import TypeAlias
@@ -13,60 +12,76 @@ from phoenix.utilities.project import get_project_name
 _Queue: TypeAlias = "SimpleQueue[Optional[TracesData]]"
 
 _END_OF_QUEUE = None
-_FILE_PREFIX = "px.spans."
+_DIR_PREFIX = "project."
 
 
 class FileSpanStoreImpl:
-    def __init__(self, directory_path: Path) -> None:
-        directory_path.mkdir(exist_ok=True, parents=True)
-        self.directory_path = directory_path
-        self.projects = dict(_load_projects(directory_path))
-        self.output_queue: _Queue = SimpleQueue()
+    def __init__(self, root: Path) -> None:
+        root.mkdir(exist_ok=True, parents=True)
+        self._root = root
+        self._projects = dict(_load_projects(self._root))
 
-    def save(self, req: TracesData) -> None:
-        for resource_spans in req.resource_spans:
+    def save(self, traces_data: TracesData) -> None:
+        for resource_spans in traces_data.resource_spans:
             project_name = get_project_name(resource_spans.resource.attributes)
-            if project_name not in self.projects:
-                self.projects[project_name] = _Project(project_name, self.directory_path)
-            self.projects[project_name].save(
-                TracesData(resource_spans=[resource_spans]),
-            )
+            if project_name not in self._projects:
+                self._projects[project_name] = _Project(project_name, self._root)
+            self._projects[project_name].save(TracesData(resource_spans=[resource_spans]))
 
     def load(self) -> Iterator[TracesData]:
-        Thread(target=self._load).start()
-        while (item := self.output_queue.get()) is not _END_OF_QUEUE:
+        queue: _Queue = SimpleQueue()
+        Thread(target=self._load_spans_from_projects, args=(queue,)).start()
+        while (item := queue.get()) is not _END_OF_QUEUE:
             yield item
 
-    def _load(self) -> None:
-        for project in self.projects.values():
-            project.load(self.output_queue)
-        self.output_queue.put(_END_OF_QUEUE)
+    def _load_spans_from_projects(self, queue: _Queue) -> None:
+        """Load spans from all projects into the queue"""
+        for project in self._projects.values():
+            project.load(queue)
+        queue.put(_END_OF_QUEUE)
 
 
 class _Project:
-    def __init__(self, name: str, directory_path: Path) -> None:
-        self.lock = RLock()
-        self.file_path = directory_path / f"{_FILE_PREFIX}{_b64encode(name.encode())}.txt"
+    def __init__(self, name: str, root: Path) -> None:
+        self._path = root / f"project.{_b64encode(name.encode())}"
+        self._path.mkdir(parents=True, exist_ok=True)
+        self._spans_path = self._path / "spans"
+        self._spans_path.mkdir(parents=True, exist_ok=True)
+        self._spans = [_Spans(file_path) for file_path in self._spans_path.glob("*.txt")]
+        if not self._spans:
+            self._spans.append(_Spans(self._spans_path / "spans.txt"))
 
-    def save(self, req: TracesData) -> None:
-        with self.lock:
-            with self.file_path.open("a") as f:
-                f.write(_b64encode(req.SerializeToString()) + "\n")
+    def save(self, traces_data: TracesData) -> None:
+        self._spans[-1].save(traces_data)
 
-    def load(self, queue: _Queue, n: int = 1000) -> None:
-        lines: Deque[str] = deque(maxlen=n)
-        with self.lock:
-            with self.file_path.open("r") as f:
-                lines.extend(f)
-        for line in lines:
-            req = TracesData.FromString(_b64decode(line))
-            queue.put(req)
+    def load(self, queue: _Queue) -> None:
+        for spans in self._spans:
+            spans.load(queue)
 
 
-def _load_projects(directory_path: Path) -> Iterator[Tuple[str, _Project]]:
-    for filename in directory_path.glob(f"{_FILE_PREFIX}*.txt"):
-        name = _b64decode(filename.name[len(_FILE_PREFIX) : -4]).decode()
-        yield name, _Project(name, directory_path)
+class _Spans:
+    def __init__(self, file_path: Path):
+        self._lock = RLock()
+        self._path = file_path
+        self._path.touch(exist_ok=True)
+
+    def save(self, traces_data: TracesData) -> None:
+        with self._lock:
+            with self._path.open("a") as f:
+                f.write(_b64encode(traces_data.SerializeToString()))
+                f.write("\n")
+
+    def load(self, queue: _Queue) -> None:
+        with self._lock:
+            with self._path.open("r") as f:
+                while line := f.readline():
+                    queue.put(TracesData.FromString(_b64decode(line)))
+
+
+def _load_projects(root: Path) -> Iterator[Tuple[str, _Project]]:
+    for dirname in root.glob(f"{_DIR_PREFIX}*"):
+        name = _b64decode(dirname.name[len(_DIR_PREFIX) :]).decode()
+        yield name, _Project(name, root)
 
 
 def _b64encode(s: bytes) -> str:

@@ -56,11 +56,11 @@ def get_working_dir() -> Path:
     return Path.home().resolve() / ".phoenix"
 
 
-def get_span_store_dir() -> Path:
+def get_storage_dir() -> Path:
     """
-    Get the directory to store spans.
+    Get the directory for storing e.g. spans.
     """
-    return get_working_dir() / "span_store"
+    return get_working_dir() / "storage"
 
 
 PHOENIX_DIR = Path(__file__).resolve().parent

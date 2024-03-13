@@ -16,7 +16,7 @@ from phoenix.config import (
     get_env_host,
     get_env_port,
     get_pids_path,
-    get_span_store_dir,
+    get_storage_dir,
 )
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
@@ -202,7 +202,7 @@ if __name__ == "__main__":
         simulate_streaming = args.simulate_streaming
     elif args.command == "extremely-dangerous-experimental-span-storage":
         span_store_path = (
-            get_span_store_dir() if args.storage_path is None else Path(args.storage_path)
+            get_storage_dir() if args.storage_path is None else Path(args.storage_path)
         )
         span_store = FileSpanStoreImpl(span_store_path)
 
