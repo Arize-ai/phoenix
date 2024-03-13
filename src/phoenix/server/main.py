@@ -30,7 +30,7 @@ from phoenix.pointcloud.umap_parameters import (
 )
 from phoenix.server.app import create_app
 from phoenix.storage.spanstore import SpanStore
-from phoenix.storage.spanstore.file import FileSpanStoreImpl
+from phoenix.storage.spanstore.text_file import TextFileSpanStoreImpl
 from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
     _download_traces_fixture,
@@ -204,7 +204,7 @@ if __name__ == "__main__":
         span_store_path = (
             get_storage_dir() if args.storage_path is None else Path(args.storage_path)
         )
-        span_store = FileSpanStoreImpl(span_store_path)
+        span_store = TextFileSpanStoreImpl(span_store_path)
 
     model = create_model_from_datasets(
         primary_dataset,

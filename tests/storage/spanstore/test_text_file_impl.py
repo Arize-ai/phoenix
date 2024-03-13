@@ -6,15 +6,15 @@ from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
 from opentelemetry.proto.resource.v1.resource_pb2 import Resource
 from opentelemetry.proto.trace.v1.trace_pb2 import ResourceSpans, ScopeSpans, Span, TracesData
-from phoenix.storage.spanstore.file import FileSpanStoreImpl
+from phoenix.storage.spanstore.text_file import TextFileSpanStoreImpl
 from phoenix.utilities.project import get_project_name
 from pyfakefs.fake_filesystem import FakeFilesystem
 from pyfakefs.fake_pathlib import FakePath
 
 
 def test_save_and_load(root: Path, traces_data: TracesData):
-    FileSpanStoreImpl(root).save(traces_data)
-    loaded_data: List[TracesData] = list(FileSpanStoreImpl(root).load())
+    TextFileSpanStoreImpl(root).save(traces_data)
+    loaded_data: List[TracesData] = list(TextFileSpanStoreImpl(root).load())
     assert {
         get_project_name(resource_spans.resource.attributes): {
             span.name for scope_spans in resource_spans.scope_spans for span in scope_spans.spans

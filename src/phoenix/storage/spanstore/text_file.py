@@ -16,7 +16,7 @@ _END_OF_QUEUE = None
 _DIR_PREFIX = "project."
 
 
-class FileSpanStoreImpl:
+class TextFileSpanStoreImpl:
     def __init__(self, root: Path) -> None:
         self._root = root
         self._projects = dict(_load_projects(self._root))
