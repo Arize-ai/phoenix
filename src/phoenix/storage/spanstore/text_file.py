@@ -23,10 +23,10 @@ class TextFileSpanStoreImpl:
 
     def save(self, traces_data: TracesData) -> None:
         for resource_spans in traces_data.resource_spans:
-            project_name = get_project_name(resource_spans.resource.attributes)
-            if project_name not in self._projects:
-                self._projects[project_name] = _Project(project_name, self._root)
-            self._projects[project_name].save(TracesData(resource_spans=[resource_spans]))
+            name = get_project_name(resource_spans.resource.attributes)
+            if (project := self._projects.get(name)) is None:
+                self._projects[name] = project = _Project(name, self._root)
+            project.save(TracesData(resource_spans=[resource_spans]))
 
     def load(self) -> Iterator[TracesData]:
         queue: _Queue = SimpleQueue()
