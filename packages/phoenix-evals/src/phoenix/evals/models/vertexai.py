@@ -87,7 +87,7 @@ class VertexAIModel(BaseModel):
 
     def _init_environment(self) -> None:
         try:
-            import google.api_core.exceptions as google_exceptions  # type:ignore
+            import google.api_core.exceptions as google_exceptions
             import vertexai  # type:ignore
 
             self._vertexai = vertexai

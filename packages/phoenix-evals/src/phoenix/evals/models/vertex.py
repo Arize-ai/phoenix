@@ -47,7 +47,7 @@ class GeminiModel(BaseModel):
 
     def _init_client(self) -> None:
         try:
-            from google.api_core import exceptions  # type:ignore
+            from google.api_core import exceptions
             from vertexai.preview import generative_models as vertex  # type:ignore
 
             self._vertex = vertex

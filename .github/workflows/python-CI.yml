@@ -56,7 +56,7 @@ jobs:
               with:
                   python-version: |
                       3.8
-                      3.11
+                      3.12
             - run: pip install tox==4.12.1
             - run: tox run-parallel --parallel-no-spinner -e py38-ci-phoenix_evals,py311-ci-phoenix_evals
               if: ${{ needs.changes.outputs.phoenix_evals == 'true' }}
@@ -104,7 +104,7 @@ jobs:
         strategy:
             matrix:
                 os: [macos-latest, windows-latest, ubuntu-latest]
-                python-version: ["3.8"]
+                python-version: ["3.8", "3.12"]
         steps:
             - name: Checkout Repository
               uses: actions/checkout@v3
