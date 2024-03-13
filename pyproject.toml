@@ -33,7 +33,9 @@ dependencies = [
   "psutil",
   "strawberry-graphql==0.208.2",
   "pyarrow",
-  "typing-extensions>=4.5, <5",
+  "typing-extensions>=4.5; python_version<'3.12'",
+  # A minimum version of typing-extensions==4.6.0 is needed to avoid this issue on Python 3.12: https://github.com/Azure/azure-sdk-for-python/issues/33442#issuecomment-1847886784
+  "typing-extensions>=4.6; python_version>='3.12'",
   "scipy",
   "wrapt",
   "sortedcontainers",
@@ -123,9 +125,8 @@ dependencies = [
   "protobuf==3.20",  # version minimum (for tests)
   "responses",
   "tiktoken",
-  # A minimum version of typing-extensions==4.6.0 is needed to avoid this issue on Python 3.12: https://github.com/Azure/azure-sdk-for-python/issues/33442#issuecomment-1847886784
-  # At this time, Colab uses typing-extensions==4.10.0, so we avoid using any newer versions that would require upgrading the Colab environment.
-  "typing-extensions>=4.6.0,<=4.10.0",
+  "typing-extensions==4.5.0; python_version<'3.12'",
+  "typing-extensions==4.6.0; python_version>='3.12'",
   "httpx", # For OpenAI testing
   "respx", # For OpenAI testing
   "nest-asyncio", # for executor testing
