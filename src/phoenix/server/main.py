@@ -150,7 +150,7 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_false")
     subparsers = parser.add_subparsers(dest="command", required=True)
     serve_parser = subparsers.add_parser("serve")
-    experimental_parser = subparsers.add_parser("extremely-dangerously-experimental-span-storage")
+    experimental_parser = subparsers.add_parser("extremely-dangerous-experimental-span-storage")
     experimental_parser.add_argument("--storage-path", type=str, required=False)
     datasets_parser = subparsers.add_parser("datasets")
     datasets_parser.add_argument("--primary", type=str, required=True)
@@ -208,7 +208,7 @@ if __name__ == "__main__":
         )
         trace_dataset_name = args.trace_fixture
         simulate_streaming = args.simulate_streaming
-    elif args.command == "extremely-dangerously-experimental-span-storage":
+    elif args.command == "extremely-dangerous-experimental-span-storage":
         span_store_path = (
             get_span_store_dir() if args.storage_path is None else Path(args.storage_path)
         )
