@@ -166,7 +166,7 @@ tests = "pytest {args}"
 coverage = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/phoenix --cov=tests {args}"
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.8", "3.11"]
+python = ["3.8", "3.12"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
