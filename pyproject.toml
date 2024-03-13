@@ -45,9 +45,9 @@ dependencies = [
   "opentelemetry-proto",
   "opentelemetry-exporter-otlp",
   "openinference-semantic-conventions>=0.1.5",
-  "openinference-instrumentation-langchain>=0.1.11",
+  "openinference-instrumentation-langchain>=0.1.12",
   "openinference-instrumentation-llama-index>=1.1.1",
-  "openinference-instrumentation-openai>=0.1.3",
+  "openinference-instrumentation-openai>=0.1.4",
 ]
 dynamic = ["version"]
 
@@ -73,7 +73,7 @@ dev = [
   "anthropic",
 ]
 evals = [
-  "arize-phoenix-evals>=0.0.3",
+  "arize-phoenix-evals>=0.3.0",
 ]
 experimental = [
   "tenacity",
