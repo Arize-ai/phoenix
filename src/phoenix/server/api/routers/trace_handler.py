@@ -9,6 +9,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
 from opentelemetry.proto.common.v1.common_pb2 import KeyValue
+from opentelemetry.proto.trace.v1.trace_pb2 import TracesData
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
@@ -49,7 +50,7 @@ class TraceHandler(HTTPEndpoint):
                 content="Request body is invalid ExportTraceServiceRequest",
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
             )
-        self.store.save(req)
+        self.store.save(TracesData(resource_spans=req.resource_spans))
         for resource_spans in req.resource_spans:
             project_name = _get_project_name(resource_spans.resource.attributes)
             for scope_span in resource_spans.scope_spans:

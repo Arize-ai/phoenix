@@ -6,11 +6,11 @@ from threading import RLock, Thread
 from typing import Deque, Iterable, Iterator, Optional, Tuple
 
 from openinference.semconv.resource import ResourceAttributes
-from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import ExportTraceServiceRequest
 from opentelemetry.proto.common.v1.common_pb2 import KeyValue
+from opentelemetry.proto.trace.v1.trace_pb2 import TracesData
 from typing_extensions import TypeAlias
 
-_Queue: TypeAlias = "SimpleQueue[Optional[ExportTraceServiceRequest]]"
+_Queue: TypeAlias = "SimpleQueue[Optional[TracesData]]"
 
 _END_OF_QUEUE = None
 _FILE_PREFIX = "px.spans."
@@ -23,16 +23,16 @@ class FileSpanStoreImpl:
         self.projects = dict(_load_projects(directory_path))
         self.output_queue: _Queue = SimpleQueue()
 
-    def save(self, req: ExportTraceServiceRequest) -> None:
+    def save(self, req: TracesData) -> None:
         for resource_spans in req.resource_spans:
             project_name = _get_project_name(resource_spans.resource.attributes)
             if project_name not in self.projects:
                 self.projects[project_name] = _Project(project_name, self.directory_path)
             self.projects[project_name].save(
-                ExportTraceServiceRequest(resource_spans=[resource_spans]),
+                TracesData(resource_spans=[resource_spans]),
             )
 
-    def load(self) -> Iterator[ExportTraceServiceRequest]:
+    def load(self) -> Iterator[TracesData]:
         Thread(target=self._load).start()
         while (item := self.output_queue.get()) is not _END_OF_QUEUE:
             yield item
@@ -48,7 +48,7 @@ class _Project:
         self.lock = RLock()
         self.file_path = directory_path / f"{_FILE_PREFIX}{_b64encode(name.encode())}.txt"
 
-    def save(self, req: ExportTraceServiceRequest) -> None:
+    def save(self, req: TracesData) -> None:
         with self.lock:
             with self.file_path.open("a") as f:
                 f.write(_b64encode(req.SerializeToString()) + "\n")
@@ -59,7 +59,7 @@ class _Project:
             with self.file_path.open("r") as f:
                 lines.extend(f)
         for line in lines:
-            req = ExportTraceServiceRequest.FromString(_b64decode(line))
+            req = TracesData.FromString(_b64decode(line))
             queue.put(req)
 
 

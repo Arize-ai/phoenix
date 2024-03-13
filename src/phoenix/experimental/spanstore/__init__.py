@@ -1,16 +1,16 @@
 from typing import Iterator, Protocol
 
-from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import ExportTraceServiceRequest
+from opentelemetry.proto.trace.v1.trace_pb2 import TracesData
 
 
 class SpanStore(Protocol):
-    def save(self, req: ExportTraceServiceRequest) -> None: ...
+    def save(self, req: TracesData) -> None: ...
 
-    def load(self) -> Iterator[ExportTraceServiceRequest]: ...
+    def load(self) -> Iterator[TracesData]: ...
 
 
 class NoOpSpanStoreImpl:
-    def save(self, req: ExportTraceServiceRequest) -> None: ...
+    def save(self, req: TracesData) -> None: ...
 
-    def load(self) -> Iterator[ExportTraceServiceRequest]:
+    def load(self) -> Iterator[TracesData]:
         yield from ()

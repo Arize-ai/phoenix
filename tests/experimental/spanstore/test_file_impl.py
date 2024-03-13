@@ -25,9 +25,7 @@ def test_save_and_load(root: Path, req: ExportTraceServiceRequest):
 
 @pytest.fixture(scope="function")
 def root(fs: FakeFilesystem) -> Path:
-    fp = FakePath("/test")
-    fp.mkdir()
-    return fp
+    return FakePath("/test")
 
 
 @pytest.fixture
