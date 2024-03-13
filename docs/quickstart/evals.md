@@ -45,7 +45,7 @@ You should now see a view like this.
 Export your retrieved documents and query data from your session into a pandas dataframe.
 
 {% hint style="info" %}
-If you are interested in a niche subset of your data, you can export with a custom query. Learn more [here](../tracing/how-to-traces/extract-data-from-spans.md).
+If you are interested in a niche subset of your data, you can export with a custom query. Learn more [here](../tracing/how-to-tracing/extract-data-from-spans.md).
 {% endhint %}
 
 ```python

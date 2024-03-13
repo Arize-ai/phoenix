@@ -46,11 +46,11 @@ A client for making HTTP requests to the Phoenix server for extracting/downloadi
 
 *   **query\_spans** -> Optional\[Union\[pandas.DataFrame, List\[pandas.DataFrame]]\
     \
-    Extract values from spans in a pandas.dataframe. See [extract-data-from-spans.md](../tracing/how-to-traces/extract-data-from-spans.md "mention")for more details.\
+    Extract values from spans in a pandas.dataframe. See [extract-data-from-spans.md](../tracing/how-to-tracing/extract-data-from-spans.md "mention")for more details.\
     \
     **Parameters**
 
-    * **\*queries** (SpanQuery): One or more SpanQuery object. See [extract-data-from-spans.md](../tracing/how-to-traces/extract-data-from-spans.md "mention")for more details.
+    * **\*queries** (SpanQuery): One or more SpanQuery object. See [extract-data-from-spans.md](../tracing/how-to-tracing/extract-data-from-spans.md "mention")for more details.
     * **start\_time** (Optional\[datetime]): A Python datetime object for filtering spans by time.
     * **stop\_time** (Optional\[datetime]): A Python datetime object for filtering spans by time.
     * **root\_spans\_only** (Optional\[bool]): Whether to return only root spans, i.e. spans without parents. Defaults to `False`.
