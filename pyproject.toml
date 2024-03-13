@@ -2,7 +2,7 @@
 name = "arize-phoenix"
 description = "AI Observability and Evaluation"
 readme = "README.md"
-requires-python = ">=3.8, <3.12"
+requires-python = ">=3.8, <3.13"
 license = "Elastic-2.0"
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
@@ -19,6 +19,7 @@ classifiers = [
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
   "scikit-learn<1.3.0",
@@ -44,9 +45,9 @@ dependencies = [
   "opentelemetry-proto",
   "opentelemetry-exporter-otlp",
   "openinference-semantic-conventions>=0.1.5",
-  "openinference-instrumentation-langchain>=0.1.11",
-  "openinference-instrumentation-llama-index>=1.1.1",
-  "openinference-instrumentation-openai>=0.1.3",
+  "openinference-instrumentation-langchain>=0.1.12",
+  "openinference-instrumentation-llama-index>=1.2.0",
+  "openinference-instrumentation-openai>=0.1.4",
 ]
 dynamic = ["version"]
 
@@ -72,7 +73,7 @@ dev = [
   "anthropic",
 ]
 evals = [
-  "arize-phoenix-evals>=0.0.3",
+  "arize-phoenix-evals>=0.3.0",
 ]
 experimental = [
   "tenacity",
@@ -80,7 +81,7 @@ experimental = [
 llama-index = [
   "llama-index==0.10.3",  # always pin to a version that keeps our notebooks working
   "llama-index-callbacks-arize-phoenix>=0.1.2",
-  "openinference-instrumentation-llama-index>=1.0.0",
+  "openinference-instrumentation-llama-index>=1.2.0",
 ]
 
 [project.urls]
