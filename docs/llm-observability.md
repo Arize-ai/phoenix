@@ -6,6 +6,8 @@ description: >-
 
 # User Guide
 
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/user_guide.png" alt=""><figcaption></figcaption></figure>
+
 ## 5 Pillars of LLM Observability
 
 * [**Traces & Spans**](llm-observability.md#2.-traces-and-spans) - Visibility into where more complex or agentic workflows break.
