@@ -2,12 +2,12 @@
 description: Guides on how to use traces
 ---
 
-# How-to: Traces
+# How-to: Tracing
 
 ## Tracing Core Concepts
 
-* How to log traces
-* hot to turn off tracing
+* [How to log traces](tracing-core-concepts.md#how-to-log-traces)
+* [How to turn off tracing](tracing-core-concepts.md#how-to-turn-off-tracing)
 
 ## Customize Traces
 
