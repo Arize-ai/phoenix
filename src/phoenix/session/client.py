@@ -70,12 +70,12 @@ class Client(TraceDataExtractor):
             start_time (datetime, optional): The start time for the query range. Default None.
             stop_time (datetime, optional): The stop time for the query range. Default None.
             root_spans_only (bool, optional): If True, only root spans are returned. Default None.
-            project_name (str, optional): The project name to query spans for. If not provided,
-                defaults to the project name from environment variables.
+            project_name (str, optional): The project name to query spans for. This can be set
+                using environment variables. If not provided, falls back to the default project.
 
         Returns:
             Union[pd.DataFrame, List[pd.DataFrame]]: A pandas DataFrame or a list of pandas
-            DataFrames containing the queried span data, or None if no spans are found.
+                DataFrames containing the queried span data, or None if no spans are found.
         """
         project_name = project_name or get_env_project_name()
         if not queries:
@@ -126,11 +126,12 @@ class Client(TraceDataExtractor):
 
         Args:
             project_name (str, optional): The name of the project to retrieve evaluations for.
-                If not provided, defaults to the project name from environment variables.
+                This can be set using environment variables. If not provided, falls back to the
+                default project.
 
         Returns:
-        List[Evaluations]: A list of Evaluations objects containing evaluation data. Returns an
-            empty list if no evaluations are found.
+            List[Evaluations]: A list of Evaluations objects containing evaluation data. Returns an
+                empty list if no evaluations are found.
         """
         project_name = project_name or get_env_project_name()
         if self._use_active_session_if_available and (session := px.active_session()):
@@ -171,7 +172,8 @@ class Client(TraceDataExtractor):
         Args:
             evals (Evaluations): One or more Evaluations objects containing the data to log.
             project_name (str, optional): The project name under which to log the evaluations.
-                If not provided, defaults to the project name from environment variables.
+                This can be set using environment variables. If not provided, falls back to the
+                default project.
 
         Returns:
             None
