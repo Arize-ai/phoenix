@@ -58,3 +58,22 @@ Check out a comprehensive list of example notebooks for LLM Traces, Evals, RAG A
 
 Join the Phoenix Slack community to ask questions, share findings, provide feedback, and connect with other developers.&#x20;
 
+## Supported Eval Models
+
+The phoenix library supports a set of foundation models for Evals:
+
+Direct Integrations:
+
+* OpenAI
+* Vertex AI
+* Azure Open AI
+* Anthropic
+* Mixtral/Mistral&#x20;
+* AWS Bedrock
+
+&#x20;Partner Integrations:
+
+* Llama
+* Falcon
+* Code Llama
+* Local Hosted Models
