@@ -141,6 +141,7 @@ class Client(TraceDataExtractor):
             )
 
     def log_evaluations(self, *evals: Evaluations, project_name: Optional[str] = None) -> None:
+        project_name = project_name or get_env_project_name()
         for evaluation in evals:
             table = evaluation.to_pyarrow_table()
             sink = pa.BufferOutputStream()

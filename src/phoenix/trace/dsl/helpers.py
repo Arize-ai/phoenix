@@ -3,6 +3,7 @@ from typing import List, Optional, Protocol, Union, cast
 import pandas as pd
 from openinference.semconv.trace import DocumentAttributes, SpanAttributes
 
+from phoenix.config import get_env_project_name
 from phoenix.trace.dsl import SpanQuery
 
 DOCUMENT_CONTENT = DocumentAttributes.DOCUMENT_CONTENT
@@ -28,6 +29,7 @@ class CanQuerySpans(Protocol):
 
 
 def get_retrieved_documents(obj: CanQuerySpans, project_name: Optional[str] = None) -> pd.DataFrame:
+    project_name = project_name or get_env_project_name()
     return cast(
         pd.DataFrame,
         obj.query_spans(
@@ -45,6 +47,7 @@ def get_retrieved_documents(obj: CanQuerySpans, project_name: Optional[str] = No
 
 
 def get_qa_with_reference(obj: CanQuerySpans, project_name: Optional[str] = None) -> pd.DataFrame:
+    project_name = project_name or get_env_project_name()
     return pd.concat(
         cast(
             List[pd.DataFrame],
