@@ -34,15 +34,13 @@ class Client(TraceDataExtractor):
         """
         Client for connecting to a Phoenix server.
 
-        Parameters
-        ----------
-        endpoint : str, optional
-            Phoenix server endpoint, e.g. http://localhost:6006. If not provided, the
-            endpoint will be inferred from the environment variables.
-        use_active_session_if_available : bool, optional
-            If px.active_session() is available in the same runtime, e.g. the same Jupyter
-            notebook, delegate the request to the active session instead of making HTTP
-            requests. This argument is set to False if endpoint is provided explicitly.
+        Args:
+            endpoint (str, optional): Phoenix server endpoint, e.g. http://localhost:6006. If not
+                provided, the endpoint will be inferred from the environment variables.
+            use_active_session_if_available (bool, optional): If px.active_session() is available
+                in the same runtime, e.g. the same Jupyter notebook, delegate the request to the
+                active session instead of making HTTP requests. This argument is set to False if
+                endpoint is provided explicitly.
         """
         self._use_active_session_if_available = use_active_session_if_available and not endpoint
         host = get_env_host()
@@ -64,6 +62,21 @@ class Client(TraceDataExtractor):
         root_spans_only: Optional[bool] = None,
         project_name: Optional[str] = None,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
+        """
+        Queries spans from the Phoenix server or active session based on specified criteria.
+
+        Args:
+            queries (SpanQuery): One or more SpanQuery objects defining the query criteria.
+            start_time (datetime, optional): The start time for the query range. Default None.
+            stop_time (datetime, optional): The stop time for the query range. Default None.
+            root_spans_only (bool, optional): If True, only root spans are returned. Default None.
+            project_name (str, optional): The project name to query spans for. This can be set
+                using environment variables. If not provided, falls back to the default project.
+
+        Returns:
+            Union[pd.DataFrame, List[pd.DataFrame]]: A pandas DataFrame or a list of pandas
+                DataFrames containing the queried span data, or None if no spans are found.
+        """
         project_name = project_name or get_env_project_name()
         if not queries:
             queries = (SpanQuery(),)
@@ -108,6 +121,18 @@ class Client(TraceDataExtractor):
         self,
         project_name: Optional[str] = None,
     ) -> List[Evaluations]:
+        """
+        Retrieves evaluations for a given project from the Phoenix server or active session.
+
+        Args:
+            project_name (str, optional): The name of the project to retrieve evaluations for.
+                This can be set using environment variables. If not provided, falls back to the
+                default project.
+
+        Returns:
+            List[Evaluations]: A list of Evaluations objects containing evaluation data. Returns an
+                empty list if no evaluations are found.
+        """
         project_name = project_name or get_env_project_name()
         if self._use_active_session_if_available and (session := px.active_session()):
             return session.get_evaluations(project_name=project_name)
@@ -141,6 +166,18 @@ class Client(TraceDataExtractor):
             )
 
     def log_evaluations(self, *evals: Evaluations, project_name: Optional[str] = None) -> None:
+        """
+        Logs evaluation data to the Phoenix server.
+
+        Args:
+            evals (Evaluations): One or more Evaluations objects containing the data to log.
+            project_name (str, optional): The project name under which to log the evaluations.
+                This can be set using environment variables. If not provided, falls back to the
+                default project.
+
+        Returns:
+            None
+        """
         project_name = project_name or get_env_project_name()
         for evaluation in evals:
             table = evaluation.to_pyarrow_table()
