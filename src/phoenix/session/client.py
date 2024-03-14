@@ -178,6 +178,7 @@ class Client(TraceDataExtractor):
         Returns:
             None
         """
+        project_name = project_name or get_env_project_name()
         for evaluation in evals:
             table = evaluation.to_pyarrow_table()
             sink = pa.BufferOutputStream()
