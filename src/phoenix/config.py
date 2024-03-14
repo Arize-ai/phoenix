@@ -147,7 +147,14 @@ def get_env_span_storage_type() -> Optional["SpanStorageType"]:
     """
     if not (env_type_str := os.getenv(ENV_SPAN_STORAGE_TYPE)):
         return None
-    return SpanStorageType(env_type_str.lower())
+    try:
+        return SpanStorageType(env_type_str.lower())
+    except ValueError:
+        raise ValueError(
+            f"⚠️ Invalid span storage type value `{env_type_str}` defined by the "
+            f"environment variable `{ENV_SPAN_STORAGE_TYPE}`. Valid values are: "
+            f"{', '.join(t.value for t in SpanStorageType)}."
+        )
 
 
 class SpanStorageType(Enum):
