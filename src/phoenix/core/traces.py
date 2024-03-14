@@ -34,14 +34,24 @@ class Traces:
         )
         self._start_consumers()
 
+    def archive_project(self, id: int) -> Optional["Project"]:
+        with self._lock:
+            for project_id, _, project in self.get_projects():
+                if id == project_id:
+                    project.archive()
+                    return project
+        return None
+
     def get_project(self, project_name: str) -> Optional["Project"]:
         with self._lock:
             return self._projects.get(project_name)
 
-    def get_projects(self) -> Iterator[Tuple[str, "Project"]]:
+    def get_projects(self) -> Iterator[Tuple[int, str, "Project"]]:
         with self._lock:
-            projects = tuple(self._projects.items())
-        yield from projects
+            for project_id, (project_name, project) in enumerate(self._projects.items()):
+                if project.is_archived:
+                    continue
+                yield project_id, project_name, project
 
     def put(
         self,

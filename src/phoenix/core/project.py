@@ -91,6 +91,7 @@ class Project:
     def __init__(self) -> None:
         self._spans = _Spans()
         self._evals = _Evals()
+        self._is_archived = False
 
     @property
     def last_updated_at(self) -> Optional[datetime]:
@@ -191,6 +192,13 @@ class Project:
 
     def export_evaluations(self) -> List[Evaluations]:
         return self._evals.export_evaluations()
+
+    def archive(self) -> None:
+        self._is_archived = True
+
+    @property
+    def is_archived(self) -> bool:
+        return self._is_archived
 
 
 class _Spans:
