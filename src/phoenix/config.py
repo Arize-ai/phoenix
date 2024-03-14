@@ -24,10 +24,12 @@ The project name to use when logging traces and evals. defaults to 'default'.
 """
 ENV_SPAN_STORAGE_TYPE = "__DANGEROUS__PHOENIX_SPAN_STORAGE_TYPE"
 """
-The type of span storage to use. Defaults to 'text_files'.
+**EXPERIMENTAL**
+The type of span storage to use.
 """
 ENV_SPAN_STORAGE_PATH = "__DANGEROUS__PHOENIX_SPAN_STORAGE_PATH"
 """
+**EXPERIMENTAL**
 The path to the span storage directory. Defaults to the working directory.
 """
 
