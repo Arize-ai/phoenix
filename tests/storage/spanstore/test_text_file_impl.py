@@ -6,7 +6,7 @@ from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
 from opentelemetry.proto.resource.v1.resource_pb2 import Resource
 from opentelemetry.proto.trace.v1.trace_pb2 import ResourceSpans, ScopeSpans, Span, TracesData
-from phoenix.storage.spanstore.text_file import TextFileSpanStoreImpl
+from phoenix.storage.span_store.text_file import TextFileSpanStoreImpl
 from phoenix.utilities.project import get_project_name
 from pyfakefs.fake_filesystem import FakeFilesystem
 from pyfakefs.fake_pathlib import FakePath

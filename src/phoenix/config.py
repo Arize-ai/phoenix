@@ -1,5 +1,6 @@
 import os
 import tempfile
+from enum import Enum
 from pathlib import Path
 from typing import List, Optional
 
@@ -20,6 +21,11 @@ be accessible by both the Phoenix server and the notebook environment.
 ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME"
 """
 The project name to use when logging traces and evals. defaults to 'default'.
+"""
+ENV_SPAN_STORAGE_TYPE = "__DANGEROUS__PHOENIX_SPAN_STORAGE_TYPE"
+"""
+**EXPERIMENTAL**
+The type of span storage to use.
 """
 
 
@@ -127,4 +133,27 @@ def get_env_collector_endpoint() -> Optional[str]:
 
 
 def get_env_project_name() -> str:
-    return os.getenv(ENV_PHOENIX_PROJECT_NAME) or "default"
+    return os.getenv(ENV_PHOENIX_PROJECT_NAME) or DEFAULT_PROJECT_NAME
+
+
+def get_env_span_storage_type() -> Optional["SpanStorageType"]:
+    """
+    Get the type of span storage to use.
+    """
+    if not (env_type_str := os.getenv(ENV_SPAN_STORAGE_TYPE)):
+        return None
+    try:
+        return SpanStorageType(env_type_str.lower())
+    except ValueError:
+        raise ValueError(
+            f"⚠️ Invalid span storage type value `{env_type_str}` defined by the "
+            f"environment variable `{ENV_SPAN_STORAGE_TYPE}`. Valid values are: "
+            f"{', '.join(t.value for t in SpanStorageType)}."
+        )
+
+
+class SpanStorageType(Enum):
+    TEXT_FILES = "text-files"
+
+
+DEFAULT_PROJECT_NAME = "default"

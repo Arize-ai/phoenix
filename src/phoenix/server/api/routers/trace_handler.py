@@ -14,7 +14,7 @@ from starlette.responses import Response
 from starlette.status import HTTP_415_UNSUPPORTED_MEDIA_TYPE, HTTP_422_UNPROCESSABLE_ENTITY
 
 from phoenix.core.traces import Traces
-from phoenix.storage.spanstore import SpanStore
+from phoenix.storage.span_store import SpanStore
 from phoenix.trace.otel import decode
 from phoenix.utilities.project import get_project_name
 

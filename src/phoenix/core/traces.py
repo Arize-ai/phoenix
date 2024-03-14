@@ -8,13 +8,13 @@ from typing import DefaultDict, Iterator, Optional, Tuple, Union
 from typing_extensions import assert_never
 
 import phoenix.trace.v1 as pb
+from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.core.project import (
     END_OF_QUEUE,
     Project,
     _ProjectName,
 )
 from phoenix.trace.schemas import Span
-from phoenix.utilities.project import DEFAULT_PROJECT_NAME
 
 _SpanItem = Tuple[Span, _ProjectName]
 _EvalItem = Tuple[pb.Evaluation, _ProjectName]

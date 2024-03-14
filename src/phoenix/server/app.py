@@ -28,7 +28,7 @@ from phoenix.server.api.routers.evaluation_handler import EvaluationHandler
 from phoenix.server.api.routers.span_handler import SpanHandler
 from phoenix.server.api.routers.trace_handler import TraceHandler
 from phoenix.server.api.schema import schema
-from phoenix.storage.spanstore import SpanStore
+from phoenix.storage.span_store import SpanStore
 
 logger = logging.getLogger(__name__)
 

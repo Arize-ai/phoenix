@@ -16,7 +16,6 @@ from phoenix.config import (
     get_env_host,
     get_env_port,
     get_pids_path,
-    get_storage_dir,
 )
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
@@ -29,8 +28,7 @@ from phoenix.pointcloud.umap_parameters import (
     UMAPParameters,
 )
 from phoenix.server.app import create_app
-from phoenix.storage.spanstore import SpanStore
-from phoenix.storage.spanstore.text_file import TextFileSpanStoreImpl
+from phoenix.storage.span_store import SpanStore
 from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
     _download_traces_fixture,
@@ -39,7 +37,7 @@ from phoenix.trace.fixtures import (
 )
 from phoenix.trace.otel import decode, encode
 from phoenix.trace.span_json_decoder import json_string_to_span
-from phoenix.utilities.project import get_project_name
+from phoenix.utilities.span_store import get_span_store, load_traces_data_from_store
 
 logger = logging.getLogger(__name__)
 
@@ -108,15 +106,6 @@ def _load_items(
         queue.put(item)
 
 
-def _load_from_store(traces: Traces, span_store: SpanStore) -> None:
-    for traces_data in span_store.load():
-        for resource_spans in traces_data.resource_spans:
-            project_name = get_project_name(resource_spans.resource.attributes)
-            for scope_span in resource_spans.scope_spans:
-                for span in scope_span.spans:
-                    traces.put(decode(span), project_name=project_name)
-
-
 DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_SAMPLES}"
 
 if __name__ == "__main__":
@@ -142,8 +131,6 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_false")
     subparsers = parser.add_subparsers(dest="command", required=True)
     serve_parser = subparsers.add_parser("serve")
-    experimental_parser = subparsers.add_parser("extremely-dangerous-experimental-span-storage")
-    experimental_parser.add_argument("--storage-path", type=str, required=False)
     datasets_parser = subparsers.add_parser("datasets")
     datasets_parser.add_argument("--primary", type=str, required=True)
     datasets_parser.add_argument("--reference", type=str, required=False)
@@ -200,19 +187,14 @@ if __name__ == "__main__":
         )
         trace_dataset_name = args.trace_fixture
         simulate_streaming = args.simulate_streaming
-    elif args.command == "extremely-dangerous-experimental-span-storage":
-        span_store_path = (
-            get_storage_dir() if args.storage_path is None else Path(args.storage_path)
-        )
-        span_store = TextFileSpanStoreImpl(span_store_path)
 
     model = create_model_from_datasets(
         primary_dataset,
         reference_dataset,
     )
     traces = Traces()
-    if span_store:
-        Thread(target=_load_from_store, args=(traces, span_store), daemon=True).start()
+    if span_store := get_span_store():
+        Thread(target=load_traces_data_from_store, args=(traces, span_store), daemon=True).start()
     if trace_dataset_name is not None:
         fixture_spans = list(
             # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
