@@ -27,11 +27,6 @@ ENV_SPAN_STORAGE_TYPE = "__DANGEROUS__PHOENIX_SPAN_STORAGE_TYPE"
 **EXPERIMENTAL**
 The type of span storage to use.
 """
-ENV_SPAN_STORAGE_PATH = "__DANGEROUS__PHOENIX_SPAN_STORAGE_PATH"
-"""
-**EXPERIMENTAL**
-The path to the span storage directory. Defaults to the working directory.
-"""
 
 
 def _get_temp_path() -> Path:
@@ -65,6 +60,13 @@ def get_working_dir() -> Path:
         return Path(working_dir_str)
     # Fall back to ~/.phoenix if PHOENIX_WORKING_DIR is not set
     return Path.home().resolve() / ".phoenix"
+
+
+def get_span_storage_path() -> Path:
+    """
+    Get the directory for storing traces.
+    """
+    return get_working_dir() / "storage"
 
 
 PHOENIX_DIR = Path(__file__).resolve().parent
@@ -132,13 +134,6 @@ def get_env_collector_endpoint() -> Optional[str]:
 
 def get_env_project_name() -> str:
     return os.getenv(ENV_PHOENIX_PROJECT_NAME) or DEFAULT_PROJECT_NAME
-
-
-def get_env_span_storage_path() -> Path:
-    """
-    Get the directory for storing traces.
-    """
-    return Path(os.getenv(ENV_SPAN_STORAGE_PATH) or (get_working_dir() / "storage"))
 
 
 def get_env_span_storage_type() -> Optional["SpanStorageType"]:
