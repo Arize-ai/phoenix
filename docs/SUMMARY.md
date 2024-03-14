@@ -10,6 +10,7 @@
 * [Quickstart: Tracing](quickstart/llm-traces.md)
 * [Concepts: Tracing](tracing/concepts-tracing.md)
 * [How-to: Tracing](tracing/how-to-tracing/README.md)
+  * [Tracing Core Concepts](tracing/how-to-tracing/tracing-core-concepts.md)
   * [Customize Traces](tracing/how-to-tracing/customize-traces.md)
   * [Extract Data from Traces](tracing/how-to-tracing/extract-data-from-spans.md)
   * [Auto Instrumentation](tracing/how-to-tracing/instrumentation/README.md)
