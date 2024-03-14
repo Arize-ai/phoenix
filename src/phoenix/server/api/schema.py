@@ -229,22 +229,24 @@ class Query:
 @strawberry.type
 class Mutation(ExportEventsMutation):
     @strawberry.mutation
-    def delete_project(self, info: Info[Context, None], id: GlobalID) -> None:
+    def delete_project(self, info: Info[Context, None], id: GlobalID) -> Query:
         if (traces := info.context.traces) is None:
-            return
+            return Query()
         type_name, node_id = from_global_id(str(id))
         if type_name != "Project":
-            return
+            return Query()
         traces.archive_project(node_id)
+        return Query()
 
     @strawberry.mutation
-    def archive_project(self, info: Info[Context, None], id: GlobalID) -> None:
+    def archive_project(self, info: Info[Context, None], id: GlobalID) -> Query:
         if (traces := info.context.traces) is None:
-            return
+            return Query()
         type_name, node_id = from_global_id(str(id))
         if type_name != "Project":
-            return
+            return Query()
         traces.archive_project(node_id)
+        return Query()
 
 
 schema = strawberry.Schema(query=Query, mutation=Mutation)
