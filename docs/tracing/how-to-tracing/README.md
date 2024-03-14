@@ -16,10 +16,17 @@ description: Guides on how to use traces
 * [How to add auto-instrumentation](instrumentation/)
 * [How to create custom spans](custom-spans.md)
 
-## Querying Traces
+## [Querying Spans](extract-data-from-spans.md)
 
-* [Extract Data from Traces](extract-data-from-spans.md)
-* [Extract Data from Projects](extract-data-from-projects.md)
+How to query spans for to construct DataFrames to use for evaluation
+
+* [How to run a query](extract-data-from-spans.md#how-to-run-a-query)
+* [How to specify a project](extract-data-from-spans.md#how-to-specify-a-project)
+* [How to query for documents](extract-data-from-spans.md#querying-for-retrieved-documents)
+* [How to apply filters](extract-data-from-spans.md#filtering-spans)
+* [How to extract attributes](extract-data-from-spans.md#extracting-span-attributes)
+* [How to use data for evaluation](extract-data-from-spans.md#how-to-use-data-for-evaluation)
+* [How to use pre-defined queries](extract-data-from-spans.md#predefined-queries)
 
 ## [Auto Instrumentation](./#auto-instrumentation)
 

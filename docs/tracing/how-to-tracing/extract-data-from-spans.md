@@ -1,28 +1,51 @@
 ---
 description: >-
-  Span queries can help you extract data from your traces. This is useful for
-  performing LLM Evals by extracting specific pieces of information from your
-  traces into a pandas dataframe.
+  Span queries help you extract data from your traces into DataFrames for
+  evaluation
 ---
 
-# Extract Data from Traces
+# Querying Spans
 
-## Quick Links
+## How to Run a Query
 
-* [Cookbook for LLM Evaluations](extract-data-from-spans.md#cookbook-for-llm-evaluations)
-* [Predefined Queries](extract-data-from-spans.md#predefined-queries)
+You can query for data from the traces collected in Phoenix using the [Client](../../api/client.md) using a query language. Below is an example of how to pull all retriever spans and select the input value. The output of this query is a DataFrame that contains the input values for all retriever spans.
 
-## Introduction
+```python
+import phoenix as px
+from phoenix.trace.dsl import SpanQuery
 
-Traces often come with a heterogeneous mixture of data under different span kinds. Span queries let you filter on a specific kind of span, extract the attribute you want, and perform data transformations on an attribute, e.g. exploding a list of retrieved documents into separate rows in a DataFrame so that each document can be evaluated by an LLM for relevance.
+query = SpanQuery().where(
+    # Filter for the `RETRIEVER` span kind.
+    # The filter condition is a string of valid Python boolean expression.
+    "span_kind == 'RETRIEVER'",
+).select(
+    # Extract the span attribute `input.value` which contains the query for the
+    # retriever. Rename it as the `input` column in the output dataframe.
+    input="input.value",
+)
 
-* [Filtering spans](extract-data-from-spans.md#filtering-spans)
-* [Extracting span attributes](extract-data-from-spans.md#extracting-span-attributes)
-* [Exploding](extract-data-from-spans.md#exploding-multiple-attributes) or [concatenating](extract-data-from-spans.md#concatenating) span attributes that are lists (e.g. `retrieval.documents`)
+# The Phoenix Client can take this query and return the dataframe.
+px.Client().query_spans(query)
+```
 
-<figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/blog/evaluation_flow.png?raw=true" alt=""><figcaption><p>Use span queries to extract data from phoenix for evaluation</p></figcaption></figure>
+{% hint style="info" %}
+**DataFrame Index**\
+By default, the result DataFrame is indexed by `span_id`, and if `.explode()` is used, the index from the exploded list is added to create a multi-index on the result dataframe. For the special `retrieval.documents` span attribute, the added index is renamed as `document_position`.
+{% endhint %}
 
-## Example
+## How to Specify a Project
+
+By default all queries are executed against the default project or the project set via the `PHOENIX_PROJECT_NAME` environment variable. If you choose to pull from a different project, all methods on the [Client](../../api/client.md) have an optional parameter named `project_name`
+
+```
+import phoenix as px
+from phoenix.trace.dsl import SpanQuery
+
+query = SpanQuery().where("span_kind == 'CHAIN'").select(input="input.value")
+px.Client().query_spans(query, project_name="<my-project>")
+```
+
+## Querying for Retrieved Documents
 
 Let's say we want to extract the retrieved documents into a DataFrame that looks something like the table below, where `input` denotes the query for the retriever, `reference` denotes the content of each document, and `document_position` denotes the (zero-based) index in each span's list of retrieved documents.
 
@@ -60,11 +83,7 @@ query = SpanQuery().where(
 px.Client().query_spans(query)
 ```
 
-## DataFrame Index
-
-By default, the result dataframe is indexed by `span_id`, and if `.explode()` is used, the index from the exploded list is added to create a multi-index on the result dataframe. For the special `retrieval.documents` span attribute, the added index is renamed as `document_position`.
-
-## Exploding Multiple Attributes
+## How to Explode Attributes
 
 In addition to the document content, if we also want to explode the document score, we can simply add the `document.score` attribute to the `.explode()` method alongside `document.content` as follows. Keyword arguments are necessary to name the output columns, and in this example we name the output columns as `reference` and `score`. (Python's double-asterisk unpacking idiom can be used to specify arbitrary output names containing spaces or symbols. See [here](extract-data-from-spans.md#arbitrary-output-column-names) for an example.)
 
@@ -76,7 +95,7 @@ query = SpanQuery().explode(
 )
 ```
 
-## Filtering Spans
+## How to Apply Filters
 
 The `.where()` method accepts a string of valid Python boolean expression. The expression can be arbitrarily complex, but restrictions apply, e.g. making function calls are generally disallowed. Below is a conjunction filtering also on whether the input value contains the string `'programming'`.
 
@@ -96,7 +115,7 @@ query = SpanQuery().where(
 )
 ```
 
-## Extracting Span Attributes
+## How to Extract Attributes
 
 Span attributes can be selected by simply listing them inside `.select()` method.
 
@@ -183,7 +202,7 @@ pd.concatenate(
 )
 ```
 
-## Cookbook for LLM Evaluations
+## How to use Data for Evaluation
 
 ### Extract the Input and Output from LLM Spans
 
@@ -244,13 +263,17 @@ pd.concat(
 )
 ```
 
-## Predefined Queries
+## Pre-defined Queries
 
 Phoenix also provides helper functions that executes predefined queries for the following use cases.
 
+{% hint style="info" %}
+If you need to run the query against a specific project, you can add the `project_name` as a parameter to any of the pre-defined queries
+{% endhint %}
+
 ### Retrieved Documents
 
-The query shown in the [example](extract-data-from-spans.md#example) can be done more simply with a helper function as follows. The output dataframe can be used directly as input for the [Retrieval (RAG) Relevance evaluations](../../llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md#how-to-run-the-eval).
+The query shown in the [example](extract-data-from-spans.md#example) can be done more simply with a helper function as follows. The output DataFrame can be used directly as input for the [Retrieval (RAG) Relevance evaluations](../../llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md#how-to-run-the-eval).
 
 ```python
 from phoenix.session.evaluation import get_retrieved_documents
