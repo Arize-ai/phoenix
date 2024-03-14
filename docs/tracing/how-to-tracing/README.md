@@ -19,7 +19,7 @@ description: Guides on how to use traces
 ## Querying Traces
 
 * [Extract Data from Traces](extract-data-from-spans.md)
-* Extract Data from Projects
+* [Extract Data from Projects](extract-data-from-projects.md)
 
 ## [Auto Instrumentation](./#auto-instrumentation)
 
