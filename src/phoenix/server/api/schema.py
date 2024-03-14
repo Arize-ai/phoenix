@@ -56,8 +56,8 @@ class Query:
             []
             if (traces := info.context.traces) is None
             else [
-                Project(id_attr=i, name=name, project=project)
-                for i, (name, project) in enumerate(traces.get_projects())
+                Project(id_attr=project_id, name=project_name, project=project)
+                for project_id, project_name, project in traces.get_projects()
             ]
         )
         return connection_from_list(data=data, args=args)
@@ -86,8 +86,11 @@ class Query:
             return to_gql_embedding_dimension(node_id, embedding_dimension)
         elif type_name == "Project":
             if (traces := info.context.traces) is not None:
-                projects = list(traces.get_projects())
-                if node_id < len(projects):
+                projects = {
+                    project_id: (project_name, project)
+                    for project_id, project_name, project in traces.get_projects()
+                }
+                if node_id in projects:
                     name, project = projects[node_id]
                     return Project(id_attr=node_id, name=name, project=project)
             raise Exception(f"Unknown project: {id}")
@@ -224,7 +227,26 @@ class Query:
 
 
 @strawberry.type
-class Mutation(ExportEventsMutation): ...
+class Mutation(ExportEventsMutation):
+    @strawberry.mutation
+    def delete_project(self, info: Info[Context, None], id: GlobalID) -> Query:
+        if (traces := info.context.traces) is None:
+            return Query()
+        type_name, node_id = from_global_id(str(id))
+        if type_name != "Project":
+            return Query()
+        traces.archive_project(node_id)
+        return Query()
+
+    @strawberry.mutation
+    def archive_project(self, info: Info[Context, None], id: GlobalID) -> Query:
+        if (traces := info.context.traces) is None:
+            return Query()
+        type_name, node_id = from_global_id(str(id))
+        if type_name != "Project":
+            return Query()
+        traces.archive_project(node_id)
+        return Query()
 
 
 schema = strawberry.Schema(query=Query, mutation=Mutation)

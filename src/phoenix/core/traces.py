@@ -38,10 +38,26 @@ class Traces:
         with self._lock:
             return self._projects.get(project_name)
 
-    def get_projects(self) -> Iterator[Tuple[str, "Project"]]:
+    def get_projects(self) -> Iterator[Tuple[int, str, "Project"]]:
         with self._lock:
-            projects = tuple(self._projects.items())
-        yield from projects
+            for project_id, (project_name, project) in enumerate(self._projects.items()):
+                if project.is_archived:
+                    continue
+                yield project_id, project_name, project
+
+    def archive_project(self, id: int) -> Optional["Project"]:
+        with self._lock:
+            active_projects = {
+                project_id: project
+                for project_id, _, project in self.get_projects()
+                if not project.is_archived
+            }
+            if len(active_projects) <= 1:
+                return None
+            if project := active_projects.get(id):
+                project.archive()
+                return project
+        return None
 
     def put(
         self,
