@@ -1,5 +1,6 @@
 import os
 import tempfile
+from enum import Enum
 from pathlib import Path
 from typing import List, Optional
 
@@ -20,6 +21,14 @@ be accessible by both the Phoenix server and the notebook environment.
 ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME"
 """
 The project name to use when logging traces and evals. defaults to 'default'.
+"""
+ENV_SPAN_STORAGE_TYPE = "__DANGEROUS__PHOENIX_SPAN_STORAGE_TYPE"
+"""
+The type of span storage to use. Defaults to 'text_files'.
+"""
+ENV_SPAN_STORAGE_PATH = "__DANGEROUS__PHOENIX_SPAN_STORAGE_PATH"
+"""
+The path to the span storage directory. Defaults to the working directory.
 """
 
 
@@ -54,13 +63,6 @@ def get_working_dir() -> Path:
         return Path(working_dir_str)
     # Fall back to ~/.phoenix if PHOENIX_WORKING_DIR is not set
     return Path.home().resolve() / ".phoenix"
-
-
-def get_storage_dir() -> Path:
-    """
-    Get the directory for storing traces.
-    """
-    return get_working_dir() / "storage"
 
 
 PHOENIX_DIR = Path(__file__).resolve().parent
@@ -127,4 +129,27 @@ def get_env_collector_endpoint() -> Optional[str]:
 
 
 def get_env_project_name() -> str:
-    return os.getenv(ENV_PHOENIX_PROJECT_NAME) or "default"
+    return os.getenv(ENV_PHOENIX_PROJECT_NAME) or DEFAULT_PROJECT_NAME
+
+
+def get_env_span_storage_path() -> Path:
+    """
+    Get the directory for storing traces.
+    """
+    return Path(os.getenv(ENV_SPAN_STORAGE_PATH) or (get_working_dir() / "storage"))
+
+
+def get_env_span_storage_type() -> Optional["SpanStorageType"]:
+    """
+    Get the type of span storage to use.
+    """
+    if not (env_type_str := os.getenv(ENV_SPAN_STORAGE_TYPE)):
+        return None
+    return SpanStorageType(env_type_str.lower())
+
+
+class SpanStorageType(Enum):
+    TEXT_FILES = "text-files"
+
+
+DEFAULT_PROJECT_NAME = "default"
