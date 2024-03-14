@@ -13,6 +13,7 @@
   * [Tracing Core Concepts](tracing/how-to-tracing/tracing-core-concepts.md)
   * [Customize Traces](tracing/how-to-tracing/customize-traces.md)
   * [Extract Data from Traces](tracing/how-to-tracing/extract-data-from-spans.md)
+  * [Extract Data from Projects](tracing/how-to-tracing/extract-data-from-projects.md)
   * [Auto Instrumentation](tracing/how-to-tracing/instrumentation/README.md)
     * [LlamaIndex](tracing/how-to-tracing/instrumentation/llamaindex.md)
     * [LangChain](tracing/how-to-tracing/instrumentation/langchain.md)
