@@ -62,7 +62,7 @@ def get_working_dir() -> Path:
     return Path.home().resolve() / ".phoenix"
 
 
-def get_span_storage_path() -> Path:
+def get_storage_dir() -> Path:
     """
     Get the directory for storing traces.
     """

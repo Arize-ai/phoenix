@@ -1,6 +1,6 @@
 from typing import Optional
 
-from phoenix.config import get_env_span_storage_type, get_span_storage_path
+from phoenix.config import get_env_span_storage_type, get_storage_dir
 from phoenix.core.traces import Traces
 from phoenix.storage.span_store import SPAN_STORE_FACTORIES, SpanStore
 from phoenix.trace.otel import decode
@@ -10,7 +10,7 @@ from phoenix.utilities.project import get_project_name
 def get_span_store() -> Optional[SpanStore]:
     if span_store_type := get_env_span_storage_type():
         span_store_factory = SPAN_STORE_FACTORIES[span_store_type]
-        return span_store_factory(get_span_storage_path())
+        return span_store_factory(get_storage_dir())
     return None
 
 
