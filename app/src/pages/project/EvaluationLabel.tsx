@@ -8,7 +8,6 @@ import {
   Tooltip,
   TooltipTrigger,
   TriggerWrap,
-  View,
 } from "@arizeai/components";
 
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
