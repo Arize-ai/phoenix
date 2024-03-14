@@ -27,6 +27,7 @@ class EvaluationHandler(HTTPEndpoint):
 
     async def post(self, request: Request) -> Response:
         content_type = request.headers.get("content-type")
+        project_name = request.headers.get("project-name", DEFAULT_PROJECT_NAME)
         if content_type == "application/x-pandas-arrow":
             return await self._process_pyarrow(request)
         if content_type != "application/x-protobuf":
@@ -51,7 +52,7 @@ class EvaluationHandler(HTTPEndpoint):
                 content="Request body is invalid",
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
             )
-        self.traces.put(evaluation)
+        self.traces.put(evaluation, project_name=project_name)
         return Response()
 
     async def get(self, request: Request) -> Response:

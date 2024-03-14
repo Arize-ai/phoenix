@@ -140,16 +140,19 @@ class Client(TraceDataExtractor):
                 f"with `import phoenix as px; px.launch_app()`"
             )
 
-    def log_evaluations(self, *evals: Evaluations) -> None:
+    def log_evaluations(self, *evals: Evaluations, project_name: Optional[str] = None) -> None:
         for evaluation in evals:
             table = evaluation.to_pyarrow_table()
             sink = pa.BufferOutputStream()
+            headers = {"content-type": "application/x-pandas-arrow"}
+            if project_name:
+                headers["project-name"] = project_name
             with pa.ipc.new_stream(sink, table.schema) as writer:
                 writer.write_table(table)
             self._session.post(
                 urljoin(self._base_url, "/v1/evaluations"),
                 data=cast(bytes, sink.getvalue().to_pybytes()),
-                headers={"content-type": "application/x-pandas-arrow"},
+                headers=headers,
             ).raise_for_status()
 
 
