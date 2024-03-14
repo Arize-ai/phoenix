@@ -30,9 +30,19 @@ class using_project:
     """
     A context manager that switches the project for all spans created within the context.
 
-    This is useful for managing projects in notebook environments, however this should not be used
-    in production environments or complicated OpenTelemetry setups, as dynamically modifying the
-    span resource can lead to unexpected behavior.
+    This is intended for use in notebook environments where it's useful to be able to change the
+    project associated with spans on the fly.
+
+    Note: This should not be used in production environments or complex OpenTelemetry setups.
+    As dynamically modifying span resources in this way can lead to unexpected behavior.
+
+    Args:
+        project_name (str): The project name to associate with spans created within the context.
+
+    Examples:
+        with using_project('my_project'):
+            # Spans created here will be associated with 'my_project'
+            ...
     """
 
     def __init__(self, project_name: str) -> None:
