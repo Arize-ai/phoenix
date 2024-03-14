@@ -3,6 +3,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { formatDistance } from "date-fns";
 import { css } from "@emotion/react";
 
+import { ActionButton, Icon, Icons } from "@arizeai/components";
 import { Flex, Heading, Text, View } from "@arizeai/components";
 
 import { Link } from "@phoenix/components";
@@ -111,14 +112,19 @@ function ProjectItem({
         justify-content: space-between;
       `}
     >
-      <Flex direction="row" gap="size-100" alignItems="center">
-        <ProjectIcon />
-        <Flex direction="column">
-          <Heading level={2}>{project.name}</Heading>
-          <Text color="text-700" textSize="small" fontStyle="italic">
-            {lastUpdatedText}
-          </Text>
+      <Flex direction="row" justifyContent="space-between" alignItems="center">
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <ProjectIcon />
+          <Flex direction="column">
+            <Heading level={2}>{project.name}</Heading>
+            <Text color="text-700" textSize="small" fontStyle="italic">
+              {lastUpdatedText}
+            </Text>
+          </Flex>
         </Flex>
+        <ActionButton isQuiet={true}>
+          <Icon svg={<Icons.MoreHorizontalOutline />} />
+        </ActionButton>
       </Flex>
       <Flex direction="row" justifyContent="space-between">
         <Flex direction="column" flex="none">
