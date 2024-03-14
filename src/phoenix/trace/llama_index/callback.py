@@ -95,7 +95,8 @@ class OpenInferenceTraceCallbackHandler(_OpenInferenceTraceCallbackHandler):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         tracer_provider = trace_sdk.TracerProvider(
-            resource=Resource({ResourceAttributes.PROJECT_NAME: get_env_project_name()})
+            resource=Resource({ResourceAttributes.PROJECT_NAME: get_env_project_name()}),
+            span_limits=trace_sdk.SpanLimits(max_attributes=10_000),
         )
         tracer_provider.add_span_processor(SimpleSpanProcessor(_OpenInferenceExporter()))
         super().__init__(trace_api.get_tracer(__name__, __version__, tracer_provider))
