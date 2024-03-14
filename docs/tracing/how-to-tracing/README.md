@@ -19,12 +19,13 @@ description: Guides on how to use traces
 ## Querying Traces
 
 * [Extract Data from Traces](extract-data-from-spans.md)
+* Extract Data from Projects
 
 ## [Auto Instrumentation](./#auto-instrumentation)
 
 Use auto-instrumentation to export traces for common frameworks and libraries
 
-* I[nstrument LlamaIndex](instrumentation/llamaindex.md)
+* [Instrument LlamaIndex](instrumentation/llamaindex.md)
 * [Instrument LangChain](instrumentation/langchain.md)
 * [Instrument OpenAI](instrumentation/dspy.md)
 * [Instrument DSPy](instrumentation/dspy.md)
