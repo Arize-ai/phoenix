@@ -28,7 +28,8 @@ class LangChainInstrumentor(Instrumentor):
 
     def instrument(self) -> None:
         tracer_provider = trace_sdk.TracerProvider(
-            resource=Resource({ResourceAttributes.PROJECT_NAME: get_env_project_name()})
+            resource=Resource({ResourceAttributes.PROJECT_NAME: get_env_project_name()}),
+            span_limits=trace_sdk.SpanLimits(max_attributes=10_000),
         )
         tracer_provider.add_span_processor(SimpleSpanProcessor(_OpenInferenceExporter()))
         super().instrument(skip_dep_check=True, tracer_provider=tracer_provider)
