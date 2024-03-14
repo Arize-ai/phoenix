@@ -21,12 +21,13 @@ IS_RETRIEVER = "span_kind == 'RETRIEVER'"
 
 
 class CanQuerySpans(Protocol):
+    # Implemented by phoenix.session.client.Client
     def query_spans(
-        self, *query: SpanQuery
+        self, *query: SpanQuery, project_name: Optional[str] = None
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]: ...
 
 
-def get_retrieved_documents(obj: CanQuerySpans) -> pd.DataFrame:
+def get_retrieved_documents(obj: CanQuerySpans, project_name: Optional[str] = None) -> pd.DataFrame:
     return cast(
         pd.DataFrame,
         obj.query_spans(
@@ -37,12 +38,13 @@ def get_retrieved_documents(obj: CanQuerySpans) -> pd.DataFrame:
                 RETRIEVAL_DOCUMENTS,
                 reference=DOCUMENT_CONTENT,
                 document_score=DOCUMENT_SCORE,
-            )
+            ),
+            project_name=project_name,
         ),
     )
 
 
-def get_qa_with_reference(obj: CanQuerySpans) -> pd.DataFrame:
+def get_qa_with_reference(obj: CanQuerySpans, project_name: Optional[str] = None) -> pd.DataFrame:
     return pd.concat(
         cast(
             List[pd.DataFrame],
@@ -55,6 +57,7 @@ def get_qa_with_reference(obj: CanQuerySpans) -> pd.DataFrame:
                     RETRIEVAL_DOCUMENTS,
                     reference=DOCUMENT_CONTENT,
                 ),
+                project_name=project_name,
             ),
         ),
         axis=1,
