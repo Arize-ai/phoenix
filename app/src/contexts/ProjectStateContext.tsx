@@ -40,6 +40,7 @@ export function ProjectStateProvider({ children }: PropsWithChildren) {
       setFetchKey((prev) => prev + 1);
     });
   }, [setFetchKey]);
+
   return (
     <ProjectStateContext.Provider value={{ fetchKey, incrementFetchKey }}>
       {children}
