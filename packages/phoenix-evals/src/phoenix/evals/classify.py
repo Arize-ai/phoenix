@@ -271,7 +271,7 @@ def run_evals(
             payload.record,
             provide_explanation=provide_explanation,
             use_function_calling_if_available=use_function_calling_if_available,
-            verbose=verbose
+            verbose=verbose,
         )
 
     def _run_eval(
