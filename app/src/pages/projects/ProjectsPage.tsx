@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
+import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { formatDistance } from "date-fns";
 import { css } from "@emotion/react";
 
@@ -10,6 +10,7 @@ import { Link } from "@phoenix/components";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
+import { ProjectsPageDeleteProjectMutation } from "./__generated__/ProjectsPageDeleteProjectMutation.graphql";
 import {
   ProjectsPageQuery,
   ProjectsPageQuery$data,
@@ -87,6 +88,19 @@ function ProjectItem({
 }: {
   project: ProjectsPageQuery$data["projects"]["edges"][number]["project"];
 }) {
+  const [commit] = useMutation<ProjectsPageDeleteProjectMutation>(graphql`
+    mutation ProjectsPageDeleteProjectMutation($id: GlobalID!) {
+      deleteProject(id: $id) {
+        projects {
+          edges {
+            node {
+              __typename
+            }
+          }
+        }
+      }
+    }
+  `);
   const { endTime, traceCount, tokenCountTotal, latencyMsP50 } = project;
   const lastUpdatedText = useMemo(() => {
     if (endTime) {
@@ -131,7 +145,6 @@ function ProjectItem({
           />
           <div
             css={css`
-              // padding: var(--ac-global-dimension-size-10) var(--ac-global-dimension-size-200);
               border: 1px solid var(--ac-global-color-grey-400);
               background-color: var(--ac-global-color-grey-100);
               width: var(--ac-global-dimension-size-1600);
@@ -150,6 +163,13 @@ function ProjectItem({
                 justify-content: start;
                 flex: 1;
               `}
+              onClick={() => {
+                commit({
+                  variables: {
+                    id: project.id,
+                  },
+                });
+              }}
             >
               <Flex
                 direction={"row"}
