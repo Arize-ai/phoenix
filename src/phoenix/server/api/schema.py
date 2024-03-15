@@ -234,7 +234,10 @@ class Mutation(ExportEventsMutation):
             return Query()
         type_name, node_id = from_global_id(str(id))
         if type_name != "Project":
-            return Query()
+            raise ValueError(
+                "The id passed to deleteProject must correspond to a node of type Project, "
+                f"but was passed a node of type: {type_name}"
+            )
         traces.archive_project(node_id)
         return Query()
 
@@ -244,7 +247,10 @@ class Mutation(ExportEventsMutation):
             return Query()
         type_name, node_id = from_global_id(str(id))
         if type_name != "Project":
-            return Query()
+            raise ValueError(
+                "The id passed to archiveProject must correspond to a node of type Project, "
+                f"but was passed a node of type: {type_name}"
+            )
         traces.archive_project(node_id)
         return Query()
 
