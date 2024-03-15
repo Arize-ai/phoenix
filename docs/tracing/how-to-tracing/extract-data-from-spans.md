@@ -8,7 +8,19 @@ description: >-
 
 ## How to Run a Query
 
-You can query for data from the traces collected in Phoenix using the [Client](../../api/client.md) using a query language. Below is an example of how to pull all retriever spans and select the input value. The output of this query is a DataFrame that contains the input values for all retriever spans.
+You can query for data from the traces collected in Phoenix using the [Client](../../api/client.md). \
+\
+To simply get DataFrames of spans, you can simply ask for a DataFrame. Each row of the DataFrame with be a span that matches the filter criteria and time range passed in. If you leave the parameters blank, you will get all the spans.
+
+```python
+import phoenix as px
+
+# You can query for spans with the same filter conditions as in the UI
+px.Client.get_spans_dataframe("span_kind == 'CHAIN'")
+```
+
+\
+You can also query for data using our query DSL (domain specific language). Below is an example of how to pull all retriever spans and select the input value. The output of this query is a DataFrame that contains the input values for all retriever spans.
 
 ```python
 import phoenix as px
@@ -30,17 +42,21 @@ px.Client().query_spans(query)
 
 {% hint style="info" %}
 **DataFrame Index**\
-By default, the result DataFrame is indexed by `span_id`, and if `.explode()` is used, the index from the exploded list is added to create a multi-index on the result dataframe. For the special `retrieval.documents` span attribute, the added index is renamed as `document_position`.
+By default, the result DataFrame is indexed by `span_id`, and if `.explode()` is used, the index from the exploded list is added to create a multi-index on the result DataFrame. For the special `retrieval.documents` span attribute, the added index is renamed as `document_position`.
 {% endhint %}
 
 ## How to Specify a Project
 
 By default all queries are executed against the default project or the project set via the `PHOENIX_PROJECT_NAME` environment variable. If you choose to pull from a different project, all methods on the [Client](../../api/client.md) have an optional parameter named `project_name`
 
-```
+```python
 import phoenix as px
 from phoenix.trace.dsl import SpanQuery
 
+# Get spans from a project
+px.Client().get_spans_dataframe(project_name="<my-project>")
+
+# Using the query DSL
 query = SpanQuery().where("span_kind == 'CHAIN'").select(input="input.value")
 px.Client().query_spans(query, project_name="<my-project>")
 ```
