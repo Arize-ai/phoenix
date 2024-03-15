@@ -66,6 +66,10 @@ export function ProjectsPage() {
     });
   }, [fetchKey, refetch]);
 
+  const canDeleteProjects = useMemo(() => {
+    return projects.length > 1;
+  }, [projects]);
+
   return (
     <Flex direction="column" flex="1 1 auto">
       <View padding="size-200" width="100%">
@@ -85,7 +89,7 @@ export function ProjectsPage() {
                   text-decoration: none;
                 `}
               > */}
-              <ProjectItem project={project} />
+              <ProjectItem project={project} canDelete={canDeleteProjects} />
               {/* </Link> */}
             </li>
           ))}
@@ -111,11 +115,11 @@ function ProjectIcon() {
     />
   );
 }
-function ProjectItem({
-  project,
-}: {
+type ProjectItemProps = {
   project: ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"];
-}) {
+  canDelete: boolean;
+};
+function ProjectItem({ project, canDelete }: ProjectItemProps) {
   const { updateFetchKey } = useProjectState();
   const [commit] = useMutation<ProjectsPageDeleteProjectMutation>(graphql`
     mutation ProjectsPageDeleteProjectMutation($id: GlobalID!) {
@@ -159,54 +163,56 @@ function ProjectItem({
             </Text>
           </Flex>
         </Flex>
-        <DropdownTrigger placement="bottom left">
-          <Button
-            variant={"quiet"}
-            size="compact"
-            icon={<Icon svg={<Icons.MoreHorizontalOutline />} />}
-            aria-label="Project Menu"
-          />
-          <div
-            css={css`
-              border: 1px solid var(--ac-global-color-grey-400);
-              background-color: var(--ac-global-color-grey-100);
-              width: var(--ac-global-dimension-size-1600);
-              border-radius: var(--ac-global-rounding-medium);
-              display: flex;
-              flex-direction: row;
-            `}
-          >
+        {canDelete && (
+          <DropdownTrigger placement="bottom left">
             <Button
-              variant="quiet"
+              variant={"quiet"}
+              size="compact"
+              icon={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+              aria-label="Project Menu"
+            />
+            <div
               css={css`
-                padding: 0px;
+                border: 1px solid var(--ac-global-color-grey-400);
+                background-color: var(--ac-global-color-grey-100);
+                width: var(--ac-global-dimension-size-1600);
                 border-radius: var(--ac-global-rounding-medium);
                 display: flex;
                 flex-direction: row;
-                justify-content: start;
-                flex: 1;
               `}
-              onClick={() => {
-                commit({
-                  variables: {
-                    id: project.id,
-                  },
-                });
-                updateFetchKey();
-              }}
             >
-              <Flex
-                direction={"row"}
-                gap="5px"
-                justifyContent={"start"}
-                alignItems={"center"}
+              <Button
+                variant="quiet"
+                css={css`
+                  padding: 0px;
+                  border-radius: var(--ac-global-rounding-medium);
+                  display: flex;
+                  flex-direction: row;
+                  justify-content: start;
+                  flex: 1;
+                `}
+                onClick={() => {
+                  commit({
+                    variables: {
+                      id: project.id,
+                    },
+                  });
+                  updateFetchKey();
+                }}
               >
-                <Icon svg={<Icons.TrashOutline />} />
-                <Text>Delete</Text>
-              </Flex>
-            </Button>
-          </div>
-        </DropdownTrigger>
+                <Flex
+                  direction={"row"}
+                  gap="5px"
+                  justifyContent={"start"}
+                  alignItems={"center"}
+                >
+                  <Icon svg={<Icons.TrashOutline />} />
+                  <Text>Delete</Text>
+                </Flex>
+              </Button>
+            </div>
+          </DropdownTrigger>
+        )}
       </Flex>
       <Flex direction="row" justifyContent="space-between">
         <Flex direction="column" flex="none">
