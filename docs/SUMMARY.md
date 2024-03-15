@@ -80,6 +80,7 @@
 ## 🔌 INTEGRATIONS
 
 * [Arize](integrations/bring-production-data-to-notebook-for-eda-or-retraining.md)
+* [Ragas](integrations/ragas.md)
 
 ## 🏴‍☠️ Programming Languages
 
