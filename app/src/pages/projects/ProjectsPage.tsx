@@ -25,6 +25,7 @@ import { ProjectsPageProjectsQuery } from "./__generated__/ProjectsPageProjectsQ
 import { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
 
 export function ProjectsPage() {
+  const { fetchKey } = useProjectState();
   const data = useLazyLoadQuery<ProjectsPageQuery>(
     graphql`
       query ProjectsPageQuery {
@@ -33,7 +34,6 @@ export function ProjectsPage() {
     `,
     {}
   );
-  const { fetchKey } = useProjectState();
   const [projectsData, refetch] = useRefetchableFragment<
     ProjectsPageProjectsQuery,
     ProjectsPageProjectsFragment$key
@@ -122,8 +122,8 @@ type ProjectItemProps = {
 function ProjectItem({ project, canDelete }: ProjectItemProps) {
   const { incrementFetchKey } = useProjectState();
   const [commit] = useMutation<ProjectsPageDeleteProjectMutation>(graphql`
-    mutation ProjectsPageDeleteProjectMutation($id: GlobalID!) {
-      deleteProject(id: $id) {
+    mutation ProjectsPageDeleteProjectMutation($projectId: GlobalID!) {
+      deleteProject(id: $projectId) {
         ...ProjectsPageProjectsFragment
       }
     }
@@ -204,7 +204,7 @@ function ProjectItem({ project, canDelete }: ProjectItemProps) {
                 onClick={() => {
                   commit({
                     variables: {
-                      id: project.id,
+                      projectId: project.id,
                     },
                   });
                   incrementFetchKey();

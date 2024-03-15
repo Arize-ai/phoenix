@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<77295e79a10d99eb36786d3d86260eae>>
+ * @generated SignedSource<<98281a474a34a86419cf672c98fd1091>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ConcreteRequest, Mutation } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ProjectsPageDeleteProjectMutation$variables = {
-  id: string;
+  projectId: string;
 };
 export type ProjectsPageDeleteProjectMutation$data = {
   readonly deleteProject: {
@@ -28,14 +28,14 @@ var v0 = [
   {
     "defaultValue": null,
     "kind": "LocalArgument",
-    "name": "id"
+    "name": "projectId"
   }
 ],
 v1 = [
   {
     "kind": "Variable",
     "name": "id",
-    "variableName": "id"
+    "variableName": "projectId"
   }
 ];
 return {
@@ -160,16 +160,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "08a39d718b40e5900a3cedd46f7087b8",
+    "cacheID": "48a81807124eb089edd4989f156f7fb7",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageDeleteProjectMutation",
     "operationKind": "mutation",
-    "text": "mutation ProjectsPageDeleteProjectMutation(\n  $id: GlobalID!\n) {\n  deleteProject(id: $id) {\n    ...ProjectsPageProjectsFragment\n  }\n}\n\nfragment ProjectsPageProjectsFragment on Query {\n  projects {\n    edges {\n      project: node {\n        id\n        name\n        traceCount\n        endTime\n        latencyMsP50\n        tokenCountTotal\n      }\n    }\n  }\n}\n"
+    "text": "mutation ProjectsPageDeleteProjectMutation(\n  $projectId: GlobalID!\n) {\n  deleteProject(id: $projectId) {\n    ...ProjectsPageProjectsFragment\n  }\n}\n\nfragment ProjectsPageProjectsFragment on Query {\n  projects {\n    edges {\n      project: node {\n        id\n        name\n        traceCount\n        endTime\n        latencyMsP50\n        tokenCountTotal\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6af8ec94f74717e6280bce7fea83d2e7";
+(node as any).hash = "313c67696e40d718f788984d0dd56bfd";
 
 export default node;
