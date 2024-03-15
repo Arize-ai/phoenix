@@ -29,7 +29,7 @@ from phoenix.trace import LangChainInstrumentor
 
 # assume phoenix is running at 162.159.135.42:6007
 os.environ["PHOENIX_HOST"] = "162.159.135.42"
-os.environ["PHOENIX_PORT"] = 6007
+os.environ["PHOENIX_PORT"] = "6007"
 
 LangChainInstrumentor().instrument()  # logs to http://162.159.135.42:6007
 
