@@ -2,6 +2,7 @@ import React from "react";
 import { createRoutesFromElements, Route, RouterProvider } from "react-router";
 import { createBrowserRouter } from "react-router-dom";
 
+import { ProjectStateProvider } from "./contexts/ProjectStateContext";
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
 import { projectLoader, ProjectPage } from "./pages/project";
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
@@ -55,7 +56,14 @@ const router = createBrowserRouter(
         </Route>
       </Route>
       <Route path="/projects" handle={{ crumb: () => "projects" }}>
-        <Route index element={<ProjectsPage />} />
+        <Route
+          index
+          element={
+            <ProjectStateProvider>
+              <ProjectsPage />
+            </ProjectStateProvider>
+          }
+        />
         <Route
           path=":projectId"
           element={<TracingRoot />}

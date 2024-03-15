@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { startTransition, useEffect, useMemo } from "react";
 import {
   graphql,
   useLazyLoadQuery,
@@ -13,6 +13,7 @@ import { Flex, Heading, Text, View } from "@arizeai/components";
 
 import { Link } from "@phoenix/components";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { useProjectState } from "@phoenix/contexts/ProjectStateContext";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { ProjectsPageDeleteProjectMutation } from "./__generated__/ProjectsPageDeleteProjectMutation.graphql";
@@ -32,6 +33,7 @@ export function ProjectsPage() {
     `,
     {}
   );
+  const { fetchKey } = useProjectState();
   const [projectsData, refetch] = useRefetchableFragment<
     ProjectsPageProjectsQuery,
     ProjectsPageProjectsFragment$key
@@ -56,6 +58,13 @@ export function ProjectsPage() {
     data
   );
   const projects = projectsData.projects.edges.map((p) => p.project);
+
+  // Refetch projects if the fetchKey changes
+  useEffect(() => {
+    startTransition(() => {
+      refetch({}, { fetchPolicy: "store-and-network" });
+    });
+  }, [fetchKey, refetch]);
 
   return (
     <Flex direction="column" flex="1 1 auto">
@@ -107,6 +116,7 @@ function ProjectItem({
 }: {
   project: ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"];
 }) {
+  const { updateFetchKey } = useProjectState();
   const [commit] = useMutation<ProjectsPageDeleteProjectMutation>(graphql`
     mutation ProjectsPageDeleteProjectMutation($id: GlobalID!) {
       deleteProject(id: $id) {
@@ -182,6 +192,7 @@ function ProjectItem({
                     id: project.id,
                   },
                 });
+                updateFetchKey();
               }}
             >
               <Flex
