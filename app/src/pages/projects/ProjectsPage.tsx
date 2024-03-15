@@ -170,8 +170,8 @@ function ProjectItem({ project, canDelete }: ProjectItemProps) {
               size="compact"
               icon={<Icon svg={<Icons.MoreHorizontalOutline />} />}
               aria-label="Project Menu"
-              // Prevents link from being followed
               onClick={(e) => {
+                // prevent anchor link from being followed
                 e.preventDefault();
                 e.stopPropagation();
               }}
@@ -185,6 +185,11 @@ function ProjectItem({ project, canDelete }: ProjectItemProps) {
                 display: flex;
                 flex-direction: row;
               `}
+              onClick={(e) => {
+                // prevent anchor link from being followed
+                e.preventDefault();
+                e.stopPropagation();
+              }}
             >
               <Button
                 variant="quiet"
