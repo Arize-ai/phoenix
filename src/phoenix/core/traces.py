@@ -47,16 +47,10 @@ class Traces:
 
     def archive_project(self, id: int) -> Optional["Project"]:
         with self._lock:
-            active_projects = {
-                project_id: project
-                for project_id, _, project in self.get_projects()
-                if not project.is_archived
-            }
-            if len(active_projects) <= 1:
-                return None
-            if project := active_projects.get(id):
-                project.archive()
-                return project
+            for project_id, project_name, project in self.get_projects():
+                if id == project_id and project_name != "default":
+                    project.archive()
+                    return project
         return None
 
     def put(
