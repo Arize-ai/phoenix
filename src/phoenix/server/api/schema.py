@@ -31,7 +31,7 @@ from .types.Event import create_event_id, unpack_event_id
 from .types.ExportEventsMutation import ExportEventsMutation
 from .types.Functionality import Functionality
 from .types.Model import Model
-from .types.node import GlobalID, Node, from_global_id
+from .types.node import GlobalID, Node, from_global_id, from_global_id_with_expected_type
 from .types.pagination import Connection, ConnectionArgs, Cursor, connection_from_list
 
 
@@ -230,22 +230,16 @@ class Query:
 class Mutation(ExportEventsMutation):
     @strawberry.mutation
     def delete_project(self, info: Info[Context, None], id: GlobalID) -> Query:
-        if (traces := info.context.traces) is None:
-            return Query()
-        type_name, node_id = from_global_id(str(id))
-        if type_name != "Project":
-            return Query()
-        traces.archive_project(node_id)
+        if (traces := info.context.traces) is not None:
+            node_id = from_global_id_with_expected_type(str(id), "Project")
+            traces.archive_project(node_id)
         return Query()
 
     @strawberry.mutation
     def archive_project(self, info: Info[Context, None], id: GlobalID) -> Query:
-        if (traces := info.context.traces) is None:
-            return Query()
-        type_name, node_id = from_global_id(str(id))
-        if type_name != "Project":
-            return Query()
-        traces.archive_project(node_id)
+        if (traces := info.context.traces) is not None:
+            node_id = from_global_id_with_expected_type(str(id), "Project")
+            traces.archive_project(node_id)
         return Query()
 
 

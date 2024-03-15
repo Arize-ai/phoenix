@@ -30,6 +30,20 @@ def from_global_id(global_id: str) -> Tuple[str, int]:
     return type_name, int(node_id)
 
 
+def from_global_id_with_expected_type(global_id: str, expected_type_name: str) -> int:
+    """
+    Decodes the given global id and return the id, checking that the type
+    matches the expected type.
+    """
+    type_name, node_id = from_global_id(global_id)
+    if type_name != expected_type_name:
+        raise ValueError(
+            f"The node id must correspond to a node of type {expected_type_name}, "
+            f"but instead corresponds to a node of type: {type_name}"
+        )
+    return node_id
+
+
 class GlobalIDValueError(ValueError):
     """GlobalID value error, usually related to parsing or serialization."""
 
