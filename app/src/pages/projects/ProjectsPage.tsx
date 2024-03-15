@@ -219,56 +219,70 @@ type ProjectActionDropdownProps = {
 function ProjectActionDropdown({ handleDelete }: ProjectActionDropdownProps) {
   return (
     <DropdownTrigger placement="bottom left">
+      <ProjectActionsDropdownButton />
+      <ProjectDeleteActionButton handleDelete={handleDelete} />
+    </DropdownTrigger>
+  );
+}
+
+function ProjectActionsDropdownButton() {
+  return (
+    <Button
+      variant={"quiet"}
+      size="compact"
+      icon={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+      aria-label="Project Action Menu"
+      onClick={(e) => {
+        // prevent parent anchor link from being followed
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+    />
+  );
+}
+
+function ProjectDeleteActionButton({
+  handleDelete,
+}: ProjectActionDropdownProps) {
+  return (
+    <div
+      css={css`
+        border: 1px solid var(--ac-global-color-grey-400);
+        background-color: var(--ac-global-color-grey-100);
+        width: var(--ac-global-dimension-size-1600);
+        border-radius: var(--ac-global-rounding-medium);
+        display: flex;
+        flex-direction: row;
+      `}
+      onClick={(e) => {
+        // prevent parent anchor link from being followed
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+    >
       <Button
-        variant={"quiet"}
-        size="compact"
-        icon={<Icon svg={<Icons.MoreHorizontalOutline />} />}
-        aria-label="Project Action Menu"
-        onClick={(e) => {
-          // prevent parent anchor link from being followed
-          e.preventDefault();
-          e.stopPropagation();
-        }}
-      />
-      <div
+        variant="quiet"
         css={css`
-          border: 1px solid var(--ac-global-color-grey-400);
-          background-color: var(--ac-global-color-grey-100);
-          width: var(--ac-global-dimension-size-1600);
+          padding: 0px;
           border-radius: var(--ac-global-rounding-medium);
           display: flex;
           flex-direction: row;
+          justify-content: start;
+          flex: 1;
         `}
-        onClick={(e) => {
-          // prevent parent anchor link from being followed
-          e.preventDefault();
-          e.stopPropagation();
-        }}
+        aria-label="Delete Project Button"
+        onClick={handleDelete}
       >
-        <Button
-          variant="quiet"
-          css={css`
-            padding: 0px;
-            border-radius: var(--ac-global-rounding-medium);
-            display: flex;
-            flex-direction: row;
-            justify-content: start;
-            flex: 1;
-          `}
-          aria-label="Delete Project Button"
-          onClick={handleDelete}
+        <Flex
+          direction={"row"}
+          gap="5px"
+          justifyContent={"start"}
+          alignItems={"center"}
         >
-          <Flex
-            direction={"row"}
-            gap="5px"
-            justifyContent={"start"}
-            alignItems={"center"}
-          >
-            <Icon svg={<Icons.TrashOutline />} />
-            <Text>Delete</Text>
-          </Flex>
-        </Button>
-      </div>
-    </DropdownTrigger>
+          <Icon svg={<Icons.TrashOutline />} />
+          <Text>Delete</Text>
+        </Flex>
+      </Button>
+    </div>
   );
 }
