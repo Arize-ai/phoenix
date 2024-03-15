@@ -34,7 +34,7 @@ Phoenix provides MLOps and LLMOps insights at lightning speed with zero-config o
 -   **LLM Traces** - Trace through the execution of your LLM Application to understand the internals of your LLM Application and to troubleshoot problems related to things like retrieval and tool execution.
 -   **LLM Evals** - Leverage the power of large language models to evaluate your generative model or application's relevance, toxicity, and more.
 -   **Embedding Analysis** - Explore embedding point-clouds and identify clusters of high drift and performance degradation.
--   **RAG Analysis** - Visualize your generative application's search and retrieval process to solve improve your retrieval-augmented generation.
+-   **RAG Analysis** - Visualize your generative application's search and retrieval process to identify problems and improve your RAG pipeline.
 -   **Structured Data Analysis** - Statistically analyze your structured data by performing A/B analysis, temporal drift analysis, and more.
 
 **Table of Contents**
@@ -155,7 +155,7 @@ session = px.launch_app()
 
 # Once you have started a Phoenix server, you can start your LangChain application with the OpenInferenceTracer as a callback. To do this, you will have to instrument your LangChain application with the tracer:
 
-from phoenix.trace.langchain import OpenInferenceTracer, LangChainInstrumentor
+from phoenix.trace.langchain import LangChainInstrumentor
 
 # By default, the traces will be exported to the locally running Phoenix server.
 LangChainInstrumentor().instrument()
