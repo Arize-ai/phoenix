@@ -1,5 +1,10 @@
 import React, { useMemo } from "react";
-import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
+import {
+  graphql,
+  useLazyLoadQuery,
+  useMutation,
+  useRefetchableFragment,
+} from "react-relay";
 import { formatDistance } from "date-fns";
 import { css } from "@emotion/react";
 
@@ -12,14 +17,28 @@ import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { ProjectsPageDeleteProjectMutation } from "./__generated__/ProjectsPageDeleteProjectMutation.graphql";
 import {
-  ProjectsPageQuery,
-  ProjectsPageQuery$data,
-} from "./__generated__/ProjectsPageQuery.graphql";
+  ProjectsPageProjectsFragment$data,
+  ProjectsPageProjectsFragment$key,
+} from "./__generated__/ProjectsPageProjectsFragment.graphql";
+import { ProjectsPageProjectsQuery } from "./__generated__/ProjectsPageProjectsQuery.graphql";
+import { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
 
 export function ProjectsPage() {
   const data = useLazyLoadQuery<ProjectsPageQuery>(
     graphql`
       query ProjectsPageQuery {
+        ...ProjectsPageProjectsFragment
+      }
+    `,
+    {}
+  );
+  const [projectsData, refetch] = useRefetchableFragment<
+    ProjectsPageProjectsQuery,
+    ProjectsPageProjectsFragment$key
+  >(
+    graphql`
+      fragment ProjectsPageProjectsFragment on Query
+      @refetchable(queryName: "ProjectsPageProjectsQuery") {
         projects {
           edges {
             project: node {
@@ -34,9 +53,9 @@ export function ProjectsPage() {
         }
       }
     `,
-    {}
+    data
   );
-  const projects = data.projects.edges.map((p) => p.project);
+  const projects = projectsData.projects.edges.map((p) => p.project);
 
   return (
     <Flex direction="column" flex="1 1 auto">
@@ -86,18 +105,12 @@ function ProjectIcon() {
 function ProjectItem({
   project,
 }: {
-  project: ProjectsPageQuery$data["projects"]["edges"][number]["project"];
+  project: ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"];
 }) {
   const [commit] = useMutation<ProjectsPageDeleteProjectMutation>(graphql`
     mutation ProjectsPageDeleteProjectMutation($id: GlobalID!) {
       deleteProject(id: $id) {
-        projects {
-          edges {
-            node {
-              __typename
-            }
-          }
-        }
+        ...ProjectsPageProjectsFragment
       }
     }
   `);

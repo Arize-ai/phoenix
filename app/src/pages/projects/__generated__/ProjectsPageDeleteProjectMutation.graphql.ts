@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0ffd79c0a25384a9d41b4105d71e9db6>>
+ * @generated SignedSource<<77295e79a10d99eb36786d3d86260eae>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,18 +9,13 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Mutation } from 'relay-runtime';
+import { FragmentRefs } from "relay-runtime";
 export type ProjectsPageDeleteProjectMutation$variables = {
   id: string;
 };
 export type ProjectsPageDeleteProjectMutation$data = {
   readonly deleteProject: {
-    readonly projects: {
-      readonly edges: ReadonlyArray<{
-        readonly node: {
-          readonly __typename: "Project";
-        };
-      }>;
-    };
+    readonly " $fragmentSpreads": FragmentRefs<"ProjectsPageProjectsFragment">;
   };
 };
 export type ProjectsPageDeleteProjectMutation = {
@@ -38,48 +33,119 @@ var v0 = [
 ],
 v1 = [
   {
-    "alias": null,
-    "args": [
-      {
-        "kind": "Variable",
-        "name": "id",
-        "variableName": "id"
-      }
-    ],
-    "concreteType": "Query",
-    "kind": "LinkedField",
-    "name": "deleteProject",
-    "plural": false,
+    "kind": "Variable",
+    "name": "id",
+    "variableName": "id"
+  }
+];
+return {
+  "fragment": {
+    "argumentDefinitions": (v0/*: any*/),
+    "kind": "Fragment",
+    "metadata": null,
+    "name": "ProjectsPageDeleteProjectMutation",
     "selections": [
       {
         "alias": null,
-        "args": null,
-        "concreteType": "ProjectConnection",
+        "args": (v1/*: any*/),
+        "concreteType": "Query",
         "kind": "LinkedField",
-        "name": "projects",
+        "name": "deleteProject",
+        "plural": false,
+        "selections": [
+          {
+            "args": null,
+            "kind": "FragmentSpread",
+            "name": "ProjectsPageProjectsFragment"
+          }
+        ],
+        "storageKey": null
+      }
+    ],
+    "type": "Mutation",
+    "abstractKey": null
+  },
+  "kind": "Request",
+  "operation": {
+    "argumentDefinitions": (v0/*: any*/),
+    "kind": "Operation",
+    "name": "ProjectsPageDeleteProjectMutation",
+    "selections": [
+      {
+        "alias": null,
+        "args": (v1/*: any*/),
+        "concreteType": "Query",
+        "kind": "LinkedField",
+        "name": "deleteProject",
         "plural": false,
         "selections": [
           {
             "alias": null,
             "args": null,
-            "concreteType": "ProjectEdge",
+            "concreteType": "ProjectConnection",
             "kind": "LinkedField",
-            "name": "edges",
-            "plural": true,
+            "name": "projects",
+            "plural": false,
             "selections": [
               {
                 "alias": null,
                 "args": null,
-                "concreteType": "Project",
+                "concreteType": "ProjectEdge",
                 "kind": "LinkedField",
-                "name": "node",
-                "plural": false,
+                "name": "edges",
+                "plural": true,
                 "selections": [
                   {
-                    "alias": null,
+                    "alias": "project",
                     "args": null,
-                    "kind": "ScalarField",
-                    "name": "__typename",
+                    "concreteType": "Project",
+                    "kind": "LinkedField",
+                    "name": "node",
+                    "plural": false,
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "id",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "name",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "traceCount",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "endTime",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "latencyMsP50",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "tokenCountTotal",
+                        "storageKey": null
+                      }
+                    ],
                     "storageKey": null
                   }
                 ],
@@ -91,38 +157,19 @@ v1 = [
         ],
         "storageKey": null
       }
-    ],
-    "storageKey": null
-  }
-];
-return {
-  "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
-    "kind": "Fragment",
-    "metadata": null,
-    "name": "ProjectsPageDeleteProjectMutation",
-    "selections": (v1/*: any*/),
-    "type": "Mutation",
-    "abstractKey": null
-  },
-  "kind": "Request",
-  "operation": {
-    "argumentDefinitions": (v0/*: any*/),
-    "kind": "Operation",
-    "name": "ProjectsPageDeleteProjectMutation",
-    "selections": (v1/*: any*/)
+    ]
   },
   "params": {
-    "cacheID": "796e676fbca6de3d42be569aeff57567",
+    "cacheID": "08a39d718b40e5900a3cedd46f7087b8",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageDeleteProjectMutation",
     "operationKind": "mutation",
-    "text": "mutation ProjectsPageDeleteProjectMutation(\n  $id: GlobalID!\n) {\n  deleteProject(id: $id) {\n    projects {\n      edges {\n        node {\n          __typename\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation ProjectsPageDeleteProjectMutation(\n  $id: GlobalID!\n) {\n  deleteProject(id: $id) {\n    ...ProjectsPageProjectsFragment\n  }\n}\n\nfragment ProjectsPageProjectsFragment on Query {\n  projects {\n    edges {\n      project: node {\n        id\n        name\n        traceCount\n        endTime\n        latencyMsP50\n        tokenCountTotal\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2837d4beb4ec73c91c95b347be77dac6";
+(node as any).hash = "6af8ec94f74717e6280bce7fea83d2e7";
 
 export default node;

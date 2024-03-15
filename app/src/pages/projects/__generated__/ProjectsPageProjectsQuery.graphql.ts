@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9f79904b7377a8ede887d780c96232af>>
+ * @generated SignedSource<<2c9707b0817fb1bc0e644965182e5929>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,13 +10,13 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type ProjectsPageQuery$variables = {};
-export type ProjectsPageQuery$data = {
+export type ProjectsPageProjectsQuery$variables = {};
+export type ProjectsPageProjectsQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"ProjectsPageProjectsFragment">;
 };
-export type ProjectsPageQuery = {
-  response: ProjectsPageQuery$data;
-  variables: ProjectsPageQuery$variables;
+export type ProjectsPageProjectsQuery = {
+  response: ProjectsPageProjectsQuery$data;
+  variables: ProjectsPageProjectsQuery$variables;
 };
 
 const node: ConcreteRequest = {
@@ -24,7 +24,7 @@ const node: ConcreteRequest = {
     "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
-    "name": "ProjectsPageQuery",
+    "name": "ProjectsPageProjectsQuery",
     "selections": [
       {
         "args": null,
@@ -39,7 +39,7 @@ const node: ConcreteRequest = {
   "operation": {
     "argumentDefinitions": [],
     "kind": "Operation",
-    "name": "ProjectsPageQuery",
+    "name": "ProjectsPageProjectsQuery",
     "selections": [
       {
         "alias": null,
@@ -119,15 +119,15 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "30aa28068072e9061c720934cee3837f",
+    "cacheID": "4b63c5c0a8bec80cc1519d844376e760",
     "id": null,
     "metadata": {},
-    "name": "ProjectsPageQuery",
+    "name": "ProjectsPageProjectsQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageQuery {\n  ...ProjectsPageProjectsFragment\n}\n\nfragment ProjectsPageProjectsFragment on Query {\n  projects {\n    edges {\n      project: node {\n        id\n        name\n        traceCount\n        endTime\n        latencyMsP50\n        tokenCountTotal\n      }\n    }\n  }\n}\n"
+    "text": "query ProjectsPageProjectsQuery {\n  ...ProjectsPageProjectsFragment\n}\n\nfragment ProjectsPageProjectsFragment on Query {\n  projects {\n    edges {\n      project: node {\n        id\n        name\n        traceCount\n        endTime\n        latencyMsP50\n        tokenCountTotal\n      }\n    }\n  }\n}\n"
   }
 };
 
-(node as any).hash = "9091622e2fc47fff9434aeb3407882d4";
+(node as any).hash = "cda7be8f505b3338d69dea54d66c943f";
 
 export default node;
