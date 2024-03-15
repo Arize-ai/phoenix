@@ -219,19 +219,19 @@ type ProjectActionDropdownProps = {
 function ProjectActionDropdown({ handleDelete }: ProjectActionDropdownProps) {
   return (
     <DropdownTrigger placement="bottom left">
-      <ProjectActionsDropdownButton />
+      <ProjectActionsMenuButton />
       <ProjectDeleteActionButton handleDelete={handleDelete} />
     </DropdownTrigger>
   );
 }
 
-function ProjectActionsDropdownButton() {
+function ProjectActionsMenuButton() {
   return (
     <Button
       variant={"quiet"}
       size="compact"
       icon={<Icon svg={<Icons.MoreHorizontalOutline />} />}
-      aria-label="Project Action Menu"
+      aria-label="Project Actions Menu"
       onClick={(e) => {
         // prevent parent anchor link from being followed
         e.preventDefault();
@@ -248,11 +248,10 @@ function ProjectDeleteActionButton({
     <div
       css={css`
         border: 1px solid var(--ac-global-color-grey-400);
+        border-radius: var(--ac-global-rounding-medium);
         background-color: var(--ac-global-color-grey-100);
         width: var(--ac-global-dimension-size-1600);
-        border-radius: var(--ac-global-rounding-medium);
         display: flex;
-        flex-direction: row;
       `}
       onClick={(e) => {
         // prevent parent anchor link from being followed
@@ -263,10 +262,8 @@ function ProjectDeleteActionButton({
       <Button
         variant="quiet"
         css={css`
-          padding: 0px;
           border-radius: var(--ac-global-rounding-medium);
           display: flex;
-          flex-direction: row;
           justify-content: start;
           flex: 1;
         `}
