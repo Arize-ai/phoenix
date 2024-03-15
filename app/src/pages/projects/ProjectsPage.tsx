@@ -83,14 +83,14 @@ export function ProjectsPage() {
         >
           {projects.map((project) => (
             <li key={project.id}>
-              {/* <Link
+              <Link
                 to={`/projects/${project.id}`}
                 css={css`
                   text-decoration: none;
                 `}
-              > */}
-              <ProjectItem project={project} canDelete={canDeleteProjects} />
-              {/* </Link> */}
+              >
+                <ProjectItem project={project} canDelete={canDeleteProjects} />
+              </Link>
             </li>
           ))}
         </ul>
@@ -170,6 +170,11 @@ function ProjectItem({ project, canDelete }: ProjectItemProps) {
               size="compact"
               icon={<Icon svg={<Icons.MoreHorizontalOutline />} />}
               aria-label="Project Menu"
+              // Prevents link from being followed
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
             />
             <div
               css={css`
