@@ -49,16 +49,18 @@ LlamaIndexInstrumentor().instrument()
 
 ## Switching projects in a notebook
 
-While working with Phoenix inside a notebook, we provide a utility to temporarily associate spans with different projects.
+Typically you want traces for an LLM app to all be grouped in one project. However, while working with Phoenix inside a notebook, we provide a utility to temporarily associate spans with different projects.  You can use this to trace things like evaluations.
 
 {% tabs %}
 {% tab title="Notebook" %}
 ```python
 from phoenix.trace import using_project
 
-with using_project("override"):
+# Switch project to run evals
+with using_project("my-eval-project"):
     # all spans created within this context will be associated with
-    # the "override" project.
+    # the "my-eval-project" project.
+    # Run evaluations here...
 ```
 {% endtab %}
 {% endtabs %}

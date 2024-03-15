@@ -59,7 +59,7 @@ A trace is made of one or more spans. The first span represents the root span. E
 
 ## Projects
 
-A `project` is a collection of traces. You can think of a project as a container for all the traces that are related to a single application or service. You can have multiple projects, and each project can have multiple traces.
+A `project` is a collection of traces. You can think of a project as a container for all the traces that are related to a single application or service. You can have multiple projects, and each project can have multiple traces. Projects can be useful for various use-cases such as separating out environments, logging traces for evaluation runs, etc. To learn more about how to setup projects,  see the [how-to guide.](how-to-tracing/customize-traces.md#log-to-a-specific-project)
 
 ## Span Kind
 
