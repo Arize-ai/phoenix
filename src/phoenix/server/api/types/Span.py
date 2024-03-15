@@ -4,6 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, DefaultDict, Dict, List, Mapping, Optional, Sized, cast
 
+import numpy as np
 import strawberry
 from openinference.semconv.trace import EmbeddingAttributes, SpanAttributes
 from strawberry import ID, UNSET
@@ -249,7 +250,7 @@ def to_gql_span(span: WrappedSpan, project: Project) -> "Span":
         ),
         attributes=json.dumps(
             _nested_attributes(_hide_embedding_vectors(span.attributes)),
-            default=_json_encode,
+            cls=_JSONEncoder,
         ),
         metadata=_convert_metadata_to_string(span.attributes.get(METADATA)),
         num_documents=num_documents,
@@ -302,10 +303,19 @@ def to_gql_span(span: WrappedSpan, project: Project) -> "Span":
     )
 
 
-def _json_encode(v: Any) -> str:
-    if isinstance(v, datetime):
-        return v.isoformat()
-    return str(v)
+class _JSONEncoder(json.JSONEncoder):
+    def default(self, obj: Any) -> Any:
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if isinstance(obj, Enum):
+            return obj.value
+        if isinstance(obj, np.ndarray):
+            return list(obj)
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        return super().default(obj)
 
 
 def _trie() -> DefaultDict[str, Any]:
