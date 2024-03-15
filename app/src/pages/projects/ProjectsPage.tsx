@@ -218,7 +218,7 @@ type ProjectActionDropdownProps = {
 };
 function ProjectActionDropdown({ handleDelete }: ProjectActionDropdownProps) {
   return (
-    <DropdownTrigger placement="bottom left">
+    <DropdownTrigger placement="bottom right">
       <ProjectActionsMenuButton />
       <ProjectDeleteActionButton handleDelete={handleDelete} />
     </DropdownTrigger>
