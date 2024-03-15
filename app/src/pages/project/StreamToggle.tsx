@@ -54,6 +54,7 @@ export function StreamToggle(props: { project: StreamToggle_data$key }) {
   }, [setFetchKey, currentLastUpdatedAt]);
 
   useInterval(refetchCountsIfStreaming, REFRESH_INTERVAL_MS);
+
   return (
     <Switch
       labelPlacement="start"

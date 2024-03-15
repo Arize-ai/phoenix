@@ -1,13 +1,18 @@
-import React, { startTransition, useEffect, useMemo } from "react";
+import React, { startTransition, useCallback, useMemo } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { formatDistance } from "date-fns";
 import { css } from "@emotion/react";
 
-import { Flex, Heading, Text, View } from "@arizeai/components";
+import {
+  Flex,
+  Heading,
+  Text,
+  useNotification,
+  View,
+} from "@arizeai/components";
 
 import { Link } from "@phoenix/components";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { useProjectState } from "@phoenix/contexts/ProjectStateContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -17,12 +22,12 @@ import {
 } from "./__generated__/ProjectsPageProjectsFragment.graphql";
 import { ProjectsPageProjectsQuery } from "./__generated__/ProjectsPageProjectsQuery.graphql";
 import { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
-import { ProjectActionsDropdown } from "./ProjectActionsDropdown";
+import { ProjectActionMenu } from "./ProjectActionMenu";
 
 const REFRESH_INTERVAL_MS = 3000;
 
 export function ProjectsPage() {
-  // const { fetchKey } = useProjectState();
+  const [notify, holder] = useNotification();
   const data = useLazyLoadQuery<ProjectsPageQuery>(
     graphql`
       query ProjectsPageQuery {
@@ -61,12 +66,20 @@ export function ProjectsPage() {
       refetch({}, { fetchPolicy: "store-and-network" });
     });
   }, REFRESH_INTERVAL_MS);
-  // Refetch projects if the fetchKey changes
-  // useEffect(() => {
-  //   startTransition(() => {
-  //     refetch({}, { fetchPolicy: "store-and-network" });
-  //   });
-  // }, [fetchKey, refetch]);
+
+  const onDelete = useCallback(
+    (projectName: string) => {
+      startTransition(() => {
+        refetch({}, { fetchPolicy: "store-and-network" });
+        notify({
+          variant: "success",
+          title: "Project Deleted",
+          message: `Project ${projectName} has been deleted.`,
+        });
+      });
+    },
+    [notify, refetch]
+  );
 
   return (
     <Flex direction="column" flex="1 1 auto">
@@ -89,13 +102,15 @@ export function ProjectsPage() {
               >
                 <ProjectItem
                   project={project}
-                  canDelete={true} // the default project cannot be deleted
+                  canDelete={project.name !== "default"} // the default project cannot be deleted
+                  onProjectDelete={() => onDelete(project.name)}
                 />
               </Link>
             </li>
           ))}
         </ul>
       </View>
+      {holder}
     </Flex>
   );
 }
@@ -119,8 +134,13 @@ function ProjectIcon() {
 type ProjectItemProps = {
   project: ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"];
   canDelete: boolean;
+  onProjectDelete: () => void;
 };
-function ProjectItem({ project, canDelete }: ProjectItemProps) {
+function ProjectItem({
+  project,
+  canDelete,
+  onProjectDelete,
+}: ProjectItemProps) {
   const { endTime, traceCount, tokenCountTotal, latencyMsP50 } = project;
   const lastUpdatedText = useMemo(() => {
     if (endTime) {
@@ -156,7 +176,13 @@ function ProjectItem({ project, canDelete }: ProjectItemProps) {
             </Text>
           </Flex>
         </Flex>
-        {canDelete && <ProjectActionsDropdown project={project} />}
+        {canDelete && (
+          <ProjectActionMenu
+            projectId={project.id}
+            projectName={project.name}
+            onProjectDelete={onProjectDelete}
+          />
+        )}
       </Flex>
       <Flex direction="row" justifyContent="space-between">
         <Flex direction="column" flex="none">
