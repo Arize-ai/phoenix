@@ -119,14 +119,6 @@ type ProjectItemProps = {
   canDelete: boolean;
 };
 function ProjectItem({ project, canDelete }: ProjectItemProps) {
-  const { incrementFetchKey } = useProjectState();
-  const [commit] = useMutation<ProjectsPageDeleteProjectMutation>(graphql`
-    mutation ProjectsPageDeleteProjectMutation($projectId: GlobalID!) {
-      deleteProject(id: $projectId) {
-        ...ProjectsPageProjectsFragment
-      }
-    }
-  `);
   const { endTime, traceCount, tokenCountTotal, latencyMsP50 } = project;
   const lastUpdatedText = useMemo(() => {
     if (endTime) {
@@ -134,20 +126,6 @@ function ProjectItem({ project, canDelete }: ProjectItemProps) {
     }
     return "No traces uploaded yet.";
   }, [endTime]);
-
-  const deleteProject = useCallback(
-    (projectId: string) => {
-      commit({
-        variables: {
-          projectId: projectId,
-        },
-      });
-      // trigger a refetch of the projects
-      incrementFetchKey();
-    },
-    [commit, incrementFetchKey]
-  );
-
   return (
     <div
       css={css`
@@ -176,13 +154,7 @@ function ProjectItem({ project, canDelete }: ProjectItemProps) {
             </Text>
           </Flex>
         </Flex>
-        {canDelete && (
-          <ProjectActionDropdown
-            handleDelete={() => {
-              deleteProject(project.id);
-            }}
-          />
-        )}
+        {canDelete && <ProjectActionDropdown project={project} />}
       </Flex>
       <Flex direction="row" justifyContent="space-between">
         <Flex direction="column" flex="none">
@@ -213,9 +185,27 @@ function ProjectItem({ project, canDelete }: ProjectItemProps) {
 }
 
 type ProjectActionDropdownProps = {
-  handleDelete: () => void;
+  project: ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"];
 };
-function ProjectActionDropdown({ handleDelete }: ProjectActionDropdownProps) {
+function ProjectActionDropdown({ project }: ProjectActionDropdownProps) {
+  const [commit] = useMutation<ProjectsPageDeleteProjectMutation>(graphql`
+    mutation ProjectsPageDeleteProjectMutation($projectId: GlobalID!) {
+      deleteProject(id: $projectId) {
+        ...ProjectsPageProjectsFragment
+      }
+    }
+  `);
+  const { incrementFetchKey } = useProjectState();
+  const handleDelete = useCallback(() => {
+    commit({
+      variables: {
+        projectId: project.id,
+      },
+    });
+    // trigger a refetch of the projects
+    incrementFetchKey();
+  }, [commit, incrementFetchKey, project]);
+
   return (
     <DropdownTrigger placement="bottom right">
       <ProjectActionsMenuButton />
@@ -242,7 +232,9 @@ function ProjectActionsMenuButton() {
 
 function ProjectDeleteActionButton({
   handleDelete,
-}: ProjectActionDropdownProps) {
+}: {
+  handleDelete: () => void;
+}) {
   return (
     <div
       css={css`
