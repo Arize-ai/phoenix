@@ -41,18 +41,20 @@ class SpanKind(Enum):
     NB: this is actively under construction
     """
 
-    chain = trace_schema.SpanKind.CHAIN
-    tool = trace_schema.SpanKind.TOOL
-    llm = trace_schema.SpanKind.LLM
-    retriever = trace_schema.SpanKind.RETRIEVER
-    embedding = trace_schema.SpanKind.EMBEDDING
-    agent = trace_schema.SpanKind.AGENT
-    reranker = trace_schema.SpanKind.RERANKER
-    unknown = trace_schema.SpanKind.UNKNOWN
+    chain = "CHAIN"
+    tool = "TOOL"
+    llm = "LLM"
+    retriever = "RETRIEVER"
+    embedding = "EMBEDDING"
+    agent = "AGENT"
+    reranker = "RERANKER"
+    unknown = "UNKNOWN"
 
     @classmethod
     def _missing_(cls, v: Any) -> Optional["SpanKind"]:
-        return None if v else cls.unknown
+        if v and isinstance(v, str) and not v.isupper():
+            return cls(v.upper())
+        return cls.unknown
 
 
 @strawberry.type

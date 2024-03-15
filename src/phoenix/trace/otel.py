@@ -39,7 +39,6 @@ from phoenix.trace.schemas import (
     SpanEvent,
     SpanException,
     SpanID,
-    SpanKind,
     SpanStatusCode,
     TraceID,
 )
@@ -66,7 +65,7 @@ def decode(otlp_span: otlp.Span) -> Span:
     )
 
     attributes = dict(_unflatten(_load_json_strings(_decode_key_values(otlp_span.attributes))))
-    span_kind = SpanKind(attributes.pop(OPENINFERENCE_SPAN_KIND, None))
+    span_kind = cast(str, attributes.pop(OPENINFERENCE_SPAN_KIND, None))
 
     for mime_type in (INPUT_MIME_TYPE, OUTPUT_MIME_TYPE):
         if mime_type in attributes:
@@ -340,7 +339,7 @@ def encode(span: Span) -> otlp.Span:
             attributes.pop(key, None)
             attributes.update(_flatten_sequence(value, key))
 
-    attributes[OPENINFERENCE_SPAN_KIND] = span.span_kind.value
+    attributes[OPENINFERENCE_SPAN_KIND] = span.span_kind
 
     status = _encode_status(span.status_code, span.status_message)
     events = map(_encode_event, span.events)

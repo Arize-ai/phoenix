@@ -25,33 +25,6 @@ class SpanStatusCode(Enum):
         return None if v else cls.UNSET
 
 
-class SpanKind(Enum):
-    """
-    SpanKind is loosely inspired by OpenTelemetry's SpanKind
-    It captures the type of work that a Span encapsulates.
-
-    NB: this is actively under construction
-    """
-
-    TOOL = "TOOL"
-    CHAIN = "CHAIN"
-    LLM = "LLM"
-    RETRIEVER = "RETRIEVER"
-    EMBEDDING = "EMBEDDING"
-    AGENT = "AGENT"
-    RERANKER = "RERANKER"
-    UNKNOWN = "UNKNOWN"
-
-    def __str__(self) -> str:
-        return self.value
-
-    @classmethod
-    def _missing_(cls, v: Any) -> Optional["SpanKind"]:
-        if v and isinstance(v, str) and not v.isupper():
-            return cls(v.upper())
-        return None if v else cls.UNKNOWN
-
-
 TraceID = str
 SpanID = str
 AttributePrimitiveValue = Union[str, bool, float, int]
@@ -138,7 +111,7 @@ class Span:
     SpanKind is loosely inspired by OpenTelemetry's SpanKind
     It captures the type of work that a Span encapsulates.
     """
-    span_kind: SpanKind
+    span_kind: str
     "If the parent_id is None, this is the root span"
     parent_id: Optional[SpanID]
     start_time: datetime

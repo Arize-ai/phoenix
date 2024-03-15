@@ -25,7 +25,6 @@ from phoenix.trace.schemas import (
     SpanContext,
     SpanEvent,
     SpanException,
-    SpanKind,
     SpanStatusCode,
 )
 from pytest import approx
@@ -97,20 +96,6 @@ def test_decode_encode_status_code(span, span_status_code, otlp_status_code):
     assert otlp_span.status.code == otlp_status_code
     decoded_span = decode(otlp_span)
     assert decoded_span.status_code == span.status_code
-
-
-@pytest.mark.parametrize("span_kind", list(SpanKind))
-def test_decode_encode_span_kind(span, span_kind):
-    span = replace(span, span_kind=span_kind)
-    otlp_span = encode(span)
-    assert MessageToJson(
-        KeyValue(
-            key=OPENINFERENCE_SPAN_KIND,
-            value=AnyValue(string_value=span_kind.value),
-        )
-    ) in set(map(MessageToJson, otlp_span.attributes))
-    decoded_span = decode(otlp_span)
-    assert decoded_span.span_kind == span.span_kind
 
 
 @pytest.mark.parametrize(
@@ -536,7 +521,7 @@ def span() -> Span:
         name="test_span",
         context=SpanContext(trace_id=trace_id, span_id=span_id),
         parent_id=parent_id,
-        span_kind=SpanKind.LLM,
+        span_kind="LLM",
         start_time=start_time,
         end_time=end_time,
         attributes={},

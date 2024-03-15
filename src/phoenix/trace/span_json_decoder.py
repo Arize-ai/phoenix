@@ -13,7 +13,6 @@ from phoenix.trace.schemas import (
     SpanEvent,
     SpanException,
     SpanID,
-    SpanKind,
     SpanStatusCode,
     TraceID,
 )
@@ -67,7 +66,6 @@ def json_to_span(data: Dict[str, Any]) -> Any:
         data["end_time"] = (
             datetime.fromisoformat(end_time) if (end_time := data.get("end_time")) else None
         )
-        data["span_kind"] = SpanKind(data["span_kind"])
         data["status_code"] = SpanStatusCode(data["status_code"])
         data["events"] = [
             SpanException(

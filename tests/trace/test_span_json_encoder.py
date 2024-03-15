@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timezone
 
 import numpy as np
-from phoenix.trace.schemas import Span, SpanContext, SpanKind, SpanStatusCode
+from phoenix.trace.schemas import Span, SpanContext, SpanStatusCode
 from phoenix.trace.span_json_encoder import span_to_json
 
 
@@ -15,7 +15,7 @@ def test_span_to_json() -> None:
             trace_id="1234",
             span_id="5678",
         ),
-        span_kind=SpanKind.UNKNOWN,
+        span_kind="UNKNOWN",
         parent_id=None,
         start_time=start_time,
         end_time=end_time,

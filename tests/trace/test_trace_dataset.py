@@ -14,7 +14,6 @@ from phoenix.trace.schemas import (
     SpanContext,
     SpanConversationAttributes,
     SpanEvent,
-    SpanKind,
     SpanStatusCode,
 )
 from phoenix.trace.span_evaluations import SpanEvaluations
@@ -69,7 +68,7 @@ def test_trace_dataset_construction_from_spans():
             parent_id=UUID(int=0),
             start_time=datetime(year=2000, month=1, day=1, hour=0, minute=0),
             end_time=datetime(year=2000, month=1, day=1, hour=0, minute=1),
-            span_kind=SpanKind.CHAIN,
+            span_kind="CHAIN",
             status_code=SpanStatusCode.OK,
             status_message="",
             attributes={
@@ -91,7 +90,7 @@ def test_trace_dataset_construction_from_spans():
             parent_id=None,
             start_time=datetime(year=2000, month=1, day=1, hour=0, minute=1),
             end_time=datetime(year=2000, month=1, day=1, hour=0, minute=2),
-            span_kind=SpanKind.TOOL,
+            span_kind="TOOL",
             status_code=SpanStatusCode.ERROR,
             status_message="status-message-1",
             attributes={},
@@ -107,7 +106,7 @@ def test_trace_dataset_construction_from_spans():
                 "parent_id": str(UUID(int=0)),
                 "start_time": datetime(year=2000, month=1, day=1, hour=0, minute=0),
                 "end_time": datetime(year=2000, month=1, day=1, hour=0, minute=1),
-                "span_kind": SpanKind.CHAIN.value,
+                "span_kind": "CHAIN",
                 "status_code": SpanStatusCode.OK.value,
                 "status_message": "",
                 "attributes.attribute-0": "attribute-value-0",
@@ -130,7 +129,7 @@ def test_trace_dataset_construction_from_spans():
                 "parent_id": None,
                 "start_time": datetime(year=2000, month=1, day=1, hour=0, minute=1),
                 "end_time": datetime(year=2000, month=1, day=1, hour=0, minute=2),
-                "span_kind": SpanKind.TOOL.value,
+                "span_kind": "TOOL",
                 "status_code": SpanStatusCode.ERROR.value,
                 "status_message": "status-message-1",
                 "attributes.attribute-0": None,
