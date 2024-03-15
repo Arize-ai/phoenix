@@ -1,22 +1,16 @@
-import React, { startTransition, useCallback, useEffect, useMemo } from "react";
-import {
-  graphql,
-  useLazyLoadQuery,
-  useMutation,
-  useRefetchableFragment,
-} from "react-relay";
+import React, { startTransition, useEffect, useMemo } from "react";
+import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { formatDistance } from "date-fns";
 import { css } from "@emotion/react";
 
-import { Button, DropdownTrigger, Icon, Icons } from "@arizeai/components";
 import { Flex, Heading, Text, View } from "@arizeai/components";
 
 import { Link } from "@phoenix/components";
+import { ProjectActionsDropdown } from "@phoenix/components/projects/ProjectActionsDropdown";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { useProjectState } from "@phoenix/contexts/ProjectStateContext";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import { ProjectsPageDeleteProjectMutation } from "./__generated__/ProjectsPageDeleteProjectMutation.graphql";
 import {
   ProjectsPageProjectsFragment$data,
   ProjectsPageProjectsFragment$key,
@@ -154,7 +148,7 @@ function ProjectItem({ project, canDelete }: ProjectItemProps) {
             </Text>
           </Flex>
         </Flex>
-        {canDelete && <ProjectActionDropdown project={project} />}
+        {canDelete && <ProjectActionsDropdown project={project} />}
       </Flex>
       <Flex direction="row" justifyContent="space-between">
         <Flex direction="column" flex="none">
@@ -180,97 +174,6 @@ function ProjectItem({ project, canDelete }: ProjectItemProps) {
           )}
         </Flex>
       </Flex>
-    </div>
-  );
-}
-
-type ProjectActionDropdownProps = {
-  project: ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"];
-};
-function ProjectActionDropdown({ project }: ProjectActionDropdownProps) {
-  const [commit] = useMutation<ProjectsPageDeleteProjectMutation>(graphql`
-    mutation ProjectsPageDeleteProjectMutation($projectId: GlobalID!) {
-      deleteProject(id: $projectId) {
-        ...ProjectsPageProjectsFragment
-      }
-    }
-  `);
-  const { incrementFetchKey } = useProjectState();
-  const handleDelete = useCallback(() => {
-    commit({
-      variables: {
-        projectId: project.id,
-      },
-    });
-    // trigger a refetch of the projects
-    incrementFetchKey();
-  }, [commit, incrementFetchKey, project]);
-
-  return (
-    <DropdownTrigger placement="bottom right">
-      <ProjectActionsMenuButton />
-      <ProjectDeleteActionButton handleDelete={handleDelete} />
-    </DropdownTrigger>
-  );
-}
-
-function ProjectActionsMenuButton() {
-  return (
-    <Button
-      variant={"quiet"}
-      size="compact"
-      icon={<Icon svg={<Icons.MoreHorizontalOutline />} />}
-      aria-label="Project Actions Menu"
-      onClick={(e) => {
-        // prevent parent anchor link from being followed
-        e.preventDefault();
-        e.stopPropagation();
-      }}
-    />
-  );
-}
-
-function ProjectDeleteActionButton({
-  handleDelete,
-}: {
-  handleDelete: () => void;
-}) {
-  return (
-    <div
-      css={css`
-        border: 1px solid var(--ac-global-color-grey-400);
-        border-radius: var(--ac-global-rounding-medium);
-        background-color: var(--ac-global-color-grey-100);
-        width: var(--ac-global-dimension-size-1600);
-        display: flex;
-      `}
-      onClick={(e) => {
-        // prevent parent anchor link from being followed
-        e.preventDefault();
-        e.stopPropagation();
-      }}
-    >
-      <Button
-        variant="quiet"
-        css={css`
-          border-radius: var(--ac-global-rounding-medium);
-          display: flex;
-          justify-content: start;
-          flex: 1;
-        `}
-        aria-label="Delete Project Button"
-        onClick={handleDelete}
-      >
-        <Flex
-          direction={"row"}
-          gap="5px"
-          justifyContent={"start"}
-          alignItems={"center"}
-        >
-          <Icon svg={<Icons.TrashOutline />} />
-          <Text>Delete</Text>
-        </Flex>
-      </Button>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<98281a474a34a86419cf672c98fd1091>>
+ * @generated SignedSource<<f9744a20061fdc3d45a6b22965a982fa>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,17 +10,17 @@
 
 import { ConcreteRequest, Mutation } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type ProjectsPageDeleteProjectMutation$variables = {
+export type ProjectActionsDropdownMutation$variables = {
   projectId: string;
 };
-export type ProjectsPageDeleteProjectMutation$data = {
+export type ProjectActionsDropdownMutation$data = {
   readonly deleteProject: {
     readonly " $fragmentSpreads": FragmentRefs<"ProjectsPageProjectsFragment">;
   };
 };
-export type ProjectsPageDeleteProjectMutation = {
-  response: ProjectsPageDeleteProjectMutation$data;
-  variables: ProjectsPageDeleteProjectMutation$variables;
+export type ProjectActionsDropdownMutation = {
+  response: ProjectActionsDropdownMutation$data;
+  variables: ProjectActionsDropdownMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -43,7 +43,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "ProjectsPageDeleteProjectMutation",
+    "name": "ProjectActionsDropdownMutation",
     "selections": [
       {
         "alias": null,
@@ -69,7 +69,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "ProjectsPageDeleteProjectMutation",
+    "name": "ProjectActionsDropdownMutation",
     "selections": [
       {
         "alias": null,
@@ -160,16 +160,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "48a81807124eb089edd4989f156f7fb7",
+    "cacheID": "9ae75173d5b84e4029b9577f8dd2f063",
     "id": null,
     "metadata": {},
-    "name": "ProjectsPageDeleteProjectMutation",
+    "name": "ProjectActionsDropdownMutation",
     "operationKind": "mutation",
-    "text": "mutation ProjectsPageDeleteProjectMutation(\n  $projectId: GlobalID!\n) {\n  deleteProject(id: $projectId) {\n    ...ProjectsPageProjectsFragment\n  }\n}\n\nfragment ProjectsPageProjectsFragment on Query {\n  projects {\n    edges {\n      project: node {\n        id\n        name\n        traceCount\n        endTime\n        latencyMsP50\n        tokenCountTotal\n      }\n    }\n  }\n}\n"
+    "text": "mutation ProjectActionsDropdownMutation(\n  $projectId: GlobalID!\n) {\n  deleteProject(id: $projectId) {\n    ...ProjectsPageProjectsFragment\n  }\n}\n\nfragment ProjectsPageProjectsFragment on Query {\n  projects {\n    edges {\n      project: node {\n        id\n        name\n        traceCount\n        endTime\n        latencyMsP50\n        tokenCountTotal\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "313c67696e40d718f788984d0dd56bfd";
+(node as any).hash = "72ed03bfa02fbf24d95357e85fc35c06";
 
 export default node;
