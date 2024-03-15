@@ -120,7 +120,7 @@ type ProjectItemProps = {
   canDelete: boolean;
 };
 function ProjectItem({ project, canDelete }: ProjectItemProps) {
-  const { updateFetchKey } = useProjectState();
+  const { incrementFetchKey } = useProjectState();
   const [commit] = useMutation<ProjectsPageDeleteProjectMutation>(graphql`
     mutation ProjectsPageDeleteProjectMutation($id: GlobalID!) {
       deleteProject(id: $id) {
@@ -207,7 +207,7 @@ function ProjectItem({ project, canDelete }: ProjectItemProps) {
                       id: project.id,
                     },
                   });
-                  updateFetchKey();
+                  incrementFetchKey();
                 }}
               >
                 <Flex

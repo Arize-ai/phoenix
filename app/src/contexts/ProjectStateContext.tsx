@@ -14,9 +14,9 @@ export type ProjectStateContextType = {
    */
   fetchKey: number;
   /**
-   * Creates a new fetchKey to force a refetch
+   * Increments fetchKey to force a refetch
    */
-  updateFetchKey: () => void;
+  incrementFetchKey: () => void;
 };
 
 export const ProjectStateContext =
@@ -35,13 +35,13 @@ export function useProjectState() {
 export function ProjectStateProvider({ children }: PropsWithChildren) {
   const [fetchKey, setFetchKey] = useState<number>(0);
 
-  const updateFetchKey = useCallback(() => {
+  const incrementFetchKey = useCallback(() => {
     startTransition(() => {
       setFetchKey((prev) => prev + 1);
     });
   }, [setFetchKey]);
   return (
-    <ProjectStateContext.Provider value={{ fetchKey, updateFetchKey }}>
+    <ProjectStateContext.Provider value={{ fetchKey, incrementFetchKey }}>
       {children}
     </ProjectStateContext.Provider>
   );
