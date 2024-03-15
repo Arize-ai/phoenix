@@ -9,7 +9,7 @@ description: Oftentimes you want to customize various aspects of traces you log 
 Phoenix uses [projects](../concepts-tracing.md#projects) to group traces. If left unspecified, all traces are sent to a default project.&#x20;
 
 {% tabs %}
-{% tab title="Notebook" %}
+{% tab title="Phoenix" %}
 In the notebook, you can set the `PHOENIX_PROJECT_NAME` environment variable **before** adding instrumentation or running any of your code.
 
 In python this would look like:
@@ -21,7 +21,7 @@ os.environ['PHOENIX_PROJECT_NAME'] = "<your-project-name>"
 ```
 {% endtab %}
 
-{% tab title="Python (manual)" %}
+{% tab title="OpenInference" %}
 If you are using Phoenix as a collector and running your application separately, you can set the project name in the `Resource` attributes for the trace provider.&#x20;
 
 ```python
@@ -32,8 +32,6 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk import trace as trace_sdk
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-
-
 
 resource = Resource(attributes={
     ResourceAttributes.PROJECT_NAME: '<your-project-name>'
