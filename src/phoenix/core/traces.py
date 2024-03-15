@@ -46,9 +46,11 @@ class Traces:
                 yield project_id, project_name, project
 
     def archive_project(self, id: int) -> Optional["Project"]:
+        if id == 0:
+            raise ValueError("Cannot archive the default project")
         with self._lock:
-            for project_id, project_name, project in self.get_projects():
-                if id == project_id and project_name != "default":
+            for project_id, _, project in self.get_projects():
+                if id == project_id:
                     project.archive()
                     return project
         return None
