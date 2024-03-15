@@ -95,7 +95,7 @@ export function ProjectActionMenu({
         <Item key={"deleteProject"}>
           <Flex
             direction={"row"}
-            gap="5px"
+            gap="size-75"
             justifyContent={"start"}
             alignItems={"center"}
           >
