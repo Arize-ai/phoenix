@@ -3,7 +3,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { formatDistance } from "date-fns";
 import { css } from "@emotion/react";
 
-import { ActionButton, Icon, Icons } from "@arizeai/components";
+import { Button, DropdownTrigger, Icon, Icons } from "@arizeai/components";
 import { Flex, Heading, Text, View } from "@arizeai/components";
 
 import { Link } from "@phoenix/components";
@@ -50,14 +50,14 @@ export function ProjectsPage() {
         >
           {projects.map((project) => (
             <li key={project.id}>
-              <Link
+              {/* <Link
                 to={`/projects/${project.id}`}
                 css={css`
                   text-decoration: none;
                 `}
-              >
-                <ProjectItem project={project} />
-              </Link>
+              > */}
+              <ProjectItem project={project} />
+              {/* </Link> */}
             </li>
           ))}
         </ul>
@@ -122,9 +122,47 @@ function ProjectItem({
             </Text>
           </Flex>
         </Flex>
-        <ActionButton isQuiet={true}>
-          <Icon svg={<Icons.MoreHorizontalOutline />} />
-        </ActionButton>
+        <DropdownTrigger placement="bottom left">
+          <Button
+            variant={"quiet"}
+            size="compact"
+            icon={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+            aria-label="Project Menu"
+          />
+          <div
+            css={css`
+              // padding: var(--ac-global-dimension-size-10) var(--ac-global-dimension-size-200);
+              border: 1px solid var(--ac-global-color-grey-400);
+              background-color: var(--ac-global-color-grey-100);
+              width: var(--ac-global-dimension-size-1600);
+              border-radius: var(--ac-global-rounding-medium);
+              display: flex;
+              flex-direction: row;
+            `}
+          >
+            <Button
+              variant="quiet"
+              css={css`
+                padding: 0px;
+                border-radius: var(--ac-global-rounding-medium);
+                display: flex;
+                flex-direction: row;
+                justify-content: start;
+                flex: 1;
+              `}
+            >
+              <Flex
+                direction={"row"}
+                gap="5px"
+                justifyContent={"start"}
+                alignItems={"center"}
+              >
+                <Icon svg={<Icons.TrashOutline />} />
+                <Text>Delete</Text>
+              </Flex>
+            </Button>
+          </div>
+        </DropdownTrigger>
       </Flex>
       <Flex direction="row" justifyContent="space-between">
         <Flex direction="column" flex="none">
