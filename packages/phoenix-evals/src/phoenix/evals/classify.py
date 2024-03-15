@@ -281,7 +281,7 @@ def run_evals(
             payload.record,
             provide_explanation=provide_explanation,
             use_function_calling_if_available=use_function_calling_if_available,
-            verbose=verbose
+            verbose=verbose,
         )
 
     executor = get_executor_on_sync_context(
