@@ -1,4 +1,4 @@
-import React, { startTransition, useEffect, useMemo } from "react";
+import React, { startTransition, useCallback, useEffect, useMemo } from "react";
 import {
   graphql,
   useLazyLoadQuery,
@@ -135,6 +135,20 @@ function ProjectItem({ project, canDelete }: ProjectItemProps) {
     }
     return "No traces uploaded yet.";
   }, [endTime]);
+
+  const deleteProject = useCallback(
+    (projectId: string) => {
+      commit({
+        variables: {
+          projectId: projectId,
+        },
+      });
+      // trigger a refetch of the projects
+      incrementFetchKey();
+    },
+    [commit, incrementFetchKey]
+  );
+
   return (
     <div
       css={css`
@@ -164,64 +178,11 @@ function ProjectItem({ project, canDelete }: ProjectItemProps) {
           </Flex>
         </Flex>
         {canDelete && (
-          <DropdownTrigger placement="bottom left">
-            <Button
-              variant={"quiet"}
-              size="compact"
-              icon={<Icon svg={<Icons.MoreHorizontalOutline />} />}
-              aria-label="Project Menu"
-              onClick={(e) => {
-                // prevent parent anchor link from being followed
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-            />
-            <div
-              css={css`
-                border: 1px solid var(--ac-global-color-grey-400);
-                background-color: var(--ac-global-color-grey-100);
-                width: var(--ac-global-dimension-size-1600);
-                border-radius: var(--ac-global-rounding-medium);
-                display: flex;
-                flex-direction: row;
-              `}
-              onClick={(e) => {
-                // prevent parent anchor link from being followed
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-            >
-              <Button
-                variant="quiet"
-                css={css`
-                  padding: 0px;
-                  border-radius: var(--ac-global-rounding-medium);
-                  display: flex;
-                  flex-direction: row;
-                  justify-content: start;
-                  flex: 1;
-                `}
-                onClick={() => {
-                  commit({
-                    variables: {
-                      projectId: project.id,
-                    },
-                  });
-                  incrementFetchKey();
-                }}
-              >
-                <Flex
-                  direction={"row"}
-                  gap="5px"
-                  justifyContent={"start"}
-                  alignItems={"center"}
-                >
-                  <Icon svg={<Icons.TrashOutline />} />
-                  <Text>Delete</Text>
-                </Flex>
-              </Button>
-            </div>
-          </DropdownTrigger>
+          <ProjectActionDropdown
+            handleDelete={() => {
+              deleteProject(project.id);
+            }}
+          />
         )}
       </Flex>
       <Flex direction="row" justifyContent="space-between">
@@ -241,7 +202,6 @@ function ProjectItem({ project, canDelete }: ProjectItemProps) {
           <Text elementType="h3" textSize="medium" color="text-700">
             Latency P50
           </Text>
-
           {latencyMsP50 != null ? (
             <LatencyText latencyMs={latencyMsP50} textSize="xlarge" />
           ) : (
@@ -250,5 +210,65 @@ function ProjectItem({ project, canDelete }: ProjectItemProps) {
         </Flex>
       </Flex>
     </div>
+  );
+}
+
+type ProjectActionDropdownProps = {
+  handleDelete: () => void;
+};
+function ProjectActionDropdown({ handleDelete }: ProjectActionDropdownProps) {
+  return (
+    <DropdownTrigger placement="bottom left">
+      <Button
+        variant={"quiet"}
+        size="compact"
+        icon={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+        aria-label="Project Action Menu"
+        onClick={(e) => {
+          // prevent parent anchor link from being followed
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+      />
+      <div
+        css={css`
+          border: 1px solid var(--ac-global-color-grey-400);
+          background-color: var(--ac-global-color-grey-100);
+          width: var(--ac-global-dimension-size-1600);
+          border-radius: var(--ac-global-rounding-medium);
+          display: flex;
+          flex-direction: row;
+        `}
+        onClick={(e) => {
+          // prevent parent anchor link from being followed
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+      >
+        <Button
+          variant="quiet"
+          css={css`
+            padding: 0px;
+            border-radius: var(--ac-global-rounding-medium);
+            display: flex;
+            flex-direction: row;
+            justify-content: start;
+            flex: 1;
+          `}
+          aria-label="Delete Project Button"
+          onClick={handleDelete}
+        >
+          <Flex
+            direction={"row"}
+            gap="5px"
+            justifyContent={"start"}
+            alignItems={"center"}
+          >
+            <Icon svg={<Icons.TrashOutline />} />
+            <Text>Delete</Text>
+          </Flex>
+        </Button>
+      </div>
+    </DropdownTrigger>
   );
 }
