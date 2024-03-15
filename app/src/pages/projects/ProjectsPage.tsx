@@ -66,10 +66,6 @@ export function ProjectsPage() {
     });
   }, [fetchKey, refetch]);
 
-  const canDeleteProjects = useMemo(() => {
-    return projects.length > 1;
-  }, [projects]);
-
   return (
     <Flex direction="column" flex="1 1 auto">
       <View padding="size-200" width="100%">
@@ -89,7 +85,10 @@ export function ProjectsPage() {
                   text-decoration: none;
                 `}
               >
-                <ProjectItem project={project} canDelete={canDeleteProjects} />
+                <ProjectItem
+                  project={project}
+                  canDelete={project.name !== "default"} // the default project cannot be deleted
+                />
               </Link>
             </li>
           ))}
