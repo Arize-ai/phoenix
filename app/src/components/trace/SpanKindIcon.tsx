@@ -234,7 +234,7 @@ const UnknownSVG = () => (
 
 export function SpanKindIcon({ spanKind }: { spanKind: string }) {
   let icon = <UnknownSVG />;
-  let color = "--ac-global-grey-900";
+  let color = "--ac-global-color-grey-900";
   switch (spanKind) {
     case "llm":
       color = "--ac-global-color-orange-1000";

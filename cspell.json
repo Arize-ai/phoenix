@@ -36,6 +36,7 @@
         "seafoam",
         "templating",
         "tensorboard",
+        "testset",
         "tiktoken",
         "tracedataset",
         "UMAP",
