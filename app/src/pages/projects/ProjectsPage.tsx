@@ -6,9 +6,9 @@ import { css } from "@emotion/react";
 import { Flex, Heading, Text, View } from "@arizeai/components";
 
 import { Link } from "@phoenix/components";
-import { ProjectActionsDropdown } from "@phoenix/components/projects/ProjectActionsDropdown";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { useProjectState } from "@phoenix/contexts/ProjectStateContext";
+import { useInterval } from "@phoenix/hooks/useInterval";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import {
@@ -17,9 +17,12 @@ import {
 } from "./__generated__/ProjectsPageProjectsFragment.graphql";
 import { ProjectsPageProjectsQuery } from "./__generated__/ProjectsPageProjectsQuery.graphql";
 import { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
+import { ProjectActionsDropdown } from "./ProjectActionsDropdown";
+
+const REFRESH_INTERVAL_MS = 3000;
 
 export function ProjectsPage() {
-  const { fetchKey } = useProjectState();
+  // const { fetchKey } = useProjectState();
   const data = useLazyLoadQuery<ProjectsPageQuery>(
     graphql`
       query ProjectsPageQuery {
@@ -53,12 +56,17 @@ export function ProjectsPage() {
   );
   const projects = projectsData.projects.edges.map((p) => p.project);
 
-  // Refetch projects if the fetchKey changes
-  useEffect(() => {
+  useInterval(() => {
     startTransition(() => {
       refetch({}, { fetchPolicy: "store-and-network" });
     });
-  }, [fetchKey, refetch]);
+  }, REFRESH_INTERVAL_MS);
+  // Refetch projects if the fetchKey changes
+  // useEffect(() => {
+  //   startTransition(() => {
+  //     refetch({}, { fetchPolicy: "store-and-network" });
+  //   });
+  // }, [fetchKey, refetch]);
 
   return (
     <Flex direction="column" flex="1 1 auto">
@@ -81,7 +89,7 @@ export function ProjectsPage() {
               >
                 <ProjectItem
                   project={project}
-                  canDelete={project.name !== "default"} // the default project cannot be deleted
+                  canDelete={true} // the default project cannot be deleted
                 />
               </Link>
             </li>
@@ -138,7 +146,7 @@ function ProjectItem({ project, canDelete }: ProjectItemProps) {
         justify-content: space-between;
       `}
     >
-      <Flex direction="row" justifyContent="space-between" alignItems="center">
+      <Flex direction="row" justifyContent="space-between" alignItems="start">
         <Flex direction="row" gap="size-100" alignItems="center">
           <ProjectIcon />
           <Flex direction="column">

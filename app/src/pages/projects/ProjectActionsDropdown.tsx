@@ -7,9 +7,8 @@ import { Flex, Text } from "@arizeai/components";
 
 import { useProjectState } from "@phoenix/contexts/ProjectStateContext";
 
-import { ProjectsPageProjectsFragment$data } from "../../pages/projects/__generated__/ProjectsPageProjectsFragment.graphql";
-
 import { ProjectActionsDropdownMutation } from "./__generated__/ProjectActionsDropdownMutation.graphql";
+import { ProjectsPageProjectsFragment$data } from "./__generated__/ProjectsPageProjectsFragment.graphql";
 
 type ProjectActionDropdownProps = {
   project: ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"];
@@ -24,16 +23,14 @@ export function ProjectActionsDropdown({
       }
     }
   `);
-  const { incrementFetchKey } = useProjectState();
+  // const { incrementFetchKey } = useProjectState();
   const handleDelete = useCallback(() => {
     commit({
       variables: {
         projectId: project.id,
       },
     });
-    // trigger a refetch of the projects
-    incrementFetchKey();
-  }, [commit, incrementFetchKey, project]);
+  }, [commit, project]);
 
   return (
     <DropdownTrigger placement="bottom right">
