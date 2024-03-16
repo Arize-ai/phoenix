@@ -10,11 +10,11 @@ description: The components behind tracing
 
 In order for an application to emit traces for analysis, the application must be **instrumented**.  Your application can be **manually** instrumented or be **automatically** instrumented.\
 \
-With phoenix, there a set of plugins (**auto-instrumentors**) that can be added to your application's startup process. These plugins  automatically collect spans for your application and export them for collection and visualization. For phoenix, all the instrumentors are managed via a single repository called [OpenInference](https://github.com/Arize-ai/openinference)
+With phoenix, there a set of plugins (**instrumentors**) that can be added to your application's startup process that perform auto-instrumentation. These plugins collect spans for your application and export them for collection and visualization. For phoenix, all the instrumentors are managed via a single repository called [OpenInference](https://github.com/Arize-ai/openinference). The comprehensive list of instrumentors can be found in the [how-to guide.](../how-to-tracing/#auto-instrumentation)
 
 ## Exporter
 
-An Exporter takes the spans created via **instrumentation and exports** them to a collector. In simple terms, it just sends the data to Phoenix. When using Phoenix, most of this is completely done under the hood.
+An exporter takes the spans created via **instrumentation** and exports them to a **collector**. In simple terms, it just sends the data to the Phoenix. When using Phoenix, most of this is completely done under the hood when you call instrument on an instrumentor.
 
 ## Collector
 
