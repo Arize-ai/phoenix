@@ -1,8 +1,8 @@
 ---
-description: Concepts that are important to understand when logging traces to Phoenix
+description: A deep dive into the details of a trace
 ---
 
-# Concepts: Tracing
+# What are Traces?
 
 ## Spans <a href="#user-content-spans" id="user-content-spans"></a>
 
@@ -59,7 +59,7 @@ A trace is made of one or more spans. The first span represents the root span. E
 
 ## Projects
 
-A `project` is a collection of traces. You can think of a project as a container for all the traces that are related to a single application or service. You can have multiple projects, and each project can have multiple traces. Projects can be useful for various use-cases such as separating out environments, logging traces for evaluation runs, etc. To learn more about how to setup projects,  see the [how-to guide.](how-to-tracing/customize-traces.md#log-to-a-specific-project)
+A `project` is a collection of traces. You can think of a project as a container for all the traces that are related to a single application or service. You can have multiple projects, and each project can have multiple traces. Projects can be useful for various use-cases such as separating out environments, logging traces for evaluation runs, etc. To learn more about how to setup projects,  see the [how-to guide.](../how-to-tracing/customize-traces.md#log-to-a-specific-project)
 
 ## Span Kind
 
@@ -105,4 +105,8 @@ For example, if a span invokes an LLM, you can capture the model name, the invoc
 Attributes have the following rules:
 
 * Keys must be non-null string values
-* Values must be a non-null string, boolean, floating point value, integer, or an array of these values Additionally, there are Semantic Attributes, which are known naming conventions for metadata that is typically present in common operations. It's helpful to use semantic attribute naming wherever possible so that common kinds of metadata are standardized across systems. See [semantic conventions](https://github.com/Arize-ai/open-inference-spec/blob/main/trace/spec/semantic\_conventions.md) for more information.\
+* Values must be a non-null string, boolean, floating point value, integer, or an array of these values Additionally, there are Semantic Attributes, which are known naming conventions for metadata that is typically present in common operations. It's helpful to use semantic attribute naming wherever possible so that common kinds of metadata are standardized across systems. See [semantic conventions](https://github.com/Arize-ai/open-inference-spec/blob/main/trace/spec/semantic\_conventions.md) for more information.
+
+##
+
+\

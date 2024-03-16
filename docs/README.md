@@ -18,7 +18,7 @@ In your Jupyter or Colab environment, run the following command to install.
 pip install arize-phoenix[evals]
 ```
 
-For full details on how to run phoenix in various environments such as Databricks, consult our [environments guide.](environments.md)
+For full details on how to run phoenix in various environments such as Databricks, consult our [environments guide.](setup/environments.md)
 {% endtab %}
 
 {% tab title="Using conda" %}
@@ -32,7 +32,7 @@ Phoenix can also run via a container. The image can be found at:
 
 {% embed url="https://hub.docker.com/r/arizephoenix/phoenix" %}
 
-Checkout the [environments section](environments.md) and [deployment guide](reference/deploying-phoenix.md) for details.
+Checkout the [environments section](setup/environments.md) and [deployment guide](deploying-phoenix.md) for details.
 {% endtab %}
 {% endtabs %}
 

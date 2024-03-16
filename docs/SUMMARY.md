@@ -3,12 +3,18 @@
 * [Arize Phoenix](README.md)
 * [User Guide](user-guide.md)
 * [Examples](notebooks.md)
+* [Setup](setup/README.md)
+  * [Environments](setup/environments.md)
+  * [Configuration](setup/configuration.md)
+* [Deployment](deploying-phoenix.md)
 
 ## 🔭 Tracing
 
 * [Overview: Tracing](concepts/llm-traces.md)
 * [Quickstart: Tracing](quickstart/llm-traces.md)
-* [Concepts: Tracing](tracing/concepts-tracing.md)
+* [Concepts: Tracing](tracing/concepts-tracing/README.md)
+  * [What are Traces?](tracing/concepts-tracing/what-are-traces.md)
+  * [How does Tracing Work?](tracing/concepts-tracing/how-does-tracing-work.md)
 * [How-to: Tracing](tracing/how-to-tracing/README.md)
   * [Tracing Core Concepts](tracing/how-to-tracing/tracing-core-concepts.md)
   * [Customize Traces](tracing/how-to-tracing/customize-traces.md)
@@ -67,7 +73,6 @@
   * [Corpus Data](how-to/define-your-schema/corpus-data.md)
 * [Manage the App](how-to/manage-the-app.md)
 * [Export Your Data](how-to/export-your-data.md)
-* [Use Example Datasets](how-to/use-example-datasets.md)
 
 ## ⌨️ API
 
@@ -88,8 +93,6 @@
 
 ## 📚 Reference
 
-* [Environments](environments.md)
-* [Deployment](reference/deploying-phoenix.md)
 * [Frequently Asked Questions](reference/frequently-asked-questions.md)
 * [OpenInference](reference/open-inference.md)
 * [Contribute to Phoenix](reference/contribute-to-phoenix.md)

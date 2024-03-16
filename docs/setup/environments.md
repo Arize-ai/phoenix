@@ -9,11 +9,7 @@ description: >-
 Phoenix app is first and foremost an application that can be run just in in your notebook! This makes it an extremely flexible app since it can be accessed directly as you iterate on your AI-powered app!\
 
 
-{% hint style="info" %}
-Looking how to deploy Phoenix outside of the notebook for production use? Checkout the [deployment guide.](reference/deploying-phoenix.md)
-{% endhint %}
-
-<table data-view="cards"><thead><tr><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td><strong>In the notebook</strong></td><td>Run phoenix in the notebook as you run experiments</td><td><a href="environments.md#notebooks">#notebooks</a></td><td><a href=".gitbook/assets/notebook.png">notebook.png</a></td></tr><tr><td><strong>As a Container</strong></td><td>Start a long-running collector</td><td><a href="environments.md#container">#container</a></td><td><a href=".gitbook/assets/docker.png">docker.png</a></td></tr><tr><td><strong>From the Terminal</strong></td><td>Run phoenix via the CLI </td><td><a href="environments.md#terminal">#terminal</a></td><td><a href=".gitbook/assets/terminal.png">terminal.png</a></td></tr></tbody></table>
+<table data-view="cards"><thead><tr><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td><strong>In the notebook</strong></td><td>Run phoenix in the notebook as you run experiments</td><td><a href="environments.md#notebooks">#notebooks</a></td><td><a href="../.gitbook/assets/notebook.png">notebook.png</a></td></tr><tr><td><strong>As a Container</strong></td><td>Start a long-running collector</td><td><a href="environments.md#container">#container</a></td><td><a href="../.gitbook/assets/docker.png">docker.png</a></td></tr><tr><td><strong>From the Terminal</strong></td><td>Run phoenix via the CLI </td><td><a href="environments.md#terminal">#terminal</a></td><td><a href="../.gitbook/assets/terminal.png">terminal.png</a></td></tr></tbody></table>
 
 ### Notebooks
 
@@ -59,7 +55,7 @@ os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://123.456.789:6006"
 {% endtab %}
 {% endtabs %}
 
-Note that the above is only necessary if your application is running in a Jupyter notebook. If you are trying to deploy your application and have phoenix collect traces via a container, please consult the [deployment guide.](reference/deploying-phoenix.md)
+Note that the above is only necessary if your application is running in a Jupyter notebook. If you are trying to deploy your application and have phoenix collect traces via a container, please consult the [deployment guide.](../deploying-phoenix.md)
 
 ### Terminal
 
@@ -80,9 +76,3 @@ python3 -m phoenix.server.main --port 1234 --host 0.0.0.0 serve
 ### Configuration
 
 Whether you are using phoenix in a notebook or via a container, you can configure it's runtime via the following environment variables. Note that none of these are required.
-
-* **PHOENIX\_PORT:** The port to run the phoenix server. Defaults to 6006 (since this port works best with other tools like SageMaker notebooks. )
-* &#x20;**PHOENIX\_HOST:** The host to run the phoenix server. Defaults to 0.0.0.0&#x20;
-* **PHOENIX\_NOTEBOOK\_ENV:** The notebook environment. Typically you do not need to set this but it can be set explicitly (e.x. `sagemaker`)
-* **PHOENIX\_COLLECTOR\_ENDPOINT:** The endpoint traces and evals are sent to. This must be set if the Phoenix server is running on a remote instance. For example if phoenix is running at `http://125.2.3.5:4040` , this environment variable must be set where your LLM application is running and being traced. Note that the endpoint should not contain trailing slashes or slugs.
-* &#x20;**PHOENIX\_WORKING\_DIR:** The directory in which to save, load, and export datasets. This directory must be accessible by both the Phoenix server and the notebook environment.&#x20;
