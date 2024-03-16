@@ -123,7 +123,7 @@ query = SpanQuery().where(
 
 #### Filtering Spans by Evaluation Results
 
-Filtering spans by evaluation results, e.g. `score` or `label`, can be done via a special syntax. The name of the evaluation is specified as an indexer on the special keyword `evals`. The example below filters for spans with the `incorrect` label on their `correctness` evaluations. (See [here](../../llm-evals/running-pre-tested-evals/) for how to compute evaluations for traces, and [here](../../how-to/define-your-schema/llm-evaluations.md) for how to ingest those results back to Phoenix.)
+Filtering spans by evaluation results, e.g. `score` or `label`, can be done via a special syntax. The name of the evaluation is specified as an indexer on the special keyword `evals`. The example below filters for spans with the `incorrect` label on their `correctness` evaluations. (See [here](../../llm-evals/running-pre-tested-evals/) for how to compute evaluations for traces, and [here](llm-evaluations.md) for how to ingest those results back to Phoenix.)
 
 ```python
 query = SpanQuery().where(

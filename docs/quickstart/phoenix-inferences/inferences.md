@@ -1,10 +1,6 @@
----
-description: Learn the foundational concepts of the Phoenix API and Application
----
+# Concepts: Inferences
 
-# Schemas and Datasets
-
-This section introduces _datasets_ and _schemas,_ the starting concepts needed to use Phoenix.
+This section introduces _datasets_ and _schemas,_ the starting concepts needed to use Phoenix with inferences.
 
 {% hint style="info" %}
 * For comprehensive descriptions of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](../../api/dataset-and-schema.md).
@@ -114,19 +110,3 @@ corpus_schema=Schema(
 corpus_ds = px.Dataset(corpus_df, corpus_schema)
 ```
 {% endcode %}
-
-## Application
-
-Phoenix runs as an application that can be viewed in a web browser tab or within your notebook as a cell. To launch the app, simply pass one or more datasets into the `launch_app` function:
-
-```python
-session = px.launch_app(prod_ds, train_ds)
-# or just one dataset
-session = px.launch_app(prod_ds)
-# or with a corpus dataset
-session = px.launch_app(prod_ds, corpus=corpus_ds)
-```
-
-The application provide you with a landing page that is populated with your model's `schema` (e.g. the features, tags, predictions, and actuals). This gives you a statistical overview of your data as well as links into the [embeddings details](inferences.md#embedding-details) views for analysis.&#x20;
-
-<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/cc_fraud_home.png" alt="the phoenix home page with an overview of the model"><figcaption><p>The model overview page </p></figcaption></figure>

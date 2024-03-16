@@ -18,7 +18,6 @@
 * [How-to: Tracing](tracing/how-to-tracing/README.md)
   * [Tracing Core Concepts](tracing/how-to-tracing/tracing-core-concepts.md)
   * [Customize Traces](tracing/how-to-tracing/customize-traces.md)
-  * [Querying Spans](tracing/how-to-tracing/extract-data-from-spans.md)
   * [Auto Instrumentation](tracing/how-to-tracing/instrumentation/README.md)
     * [LlamaIndex](tracing/how-to-tracing/instrumentation/llamaindex.md)
     * [LangChain](tracing/how-to-tracing/instrumentation/langchain.md)
@@ -27,8 +26,10 @@
     * [Bedrock](tracing/how-to-tracing/instrumentation/bedrock.md)
     * [AutoGen](tracing/how-to-tracing/instrumentation/autogen-support.md)
   * [Manual Instrumentation](tracing/how-to-tracing/custom-spans.md)
+  * [Querying Spans](tracing/how-to-tracing/extract-data-from-spans.md)
+  * [Log Evaluation Results](tracing/how-to-tracing/llm-evaluations.md)
 * [Use Cases: Tracing](tracing/use-cases-tracing/README.md)
-  * [Evaluate RAG with Evals](tracing/use-cases-tracing/rag-evaluation.md)
+  * [Evaluate RAG](tracing/use-cases-tracing/rag-evaluation.md)
   * [Structured Data Extraction](tracing/use-cases-tracing/structured-extraction.md)
 
 ## 🧠 Evaluation
@@ -57,23 +58,21 @@
 ## 🌌 inferences
 
 * [Quickstart: Inferences](quickstart/phoenix-inferences/README.md)
-* [Schemas and Datasets](quickstart/phoenix-inferences/inferences.md)
-* [Generating Embeddings](concepts/generating-embeddings.md)
-* [Embeddings Analysis](concepts/embeddings-analysis.md)
-
-## 🔮 Use Cases
-
-* [Retrieval with Embeddings](use-cases/troubleshooting-llm-retrieval-with-vector-stores.md)
+* [Concepts: Inferences](quickstart/phoenix-inferences/inferences.md)
+* [How-to: Inferences](inferences/how-to-inferences/README.md)
+  * [Export Data](inferences/how-to-inferences/export-your-data.md)
+  * [Generate Embeddings](inferences/how-to-inferences/generating-embeddings.md)
+* [Use-Cases: Infernces](inferences/use-cases-infernces/README.md)
+  * [Retrieval with Embeddings](inferences/use-cases-infernces/troubleshooting-llm-retrieval-with-vector-stores.md)
+  * [Embeddings Analysis](inferences/use-cases-infernces/embeddings-analysis.md)
 
 ## 🔢 How-To
 
 * [Import Your Data](how-to/define-your-schema/README.md)
-  * [LLM Evaluations](how-to/define-your-schema/llm-evaluations.md)
   * [Prompt and Response (LLM)](how-to/define-your-schema/prompt-and-response-llm.md)
   * [Retrieval (RAG)](how-to/define-your-schema/retrieval-rag.md)
   * [Corpus Data](how-to/define-your-schema/corpus-data.md)
 * [Manage the App](how-to/manage-the-app.md)
-* [Export Your Data](how-to/export-your-data.md)
 
 ## ⌨️ API
 

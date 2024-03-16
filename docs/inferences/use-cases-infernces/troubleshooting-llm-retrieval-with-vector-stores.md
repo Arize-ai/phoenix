@@ -26,7 +26,7 @@ description: >-
 
 Possibly the most common use-case for creating a LLM application is to connect an LLM to proprietary data such as enterprise documents or video transcriptions. Applications such as these often times are built on top of LLM frameworks such as [Langchain](https://github.com/langchain-ai/langchain) or [llama\_index](https://github.com/run-llama/llama\_index), which have first-class support for vector store retrievers. Vector Stores enable teams to connect their own data to LLMs. A common application is chatbots looking across a company's knowledge base/context to answer specific questions.
 
-<figure><img src="../.gitbook/assets/image.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/image.png" alt=""><figcaption></figcaption></figure>
 
 ## How to Evaluate Retrieval Systems
 
@@ -38,19 +38,19 @@ Step 2: Once we know there's an issue, then we need metrics to trace where speci
 
 Step 3: If retrieval is not the issue, we should check if we even have the right documents to answer the question.
 
-<figure><img src="../.gitbook/assets/image (10).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/image (10).png" alt=""><figcaption></figcaption></figure>
 
-<table data-full-width="true"><thead><tr><th width="200">Question</th><th>Metric</th><th>Pros</th><th>Cons</th></tr></thead><tbody><tr><td>Is this a bad response to the answer?</td><td>User feedback or <a href="../llm-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md">LLM Eval for Q&#x26;A</a></td><td>Most relevant way to measure application</td><td>Hard to trace down specifically what to fix</td></tr><tr><td>Is the retrieved context relevant?</td><td><a href="../llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md">LLM Eval for Relevance</a></td><td>Directly measures effectiveness of retrieval</td><td>Requires additional LLMs calls</td></tr><tr><td>Is the knowledge base missing areas of user queries?</td><td>Query density (drift) - Phoenix generated</td><td>Highlights groups of queries with large distance from context</td><td>Identifies broad topics missing from knowledge base, but not small gaps</td></tr></tbody></table>
+<table data-full-width="true"><thead><tr><th width="200">Question</th><th>Metric</th><th>Pros</th><th>Cons</th></tr></thead><tbody><tr><td>Is this a bad response to the answer?</td><td>User feedback or <a href="../../llm-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md">LLM Eval for Q&#x26;A</a></td><td>Most relevant way to measure application</td><td>Hard to trace down specifically what to fix</td></tr><tr><td>Is the retrieved context relevant?</td><td><a href="../../llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md">LLM Eval for Relevance</a></td><td>Directly measures effectiveness of retrieval</td><td>Requires additional LLMs calls</td></tr><tr><td>Is the knowledge base missing areas of user queries?</td><td>Query density (drift) - Phoenix generated</td><td>Highlights groups of queries with large distance from context</td><td>Identifies broad topics missing from knowledge base, but not small gaps</td></tr></tbody></table>
 
 ## Using Phoenix Traces & Spans
 
 Visualize the chain of the traces and spans for a Q\&A chatbot use case. You can click into specific spans.
 
-<figure><img src="../.gitbook/assets/image (1).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/image (1).png" alt=""><figcaption></figcaption></figure>
 
 When clicking into the retrieval span, you can see the relevance score for each document. This can surface irrelevant context.
 
-<figure><img src="../.gitbook/assets/image (2).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/image (2).png" alt=""><figcaption></figcaption></figure>
 
 ## Using Phoenix Inferences to Analyze RAG (Retrieval Augmented Generation)
 
@@ -62,7 +62,7 @@ Phoenix surfaces up clusters of similar queries that have poor feedback.
 
 ### Step 2: Irrelevant Documents Being Retrieved
 
-Phoenix can help uncover when irrelevant context is being retrieved using the [LLM Evals for Relevance](../llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md). You can look at a cluster's aggregate relevance metric with precision @k, NDCG, MRR, etc to identify where to improve. You can also look at a single prompt/response pair and see the relevance of documents.
+Phoenix can help uncover when irrelevant context is being retrieved using the [LLM Evals for Relevance](../../llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md). You can look at a cluster's aggregate relevance metric with precision @k, NDCG, MRR, etc to identify where to improve. You can also look at a single prompt/response pair and see the relevance of documents.
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/RAG_LLM_assisted_evals.png" alt=""><figcaption></figcaption></figure>
 
@@ -84,13 +84,13 @@ Found a problematic cluster you want to dig into, but don't want to manually sif
 
 ## How to Log to Phoenix (as Inferences)
 
-<figure><img src="../.gitbook/assets/image (11).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/image (11).png" alt=""><figcaption></figcaption></figure>
 
 #### Step 1: Logging Knowledge Base
 
 The first thing we need is to collect some sample from your vector store, to be able to compare against later. This is to able to see if some sections are not being retrieved, or some sections are getting a lot of traffic where you might want to beef up your context or documents in that area.
 
-For more details, visit this [page](../how-to/define-your-schema/corpus-data.md).
+For more details, visit this [page](../../how-to/define-your-schema/corpus-data.md).
 
 <table><thead><tr><th width="76">id</th><th width="331">text</th><th>embedding</th></tr></thead><tbody><tr><td>1</td><td>Voyager 2 is a spacecraft used by NASA to expl...</td><td>[-0.02785328, -0.04709944, 0.042922903, 0.0559...</td></tr></tbody></table>
 
@@ -108,7 +108,7 @@ corpus_schema = px.Schema(
 
 We also will be logging the prompt/response pairs from the deployed application.
 
-For more details, visit this [page](../how-to/define-your-schema/retrieval-rag.md).
+For more details, visit this [page](../../how-to/define-your-schema/retrieval-rag.md).
 
 <table><thead><tr><th width="159.33333333333331">query</th><th width="125">embedding</th><th width="164">retrieved_document_ids</th><th width="139">relevance_scores</th><th>response</th></tr></thead><tbody><tr><td>who was the first person that walked on the moon</td><td>[-0.0126, 0.0039, 0.0217, ...</td><td>[7395, 567965, 323794, ...</td><td>[11.30, 7.67, 5.85, ...</td><td>Neil Armstrong</td></tr></tbody></table>
 

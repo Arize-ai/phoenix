@@ -8,7 +8,7 @@ description: >-
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/nodejs_deployment.png" alt=""><figcaption><p>You can trace your NodeJS application over OpenTelemetry</p></figcaption></figure>
 
-Phoenix is written and maintained in Python to make it natively runnable in Python notebooks. However it can be stood up as as a trace collector so that your LLM traces from your NodeJS application (e.x. LlamaIndex.TS, Langchain.js). The traces collected by the phoenix can them be downloaded from the Phoenix can them be downloaded to a Jupyter notebook and them be used to run evaluations (e.x. [LLM Evals,](../how-to/define-your-schema/llm-evaluations.md) Ragas)
+Phoenix is written and maintained in Python to make it natively runnable in Python notebooks. However it can be stood up as as a trace collector so that your LLM traces from your NodeJS application (e.x. LlamaIndex.TS, Langchain.js). The traces collected by the phoenix can them be downloaded from the Phoenix can them be downloaded to a Jupyter notebook and them be used to run evaluations (e.x. [LLM Evals,](../tracing/how-to-tracing/llm-evaluations.md) Ragas)
 
 
 

@@ -4,14 +4,9 @@ description: >-
   Phoenix.
 ---
 
-# LLM Evaluations
+# Log Evaluation Results
 
-* [Span Evaluations](llm-evaluations.md#span-evaluations)
-* [Document Evaluations](llm-evaluations.md#document-evaluations)
-
-## Introduction
-
-An evaluation must have a `name` (e.g. "Q\&A Correctness") and its dataframe must contain identifiers for the subject of evaluation, e.g. a span or a document (more on that below), and values under either the `score`, `label`, or `explanation` columns. See [Evaluations](../../evaluation/evaluation/) for more information.
+An evaluation must have a `name` (e.g. "Q\&A Correctness") and its DataFrame must contain identifiers for the subject of evaluation, e.g. a span or a document (more on that below), and values under either the `score`, `label`, or `explanation` columns. See [Evaluations](../../evaluation/evaluation/) for more information.
 
 ## Span Evaluations
 

@@ -233,7 +233,7 @@ _Discuss your answers in our_ [_community_](https://join.slack.com/t/arize-ai/sh
 
 Once you have identified datapoints of interest, you can export this data directly from the Phoenix app for further analysis, or to incorporate these into downstream model retraining and finetuning flows.
 
-See more on exporting data [here](../../how-to/export-your-data.md).
+See more on exporting data [here](../../inferences/how-to-inferences/export-your-data.md).
 
 ### Step 8 (Optional): Enable production observability with Arize
 
@@ -253,7 +253,7 @@ Create your [free account](https://arize.com/join) and see the full suite of [Ar
 
 ## Where to go from here?
 
-* Read more about Embeddings Analysis [here](../../concepts/embeddings-analysis.md)
+* Read more about Embeddings Analysis [here](../../inferences/use-cases-infernces/embeddings-analysis.md)
 
 ***
 
