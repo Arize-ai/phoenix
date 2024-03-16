@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.3.0...arize-phoenix-evals-v0.3.1) (2024-03-15)
+
+
+### Bug Fixes
+
+* pass verbose to evaluators ([#2597](https://github.com/Arize-ai/phoenix/issues/2597)) ([9467e1d](https://github.com/Arize-ai/phoenix/commit/9467e1deabe58c0079ad8bdb9dfc972ee2ae5c0b))
+
 ## [0.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.2.0...arize-phoenix-evals-v0.3.0) (2024-03-13)
 
 
