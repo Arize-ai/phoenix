@@ -18,6 +18,8 @@ import phoenix as px
 session = px.launch_app()
 ```
 
+This will start a local Phoenix server. You can initialize the phoenix server with various types of datasets (traces, inferences). Check out the [API for details](../how-to/manage-the-app.md)
+
 ### Container
 
 {% hint style="info" %}

@@ -16,6 +16,6 @@ description: Concepts that are important to understand when logging traces to Ph
 
 * [What is instrumentation?](how-does-tracing-work.md#instrumentation)
 * [What is a collector?](how-does-tracing-work.md#collector)
-* What is an exporter?
+* [What is an exporter?](how-does-tracing-work.md#exporter)
 * [What is OpenTelemetry Protocol (OTLP)?](how-does-tracing-work.md#opentelememetry-protocol)
 

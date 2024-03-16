@@ -27,6 +27,9 @@
     * [Bedrock](tracing/how-to-tracing/instrumentation/bedrock.md)
     * [AutoGen](tracing/how-to-tracing/instrumentation/autogen-support.md)
   * [Manual Instrumentation](tracing/how-to-tracing/custom-spans.md)
+* [Use Cases: Tracing](tracing/use-cases-tracing/README.md)
+  * [Evaluate RAG with Evals](tracing/use-cases-tracing/rag-evaluation.md)
+  * [Structured Data Extraction](tracing/use-cases-tracing/structured-extraction.md)
 
 ## 🧠 Evaluation
 
@@ -61,8 +64,6 @@
 ## 🔮 Use Cases
 
 * [Retrieval with Embeddings](use-cases/troubleshooting-llm-retrieval-with-vector-stores.md)
-* [Structured Extraction](use-cases/structured-extraction.md)
-* [Evaluate RAG with Evals](use-cases/rag-evaluation.md)
 
 ## 🔢 How-To
 

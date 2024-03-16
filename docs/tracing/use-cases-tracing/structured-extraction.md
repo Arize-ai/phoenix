@@ -2,7 +2,7 @@
 description: Using LLMs to extract structured data from unstructured text
 ---
 
-# Structured Extraction
+# Structured Data Extraction
 
 | Framework         | Example notebook                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -24,7 +24,7 @@ Data extraction tasks using LLMs, such as scraping text from documents or pullin
 1. Did the LLM extract the text correctly? (correctness)
 {% endhint %}
 
-<figure><img src="../.gitbook/assets/Screenshot 2023-10-13 at 5.10.42 PM.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/Screenshot 2023-10-13 at 5.10.42 PM.png" alt=""><figcaption></figcaption></figure>
 
 One approach is using a flattened schema. Let's say you're dealing with extracting information for a trip planning application. The query may look something like:
 
@@ -100,11 +100,11 @@ You can use phoenix spans and traces to inspect the invocation parameters of the
 2. verify your request to Open AI&#x20;
 3. verify the corresponding generated outputs from the model match what's expected from the schema and are correct
 
-<figure><img src="../.gitbook/assets/Screenshot 2023-10-13 at 5.39.53 PM.png" alt=""><figcaption><p>Viewing a batch of traces</p></figcaption></figure>
+<figure><img src="../../.gitbook/assets/Screenshot 2023-10-13 at 5.39.53 PM.png" alt=""><figcaption><p>Viewing a batch of traces</p></figcaption></figure>
 
-<figure><img src="../.gitbook/assets/Screenshot 2023-10-13 at 5.40.31 PM.png" alt=""><figcaption><p>Inspecting an individual trace</p></figcaption></figure>
+<figure><img src="../../.gitbook/assets/Screenshot 2023-10-13 at 5.40.31 PM.png" alt=""><figcaption><p>Inspecting an individual trace</p></figcaption></figure>
 
-<figure><img src="../.gitbook/assets/Screenshot 2023-10-13 at 5.40.56 PM (1).png" alt=""><figcaption><p>Verifying an individual trace invocation parameters</p></figcaption></figure>
+<figure><img src="../../.gitbook/assets/Screenshot 2023-10-13 at 5.40.56 PM (1).png" alt=""><figcaption><p>Verifying an individual trace invocation parameters</p></figcaption></figure>
 
 ## Evaluating the Extraction Performance
 

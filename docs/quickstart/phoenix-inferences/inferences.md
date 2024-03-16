@@ -129,4 +129,4 @@ session = px.launch_app(prod_ds, corpus=corpus_ds)
 
 The application provide you with a landing page that is populated with your model's `schema` (e.g. the features, tags, predictions, and actuals). This gives you a statistical overview of your data as well as links into the [embeddings details](inferences.md#embedding-details) views for analysis.&#x20;
 
-<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/cc_fraud_home.png" alt="the phoenix home page with an overview of the model"><figcaption><p>The phoenix homepage</p></figcaption></figure>
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/cc_fraud_home.png" alt="the phoenix home page with an overview of the model"><figcaption><p>The model overview page </p></figcaption></figure>
