@@ -90,7 +90,7 @@ Found a problematic cluster you want to dig into, but don't want to manually sif
 
 The first thing we need is to collect some sample from your vector store, to be able to compare against later. This is to able to see if some sections are not being retrieved, or some sections are getting a lot of traffic where you might want to beef up your context or documents in that area.
 
-For more details, visit this [page](../../how-to/define-your-schema/corpus-data.md).
+For more details, visit this [page](../how-to-inferences/define-your-schema/corpus-data.md).
 
 <table><thead><tr><th width="76">id</th><th width="331">text</th><th>embedding</th></tr></thead><tbody><tr><td>1</td><td>Voyager 2 is a spacecraft used by NASA to expl...</td><td>[-0.02785328, -0.04709944, 0.042922903, 0.0559...</td></tr></tbody></table>
 
@@ -108,7 +108,7 @@ corpus_schema = px.Schema(
 
 We also will be logging the prompt/response pairs from the deployed application.
 
-For more details, visit this [page](../../how-to/define-your-schema/retrieval-rag.md).
+For more details, visit this [page](../how-to-inferences/define-your-schema/retrieval-rag.md).
 
 <table><thead><tr><th width="159.33333333333331">query</th><th width="125">embedding</th><th width="164">retrieved_document_ids</th><th width="139">relevance_scores</th><th>response</th></tr></thead><tbody><tr><td>who was the first person that walked on the moon</td><td>[-0.0126, 0.0039, 0.0217, ...</td><td>[7395, 567965, 323794, ...</td><td>[11.30, 7.67, 5.85, ...</td><td>Neil Armstrong</td></tr></tbody></table>
 

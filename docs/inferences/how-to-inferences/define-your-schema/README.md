@@ -7,8 +7,8 @@ description: How to create Phoenix datasets and schemas for common data formats
 This guide shows you how to define a Phoenix dataset using your own data.
 
 {% hint style="info" %}
-* For a conceptual overview of the Phoenix API, including a high-level introduction to the notion of datasets and schemas, see [Phoenix Basics](../../quickstart/phoenix-inferences/inferences.md#schemas).
-* For a comprehensive description of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](../../api/dataset-and-schema.md).
+* For a conceptual overview of the Phoenix API, including a high-level introduction to the notion of datasets and schemas, see [Phoenix Basics](../../../quickstart/phoenix-inferences/inferences.md#schemas).
+* For a comprehensive description of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](../../../api/dataset-and-schema.md).
 {% endhint %}
 
 Once you have a pandas dataframe `df` containing your data and a `schema` object describing the format of your dataframe, you can define your Phoenix dataset either by running
@@ -145,7 +145,7 @@ Embedding features consist of vector data in addition to any unstructured data i
 
 {% hint style="info" %}
 * For a conceptual overview of embeddings, see [Embeddings](broken-reference).
-* For a comprehensive description of `px.EmbeddingColumnNames`, see the [API reference](../../api/dataset-and-schema.md#phoenix.embeddingcolumnnames).
+* For a comprehensive description of `px.EmbeddingColumnNames`, see the [API reference](../../../api/dataset-and-schema.md#phoenix.embeddingcolumnnames).
 {% endhint %}
 
 {% hint style="info" %}

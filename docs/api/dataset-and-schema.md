@@ -97,7 +97,7 @@ Assigns the columns of a pandas dataframe to the appropriate model dimensions (p
 
 ### Usage
 
-See the guide on how to [create your own dataset](../how-to/define-your-schema/) for examples.
+See the guide on how to [create your own dataset](../inferences/how-to-inferences/define-your-schema/) for examples.
 
 ## phoenix.EmbeddingColumnNames
 
@@ -120,12 +120,12 @@ A dataclass that associates one or more columns of a dataframe with an [embeddin
 * **link\_to\_data\_column\_name** (Optional\[str]): The name of the dataframe column containing links to images associated with an embedding feature, if such a column exists. This field is used when an embedding feature describes an image, for example, in the context of computer vision.
 
 {% hint style="info" %}
-See [here](../how-to/define-your-schema/#local-images) for recommendations on handling local image files.
+See [here](../inferences/how-to-inferences/define-your-schema/#local-images) for recommendations on handling local image files.
 {% endhint %}
 
 ### Usage
 
-See the guide on how to [create embedding features ](../how-to/define-your-schema/#embedding-features)for examples.
+See the guide on how to [create embedding features ](../inferences/how-to-inferences/define-your-schema/#embedding-features)for examples.
 
 ## phoenix.TraceDataset <a href="#phoenix.tracedataset" id="phoenix.tracedataset"></a>
 

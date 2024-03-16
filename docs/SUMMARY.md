@@ -60,19 +60,16 @@
 * [Quickstart: Inferences](quickstart/phoenix-inferences/README.md)
 * [Concepts: Inferences](quickstart/phoenix-inferences/inferences.md)
 * [How-to: Inferences](inferences/how-to-inferences/README.md)
+  * [Import Your Data](inferences/how-to-inferences/define-your-schema/README.md)
+    * [Prompt and Response (LLM)](inferences/how-to-inferences/define-your-schema/prompt-and-response-llm.md)
+    * [Retrieval (RAG)](inferences/how-to-inferences/define-your-schema/retrieval-rag.md)
+    * [Corpus Data](inferences/how-to-inferences/define-your-schema/corpus-data.md)
   * [Export Data](inferences/how-to-inferences/export-your-data.md)
   * [Generate Embeddings](inferences/how-to-inferences/generating-embeddings.md)
+  * [Manage the App](inferences/how-to-inferences/manage-the-app.md)
 * [Use-Cases: Infernces](inferences/use-cases-infernces/README.md)
   * [Retrieval with Embeddings](inferences/use-cases-infernces/troubleshooting-llm-retrieval-with-vector-stores.md)
   * [Embeddings Analysis](inferences/use-cases-infernces/embeddings-analysis.md)
-
-## 🔢 How-To
-
-* [Import Your Data](how-to/define-your-schema/README.md)
-  * [Prompt and Response (LLM)](how-to/define-your-schema/prompt-and-response-llm.md)
-  * [Retrieval (RAG)](how-to/define-your-schema/retrieval-rag.md)
-  * [Corpus Data](how-to/define-your-schema/corpus-data.md)
-* [Manage the App](how-to/manage-the-app.md)
 
 ## ⌨️ API
 
