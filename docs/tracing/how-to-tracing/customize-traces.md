@@ -9,7 +9,7 @@ description: Oftentimes you want to customize various aspects of traces you log 
 Phoenix uses [projects](../concepts-tracing/#projects) to group traces. If left unspecified, all traces are sent to a default project.&#x20;
 
 {% tabs %}
-{% tab title="Phoenix" %}
+{% tab title="Notebook" %}
 In the notebook, you can set the `PHOENIX_PROJECT_NAME` environment variable **before** adding instrumentation or running any of your code.
 
 In python this would look like:
@@ -19,9 +19,13 @@ import os
 
 os.environ['PHOENIX_PROJECT_NAME'] = "<your-project-name>"
 ```
+
+{% hint style="warning" %}
+Note that setting a project via an environment variable only works in a notebook and must be done **BEFORE** instrumentation is initialized. If you are using OpenInference Instrumentation, see the Server tab for how to set the project name in the Resource attributes.
+{% endhint %}
 {% endtab %}
 
-{% tab title="OpenInference" %}
+{% tab title="Server (Python)" %}
 If you are using Phoenix as a collector and running your application separately, you can set the project name in the `Resource` attributes for the trace provider.&#x20;
 
 ```python
@@ -46,6 +50,8 @@ LlamaIndexInstrumentor().instrument()
 ```
 {% endtab %}
 {% endtabs %}
+
+Projects work by setting something called the **Resource** attributes (as seen in the Server example above). The phoenix server uses the project name attribute to group traces into the appropriate project.
 
 ## Switching projects in a notebook
 

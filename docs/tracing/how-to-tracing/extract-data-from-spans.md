@@ -16,7 +16,7 @@ To simply get DataFrames of spans, you can simply ask for a DataFrame. Each row 
 import phoenix as px
 
 # You can query for spans with the same filter conditions as in the UI
-px.Client.get_spans_dataframe("span_kind == 'CHAIN'")
+px.Client().get_spans_dataframe("span_kind == 'CHAIN'")
 ```
 
 \
