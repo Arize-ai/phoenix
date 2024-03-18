@@ -60,3 +60,4 @@ How to log evaluation results to annotate traces with evals
 
 * [How to log span evaluations](llm-evaluations.md#span-evaluations)
 * [How to log document evaluations](llm-evaluations.md#document-evaluations)
+* [How to specify a project for logging evaluations](llm-evaluations.md#specifying-a-project-for-the-evaluations)

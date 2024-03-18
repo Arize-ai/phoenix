@@ -67,3 +67,20 @@ px.Client().log_evaluations(
     # ... as many as you like
 )
 ```
+
+## Specifying A Project for the Evaluations
+
+By default the client will push traces to the project specified in the `PHOENIX_PROJECT_NAME` environment variable or to the `default` project. If you want to specify the destination project explicitly, you can pass the project name as a parameter.
+
+```python
+from phoenix.trace import SpanEvaluations
+
+px.Client().log_evaluations(
+    SpanEvaluations(
+        dataframe=qa_correctness_eval_df,
+        eval_name="Q&A Correctness",
+    ),
+    project_name="<my-project>"
+)
+```
+
