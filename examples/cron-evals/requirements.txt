@@ -1,0 +1,6 @@
+arize-phoenix-evals
+bs4
+langchain-core
+langchain-openai
+langchain-community
+qdrant-client
