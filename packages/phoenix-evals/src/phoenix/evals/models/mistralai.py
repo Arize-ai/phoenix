@@ -1,8 +1,11 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
+
+if TYPE_CHECKING:
+    from mistralai.models.chat_completion import ChatMessage
 
 DEFAULT_MISTRAL_MODEL = "mistral-large-latest"
 """Use the latest large mistral model by default."""
@@ -112,6 +115,6 @@ class MistralAIModel(BaseModel):
 
         return await _async_completion(**kwargs)
 
-    def _format_prompt(self, prompt: str) -> List[Dict[str, str]]:
+    def _format_prompt(self, prompt: str) -> List["ChatMessage"]:
         ChatMessage = self._ChatMessage
         return [ChatMessage(role="user", content=prompt)]
