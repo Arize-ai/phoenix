@@ -31,7 +31,7 @@ FROM builder
 RUN find . -xtype l -delete
 
 # Install any needed packages
-RUN pip install .[prometheus]
+RUN pip install .[container]
 
 # Make port 6006 available to the world outside this container
 EXPOSE 6006
