@@ -153,6 +153,7 @@ const defaultCardProps: Partial<CardProps> = {
 
 /**
  * A root span is defined to be a span whose parent span is not in our collection.
+ * But if more than one such span exists, return null.
  */
 function findRootSpan(spansList: Span[]): Span | null {
   // If there is a span whose parent is null, then it is the root span.
@@ -163,7 +164,7 @@ function findRootSpan(spansList: Span[]): Span | null {
   const rootSpans = spansList.filter(
     (span) => span.parentId != null && !spanIds.has(span.parentId)
   );
-  // If only one such span exists, then it is the root span, otherwise, return null.
+  // If only one such span exists, then return it, otherwise, return null.
   if (rootSpans.length === 1) return rootSpans[0];
   return null;
 }
