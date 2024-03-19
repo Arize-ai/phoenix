@@ -219,7 +219,7 @@ class _Spans:
         A root span is defined to be a span whose parent span is not in our collection.
         This includes spans whose parent is None and spans whose parent has not arrived
         (or will not arrive). For spans whose parent is not None, the root span status
-        is be temporary and will be revoked when its parent span arrives.
+        is temporary and will be revoked when its parent span arrives.
         """
         self._latency_sorted_root_spans: SortedKeyList[WrappedSpan] = SortedKeyList(
             key=lambda span: span[ComputedAttributes.LATENCY_MS],
