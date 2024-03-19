@@ -108,11 +108,9 @@ class BedrockModel(BaseModel):
 
     def _format_prompt_for_claude(self, prompt: str) -> str:
         # Claude requires prompt in the format of Human: ... Assisatnt:
-        if not prompt.strip().lower().startswith("human:"):
-            prompt = f"\n\nHuman:{prompt}"
-        if not prompt.strip().lower().startswith("assistant:"):
-            prompt = f"{prompt}\n\nAssistant:"
-        return prompt
+        return [
+            {"role": "user", "content": prompt},
+        ]
 
     def _create_request_body(self, prompt: str) -> Dict[str, Any]:
         # The request formats for bedrock models differ
