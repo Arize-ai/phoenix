@@ -71,6 +71,5 @@ def gather_system_data() -> None:
         RAM_METRIC.labels(type="virtual").set(ram.used)
         RAM_METRIC.labels(type="swap").set(swap.used)
 
-        # Add cpu metrics
-        for c, p in enumerate(psutil.cpu_percent(interval=1, percpu=True)):
-            CPU_METRIC.labels(core=c).set(p)
+        for core, percent in enumerate(psutil.cpu_percent(interval=1, percpu=True)):
+            CPU_METRIC.labels(core=core).set(percent)
