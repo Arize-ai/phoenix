@@ -13,6 +13,7 @@ from typing import (
     Mapping,
     Optional,
     Set,
+    Sized,
     Tuple,
     Union,
     cast,
@@ -386,9 +387,9 @@ class _Spans:
         span_id = span.context.span_id
         if token_count_update := span.attributes.get(SpanAttributes.LLM_TOKEN_COUNT_TOTAL):
             self._token_count_total += token_count_update
-        if hasattr(
+        if isinstance(
             (retrieval_documents := span.attributes.get(SpanAttributes.RETRIEVAL_DOCUMENTS)),
-            "__len__",
+            Sized,
         ) and (num_documents_update := len(retrieval_documents)):
             self._num_documents[span_id] += num_documents_update
 

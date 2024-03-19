@@ -344,7 +344,7 @@ def _hide_embedding_vectors(
     _embeddings = []
     for embedding in embeddings:
         _embedding = dict(embedding)
-        if hasattr((vector := _embedding.get(EMBEDDING_VECTOR)), "__len__"):
+        if isinstance((vector := _embedding.get(EMBEDDING_VECTOR)), Sized):
             _embedding[EMBEDDING_VECTOR] = f"<{len(vector)} dimensional vector>"
         _embeddings.append(_embedding)
     _attributes[EMBEDDING_EMBEDDINGS] = _embeddings
