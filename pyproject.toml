@@ -72,6 +72,7 @@ dev = [
   "litellm>=1.0.3",
   "google-cloud-aiplatform>=1.3",
   "anthropic",
+  "prometheus_client",
 ]
 evals = [
   "arize-phoenix-evals>=0.3.0",
@@ -83,6 +84,9 @@ llama-index = [
   "llama-index==0.10.3",  # always pin to a version that keeps our notebooks working
   "llama-index-callbacks-arize-phoenix>=0.1.2",
   "openinference-instrumentation-llama-index>=1.2.0",
+]
+container = [
+  "prometheus-client",
 ]
 
 [project.urls]
@@ -144,6 +148,7 @@ dependencies = [
   "types-setuptools",
   "openai>=1.0.0",
   "litellm>=1.0.3",
+  "prometheus_client",
 ]
 
 [tool.hatch.envs.style]

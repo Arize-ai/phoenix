@@ -1,5 +1,5 @@
 # This dockerfile is provided for convenience if you wish to run
-# Phoenix in a docker container / sidecar. 
+# Phoenix in a docker container / sidecar.
 # To use this dockerfile, you must first build the phoenix image
 # using the following command:
 # > docker build -t phoenix .
@@ -23,18 +23,21 @@ ADD . /phoenix
 
 
 # Install the app by building the typescript package
-RUN cd /phoenix/app && npm install && npm run build && rm -rf /phoenix/app 
+RUN cd /phoenix/app && npm install && npm run build && rm -rf /phoenix/app
 
 FROM builder
 
 # delete symbolic links
 RUN find . -xtype l -delete
 
-# Install any needed packages 
-RUN pip install .
+# Install any needed packages
+RUN pip install .[container]
 
 # Make port 6006 available to the world outside this container
 EXPOSE 6006
 
+# Prometheus
+EXPOSE 9090
+
 # Run server.py when the container launches
-CMD ["python", "src/phoenix/server/main.py", "--host", "0.0.0.0", "--port", "6006", "serve"]
+CMD ["python", "src/phoenix/server/main.py", "--host", "0.0.0.0", "--port", "6006", "--enable-prometheus", "True", "serve"]

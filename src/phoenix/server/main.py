@@ -129,6 +129,7 @@ if __name__ == "__main__":
     parser.add_argument("--no-internet", action="store_true")
     parser.add_argument("--umap_params", type=str, required=False, default=DEFAULT_UMAP_PARAMS_STR)
     parser.add_argument("--debug", action="store_false")
+    parser.add_argument("--enable-prometheus", type=bool, default=False)
     subparsers = parser.add_subparsers(dest="command", required=True)
     serve_parser = subparsers.add_parser("serve")
     datasets_parser = subparsers.add_parser("datasets")
@@ -223,6 +224,10 @@ if __name__ == "__main__":
     )
     read_only = args.read_only
     logger.info(f"Server umap params: {umap_params}")
+    if enable_prometheus := args.enable_prometheus:
+        from phoenix.server.prometheus import start_prometheus
+
+        start_prometheus()
     app = create_app(
         export_path=export_path,
         model=model,
@@ -232,6 +237,7 @@ if __name__ == "__main__":
         debug=args.debug,
         read_only=read_only,
         span_store=span_store,
+        enable_prometheus=enable_prometheus,
     )
     host = args.host or get_env_host()
     port = args.port or get_env_port()
