@@ -386,9 +386,10 @@ class _Spans:
         span_id = span.context.span_id
         if token_count_update := span.attributes.get(SpanAttributes.LLM_TOKEN_COUNT_TOTAL):
             self._token_count_total += token_count_update
-        if num_documents_update := len(
-            span.attributes.get(SpanAttributes.RETRIEVAL_DOCUMENTS) or ()
-        ):
+        if hasattr(
+            (retrieval_documents := span.attributes.get(SpanAttributes.RETRIEVAL_DOCUMENTS)),
+            "__len__",
+        ) and (num_documents_update := len(retrieval_documents)):
             self._num_documents[span_id] += num_documents_update
 
     def _propagate_cumulative_values(self, span: WrappedSpan) -> None:
