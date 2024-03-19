@@ -129,11 +129,11 @@ def child_ids(otlp_trace: Iterable[otlp.Span]) -> DefaultDict[str, Set[str]]:
 
 @pytest.fixture(scope="module")
 def parent_ids(child_ids: DefaultDict[str, Set[str]]) -> Dict[str, str]:
-    ans: Dict[str, str] = {}
-    for parent_span_id, child_span_ids in child_ids.items():
-        for child_span_id in child_span_ids:
-            ans[child_span_id] = parent_span_id
-    return ans
+    return {
+        child_span_id: parent_span_id
+        for parent_span_id, child_span_ids in child_ids.items()
+        for child_span_id in child_span_ids
+    }
 
 
 def _connected_descendant_ids(
