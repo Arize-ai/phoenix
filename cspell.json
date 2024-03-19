@@ -3,6 +3,7 @@
     "language": "en",
     "words": [
         "actuals",
+        "alimit",
         "arize",
         "chatbot",
         "codemirror",
@@ -18,7 +19,9 @@
         "httpx",
         "Instrumentor",
         "langchain",
+        "litellm",
         "llamaindex",
+        "mistralai",
         "ndcg",
         "NDJSON",
         "numpy",
@@ -40,6 +43,7 @@
         "tiktoken",
         "tracedataset",
         "UMAP",
+        "vertexai",
         "websockets",
         "xlarge",
         "Zustand"

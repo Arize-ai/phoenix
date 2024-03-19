@@ -35,6 +35,7 @@ dev = [
   "litellm>=1.28.9",
   "openai>=1.0.0",
   "vertexai",
+  "mistralai",
 ]
 test = [
   "openinference-semantic-conventions",
