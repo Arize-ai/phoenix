@@ -151,6 +151,7 @@ def create_app(
     span_store: Optional[SpanStore] = None,
     debug: bool = False,
     read_only: bool = False,
+    enable_prometheus: bool = False,
 ) -> Starlette:
     graphql = GraphQLWithContext(
         schema=schema,
@@ -160,9 +161,16 @@ def create_app(
         export_path=export_path,
         graphiql=True,
     )
+    if enable_prometheus:
+        from phoenix.server.prometheus import PrometheusMiddleware
+
+        prometheus_middlewares = [Middleware(PrometheusMiddleware)]
+    else:
+        prometheus_middlewares = []
     return Starlette(
         middleware=[
             Middleware(HeadersMiddleware),
+            *prometheus_middlewares,
         ],
         debug=debug,
         routes=(
