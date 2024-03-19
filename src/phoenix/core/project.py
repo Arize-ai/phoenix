@@ -20,7 +20,6 @@ from typing import (
 )
 
 import numpy as np
-from ddsketch import DDSketch
 from google.protobuf.json_format import MessageToDict
 from openinference.semconv.trace import SpanAttributes
 from pandas import DataFrame, Index, MultiIndex
@@ -216,10 +215,15 @@ class _Spans:
         self._start_time_sorted_root_spans: SortedKeyList[WrappedSpan] = SortedKeyList(
             key=lambda span: span.start_time,
         )
+        """
+        A root span is defined to be a span whose parent span is not in our collection.
+        This includes spans whose parent is None and spans whose parent has not arrived
+        (or will not arrive). For spans whose parent is not None, the root span status
+        is temporary and will be revoked when its parent span arrives.
+        """
         self._latency_sorted_root_spans: SortedKeyList[WrappedSpan] = SortedKeyList(
             key=lambda span: span[ComputedAttributes.LATENCY_MS],
         )
-        self._root_span_latency_ms_sketch = DDSketch()
         self._token_count_total: int = 0
         self._last_updated_at: Optional[datetime] = None
 
@@ -285,7 +289,15 @@ class _Spans:
     def root_span_latency_ms_quantiles(self, probability: float) -> Optional[float]:
         """Root span latency quantiles in milliseconds"""
         with self._lock:
-            return self._root_span_latency_ms_sketch.get_quantile_value(probability)
+            spans = self._latency_sorted_root_spans
+            if not (n := len(spans)):
+                return None
+            if probability >= 1:
+                return cast(float, spans[-1][ComputedAttributes.LATENCY_MS])
+            if probability <= 0:
+                return cast(float, spans[0][ComputedAttributes.LATENCY_MS])
+            k = max(0, round(n * probability) - 1)
+            return cast(float, spans[k][ComputedAttributes.LATENCY_MS])
 
     def get_descendant_spans(self, span_id: SpanID) -> Iterator[WrappedSpan]:
         for span in self._get_descendant_spans(span_id):
@@ -353,26 +365,27 @@ class _Spans:
             return
 
         parent_span_id = span.parent_id
-        is_root_span = parent_span_id is None
-        if not is_root_span:
+        if parent_span_id is not None:
             self._child_spans[parent_span_id].add(span)
             self._parent_span_ids[span_id] = parent_span_id
+
+        for child_span in self._child_spans.get(span_id, ()):
+            # A root span is a span whose parent span is not in our collection.
+            # Now that their parent span has arrived, they are no longer root spans.
+            self._start_time_sorted_root_spans.remove(child_span)
+            self._latency_sorted_root_spans.remove(child_span)
 
         # Add computed attributes to span
         start_time = span.start_time
         end_time = span.end_time
-        span[ComputedAttributes.LATENCY_MS] = latency = (
-            end_time - start_time
-        ).total_seconds() * 1000
-        if is_root_span:
-            self._root_span_latency_ms_sketch.add(latency)
+        span[ComputedAttributes.LATENCY_MS] = (end_time - start_time).total_seconds() * 1000
         span[ComputedAttributes.ERROR_COUNT] = int(span.status_code is SpanStatusCode.ERROR)
 
         # Store the new span (after adding computed attributes)
         self._spans[span_id] = span
         self._traces[span.context.trace_id].add(span)
         self._start_time_sorted_spans.add(span)
-        if is_root_span:
+        if parent_span_id is None or parent_span_id not in self._spans:
             self._start_time_sorted_root_spans.add(span)
             self._latency_sorted_root_spans.add(span)
         self._propagate_cumulative_values(span)

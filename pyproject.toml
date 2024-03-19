@@ -40,7 +40,6 @@ dependencies = [
   "wrapt",
   "sortedcontainers",
   "protobuf>=3.20, <5.0",
-  "ddsketch",
   "tqdm",
   "requests",
   "opentelemetry-sdk",

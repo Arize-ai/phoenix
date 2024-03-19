@@ -1,7 +1,7 @@
 from binascii import hexlify
 from collections import defaultdict, namedtuple
 from itertools import count, islice, permutations
-from typing import DefaultDict, Iterable, Iterator, Set, Tuple
+from typing import DefaultDict, Dict, Iterable, Iterator, Set, Tuple
 
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import pytest
@@ -17,6 +17,7 @@ def test_ingestion(
     otlp_trace: Tuple[otlp.Span, ...],
     permutation: Tuple[int, ...],
     child_ids: DefaultDict[str, Set[str]],
+    parent_ids: Dict[str, str],
 ) -> None:
     project = Project()
     _spans = project._spans._spans
@@ -50,6 +51,12 @@ def test_ingestion(
                     span_ids=list(_connected_descendant_ids(span_id, child_ids, ingested_ids))
                 )
             ), f"{i=}, {s=}, {span_id=}"
+
+        # Check that root spans are correctly designated: a root span is a span whose parent
+        # has not been ingested.
+        assert set(span.context.span_id for span in project.get_spans(root_spans_only=True)) == {
+            span_id for span_id in ingested_ids if parent_ids.get(span_id) not in ingested_ids
+        }
 
 
 def test_get_descendant_span_ids(spans) -> None:
@@ -118,6 +125,15 @@ def child_ids(otlp_trace: Iterable[otlp.Span]) -> DefaultDict[str, Set[str]]:
             span_id = _id_str(span.span_id)
             ans[parent_span_id].add(span_id)
     return ans
+
+
+@pytest.fixture(scope="module")
+def parent_ids(child_ids: DefaultDict[str, Set[str]]) -> Dict[str, str]:
+    return {
+        child_span_id: parent_span_id
+        for parent_span_id, child_span_ids in child_ids.items()
+        for child_span_id in child_span_ids
+    }
 
 
 def _connected_descendant_ids(
