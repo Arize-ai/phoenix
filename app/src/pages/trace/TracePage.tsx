@@ -152,6 +152,27 @@ const defaultCardProps: Partial<CardProps> = {
 };
 
 /**
+ * A root span is defined to be a span whose parent span is not in our collection.
+ */
+function findRootSpan(spansList: Span[]): Span | null {
+  // If there is a span whose parent is null, then it is the root span.
+  const rootSpan = spansList.find((span) => span.parentId == null);
+  if (rootSpan) {
+    return rootSpan;
+  }
+  // Otherwise we need to find all spans whose parent span is not in our collection.
+  // If only one such span exists, then it is the root span. Otherwise, return null.
+  const spanIds = spansList.map((span) => span.context.spanId);
+  const rootSpans = spansList.filter(
+    (span) => span.parentId != null && !spanIds.includes(span.parentId)
+  );
+  if (rootSpans.length === 1) {
+    return rootSpans[0];
+  }
+  return null;
+}
+
+/**
  * A page that shows the details of a trace (e.g. a collection of spans)
  */
 export function TracePage() {
@@ -234,9 +255,7 @@ export function TracePage() {
   const selectedSpan = spansList.find(
     (span) => span.context.spanId === selectedSpanId
   );
-  const rootSpan = useMemo(() => {
-    return spansList.find((span) => span.parentId == null) || null;
-  }, [spansList]);
+  const rootSpan = useMemo(() => findRootSpan(spansList), [spansList]);
 
   return (
     <DialogContainer
