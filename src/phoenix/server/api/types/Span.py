@@ -2,7 +2,7 @@ import json
 from collections import defaultdict
 from datetime import datetime
 from enum import Enum
-from typing import Any, DefaultDict, Dict, List, Mapping, Optional, Sized, cast
+from typing import Any, DefaultDict, Dict, Iterable, List, Mapping, Optional, Sized, cast
 
 import numpy as np
 import strawberry
@@ -339,12 +339,12 @@ def _hide_embedding_vectors(
     attributes: Mapping[str, Any],
 ) -> Dict[str, Any]:
     _attributes = dict(attributes)
-    if not (embeddings := _attributes.get(EMBEDDING_EMBEDDINGS)):
+    if not isinstance((embeddings := _attributes.get(EMBEDDING_EMBEDDINGS)), Iterable):
         return _attributes
     _embeddings = []
     for embedding in embeddings:
         _embedding = dict(embedding)
-        if vector := _embedding.get(EMBEDDING_VECTOR):
+        if isinstance((vector := _embedding.get(EMBEDDING_VECTOR)), Sized):
             _embedding[EMBEDDING_VECTOR] = f"<{len(vector)} dimensional vector>"
         _embeddings.append(_embedding)
     _attributes[EMBEDDING_EMBEDDINGS] = _embeddings
