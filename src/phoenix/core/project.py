@@ -296,7 +296,8 @@ class _Spans:
                 return cast(float, spans[-1][ComputedAttributes.LATENCY_MS])
             if probability <= 0:
                 return cast(float, spans[0][ComputedAttributes.LATENCY_MS])
-            return cast(float, spans[round(n * probability) - 1][ComputedAttributes.LATENCY_MS])
+            k = max(0, round(n * probability) - 1)
+            return cast(float, spans[k][ComputedAttributes.LATENCY_MS])
 
     def get_descendant_spans(self, span_id: SpanID) -> Iterator[WrappedSpan]:
         for span in self._get_descendant_spans(span_id):
