@@ -52,7 +52,7 @@
 * [Quickstart: Retrieval Evals](llm-evals/quickstart-retrieval-evals/README.md)
   * [Retrieval Evals on Document Chunks](llm-evals/quickstart-retrieval-evals/retrieval-evals-on-document-chunks.md)
 * [Benchmarking Retrieval](llm-evals/benchmarking-retrieval-rag.md)
-* [Online Evals Periodic Running](evaluation/online-evals-periodic-running.md)
+* [Online Evals](evaluation/online-evals.md)
 * [Models Supported](evaluation/models-supported.md)
 
 ## 🌌 inferences
