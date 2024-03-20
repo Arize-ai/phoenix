@@ -110,7 +110,7 @@ class MistralAIModel(BaseModel):
         invocation_parameters = self.invocation_parameters()
         invocation_parameters.update(kwargs)
         response = await self._async_rate_limited_completion(
-            model=self.model,   
+            model=self.model,
             messages=self._format_prompt(prompt),
             **invocation_parameters,
         )
@@ -127,7 +127,7 @@ class MistralAIModel(BaseModel):
                 if http_status and http_status == 429:
                     raise MistralRateLimitError() from exc
                 raise exc
-                
+
             return response.choices[0].message.content
 
         return await _async_completion(**kwargs)
