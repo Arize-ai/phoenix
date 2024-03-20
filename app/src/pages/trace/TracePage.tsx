@@ -181,7 +181,11 @@ export function TracePage() {
       query TracePageQuery($traceId: ID!, $id: GlobalID!) {
         project: node(id: $id) {
           ... on Project {
-            spans(traceIds: [$traceId], sort: { col: startTime, dir: asc }) {
+            spans(
+              traceIds: [$traceId]
+              sort: { col: startTime, dir: asc }
+              first: 1000
+            ) {
               edges {
                 span: node {
                   context {
