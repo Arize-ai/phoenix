@@ -29,7 +29,7 @@ class EvaluationHandler(HTTPEndpoint):
         content_type = request.headers.get("content-type")
         project_name = request.headers.get("project-name", DEFAULT_PROJECT_NAME)
         if content_type == "application/x-pandas-arrow":
-            return await self._process_pyarrow(request)
+            return await self._process_pyarrow(request, project_name)
         if content_type != "application/x-protobuf":
             return Response(
                 content="Unsupported content type",
@@ -81,7 +81,7 @@ class EvaluationHandler(HTTPEndpoint):
             media_type="application/x-pandas-arrow",
         )
 
-    async def _process_pyarrow(self, request: Request) -> Response:
+    async def _process_pyarrow(self, request: Request, project_name: str) -> Response:
         body = await request.body()
         try:
             reader = pa.ipc.open_stream(body)
@@ -101,9 +101,10 @@ class EvaluationHandler(HTTPEndpoint):
             background=BackgroundTask(
                 self._add_evaluations,
                 evaluations,
+                project_name,
             )
         )
 
-    async def _add_evaluations(self, evaluations: Evaluations) -> None:
+    async def _add_evaluations(self, evaluations: Evaluations, project_name: str) -> None:
         for evaluation in encode_evaluations(evaluations):
-            self.traces.put(evaluation)
+            self.traces.put(evaluation, project_name=project_name)
