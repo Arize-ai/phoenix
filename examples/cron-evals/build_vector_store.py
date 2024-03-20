@@ -1,6 +1,6 @@
 # type: ignore
 """
-Builds and persists a LangChain Qdrant index over the Arize documentation.
+Builds and persists a LangChain Qdrant vector store over the Arize documentation.
 """
 
 from langchain_community.document_loaders import GitbookLoader

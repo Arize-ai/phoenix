@@ -75,6 +75,7 @@ if __name__ == "__main__":
         response = chain.invoke(query)
         print("Query")
         print("=====")
+        print(query)
         print()
         print("Response")
         print("========")
