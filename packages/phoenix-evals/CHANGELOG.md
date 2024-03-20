@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.4.0...arize-phoenix-evals-v0.5.0) (2024-03-20)
+
+
+### Features
+
+* Add `response_format` argument to `MistralAIModel` ([#2660](https://github.com/Arize-ai/phoenix/issues/2660)) ([7da51af](https://github.com/Arize-ai/phoenix/commit/7da51afc77984925cd59d7d909142141530684cc))
+
 ## [0.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.3.1...arize-phoenix-evals-v0.4.0) (2024-03-20)
 
 
