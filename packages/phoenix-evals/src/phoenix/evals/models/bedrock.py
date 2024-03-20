@@ -160,7 +160,7 @@ class BedrockModel(BaseModel):
             return body.get("completions")[0].get("data").get("text")
         elif self.model_id.startswith("anthropic"):
             body = json.loads(response.get("body").read().decode())
-            return body.get("completion")
+            return body.get("content")[0]["text"]
         elif self.model_id.startswith("amazon"):
             body = json.loads(response.get("body").read())
             return body.get("results")[0].get("outputText")
