@@ -1,6 +1,7 @@
 from collections import namedtuple
 from random import random
 
+import numpy as np
 import pandas as pd
 import pytest
 from openinference.semconv.trace import DocumentAttributes, SpanAttributes
@@ -267,12 +268,14 @@ def spans():
             context=Context(span_id="1", trace_id="99"),
             parent_id="0",
             attributes={
-                RETRIEVAL_DOCUMENTS: [
-                    {
-                        DOCUMENT_CONTENT: "10",
-                        DOCUMENT_SCORE: 100,
-                    }
-                ],
+                RETRIEVAL_DOCUMENTS: np.array(
+                    [
+                        {
+                            DOCUMENT_CONTENT: "10",
+                            DOCUMENT_SCORE: 100,
+                        }
+                    ]
+                ),
             },
         ),
         Span(
