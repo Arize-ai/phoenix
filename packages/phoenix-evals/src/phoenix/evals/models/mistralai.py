@@ -13,6 +13,10 @@ DEFAULT_MISTRAL_MODEL = "mistral-large-latest"
 MINIMUM_MISTRAL_VERSION = "0.0.11"
 
 
+class MistralRateLimitError(Exception):
+    pass
+
+
 @dataclass
 class MistralAIModel(BaseModel):
     """
@@ -53,7 +57,7 @@ class MistralAIModel(BaseModel):
 
     def _init_rate_limiter(self) -> None:
         self._rate_limiter = RateLimiter(
-            rate_limit_error=self._MistralAPIException,
+            rate_limit_error=MistralRateLimitError,
             max_rate_limit_retries=10,
             initial_per_second_request_rate=1,
             maximum_per_second_request_rate=20,
@@ -88,7 +92,13 @@ class MistralAIModel(BaseModel):
     def _rate_limited_completion(self, **kwargs: Any) -> Any:
         @self._rate_limiter.limit
         def _completion(**kwargs: Any) -> Any:
-            response = self._client.chat(**kwargs)
+            try:
+                response = self._client.chat(**kwargs)
+            except self._MistralAPIException as exc:
+                http_status = getattr(exc, "http_status", None)
+                if http_status and http_status == 429:
+                    raise MistralRateLimitError() from exc
+                raise exc
             return response.choices[0].message.content
 
         return _completion(**kwargs)
@@ -100,7 +110,7 @@ class MistralAIModel(BaseModel):
         invocation_parameters = self.invocation_parameters()
         invocation_parameters.update(kwargs)
         response = await self._async_rate_limited_completion(
-            model=self.model,
+            model=self.model,   
             messages=self._format_prompt(prompt),
             **invocation_parameters,
         )
@@ -110,7 +120,14 @@ class MistralAIModel(BaseModel):
     async def _async_rate_limited_completion(self, **kwargs: Any) -> Any:
         @self._rate_limiter.alimit
         async def _async_completion(**kwargs: Any) -> Any:
-            response = await self._async_client.chat(**kwargs)
+            try:
+                response = await self._async_client.chat(**kwargs)
+            except self._MistralAPIException as exc:
+                http_status = getattr(exc, "http_status", None)
+                if http_status and http_status == 429:
+                    raise MistralRateLimitError() from exc
+                raise exc
+                
             return response.choices[0].message.content
 
         return await _async_completion(**kwargs)
