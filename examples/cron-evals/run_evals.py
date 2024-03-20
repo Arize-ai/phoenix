@@ -1,3 +1,4 @@
+# type: ignore
 """
 Queries Phoenix for spans within the last minute. Computes and logs evaluations
 back to Phoenix. This script is intended to run once a minute as a cron job.
@@ -17,12 +18,11 @@ from phoenix.session.evaluation import get_qa_with_reference, get_retrieved_docu
 from phoenix.trace import DocumentEvaluations, SpanEvaluations
 
 phoenix_client = px.Client()
-one_minute_ago = datetime.now() - timedelta(
+last_eval_run_time = datetime.now() - timedelta(
     minutes=1, seconds=10
 )  # add a few seconds to ensure all spans are captured
-phoenix_client.get_spans_dataframe(start_time=one_minute_ago)
-qa_spans_df = get_qa_with_reference(phoenix_client, start_time=one_minute_ago)
-retriever_spans_df = get_retrieved_documents(phoenix_client, start_time=one_minute_ago)
+qa_spans_df = get_qa_with_reference(phoenix_client, start_time=last_eval_run_time)
+retriever_spans_df = get_retrieved_documents(phoenix_client, start_time=last_eval_run_time)
 eval_model = OpenAIModel(
     model_name="gpt-4-turbo-preview",
 )

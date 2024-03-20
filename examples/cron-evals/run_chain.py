@@ -1,3 +1,4 @@
+# type: ignore
 """
 Loads a pre-built Qdrant vector store and defines a simple `RetrievalQA` chain.
 Downloads a set of queries and invokes the chain on loop to simulate a

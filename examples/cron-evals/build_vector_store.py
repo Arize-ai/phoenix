@@ -1,3 +1,4 @@
+# type: ignore
 """
 Builds and persists a LangChain Qdrant index over the Arize documentation.
 """
