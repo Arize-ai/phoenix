@@ -1,14 +1,13 @@
 """
 Loads a pre-built Qdrant vector store and defines a simple `RetrievalQA` chain.
-Downloads a set of queries and invokes the chain every 10 seconds indefinitely
-to simulate a production environment.
+Downloads a set of queries and invokes the chain on loop to simulate a
+production environment with continuously incoming traces and spans.
 
 Note: You must first build the Qdrant vector store using the
 `build_vector_store.py` script before running this script.
 """
 
 from itertools import cycle
-from time import sleep
 
 import pandas as pd
 from langchain.chains import RetrievalQA
@@ -18,7 +17,7 @@ from openinference.instrumentation.langchain import LangChainInstrumentor
 from opentelemetry import trace as trace_api
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk import trace as trace_sdk
-from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from qdrant_client import QdrantClient
 
 
@@ -26,7 +25,7 @@ def get_chain():
     """
     Loads a pre-built Qdrant vector store and defines a simple `RetrievalQA` chain.
     """
-    qdrant_client = QdrantClient(path="./qdrant")
+    qdrant_client = QdrantClient(path="./vector-store")
     embeddings = OpenAIEmbeddings(
         model="text-embedding-3-large",
     )
@@ -55,7 +54,6 @@ def instrument_langchain():
     tracer_provider = trace_sdk.TracerProvider()
     trace_api.set_tracer_provider(tracer_provider)
     tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
-    tracer_provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
     LangChainInstrumentor().instrument()
 
 
@@ -81,4 +79,3 @@ if __name__ == "__main__":
         print("========")
         print(response)
         print()
-        sleep(10)

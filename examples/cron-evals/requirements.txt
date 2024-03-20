@@ -1,6 +1,5 @@
 arize-phoenix-evals
 bs4
-langchain-core
+langchain
 langchain-openai
-langchain-community
 qdrant-client
