@@ -14,6 +14,7 @@ from typing import (
     Mapping,
     Optional,
     Sequence,
+    Sized,
     Tuple,
     cast,
 )
@@ -125,7 +126,7 @@ class Explosion(Projection):
         return replace(self, primary_index_key=primary_index_key)
 
     def __call__(self, span: Span) -> Iterator[Dict[str, Any]]:
-        if not isinstance(seq := self.value(span), Sequence):
+        if not isinstance(seq := self.value(span), Iterable):
             return
         has_mapping = False
         for item in seq:
@@ -193,7 +194,7 @@ class Concatenation(Projection):
         return replace(self, separator=separator)
 
     def __call__(self, span: Span) -> Iterator[Tuple[str, str]]:
-        if not isinstance(seq := self.value(span), Sequence):
+        if not isinstance(seq := self.value(span), Iterable):
             return
         if not self.kwargs:
             yield self.key, self.separator.join(map(str, seq))
@@ -282,12 +283,12 @@ class SpanQuery:
             spans = filter(self._filter, spans)
         if self._explode:
             spans = filter(
-                lambda span: (isinstance(seq := self._explode.value(span), Sequence) and len(seq)),
+                lambda span: (isinstance(seq := self._explode.value(span), Sized) and len(seq)),
                 spans,
             )
         if self._concat:
             spans = filter(
-                lambda span: (isinstance(seq := self._concat.value(span), Sequence) and len(seq)),
+                lambda span: (isinstance(seq := self._concat.value(span), Sized) and len(seq)),
                 spans,
             )
         if not (self._select or self._explode or self._concat):
