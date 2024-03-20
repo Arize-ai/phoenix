@@ -111,8 +111,19 @@ class Project:
     def add_eval(self, pb_eval: pb.Evaluation) -> None:
         self._evals.add(pb_eval)
 
+    def has_trace(self, trace_id: TraceID) -> bool:
+        return self._spans.has_trace(trace_id)
+
     def get_trace(self, trace_id: TraceID) -> Iterator[WrappedSpan]:
         yield from self._spans.get_trace(trace_id)
+
+    def get_trace_ids(
+        self,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+        trace_ids: Optional[Iterable[TraceID]] = None,
+    ) -> Iterator[TraceID]:
+        yield from self._spans.get_trace_ids(start_time, stop_time, trace_ids)
 
     def get_spans(
         self,
@@ -154,6 +165,21 @@ class Project:
     @property
     def right_open_time_range(self) -> Tuple[Optional[datetime], Optional[datetime]]:
         return self._spans.right_open_time_range
+
+    def get_trace_evaluation(self, trace_id: TraceID, name: str) -> Optional[pb.Evaluation]:
+        return self._evals.get_trace_evaluation(trace_id, name)
+
+    def get_trace_evaluation_names(self) -> List[EvaluationName]:
+        return self._evals.get_trace_evaluation_names()
+
+    def get_trace_evaluation_labels(self, name: EvaluationName) -> Tuple[str, ...]:
+        return self._evals.get_trace_evaluation_labels(name)
+
+    def get_trace_evaluation_trace_ids(self, name: EvaluationName) -> Tuple[TraceID, ...]:
+        return self._evals.get_trace_evaluation_trace_ids(name)
+
+    def get_evaluations_by_trace_id(self, trace_id: TraceID) -> List[pb.Evaluation]:
+        return self._evals.get_evaluations_by_trace_id(trace_id)
 
     def get_span_evaluation(self, span_id: SpanID, name: str) -> Optional[pb.Evaluation]:
         return self._evals.get_span_evaluation(span_id, name)
@@ -201,12 +227,43 @@ class Project:
         return self._is_archived
 
 
+class _Trace:
+    def __init__(self, span: WrappedSpan) -> None:
+        self._trace_id: TraceID = span.context.trace_id
+        self._min_start_time: datetime = span.start_time
+        self._max_end_time: datetime = span.end_time
+        self._spans: List[WrappedSpan] = [span]
+
+    @property
+    def trace_id(self) -> TraceID:
+        return self._trace_id
+
+    @property
+    def start_time(self) -> datetime:
+        return self._min_start_time
+
+    @property
+    def latency_ms(self) -> float:
+        return (self._max_end_time - self._min_start_time).total_seconds() * 1000
+
+    def add(self, span: WrappedSpan) -> None:
+        self._min_start_time = min(self._min_start_time, span.start_time)
+        self._max_end_time = max(self._max_end_time, span.end_time)
+        self._spans.append(span)
+
+    def __eq__(self, other: Any) -> bool:
+        return self is other
+
+    def __iter__(self) -> Iterator[WrappedSpan]:
+        yield from self._spans
+
+
 class _Spans:
     def __init__(self) -> None:
         self._lock = RLock()
         self._spans: Dict[SpanID, WrappedSpan] = {}
         self._parent_span_ids: Dict[SpanID, _ParentSpanID] = {}
-        self._traces: DefaultDict[TraceID, Set[WrappedSpan]] = defaultdict(set)
+        self._traces: Dict[TraceID, _Trace] = {}
         self._child_spans: DefaultDict[SpanID, Set[WrappedSpan]] = defaultdict(set)
         self._num_documents: DefaultDict[SpanID, int] = defaultdict(int)
         self._start_time_sorted_spans: SortedKeyList[WrappedSpan] = SortedKeyList(
@@ -221,11 +278,17 @@ class _Spans:
         (or will not arrive). For spans whose parent is not None, the root span status
         is temporary and will be revoked when its parent span arrives.
         """
-        self._latency_sorted_root_spans: SortedKeyList[WrappedSpan] = SortedKeyList(
-            key=lambda span: span[ComputedAttributes.LATENCY_MS],
+        self._latency_sorted_traces: SortedKeyList[_Trace] = SortedKeyList(
+            key=lambda trace: trace.latency_ms,
+        )
+        self._start_time_sorted_traces: SortedKeyList[_Trace] = SortedKeyList(
+            key=lambda trace: trace.start_time,
         )
         self._token_count_total: int = 0
         self._last_updated_at: Optional[datetime] = None
+
+    def has_trace(self, trace_id: TraceID) -> bool:
+        return trace_id in self._traces
 
     def get_trace(self, trace_id: TraceID) -> Iterator[WrappedSpan]:
         with self._lock:
@@ -235,6 +298,46 @@ class _Spans:
             spans = tuple(trace)
         for span in spans:
             yield span
+
+    def get_trace_ids(
+        self,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+        trace_ids: Optional[Iterable[TraceID]] = None,
+    ) -> Iterator[TraceID]:
+        if not self._spans:
+            return
+        if start_time is None or stop_time is None:
+            min_start_time, max_stop_time = cast(
+                Tuple[datetime, datetime],
+                self.right_open_time_range,
+            )
+            start_time = start_time or min_start_time
+            stop_time = stop_time or max_stop_time
+        if trace_ids is not None:
+            with self._lock:
+                traces = tuple(
+                    trace
+                    for trace_id in trace_ids
+                    if (
+                        (trace := self._traces.get(trace_id))
+                        and start_time <= trace.start_time < stop_time
+                    )
+                )
+        else:
+            sorted_traces = self._start_time_sorted_traces
+            # make a copy because source data can mutate during iteration
+            with self._lock:
+                traces = tuple(
+                    sorted_traces.irange_key(
+                        start_time.astimezone(timezone.utc),
+                        stop_time.astimezone(timezone.utc),
+                        inclusive=(True, False),
+                        reverse=True,  # most recent traces first
+                    )
+                )
+        for trace in traces:
+            yield trace.trace_id
 
     def get_spans(
         self,
@@ -289,15 +392,15 @@ class _Spans:
     def root_span_latency_ms_quantiles(self, probability: float) -> Optional[float]:
         """Root span latency quantiles in milliseconds"""
         with self._lock:
-            spans = self._latency_sorted_root_spans
-            if not (n := len(spans)):
+            traces = self._latency_sorted_traces
+            if not (n := len(traces)):
                 return None
             if probability >= 1:
-                return cast(float, spans[-1][ComputedAttributes.LATENCY_MS])
+                return cast(float, traces[-1].latency_ms)
             if probability <= 0:
-                return cast(float, spans[0][ComputedAttributes.LATENCY_MS])
+                return cast(float, traces[0].latency_ms)
             k = max(0, round(n * probability) - 1)
-            return cast(float, spans[k][ComputedAttributes.LATENCY_MS])
+            return cast(float, traces[k].latency_ms)
 
     def get_descendant_spans(self, span_id: SpanID) -> Iterator[WrappedSpan]:
         for span in self._get_descendant_spans(span_id):
@@ -373,7 +476,6 @@ class _Spans:
             # A root span is a span whose parent span is not in our collection.
             # Now that their parent span has arrived, they are no longer root spans.
             self._start_time_sorted_root_spans.remove(child_span)
-            self._latency_sorted_root_spans.remove(child_span)
 
         # Add computed attributes to span
         start_time = span.start_time
@@ -383,17 +485,28 @@ class _Spans:
 
         # Store the new span (after adding computed attributes)
         self._spans[span_id] = span
-        self._traces[span.context.trace_id].add(span)
+        self._add_span_to_trace(span)
         self._start_time_sorted_spans.add(span)
         if parent_span_id is None or parent_span_id not in self._spans:
             self._start_time_sorted_root_spans.add(span)
-            self._latency_sorted_root_spans.add(span)
         self._propagate_cumulative_values(span)
         self._update_cached_statistics(span)
 
         # Update last updated timestamp, letting users know
         # when they should refresh the page.
         self._last_updated_at = datetime.now(timezone.utc)
+
+    def _add_span_to_trace(self, span: WrappedSpan) -> None:
+        trace_id = span.context.trace_id
+        if (trace := self._traces.get(trace_id)) is None:
+            self._traces[trace_id] = trace = _Trace(span)
+        else:
+            # Must remove trace before mutating it.
+            self._latency_sorted_traces.remove(trace)
+            self._start_time_sorted_traces.remove(trace)
+            trace.add(span)
+        self._latency_sorted_traces.add(trace)
+        self._start_time_sorted_traces.add(trace)
 
     def _update_cached_statistics(self, span: WrappedSpan) -> None:
         # Update statistics for quick access later
@@ -444,6 +557,7 @@ class _Evals:
         self._evaluations_by_trace_id: DefaultDict[TraceID, Dict[EvaluationName, pb.Evaluation]] = (
             defaultdict(dict)
         )
+        self._trace_evaluation_labels: DefaultDict[EvaluationName, Set[str]] = defaultdict(set)
         self._span_evaluations_by_name: DefaultDict[EvaluationName, Dict[SpanID, pb.Evaluation]] = (
             defaultdict(dict)
         )
@@ -484,6 +598,9 @@ class _Evals:
             trace_id = TraceID(subject_id.trace_id)
             self._evaluations_by_trace_id[trace_id][name] = evaluation
             self._trace_evaluations_by_name[name][trace_id] = evaluation
+            if evaluation.result.HasField("label"):
+                label = evaluation.result.label.value
+                self._trace_evaluation_labels[name].add(label)
         elif subject_id_kind is None:
             logger.warning(
                 f"discarding evaluation with missing subject_id: {MessageToDict(evaluation)}"
@@ -495,6 +612,30 @@ class _Evals:
     @property
     def last_updated_at(self) -> Optional[datetime]:
         return self._last_updated_at
+
+    def get_trace_evaluation(self, trace_id: TraceID, name: str) -> Optional[pb.Evaluation]:
+        with self._lock:
+            trace_evaluations = self._evaluations_by_trace_id.get(trace_id)
+            return trace_evaluations.get(name) if trace_evaluations else None
+
+    def get_trace_evaluation_names(self) -> List[EvaluationName]:
+        with self._lock:
+            return list(self._trace_evaluations_by_name)
+
+    def get_trace_evaluation_labels(self, name: EvaluationName) -> Tuple[str, ...]:
+        with self._lock:
+            labels = self._trace_evaluation_labels.get(name)
+            return tuple(labels) if labels else ()
+
+    def get_trace_evaluation_trace_ids(self, name: EvaluationName) -> Tuple[TraceID, ...]:
+        with self._lock:
+            trace_evaluations = self._trace_evaluations_by_name.get(name)
+            return tuple(trace_evaluations.keys()) if trace_evaluations else ()
+
+    def get_evaluations_by_trace_id(self, trace_id: TraceID) -> List[pb.Evaluation]:
+        with self._lock:
+            evaluations = self._evaluations_by_trace_id.get(trace_id)
+            return list(evaluations.values()) if evaluations else []
 
     def get_span_evaluation(self, span_id: SpanID, name: str) -> Optional[pb.Evaluation]:
         with self._lock:
