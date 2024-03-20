@@ -29,6 +29,7 @@ from .models import (
     BedrockModel,
     GeminiModel,
     LiteLLMModel,
+    MistralAIModel,
     OpenAIModel,
     VertexAIModel,
 )
@@ -50,6 +51,7 @@ __all__ = [
     "VertexAIModel",
     "BedrockModel",
     "LiteLLMModel",
+    "MistralAIModel",
     "PromptTemplate",
     "ClassificationTemplate",
     "CODE_READABILITY_PROMPT_RAILS_MAP",

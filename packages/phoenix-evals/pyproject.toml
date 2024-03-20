@@ -35,6 +35,7 @@ dev = [
   "litellm>=1.28.9",
   "openai>=1.0.0",
   "vertexai",
+  "mistralai",
 ]
 test = [
   "openinference-semantic-conventions",
@@ -45,6 +46,7 @@ test = [
   "boto3",
   "litellm>=1.28.9",
   "openai>=1.0.0",
+  "mistralai",
   "vertexai",
   "respx",
   "nest_asyncio",
