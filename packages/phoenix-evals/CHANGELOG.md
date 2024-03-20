@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.3.1...arize-phoenix-evals-v0.4.0) (2024-03-20)
+
+
+### Features
+
+* **evals:** Add Mistral as an eval model ([#2640](https://github.com/Arize-ai/phoenix/issues/2640)) ([c13ab6b](https://github.com/Arize-ai/phoenix/commit/c13ab6bf644ec285c37e92cc6a7b114a309cec52))
+
 ## [0.3.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.3.0...arize-phoenix-evals-v0.3.1) (2024-03-15)
 
 
