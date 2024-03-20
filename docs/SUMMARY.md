@@ -67,9 +67,9 @@
   * [Export Data](inferences/how-to-inferences/export-your-data.md)
   * [Generate Embeddings](inferences/how-to-inferences/generating-embeddings.md)
   * [Manage the App](inferences/how-to-inferences/manage-the-app.md)
-* [Use-Cases: Infernces](inferences/use-cases-infernces/README.md)
-  * [Retrieval with Embeddings](inferences/use-cases-infernces/troubleshooting-llm-retrieval-with-vector-stores.md)
-  * [Embeddings Analysis](inferences/use-cases-infernces/embeddings-analysis.md)
+* [Use-Cases: Inferences](inferences/use-cases-inferences/README.md)
+  * [Retrieval with Embeddings](inferences/use-cases-inferences/troubleshooting-llm-retrieval-with-vector-stores.md)
+  * [Embeddings Analysis](inferences/use-cases-inferences/embeddings-analysis.md)
 
 ## ⌨️ API
 
