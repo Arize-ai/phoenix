@@ -11,7 +11,6 @@ from strawberry import ID, UNSET
 from strawberry.types import Info
 
 import phoenix.trace.schemas as trace_schema
-from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.core.project import Project, WrappedSpan
 from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from phoenix.server.api.context import Context
@@ -144,18 +143,11 @@ class Span:
         "an LLM, an evaluation may assess the helpfulness of its response with "
         "respect to its input."
     )  # type: ignore
-    def span_evaluations(
-        self,
-        info: Info[Context, None],
-    ) -> List[SpanEvaluation]:
-        if not (traces := info.context.traces) or not (
-            project := traces.get_project(DEFAULT_PROJECT_NAME)
-        ):
-            return []
+    def span_evaluations(self) -> List[SpanEvaluation]:
         span_id = SpanID(str(self.context.span_id))
         return [
             SpanEvaluation.from_pb_evaluation(evaluation)
-            for evaluation in project.get_evaluations_by_span_id(span_id)
+            for evaluation in self.project.get_evaluations_by_span_id(span_id)
         ]
 
     @strawberry.field(
@@ -166,18 +158,11 @@ class Span:
         "a list, and each evaluation is identified by its document's (zero-based) "
         "index in that list."
     )  # type: ignore
-    def document_evaluations(
-        self,
-        info: Info[Context, None],
-    ) -> List[DocumentEvaluation]:
-        if not (traces := info.context.traces) or not (
-            project := traces.get_project(DEFAULT_PROJECT_NAME)
-        ):
-            return []
+    def document_evaluations(self) -> List[DocumentEvaluation]:
         span_id = SpanID(str(self.context.span_id))
         return [
             DocumentEvaluation.from_pb_evaluation(evaluation)
-            for evaluation in project.get_document_evaluations_by_span_id(span_id)
+            for evaluation in self.project.get_document_evaluations_by_span_id(span_id)
         ]
 
     @strawberry.field(
@@ -185,7 +170,6 @@ class Span:
     )  # type: ignore
     def document_retrieval_metrics(
         self,
-        info: Info[Context, None],
         evaluation_name: Optional[str] = UNSET,
     ) -> List[DocumentRetrievalMetrics]:
         if not self.num_documents:
