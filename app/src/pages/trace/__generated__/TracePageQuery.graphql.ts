@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b49a5fd262b02c8613096aded3875fed>>
+ * @generated SignedSource<<c50be382eb2a4c8c154fafab8e7880bf>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -97,6 +97,11 @@ v2 = [
   }
 ],
 v3 = [
+  {
+    "kind": "Literal",
+    "name": "first",
+    "value": 1000
+  },
   {
     "kind": "Literal",
     "name": "sort",
@@ -570,16 +575,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "11ad30bf928240a129bf81d6fc1601f2",
+    "cacheID": "21ef83105845ac504ea473ee46fafe2a",
     "id": null,
     "metadata": {},
     "name": "TracePageQuery",
     "operationKind": "query",
-    "text": "query TracePageQuery(\n  $traceId: ID!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      spans(traceIds: [$traceId], sort: {col: startTime, dir: asc}) {\n        edges {\n          span: node {\n            context {\n              spanId\n            }\n            name\n            spanKind\n            statusCode: propagatedStatusCode\n            statusMessage\n            startTime\n            parentId\n            latencyMs\n            tokenCountTotal\n            tokenCountPrompt\n            tokenCountCompletion\n            input {\n              value\n              mimeType\n            }\n            output {\n              value\n              mimeType\n            }\n            attributes\n            events {\n              name\n              message\n              timestamp\n            }\n            spanEvaluations {\n              name\n              label\n              score\n            }\n            documentRetrievalMetrics {\n              evaluationName\n              ndcg\n              precision\n              hit\n            }\n            documentEvaluations {\n              documentPosition\n              name\n              label\n              score\n              explanation\n            }\n            ...SpanEvaluationsTable_evals\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanEvaluationsTable_evals on Span {\n  spanEvaluations {\n    name\n    label\n    score\n    explanation\n  }\n}\n"
+    "text": "query TracePageQuery(\n  $traceId: ID!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      spans(traceIds: [$traceId], sort: {col: startTime, dir: asc}, first: 1000) {\n        edges {\n          span: node {\n            context {\n              spanId\n            }\n            name\n            spanKind\n            statusCode: propagatedStatusCode\n            statusMessage\n            startTime\n            parentId\n            latencyMs\n            tokenCountTotal\n            tokenCountPrompt\n            tokenCountCompletion\n            input {\n              value\n              mimeType\n            }\n            output {\n              value\n              mimeType\n            }\n            attributes\n            events {\n              name\n              message\n              timestamp\n            }\n            spanEvaluations {\n              name\n              label\n              score\n            }\n            documentRetrievalMetrics {\n              evaluationName\n              ndcg\n              precision\n              hit\n            }\n            documentEvaluations {\n              documentPosition\n              name\n              label\n              score\n              explanation\n            }\n            ...SpanEvaluationsTable_evals\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanEvaluationsTable_evals on Span {\n  spanEvaluations {\n    name\n    label\n    score\n    explanation\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3eb9c41d3a890088db7da7443f143960";
+(node as any).hash = "89241948b75d8d017caaa59858e4a77b";
 
 export default node;
