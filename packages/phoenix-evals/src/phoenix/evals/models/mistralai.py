@@ -28,6 +28,7 @@ class MistralAIModel(BaseModel):
     temperature: float = 0
     top_p: Optional[float] = None
     random_seed: Optional[int] = None
+    response_format: Optional[Dict[str, str]] = None
     safe_mode: bool = False
     safe_prompt: bool = False
 
@@ -71,6 +72,7 @@ class MistralAIModel(BaseModel):
             "random_seed": self.random_seed,
             "safe_mode": self.safe_mode,
             "safe_prompt": self.safe_prompt,
+            "response_format": self.response_format,
         }
         # Mistral is strict about not passing None values to the API
         return {k: v for k, v in params.items() if v is not None}

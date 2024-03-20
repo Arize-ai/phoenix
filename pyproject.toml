@@ -39,7 +39,7 @@ dependencies = [
   "scipy",
   "wrapt",
   "sortedcontainers",
-  "protobuf>=3.20, <5.0",
+  "protobuf>=3.20, <6.0",
   "tqdm",
   "requests",
   "opentelemetry-sdk",
@@ -125,7 +125,7 @@ dependencies = [
   "openai>=1.0.0",
   "tenacity",
   "requests",
-  "protobuf==3.20",  # version minimum (for tests)
+  "protobuf>=3.20",  # version minimum (for tests)
   "responses",
   "tiktoken",
   "typing-extensions==4.5.0; python_version<'3.12'",
