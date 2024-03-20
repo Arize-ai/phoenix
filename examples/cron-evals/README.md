@@ -1,6 +1,6 @@
 # Running Online Phoenix Evals with Cron
 
-This example demonstrates how to compute and upload Phoenix evals on a regular schedule using `cron`.
+This example demonstrates how to compute and upload evals on a regular schedule using `cron`.
 
 ## Setup
 
