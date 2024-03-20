@@ -4,11 +4,7 @@ description: Run evals periodically with cron
 
 # Online Evals
 
-You can use cron to run evals client-side as your traces and spans are generated, augmenting your dataset with evaluations in an online manner. View the example in Github below.
-
-{% content-ref url="../" %}
-[..](../)
-{% endcontent-ref %}
+You can use cron to run evals client-side as your traces and spans are generated, augmenting your dataset with evaluations in an online manner. View the [example in Github](https://github.com/Arize-ai/phoenix/tree/main/examples/cron-evals).
 
 <figure><img src="../.gitbook/assets/oneline Evals.png" alt=""><figcaption></figcaption></figure>
 
