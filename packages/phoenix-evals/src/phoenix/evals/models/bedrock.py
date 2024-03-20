@@ -129,11 +129,12 @@ class BedrockModel(BaseModel):
         elif self.model_id.startswith("anthropic"):
             return {
                 **{
-                    "prompt": self._format_prompt_for_claude(prompt),
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "messages": self._format_prompt_for_claude(prompt),
                     "temperature": self.temperature,
                     "top_p": self.top_p,
                     "top_k": self.top_k,
-                    "max_tokens_to_sample": self.max_tokens,
+                    "max_tokens": self.max_tokens,
                     "stop_sequences": self.stop_sequences,
                 },
                 **self.extra_parameters,
