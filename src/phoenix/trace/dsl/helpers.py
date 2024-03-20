@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Optional, Protocol, Union, cast
 
 import pandas as pd
@@ -24,11 +25,20 @@ IS_RETRIEVER = "span_kind == 'RETRIEVER'"
 class CanQuerySpans(Protocol):
     # Implemented by phoenix.session.client.Client
     def query_spans(
-        self, *query: SpanQuery, project_name: Optional[str] = None
+        self,
+        *query: SpanQuery,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+        project_name: Optional[str] = None,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]: ...
 
 
-def get_retrieved_documents(obj: CanQuerySpans, project_name: Optional[str] = None) -> pd.DataFrame:
+def get_retrieved_documents(
+    obj: CanQuerySpans,
+    start_time: Optional[datetime] = None,
+    stop_time: Optional[datetime] = None,
+    project_name: Optional[str] = None,
+) -> pd.DataFrame:
     project_name = project_name or get_env_project_name()
     return cast(
         pd.DataFrame,
@@ -41,12 +51,19 @@ def get_retrieved_documents(obj: CanQuerySpans, project_name: Optional[str] = No
                 reference=DOCUMENT_CONTENT,
                 document_score=DOCUMENT_SCORE,
             ),
+            start_time=start_time,
+            stop_time=stop_time,
             project_name=project_name,
         ),
     )
 
 
-def get_qa_with_reference(obj: CanQuerySpans, project_name: Optional[str] = None) -> pd.DataFrame:
+def get_qa_with_reference(
+    obj: CanQuerySpans,
+    start_time: Optional[datetime] = None,
+    stop_time: Optional[datetime] = None,
+    project_name: Optional[str] = None,
+) -> pd.DataFrame:
     project_name = project_name or get_env_project_name()
     return pd.concat(
         cast(
@@ -60,6 +77,8 @@ def get_qa_with_reference(obj: CanQuerySpans, project_name: Optional[str] = None
                     RETRIEVAL_DOCUMENTS,
                     reference=DOCUMENT_CONTENT,
                 ),
+                start_time=start_time,
+                stop_time=stop_time,
                 project_name=project_name,
             ),
         ),
