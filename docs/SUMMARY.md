@@ -81,7 +81,8 @@
 
 ## 🔌 INTEGRATIONS
 
-* [Arize](integrations/bring-production-data-to-notebook-for-eda-or-retraining.md)
+* [Arize](integrations/arize/README.md)
+  * [Share Embeddings Data with Arize](integrations/arize/bring-production-data-to-notebook-for-eda-or-retraining.md)
 * [Ragas](integrations/ragas.md)
 
 ## 🏴‍☠️ Programming Languages
