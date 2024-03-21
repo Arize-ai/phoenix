@@ -43,18 +43,8 @@ class AnthropicModel(BaseEvalModel):
     def __post_init__(self) -> None:
         self._init_environment()
         self._init_client()
-        self._init_tiktoken()
         self._init_rate_limiter()
 
-    def _init_environment(self) -> None:
-        try:
-            import tiktoken
-
-            self._tiktoken = tiktoken
-        except ImportError:
-            self._raise_import_error(
-                package_name="tiktoken",
-            )
 
     def _init_client(self) -> None:
         try:
@@ -63,17 +53,12 @@ class AnthropicModel(BaseEvalModel):
             self._anthropic = anthropic
             self.client = self._anthropic.Anthropic()
             self.async_client = self._anthropic.AsyncAnthropic()
+            self.encoder = self.client.get_tokenizer()
         except ImportError:
             self._raise_import_error(
                 package_name="anthropic",
             )
 
-    def _init_tiktoken(self) -> None:
-        try:
-            encoding = self._tiktoken.encoding_for_model(self.model)
-        except KeyError:
-            encoding = self._tiktoken.get_encoding("cl100k_base")
-        self._tiktoken_encoding = encoding
 
     def _init_rate_limiter(self) -> None:
         self._rate_limiter = RateLimiter(
@@ -95,10 +80,10 @@ class AnthropicModel(BaseEvalModel):
 
     @property
     def encoder(self) -> "Encoding":
-        return self._tiktoken_encoding
+        return self.encoder
 
     def get_tokens_from_text(self, text: str) -> List[int]:
-        return self.encoder.encode(text)
+        return self.encoder.encode(text).ids
 
     def get_text_from_tokens(self, tokens: List[int]) -> str:
         return self.encoder.decode(tokens)
