@@ -22,3 +22,10 @@ The evaluation script is run as a cron job, enabling you to adjust the frequency
 ```
 * * * * * /path/to/python /path/to/run_evals.py
 ```
+
+{% file src="../.gitbook/assets/online_evals_periodic_eval_chron.py" %}
+Example Online Evals Script
+{% endfile %}
+
+The above script can be run periodically to augment Evals in Phoenix.
+

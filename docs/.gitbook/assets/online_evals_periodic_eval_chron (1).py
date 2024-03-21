@@ -64,7 +64,7 @@ if __name__ == "__main__":
     else:
         #The most common path from clean Script run, No session will be Live
         try:
-            tds = TraceDataset.load(TRACE_DATA_UUID)
+            tds = TraceDataset.load(HARD_CODE_UUID)
             print("Dataset Reloaded")
             px.launch_app(trace=tds)
             session = px.active_session()
