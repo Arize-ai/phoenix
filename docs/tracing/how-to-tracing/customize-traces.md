@@ -70,3 +70,42 @@ with using_project("my-eval-project"):
 ```
 {% endtab %}
 {% endtabs %}
+
+## Adding custom metadata to spans
+
+Spans produced by [auto-instrumentation](instrumentation/) can get you very far. However at some point you may want to track `metadata` - things like account or user info. \
+
+
+{% tabs %}
+{% tab title="LangChain" %}
+With LangChain, you can provide metadata directly via the chain or to to an invocation of a chain.
+
+```python
+# Pass metadata into the chain
+llm = LLMChain(llm=OpenAI(), prompt=prompt, metadata={"category": "jokes"})
+
+# Pass metadata into the invocation
+completion = llm.predict(adjective="funny", metadata={"variant": "funny"})
+print(completion)
+```
+{% endtab %}
+
+{% tab title="DSPy" %}
+To add metadata to a span, you will have to use OpenTelemetry's trace\_api.&#x20;
+
+```python
+import dspy
+from openinference.semconv.trace import SpanAttributes
+from opentelemetry import trace as trace_api
+
+class QuestionClassifier(dspy.Module):
+    def __init__(self):
+        super().__init__()
+        ...
+    def forward(self, question: str) -> tuple[str,str]:
+        current_span = trace_api.get_current_span()
+        current_span.set_attribute(SpanAttributes.METADATA, "{ 'foo': 'bar' }")
+        ...
+```
+{% endtab %}
+{% endtabs %}

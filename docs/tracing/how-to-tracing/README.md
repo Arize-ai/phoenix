@@ -15,6 +15,7 @@ description: Guides on how to use traces
 * [How to switch projects in a notebook](customize-traces.md#switching-projects-in-a-notebook)
 * [How to add auto-instrumentation](instrumentation/)
 * [How to create custom spans](custom-spans.md)
+* [How to add custom metadata](customize-traces.md#adding-custom-metadata-to-spans)
 
 ## [Auto Instrumentation](./#auto-instrumentation)
 
