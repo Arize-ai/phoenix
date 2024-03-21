@@ -106,7 +106,7 @@ class BedrockModel(BaseModel):
 
         return _completion(**kwargs)
 
-    def _format_prompt_for_claude(self, prompt: str) -> str:
+    def _format_prompt_for_claude(self, prompt: str) -> List[Dict[str, str]]:
         # Claude requires prompt in the format of Human: ... Assisatnt:
         return [
             {"role": "user", "content": prompt},
