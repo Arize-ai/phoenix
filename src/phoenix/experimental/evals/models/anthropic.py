@@ -45,7 +45,6 @@ class AnthropicModel(BaseEvalModel):
         self._init_client()
         self._init_rate_limiter()
 
-
     def _init_client(self) -> None:
         try:
             import anthropic  # type:ignore
@@ -58,7 +57,6 @@ class AnthropicModel(BaseEvalModel):
             self._raise_import_error(
                 package_name="anthropic",
             )
-
 
     def _init_rate_limiter(self) -> None:
         self._rate_limiter = RateLimiter(
