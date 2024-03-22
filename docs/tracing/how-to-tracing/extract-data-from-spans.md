@@ -208,7 +208,7 @@ To do this, we would provide two queries to Phoenix which will return two simult
 ```python
 import pandas as pd
 
-pd.concat(
+pd.concatenate(
     px.Client().query_spans(
         query_for_parent_spans,
         query_for_child_spans,
