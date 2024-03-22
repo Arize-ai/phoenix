@@ -43,6 +43,7 @@
         "tiktoken",
         "tracedataset",
         "UMAP",
+        "uninstrument",
         "vertexai",
         "websockets",
         "xlarge",
