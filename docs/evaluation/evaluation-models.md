@@ -28,5 +28,5 @@ These integrations are native to the Phoenix Evals package and have better throu
 
 [Anthropic](../api/evaluation-models.md#phoenix.evals.anthropic)&#x20;
 
-Mistral
+[Mistral](../api/evaluation-models.md#mistralaimodel)
 
