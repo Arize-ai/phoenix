@@ -22,6 +22,7 @@
     * [LlamaIndex](tracing/how-to-tracing/instrumentation/llamaindex.md)
     * [LangChain](tracing/how-to-tracing/instrumentation/langchain.md)
     * [OpenAI](tracing/how-to-tracing/instrumentation/openai.md)
+    * [MistralAI](tracing/how-to-tracing/instrumentation/mistralai.md)
     * [DSPy](tracing/how-to-tracing/instrumentation/dspy.md)
     * [Bedrock](tracing/how-to-tracing/instrumentation/bedrock.md)
     * [AutoGen](tracing/how-to-tracing/instrumentation/autogen-support.md)
