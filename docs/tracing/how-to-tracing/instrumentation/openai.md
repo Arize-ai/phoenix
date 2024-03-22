@@ -16,9 +16,7 @@ session = px.launch_app()
 Once you have started a Phoenix server, you can instrument the OpenAI Python library using the `OpenAIInstrumentor.`
 
 ```python
-from phoenix.trace.tracer import Tracer
-from phoenix.trace.exporter import HttpExporter
-from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
+from phoenix.trace.openai import OpenAIInstrumentor
 
 OpenAIInstrumentor().instrument()
 ```

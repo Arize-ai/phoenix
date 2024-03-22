@@ -62,3 +62,9 @@ How to log evaluation results to annotate traces with evals
 * [How to log span evaluations](llm-evaluations.md#span-evaluations)
 * [How to log document evaluations](llm-evaluations.md#document-evaluations)
 * [How to specify a project for logging evaluations](llm-evaluations.md#specifying-a-project-for-the-evaluations)
+
+## [Trace a Deployed Application](trace-a-deployed-app.md)
+
+* [How to instrument an application](trace-a-deployed-app.md#how-to-instrument-an-application)
+* [How to deploy a Phoenix server (collector)](../../deploying-phoenix.md)
+* [How to use Arize as a collector ](trace-a-deployed-app.md#exporting-traces-to-arize)
