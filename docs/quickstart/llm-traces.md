@@ -199,7 +199,7 @@ There are two ways to extract trace dataframes. The two ways for LangChain are d
 {% endtabs %}
 
 {% hint style="info" %}
-For full details on how to export trace data, see [the detailed guide](../inferences/how-to-inferences/export-your-data.md#exporting-traces)
+For full details on how to export trace data, see [the detailed guide](../how-to/export-your-data.md#exporting-traces)
 {% endhint %}
 
 ## Evaluating Traces

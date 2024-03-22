@@ -4,7 +4,7 @@ description: How to import prompt and response from Large Large Model (LLM)
 
 # Prompt and Response (LLM)
 
-For the Retrieval-Augmented Generation (RAG) use case, see the [Retrieval](retrieval-rag.md) section.
+For the Retrieval-Augmented Generation (RAG) use case, see the [Retrieval](../../../how-to/define-your-schema/retrieval-rag.md) section.
 
 ## Dataframe
 
@@ -14,7 +14,7 @@ Below shows a relevant subsection of the dataframe. The `embedding` of the promp
 
 ## Schema
 
-See [Retrieval](retrieval-rag.md) for the Retrieval-Augmented Generation (RAG) use case where relevant documents are retrieved for the question before constructing the context for the LLM.
+See [Retrieval](../../../how-to/define-your-schema/retrieval-rag.md) for the Retrieval-Augmented Generation (RAG) use case where relevant documents are retrieved for the question before constructing the context for the LLM.
 
 ```
 primary_schema = Schema(

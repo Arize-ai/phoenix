@@ -1,5 +1,5 @@
 ---
-description: Tracing the execution of LLM application
+description: Tracing the execution of LLM applications using Telemetry
 ---
 
 # Overview: Tracing
@@ -22,7 +22,7 @@ Tracing can help you track down issues like:
 
 To get started, check out the [Quickstart guide](../quickstart/llm-traces.md)
 
-After that, read through the [Concepts Section](../tracing/concepts-tracing/) to get and understanding of the different components.
+After that, read through the [Concepts Section](../tracing/concepts-tracing.md) to get and understanding of the different components.
 
 If you want to learn how to accomplish a particular task, check out the [How-To Guides.](../tracing/how-to-tracing/)
 

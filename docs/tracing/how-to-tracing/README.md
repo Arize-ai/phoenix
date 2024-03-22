@@ -66,5 +66,5 @@ How to log evaluation results to annotate traces with evals
 ## [Trace a Deployed Application](trace-a-deployed-app.md)
 
 * [How to instrument an application](trace-a-deployed-app.md#how-to-instrument-an-application)
-* [How to deploy a Phoenix server (collector)](../../deploying-phoenix.md)
+* [How to deploy a Phoenix server (collector)](../../reference/deploying-phoenix.md)
 * [How to use Arize as a collector ](trace-a-deployed-app.md#exporting-traces-to-arize)

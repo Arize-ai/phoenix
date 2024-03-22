@@ -6,7 +6,7 @@ description: >-
 
 # Use Cases: Tracing
 
-<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><strong>Evaluate RAG</strong></td><td>How to use traces to evaluate a rag pipeline</td><td><a href="rag-evaluation.md">rag-evaluation.md</a></td></tr><tr><td><strong>Structured Data Extraction</strong></td><td>Using LLMs to extract structured data from unstructured text</td><td><a href="structured-extraction.md">structured-extraction.md</a></td></tr></tbody></table>
+<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><strong>Evaluate RAG</strong></td><td>How to use traces to evaluate a rag pipeline</td><td><a href="../../use-cases/rag-evaluation.md">rag-evaluation.md</a></td></tr><tr><td><strong>Structured Data Extraction</strong></td><td>Using LLMs to extract structured data from unstructured text</td><td><a href="structured-extraction.md">structured-extraction.md</a></td></tr></tbody></table>
 
 ## Tracing Notebooks
 
