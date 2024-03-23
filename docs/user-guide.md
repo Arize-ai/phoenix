@@ -55,7 +55,7 @@ A common way to improve performance is with more relevant information being fed 
 
 If you can retrieve more relevant information, your prompt improves automatically. Troubleshooting retrieval systems, however, is more complex. Are there queries that don’t have sufficient context? Should you add more context for these queries to get better answers? Or should you change your embeddings or chunking strategy?
 
-Learn more about [troubleshooting search and retrieval](search-and-retrieval/concepts-retrieval/troubleshooting-llm-retrieval-with-vector-stores.md) with Phoenix.
+Learn more about [troubleshooting search and retrieval](retrieval/concepts-retrieval/troubleshooting-llm-retrieval-with-vector-stores.md) with Phoenix.
 
 ### 5. Fine Tuning
 

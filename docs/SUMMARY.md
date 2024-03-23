@@ -58,15 +58,14 @@
   * [Online Evals](evaluation/how-to-evals/online-evals.md)
 * [Evaluation Models](evaluation/evaluation-models.md)
 
-## 🔎 Search and Retrieval
+## 🔎 Retrieval
 
-* [Overview: Retrieval](search-and-retrieval/overview-retrieval.md)
-* [Quickstart: Retrieval](search-and-retrieval/quickstart-retrieval.md)
-* [How To: Retrieval](search-and-retrieval/how-to-retrieval.md)
-* [Concepts: Retrieval](search-and-retrieval/concepts-retrieval/README.md)
-  * [Retrieval with Embeddings](search-and-retrieval/concepts-retrieval/troubleshooting-llm-retrieval-with-vector-stores.md)
-  * [Benchmarking Retrieval](search-and-retrieval/concepts-retrieval/benchmarking-retrieval-rag.md)
-  * [Retrieval Evals on Document Chunks](search-and-retrieval/concepts-retrieval/retrieval-evals-on-document-chunks.md)
+* [Overview: Retrieval](retrieval/overview-retrieval.md)
+* [Quickstart: Retrieval](retrieval/quickstart-retrieval.md)
+* [Concepts: Retrieval](retrieval/concepts-retrieval/README.md)
+  * [Retrieval with Embeddings](retrieval/concepts-retrieval/troubleshooting-llm-retrieval-with-vector-stores.md)
+  * [Benchmarking Retrieval](retrieval/concepts-retrieval/benchmarking-retrieval-rag.md)
+  * [Retrieval Evals on Document Chunks](retrieval/concepts-retrieval/retrieval-evals-on-document-chunks.md)
 
 ## 🌌 inferences
 
@@ -79,14 +78,12 @@
   * [Export Data](how-to/export-your-data.md)
   * [Generate Embeddings](inferences/how-to-inferences/generating-embeddings.md)
   * [Manage the App](how-to/manage-the-app.md)
-* [Use-Cases: Inferences](inferences/use-cases-inferences/README.md)
-  * [Embeddings Analysis](inferences/use-cases-inferences/embeddings-analysis.md)
 * [Concepts: Inferences](inferences/concepts-inferences/README.md)
   * [Concepts: Inferences](inferences/concepts-inferences/inferences.md)
 * [How to: Inferences](inferences/how-to-inferences-1/README.md)
   * [Use Example Datasets](inferences/how-to-inferences-1/use-example-datasets.md)
-
-## 🔮 Use Cases
+* [Use-Cases: Inferences](inferences/use-cases-inferences/README.md)
+  * [Embeddings Analysis](inferences/use-cases-inferences/embeddings-analysis.md)
 
 ## ⌨️ API
 
