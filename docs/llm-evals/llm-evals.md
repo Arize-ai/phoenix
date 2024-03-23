@@ -1,6 +1,6 @@
 # Overview: Evals
 
-The standard for evaluating text is human labeling. However, high-quality LLM outputs are becoming cheaper and faster to produce, and human evaluation cannot scale. In this context, evaluating the performance of LLM applications is best tackled by using a separate evaluation LLM. The Phoenix [LLM Evals library](running-pre-tested-evals/) is designed for simple, fast, and accurate LLM-based evaluations.&#x20;
+The standard for evaluating text is human labeling. However, high-quality LLM outputs are becoming cheaper and faster to produce, and human evaluation cannot scale. In this context, evaluating the performance of LLM applications is best tackled by using a separate evaluation LLM. The Phoenix [LLM Evals library](../evaluation/how-to-evals/running-pre-tested-evals/) is designed for simple, fast, and accurate LLM-based evaluations.&#x20;
 
 <div data-full-width="false">
 
@@ -27,7 +27,7 @@ The standard for evaluating text is human labeling. However, high-quality LLM ou
 
 ### 1. Support for Pre-Tested Eval Templates & custom eval templates
 
-Phoenix provides pretested eval templates and convenience functions for a set of common Eval “tasks”. Learn more about pretested templates [here](running-pre-tested-evals/). This library is split into high-level functions to easily run rigorously [pre-tested functions](running-pre-tested-evals/) and building blocks to modify and [create your own Evals](building-your-own-evals.md).
+Phoenix provides pretested eval templates and convenience functions for a set of common Eval “tasks”. Learn more about pretested templates [here](../evaluation/how-to-evals/running-pre-tested-evals/). This library is split into high-level functions to easily run rigorously [pre-tested functions](../evaluation/how-to-evals/running-pre-tested-evals/) and building blocks to modify and [create your own Evals](../evaluation/concepts-evals/building-your-own-evals.md).
 
 ### 2. Data Science Rigor when Benchmarking Evals for Reproducible Results&#x20;
 

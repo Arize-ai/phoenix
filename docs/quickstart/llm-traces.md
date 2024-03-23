@@ -2,11 +2,11 @@
 description: Inspect the inner-workings of your LLM Application using OpenInference Traces
 ---
 
-# Quickstart: Traces
+# Quickstart: Tracing
 
 ## Overview
 
-Tracing is a powerful tool for understanding the behavior of your LLM application. Phoenix has best-in-class tracing capabilities, irregardless of what LLM framework you use.
+Tracing is a powerful tool for understanding the behavior of your LLM application. Phoenix has best-in-class tracing, irregardless of what framework you use.
 
 To get started with traces, you will first want to start a local Phoenix app.
 
@@ -26,11 +26,7 @@ conda install -c conda-forge arize-phoenix[evals]
 {% endtab %}
 {% endtabs %}
 
-Note that the above only installs dependencies that are necessary to run the application. Phoenix also has an experimental sub-module where you can find [LLM Evals](../llm-evals/llm-evals.md).
-
-```sh
-pip install arize-phoenix[experimental]
-```
+To get started, launch the phoenix app.
 
 ```python
 import phoenix as px
@@ -47,45 +43,59 @@ The above launches a Phoenix server that acts as a trace collector for any LLM a
 
 The `launch_app` command will spit out a URL for you to view the Phoenix UI. You can access this url again at any time via the [session](../api/session.md).\
 \
-Now that phoenix is up and running, you can now run a [LlamaIndex](../integrations/llamaindex.md) or [LangChain](../integrations/langchain.md) application OR just run the OpenAI API and debug your application as the traces stream in.
+Now that phoenix is up and running, you can now run a [LlamaIndex](../tracing/how-to-tracing/instrumentation/llamaindex.md) or [LangChain](../tracing/how-to-tracing/instrumentation/langchain.md) application OR just run the OpenAI API and debug your application as the traces stream in.
 
 {% tabs %}
 {% tab title="LlamaIndex" %}
-If you are using `llama-index>0.8.36` you will be able to instrument your application with LlamaIndex's [one-click](https://gpt-index.readthedocs.io/en/latest/end\_to\_end\_tutorials/one\_click\_observability.html) observability.
+To use llama-index's one click,  you must install the small integration first:
 
-```python
-# Phoenix can display in real time the traces automatically
-# collected from your LlamaIndex application.
-import phoenix as px
-# Look for a URL in the output to open the App in a browser.
-px.launch_app()
-
-# The App is initially empty, but as you proceed with the steps below,
-# traces will appear automatically as your LlamaIndex application runs.
-
-import llama_index
-llama_index.set_global_handler("arize_phoenix")
-
-# Run your LlamaIndex application and traces
-# will be collected and displayed in Phoenix.
-
-# LlamaIndex application initialization may vary
-# depending on your application. Below is a simple example:
-service_context = ServiceContext.from_defaults(
-    llm_predictor=LLMPredictor(llm=ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)),
-    embed_model=OpenAIEmbedding(model="text-embedding-ada-002"),
-)
-index = load_index_from_storage(
-    storage_context,
-    service_context=service_context,
-)
-query_engine = index.as_query_engine()
-
-# Execute queries
-query_engine.query("What is OpenInference tracing?")
+```bash
+pip install 'llama-index-callbacks-arize-phoenix>1.3.0'
 ```
 
-See the [integrations guide](../integrations/llamaindex.md#traces) for the full details as well as support for older versions of LlamaIndex
+```python
+import os
+import phoenix as px
+from llama_index.core import (
+    Settings,
+    VectorStoreIndex,
+    SimpleDirectoryReader,
+    set_global_handler,
+)
+from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.llms.openai import OpenAI
+
+os.environ["OPENAI_API_KEY"] = "YOUR_OPENAI_API_KEY"
+
+# To view traces in Phoenix, you will first have to start a Phoenix server. You can do this by running the following:
+session = px.launch_app()
+
+
+# Once you have started a Phoenix server, you can start your LlamaIndex application and configure it to send traces to Phoenix. To do this, you will have to add configure Phoenix as the global handler
+set_global_handler("arize_phoenix")
+
+
+# LlamaIndex application initialization may vary
+# depending on your application
+Settings.llm = OpenAI(model="gpt-4-turbo-preview")
+Settings.embed_model = OpenAIEmbedding(model="text-embedding-ada-002")
+
+
+# Load your data and create an index. Note you usually want to store your index in a persistent store like a database or the file system
+documents = SimpleDirectoryReader("YOUR_DATA_DIRECTORY").load_data()
+index = VectorStoreIndex.from_documents(documents)
+
+query_engine = index.as_query_engine()
+
+# Query your LlamaIndex application
+query_engine.query("What is the meaning of life?")
+query_engine.query("Why did the cow jump over the moon?")
+
+# View the traces in the Phoenix UI
+px.active_session().url
+```
+
+See the [LlamaIndex](../tracing/how-to-tracing/instrumentation/llamaindex.md) for the full details as well as support for older versions of LlamaIndex
 {% endtab %}
 
 {% tab title="LangChain" %}
@@ -120,15 +130,21 @@ chain = RetrievalQA.from_chain_type(
 response = chain.run("What is OpenInference tracing?")
 ```
 
-See the [integration guide](../integrations/langchain.md#traces) for details
+See the [integration guide](../tracing/how-to-tracing/instrumentation/langchain.md#traces) for details
 {% endtab %}
 
-{% tab title="OpenAI API" %}
+{% tab title="OpenAI" %}
 ```python
-from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
+import os
+from openai import OpenAI
 from phoenix.trace.openai import OpenAIInstrumentor
 
+# Initialize OpenAI auto-instrumentation
 OpenAIInstrumentor().instrument()
+
+# Initialize an OpenAI client
+# note you must have the OPENAI_API_KEY environment variable set
+client = OpenAI()
 
 # Define a conversation with a user message
 conversation = [
@@ -137,16 +153,14 @@ conversation = [
 ]
 
 # Generate a response from the assistant
-response = openai.ChatCompletion.create(
+response = client.chat.completions.create(
     model="gpt-3.5-turbo",
     messages=conversation,
 )
 
 # Extract and print the assistant's reply
-assistant_reply = response['choices'][0]['message']['content']
-
-#The traces will be available in the Phoenix App for the above messsages
-
+# The traces will be available in the Phoenix App for the above messsages
+assistant_reply = response.choices[0].message.content
 ```
 {% endtab %}
 
@@ -168,7 +182,7 @@ Once you've executed a sufficient number of queries (or chats) to your applicati
 
 ## Trace Datasets
 
-Phoenix also support datasets that contain [OpenInference trace](../concepts/open-inference.md) data. This allows data from a LangChain and LlamaIndex running instance explored for analysis offline.
+Phoenix also support datasets that contain [OpenInference trace](../reference/open-inference.md) data. This allows data from a LangChain and LlamaIndex running instance explored for analysis offline.
 
 There are two ways to extract trace dataframes. The two ways for LangChain are described below.
 
@@ -196,20 +210,6 @@ In addition to launching phoenix on LlamaIndex and LangChain, teams can export t
 Learn more in the [evals quickstart](evals.md).
 {% endhint %}
 
-## Phoenix Tracing App
-
-<figure><img src="https://github.com/Arize-ai/phoenix-assets/raw/main/gifs/langchain_rag_stuff_documents_chain_10mb.gif?raw=true" alt=""><figcaption><p>The Phoenix Tracing UI displaying a RAG application trace</p></figcaption></figure>
-
-Phoenix can be used to understand and troubleshoot your by surfacing:
-
-* **Application latency** - highlighting slow invocations of LLMs, Retrievers, etc.
-* **Token Usage** - Displays the breakdown of token usage with LLMs to surface up your most expensive LLM calls
-* **Runtime Exceptions** - Critical runtime exceptions such as rate-limiting are captured as exception events.
-* **Retrieved Documents** - view all the documents retrieved during a retriever call and the score and order in which they were returned
-* **Embeddings** - view the embedding text used for retrieval and the underlying embedding model
-* **LLM Parameters** - view the parameters used when calling out to an LLM to debug things like temperature and the system prompts
-* **Prompt Templates** - Figure out what prompt template is used during the prompting step and what variables were used.
-* **Tool Descriptions -** view the description and function signature of the tools your LLM has been given access to
-* **LLM Function Calls** - if using OpenAI or other a model with function calls, you can view the function selection and function messages in the input messages to the LLM.\\
+## Conclusion
 
 [LLM Traces](../concepts/llm-traces.md) are a powerful way to troubleshoot and understand your application and can be leveraged to [evaluate](../llm-evals/llm-evals.md) the quality of your application. For a full list of notebooks that illustrate this in full-color, please check out the [notebooks section](../notebooks.md).

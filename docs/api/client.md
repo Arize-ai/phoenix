@@ -42,37 +42,50 @@ A client for making HTTP requests to the Phoenix server for extracting/downloadi
     * **start\_time** (Optional\[datetime]): A Python datetime object for filtering spans by time.
     * **stop\_time** (Optional\[datetime]): A Python datetime object for filtering spans by time.
     * **root\_spans\_only** (Optional\[bool]): Whether to return only root spans, i.e. spans without parents. Defaults to `False`.
+    * **project\_name** (Optional\[str]): The name of the project to retrieve spans for. It can also be specified via an environment variable, or if left blank, defaults to the default project name.
 
 
 *   **query\_spans** -> Optional\[Union\[pandas.DataFrame, List\[pandas.DataFrame]]\
     \
-    Extract values from spans in a pandas.dataframe. See [extract-data-from-spans.md](../how-to/extract-data-from-spans.md "mention")for more details.\
+    Extract values from spans in a pandas.dataframe. See [extract-data-from-spans.md](../tracing/how-to-tracing/extract-data-from-spans.md "mention")for more details.\
     \
     **Parameters**
 
-    * **\*queries** (SpanQuery): One or more SpanQuery object. See [extract-data-from-spans.md](../how-to/extract-data-from-spans.md "mention")for more details.
+    * **\*queries** (SpanQuery): One or more SpanQuery object. See [extract-data-from-spans.md](../tracing/how-to-tracing/extract-data-from-spans.md "mention")for more details.
     * **start\_time** (Optional\[datetime]): A Python datetime object for filtering spans by time.
     * **stop\_time** (Optional\[datetime]): A Python datetime object for filtering spans by time.
     * **root\_spans\_only** (Optional\[bool]): Whether to return only root spans, i.e. spans without parents. Defaults to `False`.
+    * **project\_name** (Optional\[str]): The name of the project to retrieve spans for. It can also be specified via an environment variable, or if left blank, defaults to the default project name.
 
 
 *   **get\_evaluations** -> List\[Evaluations]
 
     \
-    Extract evaluations if any. Otherwise returns empty List. See [llm-evaluations.md](../how-to/define-your-schema/llm-evaluations.md "mention")for more details.\
+    Extract evaluations if any. Otherwise returns empty List. See [llm-evaluations.md](../tracing/how-to-tracing/llm-evaluations.md "mention")for more details.\
+    \
+    **Parameters**
 
-* **get\_trace\_dataset** -> Optional\[TraceDataset]\
-  \
-  Returns the trace dataset containing spans and evaluations.\
+    * **project\_name** (Optional\[str]): The name of the project to retrieve spans for. It can also be specified via an environment variable, or if left blank, defaults to the default project name.
+
+
+*   **get\_trace\_dataset** -> Optional\[TraceDataset]\
+    \
+    Returns the trace dataset containing spans and evaluations.\
+    \
+    **Parameters**
+
+    * **project\_name** (Optional\[str]): The name of the project to retrieve spans for. It can also be specified via an environment variable, or if left blank, defaults to the default project name.
+
 
 *   **log\_evaluations** -> None\
     \
-    Send evaluations to Phoenix. See [#logging-multiple-evaluation-dataframes](../how-to/define-your-schema/llm-evaluations.md#logging-multiple-evaluation-dataframes "mention")for usage.\
+    Send evaluations to Phoenix. See [#logging-multiple-evaluation-dataframes](../tracing/how-to-tracing/llm-evaluations.md#logging-multiple-evaluation-dataframes "mention")for usage.\
 
 
     **Parameters**
 
-    * **\*evaluations** (Evaluations): One or more Evaluations datasets. See [llm-evaluations.md](../how-to/define-your-schema/llm-evaluations.md "mention")for more details.
+    * **\*evaluations** (Evaluations): One or more Evaluations datasets. See [llm-evaluations.md](../tracing/how-to-tracing/llm-evaluations.md "mention")for more details.
+    * **project\_name** (Optional\[str]): The name of the project to send the evaluations for. It can also be specified via an environment variable, or if left blank, defaults to the default project name.
 
 ### Usage
 

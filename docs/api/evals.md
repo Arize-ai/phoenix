@@ -6,11 +6,7 @@ description: >-
 
 # Evals
 
-{% hint style="warning" %}
-Evals are still under `experimental` and must be installed via `pip install arize-phoenix[experimental]`
-{% endhint %}
-
-## phoenix.experimental.evals.run\_evals
+## phoenix.evals.run\_evals
 
 ```python
 def run_evals(
@@ -52,7 +48,7 @@ This example uses `OpenAIModel`, but you can use any of our [supported evaluatio
 {% endhint %}
 
 ```python
-from phoenix.experimental.evals import (
+from phoenix.evals import (
     OpenAIModel,
     HallucinationEvaluator,
     QAEvaluator,
@@ -80,7 +76,7 @@ Assuming your `dataframe` contains the "input", "reference", and "output" column
 
 For an end-to-end example, see the [evals quickstart](../quickstart/evals.md).
 
-## phoenix.experimental.evals.PromptTemplate
+## phoenix.evals.PromptTemplate
 
 ```python
 class PromptTemplate(
@@ -106,7 +102,7 @@ Class used to store and format prompt templates.
 Define a `PromptTemplate` by passing a `text` string and the `delimiters` to use to locate the `variables`. The default delimiters are `{` and `}`.
 
 ```python
-from phoenix.experimental.evals import PromptTemplate
+from phoenix.evals import PromptTemplate
 
 template_text = "My name is {name}. I am {age} years old and I am from {location}."
 prompt_template = PromptTemplate(text=template_text)
@@ -142,7 +138,7 @@ print(prompt_template.format(value_dict))
 
 Note that once you initialize the `PromptTemplate` class, you don't need to worry about delimiters anymore, it will be handled for you.
 
-## phoenix.experimental.evals.llm\_classify
+## phoenix.evals.llm\_classify
 
 ```python
 def llm_classify(
@@ -174,7 +170,7 @@ Classifies each input row of the `dataframe` using an LLM. Returns a `pandas.Dat
 
 * **pandas.DataFrame:** A dataframe where the `label` column (at column position 0) contains the classification labels. If `provide_explanation=True`, then an additional column named `explanation` is added to contain the explanation for each label. The dataframe has the same length and index as the input dataframe. The classification label values are from the entries in the rails argument or "NOT\_PARSABLE" if the model's output could not be parsed.
 
-## phoenix.experimental.evals.llm\_generate
+## phoenix.evals.llm\_generate
 
 ```python
 def llm_generate(
@@ -206,7 +202,7 @@ Below we show how you can use `llm_generate` to use an llm to generate synthetic
 
 ```python
 import pandas as pd
-from phoenix.experimental.evals import OpenAIModel, llm_generate
+from phoenix.evals import OpenAIModel, llm_generate
 
 countries_df = pd.DataFrame(
     {
@@ -234,7 +230,7 @@ import json
 from typing import Dict
 
 import pandas as pd
-from phoenix.experimental.evals import OpenAIModel, PromptTemplate, llm_generate
+from phoenix.evals import OpenAIModel, PromptTemplate, llm_generate
 
 
 def output_parser(response: str) -> Dict[str, str]:
