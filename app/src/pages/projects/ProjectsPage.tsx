@@ -176,7 +176,6 @@ function ProjectItem({
               css={css`
                 overflow: hidden;
                 white-space: nowrap;
-                min-width: 0;
                 text-overflow: ellipsis;
               `}
             >
