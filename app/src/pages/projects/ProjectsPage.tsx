@@ -175,14 +175,14 @@ function ProjectItem({
               {lastUpdatedText}
             </Text>
           </Flex>
+          {canDelete && (
+            <ProjectActionMenu
+              projectId={project.id}
+              projectName={project.name}
+              onProjectDelete={onProjectDelete}
+            />
+          )}
         </Flex>
-        {canDelete && (
-          <ProjectActionMenu
-            projectId={project.id}
-            projectName={project.name}
-            onProjectDelete={onProjectDelete}
-          />
-        )}
       </Flex>
       <Flex direction="row" justifyContent="space-between">
         <Flex direction="column" flex="none">
