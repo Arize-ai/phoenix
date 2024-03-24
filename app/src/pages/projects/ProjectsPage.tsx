@@ -168,15 +168,33 @@ function ProjectItem({
       `}
     >
       <Flex direction="row" justifyContent="space-between" alignItems="start">
-        <Flex direction="row" gap="size-100" alignItems="center">
+        <div
+          css={css`
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            min-width: 0;
+          `}
+        >
           <ProjectIcon />
-          <Flex direction="column">
-            <Heading level={2}>{project.name}</Heading>
+          <Flex direction="column" minWidth={0}>
+            <span
+              css={css`
+                overflow: hidden;
+                white-space: nowrap;
+                min-width: 0;
+                text-overflow: ellipsis;
+              `}
+            >
+              super cala fragilistic espaliadocious even thought he sound of it
+              is something
+            </span>
+            {/* <Heading level={2} >{project.name}</Heading> */}
             <Text color="text-700" textSize="small" fontStyle="italic">
               {lastUpdatedText}
             </Text>
           </Flex>
-        </Flex>
+        </div>
         {canDelete && (
           <ProjectActionMenu
             projectId={project.id}
