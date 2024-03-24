@@ -168,14 +168,7 @@ function ProjectItem({
       `}
     >
       <Flex direction="row" justifyContent="space-between" alignItems="start">
-        <div
-          css={css`
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            min-width: 0;
-          `}
-        >
+        <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
           <ProjectIcon />
           <Flex direction="column" minWidth={0}>
             <Heading
@@ -193,7 +186,7 @@ function ProjectItem({
               {lastUpdatedText}
             </Text>
           </Flex>
-        </div>
+        </Flex>
         {canDelete && (
           <ProjectActionMenu
             projectId={project.id}
