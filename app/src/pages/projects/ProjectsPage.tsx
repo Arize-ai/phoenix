@@ -127,6 +127,7 @@ function ProjectIcon() {
           rgb(91, 219, 255) 14.03%,
           rgb(28, 118, 252) 84.38%
         );
+        flex-shrink: 0;
       `}
     />
   );
