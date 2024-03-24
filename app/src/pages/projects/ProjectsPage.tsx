@@ -178,7 +178,8 @@ function ProjectItem({
         >
           <ProjectIcon />
           <Flex direction="column" minWidth={0}>
-            <span
+            <Heading
+              level={2}
               css={css`
                 overflow: hidden;
                 white-space: nowrap;
@@ -186,10 +187,8 @@ function ProjectItem({
                 text-overflow: ellipsis;
               `}
             >
-              super cala fragilistic espaliadocious even thought he sound of it
-              is something
-            </span>
-            {/* <Heading level={2} >{project.name}</Heading> */}
+              {project.name}
+            </Heading>
             <Text color="text-700" textSize="small" fontStyle="italic">
               {lastUpdatedText}
             </Text>
