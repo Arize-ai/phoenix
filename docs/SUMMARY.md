@@ -30,6 +30,7 @@
   * [Querying Spans](tracing/how-to-tracing/extract-data-from-spans.md)
   * [Log Evaluation Results](tracing/how-to-tracing/llm-evaluations.md)
   * [Trace a Deployed App](tracing/how-to-tracing/trace-a-deployed-app.md)
+  * [Save and Load Traces](tracing/how-to-tracing/save-and-load-traces.md)
 * [Use Cases: Tracing](tracing/use-cases-tracing/README.md)
   * [Evaluate RAG](use-cases/rag-evaluation.md)
   * [Structured Data Extraction](tracing/use-cases-tracing/structured-extraction.md)
