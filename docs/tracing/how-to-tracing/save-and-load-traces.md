@@ -19,5 +19,5 @@ my_traces = px.Client().get_trace_dataset().save()
 If we want to load the saved traces, when launch phoenix we can simply run the following
 
 ```
-px.launch_app(trace=px.TraceDataset.load(tds_id))
+px.launch_app(trace=px.TraceDataset.load(my_traces))
 ```
