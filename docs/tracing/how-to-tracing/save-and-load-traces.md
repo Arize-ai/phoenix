@@ -1,14 +1,14 @@
 ---
 description: >-
-  This guide shows how to manually save traces in Phoenix and load them back
-  into Phoenix
+  This documentation outlines the procedure for manually saving and subsequently
+  loading traces within Phoenix.
 ---
 
 # Save and Load Traces
 
 ### Saving Traces
 
-First we need to save existing traces that exist in an instance of Phoenix
+The initial step involves saving the traces present in a Phoenix instance to a designated location.
 
 ```
 my_traces = px.Client().get_trace_dataset().save()
@@ -16,19 +16,19 @@ my_traces = px.Client().get_trace_dataset().save()
 
 ### Loading Traces
 
-If we want to load the saved traces, when launch phoenix we can simply run the following
+To facilitate the retrieval of these saved traces, one can execute the prescribed commands upon starting Phoenix.
 
 ```
 px.launch_app(trace=px.TraceDataset.load(my_traces))
 ```
 
 {% hint style="info" %}
-Note the above will save to a default phoenix trace directory, to save in another directory, use the following example below
+Note the above will save to a default phoenix trace directory, to save in another directory, use the following example below.
 {% endhint %}
 
 ## Create Your Own Directory Example
 
-Below is an example of saving traces in a custom directory
+Illustrated below is a method for saving traces to a specified directory.
 
 ### Create Directory and Save Traces
 
@@ -43,7 +43,7 @@ os.makedirs(directory, exist_ok=True)
 my_traces = px.Client().get_trace_dataset().save(directory=directory)
 ```
 
-An example output, of the above should be the Trace ID and Path:
+The process yields an output consisting of the Trace ID and the storage path:
 
 `💾 Trace dataset saved to under ID: f7733fda-6ad6-4427-a803-55ad2182b662`&#x20;
 
@@ -51,7 +51,7 @@ An example output, of the above should be the Trace ID and Path:
 
 ### Load from Created Directory
 
-Continued example, to load the trace dataset we just saved. We will need the trace UUID and directory where the trace is saved
+To access and load the previously saved trace dataset, load trace dataset using unique trace UUID and the specific directory path where the trace was stored.
 
 ```notebook-python
 px.launch_app(trace=px.TraceDataset.load('f7733fda-6ad6-4427-a803-55ad2182b662', directory="/my_saved_traces/"))
