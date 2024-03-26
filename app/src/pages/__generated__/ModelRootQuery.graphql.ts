@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<083ba2eb212036ac9357be1a0300ed8d>>
+ * @generated SignedSource<<df662386f58467849411bb66b59ea668>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Query } from 'relay-runtime';
-export type ModelRootQuery$variables = {};
+export type ModelRootQuery$variables = Record<PropertyKey, never>;
 export type ModelRootQuery$data = {
   readonly model: {
     readonly corpusDataset: {

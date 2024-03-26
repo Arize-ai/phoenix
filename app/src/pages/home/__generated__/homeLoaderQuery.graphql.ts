@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e3048861c5e55f2679f7a8ee3fe10b80>>
+ * @generated SignedSource<<fd029bdb4d270e271279fce055881bec>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Query } from 'relay-runtime';
-export type homeLoaderQuery$variables = {};
+export type homeLoaderQuery$variables = Record<PropertyKey, never>;
 export type homeLoaderQuery$data = {
   readonly functionality: {
     readonly modelInferences: boolean;
