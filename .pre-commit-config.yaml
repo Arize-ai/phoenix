@@ -35,7 +35,7 @@ repos:
       hooks:
           - id: eslint
             additional_dependencies:
-                - eslint@8.31.0
-                - eslint-plugin-react@7.31.11
+                - eslint@8.56.0
+                - eslint-plugin-react@7.33.2
                 - eslint-plugin-react-hooks@4.6.0
                 - eslint-plugin-simple-import-sort@10.0.0

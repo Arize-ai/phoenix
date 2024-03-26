@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9f79904b7377a8ede887d780c96232af>>
+ * @generated SignedSource<<59e92b9a89860706c2a220c48b2eeb84>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type ProjectsPageQuery$variables = {};
+export type ProjectsPageQuery$variables = Record<PropertyKey, never>;
 export type ProjectsPageQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"ProjectsPageProjectsFragment">;
 };

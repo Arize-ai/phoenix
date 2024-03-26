@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<606285a493f8754bd9bd14cbf56a51a5>>
+ * @generated SignedSource<<e1b9ec2115d4d844de08733e98b4b001>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ConcreteRequest, Query } from 'relay-runtime';
 export type DimensionDataType = "categorical" | "numeric";
 export type DimensionType = "actual" | "feature" | "prediction" | "tag";
-export type DimensionPickerQuery$variables = {};
+export type DimensionPickerQuery$variables = Record<PropertyKey, never>;
 export type DimensionPickerQuery$data = {
   readonly model: {
     readonly dimensions: {
