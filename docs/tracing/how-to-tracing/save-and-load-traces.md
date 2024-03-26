@@ -28,7 +28,9 @@ Note the above will save to a default phoenix trace directory, to save in anothe
 
 ## Create Your Own Directory Example
 
-If you want to save your traces somewhere custom run the following code:
+Below is an example of saving traces in a custom directory
+
+### Create Directory and Save Traces
 
 ```notebook-python
 import os
@@ -41,13 +43,13 @@ os.makedirs(directory, exist_ok=True)
 my_traces = px.Client().get_trace_dataset().save(directory=directory)
 ```
 
-An example, of the above return should be the Trace ID and Path:
+An example output, of the above should be the Trace ID and Path:
 
 `💾 Trace dataset saved to under ID: f7733fda-6ad6-4427-a803-55ad2182b662`&#x20;
 
 `📂 Trace dataset path: /my_saved_traces/trace_dataset-f7733fda-6ad6-4427-a803-55ad2182b662.parquet`
 
-## Load from Created Directory
+### Load from Created Directory
 
 Continued example, to load the trace dataset we just saved. We will need the trace UUID and directory where the trace is saved
 
