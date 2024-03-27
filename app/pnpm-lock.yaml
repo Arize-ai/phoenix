@@ -148,6 +148,9 @@ devDependencies:
   '@types/recharts':
     specifier: ^1.8.29
     version: 1.8.29
+  '@types/relay-runtime':
+    specifier: ^14.1.23
+    version: 14.1.23
   '@types/three':
     specifier: ^0.149.0
     version: 0.149.0
@@ -2567,7 +2570,7 @@ packages:
     resolution: {integrity: sha512-VTntVQJhlwQYNUlbNgGf8RYy7EtQPRZqsD/w2Si0ygZspJXuNlVdRkklWMFN99EMRhHDpqlNHD8i3wIs7QRz9g==}
     dependencies:
       '@types/react': 18.2.72
-      '@types/relay-runtime': 14.1.22
+      '@types/relay-runtime': 14.1.23
     dev: true
 
   /@types/react@18.2.72:
@@ -2583,8 +2586,8 @@ packages:
       '@types/react': 18.2.72
     dev: true
 
-  /@types/relay-runtime@14.1.22:
-    resolution: {integrity: sha512-aOnladt0iXixe6R7jRd36MNMD+5ZRRIkyWWCS+B4L7RwDmjCS8Ehq5jnTchEnc23h7OH8UsjxZ1whyBRYofNmA==}
+  /@types/relay-runtime@14.1.23:
+    resolution: {integrity: sha512-tP2l6YLI2HJ11UzEB7j4IWeADyiPIKTehdeyHsyOzNBu7WvKsyf4kAZDmsB2NPaXp9Lud+KEJbRi/VW+jEDYCA==}
     dev: true
 
   /@types/semver@7.5.8:

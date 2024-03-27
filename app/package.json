@@ -55,6 +55,7 @@
     "@types/react-dom": "^18.2.18",
     "@types/react-relay": "^16.0.6",
     "@types/recharts": "^1.8.29",
+    "@types/relay-runtime": "^14.1.23",
     "@types/three": "^0.149.0",
     "@typescript-eslint/eslint-plugin": "^7.3.1",
     "@typescript-eslint/parser": "^7.3.1",
