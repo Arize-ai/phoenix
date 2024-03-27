@@ -68,6 +68,11 @@ import { TraceTree } from "@phoenix/components/trace/TraceTree";
 import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
 import { useTheme } from "@phoenix/contexts";
 import {
+  ConnectedMarkdownBlock,
+  MarkdownDisplayProvider,
+} from "@phoenix/markdown";
+import { ConnectedMarkdownModeRadioGroup } from "@phoenix/markdown/MarkdownModeRadioGroup";
+import {
   AttributeDocument,
   AttributeEmbedding,
   AttributeMessage,
@@ -144,9 +149,6 @@ const spanHasException = (span: Span) => {
 const defaultCardProps: Partial<CardProps> = {
   backgroundColor: "light",
   borderColor: "light",
-  bodyStyle: {
-    padding: 0,
-  },
   variant: "compact",
   collapsible: true,
 };
@@ -466,13 +468,9 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
               title="All Attributes"
               {...defaultCardProps}
               titleExtra={attributesContextualHelp}
+              extra={<CopyToClipboardButton text={selectedSpan.attributes} />}
             >
-              <CopyToClipboard
-                text={selectedSpan.attributes}
-                padding="size-100"
-              >
-                <CodeBlock value={selectedSpan.attributes} mimeType="json" />
-              </CopyToClipboard>
+              <JSONBlock>{selectedSpan.attributes}</JSONBlock>
             </Card>
           </View>
         </TabPane>
@@ -561,10 +559,7 @@ function SpanInfo({ span }: { span: Span }) {
         {content}
         {attributesObject?.metadata ? (
           <Card {...defaultCardProps} title="Metadata">
-            <CodeBlock
-              value={JSON.stringify(attributesObject.metadata)}
-              mimeType="json"
-            />
+            <JSONBlock>{JSON.stringify(attributesObject.metadata)}</JSONBlock>
           </Card>
         ) : null}
       </Flex>
@@ -666,12 +661,14 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
 
   return (
     <Flex direction="column" gap="size-200">
-      <TabbedCard
+      <Card
+        collapsible
         backgroundColor="light"
         borderColor="light"
         bodyStyle={{
           padding: 0,
         }}
+        titleSeparator={false}
         variant="compact"
         // @ts-expect-error force putting the title in as a string
         title={modelNameTitleEl}
@@ -704,13 +701,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                       <Text color="text-700" fontStyle="italic">
                         prompt template
                       </Text>
-                      <pre
-                        css={css`
-                          white-space: pre-wrap;
-                        `}
-                      >
-                        {promptTemplateObject.template}
-                      </pre>
+                      <PreBlock>{promptTemplateObject.template}</PreBlock>
                     </CopyToClipboard>
                   </View>
                   <View
@@ -726,10 +717,9 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                       <Text color="text-700" fontStyle="italic">
                         template variables
                       </Text>
-                      <CodeBlock
-                        value={JSON.stringify(promptTemplateObject.variables)}
-                        mimeType="json"
-                      />
+                      <JSONBlock>
+                        {JSON.stringify(promptTemplateObject.variables)}
+                      </JSONBlock>
                     </CopyToClipboard>
                   </View>
                 </Flex>
@@ -744,16 +734,11 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
               text={invocation_parameters_str}
               padding="size-100"
             >
-              <CodeBlock
-                {...{
-                  mimeType: "json",
-                  value: invocation_parameters_str,
-                }}
-              />
+              <JSONBlock>{invocation_parameters_str}</JSONBlock>
             </CopyToClipboard>
           </TabPane>
         </Tabs>
-      </TabbedCard>
+      </Card>
       {hasOutput || hasOutputMessages ? (
         <TabbedCard {...defaultCardProps}>
           <Tabs>
@@ -764,9 +749,23 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             ) : null}
             {hasOutput ? (
               <TabPane name="Output" hidden={!hasOutput}>
-                <CopyToClipboard text={output.value} padding="size-100">
-                  <CodeBlock {...output} />
-                </CopyToClipboard>
+                <View padding="size-200">
+                  <MarkdownDisplayProvider>
+                    <Card
+                      title="LLM Output"
+                      collapsible
+                      variant="compact"
+                      extra={
+                        <Flex direction="row" gap="size-100">
+                          <ConnectedMarkdownModeRadioGroup />
+                          <CopyToClipboardButton text={output.value} />
+                        </Flex>
+                      }
+                    >
+                      <CodeBlock {...output} />
+                    </Card>
+                  </MarkdownDisplayProvider>
+                </View>
               </TabPane>
             ) : null}
           </Tabs>
@@ -820,71 +819,82 @@ function RetrieverSpanInfo(props: {
   const hasDocumentRetrievalMetrics = span.documentRetrievalMetrics.length > 0;
   return (
     <Flex direction="column" gap="size-200">
-      <Card title="Input" {...defaultCardProps}>
-        {hasInput ? (
-          <CopyToClipboard text={input.value} padding="size-100">
-            <CodeBlock {...input} />
-          </CopyToClipboard>
-        ) : null}
-      </Card>
-      {hasDocuments ? (
-        <Card
-          title="Documents"
-          {...defaultCardProps}
-          extra={
-            hasDocumentRetrievalMetrics && (
+      {hasInput ? (
+        <MarkdownDisplayProvider>
+          <Card
+            title="Input"
+            {...defaultCardProps}
+            extra={
               <Flex direction="row" gap="size-100">
-                {span.documentRetrievalMetrics.map((retrievalMetric) => {
-                  return (
-                    <>
-                      <RetrievalEvaluationLabel
-                        key="ndcg"
-                        name={retrievalMetric.evaluationName}
-                        metric="ndcg"
-                        score={retrievalMetric.ndcg}
-                      />
-                      <RetrievalEvaluationLabel
-                        key="precision"
-                        name={retrievalMetric.evaluationName}
-                        metric="precision"
-                        score={retrievalMetric.precision}
-                      />
-                      <RetrievalEvaluationLabel
-                        key="hit"
-                        name={retrievalMetric.evaluationName}
-                        metric="hit"
-                        score={retrievalMetric.hit}
-                      />
-                    </>
-                  );
-                })}
+                <ConnectedMarkdownModeRadioGroup />
+                <CopyToClipboardButton text={input.value} />
               </Flex>
-            )
-          }
-        >
-          <ul
-            css={css`
-              padding: var(--ac-global-dimension-static-size-200);
-              display: flex;
-              flex-direction: column;
-              gap: var(--ac-global-dimension-static-size-200);
-            `}
+            }
           >
-            {documents.map((document, idx) => {
-              return (
-                <li key={idx}>
-                  <DocumentItem
-                    document={document}
-                    documentEvaluations={documentEvaluationsMap[idx]}
-                    borderColor={"seafoam-700"}
-                    backgroundColor={"seafoam-100"}
-                    labelColor="seafoam-1000"
-                  />
-                </li>
-              );
-            })}
-          </ul>
-        </Card>
+            <CodeBlock {...input} />
+          </Card>
+        </MarkdownDisplayProvider>
+      ) : null}
+      {hasDocuments ? (
+        <MarkdownDisplayProvider initialMode="markdown">
+          <Card
+            title="Documents"
+            {...defaultCardProps}
+            titleExtra={
+              hasDocumentRetrievalMetrics && (
+                <Flex direction="row" alignItems="center" gap="size-100">
+                  {span.documentRetrievalMetrics.map((retrievalMetric) => {
+                    return (
+                      <>
+                        <RetrievalEvaluationLabel
+                          key="ndcg"
+                          name={retrievalMetric.evaluationName}
+                          metric="ndcg"
+                          score={retrievalMetric.ndcg}
+                        />
+                        <RetrievalEvaluationLabel
+                          key="precision"
+                          name={retrievalMetric.evaluationName}
+                          metric="precision"
+                          score={retrievalMetric.precision}
+                        />
+                        <RetrievalEvaluationLabel
+                          key="hit"
+                          name={retrievalMetric.evaluationName}
+                          metric="hit"
+                          score={retrievalMetric.hit}
+                        />
+                      </>
+                    );
+                  })}
+                </Flex>
+              )
+            }
+            extra={<ConnectedMarkdownModeRadioGroup />}
+          >
+            <ul
+              css={css`
+                display: flex;
+                flex-direction: column;
+                gap: var(--ac-global-dimension-static-size-200);
+              `}
+            >
+              {documents.map((document, idx) => {
+                return (
+                  <li key={idx}>
+                    <DocumentItem
+                      document={document}
+                      documentEvaluations={documentEvaluationsMap[idx]}
+                      borderColor={"seafoam-700"}
+                      backgroundColor={"seafoam-100"}
+                      labelColor="seafoam-1000"
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
+        </MarkdownDisplayProvider>
       ) : null}
     </Flex>
   );
@@ -928,9 +938,11 @@ function RerankerSpanInfo(props: {
   const numOutputDocuments = output_documents.length;
   return (
     <Flex direction="column" gap="size-200">
-      <Card title="Query" {...defaultCardProps}>
-        <CodeBlock value={query} mimeType="text" />
-      </Card>
+      <MarkdownDisplayProvider>
+        <Card title="Query" {...defaultCardProps}>
+          <ConnectedMarkdownBlock>{query}</ConnectedMarkdownBlock>
+        </Card>
+      </MarkdownDisplayProvider>
       <Card
         title={"Input Documents"}
         titleExtra={<Counter variant="light">{numInputDocuments}</Counter>}
@@ -1030,7 +1042,6 @@ function EmbeddingSpanInfo(props: {
           {
             <ul
               css={css`
-                padding: var(--ac-global-dimension-static-size-200);
                 display: flex;
                 flex-direction: column;
                 gap: var(--ac-global-dimension-static-size-200);
@@ -1039,24 +1050,18 @@ function EmbeddingSpanInfo(props: {
               {embeddings.map((embedding, idx) => {
                 return (
                   <li key={idx}>
-                    <View
-                      padding="size-200"
-                      backgroundColor="purple-100"
-                      borderColor="purple-700"
-                      borderWidth="thin"
-                      borderRadius="medium"
-                    >
-                      <Text color="text-700" fontStyle="italic">
-                        embedded text
-                      </Text>
-                      <pre
-                        css={css`
-                          margin: var(--ac-global-dimension-static-size-100) 0;
-                        `}
+                    <MarkdownDisplayProvider>
+                      <Card
+                        {...defaultCardProps}
+                        backgroundColor="purple-100"
+                        borderColor="purple-700"
+                        title="Embedded Text"
                       >
-                        {embedding[EMBEDDING_TEXT]}
-                      </pre>
-                    </View>
+                        <ConnectedMarkdownBlock>
+                          {embedding[EMBEDDING_TEXT] || ""}
+                        </ConnectedMarkdownBlock>
+                      </Card>
+                    </MarkdownDisplayProvider>
                   </li>
                 );
               })}
@@ -1123,10 +1128,9 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                 <Text color="text-700" fontStyle="italic">
                   Parameters
                 </Text>
-                <CodeBlock
-                  value={JSON.stringify(toolParameters) as string}
-                  mimeType="json"
-                />
+                <JSONBlock>
+                  {JSON.stringify(toolParameters) as string}
+                </JSONBlock>
               </Flex>
             </View>
           ) : null}
@@ -1154,48 +1158,38 @@ function DocumentItem({
   const metadata = document[DOCUMENT_METADATA];
   const hasEvaluations = documentEvaluations && documentEvaluations.length;
   return (
-    <View
-      borderRadius="medium"
+    <Card
+      {...defaultCardProps}
       backgroundColor={backgroundColor}
       borderColor={borderColor}
-      borderWidth="thin"
+      bodyStyle={{
+        padding: 0,
+      }}
+      // @ts-expect-error force putting the title in as a string
+      title={
+        <Flex direction="row" gap="size-50" alignItems="center">
+          <Icon svg={<Icons.FileOutline />} />
+          <Heading level={4}>document {document[DOCUMENT_ID]}</Heading>
+        </Flex>
+      }
+      extra={
+        typeof document[DOCUMENT_SCORE] === "number" && (
+          <Label color={labelColor}>{`score ${numberFormatter(
+            document[DOCUMENT_SCORE]
+          )}`}</Label>
+        )
+      }
     >
       <Flex direction="column">
-        <View
-          width="100%"
-          borderBottomWidth="thin"
-          borderBottomColor={borderColor}
-        >
-          <Flex
-            direction="row"
-            justifyContent="space-between"
-            margin="size-200"
-            alignItems="center"
-          >
-            <Flex direction="row" gap="size-50" alignItems="center">
-              <Icon svg={<Icons.FileOutline />} />
-              <Heading level={4}>document {document[DOCUMENT_ID]}</Heading>
-            </Flex>
-            {typeof document[DOCUMENT_SCORE] === "number" && (
-              <Label color={labelColor}>{`score ${numberFormatter(
-                document[DOCUMENT_SCORE]
-              )}`}</Label>
-            )}
-          </Flex>
+        <View padding="size-200">
+          <ConnectedMarkdownBlock>
+            {document[DOCUMENT_CONTENT]}
+          </ConnectedMarkdownBlock>
         </View>
-        <pre
-          css={css`
-            padding: var(--ac-global-dimension-static-size-200);
-            white-space: normal;
-            margin: 0;
-          `}
-        >
-          {document[DOCUMENT_CONTENT]}
-        </pre>
         {metadata && (
           <>
             <View borderColor={borderColor} borderTopWidth="thin">
-              <CodeBlock value={JSON.stringify(metadata)} mimeType="json" />
+              <JSONBlock>{JSON.stringify(metadata)}</JSONBlock>
             </View>
           </>
         )}
@@ -1276,7 +1270,7 @@ function DocumentItem({
           </View>
         )}
       </Flex>
-    </View>
+    </Card>
   );
 }
 
@@ -1316,27 +1310,27 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
   }, [role]);
 
   return (
-    <View
-      borderWidth="thin"
-      borderRadius="medium"
-      padding="size-200"
-      {...messageStyles}
-    >
-      <CopyToClipboard text={messageContent || JSON.stringify(message)}>
+    <MarkdownDisplayProvider>
+      <Card
+        {...defaultCardProps}
+        {...messageStyles}
+        title={
+          role + (message[MESSAGE_NAME] ? `: ${message[MESSAGE_NAME]}` : "")
+        }
+        extra={
+          <Flex direction="row" gap="size-100">
+            <ConnectedMarkdownModeRadioGroup />
+            <CopyToClipboardButton
+              text={messageContent || JSON.stringify(message)}
+            />
+          </Flex>
+        }
+      >
         <Flex direction="column" alignItems="start">
-          <Text color="text-700" fontStyle="italic">
-            {role}
-            {message[MESSAGE_NAME] ? `: ${message[MESSAGE_NAME]}` : ""}
-          </Text>
           {messageContent ? (
-            <pre
-              css={css`
-                text-wrap: wrap;
-                margin: var(--ac-global-dimension-static-size-100) 0;
-              `}
-            >
+            <ConnectedMarkdownBlock>
               {message[MESSAGE_CONTENT]}
-            </pre>
+            </ConnectedMarkdownBlock>
           ) : null}
           {toolCalls.length > 0
             ? toolCalls.map((toolCall, idx) => {
@@ -1381,8 +1375,8 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
             </pre>
           ) : null}
         </Flex>
-      </CopyToClipboard>
-    </View>
+      </Card>
+    </MarkdownDisplayProvider>
   );
 }
 function LLMMessagesList({ messages }: { messages: AttributeMessage[] }) {
@@ -1428,14 +1422,7 @@ function LLMPromptsList({ prompts }: { prompts: string[] }) {
               padding="size-100"
             >
               <CopyToClipboard text={prompt}>
-                <pre
-                  css={css`
-                    text-wrap: wrap;
-                    margin: 0;
-                  `}
-                >
-                  {prompt}
-                </pre>
+                <CodeBlock value={prompt} mimeType="text" />
               </CopyToClipboard>
             </View>
           </li>
@@ -1448,36 +1435,52 @@ function LLMPromptsList({ prompts }: { prompts: string[] }) {
 function SpanIO({ span }: { span: Span }) {
   const { input, output } = span;
   const isMissingIO = input == null && output == null;
+  const inputIsText = input?.mimeType === "text";
+  const outputIsText = output?.mimeType === "text";
   return (
     <Flex direction="column" gap="size-200">
       {input && input.value != null ? (
-        <Card title="Input" {...defaultCardProps}>
-          <CopyToClipboard text={input.value} padding="size-100">
+        <MarkdownDisplayProvider>
+          <Card
+            title="Input"
+            {...defaultCardProps}
+            extra={
+              <Flex direction="row" gap="size-100">
+                {inputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
+                <CopyToClipboardButton text={input.value} />
+              </Flex>
+            }
+          >
             <CodeBlock {...input} />
-          </CopyToClipboard>
-        </Card>
+          </Card>
+        </MarkdownDisplayProvider>
       ) : null}
       {output && output.value != null ? (
-        <Card
-          title="Output"
-          {...defaultCardProps}
-          backgroundColor="green-100"
-          borderColor="green-700"
-        >
-          <CopyToClipboard text={output.value} padding="size-100">
+        <MarkdownDisplayProvider>
+          <Card
+            title="Output"
+            {...defaultCardProps}
+            backgroundColor="green-100"
+            borderColor="green-700"
+            extra={
+              <Flex direction="row" gap="size-100">
+                {outputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
+                <CopyToClipboardButton text={output.value} />
+              </Flex>
+            }
+          >
             <CodeBlock {...output} />
-          </CopyToClipboard>
-        </Card>
+          </Card>
+        </MarkdownDisplayProvider>
       ) : null}
       {isMissingIO ? (
         <Card
           title="All Attributes"
           titleExtra={attributesContextualHelp}
           {...defaultCardProps}
+          extra={<CopyToClipboardButton text={span.attributes} />}
         >
-          <CopyToClipboard text={span.attributes} padding="size-100">
-            <CodeBlock value={span.attributes} mimeType="json" />
-          </CopyToClipboard>
+          <JSONBlock>{span.attributes}</JSONBlock>
         </Card>
       ) : null}
     </Flex>
@@ -1522,74 +1525,75 @@ function CopyToClipboard({
     </div>
   );
 }
-
-function CodeBlock(props: { value: string; mimeType: MimeType }) {
+/**
+ * A block of JSON content that is not editable.
+ */
+function JSONBlock({ children }: { children: string }) {
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? undefined : nord;
   // We need to make sure that the content can actually be displayed
   // As JSON as we cannot fully trust the backend to always send valid JSON
   const { value, mimeType } = useMemo(() => {
-    switch (props.mimeType) {
-      case "json":
-        try {
-          // Attempt to pretty print the JSON. This may fail if the JSON is invalid.
-          // E.g. sometimes it contains NANs due to poor JSON.dumps in the backend
-          return {
-            value: JSON.stringify(JSON.parse(props.value), null, 2),
-            mimeType: props.mimeType,
-          };
-        } catch (e) {
-          // Fall back to string
-          return { value: props.value, mimeType: "text" as const };
-        }
-      case "text":
-        return props;
-      default:
-        assertUnreachable(props.mimeType);
+    try {
+      // Attempt to pretty print the JSON. This may fail if the JSON is invalid.
+      // E.g. sometimes it contains NANs due to poor JSON.dumps in the backend
+      return {
+        value: JSON.stringify(JSON.parse(children), null, 2),
+        mimeType: "json" as const,
+      };
+    } catch (e) {
+      // Fall back to string
+      return { value: children, mimeType: "text" as const };
     }
-  }, [props]);
+  }, [children]);
+  if (mimeType === "json") {
+    return (
+      <CodeMirror
+        value={children}
+        basicSetup={{
+          lineNumbers: true,
+          foldGutter: true,
+          bracketMatching: true,
+          syntaxHighlighting: true,
+          highlightActiveLine: false,
+          highlightActiveLineGutter: false,
+        }}
+        extensions={[json(), EditorView.lineWrapping]}
+        editable={false}
+        theme={codeMirrorTheme}
+        css={codeMirrorCSS}
+      />
+    );
+  } else {
+    return <PreBlock>{value}</PreBlock>;
+  }
+}
+
+function PreBlock({ children }: { children: string }) {
+  return (
+    <pre
+      css={css`
+        white-space: pre-wrap;
+        padding: 0;
+      `}
+    >
+      {children}
+    </pre>
+  );
+}
+
+function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
   let content;
   switch (mimeType) {
     case "json":
-      content = (
-        <CodeMirror
-          value={value}
-          basicSetup={{
-            lineNumbers: true,
-            foldGutter: true,
-            bracketMatching: true,
-            syntaxHighlighting: true,
-            highlightActiveLine: false,
-            highlightActiveLineGutter: false,
-          }}
-          extensions={[json(), EditorView.lineWrapping]}
-          editable={false}
-          theme={codeMirrorTheme}
-          css={codeMirrorCSS}
-        />
-      );
+      content = <JSONBlock>{value}</JSONBlock>;
       break;
     case "text":
-      content = (
-        <CodeMirror
-          value={value}
-          theme={codeMirrorTheme}
-          editable={false}
-          basicSetup={{
-            lineNumbers: false,
-            highlightActiveLine: false,
-            highlightActiveLineGutter: false,
-            syntaxHighlighting: true,
-          }}
-          extensions={[EditorView.lineWrapping]}
-          css={codeMirrorCSS}
-        />
-      );
+      content = <ConnectedMarkdownBlock>{value}</ConnectedMarkdownBlock>;
       break;
     default:
       assertUnreachable(mimeType);
   }
-
   return content;
 }
 
