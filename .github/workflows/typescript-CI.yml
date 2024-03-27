@@ -24,26 +24,30 @@ jobs:
               uses: actions/setup-node@v3
               with:
                   node-version: 16
+            # - name: Install PNPM
+            #   uses: pnpm/action-setup@v3
+            #   with:
+            #     version: 8
             - name: Install dependencies
               working-directory: ./app
-              run: npm ci
+              run: pnpm ci
             - name: Type Check
               working-directory: ./app
-              run: npm run typecheck
+              run: pnpm run typecheck
             - name: Formatting
               working-directory: ./app
               run: |
-                  npm run prettier:check
+                  pnpm run prettier:check
             - name: Lint
               working-directory: ./app
               run: |
-                  npm run lint
+                  pnpm run lint
             - name: Relay Codegen
               working-directory: ./app
               run: |
-                  npm run build:relay
+                  pnpm run build:relay
                   git diff --exit-code
             - name: Test
               working-directory: ./app
               run: |
-                  npm run test
+                  pnpm run test
