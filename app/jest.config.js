@@ -7,10 +7,7 @@ module.exports = {
   transform: {
     "^.+\\.[jt]sx?$": ["esbuild-jest"],
   },
-  transformIgnorePatterns: [
-    "node_modules/(?!d3-time-format)/",
-    ".*node_modules/.pnpm/(?!d3-time-format)@",
-  ],
+  transformIgnorePatterns: [".*node_modules/.pnpm/(?!d3)@"],
   moduleNameMapper: {
     "^@phoenix/(.*)$": "<rootDir>/src/$1",
   },
