@@ -231,17 +231,19 @@ export function chat(message: string) {
     // Create a span. A span must be closed.
     return tracer.startActiveSpan(
         "chat",
-        {
-            kind: SpanKind.INTERNAL,
-            attributes: {
+        (span: Span) => {
+            span.setAttributes({
                 [SemanticConventions.OPENINFERENCE_SPAN_KIND]: OpenInferenceSpanKind.chain,
                 [SemanticConventions.INPUT_VALUE]: message,
-            },
-        },
-        (span: Span) => {
+            });
             let chatCompletion = await openai.chat.completions.create({
                 messages: [{ role: "user", content: message }],
                 model: "gpt-3.5-turbo",
+            });
+            span.setAttributes({
+                attributes: {
+                    [SemanticConventions.OUTPUT_VALUE]: chatCompletion.choices[0].message,
+                },
             });
             // Be sure to end the span!
             span.end();
