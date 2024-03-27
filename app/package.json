@@ -77,7 +77,8 @@
   },
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "build": "rimraf ../src/phoenix/server/static && pnpm run build:static & pnpm run build:relay && pnpm run build:ts",
+    "clean": "rimraf ../src/phoenix/server/static",
+    "build": "pnpm run clean && pnpm run build:static & pnpm run build:relay && pnpm run build:ts",
     "build:static": "cpy ./static ../src/phoenix/server",
     "build:ts": "node ./esbuild.config.mjs",
     "build:relay": "relay-compiler",
