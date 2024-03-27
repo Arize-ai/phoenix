@@ -4,6 +4,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useNavigate, useParams } from "react-router";
 import { useSearchParams } from "react-router-dom";
 import { json } from "@codemirror/lang-json";
+import { markdown } from "@codemirror/lang-markdown";
 import { EditorView } from "@codemirror/view";
 import { nord } from "@uiw/codemirror-theme-nord";
 import CodeMirror from "@uiw/react-codemirror";
@@ -13,6 +14,7 @@ import {
   Alert,
   Card,
   CardProps,
+  Code,
   Content,
   ContextualHelp,
   Counter,
@@ -707,13 +709,10 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                       <Text color="text-700" fontStyle="italic">
                         prompt template
                       </Text>
-                      <pre
-                        css={css`
-                          white-space: pre-wrap;
-                        `}
-                      >
-                        {promptTemplateObject.template}
-                      </pre>
+                      <CodeBlock
+                        value={promptTemplateObject.template}
+                        mimeType="text"
+                      />
                     </CopyToClipboard>
                   </View>
                   <View
@@ -1052,13 +1051,10 @@ function EmbeddingSpanInfo(props: {
                       <Text color="text-700" fontStyle="italic">
                         embedded text
                       </Text>
-                      <pre
-                        css={css`
-                          margin: var(--ac-global-dimension-static-size-100) 0;
-                        `}
-                      >
-                        {embedding[EMBEDDING_TEXT]}
-                      </pre>
+                      <CodeBlock
+                        value={embedding[EMBEDDING_TEXT] || ""}
+                        mimeType="text"
+                      />
                     </View>
                   </li>
                 );
@@ -1186,15 +1182,7 @@ function DocumentItem({
             )}
           </Flex>
         </View>
-        <pre
-          css={css`
-            padding: var(--ac-global-dimension-static-size-200);
-            white-space: normal;
-            margin: 0;
-          `}
-        >
-          {document[DOCUMENT_CONTENT]}
-        </pre>
+        <CodeBlock value={document[DOCUMENT_CONTENT]} mimeType="text" />
         {metadata && (
           <>
             <View borderColor={borderColor} borderTopWidth="thin">
@@ -1332,14 +1320,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
             {message[MESSAGE_NAME] ? `: ${message[MESSAGE_NAME]}` : ""}
           </Text>
           {messageContent ? (
-            <pre
-              css={css`
-                text-wrap: wrap;
-                margin: var(--ac-global-dimension-static-size-100) 0;
-              `}
-            >
-              {message[MESSAGE_CONTENT]}
-            </pre>
+            <CodeBlock value={message[MESSAGE_CONTENT]} mimeType="text" />
           ) : null}
           {toolCalls.length > 0
             ? toolCalls.map((toolCall, idx) => {
@@ -1431,14 +1412,7 @@ function LLMPromptsList({ prompts }: { prompts: string[] }) {
               padding="size-100"
             >
               <CopyToClipboard text={prompt}>
-                <pre
-                  css={css`
-                    text-wrap: wrap;
-                    margin: 0;
-                  `}
-                >
-                  {prompt}
-                </pre>
+                <CodeBlock value={prompt} mimeType="text" />
               </CopyToClipboard>
             </View>
           </li>
@@ -1569,6 +1543,7 @@ function CodeBlock(props: { value: string; mimeType: MimeType }) {
           editable={false}
           theme={codeMirrorTheme}
           css={codeMirrorCSS}
+          data-mime-type={mimeType}
         />
       );
       break;
@@ -1584,8 +1559,10 @@ function CodeBlock(props: { value: string; mimeType: MimeType }) {
             highlightActiveLineGutter: false,
             syntaxHighlighting: true,
           }}
-          extensions={[EditorView.lineWrapping]}
+          // We assume that most text in LLM systems utilize markdown formatting for now
+          extensions={[markdown(), EditorView.lineWrapping]}
           css={codeMirrorCSS}
+          data-mime-type={mimeType}
         />
       );
       break;
