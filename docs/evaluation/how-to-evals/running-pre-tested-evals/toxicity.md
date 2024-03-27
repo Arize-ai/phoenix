@@ -79,6 +79,7 @@ toxic_classifications = llm_classify(
     template=TOXICITY_PROMPT_TEMPLATE,
     model=model,
     rails=rails,
+    provide_explanation=True, #optional to generate explanations for the value produced by the eval LLM
 )
 ```
 

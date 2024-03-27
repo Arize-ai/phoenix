@@ -58,6 +58,7 @@ relevance_classifications = llm_classify(
     template=REF_LINK_EVAL_PROMPT_TEMPLATE_STR,
     model=model,
     rails=rails,
+    provide_explanation=True, #optional to generate explanations for the value produced by the eval LLM
 )
 </code></pre>
 

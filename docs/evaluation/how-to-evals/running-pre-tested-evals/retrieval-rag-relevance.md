@@ -75,6 +75,7 @@ relevance_classifications = llm_classify(
     template=RAG_RELEVANCY_PROMPT_TEMPLATE,
     model=model,
     rails=rails,
+    provide_explanation=True, #optional to generate explanations for the value produced by the eval LLM
 )
 </code></pre>
 

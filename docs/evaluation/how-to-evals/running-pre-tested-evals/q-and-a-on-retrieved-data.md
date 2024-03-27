@@ -74,6 +74,7 @@ Q_and_A_classifications = llm_classify(
     template=templates.QA_PROMPT_TEMPLATE,
     model=model,
     rails=rails,
+    provide_explanation=True, #optional to generate explanations for the value produced by the eval LLM
 )
 ```
 

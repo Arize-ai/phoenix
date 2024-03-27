@@ -85,7 +85,11 @@ model = OpenAIModel(
 #Will ensure the binary value expected from the template is returned 
 rails = list(HALLUCINATION_PROMPT_RAILS_MAP.values())
 hallucination_classifications = llm_classify(
-    dataframe=df, template=HALLUCINATION_PROMPT_TEMPLATE, model=model, rails=rails
+    dataframe=df, 
+    template=HALLUCINATION_PROMPT_TEMPLATE, 
+    model=model, 
+    rails=rails,
+    provide_explanation=True, #optional to generate explanations for the value produced by the eval LLM
 )
 
 ```
