@@ -30,7 +30,7 @@ jobs:
                 version: 8
             - name: Install dependencies
               working-directory: ./app
-              run: pnpm ci
+              run: pnpm install --frozen-lockfile
             - name: Type Check
               working-directory: ./app
               run: pnpm run typecheck
