@@ -74,7 +74,8 @@ jobs:
         working-directory: ./app
         run: pnpm install --frozen-lockfile
       - name: Build frontend
-        run: cd app && pnpm run clean && pnpm install && pnpm run build
+        working-directory: ./app
+        run: pnpm run clean && pnpm install && pnpm run build
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
