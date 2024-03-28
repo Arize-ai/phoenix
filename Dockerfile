@@ -24,8 +24,8 @@ FROM node:20-slim AS frontend-builder
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
-COPY ./ /phoenix/
 WORKDIR /phoenix/app/
+COPY ./app /phoenix/app
 RUN pnpm install
 RUN pnpm run build
 
@@ -33,7 +33,7 @@ RUN pnpm run build
 FROM python:3.11-bullseye as backend-builder
 WORKDIR /phoenix
 COPY ./ /phoenix/
-COPY --from=frontend-builder /phoenix/ /phoenix/
+COPY --from=frontend-builder /phoenix/src/phoenix/server/static/ /phoenix/src/phoenix/server/static/
 # Delete symbolic links used during development.
 RUN find src/ -xtype l -delete  
 RUN pip install --target ./env .[container]
