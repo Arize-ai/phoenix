@@ -87,8 +87,8 @@ import {
 import { SpanEvaluationsTable } from "./SpanEvaluationsTable";
 
 type Span = NonNullable<
-  TracePageQuery$data["project"]["spans"]
->["edges"][number]["span"];
+  TracePageQuery$data["project"]["trace"]
+>["spans"]["edges"][number]["span"];
 type DocumentEvaluation = Span["documentEvaluations"][number];
 /**
  * A span attribute object that is a map of string to an unknown value
@@ -181,59 +181,57 @@ export function TracePage() {
       query TracePageQuery($traceId: ID!, $id: GlobalID!) {
         project: node(id: $id) {
           ... on Project {
-            spans(
-              traceIds: [$traceId]
-              sort: { col: startTime, dir: asc }
-              first: 1000
-            ) {
-              edges {
-                span: node {
-                  context {
-                    spanId
-                  }
-                  name
-                  spanKind
-                  statusCode: propagatedStatusCode
-                  statusMessage
-                  startTime
-                  parentId
-                  latencyMs
-                  tokenCountTotal
-                  tokenCountPrompt
-                  tokenCountCompletion
-                  input {
-                    value
-                    mimeType
-                  }
-                  output {
-                    value
-                    mimeType
-                  }
-                  attributes
-                  events {
+            trace(traceId: $traceId) {
+              spans(first: 1000) {
+                edges {
+                  span: node {
+                    context {
+                      spanId
+                    }
                     name
-                    message
-                    timestamp
+                    spanKind
+                    statusCode: propagatedStatusCode
+                    statusMessage
+                    startTime
+                    parentId
+                    latencyMs
+                    tokenCountTotal
+                    tokenCountPrompt
+                    tokenCountCompletion
+                    input {
+                      value
+                      mimeType
+                    }
+                    output {
+                      value
+                      mimeType
+                    }
+                    attributes
+                    events {
+                      name
+                      message
+                      timestamp
+                    }
+                    spanEvaluations {
+                      name
+                      label
+                      score
+                    }
+                    documentRetrievalMetrics {
+                      evaluationName
+                      ndcg
+                      precision
+                      hit
+                    }
+                    documentEvaluations {
+                      documentPosition
+                      name
+                      label
+                      score
+                      explanation
+                    }
+                    ...SpanEvaluationsTable_evals
                   }
-                  spanEvaluations {
-                    name
-                    label
-                    score
-                  }
-                  documentRetrievalMetrics {
-                    evaluationName
-                    ndcg
-                    precision
-                    hit
-                  }
-                  documentEvaluations {
-                    documentPosition
-                    name
-                    label
-                    score
-                    explanation
-                  }
-                  ...SpanEvaluationsTable_evals
                 }
               }
             }
@@ -246,10 +244,9 @@ export function TracePage() {
       fetchPolicy: "store-and-network",
     }
   );
-  const spansList = useMemo(() => {
-    const gqlSpans =
-      data.project.spans || ([] as NonNullable<typeof data.project.spans>);
-    return gqlSpans.edges.map((edge) => edge.span);
+  const spansList: Span[] = useMemo(() => {
+    const gqlSpans = data.project.trace?.spans.edges || [];
+    return gqlSpans.map((node) => node.span);
   }, [data]);
   const urlSelectedSpanId = searchParams.get("selectedSpanId");
   const selectedSpanId = urlSelectedSpanId ?? spansList[0].context.spanId;
