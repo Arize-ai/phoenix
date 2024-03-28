@@ -67,9 +67,11 @@ jobs:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 8
       - name: Build frontend
-        run: cd app && rm -rf node_modules && npm install && npm run build
+        run: cd app && pnpm run clean && pnpm install && pnpm run build
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
