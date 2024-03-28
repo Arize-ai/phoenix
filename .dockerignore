@@ -1,8 +1,4 @@
-*
-!Dockerfile
-!app
-!src
-!README.md
-!LICENSE
-!IP_NOTICE
-!pyproject.toml
+Dockerfile
+**/node_modules/
+**/.venv/
+**/__pycache__/
