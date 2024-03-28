@@ -324,7 +324,7 @@ exclude = [
   "__pycache__",
   "*_pb2.py*",
   "*.pyi",
-  "docs",
+  "docs/",
 ]
 extend-include = ["*.ipynb"]
 line-length = 100
