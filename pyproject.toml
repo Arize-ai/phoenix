@@ -325,6 +325,7 @@ exclude = [
   "docs/source/conf.py",
   "*_pb2.py*",
   "*.pyi",
+  "docs",
 ]
 extend-include = ["*.ipynb"]
 line-length = 100
