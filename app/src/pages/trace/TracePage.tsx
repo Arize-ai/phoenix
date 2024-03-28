@@ -182,7 +182,7 @@ export function TracePage() {
         project: node(id: $id) {
           ... on Project {
             trace(traceId: $traceId) {
-              spans {
+              spans(first: 1000) {
                 edges {
                   span: node {
                     context {

@@ -23,7 +23,7 @@ class Trace:
     @strawberry.field
     def spans(
         self,
-        first: Optional[int] = UNSET,
+        first: Optional[int] = 50,
         last: Optional[int] = UNSET,
         after: Optional[Cursor] = UNSET,
         before: Optional[Cursor] = UNSET,
@@ -34,7 +34,10 @@ class Trace:
             last=last,
             before=before if isinstance(before, Cursor) else None,
         )
-        spans = self.project.get_trace(TraceID(self.trace_id))
+        spans = sorted(
+            self.project.get_trace(TraceID(self.trace_id)),
+            key=lambda span: span.start_time,
+        )
         data = [to_gql_span(span, self.project) for span in spans]
         return connection_from_list(data=data, args=args)
 

@@ -804,7 +804,7 @@ type TimeSeriesDataPoint {
 
 type Trace {
   traceId: ID!
-  spans(first: Int, last: Int, after: String, before: String): SpanConnection!
+  spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
 
   """Evaluations associated with the trace"""
   traceEvaluations: [TraceEvaluation!]!
