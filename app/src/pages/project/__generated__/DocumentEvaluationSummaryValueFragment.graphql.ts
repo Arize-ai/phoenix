@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4fab02541ae0d031779d474322c75e4f>>
+ * @generated SignedSource<<19c61ceac4056cca0c2bff5682151edc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -41,7 +41,10 @@ const node: ReaderFragment = {
         "node"
       ],
       "operation": require('./DocumentEvaluationSummaryValueQuery.graphql'),
-      "identifierField": "id"
+      "identifierInfo": {
+        "identifierField": "id",
+        "identifierQueryVariableName": "id"
+      }
     }
   },
   "name": "DocumentEvaluationSummaryValueFragment",

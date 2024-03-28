@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2f0657e3c6c1e4c08c7c88f0fc67c6ed>>
+ * @generated SignedSource<<8f6740670ce6512aed19576112040735>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -30,7 +30,10 @@ const node: ReaderFragment = {
         "node"
       ],
       "operation": require('./StreamToggleRefetchQuery.graphql'),
-      "identifierField": "id"
+      "identifierInfo": {
+        "identifierField": "id",
+        "identifierQueryVariableName": "id"
+      }
     }
   },
   "name": "StreamToggle_data",

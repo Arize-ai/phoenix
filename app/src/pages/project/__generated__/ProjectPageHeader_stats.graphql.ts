@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<be91bef1354011680eb90dfb7a005548>>
+ * @generated SignedSource<<655195ee2a990f0154d96938251c2da0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -35,7 +35,10 @@ const node: ReaderFragment = {
         "node"
       ],
       "operation": require('./ProjectPageHeaderQuery.graphql'),
-      "identifierField": "id"
+      "identifierInfo": {
+        "identifierField": "id",
+        "identifierQueryVariableName": "id"
+      }
     }
   },
   "name": "ProjectPageHeader_stats",

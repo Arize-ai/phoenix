@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7f4ad0f33e1ac0edcd6008a44ce15006>>
+ * @generated SignedSource<<0b2861c5a2cc6e2f649c1564ee5f256d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -137,7 +137,10 @@ return {
         "node"
       ],
       "operation": require('./SpansTableSpansQuery.graphql'),
-      "identifierField": "id"
+      "identifierInfo": {
+        "identifierField": "id",
+        "identifierQueryVariableName": "id"
+      }
     }
   },
   "name": "SpansTable_spans",

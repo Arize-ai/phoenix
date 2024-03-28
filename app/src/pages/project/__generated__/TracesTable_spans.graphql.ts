@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<669fadd557967601f1d3d6e603c65b08>>
+ * @generated SignedSource<<95617f92540c861c4d8cc55a7b6132df>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -305,7 +305,10 @@ return {
         "node"
       ],
       "operation": require('./TracesTableQuery.graphql'),
-      "identifierField": "id"
+      "identifierInfo": {
+        "identifierField": "id",
+        "identifierQueryVariableName": "id"
+      }
     }
   },
   "name": "TracesTable_spans",

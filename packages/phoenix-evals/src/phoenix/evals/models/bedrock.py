@@ -106,13 +106,11 @@ class BedrockModel(BaseModel):
 
         return _completion(**kwargs)
 
-    def _format_prompt_for_claude(self, prompt: str) -> str:
+    def _format_prompt_for_claude(self, prompt: str) -> List[Dict[str, str]]:
         # Claude requires prompt in the format of Human: ... Assisatnt:
-        if not prompt.strip().lower().startswith("human:"):
-            prompt = f"\n\nHuman:{prompt}"
-        if not prompt.strip().lower().startswith("assistant:"):
-            prompt = f"{prompt}\n\nAssistant:"
-        return prompt
+        return [
+            {"role": "user", "content": prompt},
+        ]
 
     def _create_request_body(self, prompt: str) -> Dict[str, Any]:
         # The request formats for bedrock models differ
@@ -131,11 +129,12 @@ class BedrockModel(BaseModel):
         elif self.model_id.startswith("anthropic"):
             return {
                 **{
-                    "prompt": self._format_prompt_for_claude(prompt),
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "messages": self._format_prompt_for_claude(prompt),
                     "temperature": self.temperature,
                     "top_p": self.top_p,
                     "top_k": self.top_k,
-                    "max_tokens_to_sample": self.max_tokens,
+                    "max_tokens": self.max_tokens,
                     "stop_sequences": self.stop_sequences,
                 },
                 **self.extra_parameters,
@@ -162,7 +161,7 @@ class BedrockModel(BaseModel):
             return body.get("completions")[0].get("data").get("text")
         elif self.model_id.startswith("anthropic"):
             body = json.loads(response.get("body").read().decode())
-            return body.get("completion")
+            return body.get("content")[0]["text"]
         elif self.model_id.startswith("amazon"):
             body = json.loads(response.get("body").read())
             return body.get("results")[0].get("outputText")

@@ -127,6 +127,7 @@ function ProjectIcon() {
           rgb(91, 219, 255) 14.03%,
           rgb(28, 118, 252) 84.38%
         );
+        flex-shrink: 0;
       `}
     />
   );
@@ -167,10 +168,19 @@ function ProjectItem({
       `}
     >
       <Flex direction="row" justifyContent="space-between" alignItems="start">
-        <Flex direction="row" gap="size-100" alignItems="center">
+        <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
           <ProjectIcon />
-          <Flex direction="column">
-            <Heading level={2}>{project.name}</Heading>
+          <Flex direction="column" minWidth={0}>
+            <Heading
+              level={2}
+              css={css`
+                overflow: hidden;
+                white-space: nowrap;
+                text-overflow: ellipsis;
+              `}
+            >
+              {project.name}
+            </Heading>
             <Text color="text-700" textSize="small" fontStyle="italic">
               {lastUpdatedText}
             </Text>

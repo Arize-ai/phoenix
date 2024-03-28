@@ -6,9 +6,9 @@ description: Evaluation model classes powering your LLM Evals
 
 ## Supported LLM Providers
 
-We currently support the following LLM providers:
+We currently support the following LLM providers under `phoenix.evals`:
 
-### phoenix.experimental.evals.OpenAIModel
+### OpenAIModel
 
 {% hint style="info" %}
 Need to install the extra dependencies `openai>=0.26.4` and `tiktoken`
@@ -111,7 +111,7 @@ For full details on Azure OpenAI, check out the [OpenAI Documentation](https://g
 
 Find more about the functionality available in our EvalModels in the [#usage](evaluation-models.md#usage "mention") section.
 
-### phoenix.experimental.evals.VertexAI
+### VertexAI
 
 {% hint style="info" %}
 Need to install the extra dependency`google-cloud-aiplatform>=1.33.0`
@@ -142,7 +142,29 @@ model("Hello there, this is a tesst if you are working?")
 # Output: "Hello world, I am working!"
 ```
 
-### phoenix.experimental.evals.BedrockModel
+### AnthropicModel
+
+```python
+class AnthropicModel(BaseModel):
+    model: str = "claude-2.1"
+    """The model name to use."""
+    temperature: float = 0.0
+    """What sampling temperature to use."""
+    max_tokens: int = 256
+    """The maximum number of tokens to generate in the completion."""
+    top_p: float = 1
+    """Total probability mass of tokens to consider at each step."""
+    top_k: int = 256
+    """The cutoff where the model no longer selects the words."""
+    stop_sequences: List[str] = field(default_factory=list)
+    """If the model encounters a stop sequence, it stops generating further tokens."""
+    extra_parameters: Dict[str, Any] = field(default_factory=dict)
+    """Any extra parameters to add to the request body (e.g., countPenalty for a21 models)"""
+    max_content_size: Optional[int] = None
+    """If you're using a fine-tuned model, set this to the maximum content size"""
+```
+
+### BedrockModel
 
 ```python
 class BedrockModel:
@@ -219,7 +241,23 @@ model = BedrockModel(client=client_bedrock)
 
 ```
 
-### phoenix.experimental.evals.LiteLLMModel
+### MistralAIModel
+
+Need to install extra dependency `minstralai`
+
+````python
+```python
+class MistralAIModel(BaseModel):
+    model: str = "mistral-large-latest"
+    temperature: float = 0
+    top_p: Optional[float] = None
+    random_seed: Optional[int] = None
+    response_format: Optional[Dict[str, str]] = None
+    safe_mode: bool = False
+    safe_prompt: bool = False
+````
+
+### LiteLLMModel
 
 Need to install the extra dependency `litellm>=1.0.3`
 

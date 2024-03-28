@@ -4,7 +4,7 @@ description: >-
   team can perform further investigation or kickoff retraining workflows.
 ---
 
-# Arize
+# Export Data from Arize to Phoenix
 
 Oftentimes, the team that notices an issue in their model, for example a prompt/response LLM model, may not be the same team that continues the investigations or kicks off retraining workflows.&#x20;
 
