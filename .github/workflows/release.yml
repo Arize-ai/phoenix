@@ -70,12 +70,9 @@ jobs:
       - uses: pnpm/action-setup@v3
         with:
           version: 8
-      - name: Install frontend dependencies
-        working-directory: ./app
-        run: pnpm install --frozen-lockfile
       - name: Build frontend
         working-directory: ./app
-        run: pnpm run clean && pnpm install && pnpm run build
+        run: pnpm install --frozen-lockfile && pnpm run clean && pnpm run build
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
