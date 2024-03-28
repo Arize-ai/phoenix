@@ -1,15 +1,23 @@
 # This Dockerfile is provided for convenience if you wish to run Phoenix in a
-# container or sidecar. To use this Dockerfile, you must first build the Phoenix
-# image using the following command:
+# container or sidecar. To build the image, run the following commmand:
 # 
 # > docker build -t phoenix
 #
-# You can then run the image with the following command:
+# You can then run the image in the background with:
 #
 # > docker run -d --name phoenix -p 6006:6006 phoenix
+#
+# or in the foreground with:
+#
+# > docker run -it -p 6006:6006 phoenix
 # 
-# If you have a production use-case for phoenix, please get in touch!
-
+# How are you using Phoenix in production? Let us know!
+#
+# To get support or provide feedback, contact the team in the #phoenix-support
+# channel in the Arize AI Slack community or file an issue on GitHub:
+#
+# - https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q
+# - https://github.com/Arize-ai/phoenix/issues
 
 # This Dockerfile is a multi-stage build. The first stage builds the frontend.
 FROM node:20-slim AS frontend-builder
@@ -37,7 +45,7 @@ RUN pip install --target ./env .[container]
 #
 # > docker run --entrypoint=sh -it phoenix
 #
-# For more information, see:
+# to enter a shell. For more information, see:
 #
 # https://github.com/GoogleContainerTools/distroless?tab=readme-ov-file#debug-images
 #
