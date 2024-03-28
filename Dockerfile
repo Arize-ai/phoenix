@@ -41,13 +41,16 @@ RUN pip install --target ./env .[container]
 #
 # https://github.com/GoogleContainerTools/distroless?tab=readme-ov-file#debug-images
 #
-# Append :debug to the following line to use the debug image.
-FROM python:3.11-bullseye
+# Append :debug to the following line to build the debug image.
+FROM gcr.io/distroless/python3-debian12
 WORKDIR /phoenix
-COPY --from=backend-builder /phoenix/env/ ./
+COPY --from=backend-builder /phoenix/env/ ./env
+ENV PYTHONPATH="/phoenix/env:$PYTHONPATH"
 # Export the Phoenix port.
 EXPOSE 6006
 # Export the Prometheus port.
 EXPOSE 9090
-# Run the Phoenix server.
-CMD ["python", "-m", "phoenix.server.main", "--host", "0.0.0.0", "--port", "6006", "--enable-prometheus", "True", "serve"]
+# Run the Phoenix server. Note that the ENTRYPOINT of the base image invokes
+# Python, so no explicit invocation of Python is needed here. See
+# https://github.com/GoogleContainerTools/distroless/blob/16dc4a6a33838006fe956e4c19f049ece9c18a8d/python3/BUILD#L55
+CMD ["-m", "phoenix.server.main", "--host", "0.0.0.0", "--port", "6006", "--enable-prometheus", "True", "serve"]
