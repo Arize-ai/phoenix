@@ -322,7 +322,6 @@ exclude = [
   "dist/",
   ".git",
   "__pycache__",
-  "docs/source/conf.py",
   "*_pb2.py*",
   "*.pyi",
   "docs",
