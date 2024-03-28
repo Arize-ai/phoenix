@@ -3,7 +3,7 @@ from typing import Optional
 import strawberry
 
 import phoenix.trace.v1 as pb
-from phoenix.trace.schemas import SpanID
+from phoenix.trace.schemas import SpanID, TraceID
 
 
 @strawberry.interface
@@ -22,6 +22,26 @@ class Evaluation:
         description="The evaluator's explanation for the evaluation result (i.e. "
         "score or label, or both) given to the subject."
     )
+
+
+@strawberry.type
+class TraceEvaluation(Evaluation):
+    trace_id: strawberry.Private[TraceID]
+
+    @staticmethod
+    def from_pb_evaluation(evaluation: pb.Evaluation) -> "TraceEvaluation":
+        result = evaluation.result
+        score = result.score.value if result.HasField("score") else None
+        label = result.label.value if result.HasField("label") else None
+        explanation = result.explanation.value if result.HasField("explanation") else None
+        trace_id = TraceID(evaluation.subject_id.trace_id)
+        return TraceEvaluation(
+            name=evaluation.name,
+            score=score,
+            label=label,
+            explanation=explanation,
+            trace_id=trace_id,
+        )
 
 
 @strawberry.type

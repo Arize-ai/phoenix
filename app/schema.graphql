@@ -546,7 +546,13 @@ type Project implements Node {
   tokenCountTotal: Int!
   latencyMsP50: Float
   latencyMsP99: Float
+  trace(traceId: ID!): Trace
   spans(timeRange: TimeRange, traceIds: [ID!], first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String): SpanConnection!
+
+  """
+  Names of all available evaluations for traces. (The list contains no duplicates.)
+  """
+  traceEvaluationNames: [String!]!
 
   """
   Names of all available evaluations for spans. (The list contains no duplicates.)
@@ -555,6 +561,7 @@ type Project implements Node {
 
   """Names of available document evaluations."""
   documentEvaluationNames(spanId: ID): [String!]!
+  traceEvaluationSummary(evaluationName: String!, timeRange: TimeRange): EvaluationSummary
   spanEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): EvaluationSummary
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
@@ -793,6 +800,32 @@ interface TimeSeries {
 type TimeSeriesDataPoint {
   timestamp: DateTime!
   value: Float
+}
+
+type Trace {
+  traceId: ID!
+  spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
+
+  """Evaluations associated with the trace"""
+  traceEvaluations: [TraceEvaluation!]!
+}
+
+type TraceEvaluation implements Evaluation {
+  """Name of the evaluation, e.g. 'helpfulness' or 'relevance'."""
+  name: String!
+
+  """Result of the evaluation in the form of a numeric score."""
+  score: Float
+
+  """
+  Result of the evaluation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  """
+  label: String
+
+  """
+  The evaluator's explanation for the evaluation result (i.e. score or label, or both) given to the subject.
+  """
+  explanation: String
 }
 
 type UMAPPoint {

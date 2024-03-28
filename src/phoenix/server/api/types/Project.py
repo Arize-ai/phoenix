@@ -19,6 +19,7 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.Span import Span, to_gql_span
+from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.trace.dsl import SpanFilter
 from phoenix.trace.schemas import SpanID, TraceID
@@ -70,6 +71,12 @@ class Project(Node):
         return self.project.root_span_latency_ms_quantiles(0.99)
 
     @strawberry.field
+    def trace(self, trace_id: ID) -> Optional[Trace]:
+        if self.project.has_trace(TraceID(trace_id)):
+            return Trace(trace_id=trace_id, project=self.project)
+        return None
+
+    @strawberry.field
     def spans(
         self,
         time_range: Optional[TimeRange] = UNSET,
@@ -88,7 +95,12 @@ class Project(Node):
             last=last,
             before=before if isinstance(before, Cursor) else None,
         )
-        if not (project := self.project).span_count():
+        start_time = time_range.start if time_range else None
+        stop_time = time_range.end if time_range else None
+        if not (project := self.project).span_count(
+            start_time=start_time,
+            stop_time=stop_time,
+        ):
             return connection_from_list(data=[], args=args)
         predicate = (
             SpanFilter(
@@ -100,8 +112,8 @@ class Project(Node):
         )
         if not trace_ids:
             spans = project.get_spans(
-                start_time=time_range.start if time_range else None,
-                stop_time=time_range.end if time_range else None,
+                start_time=start_time,
+                stop_time=stop_time,
                 root_spans_only=root_spans_only,
             )
         else:
@@ -114,6 +126,13 @@ class Project(Node):
             spans = sort(spans, evals=project)
         data = [to_gql_span(span, project) for span in spans]
         return connection_from_list(data=data, args=args)
+
+    @strawberry.field(
+        description="Names of all available evaluations for traces. "
+        "(The list contains no duplicates.)"
+    )  # type: ignore
+    def trace_evaluation_names(self) -> List[str]:
+        return self.project.get_trace_evaluation_names()
 
     @strawberry.field(
         description="Names of all available evaluations for spans. "
@@ -132,6 +151,37 @@ class Project(Node):
         return self.project.get_document_evaluation_names(
             None if span_id is UNSET else SpanID(span_id),
         )
+
+    @strawberry.field
+    def trace_evaluation_summary(
+        self,
+        evaluation_name: str,
+        time_range: Optional[TimeRange] = UNSET,
+    ) -> Optional[EvaluationSummary]:
+        project = self.project
+        eval_trace_ids = project.get_trace_evaluation_trace_ids(evaluation_name)
+        if not eval_trace_ids:
+            return None
+        trace_ids = project.get_trace_ids(
+            start_time=time_range.start if time_range else None,
+            stop_time=time_range.end if time_range else None,
+            trace_ids=eval_trace_ids,
+        )
+        evaluations = tuple(
+            evaluation
+            for trace_id in trace_ids
+            if (
+                evaluation := project.get_trace_evaluation(
+                    trace_id,
+                    evaluation_name,
+                )
+            )
+            is not None
+        )
+        if not evaluations:
+            return None
+        labels = project.get_trace_evaluation_labels(evaluation_name)
+        return EvaluationSummary(evaluations, labels)
 
     @strawberry.field
     def span_evaluation_summary(
