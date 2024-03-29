@@ -681,9 +681,22 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
           ) : null}
           {hasInput ? (
             <TabPane name="Input" hidden={!hasInput}>
-              <CopyToClipboard text={input.value}>
-                <CodeBlock {...input} />
-              </CopyToClipboard>
+              <View padding="size-200">
+                <MarkdownDisplayProvider>
+                  <Card
+                    {...defaultCardProps}
+                    title="LLM Input"
+                    extra={
+                      <Flex direction="row" gap="size-100">
+                        <ConnectedMarkdownModeRadioGroup />
+                        <CopyToClipboardButton text={input.value} />
+                      </Flex>
+                    }
+                  >
+                    <CodeBlock {...input} />
+                  </Card>
+                </MarkdownDisplayProvider>
+              </View>
             </TabPane>
           ) : null}
           {hasPromptTemplateObject ? (
@@ -752,9 +765,8 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                 <View padding="size-200">
                   <MarkdownDisplayProvider>
                     <Card
+                      {...defaultCardProps}
                       title="LLM Output"
-                      collapsible
-                      variant="compact"
                       extra={
                         <Flex direction="row" gap="size-100">
                           <ConnectedMarkdownModeRadioGroup />
