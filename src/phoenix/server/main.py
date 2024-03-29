@@ -1,3 +1,4 @@
+import asyncio
 import atexit
 import logging
 import os
@@ -9,6 +10,7 @@ from time import sleep, time
 from typing import Iterable, Optional, Protocol, TypeVar
 
 import pkg_resources
+from prisma import Prisma
 from uvicorn import Config, Server
 
 from phoenix.config import (
@@ -108,7 +110,8 @@ def _load_items(
 
 DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_SAMPLES}"
 
-if __name__ == "__main__":
+
+async def main():
     primary_dataset_name: str
     reference_dataset_name: Optional[str]
     trace_dataset_name: Optional[str] = None
@@ -228,9 +231,16 @@ if __name__ == "__main__":
         from phoenix.server.prometheus import start_prometheus
 
         start_prometheus()
+
+    db = Prisma()
+    await db.connect()
+    await db.project.create({"name": "phoenix"})
+    print("hello?")
+    print(await db.project.find_many())
     app = create_app(
         export_path=export_path,
         model=model,
+        db=db,
         umap_params=umap_params,
         traces=traces,
         corpus=None if corpus_dataset is None else create_model_from_datasets(corpus_dataset),
@@ -241,7 +251,7 @@ if __name__ == "__main__":
     )
     host = args.host or get_env_host()
     port = args.port or get_env_port()
-    server = Server(config=Config(app, host=host, port=port))
+    server = await Server(config=Config(app, host=host, port=port)).serve()
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
 
     # Print information about the server
@@ -251,4 +261,8 @@ if __name__ == "__main__":
     )
 
     # Start the server
-    server.run()
+    await server.run()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

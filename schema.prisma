@@ -1,0 +1,21 @@
+// database
+datasource db {
+    provider = "sqlite"
+    url      = "file:database.db"
+}
+
+// generator
+generator client {
+    provider             = "prisma-client-py"
+    interface            = "asyncio"
+    recursive_type_depth = 5
+}
+
+// data models
+model Project {
+    id          Int      @id @default(autoincrement())
+    name        String
+    description String?
+    created_at  DateTime @default(now())
+    updated_at  DateTime @default(now())
+}

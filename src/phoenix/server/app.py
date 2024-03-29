@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 from typing import Any, NamedTuple, Optional, Union
 
+from prisma import Prisma
 from starlette.applications import Starlette
 from starlette.datastructures import QueryParams
 from starlette.endpoints import HTTPEndpoint
@@ -146,6 +147,7 @@ def create_app(
     export_path: Path,
     model: Model,
     umap_params: UMAPParameters,
+    db: Prisma,
     corpus: Optional[Model] = None,
     traces: Optional[Traces] = None,
     span_store: Optional[SpanStore] = None,
@@ -216,6 +218,7 @@ def create_app(
                         min_dist=umap_params.min_dist,
                         n_neighbors=umap_params.n_neighbors,
                         n_samples=umap_params.n_samples,
+                        db=db,
                     ),
                 ),
                 name="static",
