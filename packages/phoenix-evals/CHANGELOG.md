@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.5.0...arize-phoenix-evals-v0.6.0) (2024-03-29)
+
+
+### Features
+
+* update bedrock.py to use messages API for claude ([#2636](https://github.com/Arize-ai/phoenix/issues/2636)) ([3d7d91a](https://github.com/Arize-ai/phoenix/commit/3d7d91ac6f399ceb40771461cd1fc7bfe60ff04f))
+
 ## [0.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.4.0...arize-phoenix-evals-v0.5.0) (2024-03-20)
 
 
