@@ -25,7 +25,6 @@
     "date-fns": "^3.3.1",
     "lodash": "^4.17.21",
     "normalize.css": "^8.0.1",
-    "phoenix-ui": "link:",
     "polished": "^4.2.2",
     "react": "18.2",
     "react-dom": "18.2",
