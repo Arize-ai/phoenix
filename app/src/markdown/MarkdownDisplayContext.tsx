@@ -17,12 +17,14 @@ export type MarkdownDisplayContextType = {
 export const MarkdownDisplayContext =
   createContext<MarkdownDisplayContextType | null>(null);
 
-export function useMarkdownMode() {
-  const context = useContext(MarkdownDisplayContext);
+export function useMarkdownMode(): MarkdownDisplayContextType {
+  let context = useContext(MarkdownDisplayContext);
   if (context === null) {
-    throw new Error(
+    // eslint-disable-next-line no-console
+    console.warn(
       "useMarkdownMode must be used within a MarkdownDisplayProvider"
     );
+    context = { mode: "text", setMode: () => {} };
   }
   return context;
 }
