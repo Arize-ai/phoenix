@@ -6,6 +6,14 @@ import { css } from "@emotion/react";
 import { useMarkdownMode } from "./MarkdownDisplayContext";
 import { MarkdownDisplayMode } from "./types";
 
+const markdownCSS = css`
+  a {
+    color: var(--ac-global-color-primary);
+    &:visited {
+      color: var(--ac-global-color-purple-900);
+    }
+  }
+`;
 export function MarkdownBlock({
   children,
   mode,
@@ -14,7 +22,9 @@ export function MarkdownBlock({
   mode: MarkdownDisplayMode;
 }) {
   return mode === "markdown" ? (
-    <Markdown remarkPlugins={[remarkGfm]}>{children}</Markdown>
+    <div css={markdownCSS}>
+      <Markdown remarkPlugins={[remarkGfm]}>{children}</Markdown>
+    </div>
   ) : (
     <pre
       css={css`
