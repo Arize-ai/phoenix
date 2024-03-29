@@ -1,5 +1,6 @@
 import React from "react";
 import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { css } from "@emotion/react";
 
 import { useMarkdownMode } from "./MarkdownDisplayContext";
@@ -13,7 +14,7 @@ export function MarkdownBlock({
   mode: MarkdownDisplayMode;
 }) {
   return mode === "markdown" ? (
-    <Markdown>{children}</Markdown>
+    <Markdown remarkPlugins={[remarkGfm]}>{children}</Markdown>
   ) : (
     <pre
       css={css`

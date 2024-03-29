@@ -38,6 +38,7 @@
     "react-router-dom": "^6.21.3",
     "recharts": "^2.10.4",
     "relay-runtime": "^16.2.0",
+    "remark-gfm": "^4.0.0",
     "shade": "^0.1.1",
     "three": "0.139",
     "three-stdlib": "^2.17.3",
