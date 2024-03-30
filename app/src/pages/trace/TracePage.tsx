@@ -469,6 +469,7 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
               {...defaultCardProps}
               titleExtra={attributesContextualHelp}
               extra={<CopyToClipboardButton text={selectedSpan.attributes} />}
+              bodyStyle={{ padding: 0 }}
             >
               <JSONBlock>{selectedSpan.attributes}</JSONBlock>
             </Card>
@@ -1538,7 +1539,7 @@ function JSONBlock({ children }: { children: string }) {
       // Attempt to pretty print the JSON. This may fail if the JSON is invalid.
       // E.g. sometimes it contains NANs due to poor JSON.dumps in the backend
       return {
-        value: JSON.stringify(JSON.parse(children), null, 2),
+        value: JSON.stringify(JSON.parse(children), null, 5),
         mimeType: "json" as const,
       };
     } catch (e) {
@@ -1549,7 +1550,7 @@ function JSONBlock({ children }: { children: string }) {
   if (mimeType === "json") {
     return (
       <CodeMirror
-        value={children}
+        value={value}
         basicSetup={{
           lineNumbers: true,
           foldGutter: true,
