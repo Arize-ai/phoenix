@@ -1539,7 +1539,7 @@ function JSONBlock({ children }: { children: string }) {
       // Attempt to pretty print the JSON. This may fail if the JSON is invalid.
       // E.g. sometimes it contains NANs due to poor JSON.dumps in the backend
       return {
-        value: JSON.stringify(JSON.parse(children), null, 5),
+        value: JSON.stringify(JSON.parse(children), null, 2),
         mimeType: "json" as const,
       };
     } catch (e) {
