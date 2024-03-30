@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.19.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v3.19.2...arize-phoenix-v3.19.3) (2024-03-30)
+
+
+### Bug Fixes
+
+* **ui:** show formatted JSON for attributes ([0d1b719](https://github.com/Arize-ai/phoenix/commit/0d1b71974b26d3fec228f07837dc4c7d2cfa2e18))
+* **ui:** show formatted JSON for attributes ([09ad1be](https://github.com/Arize-ai/phoenix/commit/09ad1be7c14c86ac5d68b0fc6216056591a386c3))
+
 ## [3.19.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v3.19.1...arize-phoenix-v3.19.2) (2024-03-29)
 
 
