@@ -469,6 +469,7 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
               {...defaultCardProps}
               titleExtra={attributesContextualHelp}
               extra={<CopyToClipboardButton text={selectedSpan.attributes} />}
+              bodyStyle={{ padding: 0 }}
             >
               <JSONBlock>{selectedSpan.attributes}</JSONBlock>
             </Card>
@@ -1561,7 +1562,7 @@ function JSONBlock({ children }: { children: string }) {
   if (mimeType === "json") {
     return (
       <CodeMirror
-        value={children}
+        value={value}
         basicSetup={{
           lineNumbers: true,
           foldGutter: true,
