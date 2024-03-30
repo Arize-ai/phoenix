@@ -10,7 +10,7 @@ from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import FileResponse, PlainTextResponse, Response
-from starlette.routing import Mount, Route, WebSocketRoute
+from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 from starlette.types import Scope
@@ -205,7 +205,6 @@ def create_app(
                 "/graphql",
                 graphql,
             ),
-            WebSocketRoute("/graphql", graphql),
             Mount(
                 "/",
                 app=Static(
