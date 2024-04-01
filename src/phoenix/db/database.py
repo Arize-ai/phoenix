@@ -350,7 +350,3 @@ class _Encoder(json.JSONEncoder):
         elif isinstance(obj, np.floating):
             return float(obj)
         return super().default(obj)
-
-
-if __name__ == "__main__":
-    _DB = SqliteDatabase()
