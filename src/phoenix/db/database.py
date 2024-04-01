@@ -209,7 +209,7 @@ class SqliteDatabase:
             """
         if start_time and stop_time:
             cur = self.cur.execute(
-                query + " AND ? <= start_time AND start_time < ?;",
+                query + " AND ? <= traces.start_time AND traces.start_time < ?;",
                 (project_name, start_time, stop_time),
             )
         elif start_time:
