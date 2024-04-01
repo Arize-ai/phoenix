@@ -4,10 +4,12 @@ from typing import Dict, List, Optional, Set, Union
 import numpy as np
 import numpy.typing as npt
 import strawberry
+from sqlalchemy import select
 from strawberry import ID, UNSET
 from strawberry.types import Info
 from typing_extensions import Annotated
 
+from phoenix.db import Project as DBProject
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
@@ -52,6 +54,12 @@ class Query:
             last=last,
             before=before if isinstance(before, Cursor) else None,
         )
+
+        # Testing out sqllite pull
+        with info.context.engine.connect() as conn:
+            result = conn.execute(select(DBProject))
+            for row in result:
+                print(row)
         data = (
             []
             if (traces := info.context.traces) is None

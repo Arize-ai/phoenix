@@ -12,7 +12,7 @@ class Project(Base):
     name: Mapped[str] = mapped_column(String(30), nullable=False)
 
     __table_args__ = (
-        UniqueConstraint("name", name="projects_name_unique", sqllite_on_conflict="IGNORE"),
+        UniqueConstraint("name", name="projects_name_unique", sqlite_on_conflict="IGNORE"),
     )
 
     def __repr__(self) -> str:
