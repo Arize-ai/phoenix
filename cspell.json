@@ -38,6 +38,7 @@
         "rgba",
         "seafoam",
         "sqlalchemy",
+        "sqllite",
         "templating",
         "tensorboard",
         "testset",

@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 from typing import Any, NamedTuple, Optional, Union
 
-from sqlalchemy import create_engine
+from sqlalchemy import Engine, create_engine
 from starlette.applications import Starlette
 from starlette.datastructures import QueryParams
 from starlette.endpoints import HTTPEndpoint
@@ -100,6 +100,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
         schema: BaseSchema,
         model: Model,
         export_path: Path,
+        engine: Engine,
         graphiql: bool = False,
         corpus: Optional[Model] = None,
         traces: Optional[Traces] = None,
@@ -107,6 +108,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
         self.model = model
         self.corpus = corpus
         self.traces = traces
+        self.engine = engine
         self.export_path = export_path
         super().__init__(schema, graphiql=graphiql)
 
@@ -118,6 +120,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
         return Context(
             request=request,
             response=response,
+            engine=self.engine,
             model=self.model,
             corpus=self.corpus,
             traces=self.traces,
@@ -155,6 +158,13 @@ def create_app(
     read_only: bool = False,
     enable_prometheus: bool = False,
 ) -> Starlette:
+    # TODO: make this configurable to in-memory or file-based
+    working_dir = get_working_dir()
+    engine = create_engine(f"sqlite:///{working_dir}/database.db", echo=True)
+    # Create the tables
+    Base.metadata.create_all(engine)
+    init_data(engine)
+
     graphql = GraphQLWithContext(
         schema=schema,
         model=model,
@@ -162,6 +172,7 @@ def create_app(
         traces=traces,
         export_path=export_path,
         graphiql=True,
+        engine=engine,
     )
     if enable_prometheus:
         from phoenix.server.prometheus import PrometheusMiddleware
@@ -169,13 +180,6 @@ def create_app(
         prometheus_middlewares = [Middleware(PrometheusMiddleware)]
     else:
         prometheus_middlewares = []
-
-    # TODO: make this configurable to in-memory or file-based
-    working_dir = get_working_dir()
-    engine = create_engine(f"sqlite:///{working_dir}/database.db", echo=True)
-    init_data(engine)
-    # Create the tables
-    Base.metadata.create_all(engine)
 
     return Starlette(
         middleware=[
