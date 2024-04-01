@@ -11,7 +11,7 @@ from phoenix.trace.schemas import ComputedValues, Span, SpanContext, SpanKind, S
 
 _CONFIG = """
 PRAGMA foreign_keys = ON;
-PRAGMA journal_mode = WAL2;
+PRAGMA journal_mode = WAL;
 PRAGMA synchronous = OFF;
 PRAGMA cache_size = -32000;
 """
