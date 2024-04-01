@@ -49,7 +49,6 @@ CREATE TABLE spans (
     events JSON,
     status TEXT CHECK(status IN ('UNSET','OK','ERROR')) NOT NULL DEFAULT('UNSET'),
     status_message TEXT,
-    latency_ms REAL NOT NULL DEFAULT 0.0,
     cumulative_error_count INTEGER NOT NULL DEFAULT 0,
     cumulative_llm_token_count_prompt INTEGER NOT NULL DEFAULT 0,
     cumulative_llm_token_count_completion INTEGER NOT NULL DEFAULT 0,
@@ -115,7 +114,6 @@ class SqliteDatabase:
                     "SELECT rowid from traces where trace_id = ?", (span.context.trace_id,)
                 ).fetchone()
             trace_rowid = trace_row[0]
-            latency_ms = (span.end_time - span.start_time).total_seconds() * 1000
             cumulative_error_count = int(span.status_code is SpanStatusCode.ERROR)
             cumulative_llm_token_count_prompt = cast(
                 int, span.attributes.get(SpanAttributes.LLM_TOKEN_COUNT_PROMPT, 0)
@@ -139,8 +137,8 @@ class SqliteDatabase:
                 cumulative_llm_token_count_completion += cast(int, accumulation[2] or 0)
             self.cur.execute(
                 """
-                INSERT INTO spans(span_id, trace_rowid, parent_span_id, kind, name, start_time, end_time, attributes, events, status, status_message, latency_ms, cumulative_error_count, cumulative_llm_token_count_prompt, cumulative_llm_token_count_completion)
-                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                INSERT INTO spans(span_id, trace_rowid, parent_span_id, kind, name, start_time, end_time, attributes, events, status, status_message, cumulative_error_count, cumulative_llm_token_count_prompt, cumulative_llm_token_count_completion)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 RETURNING rowid;
                 """,  # noqa E501
                 (
@@ -155,7 +153,6 @@ class SqliteDatabase:
                     json.dumps(span.events, cls=_Encoder),
                     span.status_code.value,
                     span.status_message,
-                    latency_ms,
                     cumulative_error_count,
                     cumulative_llm_token_count_prompt,
                     cumulative_llm_token_count_completion,
@@ -191,6 +188,7 @@ class SqliteDatabase:
                     break
         except Exception:
             self.cur.execute("ROLLBACK;")
+            raise
         else:
             self.cur.execute("COMMIT;")
 
@@ -224,7 +222,7 @@ class SqliteDatabase:
         else:
             cur = self.cur.execute(query + ";", (project_name,))
         if res := cur.fetchone():
-            return cast(int, res[0])
+            return cast(int, res[0] or 0)
         return 0
 
     def span_count(
@@ -254,7 +252,7 @@ class SqliteDatabase:
         else:
             cur = self.cur.execute(query + ";", (project_name,))
         if res := cur.fetchone():
-            return cast(int, res[0])
+            return cast(int, res[0] or 0)
         return 0
 
     def llm_token_count_total(
@@ -265,7 +263,8 @@ class SqliteDatabase:
     ) -> int:
         query = """
         SELECT
-        SUM(COALESCE(json_extract(spans.attributes, '$."llm.token_count.prompt"'), 0) + COALESCE(json_extract(spans.attributes, '$."llm.token_count.completion"'), 0))
+        SUM(COALESCE(json_extract(spans.attributes, '$."llm.token_count.prompt"'), 0) + 
+            COALESCE(json_extract(spans.attributes, '$."llm.token_count.completion"'), 0))
         FROM spans
         JOIN traces ON traces.rowid = spans.trace_rowid
         JOIN projects ON projects.rowid = traces.project_rowid
@@ -285,7 +284,7 @@ class SqliteDatabase:
         else:
             cur = self.cur.execute(query + ";", (project_name,))
         if res := cur.fetchone():
-            return cast(int, res[0])
+            return cast(int, res[0] or 0)
         return 0
 
     def get_trace(self, trace_id: str) -> Iterator[Tuple[Span, ComputedValues]]:
