@@ -242,7 +242,7 @@ class SqliteDatabase:
             """
         if start_time and stop_time:
             cur = self.cur.execute(
-                query + " AND ? <= start_time AND start_time < ?;",
+                query + " AND ? <= spans.start_time AND spans.start_time < ?;",
                 (project_name, start_time, stop_time),
             )
         elif start_time:
@@ -273,17 +273,17 @@ class SqliteDatabase:
         """  # noqa E501
         if start_time and stop_time:
             cur = self.cur.execute(
-                query + " AND ? <= start_time AND start_time < ?",
+                query + " AND ? <= traces.start_time AND traces.start_time < ?;",
                 (project_name, start_time, stop_time),
             )
         elif start_time:
             cur = self.cur.execute(
-                query + " AND ? <= traces.start_time", (project_name, start_time)
+                query + " AND ? <= traces.start_time;", (project_name, start_time)
             )
         elif start_time:
-            cur = self.cur.execute(query + " AND traces.start_time < ?", (project_name, stop_time))
+            cur = self.cur.execute(query + " AND traces.start_time < ?;", (project_name, stop_time))
         else:
-            cur = self.cur.execute(query, (project_name,))
+            cur = self.cur.execute(query + ";", (project_name,))
         if res := cur.fetchone():
             return cast(int, res[0])
         return 0
