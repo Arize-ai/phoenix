@@ -72,27 +72,28 @@ class SqliteDatabase:
             check_same_thread=False,
         )
         # self.con.set_trace_callback(print)
-        self.cur = self.con.cursor()
-        self.cur.executescript(_CONFIG)
-        if int(self.cur.execute("PRAGMA user_version;").fetchone()[0]) < 1:
-            self.cur.executescript(_INIT_DB)
+        cur = self.con.cursor()
+        cur.executescript(_CONFIG)
+        if int(cur.execute("PRAGMA user_version;").fetchone()[0]) < 1:
+            cur.executescript(_INIT_DB)
 
     def insert_span(self, span: Span, project_name: str) -> None:
-        self.cur.execute("BEGIN;")
+        cur = self.con.cursor()
+        cur.execute("BEGIN;")
         try:
             if not (
-                projects := self.cur.execute(
+                projects := cur.execute(
                     "SELECT rowid FROM projects WHERE name = ?;",
                     (project_name,),
                 ).fetchone()
             ):
-                projects = self.cur.execute(
+                projects = cur.execute(
                     "INSERT INTO projects(name) VALUES(?) RETURNING rowid;",
                     (project_name,),
                 ).fetchone()
             project_rowid = projects[0]
             if (
-                trace_row := self.cur.execute(
+                trace_row := cur.execute(
                     """
                 INSERT INTO traces(trace_id, project_rowid, session_id, start_time, end_time)
                 VALUES(?,?,?,?,?)
@@ -111,7 +112,7 @@ class SqliteDatabase:
                     ),
                 ).fetchone()
             ) is None:
-                trace_row = self.cur.execute(
+                trace_row = cur.execute(
                     "SELECT rowid from traces where trace_id = ?", (span.context.trace_id,)
                 ).fetchone()
             trace_rowid = trace_row[0]
@@ -122,7 +123,7 @@ class SqliteDatabase:
             cumulative_llm_token_count_completion = cast(
                 int, span.attributes.get(SpanAttributes.LLM_TOKEN_COUNT_COMPLETION, 0)
             )
-            if accumulation := self.cur.execute(
+            if accumulation := cur.execute(
                 """
                 SELECT
                 sum(cumulative_error_count),
@@ -136,7 +137,7 @@ class SqliteDatabase:
                 cumulative_error_count += cast(int, accumulation[0] or 0)
                 cumulative_llm_token_count_prompt += cast(int, accumulation[1] or 0)
                 cumulative_llm_token_count_completion += cast(int, accumulation[2] or 0)
-            self.cur.execute(
+            cur.execute(
                 """
                 INSERT INTO spans(span_id, trace_rowid, parent_span_id, kind, name, start_time, end_time, attributes, events, status, status_message, cumulative_error_count, cumulative_llm_token_count_prompt, cumulative_llm_token_count_completion)
                 VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
@@ -161,7 +162,7 @@ class SqliteDatabase:
             )
             parent_id = span.parent_id
             while parent_id:
-                if parent_span := self.cur.execute(
+                if parent_span := cur.execute(
                     """
                     SELECT rowid, parent_span_id
                     FROM spans
@@ -170,7 +171,7 @@ class SqliteDatabase:
                     (parent_id,),
                 ).fetchone():
                     rowid, parent_id = parent_span[0], parent_span[1]
-                    self.cur.execute(
+                    cur.execute(
                         """
                         UPDATE spans SET
                         cumulative_error_count = cumulative_error_count + ?,
@@ -188,12 +189,13 @@ class SqliteDatabase:
                 else:
                     break
         except Exception:
-            self.cur.execute("ROLLBACK;")
+            cur.execute("ROLLBACK;")
         else:
-            self.cur.execute("COMMIT;")
+            cur.execute("COMMIT;")
 
     def get_projects(self) -> Iterator[Tuple[int, str]]:
-        for project in self.cur.execute("SELECT rowid, name FROM projects;").fetchall():
+        cur = self.con.cursor()
+        for project in cur.execute("SELECT rowid, name FROM projects;").fetchall():
             yield cast(Tuple[int, str], (project[0], project[1]))
 
     def trace_count(
@@ -208,19 +210,18 @@ class SqliteDatabase:
             JOIN projects ON projects.rowid = traces.project_rowid
             WHERE projects.name = ?
             """
+        cur = self.con.cursor()
         if start_time and stop_time:
-            cur = self.cur.execute(
+            cur = cur.execute(
                 query + " AND ? <= traces.start_time AND traces.start_time < ?;",
                 (project_name, start_time, stop_time),
             )
         elif start_time:
-            cur = self.cur.execute(
-                query + " AND ? <= traces.start_time;", (project_name, start_time)
-            )
+            cur = cur.execute(query + " AND ? <= traces.start_time;", (project_name, start_time))
         elif start_time:
-            cur = self.cur.execute(query + " AND traces.start_time < ?;", (project_name, stop_time))
+            cur = cur.execute(query + " AND traces.start_time < ?;", (project_name, stop_time))
         else:
-            cur = self.cur.execute(query + ";", (project_name,))
+            cur = cur.execute(query + ";", (project_name,))
         if res := cur.fetchone():
             return cast(int, res[0] or 0)
         return 0
@@ -238,19 +239,18 @@ class SqliteDatabase:
             JOIN projects ON projects.rowid = traces.project_rowid
             WHERE projects.name = ?
             """
+        cur = self.con.cursor()
         if start_time and stop_time:
-            cur = self.cur.execute(
+            cur = cur.execute(
                 query + " AND ? <= spans.start_time AND spans.start_time < ?;",
                 (project_name, start_time, stop_time),
             )
         elif start_time:
-            cur = self.cur.execute(
-                query + " AND ? <= spans.start_time;", (project_name, start_time)
-            )
+            cur = cur.execute(query + " AND ? <= spans.start_time;", (project_name, start_time))
         elif start_time:
-            cur = self.cur.execute(query + " AND spans.start_time < ?;", (project_name, stop_time))
+            cur = cur.execute(query + " AND spans.start_time < ?;", (project_name, stop_time))
         else:
-            cur = self.cur.execute(query + ";", (project_name,))
+            cur = cur.execute(query + ";", (project_name,))
         if res := cur.fetchone():
             return cast(int, res[0] or 0)
         return 0
@@ -270,25 +270,25 @@ class SqliteDatabase:
         JOIN projects ON projects.rowid = traces.project_rowid
         WHERE projects.name = ?
         """  # noqa E501
+        cur = self.con.cursor()
         if start_time and stop_time:
-            cur = self.cur.execute(
+            cur = cur.execute(
                 query + " AND ? <= spans.start_time AND spans.start_time < ?;",
                 (project_name, start_time, stop_time),
             )
         elif start_time:
-            cur = self.cur.execute(
-                query + " AND ? <= spans.start_time;", (project_name, start_time)
-            )
+            cur = cur.execute(query + " AND ? <= spans.start_time;", (project_name, start_time))
         elif start_time:
-            cur = self.cur.execute(query + " AND spans.start_time < ?;", (project_name, stop_time))
+            cur = cur.execute(query + " AND spans.start_time < ?;", (project_name, stop_time))
         else:
-            cur = self.cur.execute(query + ";", (project_name,))
+            cur = cur.execute(query + ";", (project_name,))
         if res := cur.fetchone():
             return cast(int, res[0] or 0)
         return 0
 
     def get_trace(self, trace_id: str) -> Iterator[Tuple[Span, ComputedValues]]:
-        for span in self.cur.execute(
+        cur = self.con.cursor()
+        for span in cur.execute(
             """
             SELECT
                 spans.span_id,
