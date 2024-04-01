@@ -14,6 +14,7 @@ PRAGMA foreign_keys = ON;
 PRAGMA journal_mode = WAL;
 PRAGMA synchronous = OFF;
 PRAGMA cache_size = -32000;
+PRAGMA busy_timeout = 10000;
 """
 
 _INIT_DB = """
