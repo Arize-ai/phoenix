@@ -1,0 +1,9 @@
+from typing import Iterator, Protocol, Tuple
+
+from phoenix.trace.schemas import Span
+
+
+class Database(Protocol):
+    def insert_span(self, span: Span, project_name: str) -> None: ...
+    def get_projects(self) -> Iterator[Tuple[int, str]]: ...
+    def get_spans(self, project_name: str) -> Iterator[Span]: ...

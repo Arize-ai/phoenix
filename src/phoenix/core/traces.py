@@ -1,9 +1,10 @@
 import weakref
 from collections import defaultdict
+from datetime import datetime
 from queue import SimpleQueue
 from threading import RLock, Thread
 from types import MethodType
-from typing import DefaultDict, Iterator, Optional, Tuple, Union
+from typing import DefaultDict, Iterator, Optional, Protocol, Tuple, Union
 
 from typing_extensions import assert_never
 
@@ -12,16 +13,45 @@ from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.core.project import (
     END_OF_QUEUE,
     Project,
+    WrappedSpan,
     _ProjectName,
 )
-from phoenix.trace.schemas import Span
+from phoenix.trace.schemas import ComputedAttributes, ComputedValues, Span, TraceID
 
 _SpanItem = Tuple[Span, _ProjectName]
 _EvalItem = Tuple[pb.Evaluation, _ProjectName]
 
 
+class Database(Protocol):
+    def insert_span(self, span: Span, project_name: str) -> None: ...
+
+    def trace_count(
+        self,
+        project_name: str,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+    ) -> int: ...
+
+    def span_count(
+        self,
+        project_name: str,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+    ) -> int: ...
+
+    def llm_token_count_total(
+        self,
+        project_name: str,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+    ) -> int: ...
+
+    def get_trace(self, trace_id: TraceID) -> Iterator[Tuple[Span, ComputedValues]]: ...
+
+
 class Traces:
-    def __init__(self) -> None:
+    def __init__(self, database: Database) -> None:
+        self._database = database
         self._span_queue: "SimpleQueue[Optional[_SpanItem]]" = SimpleQueue()
         self._eval_queue: "SimpleQueue[Optional[_EvalItem]]" = SimpleQueue()
         # Putting `None` as the sentinel value for queue termination.
@@ -33,6 +63,45 @@ class Traces:
             {DEFAULT_PROJECT_NAME: Project()},
         )
         self._start_consumers()
+
+    def trace_count(
+        self,
+        project_name: str,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+    ) -> int:
+        return self._database.trace_count(project_name, start_time, stop_time)
+
+    def span_count(
+        self,
+        project_name: str,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+    ) -> int:
+        return self._database.span_count(project_name, start_time, stop_time)
+
+    def llm_token_count_total(
+        self,
+        project_name: str,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+    ) -> int:
+        return self._database.llm_token_count_total(project_name, start_time, stop_time)
+
+    def get_trace(self, trace_id: TraceID) -> Iterator[WrappedSpan]:
+        for span, computed_values in self._database.get_trace(trace_id):
+            wrapped_span = WrappedSpan(span)
+            wrapped_span[ComputedAttributes.LATENCY_MS] = computed_values.latency_ms
+            wrapped_span[ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_PROMPT] = (
+                computed_values.cumulative_llm_token_count_prompt
+            )
+            wrapped_span[ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION] = (
+                computed_values.cumulative_llm_token_count_completion
+            )
+            wrapped_span[ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_TOTAL] = (
+                computed_values.cumulative_llm_token_count_total
+            )
+            yield wrapped_span
 
     def get_project(self, project_name: str) -> Optional["Project"]:
         with self._lock:
@@ -84,6 +153,7 @@ class Traces:
     def _consume_spans(self, queue: "SimpleQueue[Optional[_SpanItem]]") -> None:
         while (item := queue.get()) is not END_OF_QUEUE:
             span, project_name = item
+            self._database.insert_span(span, project_name=project_name)
             with self._lock:
                 project = self._projects[project_name]
             project.add_span(span)

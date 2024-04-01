@@ -2,8 +2,10 @@ from typing import List, Optional
 
 import strawberry
 from strawberry import ID, UNSET, Private
+from strawberry.types import Info
 
 from phoenix.core.project import Project
+from phoenix.server.api.context import Context
 from phoenix.server.api.types.Evaluation import TraceEvaluation
 from phoenix.server.api.types.pagination import (
     Connection,
@@ -23,6 +25,7 @@ class Trace:
     @strawberry.field
     def spans(
         self,
+        info: Info[Context, None],
         first: Optional[int] = 50,
         last: Optional[int] = UNSET,
         after: Optional[Cursor] = UNSET,
@@ -34,10 +37,9 @@ class Trace:
             last=last,
             before=before if isinstance(before, Cursor) else None,
         )
-        spans = sorted(
-            self.project.get_trace(TraceID(self.trace_id)),
-            key=lambda span: span.start_time,
-        )
+        if not (traces := info.context.traces):
+            return connection_from_list(data=[], args=args)
+        spans = traces.get_trace(TraceID(self.trace_id))
         data = [to_gql_span(span, self.project) for span in spans]
         return connection_from_list(data=data, args=args)
 

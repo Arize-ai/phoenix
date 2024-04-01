@@ -61,9 +61,7 @@ def decode(otlp_span: otlp.Span) -> Span:
     parent_id = _decode_identifier(otlp_span.parent_span_id)
 
     start_time = _decode_unix_nano(otlp_span.start_time_unix_nano)
-    end_time = (
-        _decode_unix_nano(otlp_span.end_time_unix_nano) if otlp_span.end_time_unix_nano else None
-    )
+    end_time = _decode_unix_nano(otlp_span.end_time_unix_nano)
 
     attributes = dict(_unflatten(_load_json_strings(_decode_key_values(otlp_span.attributes))))
     span_kind = SpanKind(attributes.pop(OPENINFERENCE_SPAN_KIND, None))

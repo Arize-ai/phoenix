@@ -16,11 +16,13 @@ from phoenix.config import (
     get_env_host,
     get_env_port,
     get_pids_path,
+    get_working_dir,
 )
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
 from phoenix.datasets.fixtures import FIXTURES, get_datasets
+from phoenix.db.database import SqliteDatabase
 from phoenix.pointcloud.umap_parameters import (
     DEFAULT_MIN_DIST,
     DEFAULT_N_NEIGHBORS,
@@ -193,7 +195,8 @@ if __name__ == "__main__":
         primary_dataset,
         reference_dataset,
     )
-    traces = Traces()
+    db = SqliteDatabase(get_working_dir() / "phoenix.db")
+    traces = Traces(db)
     if span_store := get_span_store():
         Thread(target=load_traces_data_from_store, args=(traces, span_store), daemon=True).start()
     if trace_dataset_name is not None:

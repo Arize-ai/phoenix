@@ -4,9 +4,11 @@ from typing import List, Optional
 
 import strawberry
 from strawberry import ID, UNSET
+from strawberry.types import Info
 
 from phoenix.core.project import Project as CoreProject
 from phoenix.metrics.retrieval_metrics import RetrievalMetrics
+from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.SpanSort import SpanSort
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
@@ -43,24 +45,41 @@ class Project(Node):
     @strawberry.field
     def record_count(
         self,
+        info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
     ) -> int:
-        if not time_range:
-            return self.project.span_count()
-        return self.project.span_count(time_range.start, time_range.end)
+        if not (traces := info.context.traces):
+            return 0
+        start_time, stop_time = (
+            (None, None) if not time_range else (time_range.start, time_range.end)
+        )
+        return traces.span_count(self.name, start_time, stop_time)
 
     @strawberry.field
     def trace_count(
         self,
+        info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
     ) -> int:
-        if not time_range:
-            return self.project.trace_count()
-        return self.project.trace_count(time_range.start, time_range.end)
+        if not (traces := info.context.traces):
+            return 0
+        start_time, stop_time = (
+            (None, None) if not time_range else (time_range.start, time_range.end)
+        )
+        return traces.trace_count(self.name, start_time, stop_time)
 
     @strawberry.field
-    def token_count_total(self) -> int:
-        return self.project.token_count_total
+    def token_count_total(
+        self,
+        info: Info[Context, None],
+        time_range: Optional[TimeRange] = UNSET,
+    ) -> int:
+        if not (traces := info.context.traces):
+            return 0
+        start_time, stop_time = (
+            (None, None) if not time_range else (time_range.start, time_range.end)
+        )
+        return traces.llm_token_count_total(self.name, start_time, stop_time)
 
     @strawberry.field
     def latency_ms_p50(self) -> Optional[float]:

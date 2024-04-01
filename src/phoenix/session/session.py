@@ -37,6 +37,7 @@ from phoenix.config import (
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
+from phoenix.db.database import SqliteDatabase
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
@@ -118,27 +119,6 @@ class Session(TraceDataExtractor, ABC):
         self.corpus_dataset = corpus_dataset
         self.trace_dataset = trace_dataset
         self.umap_parameters = get_umap_parameters(default_umap_parameters)
-        self.model = create_model_from_datasets(
-            primary_dataset,
-            reference_dataset,
-        )
-
-        self.corpus = (
-            create_model_from_datasets(
-                corpus_dataset,
-            )
-            if corpus_dataset is not None
-            else None
-        )
-
-        self.traces = Traces()
-        if trace_dataset:
-            for span in trace_dataset.to_spans():
-                self.traces.put(span)
-            for evaluations in trace_dataset.evaluations:
-                for pb_evaluation in encode_evaluations(evaluations):
-                    self.traces.put(pb_evaluation)
-
         self.host = host or get_env_host()
         self.port = port or get_env_port()
         self.temp_dir = TemporaryDirectory()
@@ -304,6 +284,24 @@ class ThreadSession(Session):
             port=port,
             notebook_env=notebook_env,
         )
+        self.model = create_model_from_datasets(
+            primary_dataset,
+            reference_dataset,
+        )
+        self.corpus = (
+            create_model_from_datasets(
+                corpus_dataset,
+            )
+            if corpus_dataset is not None
+            else None
+        )
+        self.traces = Traces(SqliteDatabase())
+        if trace_dataset:
+            for span in trace_dataset.to_spans():
+                self.traces.put(span)
+            for evaluations in trace_dataset.evaluations:
+                for pb_evaluation in encode_evaluations(evaluations):
+                    self.traces.put(pb_evaluation)
         if span_store := get_span_store():
             Thread(
                 target=load_traces_data_from_store,
