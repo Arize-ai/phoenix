@@ -135,6 +135,7 @@ dependencies = [
   "respx", # For OpenAI testing
   "nest-asyncio", # for executor testing
   "pyfakefs", # for experimental storage implementations
+  "SQLAlchemy>=2.0.28", 
 ]
 
 [tool.hatch.envs.type]

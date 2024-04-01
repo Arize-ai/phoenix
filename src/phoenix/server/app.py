@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 from typing import Any, NamedTuple, Optional, Union
 
+from sqlalchemy import create_engine
 from starlette.applications import Starlette
 from starlette.datastructures import QueryParams
 from starlette.endpoints import HTTPEndpoint
@@ -19,9 +20,10 @@ from strawberry.asgi import GraphQL
 from strawberry.schema import BaseSchema
 
 import phoenix
-from phoenix.config import SERVER_DIR
+from phoenix.config import SERVER_DIR, get_working_dir
 from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
+from phoenix.db import Base, init_data
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context
 from phoenix.server.api.routers.evaluation_handler import EvaluationHandler
@@ -167,6 +169,14 @@ def create_app(
         prometheus_middlewares = [Middleware(PrometheusMiddleware)]
     else:
         prometheus_middlewares = []
+
+    # TODO: make this configurable to in-memory or file-based
+    working_dir = get_working_dir()
+    engine = create_engine(f"sqlite:///{working_dir}/database.db", echo=True)
+    init_data(engine)
+    # Create the tables
+    Base.metadata.create_all(engine)
+
     return Starlette(
         middleware=[
             Middleware(HeadersMiddleware),

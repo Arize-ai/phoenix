@@ -37,6 +37,7 @@
         "respx",
         "rgba",
         "seafoam",
+        "sqlalchemy",
         "templating",
         "tensorboard",
         "testset",
