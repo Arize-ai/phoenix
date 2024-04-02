@@ -1,0 +1,24 @@
+[project]
+name = "chat"
+version = "0.1.0"
+dependencies = [
+  "opentelemetry-api",
+  "opentelemetry-sdk",
+  "opentelemetry-exporter-otlp",
+  "openinference-semantic-conventions",
+  "streamlit",
+  "httpx",
+  "pydantic",
+  "uvicorn",
+  "arize-phoenix",
+]
+requires-python = ">=3.8"
+
+[project.optional-dependencies]
+dev = [
+  "pyright",
+  "ruff",
+]
+
+[tool.ruff.lint]
+extend-select = ["I"]
