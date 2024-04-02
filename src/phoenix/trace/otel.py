@@ -33,7 +33,6 @@ from phoenix.trace.schemas import (
     EXCEPTION_MESSAGE,
     EXCEPTION_STACKTRACE,
     EXCEPTION_TYPE,
-    MimeType,
     Span,
     SpanContext,
     SpanEvent,
@@ -68,7 +67,7 @@ def decode(otlp_span: otlp.Span) -> Span:
 
     for mime_type in (INPUT_MIME_TYPE, OUTPUT_MIME_TYPE):
         if mime_type in attributes:
-            attributes[mime_type] = MimeType(attributes[mime_type])
+            attributes[mime_type] = attributes[mime_type]
 
     status_code, status_message = _decode_status(otlp_span.status)
     events = [_decode_event(event) for event in otlp_span.events]
@@ -318,7 +317,7 @@ def encode(span: Span) -> otlp.Span:
 
     for mime_type in (INPUT_MIME_TYPE, OUTPUT_MIME_TYPE):
         if mime_type in attributes:
-            attributes[mime_type] = attributes[mime_type].value
+            attributes[mime_type] = attributes[mime_type]
 
     for key, value in span.attributes.items():
         if value is None:
