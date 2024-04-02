@@ -1,6 +1,7 @@
 import json
 import sqlite3
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from typing import Any, Iterator, Optional, Tuple, cast
 
@@ -218,7 +219,7 @@ class SqliteDatabase:
             )
         elif start_time:
             cur = cur.execute(query + " AND ? <= traces.start_time;", (project_name, start_time))
-        elif start_time:
+        elif stop_time:
             cur = cur.execute(query + " AND traces.start_time < ?;", (project_name, stop_time))
         else:
             cur = cur.execute(query + ";", (project_name,))
@@ -247,7 +248,7 @@ class SqliteDatabase:
             )
         elif start_time:
             cur = cur.execute(query + " AND ? <= spans.start_time;", (project_name, start_time))
-        elif start_time:
+        elif stop_time:
             cur = cur.execute(query + " AND spans.start_time < ?;", (project_name, stop_time))
         else:
             cur = cur.execute(query + ";", (project_name,))
@@ -278,7 +279,7 @@ class SqliteDatabase:
             )
         elif start_time:
             cur = cur.execute(query + " AND ? <= spans.start_time;", (project_name, start_time))
-        elif start_time:
+        elif stop_time:
             cur = cur.execute(query + " AND spans.start_time < ?;", (project_name, stop_time))
         else:
             cur = cur.execute(query + ";", (project_name,))
@@ -342,6 +343,8 @@ class _Encoder(json.JSONEncoder):
     def default(self, obj: Any) -> Any:
         if isinstance(obj, datetime):
             return obj.isoformat()
+        elif isinstance(obj, Enum):
+            return obj.value
         elif isinstance(obj, np.ndarray):
             return list(obj)
         elif isinstance(obj, np.integer):
