@@ -33,7 +33,6 @@ from phoenix.trace.schemas import (
     EXCEPTION_MESSAGE,
     EXCEPTION_STACKTRACE,
     EXCEPTION_TYPE,
-    MimeType,
     Span,
     SpanContext,
     SpanEvent,
@@ -61,16 +60,14 @@ def decode(otlp_span: otlp.Span) -> Span:
     parent_id = _decode_identifier(otlp_span.parent_span_id)
 
     start_time = _decode_unix_nano(otlp_span.start_time_unix_nano)
-    end_time = (
-        _decode_unix_nano(otlp_span.end_time_unix_nano) if otlp_span.end_time_unix_nano else None
-    )
+    end_time = _decode_unix_nano(otlp_span.end_time_unix_nano)
 
     attributes = dict(_unflatten(_load_json_strings(_decode_key_values(otlp_span.attributes))))
     span_kind = SpanKind(attributes.pop(OPENINFERENCE_SPAN_KIND, None))
 
     for mime_type in (INPUT_MIME_TYPE, OUTPUT_MIME_TYPE):
         if mime_type in attributes:
-            attributes[mime_type] = MimeType(attributes[mime_type])
+            attributes[mime_type] = attributes[mime_type]
 
     status_code, status_message = _decode_status(otlp_span.status)
     events = [_decode_event(event) for event in otlp_span.events]
@@ -320,7 +317,7 @@ def encode(span: Span) -> otlp.Span:
 
     for mime_type in (INPUT_MIME_TYPE, OUTPUT_MIME_TYPE):
         if mime_type in attributes:
-            attributes[mime_type] = attributes[mime_type].value
+            attributes[mime_type] = attributes[mime_type]
 
     for key, value in span.attributes.items():
         if value is None:

@@ -16,11 +16,13 @@ from phoenix.config import (
     get_env_host,
     get_env_port,
     get_pids_path,
+    get_working_dir,
 )
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
 from phoenix.datasets.fixtures import FIXTURES, get_datasets
+from phoenix.db.database import SqliteDatabase
 from phoenix.pointcloud.umap_parameters import (
     DEFAULT_MIN_DIST,
     DEFAULT_N_NEIGHBORS,
@@ -48,7 +50,7 @@ _WELCOME_MESSAGE = """
 ██████╔╝███████║██║   ██║█████╗  ██╔██╗ ██║██║ ╚███╔╝
 ██╔═══╝ ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║██║ ██╔██╗
 ██║     ██║  ██║╚██████╔╝███████╗██║ ╚████║██║██╔╝ ██╗
-╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝ v{0}
+╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝ v{version}
 
 |
 |  🌎 Join our Community 🌎
@@ -61,9 +63,9 @@ _WELCOME_MESSAGE = """
 |  https://docs.arize.com/phoenix
 |
 |  🚀 Phoenix Server 🚀
-|  Phoenix UI: http://{1}:{2}
+|  Phoenix UI: http://{host}:{port}
 |  Log traces: /v1/traces over HTTP
-|
+|  Storage location: {working_dir}
 """
 
 
@@ -193,7 +195,9 @@ if __name__ == "__main__":
         primary_dataset,
         reference_dataset,
     )
-    traces = Traces()
+    working_dir = get_working_dir()
+    db = SqliteDatabase(working_dir / "phoenix.db")
+    traces = Traces(db)
     if span_store := get_span_store():
         Thread(target=load_traces_data_from_store, args=(traces, span_store), daemon=True).start()
     if trace_dataset_name is not None:
@@ -246,9 +250,13 @@ if __name__ == "__main__":
 
     # Print information about the server
     phoenix_version = pkg_resources.get_distribution("arize-phoenix").version
-    print(
-        _WELCOME_MESSAGE.format(phoenix_version, host if host != "0.0.0.0" else "localhost", port)
-    )
+    config = {
+        "version": phoenix_version,
+        "host": host,
+        "port": port,
+        "working_dir": working_dir,
+    }
+    print(_WELCOME_MESSAGE.format(**config))
 
     # Start the server
     server.run()
