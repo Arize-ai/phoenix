@@ -34,6 +34,7 @@ class Project(Base):
     traces: WriteOnlyMapped["Trace"] = relationship(
         "Trace",
         back_populates="project",
+        cascade="all, delete-orphan",
     )
     __table_args__ = (
         UniqueConstraint(
@@ -60,6 +61,7 @@ class Trace(Base):
     spans: Mapped[List["Span"]] = relationship(
         "Span",
         back_populates="trace",
+        cascade="all, delete-orphan",
     )
     __table_args__ = (
         UniqueConstraint(
