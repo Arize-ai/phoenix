@@ -3,12 +3,23 @@ import sqlite3
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
+from sqlite3 import Connection
 from typing import Any, Iterator, Optional, Tuple, cast
 
 import numpy as np
 from openinference.semconv.trace import SpanAttributes
+from sqlalchemy import Engine, create_engine, event
+from sqlalchemy.orm import sessionmaker
 
-from phoenix.trace.schemas import ComputedValues, Span, SpanContext, SpanKind, SpanStatusCode
+from phoenix.db.models import Base, Trace
+from phoenix.trace.schemas import (
+    ComputedValues,
+    Span,
+    SpanContext,
+    SpanEvent,
+    SpanKind,
+    SpanStatusCode,
+)
 
 _CONFIG = """
 PRAGMA foreign_keys = ON;
@@ -21,7 +32,7 @@ PRAGMA busy_timeout = 10000;
 _INIT_DB = """
 BEGIN;
 CREATE TABLE projects (
-    rowid INTEGER PRIMARY KEY,
+    id INTEGER PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     description TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -29,17 +40,17 @@ CREATE TABLE projects (
 );
 INSERT INTO projects(name) VALUES('default');
 CREATE TABLE traces (
-    rowid INTEGER PRIMARY KEY,
+    id INTEGER PRIMARY KEY,
     trace_id TEXT UNIQUE NOT NULL,
     project_rowid INTEGER NOT NULL,
     session_id TEXT,
     start_time TIMESTAMP NOT NULL,
     end_time TIMESTAMP NOT NULL,
-    FOREIGN KEY(project_rowid) REFERENCES projects(rowid)
+    FOREIGN KEY(project_rowid) REFERENCES projects(id)
 );
 CREATE INDEX idx_trace_start_time ON traces(start_time);
 CREATE TABLE spans (
-    rowid INTEGER PRIMARY KEY,
+    id INTEGER PRIMARY KEY,
     span_id TEXT UNIQUE NOT NULL,
     trace_rowid INTEGER NOT NULL,
     parent_span_id TEXT,
@@ -51,10 +62,11 @@ CREATE TABLE spans (
     events JSON,
     status TEXT CHECK(status IN ('UNSET','OK','ERROR')) NOT NULL DEFAULT('UNSET'),
     status_message TEXT,
+    latency_ms REAL,
     cumulative_error_count INTEGER NOT NULL DEFAULT 0,
     cumulative_llm_token_count_prompt INTEGER NOT NULL DEFAULT 0,
     cumulative_llm_token_count_completion INTEGER NOT NULL DEFAULT 0,
-    FOREIGN KEY(trace_rowid) REFERENCES traces(rowid)
+    FOREIGN KEY(trace_rowid) REFERENCES traces(id)
 );
 CREATE INDEX idx_parent_span_id ON spans(parent_span_id);
 PRAGMA user_version = 1;
@@ -62,13 +74,31 @@ COMMIT;
 """
 
 
+_MEM_DB_STR = "file::memory:?cache=shared"
+
+
+def _mem_db_creator() -> Any:
+    return sqlite3.connect(_MEM_DB_STR, uri=True)
+
+
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection: Connection, _: Any) -> None:
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys = ON;")
+    cursor.execute("PRAGMA journal_mode = WAL;")
+    cursor.execute("PRAGMA synchronous = OFF;")
+    cursor.execute("PRAGMA cache_size = -32000;")
+    cursor.execute("PRAGMA busy_timeout = 10000;")
+    cursor.close()
+
+
 class SqliteDatabase:
-    def __init__(self, database: Optional[Path] = None) -> None:
+    def __init__(self, db_path: Optional[Path] = None) -> None:
         """
-        :param database: The path to the database file to be opened.
+        :param db_path: The path to the database file to be opened.
         """
         self.con = sqlite3.connect(
-            database=database or ":memory:",
+            database=db_path or _MEM_DB_STR,
             uri=True,
             check_same_thread=False,
         )
@@ -77,6 +107,18 @@ class SqliteDatabase:
         cur.executescript(_CONFIG)
         if int(cur.execute("PRAGMA user_version;").fetchone()[0]) < 1:
             cur.executescript(_INIT_DB)
+
+        engine = (
+            create_engine(f"sqlite:///{db_path}", echo=True)
+            if db_path
+            else create_engine(
+                "sqlite:///:memory:",
+                echo=True,
+                creator=_mem_db_creator,
+            )
+        )
+        Base.metadata.create_all(engine)
+        self.Session = sessionmaker(bind=engine)
 
     def insert_span(self, span: Span, project_name: str) -> None:
         cur = self.con.cursor()
@@ -138,10 +180,11 @@ class SqliteDatabase:
                 cumulative_error_count += cast(int, accumulation[0] or 0)
                 cumulative_llm_token_count_prompt += cast(int, accumulation[1] or 0)
                 cumulative_llm_token_count_completion += cast(int, accumulation[2] or 0)
+            latency_ms = (span.end_time - span.start_time).total_seconds() * 1000
             cur.execute(
                 """
-                INSERT INTO spans(span_id, trace_rowid, parent_span_id, kind, name, start_time, end_time, attributes, events, status, status_message, cumulative_error_count, cumulative_llm_token_count_prompt, cumulative_llm_token_count_completion)
-                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                INSERT INTO spans(span_id, trace_rowid, parent_span_id, kind, name, start_time, end_time, attributes, events, status, status_message, latency_ms, cumulative_error_count, cumulative_llm_token_count_prompt, cumulative_llm_token_count_completion)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 RETURNING rowid;
                 """,  # noqa E501
                 (
@@ -156,6 +199,7 @@ class SqliteDatabase:
                     json.dumps(span.events, cls=_Encoder),
                     span.status_code.value,
                     span.status_message,
+                    latency_ms,
                     cumulative_error_count,
                     cumulative_llm_token_count_prompt,
                     cumulative_llm_token_count_completion,
@@ -288,55 +332,41 @@ class SqliteDatabase:
         return 0
 
     def get_trace(self, trace_id: str) -> Iterator[Tuple[Span, ComputedValues]]:
-        cur = self.con.cursor()
-        for span in cur.execute(
-            """
-            SELECT
-                spans.span_id,
-                traces.trace_id,
-                spans.parent_span_id,
-                spans.kind,
-                spans.name,
-                spans.start_time,
-                spans.end_time,
-                spans.attributes,
-                spans.events,
-                spans.status,
-                spans.status_message,
-                spans.cumulative_error_count,
-                spans.cumulative_llm_token_count_prompt,
-                spans.cumulative_llm_token_count_completion
-            FROM spans
-            JOIN traces ON traces.rowid = spans.trace_rowid
-            WHERE traces.trace_id = ?
-            """,
-            (trace_id,),
-        ).fetchall():
-            start_time = datetime.fromisoformat(span[5])
-            end_time = datetime.fromisoformat(span[6])
-            latency_ms = (end_time - start_time).total_seconds() * 1000
-            yield (
-                Span(
-                    name=span[4],
-                    context=SpanContext(trace_id=span[1], span_id=span[0]),
-                    parent_id=span[2],
-                    span_kind=SpanKind(span[3]),
-                    start_time=start_time,
-                    end_time=end_time,
-                    attributes=json.loads(span[7]),
-                    events=json.loads(span[8]),
-                    status_code=SpanStatusCode(span[9]),
-                    status_message=span[10],
-                    conversation=None,
-                ),
-                ComputedValues(
-                    latency_ms=latency_ms,
-                    cumulative_error_count=span[11],
-                    cumulative_llm_token_count_prompt=span[12],
-                    cumulative_llm_token_count_completion=span[13],
-                    cumulative_llm_token_count_total=span[12] + span[13],
-                ),
-            )
+        with self.Session.begin() as session:
+            trace = session.query(Trace).where(Trace.trace_id == trace_id).one_or_none()
+            if not trace:
+                return
+            for span in trace.spans:
+                yield (
+                    Span(
+                        name=span.name,
+                        context=SpanContext(trace_id=span.trace.trace_id, span_id=span.span_id),
+                        parent_id=span.parent_span_id,
+                        span_kind=SpanKind(span.kind),
+                        start_time=span.start_time,
+                        end_time=span.end_time,
+                        attributes=span.attributes,
+                        events=[
+                            SpanEvent(
+                                name=obj["name"],
+                                attributes=obj["attributes"],
+                                timestamp=obj["timestamp"],
+                            )
+                            for obj in span.events
+                        ],
+                        status_code=SpanStatusCode(span.status),
+                        status_message=span.status_message,
+                        conversation=None,
+                    ),
+                    ComputedValues(
+                        latency_ms=span.latency_ms,
+                        cumulative_error_count=span.cumulative_error_count,
+                        cumulative_llm_token_count_prompt=span.cumulative_llm_token_count_prompt,
+                        cumulative_llm_token_count_completion=span.cumulative_llm_token_count_completion,
+                        cumulative_llm_token_count_total=span.cumulative_llm_token_count_prompt
+                        + span.cumulative_llm_token_count_completion,
+                    ),
+                )
 
 
 class _Encoder(json.JSONEncoder):
