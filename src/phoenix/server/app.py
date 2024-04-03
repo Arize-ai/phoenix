@@ -160,7 +160,7 @@ def create_app(
 ) -> Starlette:
     # TODO: make this configurable to in-memory or file-based
     working_dir = get_working_dir()
-    engine = create_engine(f"sqlite:///{working_dir}/database.db", echo=True)
+    engine = create_engine(f"sqlite:///{working_dir}/phoenix.db", echo=True)
     # Create the tables
     Base.metadata.create_all(engine)
     init_data(engine)
