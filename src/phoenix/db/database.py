@@ -29,51 +29,6 @@ PRAGMA cache_size = -32000;
 PRAGMA busy_timeout = 10000;
 """
 
-_INIT_DB = """
-BEGIN;
-CREATE TABLE projects (
-    id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
-    description TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-INSERT INTO projects(name) VALUES('default');
-CREATE TABLE traces (
-    id INTEGER PRIMARY KEY,
-    trace_id TEXT UNIQUE NOT NULL,
-    project_rowid INTEGER NOT NULL,
-    session_id TEXT,
-    start_time TIMESTAMP NOT NULL,
-    end_time TIMESTAMP NOT NULL,
-    FOREIGN KEY(project_rowid) REFERENCES projects(id)
-);
-CREATE INDEX idx_trace_start_time ON traces(start_time);
-CREATE TABLE spans (
-    id INTEGER PRIMARY KEY,
-    span_id TEXT UNIQUE NOT NULL,
-    trace_rowid INTEGER NOT NULL,
-    parent_span_id TEXT,
-    kind TEXT NOT NULL,
-    name TEXT NOT NULL,
-    start_time TIMESTAMP NOT NULL,
-    end_time TIMESTAMP NOT NULL,
-    attributes JSON,
-    events JSON,
-    status TEXT CHECK(status IN ('UNSET','OK','ERROR')) NOT NULL DEFAULT('UNSET'),
-    status_message TEXT,
-    latency_ms REAL,
-    cumulative_error_count INTEGER NOT NULL DEFAULT 0,
-    cumulative_llm_token_count_prompt INTEGER NOT NULL DEFAULT 0,
-    cumulative_llm_token_count_completion INTEGER NOT NULL DEFAULT 0,
-    FOREIGN KEY(trace_rowid) REFERENCES traces(id)
-);
-CREATE INDEX idx_parent_span_id ON spans(parent_span_id);
-PRAGMA user_version = 1;
-COMMIT;
-"""
-
-
 _MEM_DB_STR = "file::memory:?cache=shared"
 
 
