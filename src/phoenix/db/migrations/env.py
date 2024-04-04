@@ -2,6 +2,7 @@ from logging.config import fileConfig
 
 from alembic import context
 from phoenix.config import get_working_dir
+from phoenix.db.models import Base
 from sqlalchemy import create_engine
 
 # this is the Alembic Config object, which provides
@@ -15,9 +16,8 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-target_metadata = None
+
+target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -59,6 +59,7 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    print(config)
     connectable = create_engine(url)
 
     with connectable.connect() as connection:

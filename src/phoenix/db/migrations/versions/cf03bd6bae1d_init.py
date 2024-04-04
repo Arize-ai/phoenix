@@ -36,8 +36,11 @@ def upgrade() -> None:
         "traces",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("project_rowid", sa.Integer, sa.ForeignKey("projects.id"), nullable=False),
+        # TODO(mikeldking): might not be the right place for this
         sa.Column("session_id", sa.String, nullable=True),
-        sa.Column("trace_id", sa.String, nullable=False),
+        sa.Column("trace_id", sa.String, nullable=False, unique=True),
+        sa.Column("start_time", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("end_time", sa.DateTime(timezone=True), nullable=False),
     )
 
     op.create_table(
@@ -52,8 +55,17 @@ def upgrade() -> None:
         sa.Column("end_time", sa.DateTime(timezone=True), nullable=False),
         sa.Column("attributes", sa.JSON, nullable=False),
         sa.Column("events", sa.JSON, nullable=False),
-        sa.Column("status", sa.String, nullable=False),
-        sa.Column("latency_ms", sa.Float, nullable=False),
+        sa.Column(
+            "status",
+            sa.String,
+            # TODO(mikeldking): this doesn't seem to work...
+            sa.CheckConstraint("status IN ('OK', 'ERROR', 'UNSET')"),
+            nullable=False,
+            default="UNSET",
+            server_default="UNSET",
+        ),
+        sa.Column("status_message", sa.String, nullable=False),
+        sa.Column("latency_ms", sa.REAL, nullable=False),
         sa.Column("cumulative_error_count", sa.Integer, nullable=False),
         sa.Column("cumulative_llm_token_count_prompt", sa.Integer, nullable=False),
         sa.Column("cumulative_llm_token_count_completion", sa.Integer, nullable=False),

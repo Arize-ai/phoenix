@@ -22,7 +22,6 @@ from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
 from phoenix.datasets.fixtures import FIXTURES, get_datasets
-from phoenix.db import migrate
 from phoenix.db.database import SqliteDatabase
 from phoenix.pointcloud.umap_parameters import (
     DEFAULT_MIN_DIST,
@@ -198,8 +197,6 @@ if __name__ == "__main__":
     )
     working_dir = get_working_dir()
     db = SqliteDatabase(working_dir / "phoenix.db")
-    # Run migrations
-    migrate()
 
     traces = Traces(db)
     if span_store := get_span_store():
