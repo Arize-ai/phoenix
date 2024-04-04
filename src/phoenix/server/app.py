@@ -1,4 +1,5 @@
 import logging
+from os import path
 from pathlib import Path
 from typing import Any, NamedTuple, Optional, Union
 
@@ -23,7 +24,7 @@ import phoenix
 from phoenix.config import SERVER_DIR, get_working_dir
 from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
-from phoenix.db import Base, init_data
+from phoenix.db import Base, init_data, migrate
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context
 from phoenix.server.api.routers.evaluation_handler import EvaluationHandler
@@ -160,10 +161,18 @@ def create_app(
 ) -> Starlette:
     # TODO: make this configurable to in-memory or file-based
     working_dir = get_working_dir()
+    db_path = f"sqlite:///{working_dir}/phoenix.db"
+    print("DB Path: ", db_path)
+    db_is_initialized = path.isfile(db_path)
+    print("DB is initialized: ", db_is_initialized)
     engine = create_engine(f"sqlite:///{working_dir}/phoenix.db", echo=True)
     # Create the tables
+    print("Creating tables")
     Base.metadata.create_all(engine)
     init_data(engine)
+
+    print("Running migrations")
+    migrate()
 
     graphql = GraphQLWithContext(
         schema=schema,
