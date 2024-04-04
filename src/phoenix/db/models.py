@@ -51,6 +51,7 @@ class Trace(Base):
     project_rowid: Mapped[int] = mapped_column(ForeignKey("projects.id"))
     session_id: Mapped[Optional[str]]
     trace_id: Mapped[str]
+    # TODO(mikeldking): why is the start and end time necessary? just filtering?
     start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
@@ -87,6 +88,7 @@ class Span(Base):
     status: Mapped[str]
     status_message: Mapped[str]
 
+    # TODO(mikeldking): is computed columns possible here
     latency_ms: Mapped[float]
     cumulative_error_count: Mapped[int]
     cumulative_llm_token_count_prompt: Mapped[int]

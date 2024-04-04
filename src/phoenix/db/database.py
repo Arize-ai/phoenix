@@ -105,8 +105,6 @@ class SqliteDatabase:
         # self.con.set_trace_callback(print)
         cur = self.con.cursor()
         cur.executescript(_CONFIG)
-        if int(cur.execute("PRAGMA user_version;").fetchone()[0]) < 1:
-            cur.executescript(_INIT_DB)
 
         engine = (
             create_engine(f"sqlite:///{db_path}", echo=True)
