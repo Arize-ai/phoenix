@@ -41,7 +41,7 @@ def upgrade() -> None:
         # TODO(mikeldking): might not be the right place for this
         sa.Column("session_id", sa.String, nullable=True),
         sa.Column("trace_id", sa.String, nullable=False, unique=True),
-        sa.Column("start_time", sa.DateTime(), nullable=False),
+        sa.Column("start_time", sa.DateTime(), nullable=False, index=True),
         sa.Column("end_time", sa.DateTime(), nullable=False),
     )
 
@@ -50,11 +50,11 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("trace_rowid", sa.Integer, sa.ForeignKey("traces.id"), nullable=False),
         sa.Column("span_id", sa.String, nullable=False, unique=True),
-        sa.Column("parent_span_id", sa.String, nullable=True),
+        sa.Column("parent_span_id", sa.String, nullable=True, index=True),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("kind", sa.String, nullable=False),
-        sa.Column("start_time", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("end_time", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("start_time", sa.DateTime(), nullable=False),
+        sa.Column("end_time", sa.DateTime(), nullable=False),
         sa.Column("attributes", sa.JSON, nullable=False),
         sa.Column("events", sa.JSON, nullable=False),
         sa.Column(
@@ -72,9 +72,6 @@ def upgrade() -> None:
         sa.Column("cumulative_llm_token_count_prompt", sa.Integer, nullable=False),
         sa.Column("cumulative_llm_token_count_completion", sa.Integer, nullable=False),
     )
-
-    op.create_index("idx_trace_start_time", "traces", ["start_time"])
-    op.create_index("idx_parent_span_id", "spans", ["parent_span_id"])
     op.bulk_insert(
         projects_table,
         [
@@ -84,9 +81,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("idx_trace_start_time")
-    op.drop_index("idx_parent_span_id", "spans")
-
     op.drop_table("projects")
     op.drop_table("traces")
     op.drop_table("spans")

@@ -80,7 +80,7 @@ class SqliteDatabase:
             migrate(db_url)
         else:
             Base.metadata.create_all(engine)
-            # Create the default project
+            # Create the default project and setup indexes
             with engine.connect() as conn:
                 conn.execute(insert(Project).values(name="default", description="default project"))
                 conn.commit()

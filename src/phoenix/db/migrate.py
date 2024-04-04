@@ -1,5 +1,4 @@
 import logging
-import os
 from pathlib import Path
 
 from alembic import command
@@ -21,7 +20,7 @@ def migrate(url: str) -> None:
     alembic_cfg = Config(config_path)
 
     # Explicitly set the migration directory
-    scripts_location = str(Path(__file__).parent.resolve()) / "migrations")
+    scripts_location = str(Path(__file__).parent.resolve() / "migrations")
     alembic_cfg.set_main_option("script_location", scripts_location)
     alembic_cfg.set_main_option("sqlalchemy.url", url)
 

@@ -67,9 +67,8 @@ class Trace(Base):
     project_rowid: Mapped[int] = mapped_column(ForeignKey("projects.id"))
     session_id: Mapped[Optional[str]]
     trace_id: Mapped[str]
-    # TODO(mikeldking): why is the start and end time necessary? just filtering?
-    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    start_time: Mapped[datetime] = mapped_column(DateTime(), index=True)
+    end_time: Mapped[datetime] = mapped_column(DateTime())
 
     project: Mapped["Project"] = relationship(
         "Project",
@@ -94,11 +93,11 @@ class Span(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     trace_rowid: Mapped[int] = mapped_column(ForeignKey("traces.id"))
     span_id: Mapped[str]
-    parent_span_id: Mapped[Optional[str]]
+    parent_span_id: Mapped[Optional[str]] = mapped_column(index=True)
     name: Mapped[str]
     kind: Mapped[str]
-    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    start_time: Mapped[datetime] = mapped_column(DateTime())
+    end_time: Mapped[datetime] = mapped_column(DateTime())
     attributes: Mapped[Dict[str, Any]]
     events: Mapped[List[Dict[str, Any]]]
     status: Mapped[str] = mapped_column(
