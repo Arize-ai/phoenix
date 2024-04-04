@@ -10,8 +10,8 @@ from urllib.parse import quote, urljoin
 from pandas import read_parquet
 
 from phoenix.config import DATASET_DIR
-from phoenix.datasets.dataset import Dataset
-from phoenix.datasets.schema import (
+from phoenix.inferences.inference import Inference
+from phoenix.inferences.schema import (
     EmbeddingColumnNames,
     RetrievalEmbeddingColumnNames,
     Schema,
@@ -416,7 +416,7 @@ NAME_TO_FIXTURE = {fixture.name: fixture for fixture in FIXTURES}
 def get_datasets(
     fixture_name: str,
     no_internet: bool = False,
-) -> Tuple[Dataset, Optional[Dataset], Optional[Dataset]]:
+) -> Tuple[Inference, Optional[Inference], Optional[Inference]]:
     """
     Downloads primary and reference datasets for a fixture if they are not found
     locally.
@@ -426,14 +426,14 @@ def get_datasets(
         paths = {role: DATASET_DIR / path for role, path in fixture.paths()}
     else:
         paths = dict(_download(fixture, DATASET_DIR))
-    primary_dataset = Dataset(
+    primary_dataset = Inference(
         read_parquet(paths[DatasetRole.PRIMARY]),
         fixture.primary_schema,
         "production",
     )
     reference_dataset = None
     if fixture.reference_file_name is not None:
-        reference_dataset = Dataset(
+        reference_dataset = Inference(
             read_parquet(paths[DatasetRole.REFERENCE]),
             fixture.reference_schema
             if fixture.reference_schema is not None
@@ -442,7 +442,7 @@ def get_datasets(
         )
     corpus_dataset = None
     if fixture.corpus_file_name is not None:
-        corpus_dataset = Dataset(
+        corpus_dataset = Inference(
             read_parquet(paths[DatasetRole.CORPUS]),
             fixture.corpus_schema,
             "knowledge_base",
@@ -462,17 +462,17 @@ def _get_fixture_by_name(fixture_name: str) -> Fixture:
 
 
 @dataclass
-class ExampleDatasets:
+class ExampleInferences:
     """
     A primary and optional reference dataset pair.
     """
 
-    primary: Dataset
-    reference: Optional[Dataset] = None
-    corpus: Optional[Dataset] = None
+    primary: Inference
+    reference: Optional[Inference] = None
+    corpus: Optional[Inference] = None
 
 
-def load_example(use_case: str) -> ExampleDatasets:
+def load_example(use_case: str) -> ExampleInferences:
     """
     Loads an example primary and reference dataset for a given use-case.
 
@@ -500,7 +500,7 @@ def load_example(use_case: str) -> ExampleDatasets:
     print(f"📥 Loaded {use_case} example datasets.")
     print("ℹ️ About this use-case:")
     print(fixture.description)
-    return ExampleDatasets(
+    return ExampleInferences(
         primary=primary_dataset,
         reference=reference_dataset,
         corpus=corpus_dataset,

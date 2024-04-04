@@ -36,7 +36,7 @@ from phoenix.config import (
 )
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
-from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
+from phoenix.inferences.inference import EMPTY_DATASET, Inference
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
@@ -104,9 +104,9 @@ class Session(TraceDataExtractor, ABC):
 
     def __init__(
         self,
-        primary_dataset: Dataset,
-        reference_dataset: Optional[Dataset] = None,
-        corpus_dataset: Optional[Dataset] = None,
+        primary_dataset: Inference,
+        reference_dataset: Optional[Inference] = None,
+        corpus_dataset: Optional[Inference] = None,
         trace_dataset: Optional[TraceDataset] = None,
         default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
@@ -194,9 +194,9 @@ _session: Optional[Session] = None
 class ProcessSession(Session):
     def __init__(
         self,
-        primary_dataset: Dataset,
-        reference_dataset: Optional[Dataset] = None,
-        corpus_dataset: Optional[Dataset] = None,
+        primary_dataset: Inference,
+        reference_dataset: Optional[Inference] = None,
+        corpus_dataset: Optional[Inference] = None,
         trace_dataset: Optional[TraceDataset] = None,
         default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
@@ -215,9 +215,9 @@ class ProcessSession(Session):
             notebook_env=notebook_env,
         )
         primary_dataset.to_disc()
-        if isinstance(reference_dataset, Dataset):
+        if isinstance(reference_dataset, Inference):
             reference_dataset.to_disc()
-        if isinstance(corpus_dataset, Dataset):
+        if isinstance(corpus_dataset, Inference):
             corpus_dataset.to_disc()
         if isinstance(trace_dataset, TraceDataset):
             trace_dataset.to_disc()
@@ -284,9 +284,9 @@ class ProcessSession(Session):
 class ThreadSession(Session):
     def __init__(
         self,
-        primary_dataset: Dataset,
-        reference_dataset: Optional[Dataset] = None,
-        corpus_dataset: Optional[Dataset] = None,
+        primary_dataset: Inference,
+        reference_dataset: Optional[Inference] = None,
+        corpus_dataset: Optional[Inference] = None,
         trace_dataset: Optional[TraceDataset] = None,
         default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
@@ -424,9 +424,9 @@ class ThreadSession(Session):
 
 
 def launch_app(
-    primary: Optional[Dataset] = None,
-    reference: Optional[Dataset] = None,
-    corpus: Optional[Dataset] = None,
+    primary: Optional[Inference] = None,
+    reference: Optional[Inference] = None,
+    corpus: Optional[Inference] = None,
     trace: Optional[TraceDataset] = None,
     default_umap_parameters: Optional[Mapping[str, Any]] = None,
     host: Optional[str] = None,

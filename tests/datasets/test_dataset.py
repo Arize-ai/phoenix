@@ -12,17 +12,17 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
-import phoenix.datasets.errors as err
+import phoenix.inferences.errors as err
 import pytest
 import pytz
 from pandas import DataFrame, Series, Timestamp
-from phoenix.datasets.dataset import (
-    Dataset,
+from phoenix.inferences.errors import DatasetError
+from phoenix.inferences.inference import (
+    Inference,
     _normalize_timestamps,
     _parse_dataframe_and_schema,
 )
-from phoenix.datasets.errors import DatasetError
-from phoenix.datasets.schema import (
+from phoenix.inferences.schema import (
     EmbeddingColumnNames,
     RetrievalEmbeddingColumnNames,
     Schema,
@@ -715,7 +715,7 @@ class TestDataset:
             prediction_label_column_name="prediction_label",
         )
 
-        dataset = Dataset(dataframe=input_dataframe, schema=input_schema)
+        dataset = Inference(dataframe=input_dataframe, schema=input_schema)
         output_dataframe = dataset.dataframe
         output_schema = dataset.schema
 
@@ -746,7 +746,7 @@ class TestDataset:
             err.InvalidColumnType,
             "Invalid column types: ['prediction_id should be a string or numeric type']",
         ):
-            Dataset(dataframe=input_df, schema=input_schema)
+            Inference(dataframe=input_df, schema=input_schema)
 
     def test_dataset_validate_invalid_schema_excludes_timestamp(self) -> None:
         input_df = DataFrame(
@@ -769,7 +769,7 @@ class TestDataset:
             "The schema is invalid: timestamp cannot be excluded "
             "because it is already being used as the timestamp column.",
         ):
-            Dataset(dataframe=input_df, schema=input_schema)
+            Inference(dataframe=input_df, schema=input_schema)
 
     def test_dataset_validate_invalid_schema_excludes_prediction_id(self) -> None:
         input_df = DataFrame(
@@ -793,7 +793,7 @@ class TestDataset:
             "The schema is invalid: prediction_id cannot be excluded because it is "
             "already being used as the prediction id column.",
         ):
-            Dataset(dataframe=input_df, schema=input_schema)
+            Inference(dataframe=input_df, schema=input_schema)
 
     def test_dataset_validate_invalid_schema_missing_column(self) -> None:
         input_df = DataFrame(
@@ -815,7 +815,7 @@ class TestDataset:
             "The following columns are declared in the Schema "
             "but are not found in the dataframe: prediction_id.",
         ):
-            Dataset(dataframe=input_df, schema=input_schema)
+            Inference(dataframe=input_df, schema=input_schema)
 
     @property
     def num_records(self):
@@ -1354,7 +1354,7 @@ def test_dataset_with_arize_schema() -> None:
             )
         },
     )
-    dataset = Dataset(dataframe=input_df, schema=input_schema)
+    dataset = Inference(dataframe=input_df, schema=input_schema)
     assert isinstance(dataset.schema, Schema)
     assert dataset.schema.prediction_id_column_name == "prediction_id"
     assert (
@@ -1394,7 +1394,7 @@ def test_open_inference_format() -> None:
             ":feature.[float].embedding:image": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
         }
     )
-    ds = Dataset.from_open_inference(df)
+    ds = Inference.from_open_inference(df)
     assert list(ds.dataframe.columns) == [
         ":feature.[float].retrieved_document_scores:prompt",
         ":id.id:",

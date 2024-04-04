@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 SchemaLike: TypeAlias = Any
 
 
-class Dataset:
+class Inference:
     """
     A dataset to use for analysis using phoenix.
     Used to construct a phoenix session via px.launch_app
@@ -113,7 +113,7 @@ class Dataset:
         return self.__name
 
     @classmethod
-    def from_name(cls, name: str) -> "Dataset":
+    def from_name(cls, name: str) -> "Inference":
         """Retrieves a dataset by name from the file system"""
         directory = DATASET_DIR / name
         df = read_parquet(directory / cls._data_file_name)
@@ -123,7 +123,7 @@ class Dataset:
         return cls(df, schema, name)
 
     @classmethod
-    def from_open_inference(cls, dataframe: DataFrame) -> "Dataset":
+    def from_open_inference(cls, dataframe: DataFrame) -> "Inference":
         schema = Schema()
         column_renaming: Dict[str, str] = {}
         for group_name, group in groupby(
@@ -614,7 +614,7 @@ def _normalize_timestamps(
 
 def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
     """
-    Compatibility function for converting from arize.utils.types.Schema to phoenix.datasets.Schema
+    Compatibility function for converting from arize.utils.types.Schema to phoenix.inferences.Schema
     """
     try:
         from arize.utils.types import (
@@ -723,4 +723,4 @@ def _parse_open_inference_column_name(column_name: str) -> _OpenInferenceColumnN
 
 
 # A dataset with no data. Useful for stubs
-EMPTY_DATASET = Dataset(pd.DataFrame(), schema=Schema())
+EMPTY_DATASET = Inference(pd.DataFrame(), schema=Schema())
