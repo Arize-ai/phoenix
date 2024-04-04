@@ -29,7 +29,11 @@ def upgrade() -> None:
             "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
         ),
         sa.Column(
-            "updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
         ),
     )
     op.create_table(
