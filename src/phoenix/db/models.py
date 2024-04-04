@@ -3,8 +3,10 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy import (
     JSON,
+    CheckConstraint,
     DateTime,
     ForeignKey,
+    MetaData,
     UniqueConstraint,
     func,
 )
@@ -18,6 +20,17 @@ from sqlalchemy.orm import (
 
 
 class Base(DeclarativeBase):
+    # Enforce best practices for naming constraints
+    # https://alembic.sqlalchemy.org/en/latest/naming.html#integration-of-naming-conventions-into-operations-autogenerate
+    metadata = MetaData(
+        naming_convention={
+            "ix": "ix_%(column_0_label)s",
+            "uq": "uq_%(table_name)s_%(column_0_name)s",
+            "ck": "ck_%(table_name)s_`%(constraint_name)s`",
+            "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+            "pk": "pk_%(table_name)s",
+        }
+    )
     type_annotation_map = {
         Dict[str, Any]: JSON,
         List[Dict[str, Any]]: JSON,
@@ -42,7 +55,7 @@ class Project(Base):
     __table_args__ = (
         UniqueConstraint(
             "name",
-            name="project_name_unique",
+            name="uq_projects_name",
             sqlite_on_conflict="IGNORE",
         ),
     )
@@ -70,7 +83,7 @@ class Trace(Base):
     __table_args__ = (
         UniqueConstraint(
             "trace_id",
-            name="trace_id_unique",
+            name="uq_traces_trace_id",
             sqlite_on_conflict="IGNORE",
         ),
     )
@@ -88,7 +101,9 @@ class Span(Base):
     end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     attributes: Mapped[Dict[str, Any]]
     events: Mapped[List[Dict[str, Any]]]
-    status: Mapped[str]
+    status: Mapped[str] = mapped_column(
+        CheckConstraint("status IN ('OK', 'ERROR', 'UNSET')", "valid_status")
+    )
     status_message: Mapped[str]
 
     # TODO(mikeldking): is computed columns possible here
@@ -102,7 +117,7 @@ class Span(Base):
     __table_args__ = (
         UniqueConstraint(
             "span_id",
-            name="trace_id_unique",
+            name="uq_spans_trace_id",
             sqlite_on_conflict="IGNORE",
         ),
     )

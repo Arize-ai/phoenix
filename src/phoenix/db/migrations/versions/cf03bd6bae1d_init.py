@@ -22,15 +22,13 @@ def upgrade() -> None:
     projects_table = op.create_table(
         "projects",
         sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("name", sa.String, nullable=False),
+        # TODO does the uniqueness constraint need to be named
+        sa.Column("name", sa.String, nullable=False, unique=True),
         sa.Column("description", sa.String, nullable=True),
-        # TODO(mikeldking): is timezone=True necessary?
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.Column(
             "updated_at",
-            sa.DateTime(timezone=True),
+            sa.DateTime(),
             nullable=False,
             server_default=sa.func.now(),
             onupdate=sa.func.now(),
@@ -43,15 +41,15 @@ def upgrade() -> None:
         # TODO(mikeldking): might not be the right place for this
         sa.Column("session_id", sa.String, nullable=True),
         sa.Column("trace_id", sa.String, nullable=False, unique=True),
-        sa.Column("start_time", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("end_time", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("start_time", sa.DateTime(), nullable=False),
+        sa.Column("end_time", sa.DateTime(), nullable=False),
     )
 
     op.create_table(
         "spans",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("trace_rowid", sa.Integer, sa.ForeignKey("traces.id"), nullable=False),
-        sa.Column("span_id", sa.String, nullable=False),
+        sa.Column("span_id", sa.String, nullable=False, unique=True),
         sa.Column("parent_span_id", sa.String, nullable=True),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("kind", sa.String, nullable=False),
@@ -63,7 +61,7 @@ def upgrade() -> None:
             "status",
             sa.String,
             # TODO(mikeldking): this doesn't seem to work...
-            sa.CheckConstraint("status IN ('OK', 'ERROR', 'UNSET')"),
+            sa.CheckConstraint("status IN ('OK', 'ERROR', 'UNSET')", "valid_status"),
             nullable=False,
             default="UNSET",
             server_default="UNSET",
