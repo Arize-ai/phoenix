@@ -197,6 +197,7 @@ if __name__ == "__main__":
     )
     working_dir = get_working_dir()
     db = SqliteDatabase(working_dir / "phoenix.db")
+
     traces = Traces(db)
     if span_store := get_span_store():
         Thread(target=load_traces_data_from_store, args=(traces, span_store), daemon=True).start()
