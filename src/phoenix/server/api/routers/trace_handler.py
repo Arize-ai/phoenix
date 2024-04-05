@@ -9,7 +9,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
 from opentelemetry.proto.trace.v1.trace_pb2 import TracesData
-from sqlalchemy import text
+from sqlalchemy import func, insert, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
@@ -72,13 +72,11 @@ class TraceHandler(HTTPEndpoint):
 async def _insert_span(session: AsyncSession, span: Span, project_name: str) -> None:
     if not (
         project_rowid := await session.scalar(
-            text("SELECT rowid FROM projects WHERE name = :name;"),
-            {"name": project_name},
+            select(models.Project.id).filter(models.Project.name == project_name)
         )
     ):
         project_rowid = await session.scalar(
-            text("INSERT INTO projects(name) VALUES(:name) RETURNING rowid;"),
-            {"name": project_name},
+            insert(models.Project).values(name=project_name).returning(models.Project.id)
         )
     if (
         trace_rowid := await session.scalar(
@@ -103,8 +101,7 @@ async def _insert_span(session: AsyncSession, span: Span, project_name: str) -> 
         )
     ) is None:
         trace_rowid = await session.scalar(
-            text("SELECT rowid from traces where trace_id = :trace_id"),
-            {"trace_id": span.context.trace_id},
+            select(models.Trace.id).filter(models.Trace.trace_id == span.context.span_id)
         )
     cumulative_error_count = int(span.status_code is SpanStatusCode.ERROR)
     cumulative_llm_token_count_prompt = cast(
@@ -115,17 +112,11 @@ async def _insert_span(session: AsyncSession, span: Span, project_name: str) -> 
     )
     if accumulation := (
         await session.execute(
-            text(
-                """
-                SELECT
-                sum(cumulative_error_count),
-                sum(cumulative_llm_token_count_prompt),
-                sum(cumulative_llm_token_count_completion)
-                FROM spans
-                WHERE parent_span_id = :parent_span_id
-                """
-            ),  # noqa E501
-            {"parent_span_id": span.context.span_id},
+            select(
+                func.sum(models.Span.cumulative_error_count),
+                func.sum(models.Span.cumulative_llm_token_count_prompt),
+                func.sum(models.Span.cumulative_llm_token_count_completion),
+            ).where(models.Span.parent_span_id == span.context.span_id)
         )
     ).first():
         cumulative_error_count += cast(int, accumulation[0] or 0)
