@@ -195,7 +195,7 @@ class Project(Node):
                 parent,
                 models.Span.parent_span_id == parent.c.span_id,
             ).where(parent.c.span_id.is_(None))
-        # TODO: enable sort and filter
+        # TODO(persistence): enable sort and filter
         async with info.context.db() as session:
             spans = await session.scalars(stmt)
         data = [to_gql_span(span, self.project) for span in spans]

@@ -114,7 +114,7 @@ def _load_items(
 
 
 def _send_spans(spans: Iterable[Span], url: str) -> None:
-    # TODO: Ingest fixtures without networking for read-only deployments
+    # TODO(persistence): Ingest fixtures without networking for read-only deployments
     sleep(5)  # Wait for the server to start
     session = requests.session()
     for span in spans:
@@ -129,7 +129,7 @@ def _send_spans(spans: Iterable[Span], url: str) -> None:
             },
             data=gzip.compress(req.SerializeToString()),
         )
-        # TODO: If ingestion rate is too high it can crash the UI, because
+        # TODO(persistence): If ingestion rate is too high it can crash the UI, because
         # sqlite is not designed for high concurrency, especially for disk
         # persistence.
         sleep(0.2)

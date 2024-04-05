@@ -209,6 +209,7 @@ class Span:
         self,
         info: Info[Context, None],
     ) -> List["Span"]:
+        # TODO(persistence): add dataloader (to avoid N+1 queries) or change how this is fetched
         async with info.context.db() as session:
             descendant_ids = (
                 select(models.Span.id, models.Span.span_id)
