@@ -11,6 +11,10 @@ description: >-
 
 Phoenix and OpenInference use the OpenTelemetry Trace API to create spans. Because Phoenix supports OpenTelemetry, this means that you can perform manual instrumentation, no LLM framework required!  This guide will help you understand how to create and customize spans using the OpenTelemetry Trace API.
 
+{% hint style="info" %}
+See [here](https://github.com/Arize-ai/phoenix/tree/main/examples/manually-instrumented-chatbot) for an end-to-end example of a manually instrumented application.
+{% endhint %}
+
 First, ensure you have the API and SDK packages:
 
 ```shell
