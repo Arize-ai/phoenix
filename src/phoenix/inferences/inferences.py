@@ -57,7 +57,9 @@ class Inferences:
 
     Examples
     --------
-    >>> primary_dataset = px.Inferences(dataframe=production_dataframe, schema=schema, name="primary")
+    >>> primary_dataset = px.Inferences(
+    >>>    dataframe=production_dataframe, schema=schema, name="primary"
+    >>> )
     """
 
     _data_file_name: str = "data.parquet"
