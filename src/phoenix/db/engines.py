@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from sqlite3 import Connection
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 import numpy as np
 from sqlalchemy import URL, event
@@ -24,18 +24,18 @@ def set_sqlite_pragma(connection: Connection, _: Any) -> None:
     cursor.close()
 
 
-def aiosqlite_engine(database: Optional[Union[str, Path]] = ":memory:") -> AsyncEngine:
-    """
-    :param database: The path to the database file to be opened.
-    """
+def aiosqlite_engine(
+    database: Union[str, Path] = ":memory:",
+    echo: bool = False,
+) -> AsyncEngine:
     driver_name = "sqlite+aiosqlite"
     url = URL.create(driver_name, database=str(database))
-    engine = create_async_engine(url=url, echo=True, json_serializer=_dumps)
+    engine = create_async_engine(url=url, echo=echo, json_serializer=_dumps)
     event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
-    if database:
-        migrate(url)
-    else:
+    if str(database) == ":memory:":
         asyncio.run(init_models(engine))
+    else:
+        migrate(url)
     return engine
 
 

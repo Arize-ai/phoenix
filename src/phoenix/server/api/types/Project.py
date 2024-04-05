@@ -25,10 +25,7 @@ from phoenix.server.api.types.pagination import (
     Cursor,
     connection_from_list,
 )
-from phoenix.server.api.types.Span import (
-    Span,
-    to_gql_span,
-)
+from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.trace.dsl import SpanFilter

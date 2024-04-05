@@ -9,7 +9,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
 from opentelemetry.proto.trace.v1.trace_pb2 import TracesData
-from sqlalchemy import func, insert, select, text
+from sqlalchemy import func, insert, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
@@ -101,7 +101,7 @@ async def _insert_span(session: AsyncSession, span: Span, project_name: str) -> 
         )
     ) is None:
         trace_rowid = await session.scalar(
-            select(models.Trace.id).filter(models.Trace.trace_id == span.context.span_id)
+            select(models.Trace.id).filter(models.Trace.trace_id == span.context.trace_id)
         )
     cumulative_error_count = int(span.status_code is SpanStatusCode.ERROR)
     cumulative_llm_token_count_prompt = cast(
@@ -142,31 +142,29 @@ async def _insert_span(session: AsyncSession, span: Span, project_name: str) -> 
             cumulative_llm_token_count_completion=cumulative_llm_token_count_completion,
         )
     )
-    # parent_id = span.parent_id
-    # while parent_id:
-    #     if parent_span := session.execute(
-    #         """
-    #         SELECT rowid, parent_span_id
-    #         FROM spans
-    #         WHERE span_id = ?
-    #         """,
-    #         (parent_id,),
-    #     ).fetchone():
-    #         rowid, parent_id = parent_span[0], parent_span[1]
-    #         session.execute(
-    #             """
-    #             UPDATE spans SET
-    #             cumulative_error_count = cumulative_error_count + ?,
-    #             cumulative_llm_token_count_prompt = cumulative_llm_token_count_prompt + ?,
-    #             cumulative_llm_token_count_completion = cumulative_llm_token_count_completion + ?
-    #             WHERE rowid = ?;
-    #             """,  # noqa E501
-    #             (
-    #                 cumulative_error_count,
-    #                 cumulative_llm_token_count_prompt,
-    #                 cumulative_llm_token_count_completion,
-    #                 rowid,
-    #             ),
-    #         )
-    #     else:
-    #         break
+    # Propagate cumulative values to ancestors. This is usually a no-op, since
+    # the parent usually arrives after the child. But in the event that a
+    # child arrives after its parent, we need to make sure the all the
+    # ancestors' cumulative values are updated.
+    ancestors = (
+        select(models.Span.id, models.Span.parent_span_id)
+        .where(models.Span.span_id == span.parent_id)
+        .cte(recursive=True)
+    )
+    child = ancestors.alias()
+    ancestors = ancestors.union_all(
+        select(models.Span.id, models.Span.parent_span_id).join(
+            child, models.Span.span_id == child.c.parent_span_id
+        )
+    )
+    await session.execute(
+        update(models.Span)
+        .where(models.Span.id.in_(select(ancestors.c.id)))
+        .values(
+            cumulative_error_count=models.Span.cumulative_error_count + cumulative_error_count,
+            cumulative_llm_token_count_prompt=models.Span.cumulative_llm_token_count_prompt
+            + cumulative_llm_token_count_prompt,
+            cumulative_llm_token_count_completion=models.Span.cumulative_llm_token_count_completion
+            + cumulative_llm_token_count_completion,
+        )
+    )
