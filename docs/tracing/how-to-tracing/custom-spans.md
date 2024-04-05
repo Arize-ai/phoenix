@@ -30,17 +30,39 @@ pip install openinference-semantic-conventions
 
 For full documentation on the OpenInference semantic conventions, please consult the specification
 
-{% embed url="https://arize-ai.github.io/openinference/spec/semantic_conventions.html" %}
+{% embed url="https://arize-ai.github.io/openinference/spec/semantic_conventions.html" fullWidth="false" %}
 
-## Acquire Tracer
+## Configuring a Tracer
 
-To start tracing, you'll need get a `tracer` (note that this assumes you already have a trace provider configured):
+Configuring an OTel tracer involves some boilerplate code that the instrumentors in `phoenix.trace` take care of for you. If you're manually instrumenting your application, you'll need to implement this boilerplate yourself:
 
 ```python
+from openinference.semconv.resource import ResourceAttributes
 from opentelemetry import trace
-# Creates a tracer from the global tracer provider
-tracer = trace.get_tracer("my.tracer.name")
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from phoenix.config import get_env_host, get_env_port
+
+resource = Resource(attributes={
+    ResourceAttributes.PROJECT_NAME: '<your-project-name>'
+})
+tracer_provider = TracerProvider(resource=resource)
+trace.set_tracer_provider(tracer_provider)
+tracer = trace.get_tracer(__name__)
+collector_endpoint = f"http://{get_env_host()}:{get_env_port()}/v1/traces"
+span_exporter = OTLPSpanExporter(endpoint=collector_endpoint)
+simple_span_processor = SimpleSpanProcessor(span_exporter=span_exporter)
+trace.get_tracer_provider().add_span_processor(simple_span_processor)
 ```
+
+This snippet contains a few OTel concepts:
+
+* A **resource** represents an origin (e.g., a particular service, or in this case, a project) from which your spans are emitted.
+* **Span processors** filter, batch, and perform operations on your spans prior to export.
+* Your **tracer** provides a handle for you to create spans and add attributes in your application code.
+* The **collector** (e.g., Phoenix) receives the spans exported by your application.
 
 ## Creating spans
 
