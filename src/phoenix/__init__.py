@@ -5,6 +5,7 @@ from types import ModuleType
 from typing import Any, Optional
 
 from .datasets.dataset import Dataset
+from .datasets.fixtures import ExampleDatasets
 from .inferences.fixtures import ExampleInferences, load_example
 from .inferences.inference import Inference
 from .inferences.schema import EmbeddingColumnNames, RetrievalEmbeddingColumnNames, Schema
@@ -34,6 +35,7 @@ Here are just a few of the things that phoenix does well:
 __all__ = [
     "__version__",
     "Dataset",
+    "ExampleDatasets",
     "Inference",
     "EmbeddingColumnNames",
     "RetrievalEmbeddingColumnNames",
