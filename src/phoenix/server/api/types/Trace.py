@@ -16,10 +16,7 @@ from phoenix.server.api.types.pagination import (
     Cursor,
     connection_from_list,
 )
-from phoenix.server.api.types.Span import (
-    Span,
-    to_gql_span,
-)
+from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.trace.schemas import TraceID
 
 

@@ -188,7 +188,13 @@ class Project(Node):
                 )
             )
         if root_spans_only:
-            stmt = stmt.where(models.Span.parent_span_id.is_(None))
+            # A root span is any span whose parent span is missing in the
+            # database, even if its `parent_span_id` may not be NULL.
+            parent = select(models.Span.span_id).alias()
+            stmt = stmt.outerjoin(
+                parent,
+                models.Span.parent_span_id == parent.c.span_id,
+            ).where(parent.c.span_id.is_(None))
         # TODO: enable sort and filter
         async with info.context.db() as session:
             spans = await session.scalars(stmt)
