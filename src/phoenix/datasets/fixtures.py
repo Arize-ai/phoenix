@@ -8,7 +8,10 @@ from phoenix.utilities.deprecation import deprecated, deprecated_class
 
 
 @deprecated_class(
-    "The phoenix.datasets.fixtures.ExampleDatasets is deprecated, use phoenix.inferences.fixtures.ExampleInferences instead."
+    (
+        "The phoenix.datasets.fixtures.ExampleDatasets is deprecated, "
+        "use phoenix.inferences.fixtures.ExampleInferences instead."
+    )
 )
 class ExampleDatasets(_ExampleInferences):
     pass
