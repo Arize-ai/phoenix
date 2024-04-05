@@ -3,11 +3,12 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
+from sqlalchemy import URL
 
 logger = logging.getLogger(__name__)
 
 
-def migrate(url: str) -> None:
+def migrate(url: URL) -> None:
     """
     Runs migrations on the database.
     NB: Migrate only works on non-memory databases.
@@ -22,6 +23,6 @@ def migrate(url: str) -> None:
     # Explicitly set the migration directory
     scripts_location = str(Path(__file__).parent.resolve() / "migrations")
     alembic_cfg.set_main_option("script_location", scripts_location)
-    alembic_cfg.set_main_option("sqlalchemy.url", url)
+    alembic_cfg.set_main_option("sqlalchemy.url", str(url))
 
     command.upgrade(alembic_cfg, "head")
