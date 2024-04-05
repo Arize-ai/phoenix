@@ -77,6 +77,7 @@ def upgrade() -> None:
         sa.Column("cumulative_llm_token_count_prompt", sa.Integer, nullable=False),
         sa.Column("cumulative_llm_token_count_completion", sa.Integer, nullable=False),
     )
+
     op.bulk_insert(
         projects_table,
         [
