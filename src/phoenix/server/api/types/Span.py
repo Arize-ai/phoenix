@@ -7,17 +7,20 @@ from typing import Any, DefaultDict, Dict, Iterable, List, Mapping, Optional, Si
 import numpy as np
 import strawberry
 from openinference.semconv.trace import EmbeddingAttributes, SpanAttributes
+from sqlalchemy import select
+from sqlalchemy.orm import contains_eager
 from strawberry import ID, UNSET
 from strawberry.types import Info
 
 import phoenix.trace.schemas as trace_schema
-from phoenix.core.project import Project, WrappedSpan
+from phoenix.core.project import Project
+from phoenix.db import models
 from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
 from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluation
 from phoenix.server.api.types.MimeType import MimeType
-from phoenix.trace.schemas import ComputedAttributes, SpanID
+from phoenix.trace.schemas import SpanID
 
 EMBEDDING_EMBEDDINGS = SpanAttributes.EMBEDDING_EMBEDDINGS
 EMBEDDING_VECTOR = EmbeddingAttributes.EMBEDDING_VECTOR
@@ -40,14 +43,14 @@ class SpanKind(Enum):
     NB: this is actively under construction
     """
 
-    chain = trace_schema.SpanKind.CHAIN
-    tool = trace_schema.SpanKind.TOOL
-    llm = trace_schema.SpanKind.LLM
-    retriever = trace_schema.SpanKind.RETRIEVER
-    embedding = trace_schema.SpanKind.EMBEDDING
-    agent = trace_schema.SpanKind.AGENT
-    reranker = trace_schema.SpanKind.RERANKER
-    unknown = trace_schema.SpanKind.UNKNOWN
+    chain = "CHAIN"
+    tool = "TOOL"
+    llm = "LLM"
+    retriever = "RETRIEVER"
+    embedding = "EMBEDDING"
+    agent = "AGENT"
+    reranker = "RERANKER"
+    unknown = "UNKNOWN"
 
     @classmethod
     def _missing_(cls, v: Any) -> Optional["SpanKind"]:
@@ -68,9 +71,9 @@ class SpanIOValue:
 
 @strawberry.enum
 class SpanStatusCode(Enum):
-    OK = trace_schema.SpanStatusCode.OK
-    ERROR = trace_schema.SpanStatusCode.ERROR
-    UNSET = trace_schema.SpanStatusCode.UNSET
+    OK = "OK"
+    ERROR = "ERROR"
+    UNSET = "UNSET"
 
     @classmethod
     def _missing_(cls, v: Any) -> Optional["SpanStatusCode"]:
@@ -84,13 +87,13 @@ class SpanEvent:
     timestamp: datetime
 
     @staticmethod
-    def from_event(
-        event: trace_schema.SpanEvent,
+    def from_dict(
+        event: Mapping[str, Any],
     ) -> "SpanEvent":
         return SpanEvent(
-            name=event.name,
-            message=cast(str, event.attributes.get(trace_schema.EXCEPTION_MESSAGE) or ""),
-            timestamp=event.timestamp,
+            name=event["name"],
+            message=cast(str, event["attributes"].get(trace_schema.EXCEPTION_MESSAGE) or ""),
+            timestamp=event["timestamp"],
         )
 
 
@@ -202,18 +205,35 @@ class Span:
     @strawberry.field(
         description="All descendant spans (children, grandchildren, etc.)",
     )  # type: ignore
-    def descendants(
+    async def descendants(
         self,
         info: Info[Context, None],
     ) -> List["Span"]:
-        return [
-            to_gql_span(span, self.project)
-            for span in self.project.get_descendant_spans(SpanID(self.context.span_id))
-        ]
+        # TODO(persistence): add dataloader (to avoid N+1 queries) or change how this is fetched
+        async with info.context.db() as session:
+            descendant_ids = (
+                select(models.Span.id, models.Span.span_id)
+                .filter(models.Span.parent_span_id == str(self.context.span_id))
+                .cte(recursive=True)
+            )
+            parent_ids = descendant_ids.alias()
+            descendant_ids = descendant_ids.union_all(
+                select(models.Span.id, models.Span.span_id).join(
+                    parent_ids,
+                    models.Span.parent_span_id == parent_ids.c.span_id,
+                )
+            )
+            spans = await session.scalars(
+                select(models.Span)
+                .join(descendant_ids, models.Span.id == descendant_ids.c.id)
+                .join(models.Trace)
+                .options(contains_eager(models.Span.trace))
+            )
+        return [to_gql_span(span, self.project) for span in spans]
 
 
-def to_gql_span(span: WrappedSpan, project: Project) -> "Span":
-    events: List[SpanEvent] = list(map(SpanEvent.from_event, span.events))
+def to_gql_span(span: models.Span, project: Project) -> Span:
+    events: List[SpanEvent] = list(map(SpanEvent.from_dict, span.events))
     input_value = cast(Optional[str], span.attributes.get(INPUT_VALUE))
     output_value = cast(Optional[str], span.attributes.get(OUTPUT_VALUE))
     retrieval_documents = span.attributes.get(RETRIEVAL_DOCUMENTS)
@@ -221,16 +241,16 @@ def to_gql_span(span: WrappedSpan, project: Project) -> "Span":
     return Span(
         project=project,
         name=span.name,
-        status_code=SpanStatusCode(span.status_code),
+        status_code=SpanStatusCode(span.status),
         status_message=span.status_message,
-        parent_id=cast(Optional[ID], span.parent_id),
-        span_kind=SpanKind(span.span_kind),
+        parent_id=cast(Optional[ID], span.parent_span_id),
+        span_kind=SpanKind(span.kind),
         start_time=span.start_time,
         end_time=span.end_time,
-        latency_ms=cast(Optional[float], span[ComputedAttributes.LATENCY_MS]),
+        latency_ms=span.latency_ms,
         context=SpanContext(
-            trace_id=cast(ID, span.context.trace_id),
-            span_id=cast(ID, span.context.span_id),
+            trace_id=cast(ID, span.trace.trace_id),
+            span_id=cast(ID, span.span_id),
         ),
         attributes=json.dumps(
             _nested_attributes(_hide_embedding_vectors(span.attributes)),
@@ -250,22 +270,12 @@ def to_gql_span(span: WrappedSpan, project: Project) -> "Span":
             Optional[int],
             span.attributes.get(LLM_TOKEN_COUNT_COMPLETION),
         ),
-        cumulative_token_count_total=cast(
-            Optional[int],
-            span[ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_TOTAL],
-        ),
-        cumulative_token_count_prompt=cast(
-            Optional[int],
-            span[ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_PROMPT],
-        ),
-        cumulative_token_count_completion=cast(
-            Optional[int],
-            span[ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION],
-        ),
+        cumulative_token_count_total=span.cumulative_llm_token_count_prompt
+        + span.cumulative_llm_token_count_completion,
+        cumulative_token_count_prompt=span.cumulative_llm_token_count_prompt,
+        cumulative_token_count_completion=span.cumulative_llm_token_count_completion,
         propagated_status_code=(
-            SpanStatusCode.ERROR
-            if span[ComputedAttributes.CUMULATIVE_ERROR_COUNT]
-            else SpanStatusCode(span.status_code)
+            SpanStatusCode.ERROR if span.cumulative_error_count else SpanStatusCode(span.status)
         ),
         events=events,
         input=(

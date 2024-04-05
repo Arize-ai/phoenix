@@ -1,7 +1,21 @@
+import contextlib
 import logging
 from pathlib import Path
-from typing import Any, NamedTuple, Optional, Union
+from typing import (
+    Any,
+    AsyncContextManager,
+    AsyncIterator,
+    Callable,
+    NamedTuple,
+    Optional,
+    Union,
+)
 
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+)
 from starlette.applications import Starlette
 from starlette.datastructures import QueryParams
 from starlette.endpoints import HTTPEndpoint
@@ -96,12 +110,14 @@ class GraphQLWithContext(GraphQL):  # type: ignore
     def __init__(
         self,
         schema: BaseSchema,
+        db: Callable[[], AsyncContextManager[AsyncSession]],
         model: Model,
         export_path: Path,
         graphiql: bool = False,
         corpus: Optional[Model] = None,
         traces: Optional[Traces] = None,
     ) -> None:
+        self.db = db
         self.model = model
         self.corpus = corpus
         self.traces = traces
@@ -116,6 +132,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
         return Context(
             request=request,
             response=response,
+            db=self.db,
             model=self.model,
             corpus=self.corpus,
             traces=self.traces,
@@ -142,7 +159,19 @@ async def version(_: Request) -> PlainTextResponse:
     return PlainTextResponse(f"{phoenix.__version__}")
 
 
+def _db(engine: AsyncEngine) -> Callable[[], AsyncContextManager[AsyncSession]]:
+    Session = async_sessionmaker(engine, expire_on_commit=False)
+
+    @contextlib.asynccontextmanager
+    async def factory() -> AsyncIterator[AsyncSession]:
+        async with Session.begin() as session:
+            yield session
+
+    return factory
+
+
 def create_app(
+    engine: AsyncEngine,
     export_path: Path,
     model: Model,
     umap_params: UMAPParameters,
@@ -153,7 +182,9 @@ def create_app(
     read_only: bool = False,
     enable_prometheus: bool = False,
 ) -> Starlette:
+    db = _db(engine)
     graphql = GraphQLWithContext(
+        db=db,
         schema=schema,
         model=model,
         corpus=corpus,
@@ -183,7 +214,11 @@ def create_app(
                 ),
                 Route(
                     "/v1/traces",
-                    type("TraceEndpoint", (TraceHandler,), {"traces": traces, "store": span_store}),
+                    type(
+                        "TraceEndpoint",
+                        (TraceHandler,),
+                        {"db": staticmethod(db), "traces": traces, "store": span_store},
+                    ),
                 ),
                 Route(
                     "/v1/evaluations",

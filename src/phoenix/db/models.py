@@ -9,7 +9,9 @@ from sqlalchemy import (
     MetaData,
     UniqueConstraint,
     func,
+    insert,
 )
+from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -116,7 +118,18 @@ class Span(Base):
     __table_args__ = (
         UniqueConstraint(
             "span_id",
-            name="uq_spans_trace_id",
+            name="uq_spans_span_id",
             sqlite_on_conflict="IGNORE",
         ),
     )
+
+
+async def init_models(engine: AsyncEngine) -> None:
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(
+            insert(Project).values(
+                name="default",
+                description="default project",
+            )
+        )

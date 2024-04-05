@@ -547,7 +547,7 @@ type Project implements Node {
   latencyMsP50: Float
   latencyMsP99: Float
   trace(traceId: ID!): Trace
-  spans(timeRange: TimeRange, traceIds: [ID!], first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String): SpanConnection!
+  spans(timeRange: TimeRange, first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String): SpanConnection!
 
   """
   Names of all available evaluations for traces. (The list contains no duplicates.)

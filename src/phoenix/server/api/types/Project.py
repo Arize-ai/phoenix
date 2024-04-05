@@ -1,12 +1,17 @@
 from datetime import datetime
-from itertools import chain
 from typing import List, Optional
 
 import strawberry
+from openinference.semconv.trace import SpanAttributes
+from sqlalchemy import Integer, and_, cast, func, select
+from sqlalchemy.orm import contains_eager
+from sqlalchemy.sql.functions import coalesce
 from strawberry import ID, UNSET
 from strawberry.types import Info
 
 from phoenix.core.project import Project as CoreProject
+from phoenix.datetime_utils import right_open_time_range
+from phoenix.db import models
 from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.SpanSort import SpanSort
@@ -33,53 +38,104 @@ class Project(Node):
     project: strawberry.Private[CoreProject]
 
     @strawberry.field
-    def start_time(self) -> Optional[datetime]:
-        start_time, _ = self.project.right_open_time_range
+    async def start_time(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[datetime]:
+        stmt = (
+            select(func.min(models.Trace.start_time))
+            .join(models.Project)
+            .where(models.Project.name == self.name)
+        )
+        async with info.context.db() as session:
+            start_time = await session.scalar(stmt)
+        start_time, _ = right_open_time_range(start_time, None)
         return start_time
 
     @strawberry.field
-    def end_time(self) -> Optional[datetime]:
-        _, end_time = self.project.right_open_time_range
+    async def end_time(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[datetime]:
+        stmt = (
+            select(func.max(models.Trace.end_time))
+            .join(models.Project)
+            .where(models.Project.name == self.name)
+        )
+        async with info.context.db() as session:
+            end_time = await session.scalar(stmt)
+        _, end_time = right_open_time_range(None, end_time)
         return end_time
 
     @strawberry.field
-    def record_count(
+    async def record_count(
         self,
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
     ) -> int:
-        if not (traces := info.context.traces):
-            return 0
-        start_time, stop_time = (
-            (None, None) if not time_range else (time_range.start, time_range.end)
+        stmt = (
+            select(func.count(models.Span.id))
+            .join(models.Trace)
+            .join(models.Project)
+            .where(models.Project.name == self.name)
         )
-        return traces.span_count(self.name, start_time, stop_time)
+        if time_range:
+            stmt = stmt.where(
+                and_(
+                    time_range.start <= models.Span.start_time,
+                    models.Span.start_time < time_range.end,
+                )
+            )
+        async with info.context.db() as session:
+            return (await session.scalar(stmt)) or 0
 
     @strawberry.field
-    def trace_count(
+    async def trace_count(
         self,
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
     ) -> int:
-        if not (traces := info.context.traces):
-            return 0
-        start_time, stop_time = (
-            (None, None) if not time_range else (time_range.start, time_range.end)
+        stmt = (
+            select(func.count(models.Trace.id))
+            .join(models.Project)
+            .where(models.Project.name == self.name)
         )
-        return traces.trace_count(self.name, start_time, stop_time)
+        if time_range:
+            stmt = stmt.where(
+                and_(
+                    time_range.start <= models.Trace.start_time,
+                    models.Trace.start_time < time_range.end,
+                )
+            )
+        async with info.context.db() as session:
+            return (await session.scalar(stmt)) or 0
 
     @strawberry.field
-    def token_count_total(
+    async def token_count_total(
         self,
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
     ) -> int:
-        if not (traces := info.context.traces):
-            return 0
-        start_time, stop_time = (
-            (None, None) if not time_range else (time_range.start, time_range.end)
+        prompt = models.Span.attributes[LLM_TOKEN_COUNT_PROMPT]
+        completion = models.Span.attributes[LLM_TOKEN_COUNT_COMPLETION]
+        stmt = (
+            select(
+                coalesce(func.sum(cast(prompt, Integer)), 0)
+                + coalesce(func.sum(cast(completion, Integer)), 0)
+            )
+            .join(models.Trace)
+            .join(models.Project)
+            .where(models.Project.name == self.name)
         )
-        return traces.llm_token_count_total(self.name, start_time, stop_time)
+        if time_range:
+            stmt = stmt.where(
+                and_(
+                    time_range.start <= models.Span.start_time,
+                    models.Span.start_time < time_range.end,
+                )
+            )
+        async with info.context.db() as session:
+            return (await session.scalar(stmt)) or 0
 
     @strawberry.field
     def latency_ms_p50(self) -> Optional[float]:
@@ -96,10 +152,10 @@ class Project(Node):
         return None
 
     @strawberry.field
-    def spans(
+    async def spans(
         self,
+        info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
-        trace_ids: Optional[List[ID]] = UNSET,
         first: Optional[int] = 50,
         last: Optional[int] = UNSET,
         after: Optional[Cursor] = UNSET,
@@ -114,36 +170,32 @@ class Project(Node):
             last=last,
             before=before if isinstance(before, Cursor) else None,
         )
-        start_time = time_range.start if time_range else None
-        stop_time = time_range.end if time_range else None
-        if not (project := self.project).span_count(
-            start_time=start_time,
-            stop_time=stop_time,
-        ):
-            return connection_from_list(data=[], args=args)
-        predicate = (
-            SpanFilter(
-                condition=filter_condition,
-                evals=project,
-            )
-            if filter_condition
-            else None
+        stmt = (
+            select(models.Span)
+            .join(models.Trace)
+            .join(models.Project)
+            .where(models.Project.name == self.name)
+            .options(contains_eager(models.Span.trace))
         )
-        if not trace_ids:
-            spans = project.get_spans(
-                start_time=start_time,
-                stop_time=stop_time,
-                root_spans_only=root_spans_only,
+        if time_range:
+            stmt = stmt.where(
+                and_(
+                    time_range.start <= models.Span.start_time,
+                    models.Span.start_time < time_range.end,
+                )
             )
-        else:
-            spans = chain.from_iterable(
-                project.get_trace(trace_id) for trace_id in map(TraceID, trace_ids)
-            )
-        if predicate:
-            spans = filter(predicate, spans)
-        if sort:
-            spans = sort(spans, evals=project)
-        data = [to_gql_span(span, project) for span in spans]
+        if root_spans_only:
+            # A root span is any span whose parent span is missing in the
+            # database, even if its `parent_span_id` may not be NULL.
+            parent = select(models.Span.span_id).alias()
+            stmt = stmt.outerjoin(
+                parent,
+                models.Span.parent_span_id == parent.c.span_id,
+            ).where(parent.c.span_id.is_(None))
+        # TODO(persistence): enable sort and filter
+        async with info.context.db() as session:
+            spans = await session.scalars(stmt)
+        data = [to_gql_span(span, self.project) for span in spans]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field(
@@ -305,3 +357,7 @@ class Project(Node):
                 is_valid=False,
                 error_message=e.msg,
             )
+
+
+LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
+LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION

@@ -1,10 +1,13 @@
 from typing import List, Optional
 
 import strawberry
+from sqlalchemy import select
+from sqlalchemy.orm import contains_eager
 from strawberry import ID, UNSET, Private
 from strawberry.types import Info
 
 from phoenix.core.project import Project
+from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.Evaluation import TraceEvaluation
 from phoenix.server.api.types.pagination import (
@@ -23,7 +26,7 @@ class Trace:
     project: Private[Project]
 
     @strawberry.field
-    def spans(
+    async def spans(
         self,
         info: Info[Context, None],
         first: Optional[int] = 50,
@@ -37,9 +40,13 @@ class Trace:
             last=last,
             before=before if isinstance(before, Cursor) else None,
         )
-        if not (traces := info.context.traces):
-            return connection_from_list(data=[], args=args)
-        spans = traces.get_trace(TraceID(self.trace_id))
+        async with info.context.db() as session:
+            spans = await session.scalars(
+                select(models.Span)
+                .join(models.Trace)
+                .filter(models.Trace.trace_id == self.trace_id)
+                .options(contains_eager(models.Span.trace))
+            )
         data = [to_gql_span(span, self.project) for span in spans]
         return connection_from_list(data=data, args=args)
 
