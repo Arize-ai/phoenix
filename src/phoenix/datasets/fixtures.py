@@ -17,5 +17,5 @@ class ExampleInferences(_ExampleInferences):
 @deprecated(
     "The phoenix.datasets.fixtures module is deprecated, use phoenix.inferences.fixtures instead."
 )
-def load_example() -> None:
-    _load_example()
+def load_example(use_case: str) -> None:
+    _load_example(use_case)
