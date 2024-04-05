@@ -17,8 +17,8 @@ import pytest
 import pytz
 from pandas import DataFrame, Series, Timestamp
 from phoenix.inferences.errors import DatasetError
-from phoenix.inferences.inference import (
-    Inference,
+from phoenix.inferences.inferences import (
+    Inferences,
     _normalize_timestamps,
     _parse_dataframe_and_schema,
 )
@@ -715,7 +715,7 @@ class TestDataset:
             prediction_label_column_name="prediction_label",
         )
 
-        dataset = Inference(dataframe=input_dataframe, schema=input_schema)
+        dataset = Inferences(dataframe=input_dataframe, schema=input_schema)
         output_dataframe = dataset.dataframe
         output_schema = dataset.schema
 
@@ -746,7 +746,7 @@ class TestDataset:
             err.InvalidColumnType,
             "Invalid column types: ['prediction_id should be a string or numeric type']",
         ):
-            Inference(dataframe=input_df, schema=input_schema)
+            Inferences(dataframe=input_df, schema=input_schema)
 
     def test_dataset_validate_invalid_schema_excludes_timestamp(self) -> None:
         input_df = DataFrame(
@@ -769,7 +769,7 @@ class TestDataset:
             "The schema is invalid: timestamp cannot be excluded "
             "because it is already being used as the timestamp column.",
         ):
-            Inference(dataframe=input_df, schema=input_schema)
+            Inferences(dataframe=input_df, schema=input_schema)
 
     def test_dataset_validate_invalid_schema_excludes_prediction_id(self) -> None:
         input_df = DataFrame(
@@ -793,7 +793,7 @@ class TestDataset:
             "The schema is invalid: prediction_id cannot be excluded because it is "
             "already being used as the prediction id column.",
         ):
-            Inference(dataframe=input_df, schema=input_schema)
+            Inferences(dataframe=input_df, schema=input_schema)
 
     def test_dataset_validate_invalid_schema_missing_column(self) -> None:
         input_df = DataFrame(
@@ -815,7 +815,7 @@ class TestDataset:
             "The following columns are declared in the Schema "
             "but are not found in the dataframe: prediction_id.",
         ):
-            Inference(dataframe=input_df, schema=input_schema)
+            Inferences(dataframe=input_df, schema=input_schema)
 
     @property
     def num_records(self):
@@ -1354,7 +1354,7 @@ def test_dataset_with_arize_schema() -> None:
             )
         },
     )
-    dataset = Inference(dataframe=input_df, schema=input_schema)
+    dataset = Inferences(dataframe=input_df, schema=input_schema)
     assert isinstance(dataset.schema, Schema)
     assert dataset.schema.prediction_id_column_name == "prediction_id"
     assert (

@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 SchemaLike: TypeAlias = Any
 
 
-class Inference:
+class Inferences:
     """
     A dataset to use for analysis using phoenix.
     Used to construct a phoenix session via px.launch_app
@@ -57,7 +57,7 @@ class Inference:
 
     Examples
     --------
-    >>> primary_dataset = px.Dataset(dataframe=production_dataframe, schema=schema, name="primary")
+    >>> primary_dataset = px.Inferences(dataframe=production_dataframe, schema=schema, name="primary")
     """
 
     _data_file_name: str = "data.parquet"
@@ -109,7 +109,7 @@ class Inference:
         return self.__name
 
     @classmethod
-    def from_name(cls, name: str) -> "Inference":
+    def from_name(cls, name: str) -> "Inferences":
         """Retrieves a dataset by name from the file system"""
         directory = DATASET_DIR / name
         df = read_parquet(directory / cls._data_file_name)
@@ -520,4 +520,4 @@ def _add_prediction_id(num_rows: int) -> List[str]:
 
 
 # A dataset with no data. Useful for stubs
-EMPTY_DATASET = Inference(pd.DataFrame(), schema=Schema())
+EMPTY_DATASET = Inferences(pd.DataFrame(), schema=Schema())

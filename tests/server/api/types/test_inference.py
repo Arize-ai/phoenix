@@ -2,8 +2,8 @@ from typing import Callable, Literal, Optional
 
 import pytest
 from pandas import DataFrame, Timestamp
-from phoenix.inferences.inference import Inference as InternalInference
-from phoenix.inferences.inference import Schema
+from phoenix.inferences.inferences import Inferences as InternalInference
+from phoenix.inferences.inferences import Schema
 from phoenix.server.api.context import Context
 from strawberry.schema import Schema as StrawberrySchema
 from typing_extensions import TypeAlias

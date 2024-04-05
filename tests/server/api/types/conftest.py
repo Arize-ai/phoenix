@@ -6,7 +6,7 @@ from unittest.mock import Mock
 import pytest
 from phoenix.core.model_schema import Model
 from phoenix.core.model_schema_adapter import create_model_from_datasets
-from phoenix.inferences.inference import Inference
+from phoenix.inferences.inferences import Inferences
 from phoenix.server.api.context import Context
 from phoenix.server.api.schema import Query
 from strawberry.schema import Schema as StrawberrySchema
@@ -30,14 +30,14 @@ def info_mock_factory() -> Callable[[Model], Info[Context, None]]:
 
 
 @pytest.fixture
-def context_factory() -> Callable[[Inference, Optional[Inference]], Context]:
+def context_factory() -> Callable[[Inferences, Optional[Inferences]], Context]:
     """
     A pytest fixture to inject a primary dataset and an optional reference
     dataset into an instance of a phoenix.server.api.context.Context object.
     """
 
     def create_context(
-        primary_dataset: Inference, reference_dataset: Optional[Inference]
+        primary_dataset: Inferences, reference_dataset: Optional[Inferences]
     ) -> Context:
         return Context(
             request=Mock(),

@@ -10,7 +10,7 @@ from urllib.parse import quote, urljoin
 from pandas import read_parquet
 
 from phoenix.config import DATASET_DIR
-from phoenix.inferences.inference import Inference
+from phoenix.inferences.inferences import Inferences
 from phoenix.inferences.schema import (
     EmbeddingColumnNames,
     RetrievalEmbeddingColumnNames,
@@ -416,7 +416,7 @@ NAME_TO_FIXTURE = {fixture.name: fixture for fixture in FIXTURES}
 def get_datasets(
     fixture_name: str,
     no_internet: bool = False,
-) -> Tuple[Inference, Optional[Inference], Optional[Inference]]:
+) -> Tuple[Inferences, Optional[Inferences], Optional[Inferences]]:
     """
     Downloads primary and reference datasets for a fixture if they are not found
     locally.
@@ -426,14 +426,14 @@ def get_datasets(
         paths = {role: DATASET_DIR / path for role, path in fixture.paths()}
     else:
         paths = dict(_download(fixture, DATASET_DIR))
-    primary_dataset = Inference(
+    primary_dataset = Inferences(
         read_parquet(paths[DatasetRole.PRIMARY]),
         fixture.primary_schema,
         "production",
     )
     reference_dataset = None
     if fixture.reference_file_name is not None:
-        reference_dataset = Inference(
+        reference_dataset = Inferences(
             read_parquet(paths[DatasetRole.REFERENCE]),
             fixture.reference_schema
             if fixture.reference_schema is not None
@@ -442,7 +442,7 @@ def get_datasets(
         )
     corpus_dataset = None
     if fixture.corpus_file_name is not None:
-        corpus_dataset = Inference(
+        corpus_dataset = Inferences(
             read_parquet(paths[DatasetRole.CORPUS]),
             fixture.corpus_schema,
             "knowledge_base",
@@ -467,9 +467,9 @@ class ExampleInferences:
     A primary and optional reference dataset pair.
     """
 
-    primary: Inference
-    reference: Optional[Inference] = None
-    corpus: Optional[Inference] = None
+    primary: Inferences
+    reference: Optional[Inferences] = None
+    corpus: Optional[Inferences] = None
 
 
 def load_example(use_case: str) -> ExampleInferences:

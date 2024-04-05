@@ -6,13 +6,13 @@ from typing import Dict
 
 from pandas import DataFrame
 
-from phoenix.inferences.inference import Inference
+from phoenix.inferences.inferences import Inferences
 from phoenix.inferences.schema import EmbeddingColumnNames, RetrievalEmbeddingColumnNames, Schema
 from phoenix.utilities.deprecation import deprecated, deprecated_class
 
 
 @deprecated_class("phoenix.Dataset is deprecated, use phoenix.Inference instead.")
-class Dataset(Inference):
+class Dataset(Inferences):
     @classmethod
     @deprecated("Dataset.from_open_inference is deprecated and will be removed.")
     def from_open_inference(cls, dataframe: DataFrame) -> "Dataset":
