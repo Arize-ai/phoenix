@@ -6,11 +6,10 @@ dependencies = [
   "opentelemetry-sdk",
   "opentelemetry-exporter-otlp",
   "openinference-semantic-conventions",
-  "streamlit",
-  "httpx",
   "pydantic",
   "uvicorn",
-  "arize-phoenix",
+  "fastapi",
+  "httpx",
 ]
 requires-python = ">=3.8"
 
