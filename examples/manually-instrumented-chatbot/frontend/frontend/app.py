@@ -2,8 +2,9 @@ import json
 import os
 
 import streamlit as st
-from frontend.request_types import Message, MessagesPayload, MessagesResponse
 from httpx import Client
+
+from frontend.request_types import Message, MessagesPayload, MessagesResponse
 
 http_client = Client()
 
@@ -17,12 +18,13 @@ st.title("Chat")
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-for message in st.session_state.messages:
-    with st.chat_message(message.role):
-        st.markdown(message.content)
+for user_message in st.session_state.messages:
+    with st.chat_message(user_message.role):
+        st.markdown(user_message.content)
 
 if user_message_content := st.chat_input("Message"):
-    st.session_state.messages.append(Message(role="user", content=user_message_content))
+    user_message = Message(role="user", content=user_message_content)
+    st.session_state.messages.append(user_message)
     payload = MessagesPayload(messages=st.session_state.messages)
     with st.chat_message("user"):
         st.markdown(user_message_content)

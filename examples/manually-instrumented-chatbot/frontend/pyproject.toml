@@ -15,5 +15,10 @@ dev = [
   "datamodel-code-generator",
 ]
 
+[tool.ruff]
+exclude = [
+  "frontend/request_types.py",
+]
+
 [tool.ruff.lint]
 extend-select = ["I"]

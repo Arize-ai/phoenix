@@ -1,0 +1,17 @@
+services:
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    ports:
+      - "6006:6006"
+  chat-service:
+    build: chat-service
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+  frontend:
+    build: frontend
+    ports:
+      - "8501:8501"
+    environment:
+      - CHAT_SERVICE_HOST=chat-service

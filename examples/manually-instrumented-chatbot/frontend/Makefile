@@ -8,7 +8,7 @@ typecheck:
 	pyright .
 
 types:
-	datamodel-codegen  --input schema.json --input-file-type openapi --output frontend/request_types.py
+	datamodel-codegen  --input schema.json --input-file-type openapi --output frontend/request_types.py --enum-field-as-literal all
 
 requirements:
 	uv pip compile pyproject.toml > requirements.txt
