@@ -24,12 +24,15 @@ def set_sqlite_pragma(connection: Connection, _: Any) -> None:
     cursor.close()
 
 
+def get_db_url(driver: str = "sqlite+aiosqlite", database: Union[str, Path] = ":memory:") -> URL:
+    return URL.create(driver, database=str(database))
+
+
 def aiosqlite_engine(
     database: Union[str, Path] = ":memory:",
     echo: bool = False,
 ) -> AsyncEngine:
-    driver_name = "sqlite+aiosqlite"
-    url = URL.create(driver_name, database=str(database))
+    url = get_db_url(driver="sqlite+aiosqlite", database=database)
     engine = create_async_engine(url=url, echo=echo, json_serializer=_dumps)
     event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
     if str(database) == ":memory:":
