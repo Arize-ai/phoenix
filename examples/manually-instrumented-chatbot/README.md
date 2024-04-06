@@ -20,32 +20,19 @@ The easiest way to get started with OpenInference is to use one of our [auto-ins
 
 ## Setup
 
-Install dependencies with
-
-```python
-pip install -e .
-```
-
-Run the FastAPI server with
+Ensure that your OpenAI API key is set via an environment variable.
 
 ```
-uvicorn chat.app:app
+export OPENAI_API_KEY=sk-your-key-here
 ```
 
-Run the Streamlit frontend with
+Run the following command to build and run the application.
 
 ```
-streamlit run app.py
+docker compose up --build
 ```
 
-Run Phoenix with
-
-```
-python -m phoenix.server.main serve
-```
-
-Chat with the chatbot and watch your traces appear in Phoenix in real-time.
-
+The chat interface will be available at http://localhost:8501 and Phoenix will be available at http://localhost:6006.
 
 ## Resources
 
