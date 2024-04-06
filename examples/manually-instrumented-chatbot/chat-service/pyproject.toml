@@ -1,5 +1,5 @@
 [project]
-name = "chat"
+name = "chat-service"
 version = "0.1.0"
 dependencies = [
   "opentelemetry-api",
@@ -17,6 +17,7 @@ requires-python = ">=3.8"
 dev = [
   "pyright",
   "ruff",
+  "datamodel-code-generator",
 ]
 
 [tool.ruff.lint]

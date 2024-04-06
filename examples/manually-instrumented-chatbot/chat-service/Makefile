@@ -10,6 +10,9 @@ typecheck:
 requirements:
 	uv pip compile pyproject.toml > requirements.txt
 
+schema:
+	python export_schema.py
+
 docker-build:
 	docker build -t chat-service .
 

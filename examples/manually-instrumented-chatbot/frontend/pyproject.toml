@@ -1,9 +1,10 @@
 [project]
-name = "chat"
+name = "frontend"
 version = "0.1.0"
 dependencies = [
   "streamlit",
   "httpx",
+  "pydantic",
 ]
 requires-python = ">=3.8"
 
@@ -11,6 +12,7 @@ requires-python = ">=3.8"
 dev = [
   "pyright",
   "ruff",
+  "datamodel-code-generator",
 ]
 
 [tool.ruff.lint]

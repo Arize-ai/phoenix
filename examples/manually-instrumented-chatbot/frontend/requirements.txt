@@ -2,6 +2,8 @@
 #    uv pip compile pyproject.toml
 altair==5.3.0
     # via streamlit
+annotated-types==0.6.0
+    # via pydantic
 anyio==4.3.0
     # via httpx
 attrs==23.2.0
@@ -70,6 +72,9 @@ protobuf==4.25.3
     # via streamlit
 pyarrow==15.0.2
     # via streamlit
+pydantic==2.6.4
+pydantic-core==2.16.3
+    # via pydantic
 pydeck==0.8.0
     # via streamlit
 pygments==2.17.2
@@ -108,7 +113,10 @@ toolz==0.12.1
 tornado==6.4
     # via streamlit
 typing-extensions==4.11.0
-    # via streamlit
+    # via
+    #   pydantic
+    #   pydantic-core
+    #   streamlit
 tzdata==2024.1
     # via pandas
 urllib3==2.2.1

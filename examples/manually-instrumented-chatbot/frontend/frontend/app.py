@@ -1,14 +1,15 @@
 import json
+import os
 
 import streamlit as st
+from frontend.request_types import Message, MessagesPayload, MessagesResponse
 from httpx import Client
-
-from chat.types import Message, MessagesPayload, MessagesResponse
 
 http_client = Client()
 
 
-MESSAGES_ENDPOINT = "http://localhost:8000/messages/"
+CHAT_SERVICE_HOST = os.getenv("CHAT_SERVICE_HOST", "localhost")
+MESSAGES_ENDPOINT = f"http://{CHAT_SERVICE_HOST}:8000/messages/"
 
 
 st.title("Chat")

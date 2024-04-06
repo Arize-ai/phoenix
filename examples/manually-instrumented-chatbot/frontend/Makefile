@@ -7,6 +7,9 @@ format:
 typecheck:
 	pyright .
 
+types:
+	datamodel-codegen  --input schema.json --input-file-type openapi --output frontend/request_types.py
+
 requirements:
 	uv pip compile pyproject.toml > requirements.txt
 
@@ -14,4 +17,4 @@ docker-build:
 	docker build -t frontend .
 
 docker-run:
-	docker run 8501:8501 -it frontend
+	docker run -p 8501:8501 -it frontend
