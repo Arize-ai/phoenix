@@ -142,6 +142,10 @@ async def version(_: Request) -> PlainTextResponse:
     return PlainTextResponse(f"{phoenix.__version__}")
 
 
+async def check_healthz(_: Request) -> PlainTextResponse:
+    return PlainTextResponse("OK")
+
+
 def create_app(
     export_path: Path,
     model: Model,
@@ -193,6 +197,7 @@ def create_app(
         )
         + [
             Route("/arize_phoenix_version", version),
+            Route("/healthz", check_healthz),
             Route(
                 "/exports",
                 type(

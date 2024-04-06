@@ -296,6 +296,7 @@ exclude = [
   "sdist/",
   "tests/",
   "tutorials/",
+  "examples/manually-instrumented-chatbot/"
 ]
 
 [[tool.mypy.overrides]]
