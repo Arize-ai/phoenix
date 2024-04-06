@@ -176,12 +176,12 @@ async def init_models(engine: AsyncEngine) -> None:
 class SpanAnnotation(Base):
     __tablename__ = "span_annotations"
     id: Mapped[int] = mapped_column(primary_key=True)
-    span_rowid: Mapped[int] = mapped_column(ForeignKey("spans.id"), required=True)
-    name: Mapped[str] = mapped_column(required=True)
-    label: Mapped[str] = mapped_column()
-    score: Mapped[float] = mapped_column()
-    explanation: Mapped[str] = mapped_column()
-    meta: Mapped[Dict[str, Any]] = mapped_column(JSON, required=True, key="metadata")
+    span_rowid: Mapped[int] = mapped_column(ForeignKey("spans.id"))
+    name: Mapped[str]
+    label: Mapped[str]
+    score: Mapped[float]
+    explanation: Mapped[str]
+    meta: Mapped[Dict[str, Any]] = mapped_column(JSON, key="metadata")
     __table_args__ = (
         UniqueConstraint(
             "span_rowid",

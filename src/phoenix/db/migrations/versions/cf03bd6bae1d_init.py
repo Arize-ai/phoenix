@@ -78,6 +78,14 @@ def upgrade() -> None:
         sa.Column("cumulative_llm_token_count_completion", sa.Integer, nullable=False),
     )
 
+    op.create_table(
+        "span_annotations",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("span_rowid", sa.Integer, sa.ForeignKey("traces.id"), nullable=False),
+        sa.Column("name", sa.String, nullable=False),
+        sa.UniqueConstraint("name", "span_rowid"),
+    )
+
     op.bulk_insert(
         projects_table,
         [
