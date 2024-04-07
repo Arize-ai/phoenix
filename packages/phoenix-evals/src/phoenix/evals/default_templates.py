@@ -475,7 +475,6 @@ SQL_GEN_EVAL_PROMPT_RAILS_MAP = OrderedDict({True: "correct", False: "incorrect"
 
 CODE_FUNCTIONALITY_PROMPT_BASE_TEMPLATE  = """
 Code Evaluation Prompt:
-TEST EDIT
 -----------------------
 Evaluate the provided code to determine its correctness in solving the given instruction.
 
