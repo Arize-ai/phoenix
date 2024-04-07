@@ -24,6 +24,10 @@ from .templates import (
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_RAILS_MAP,
     TOXICITY_PROMPT_TEMPLATE,
+    SQL_GEN_EVAL_PROMPT_RAILS_MAP,
+    SQL_GEN_EVAL_PROMPT_TEMPLATE,
+    CODE_FUNCTIONALITY_PROMPT_RAILS_MAP,
+    CODE_FUNCTIONALITY_PROMPT_TEMPLATE,
     ClassificationTemplate,
     PromptTemplate,
 )
@@ -63,6 +67,10 @@ __all__ = [
     "RelevanceEvaluator",
     "SummarizationEvaluator",
     "ToxicityEvaluator",
+    "SQL_GEN_EVAL_PROMPT_RAILS_MAP",
+    "SQL_GEN_EVAL_PROMPT_TEMPLATE",
+    "CODE_FUNCTIONALITY_PROMPT_RAILS_MAP",
+    "CODE_FUNCTIONALITY_PROMPT_TEMPLATE",
 ]
 
 
