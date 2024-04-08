@@ -26,12 +26,6 @@ class LiteLLMModel(BaseModel):
     model_kwargs: Dict[str, Any] = field(default_factory=dict)
     """Model specific params"""
 
-    # non-LiteLLM params
-    retry_min_seconds: int = 10
-    """Minimum number of seconds to wait when retrying."""
-    max_content_size: Optional[int] = None
-    """If you're using a fine-tuned model, set this to the maximum content size"""
-
     # Deprecated fields
     model_name: Optional[str] = None
     """
