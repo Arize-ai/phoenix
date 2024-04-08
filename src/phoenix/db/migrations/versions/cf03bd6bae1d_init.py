@@ -83,10 +83,11 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("span_rowid", sa.Integer, sa.ForeignKey("traces.id"), nullable=False),
         sa.Column("name", sa.String, nullable=False),
-        sa.Column("label", sa.String, nullable=False),
-        sa.Column("score", sa.Float, nullable=False),
-        sa.Column("explanation", sa.String, nullable=False),
-        sa.UniqueConstraint("name", "span_rowid"),
+        sa.Column("label", sa.String, nullable=True),
+        sa.Column("score", sa.Float, nullable=True),
+        sa.Column("explanation", sa.String, nullable=True),
+        sa.Column("metadata", sa.JSON, nullable=False),
+        sa.UniqueConstraint("span_rowid", "name", name="uq_span_annotations_span_rowid_name"),
     )
 
     op.bulk_insert(

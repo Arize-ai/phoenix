@@ -178,10 +178,10 @@ class SpanAnnotation(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     span_rowid: Mapped[int] = mapped_column(ForeignKey("spans.id"))
     name: Mapped[str]
-    label: Mapped[str]
-    score: Mapped[float]
-    explanation: Mapped[str]
-    meta: Mapped[Dict[str, Any]] = mapped_column(JSON, key="metadata")
+    label: Mapped[Optional[str]]
+    score: Mapped[Optional[float]]
+    explanation: Mapped[Optional[str]]
+    metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
     __table_args__ = (
         UniqueConstraint(
             "span_rowid",
