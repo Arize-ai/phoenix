@@ -14,12 +14,6 @@ from phoenix.db.migrate import migrate
 from phoenix.db.models import init_models
 
 
-# Enum for the the different sql drivers
-class SQLDriver(Enum):
-    SQLITE = "sqlite"
-    POSTGRES = "postgres"
-
-
 def set_sqlite_pragma(connection: Connection, _: Any) -> None:
     cursor = connection.cursor()
     cursor.execute("PRAGMA foreign_keys = ON;")
@@ -38,20 +32,13 @@ def create_engine(connection_str: str, echo: bool = False) -> AsyncEngine:
     """
     Factory to create a SQLAlchemy engine from a URL string.
     """
-    print("connection_str: " + connection_str)
     url = make_url(connection_str)
     if not url.database:
         raise ValueError("Failed to parse database from connection string")
     if "sqlite" in url.drivername:
         # Split the URL to get the database name
-        database = url.database
-
-        if not database:
-            raise ValueError("Database is required for SQLite")
-        print("Creating sqlite engine: " + database)
-        return aio_sqlite_engine(database=database, echo=echo)
+        return aio_sqlite_engine(database=url.database, echo=echo)
     if "postgresql" in url.drivername:
-        print("Creating postgres engine")
         return aio_postgresql_engine(database=url.database, echo=echo)
     raise ValueError(f"Unsupported driver: {url.drivername}")
 
