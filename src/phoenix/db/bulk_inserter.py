@@ -41,7 +41,7 @@ class BulkInserter:
 
     async def __aenter__(self) -> Callable[[Span, str], None]:
         self._running = True
-        self._task = asyncio.create_task(self._insert_spans())
+        self._task = asyncio.create_task(self._bulk_insert())
         return self._queue_span
 
     async def __aexit__(self, *args: Any) -> None:
@@ -50,30 +50,30 @@ class BulkInserter:
     def _queue_span(self, span: Span, project_name: str) -> None:
         self._spans.append((span, project_name))
 
-    async def _insert_spans(self) -> None:
+    async def _bulk_insert(self) -> None:
         next_run_at = time() + self._run_interval_seconds
         while self._spans or self._running:
             await asyncio.sleep(next_run_at - time())
             next_run_at = time() + self._run_interval_seconds
-            if not self._spans:
-                continue
-            spans = self._spans
-            self._spans = []
-            for i in range(0, len(spans), self._max_num_per_transaction):
-                try:
-                    async with self._db() as session:
-                        for span, project_name in islice(
-                            spans, i, i + self._max_num_per_transaction
-                        ):
-                            try:
-                                async with session.begin_nested():
-                                    await _insert_span(session, span, project_name)
-                            except Exception:
-                                logger.exception(
-                                    f"Failed to insert span with span_id={span.context.span_id}"
-                                )
-                except Exception:
-                    logger.exception("Failed to insert spans")
+            if self._spans:
+                await self._insert_spans()
+
+    async def _insert_spans(self) -> None:
+        spans = self._spans
+        self._spans = []
+        for i in range(0, len(spans), self._max_num_per_transaction):
+            try:
+                async with self._db() as session:
+                    for span, project_name in islice(spans, i, i + self._max_num_per_transaction):
+                        try:
+                            async with session.begin_nested():
+                                await _insert_span(session, span, project_name)
+                        except Exception:
+                            logger.exception(
+                                f"Failed to insert span with span_id={span.context.span_id}"
+                            )
+            except Exception:
+                logger.exception("Failed to insert spans")
 
 
 async def _insert_span(session: AsyncSession, span: Span, project_name: str) -> None:
