@@ -447,7 +447,7 @@ def launch_app(
     corpus : Dataset, optional
         The dataset containing corpus for LLM context retrieval.
     trace: TraceDataset, optional
-        **Experimental** The trace dataset containing the trace data.
+        The trace dataset containing the trace data.
     host: str, optional
         The host on which the server runs. It can also be set using environment
         variable `PHOENIX_HOST`, otherwise it defaults to `127.0.0.1`.

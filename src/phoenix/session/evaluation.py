@@ -1,5 +1,5 @@
 """
-A set of **highly experimental** helper functions to
+A set of helper functions to
   - extract spans from Phoenix for evaluation
     - explode retrieved documents from (horizontal) lists to a (vertical) series
       indexed by `context.span_id` and `document_position`
@@ -73,7 +73,6 @@ def _extract_subject_id_from_index(
     value: Union[str, Sequence[Any]],
 ) -> pb.Evaluation.SubjectId:
     """
-    (**Highly Experimental**)
     Returns `SubjectId` given the format of `index_names`. Allowed formats are:
         - DocumentRetrievalId
             - index_names=["context.span_id", "document_position"]
