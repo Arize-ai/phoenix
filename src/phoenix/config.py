@@ -22,6 +22,10 @@ ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME"
 """
 The project name to use when logging traces and evals. defaults to 'default'.
 """
+ENV_PHOENIX_SQL_DATABASE = "__DANGEROUS__PHOENIX_SQL_DATABASE"
+"""
+The database URL to use when logging traces and evals.
+"""
 ENV_SPAN_STORAGE_TYPE = "__DANGEROUS__PHOENIX_SPAN_STORAGE_TYPE"
 """
 **EXPERIMENTAL**
@@ -150,6 +154,14 @@ def get_env_span_storage_type() -> Optional["SpanStorageType"]:
             f"environment variable `{ENV_SPAN_STORAGE_TYPE}`. Valid values are: "
             f"{', '.join(t.value for t in SpanStorageType)}."
         )
+
+
+def get_env_database_connection_str() -> str:
+    env_url = os.getenv(ENV_PHOENIX_SQL_DATABASE)
+    if env_url is None:
+        working_dir = get_working_dir()
+        return f"sqlite:///{working_dir}/phoenix.db"
+    return env_url
 
 
 class SpanStorageType(Enum):
