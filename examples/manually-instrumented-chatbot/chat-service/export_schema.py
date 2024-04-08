@@ -13,7 +13,7 @@ with open("../frontend/schema.json", "w") as f:
         get_openapi(
             title="Chat Service Schema",
             version="1.0.0",
-            description="Your API Description",
+            description="API schema for chat-service",
             routes=app.routes,
         ),
         f,

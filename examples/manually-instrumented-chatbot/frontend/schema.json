@@ -1,8 +1,8 @@
 {
     "openapi": "3.1.0",
     "info": {
-        "title": "Your API Title",
-        "description": "Your API Description",
+        "title": "Chat Service Schema",
+        "description": "API schema for chat-service",
         "version": "1.0.0"
     },
     "paths": {
