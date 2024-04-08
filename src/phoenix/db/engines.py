@@ -39,7 +39,7 @@ def create_engine(connection_str: str, echo: bool = False) -> AsyncEngine:
         # Split the URL to get the database name
         return aio_sqlite_engine(database=url.database, echo=echo)
     if "postgresql" in url.drivername:
-        return aio_postgresql_engine(database=url.database, echo=echo)
+        return aio_postgresql_engine(url=url, echo=echo)
     raise ValueError(f"Unsupported driver: {url.drivername}")
 
 
@@ -58,11 +58,13 @@ def aio_sqlite_engine(
 
 
 def aio_postgresql_engine(
-    database: Union[str, Path],
+    url: URL,
     echo: bool = False,
 ) -> AsyncEngine:
-    url = get_db_url(driver="postgresql+asyncpg", database=database)
-    engine = create_async_engine(url=url, echo=echo, json_serializer=_dumps)
+    # Swap out the engine
+    async_url = url.set(drivername="postgresql+asyncpg")
+    engine = create_async_engine(url=async_url, echo=echo, json_serializer=_dumps)
+    # TODO(persistence): figure out the postgres pragma
     # event.listen(engine.sync_engine, "connect", set_pragma)
     migrate(engine.url)
     return engine
