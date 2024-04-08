@@ -37,7 +37,7 @@ from phoenix.config import (
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
-from phoenix.db.engines import aiosqlite_engine
+from phoenix.db.engines import aio_sqlite_engine
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
@@ -310,7 +310,7 @@ class ThreadSession(Session):
             ).start()
         # Initialize an app service that keeps the server running
         self.app = create_app(
-            engine=aiosqlite_engine(),
+            engine=aio_sqlite_engine(),
             export_path=self.export_path,
             model=self.model,
             corpus=self.corpus,

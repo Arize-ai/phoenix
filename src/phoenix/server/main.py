@@ -17,7 +17,7 @@ from uvicorn import Config, Server
 
 from phoenix.config import (
     EXPORT_DIR,
-    get_env_database_url_str,
+    get_env_database_connection_str,
     get_env_host,
     get_env_port,
     get_pids_path,
@@ -269,10 +269,10 @@ if __name__ == "__main__":
         start_prometheus()
 
     working_dir = get_working_dir().resolve()
-    db_url_str = get_env_database_url_str()
+    db_connection_str = get_env_database_connection_str()
     # Run postgres
-    # db_url_str = "postgresql://localhost:5432/postgres"
-    engine = create_engine(db_url_str)
+    db_connection_str = "postgresql://localhost:5432/postgres"
+    engine = create_engine(db_connection_str)
     app = create_app(
         engine=engine,
         export_path=export_path,
@@ -294,7 +294,7 @@ if __name__ == "__main__":
         "version": phoenix_version,
         "host": host,
         "port": port,
-        "storage": db_url_str,
+        "storage": db_connection_str,
     }
     print(_WELCOME_MESSAGE.format(**config))
 

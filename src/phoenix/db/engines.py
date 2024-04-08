@@ -7,7 +7,7 @@ from sqlite3 import Connection
 from typing import Any, Union
 
 import numpy as np
-from sqlalchemy import URL, event
+from sqlalchemy import URL, event, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from phoenix.db.migrate import migrate
@@ -20,7 +20,7 @@ class SQLDriver(Enum):
     POSTGRES = "postgres"
 
 
-def set_sqlite_pragma(connection: Connection, _: Any) -> None:
+def set_pragma(connection: Connection, _: Any) -> None:
     cursor = connection.cursor()
     cursor.execute("PRAGMA foreign_keys = ON;")
     cursor.execute("PRAGMA journal_mode = WAL;")
@@ -34,30 +34,50 @@ def get_db_url(driver: str = "sqlite+aiosqlite", database: Union[str, Path] = ":
     return URL.create(driver, database=str(database))
 
 
-def db_url_from_str(url_str: str) -> URL:
-    return URL.create(url_str)
-
-
-def create_engine(url_str: str, echo: bool = False) -> AsyncEngine:
-    url = db_url_from_str(url_str)
+def create_engine(connection_str: str, echo: bool = False) -> AsyncEngine:
+    """
+    Factory to create a SQLAlchemy engine from a URL string.
+    """
+    print("connection_str: " + connection_str)
+    url = make_url(connection_str)
+    if not url.database:
+        raise ValueError("Failed to parse database from connection string")
     if "sqlite" in url.drivername:
-        return aiosqlite_engine(database=url.database, echo=echo)
-    if "postgres" in url.drivername:
-        return create_async_engine(url=url, echo=echo)
+        # Split the URL to get the database name
+        database = url.database
+
+        if not database:
+            raise ValueError("Database is required for SQLite")
+        print("Creating sqlite engine: " + database)
+        return aio_sqlite_engine(database=database, echo=echo)
+    if "postgresql" in url.drivername:
+        print("Creating postgres engine")
+        return aio_postgresql_engine(database=url.database, echo=echo)
     raise ValueError(f"Unsupported driver: {url.drivername}")
 
 
-def aiosqlite_engine(
+def aio_sqlite_engine(
     database: Union[str, Path] = ":memory:",
     echo: bool = False,
 ) -> AsyncEngine:
     url = get_db_url(driver="sqlite+aiosqlite", database=database)
     engine = create_async_engine(url=url, echo=echo, json_serializer=_dumps)
-    event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
+    event.listen(engine.sync_engine, "connect", set_pragma)
     if str(database) == ":memory:":
         asyncio.run(init_models(engine))
     else:
-        migrate(url)
+        migrate(engine.url)
+    return engine
+
+
+def aio_postgresql_engine(
+    database: Union[str, Path],
+    echo: bool = False,
+) -> AsyncEngine:
+    url = get_db_url(driver="postgresql+asyncpg", database=database)
+    engine = create_async_engine(url=url, echo=echo, json_serializer=_dumps)
+    event.listen(engine.sync_engine, "connect", set_pragma)
+    migrate(engine.url)
     return engine
 
 
