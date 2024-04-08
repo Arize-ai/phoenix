@@ -109,28 +109,6 @@ def _load_items(
         queue.put(item)
 
 
-# TODO(persistence): Delete the commented-out code below
-# def _send_spans(spans: Iterable[Span], url: str) -> None:
-#     sleep(5)  # Wait for the server to start
-#
-#     def _send(span: Span) -> None:
-#         req = ExportTraceServiceRequest(
-#             resource_spans=[ResourceSpans(scope_spans=[ScopeSpans(spans=[encode(span)])])]
-#         )
-#         requests.post(
-#             url=url,
-#             headers={
-#                 "content-type": "application/x-protobuf",
-#                 "content-encoding": "gzip",
-#             },
-#             data=gzip.compress(req.SerializeToString()),
-#         )
-#
-#     # stress test the server by sending multiple spans concurrently
-#     with ThreadPoolExecutor(max_workers=50) as executor:
-#         executor.map(_send, spans)
-
-
 DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_SAMPLES}"
 
 if __name__ == "__main__":
@@ -240,12 +218,6 @@ if __name__ == "__main__":
             args=(traces, fixture_spans, simulate_streaming),
             daemon=True,
         ).start()
-        # TODO(persistence): Delete the commented-out code below
-        # Thread(
-        #     target=_send_spans,
-        #     args=(fixture_spans, f"http://{host}:{port}/v1/traces"),
-        #     daemon=True,
-        # ).start()
         fixture_evals = list(get_evals_from_fixture(trace_dataset_name))
         Thread(
             target=_load_items,
