@@ -271,7 +271,7 @@ if __name__ == "__main__":
     working_dir = get_working_dir().resolve()
     db_connection_str = get_env_database_connection_str()
     # Run postgres
-    db_connection_str = "postgresql://localhost:5432/postgres"
+    db_connection_str = "postgresql://localhost:5432/mikeldking"
     engine = create_engine(db_connection_str)
     app = create_app(
         engine=engine,

@@ -22,7 +22,7 @@ ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME"
 """
 The project name to use when logging traces and evals. defaults to 'default'.
 """
-ENV_PHOENIX_SQL_DATABASE = "PHOENIX_SQL_DATABASE"
+ENV_PHOENIX_SQL_DATABASE = "__DANGEROUS__PHOENIX_SQL_DATABASE"
 """
 The database URL to use when logging traces and evals.
 """

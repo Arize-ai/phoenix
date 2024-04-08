@@ -20,7 +20,7 @@ class SQLDriver(Enum):
     POSTGRES = "postgres"
 
 
-def set_pragma(connection: Connection, _: Any) -> None:
+def set_sqlite_pragma(connection: Connection, _: Any) -> None:
     cursor = connection.cursor()
     cursor.execute("PRAGMA foreign_keys = ON;")
     cursor.execute("PRAGMA journal_mode = WAL;")
@@ -62,7 +62,7 @@ def aio_sqlite_engine(
 ) -> AsyncEngine:
     url = get_db_url(driver="sqlite+aiosqlite", database=database)
     engine = create_async_engine(url=url, echo=echo, json_serializer=_dumps)
-    event.listen(engine.sync_engine, "connect", set_pragma)
+    event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
     if str(database) == ":memory:":
         asyncio.run(init_models(engine))
     else:
@@ -76,7 +76,7 @@ def aio_postgresql_engine(
 ) -> AsyncEngine:
     url = get_db_url(driver="postgresql+asyncpg", database=database)
     engine = create_async_engine(url=url, echo=echo, json_serializer=_dumps)
-    event.listen(engine.sync_engine, "connect", set_pragma)
+    # event.listen(engine.sync_engine, "connect", set_pragma)
     migrate(engine.url)
     return engine
 
