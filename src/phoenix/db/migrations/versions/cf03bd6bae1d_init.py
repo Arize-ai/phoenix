@@ -38,6 +38,7 @@ def upgrade() -> None:
             server_default=sa.func.now(),
             onupdate=sa.func.now(),
         ),
+        sa.Column("data_last_added_at", sa.DateTime(timezone=True)),
     )
     op.create_table(
         "traces",

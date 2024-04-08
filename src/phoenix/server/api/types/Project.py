@@ -337,10 +337,12 @@ class Project(Node):
         )
 
     @strawberry.field
-    def streaming_last_updated_at(
+    async def streaming_last_updated_at(
         self,
+        info: Info[Context, None],
     ) -> Optional[datetime]:
-        return self.project.last_updated_at
+        async with info.context.db() as session:
+            return await session.scalar(select(models.Project.data_last_added_at))
 
     @strawberry.field
     def validate_span_filter_condition(self, condition: str) -> ValidationResult:
