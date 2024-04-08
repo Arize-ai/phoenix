@@ -34,7 +34,6 @@ class EmbeddingColumnNames(Dict[str, Any]):
 @dataclass(frozen=True)
 class RetrievalEmbeddingColumnNames(EmbeddingColumnNames):
     """
-    *** Experimental ***
     A relationship is a column that maps a prediction to another record.
 
     Example
