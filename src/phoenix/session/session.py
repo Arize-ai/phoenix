@@ -30,6 +30,7 @@ from phoenix.config import (
     ENV_PHOENIX_COLLECTOR_ENDPOINT,
     ENV_PHOENIX_HOST,
     ENV_PHOENIX_PORT,
+    get_env_database_connection_str,
     get_env_host,
     get_env_port,
     get_env_project_name,
@@ -39,7 +40,7 @@ from phoenix.config import (
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
-from phoenix.db.engines import aio_sqlite_engine
+from phoenix.db.engines import create_engine
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
@@ -266,6 +267,7 @@ class ProcessSession(Session):
 class ThreadSession(Session):
     def __init__(
         self,
+        database: str,
         primary_dataset: Dataset,
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
@@ -312,7 +314,7 @@ class ThreadSession(Session):
             ).start()
         # Initialize an app service that keeps the server running
         self.app = create_app(
-            engine=aio_sqlite_engine(),
+            engine=create_engine(database),
             export_path=self.export_path,
             model=self.model,
             corpus=self.corpus,
@@ -553,9 +555,11 @@ def launch_app(
 
     host = host or get_env_host()
     port = port or get_env_port()
+    database = get_env_database_connection_str()
 
     if run_in_thread:
         _session = ThreadSession(
+            database,
             primary,
             reference,
             corpus,
@@ -588,7 +592,7 @@ def launch_app(
         return None
 
     print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
-    print("📺 To view the Phoenix app in a notebook, run `px.active_session().view()`")
+    print(f"💽 Your data is being persisted to {database}")
     print("📖 For more information on how to use Phoenix, check out https://docs.arize.com/phoenix")
     return _session
 
