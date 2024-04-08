@@ -17,6 +17,7 @@ from uvicorn import Config, Server
 
 from phoenix.config import (
     EXPORT_DIR,
+    get_env_database_connection_str,
     get_env_host,
     get_env_port,
     get_pids_path,
@@ -26,7 +27,7 @@ from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
 from phoenix.datasets.fixtures import FIXTURES, get_datasets
-from phoenix.db.engines import aiosqlite_engine
+from phoenix.db.engines import create_engine
 from phoenix.pointcloud.umap_parameters import (
     DEFAULT_MIN_DIST,
     DEFAULT_N_NEIGHBORS,
@@ -70,7 +71,7 @@ _WELCOME_MESSAGE = """
 |  🚀 Phoenix Server 🚀
 |  Phoenix UI: http://{host}:{port}
 |  Log traces: /v1/traces over HTTP
-|  Storage location: {working_dir}
+|  Storage: {storage}
 """
 
 
@@ -268,7 +269,8 @@ if __name__ == "__main__":
         start_prometheus()
 
     working_dir = get_working_dir().resolve()
-    engine = aiosqlite_engine(working_dir / "phoenix.db")
+    db_connection_str = get_env_database_connection_str()
+    engine = create_engine(db_connection_str)
     app = create_app(
         engine=engine,
         export_path=export_path,
@@ -290,7 +292,7 @@ if __name__ == "__main__":
         "version": phoenix_version,
         "host": host,
         "port": port,
-        "working_dir": working_dir,
+        "storage": db_connection_str,
     }
     print(_WELCOME_MESSAGE.format(**config))
 

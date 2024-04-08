@@ -7,7 +7,7 @@ from sqlite3 import Connection
 from typing import Any, Union
 
 import numpy as np
-from sqlalchemy import URL, event
+from sqlalchemy import URL, event, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from phoenix.db.migrate import migrate
@@ -24,18 +24,49 @@ def set_sqlite_pragma(connection: Connection, _: Any) -> None:
     cursor.close()
 
 
-def aiosqlite_engine(
+def get_db_url(driver: str = "sqlite+aiosqlite", database: Union[str, Path] = ":memory:") -> URL:
+    return URL.create(driver, database=str(database))
+
+
+def create_engine(connection_str: str, echo: bool = False) -> AsyncEngine:
+    """
+    Factory to create a SQLAlchemy engine from a URL string.
+    """
+    url = make_url(connection_str)
+    if not url.database:
+        raise ValueError("Failed to parse database from connection string")
+    if "sqlite" in url.drivername:
+        # Split the URL to get the database name
+        return aio_sqlite_engine(database=url.database, echo=echo)
+    if "postgresql" in url.drivername:
+        return aio_postgresql_engine(url=url, echo=echo)
+    raise ValueError(f"Unsupported driver: {url.drivername}")
+
+
+def aio_sqlite_engine(
     database: Union[str, Path] = ":memory:",
     echo: bool = False,
 ) -> AsyncEngine:
-    driver_name = "sqlite+aiosqlite"
-    url = URL.create(driver_name, database=str(database))
+    url = get_db_url(driver="sqlite+aiosqlite", database=database)
     engine = create_async_engine(url=url, echo=echo, json_serializer=_dumps)
     event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
     if str(database) == ":memory:":
         asyncio.run(init_models(engine))
     else:
-        migrate(url)
+        migrate(engine.url)
+    return engine
+
+
+def aio_postgresql_engine(
+    url: URL,
+    echo: bool = False,
+) -> AsyncEngine:
+    # Swap out the engine
+    async_url = url.set(drivername="postgresql+asyncpg")
+    engine = create_async_engine(url=async_url, echo=echo, json_serializer=_dumps)
+    # TODO(persistence): figure out the postgres pragma
+    # event.listen(engine.sync_engine, "connect", set_pragma)
+    migrate(engine.url)
     return engine
 
 

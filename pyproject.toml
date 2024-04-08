@@ -89,6 +89,11 @@ llama-index = [
   "llama-index-callbacks-arize-phoenix>=0.1.2",
   "openinference-instrumentation-llama-index>=1.2.0",
 ]
+
+pg = [
+  "asyncpg",
+]
+
 container = [
   "prometheus-client",
 ]
