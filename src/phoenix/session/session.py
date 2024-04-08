@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import shutil
 import warnings
 from abc import ABC, abstractmethod
 from collections import UserList
@@ -33,6 +34,7 @@ from phoenix.config import (
     get_env_port,
     get_env_project_name,
     get_exported_files,
+    get_working_dir,
 )
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
@@ -421,6 +423,24 @@ class ThreadSession(Session):
         if not (traces := self.traces) or not (project := traces.get_project(project_name)):
             return []
         return project.export_evaluations()
+
+
+def reset(hard: Optional[bool] = False) -> None:
+    """
+    Resets everything to the initial state.
+    """
+    global _session
+    if _session is not None:
+        if not hard:
+            input("Active session detected. Press Enter to close the session")
+        close_app()
+    working_dir = get_working_dir()
+
+    # See if the working directory exists
+    if working_dir.exists():
+        if not hard:
+            input(f"Working directory exists at {working_dir}. Press Enter to delete the directory")
+        shutil.rmtree(working_dir)
 
 
 def launch_app(
