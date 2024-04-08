@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<59e92b9a89860706c2a220c48b2eeb84>>
+ * @generated SignedSource<<ea653eac0415a464a1ceb49f5875a66b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -94,11 +94,17 @@ const node: ConcreteRequest = {
                     "storageKey": null
                   },
                   {
-                    "alias": null,
-                    "args": null,
+                    "alias": "latencyMsP50",
+                    "args": [
+                      {
+                        "kind": "Literal",
+                        "name": "probability",
+                        "value": 0.5
+                      }
+                    ],
                     "kind": "ScalarField",
-                    "name": "latencyMsP50",
-                    "storageKey": null
+                    "name": "latencyMsQuantile",
+                    "storageKey": "latencyMsQuantile(probability:0.5)"
                   },
                   {
                     "alias": null,
@@ -119,12 +125,12 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "30aa28068072e9061c720934cee3837f",
+    "cacheID": "28f9e8120b370aeaea11dc87f747e6bc",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageQuery {\n  ...ProjectsPageProjectsFragment\n}\n\nfragment ProjectsPageProjectsFragment on Query {\n  projects {\n    edges {\n      project: node {\n        id\n        name\n        traceCount\n        endTime\n        latencyMsP50\n        tokenCountTotal\n      }\n    }\n  }\n}\n"
+    "text": "query ProjectsPageQuery {\n  ...ProjectsPageProjectsFragment\n}\n\nfragment ProjectsPageProjectsFragment on Query {\n  projects {\n    edges {\n      project: node {\n        id\n        name\n        traceCount\n        endTime\n        latencyMsP50: latencyMsQuantile(probability: 0.5)\n        tokenCountTotal\n      }\n    }\n  }\n}\n"
   }
 };
 

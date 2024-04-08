@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a11a4115d282f83774109ca2b565cfdb>>
+ * @generated SignedSource<<1856c23f19873995bc6669ccb27148d8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -94,11 +94,17 @@ const node: ConcreteRequest = {
                     "storageKey": null
                   },
                   {
-                    "alias": null,
-                    "args": null,
+                    "alias": "latencyMsP50",
+                    "args": [
+                      {
+                        "kind": "Literal",
+                        "name": "probability",
+                        "value": 0.5
+                      }
+                    ],
                     "kind": "ScalarField",
-                    "name": "latencyMsP50",
-                    "storageKey": null
+                    "name": "latencyMsQuantile",
+                    "storageKey": "latencyMsQuantile(probability:0.5)"
                   },
                   {
                     "alias": null,
@@ -119,15 +125,15 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "4b63c5c0a8bec80cc1519d844376e760",
+    "cacheID": "fe62b40e1c719139a6a3b0cbf2977048",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageProjectsQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageProjectsQuery {\n  ...ProjectsPageProjectsFragment\n}\n\nfragment ProjectsPageProjectsFragment on Query {\n  projects {\n    edges {\n      project: node {\n        id\n        name\n        traceCount\n        endTime\n        latencyMsP50\n        tokenCountTotal\n      }\n    }\n  }\n}\n"
+    "text": "query ProjectsPageProjectsQuery {\n  ...ProjectsPageProjectsFragment\n}\n\nfragment ProjectsPageProjectsFragment on Query {\n  projects {\n    edges {\n      project: node {\n        id\n        name\n        traceCount\n        endTime\n        latencyMsP50: latencyMsQuantile(probability: 0.5)\n        tokenCountTotal\n      }\n    }\n  }\n}\n"
   }
 };
 
-(node as any).hash = "cda7be8f505b3338d69dea54d66c943f";
+(node as any).hash = "b5474884a04e0ab5cfe6e8662450c2e5";
 
 export default node;

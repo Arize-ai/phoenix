@@ -109,6 +109,7 @@ class Trace(Base):
     trace_id: Mapped[str]
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
+    latency_ms: Mapped[float]
 
     project: Mapped["Project"] = relationship(
         "Project",
