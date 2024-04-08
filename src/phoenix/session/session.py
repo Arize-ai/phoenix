@@ -317,6 +317,7 @@ class ThreadSession(Session):
             traces=self.traces,
             umap_params=self.umap_parameters,
             span_store=span_store,
+            initial_spans=trace_dataset.to_spans() if trace_dataset else None,
         )
         self.server = ThreadServer(
             app=self.app,

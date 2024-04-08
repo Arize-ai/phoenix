@@ -1,5 +1,4 @@
 import atexit
-import gzip
 import logging
 import os
 from argparse import ArgumentParser
@@ -10,9 +9,6 @@ from time import sleep, time
 from typing import Iterable, Optional, Protocol, TypeVar
 
 import pkg_resources
-import requests
-from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import ExportTraceServiceRequest
-from opentelemetry.proto.trace.v1.trace_pb2 import ResourceSpans, ScopeSpans
 from uvicorn import Config, Server
 
 from phoenix.config import (
@@ -42,7 +38,6 @@ from phoenix.trace.fixtures import (
     get_evals_from_fixture,
 )
 from phoenix.trace.otel import decode, encode
-from phoenix.trace.schemas import Span
 from phoenix.trace.span_json_decoder import json_string_to_span
 from phoenix.utilities.span_store import get_span_store, load_traces_data_from_store
 
@@ -113,26 +108,26 @@ def _load_items(
         queue.put(item)
 
 
-def _send_spans(spans: Iterable[Span], url: str) -> None:
-    # TODO(persistence): Ingest fixtures without networking for read-only deployments
-    sleep(5)  # Wait for the server to start
-    session = requests.session()
-    for span in spans:
-        req = ExportTraceServiceRequest(
-            resource_spans=[ResourceSpans(scope_spans=[ScopeSpans(spans=[encode(span)])])]
-        )
-        session.post(
-            url=url,
-            headers={
-                "content-type": "application/x-protobuf",
-                "content-encoding": "gzip",
-            },
-            data=gzip.compress(req.SerializeToString()),
-        )
-        # TODO(persistence): If ingestion rate is too high it can crash the UI, because
-        # sqlite is not designed for high concurrency, especially for disk
-        # persistence.
-        sleep(0.2)
+# TODO(persistence): Delete the commented-out code below
+# def _send_spans(spans: Iterable[Span], url: str) -> None:
+#     sleep(5)  # Wait for the server to start
+#
+#     def _send(span: Span) -> None:
+#         req = ExportTraceServiceRequest(
+#             resource_spans=[ResourceSpans(scope_spans=[ScopeSpans(spans=[encode(span)])])]
+#         )
+#         requests.post(
+#             url=url,
+#             headers={
+#                 "content-type": "application/x-protobuf",
+#                 "content-encoding": "gzip",
+#             },
+#             data=gzip.compress(req.SerializeToString()),
+#         )
+#
+#     # stress test the server by sending multiple spans concurrently
+#     with ThreadPoolExecutor(max_workers=50) as executor:
+#         executor.map(_send, spans)
 
 
 DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_SAMPLES}"
@@ -229,6 +224,7 @@ if __name__ == "__main__":
     traces = Traces()
     if span_store := get_span_store():
         Thread(target=load_traces_data_from_store, args=(traces, span_store), daemon=True).start()
+    fixture_spans = []
     if trace_dataset_name is not None:
         fixture_spans = list(
             # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
@@ -243,11 +239,12 @@ if __name__ == "__main__":
             args=(traces, fixture_spans, simulate_streaming),
             daemon=True,
         ).start()
-        Thread(
-            target=_send_spans,
-            args=(fixture_spans, f"http://{host}:{port}/v1/traces"),
-            daemon=True,
-        ).start()
+        # TODO(persistence): Delete the commented-out code below
+        # Thread(
+        #     target=_send_spans,
+        #     args=(fixture_spans, f"http://{host}:{port}/v1/traces"),
+        #     daemon=True,
+        # ).start()
         fixture_evals = list(get_evals_from_fixture(trace_dataset_name))
         Thread(
             target=_load_items,
@@ -280,6 +277,7 @@ if __name__ == "__main__":
         read_only=read_only,
         span_store=span_store,
         enable_prometheus=enable_prometheus,
+        initial_spans=fixture_spans,
     )
     server = Server(config=Config(app, host=host, port=port))
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
