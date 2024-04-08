@@ -25,7 +25,7 @@ from sqlalchemy.orm import (
 
 class UtcTimeStamp(TypeDecorator[datetime]):
     """TODO(persistence): Figure out how to reliably store and retrieve
-    timezone-aware datetime objects from the (sqlite) database. This is a
+    timezone-aware datetime objects from the (sqlite) database. Below is a
     workaround to guarantee that the timestamps we fetch from the database is
     always timezone-aware, in order to prevent comparisons of timezone-naive
     datetime with timezone-aware datetime, because objects in the rest of our

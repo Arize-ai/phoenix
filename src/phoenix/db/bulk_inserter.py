@@ -14,19 +14,29 @@ from phoenix.trace.schemas import Span, SpanStatusCode
 logger = logging.getLogger(__name__)
 
 
-class SpansBulkInserter:
+class BulkInserter:
     def __init__(
         self,
         db: Callable[[], AsyncContextManager[AsyncSession]],
-        initial_batch: Optional[Iterable[Tuple[Span, str]]] = None,
-        sleep_seconds: float = 0.5,
-        max_num_spans_per_transaction: int = 100,
+        initial_batch_of_spans: Optional[Iterable[Tuple[Span, str]]] = None,
+        run_interval_in_seconds: float = 0.5,
+        max_num_per_transaction: int = 100,
     ) -> None:
+        """
+        :param db: A function to initiate a new database session.
+        :param initial_batch_of_spans: Initial batch of spans to insert.
+        :param run_interval_in_seconds: The time interval between the starts of each
+        bulk insert. If there's nothing to insert, the inserter goes back to sleep.
+        :param max_num_per_transaction: The maximum number of items to insert in a single
+        transaction. Multiple transactions will be used if there are more items in the batch.
+        """
         self._db = db
         self._running = False
-        self._sleep_seconds = sleep_seconds
-        self._max_num_spans_per_transaction = max_num_spans_per_transaction
-        self._batch: List[Tuple[Span, str]] = [] if initial_batch is None else list(initial_batch)
+        self._run_interval_seconds = run_interval_in_seconds
+        self._max_num_per_transaction = max_num_per_transaction
+        self._spans: List[Tuple[Span, str]] = (
+            [] if initial_batch_of_spans is None else list(initial_batch_of_spans)
+        )
         self._task: Optional[asyncio.Task[None]] = None
 
     async def __aenter__(self) -> Callable[[Span, str], None]:
@@ -38,22 +48,22 @@ class SpansBulkInserter:
         self._running = False
 
     def _queue_span(self, span: Span, project_name: str) -> None:
-        self._batch.append((span, project_name))
+        self._spans.append((span, project_name))
 
     async def _insert_spans(self) -> None:
-        next_run_at = time() + self._sleep_seconds
-        while self._batch or self._running:
+        next_run_at = time() + self._run_interval_seconds
+        while self._spans or self._running:
             await asyncio.sleep(next_run_at - time())
-            next_run_at = time() + self._sleep_seconds
-            if not self._batch:
+            next_run_at = time() + self._run_interval_seconds
+            if not self._spans:
                 continue
-            batch = self._batch
-            self._batch = []
-            for i in range(0, len(batch), self._max_num_spans_per_transaction):
+            spans = self._spans
+            self._spans = []
+            for i in range(0, len(spans), self._max_num_per_transaction):
                 try:
                     async with self._db() as session:
                         for span, project_name in islice(
-                            batch, i, i + self._max_num_spans_per_transaction
+                            spans, i, i + self._max_num_per_transaction
                         ):
                             try:
                                 async with session.begin_nested():

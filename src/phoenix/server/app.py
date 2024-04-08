@@ -39,7 +39,7 @@ import phoenix
 from phoenix.config import DEFAULT_PROJECT_NAME, SERVER_DIR
 from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
-from phoenix.db.bulk_inserter import SpansBulkInserter
+from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context
 from phoenix.server.api.routers.evaluation_handler import EvaluationHandler
@@ -181,7 +181,7 @@ def _lifespan(
 ) -> StatefulLifespan[Starlette]:
     @contextlib.asynccontextmanager
     async def lifespan(_: Starlette) -> AsyncIterator[Dict[str, Any]]:
-        async with SpansBulkInserter(db, initial_batch_of_spans) as queue_span:
+        async with BulkInserter(db, initial_batch_of_spans) as queue_span:
             yield {"queue_span_for_bulk_insert": queue_span}
 
     return lifespan
@@ -241,11 +241,7 @@ def create_app(
                 ),
                 Route(
                     "/v1/traces",
-                    type(
-                        "TraceEndpoint",
-                        (TraceHandler,),
-                        {"traces": traces, "store": span_store},
-                    ),
+                    type("TraceEndpoint", (TraceHandler,), {"traces": traces, "store": span_store}),
                 ),
                 Route(
                     "/v1/evaluations",
