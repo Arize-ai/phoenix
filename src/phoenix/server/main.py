@@ -26,7 +26,7 @@ from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
 from phoenix.datasets.fixtures import FIXTURES, get_datasets
-from phoenix.db.engines import aiosqlite_engine, get_db_url
+from phoenix.db.engines import aiosqlite_engine
 from phoenix.pointcloud.umap_parameters import (
     DEFAULT_MIN_DIST,
     DEFAULT_N_NEIGHBORS,
@@ -268,7 +268,9 @@ if __name__ == "__main__":
         start_prometheus()
 
     working_dir = get_working_dir().resolve()
-    sql_url = get_db_url(database=working_dir / "phoenix.db")
+    # db_url_str = get_env_database_url_str()
+    # Run postgres
+    db_url_str = "postgresql://localhost:5432/postgres"
     engine = aiosqlite_engine(working_dir / "phoenix.db")
     app = create_app(
         engine=engine,
@@ -291,7 +293,7 @@ if __name__ == "__main__":
         "version": phoenix_version,
         "host": host,
         "port": port,
-        "storage": sql_url,
+        "storage": db_url_str,
     }
     print(_WELCOME_MESSAGE.format(**config))
 

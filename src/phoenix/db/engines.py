@@ -14,6 +14,12 @@ from phoenix.db.migrate import migrate
 from phoenix.db.models import init_models
 
 
+# Enum for the the different sql drivers
+class SQLDriver(Enum):
+    SQLITE = "sqlite"
+    POSTGRES = "postgres"
+
+
 def set_sqlite_pragma(connection: Connection, _: Any) -> None:
     cursor = connection.cursor()
     cursor.execute("PRAGMA foreign_keys = ON;")
@@ -26,6 +32,10 @@ def set_sqlite_pragma(connection: Connection, _: Any) -> None:
 
 def get_db_url(driver: str = "sqlite+aiosqlite", database: Union[str, Path] = ":memory:") -> URL:
     return URL.create(driver, database=str(database))
+
+
+def db_url_from_str(url_str: str) -> URL:
+    return URL.create(url_str)
 
 
 def aiosqlite_engine(
