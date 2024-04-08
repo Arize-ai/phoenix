@@ -38,6 +38,15 @@ def db_url_from_str(url_str: str) -> URL:
     return URL.create(url_str)
 
 
+def create_engine(url_str: str, echo: bool = False) -> AsyncEngine:
+    url = db_url_from_str(url_str)
+    if "sqlite" in url.drivername:
+        return aiosqlite_engine(database=url.database, echo=echo)
+    if "postgres" in url.drivername:
+        return create_async_engine(url=url, echo=echo)
+    raise ValueError(f"Unsupported driver: {url.drivername}")
+
+
 def aiosqlite_engine(
     database: Union[str, Path] = ":memory:",
     echo: bool = False,
