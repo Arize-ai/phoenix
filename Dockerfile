@@ -36,7 +36,7 @@ COPY ./ /phoenix/
 COPY --from=frontend-builder /phoenix/src/phoenix/server/static/ /phoenix/src/phoenix/server/static/
 # Delete symbolic links used during development.
 RUN find src/ -xtype l -delete  
-RUN pip install --target ./env .[container, pg]
+RUN pip install --target ./env ".[container, pg]"
 
 # The production image is distroless, meaning that it is a minimal image that
 # contains only the necessary dependencies to run the application. This is
