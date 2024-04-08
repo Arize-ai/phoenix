@@ -11,7 +11,7 @@ We currently support the following LLM providers under `phoenix.evals`:
 ### OpenAIModel
 
 {% hint style="info" %}
-Need to install the extra dependencies `openai>=0.26.4` and `tiktoken`
+Need to install the extra dependencies `openai>=1.0.0`
 {% endhint %}
 
 ```python
@@ -28,7 +28,7 @@ class OpenAIModel:
     An optional base URL to use for the OpenAI API. If not provided, will default
     to what's configured in OpenAI
     """
-    model_name: str = "gpt-4"
+    model: str = "gpt-4"
     """Model name to use. In of azure, this is the deployment name such as gpt-35-instant"""
     temperature: float = 0.0
     """What sampling temperature to use."""
@@ -50,12 +50,6 @@ class OpenAIModel:
     """Batch size to use when passing multiple documents to generate."""
     request_timeout: Optional[Union[float, Tuple[float, float]]] = None
     """Timeout for requests to OpenAI completion API. Default is 600 seconds."""
-    max_retries: int = 20
-    """Maximum number of retries to make when generating."""
-    retry_min_seconds: int = 10
-    """Minimum number of seconds to wait when retrying."""
-    retry_max_seconds: int = 60
-    """Maximum number of seconds to wait when retrying."""
 ```
 
 To authenticate with OpenAI you will need, at a minimum, an API key. The model class will look for it in your environment, or you can pass it via argument as shown above. In addition, you can choose the specific name of the model you want to use and its configuration parameters. The default values specified above are common default values from OpenAI. Quickly instantiate your model as follows:
@@ -74,14 +68,14 @@ Here is an example of how to initialize `OpenAIModel` for Azure:
 
 ```python
 model = OpenAIModel(
-    model_name="gpt-35-turbo-16k",
+    model="gpt-35-turbo-16k",
     azure_endpoint="https://arize-internal-llm.openai.azure.com/",
     api_version="2023-09-15-preview",
 )
 ```
 
 {% hint style="info" %}
-Note that the `model_name` param is actually the `engine` of your deployment.  You may get a `DeploymentNotFound` error if this parameter is not correct. You can find your engine param in the Azure OpenAI playground.\
+Note that the `model` param is actually the `engine` of your deployment.  You may get a `DeploymentNotFound` error if this parameter is not correct. You can find your engine param in the Azure OpenAI playground.\
 \
 
 {% endhint %}
@@ -121,11 +115,8 @@ Need to install the extra dependency`google-cloud-aiplatform>=1.33.0`
 <strong>    project: Optional[str] = None
 </strong>    location: Optional[str] = None
     credentials: Optional["Credentials"] = None
-    model_name: str = "text-bison"
-    tuned_model_name: Optional[str] = None
-    max_retries: int = 6
-    retry_min_seconds: int = 10
-    retry_max_seconds: int = 60
+    model: str = "text-bison"
+    tuned_model: Optional[str] = None
     temperature: float = 0.0
     max_tokens: int = 256
     top_p: float = 0.95
@@ -180,12 +171,8 @@ class BedrockModel:
     """The cutoff where the model no longer selects the words"""
     stop_sequences: List[str] = field(default_factory=list)
     """If the model encounters a stop sequence, it stops generating further tokens. """
-    max_retries: int = 6
-    """Maximum number of retries to make when generating."""
-    retry_min_seconds: int = 10
-    """Minimum number of seconds to wait when retrying."""
-    retry_max_seconds: int = 60
-    """Maximum number of seconds to wait when retrying."""
+    session: Any = None
+    """A bedrock session. If provided, a new bedrock client will be created using this session."""
     client = None
     """The bedrock session client. If unset, a new one is created with boto3."""
     max_content_size: Optional[int] = None
@@ -263,7 +250,7 @@ Need to install the extra dependency `litellm>=1.0.3`
 
 ```python
 class LiteLLMModel(BaseEvalModel):
-    model_name: str = "gpt-3.5-turbo"
+    model: str = "gpt-3.5-turbo"
     """The model name to use."""
     temperature: float = 0.0
     """What sampling temperature to use."""
@@ -278,12 +265,6 @@ class LiteLLMModel(BaseEvalModel):
     """Maximum number of seconds to wait when retrying."""
     model_kwargs: Dict[str, Any] = field(default_factory=dict)
     """Model specific params"""
-
-    # non-LiteLLM params
-    retry_min_seconds: int = 10
-    """Minimum number of seconds to wait when retrying."""
-    max_content_size: Optional[int] = None
-    """If you're using a fine-tuned model, set this to the maximum content size"""
 ```
 
 You can choose among [multiple models](https://docs.litellm.ai/docs/providers) supported by LiteLLM. Make sure you have set the right environment variables set prior to initializing the model. For additional information about the environment variables for specific model providers visit: [LiteLLM provider specific params](https://docs.litellm.ai/docs/completion/input#provider-specific-params)
@@ -305,83 +286,3 @@ In this section, we will showcase the methods and properties that our `EvalModel
 # Output: "As an artificial intelligence, I don't have feelings, 
 #          but I'm here and ready to assist you. How can I help you today?"
 </code></pre>
-
-### `model.generate`
-
-If you want to run multiple prompts through the LLM, you can do so via the `generate` method
-
-<pre class="language-python"><code class="lang-python">responses = model.generate(
-    [
-        "Hello there, how are you?",
-        "What is the typical weather in the Mediterranean",
-        "Thank you for helping out, good bye!"
-    ]
-)
-print(responses)
-<strong># Output: [
-</strong><strong>#     "As an artificial intelligence, I don't have feelings, but I'm here and ready 
-</strong><strong>#         to assist you. How can I help you today?",
-</strong>#     "The Mediterranean region is known for its hot, dry summers and mild, wet 
-#         winters. This climate is characterized by warm temperatures throughout the
-#         year, with the highest temperatures usually occurring in July and August. 
-#         Rainfall is scarce during the summer months but more frequent during the 
-#         winter months. The region also experiences a lot of sunshine, with some 
-#         areas receiving about 300 sunny days per year.",
-#     "You're welcome! Don't hesitate to reach out if you need anything else. 
-#         Goodbye!"
-#    ]
-</code></pre>
-
-### `model.agenerate`
-
-In addition, you can also run multiple prompts through the LLM asynchronously via the `agenerate` method
-
-```python
-responses = await model.agenerate(
-    [
-        "Hello there, how are you?",
-        "What is the typical weather in the Mediterranean",
-        "Thank you for helping out, good bye!"
-    ]
-)
-print(responses)
-# Output: [
-#     "As an artificial intelligence, I don't have feelings, but I'm here and ready
-#         to assist you. How can I help you today?",
-#     "The Mediterranean region is known for its hot, dry summers and mild, wet
-#         winters. This climate is characterized by warm temperatures throughout the
-#         year, with the highest temperatures usually occurring in July and August.
-#         Rainfall is scarce during the summer months but more frequent during the
-#         winter months. The region also experiences a lot of sunshine, with some
-#         areas receiving about 300 sunny days per year.",
-#     "You're welcome! Don't hesitate to reach out if you need anything else.
-#         Goodbye!"
-#    ]
-```
-
-Our EvalModels also contain some methods that can help create evaluation applications:
-
-### `model.get_tokens_from_text`
-
-```python
-tokens = model.get_tokens_from_text("My favorite season is summer")
-print(tokens)
-# Output: [5159, 7075, 3280, 374, 7474]
-```
-
-### `model.get_text_from_tokens`
-
-```python
-text = model.get_text_from_tokens(tokens)
-print(text)
-# Output: "My favorite season is summer"
-```
-
-### `model.max_context_size`
-
-Furthermore, LLM models have a limited number of tokens that they can pay attention to. We call this limit the _context size_ or _context window_. You can access the context size of your model via the property `max_context_size`. In the following example, we used the model `gpt-4-0613` and the context size is
-
-```python
-print(model.max_context_size)
-# Output: 8192
-```
