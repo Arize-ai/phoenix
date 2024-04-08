@@ -51,7 +51,12 @@ def aio_sqlite_engine(
     engine = create_async_engine(url=url, echo=echo, json_serializer=_dumps)
     event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
     if str(database) == ":memory:":
-        asyncio.run(init_models(engine))
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            asyncio.run(init_models(engine))
+        else:
+            asyncio.create_task(init_models(engine))
     else:
         migrate(engine.url)
     return engine

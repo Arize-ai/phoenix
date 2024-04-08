@@ -25,10 +25,15 @@ def upgrade() -> None:
         # TODO does the uniqueness constraint need to be named
         sa.Column("name", sa.String, nullable=False, unique=True),
         sa.Column("description", sa.String, nullable=True),
-        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
         sa.Column(
             "updated_at",
-            sa.DateTime(),
+            sa.DateTime(timezone=True),
             nullable=False,
             server_default=sa.func.now(),
             onupdate=sa.func.now(),
@@ -41,8 +46,8 @@ def upgrade() -> None:
         # TODO(mikeldking): might not be the right place for this
         sa.Column("session_id", sa.String, nullable=True),
         sa.Column("trace_id", sa.String, nullable=False, unique=True),
-        sa.Column("start_time", sa.DateTime(), nullable=False, index=True),
-        sa.Column("end_time", sa.DateTime(), nullable=False),
+        sa.Column("start_time", sa.DateTime(timezone=True), nullable=False, index=True),
+        sa.Column("end_time", sa.DateTime(timezone=True), nullable=False),
     )
 
     op.create_table(
@@ -53,8 +58,8 @@ def upgrade() -> None:
         sa.Column("parent_span_id", sa.String, nullable=True, index=True),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("kind", sa.String, nullable=False),
-        sa.Column("start_time", sa.DateTime(), nullable=False),
-        sa.Column("end_time", sa.DateTime(), nullable=False),
+        sa.Column("start_time", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("end_time", sa.DateTime(timezone=True), nullable=False),
         sa.Column("attributes", sa.JSON, nullable=False),
         sa.Column("events", sa.JSON, nullable=False),
         sa.Column(

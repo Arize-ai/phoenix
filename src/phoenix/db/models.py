@@ -1,12 +1,14 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import (
     JSON,
     CheckConstraint,
     DateTime,
+    Dialect,
     ForeignKey,
     MetaData,
+    TypeDecorator,
     UniqueConstraint,
     func,
     insert,
@@ -19,6 +21,42 @@ from sqlalchemy.orm import (
     mapped_column,
     relationship,
 )
+
+
+class UtcTimeStamp(TypeDecorator[datetime]):
+    """TODO(persistence): Figure out how to reliably store and retrieve
+    timezone-aware datetime objects from the (sqlite) database. Below is a
+    workaround to guarantee that the timestamps we fetch from the database is
+    always timezone-aware, in order to prevent comparisons of timezone-naive
+    datetime with timezone-aware datetime, because objects in the rest of our
+    programs are always timezone-aware.
+    """
+
+    cache_ok = True
+    impl = DateTime
+    _LOCAL_TIMEZONE = datetime.now(timezone.utc).astimezone().tzinfo
+
+    def process_bind_param(
+        self,
+        value: Optional[datetime],
+        dialect: Dialect,
+    ) -> Optional[datetime]:
+        if not value:
+            return None
+        if value.tzinfo is None:
+            value = value.astimezone(self._LOCAL_TIMEZONE)
+        return value.astimezone(timezone.utc)
+
+    def process_result_value(
+        self,
+        value: Optional[Any],
+        dialect: Dialect,
+    ) -> Optional[datetime]:
+        if not isinstance(value, datetime):
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
 
 
 class Base(DeclarativeBase):
@@ -44,9 +82,9 @@ class Project(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
     description: Mapped[Optional[str]]
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
 
     traces: WriteOnlyMapped["Trace"] = relationship(
@@ -69,8 +107,8 @@ class Trace(Base):
     project_rowid: Mapped[int] = mapped_column(ForeignKey("projects.id"))
     session_id: Mapped[Optional[str]]
     trace_id: Mapped[str]
-    start_time: Mapped[datetime] = mapped_column(DateTime(), index=True)
-    end_time: Mapped[datetime] = mapped_column(DateTime())
+    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True)
+    end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
 
     project: Mapped["Project"] = relationship(
         "Project",
@@ -98,8 +136,8 @@ class Span(Base):
     parent_span_id: Mapped[Optional[str]] = mapped_column(index=True)
     name: Mapped[str]
     kind: Mapped[str]
-    start_time: Mapped[datetime] = mapped_column(DateTime())
-    end_time: Mapped[datetime] = mapped_column(DateTime())
+    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
+    end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     attributes: Mapped[Dict[str, Any]]
     events: Mapped[List[Dict[str, Any]]]
     status: Mapped[str] = mapped_column(
