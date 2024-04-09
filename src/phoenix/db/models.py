@@ -82,8 +82,8 @@ class Project(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
     description: Mapped[Optional[str]]
-    updated_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-    created_at: Mapped[datetime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
 
@@ -183,6 +183,10 @@ class SpanAnnotation(Base):
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[str]
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
     __table_args__ = (
         UniqueConstraint(
             "span_rowid",

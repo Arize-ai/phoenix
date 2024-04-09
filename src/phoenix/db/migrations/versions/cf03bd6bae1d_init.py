@@ -92,6 +92,19 @@ def upgrade() -> None:
             sa.String,
             nullable=False,
         ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
+        ),
         sa.UniqueConstraint("span_rowid", "name", name="uq_span_annotations_span_rowid_name"),
         sa.CheckConstraint(
             "annotator_kind IN ('LLM', 'HUMAN')",
