@@ -109,7 +109,12 @@ def upgrade() -> None:
             server_default=sa.func.now(),
             onupdate=sa.func.now(),
         ),
-        sa.UniqueConstraint("span_rowid", "name", name="uq_span_annotations_span_rowid_name"),
+        sa.UniqueConstraint(
+            "span_rowid",
+            "name",
+            name="uq_span_annotations_span_rowid_name",
+            sqlite_on_conflict="REPLACE",
+        ),
     )
 
     op.bulk_insert(

@@ -194,6 +194,6 @@ class SpanAnnotation(Base):
             "span_rowid",
             "name",
             name="uq_span_annotations_span_rowid_name",
-            sqlite_on_conflict="UPDATE",
+            sqlite_on_conflict="REPLACE",
         ),
     )
