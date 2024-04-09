@@ -274,6 +274,7 @@ dependencies = [
 
 [tool.hatch.envs.requirements.scripts]
 compile = [
+  # add "--upgrade-package <package-name>" to upgrade a particular package or "--upgrade" to upgrade all packages
   "uv pip compile --output-file=container-requirements.txt --extra container --python-version 3.11.2 pyproject.toml",
 ]
 
