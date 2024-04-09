@@ -2,6 +2,8 @@ import asyncio
 from logging.config import fileConfig
 
 from alembic import context
+from phoenix.config import get_env_database_connection_str
+from phoenix.db.engines import get_async_db_url
 from phoenix.db.models import Base
 from sqlalchemy import Connection, engine_from_config, pool
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -59,9 +61,13 @@ def run_migrations_online() -> None:
     """
     connectable = context.config.attributes.get("connection", None)
     if connectable is None:
+        config = context.config.get_section(context.config.config_ini_section) or {}
+        if "sqlalchemy.url" not in config:
+            connection_str = get_env_database_connection_str()
+            config["sqlalchemy.url"] = str(get_async_db_url(connection_str))
         connectable = AsyncEngine(
             engine_from_config(
-                context.config.get_section(context.config.config_ini_section) or {},
+                config,
                 prefix="sqlalchemy.",
                 poolclass=pool.NullPool,
                 future=True,
