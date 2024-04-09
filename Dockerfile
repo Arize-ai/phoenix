@@ -32,11 +32,16 @@ RUN pnpm run build
 # The second stage builds the backend.
 FROM python:3.11-bullseye as backend-builder
 WORKDIR /phoenix
+RUN pip install uv
+RUN uv venv
+ENV PATH="/phoenix/.venv/bin:$PATH"
+COPY ./container-requirements.txt /phoenix/
+RUN uv pip sync container-requirements.txt
 COPY ./ /phoenix/
-COPY --from=frontend-builder /phoenix/src/phoenix/server/static/ /phoenix/src/phoenix/server/static/
 # Delete symbolic links used during development.
 RUN find src/ -xtype l -delete  
-RUN pip install --target ./env .[container]
+COPY --from=frontend-builder /phoenix/src/phoenix/server/static/ /phoenix/src/phoenix/server/static/
+RUN uv pip install --no-deps "arize-phoenix @ ."
 
 # The production image is distroless, meaning that it is a minimal image that
 # contains only the necessary dependencies to run the application. This is
@@ -52,8 +57,8 @@ RUN pip install --target ./env .[container]
 # Append :debug to the following line to build the debug image.
 FROM gcr.io/distroless/python3-debian12
 WORKDIR /phoenix
-COPY --from=backend-builder /phoenix/env/ ./env
-ENV PYTHONPATH="/phoenix/env:$PYTHONPATH"
+COPY --from=backend-builder /phoenix/.venv/lib/python3.11/site-packages/ /phoenix/site-packages/
+ENV PYTHONPATH="/phoenix/site-packages:$PYTHONPATH"
 # Export the Phoenix port.
 EXPOSE 6006
 # Export the Prometheus port.

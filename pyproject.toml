@@ -276,9 +276,6 @@ dependencies = [
 compile = [
   "uv pip compile --output-file=container-requirements.txt --extra container --python-version 3.11.2 pyproject.toml",
 ]
-upgrade = [
-  "uv pip compile --output-file=container-requirements.txt --extra container --python-version 3.11.2 --upgrade pyproject.toml",
-]
 
 [tool.interrogate]
 fail-under = 0
