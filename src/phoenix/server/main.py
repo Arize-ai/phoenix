@@ -239,7 +239,7 @@ if __name__ == "__main__":
 
     working_dir = get_working_dir().resolve()
     db_connection_str = get_env_database_connection_str()
-    engine = create_engine(db_connection_str)
+    engine = create_engine(db_connection_str, echo=True)
     app = create_app(
         engine=engine,
         export_path=export_path,
@@ -251,7 +251,7 @@ if __name__ == "__main__":
         read_only=read_only,
         span_store=span_store,
         enable_prometheus=enable_prometheus,
-        initial_spans=fixture_spans,
+        # initial_spans=fixture_spans,
     )
     server = Server(config=Config(app, host=host, port=port))
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a2b797447b2155000fb082edab338e11>>
+ * @generated SignedSource<<59ab09e4b4418af4ea4cace69c9aefa8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -391,21 +391,21 @@ return {
                           (v15/*: any*/),
                           (v16/*: any*/),
                           {
-                            "alias": "tokenCountTotal",
+                            "alias": null,
                             "args": null,
                             "kind": "ScalarField",
                             "name": "cumulativeTokenCountTotal",
                             "storageKey": null
                           },
                           {
-                            "alias": "tokenCountPrompt",
+                            "alias": null,
                             "args": null,
                             "kind": "ScalarField",
                             "name": "cumulativeTokenCountPrompt",
                             "storageKey": null
                           },
                           {
-                            "alias": "tokenCountCompletion",
+                            "alias": null,
                             "args": null,
                             "kind": "ScalarField",
                             "name": "cumulativeTokenCountCompletion",
@@ -432,21 +432,21 @@ return {
                               (v16/*: any*/),
                               (v17/*: any*/),
                               {
-                                "alias": null,
+                                "alias": "cumulativeTokenCountTotal",
                                 "args": null,
                                 "kind": "ScalarField",
                                 "name": "tokenCountTotal",
                                 "storageKey": null
                               },
                               {
-                                "alias": null,
+                                "alias": "cumulativeTokenCountPrompt",
                                 "args": null,
                                 "kind": "ScalarField",
                                 "name": "tokenCountPrompt",
                                 "storageKey": null
                               },
                               {
-                                "alias": null,
+                                "alias": "cumulativeTokenCountCompletion",
                                 "args": null,
                                 "kind": "ScalarField",
                                 "name": "tokenCountCompletion",
@@ -536,16 +536,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9f2eefa0ce58e89efdea4eda248a45bc",
+    "cacheID": "5b5393cf1d858e8d86078e1007bb9b57",
     "id": null,
     "metadata": {},
     "name": "TracesTableQuery",
     "operationKind": "query",
-    "text": "query TracesTableQuery(\n  $after: String = null\n  $filterCondition: String = null\n  $first: Int = 100\n  $sort: SpanSort = {col: startTime, dir: desc}\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...TracesTable_spans_1XEuU\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanColumnSelector_evaluations on Project {\n  spanEvaluationNames\n}\n\nfragment TracesTable_spans_1XEuU on Project {\n  ...SpanColumnSelector_evaluations\n  rootSpans: spans(first: $first, after: $after, sort: $sort, rootSpansOnly: true, filterCondition: $filterCondition) {\n    edges {\n      rootSpan: node {\n        spanKind\n        name\n        metadata\n        statusCode: propagatedStatusCode\n        startTime\n        latencyMs\n        tokenCountTotal: cumulativeTokenCountTotal\n        tokenCountPrompt: cumulativeTokenCountPrompt\n        tokenCountCompletion: cumulativeTokenCountCompletion\n        parentId\n        input {\n          value\n        }\n        output {\n          value\n        }\n        context {\n          spanId\n          traceId\n        }\n        spanEvaluations {\n          name\n          label\n          score\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        descendants {\n          spanKind\n          name\n          statusCode: propagatedStatusCode\n          startTime\n          latencyMs\n          parentId\n          tokenCountTotal\n          tokenCountPrompt\n          tokenCountCompletion\n          input {\n            value\n          }\n          output {\n            value\n          }\n          context {\n            spanId\n            traceId\n          }\n          spanEvaluations {\n            name\n            label\n            score\n          }\n          documentRetrievalMetrics {\n            evaluationName\n            ndcg\n            precision\n            hit\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query TracesTableQuery(\n  $after: String = null\n  $filterCondition: String = null\n  $first: Int = 100\n  $sort: SpanSort = {col: startTime, dir: desc}\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...TracesTable_spans_1XEuU\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanColumnSelector_evaluations on Project {\n  spanEvaluationNames\n}\n\nfragment TracesTable_spans_1XEuU on Project {\n  ...SpanColumnSelector_evaluations\n  rootSpans: spans(first: $first, after: $after, sort: $sort, rootSpansOnly: true, filterCondition: $filterCondition) {\n    edges {\n      rootSpan: node {\n        spanKind\n        name\n        metadata\n        statusCode: propagatedStatusCode\n        startTime\n        latencyMs\n        cumulativeTokenCountTotal\n        cumulativeTokenCountPrompt\n        cumulativeTokenCountCompletion\n        parentId\n        input {\n          value\n        }\n        output {\n          value\n        }\n        context {\n          spanId\n          traceId\n        }\n        spanEvaluations {\n          name\n          label\n          score\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        descendants {\n          spanKind\n          name\n          statusCode: propagatedStatusCode\n          startTime\n          latencyMs\n          parentId\n          cumulativeTokenCountTotal: tokenCountTotal\n          cumulativeTokenCountPrompt: tokenCountPrompt\n          cumulativeTokenCountCompletion: tokenCountCompletion\n          input {\n            value\n          }\n          output {\n            value\n          }\n          context {\n            spanId\n            traceId\n          }\n          spanEvaluations {\n            name\n            label\n            score\n          }\n          documentRetrievalMetrics {\n            evaluationName\n            ndcg\n            precision\n            hit\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "834fc464dace944d3249ad311c7502f7";
+(node as any).hash = "2c5b460cc9157d7c5b5ba4b479fbf9ef";
 
 export default node;
