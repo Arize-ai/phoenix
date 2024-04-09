@@ -3,8 +3,10 @@
     "language": "en",
     "words": [
         "actuals",
+        "aiosqlite",
         "alimit",
         "arize",
+        "asyncio",
         "chatbot",
         "codemirror",
         "Colab",
