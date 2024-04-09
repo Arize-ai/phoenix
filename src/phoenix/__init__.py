@@ -15,7 +15,7 @@ from .session.session import (
     active_session,
     close_app,
     launch_app,
-    reset,
+    reset_all,
 )
 from .trace.fixtures import load_example_traces
 from .trace.trace_dataset import TraceDataset
@@ -48,7 +48,7 @@ __all__ = [
     "active_session",
     "close_app",
     "launch_app",
-    "reset",
+    "reset_all",
     "Session",
     "load_example_traces",
     "TraceDataset",

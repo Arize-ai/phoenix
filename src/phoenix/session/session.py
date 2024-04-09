@@ -426,15 +426,10 @@ class ThreadSession(Session):
         return project.export_evaluations()
 
 
-def reset(hard: Optional[bool] = False) -> None:
+def reset_all(hard: Optional[bool] = False) -> None:
     """
     Resets everything to the initial state.
     """
-    global _session
-    if _session is not None:
-        if not hard:
-            input("Active session detected. Press Enter to close the session")
-        close_app()
     working_dir = get_working_dir()
 
     # See if the working directory exists
@@ -605,10 +600,15 @@ def active_session() -> Optional[Session]:
     return None
 
 
-def close_app() -> None:
+def close_app(reset: bool = False) -> None:
     """
     Closes the phoenix application.
     The application server is shut down and will no longer be accessible.
+
+    Parameters
+    ----------
+    reset : bool, optional
+        Whether to reset the working directory. Defaults to False.
     """
     global _session
     if _session is None:
@@ -617,6 +617,9 @@ def close_app() -> None:
     _session.end()
     _session = None
     logger.info("Session closed")
+    if reset:
+        logger.info("Resetting working directory")
+        reset_all(hard=True)
 
 
 def _get_url(host: str, port: int, notebook_env: NotebookEnvironment) -> str:
