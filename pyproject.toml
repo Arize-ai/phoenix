@@ -24,7 +24,7 @@ classifiers = [
 dependencies = [
   "scikit-learn",
   "numpy",
-  "pandas<2.2.1",
+  "pandas",
   "jinja2",
   "umap-learn",
   "hdbscan>=0.8.33",
