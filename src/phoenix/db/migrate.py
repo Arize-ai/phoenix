@@ -1,7 +1,7 @@
 import logging
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Generator
+from typing import Generator
 
 from alembic import command
 from alembic.config import Config
@@ -9,7 +9,7 @@ from sqlalchemy import URL
 
 
 @contextmanager
-def using_log_level(new_level: int, logger_names: list[str]) -> "Generator[Any, Any, Any]":
+def using_log_level(new_level: int, logger_names: list[str]) -> Generator[None, None, None]:
     original_levels = {}
     try:
         for name in logger_names:
