@@ -69,7 +69,12 @@ def run_migrations_online() -> None:
         )
 
     if isinstance(connectable, AsyncEngine):
-        asyncio.run(run_async_migrations(connectable))
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            asyncio.run(run_async_migrations(connectable))
+        else:
+            asyncio.create_task(run_async_migrations(connectable))
     else:
         run_migrations(connectable)
 

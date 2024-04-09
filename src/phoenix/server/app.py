@@ -40,6 +40,7 @@ from phoenix.config import DEFAULT_PROJECT_NAME, SERVER_DIR
 from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
 from phoenix.db.bulk_inserter import BulkInserter
+from phoenix.db.engines import create_engine
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders.latency_ms_quantile import (
@@ -194,7 +195,7 @@ def _lifespan(
 
 
 def create_app(
-    engine: AsyncEngine,
+    database: str,
     export_path: Path,
     model: Model,
     umap_params: UMAPParameters,
@@ -214,6 +215,7 @@ def create_app(
             for item in initial_spans
         )
     )
+    engine = create_engine(database)
     db = _db(engine)
     graphql = GraphQLWithContext(
         db=db,

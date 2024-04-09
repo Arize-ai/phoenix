@@ -78,6 +78,126 @@ def upgrade() -> None:
         sa.Column("cumulative_llm_token_count_prompt", sa.Integer, nullable=False),
         sa.Column("cumulative_llm_token_count_completion", sa.Integer, nullable=False),
     )
+
+    op.create_table(
+        "span_annotations",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("span_rowid", sa.Integer, sa.ForeignKey("spans.id"), nullable=False),
+        sa.Column("name", sa.String, nullable=False),
+        sa.Column("label", sa.String, nullable=True),
+        sa.Column("score", sa.Float, nullable=True),
+        sa.Column("explanation", sa.String, nullable=True),
+        sa.Column("metadata", sa.JSON, nullable=False),
+        sa.Column(
+            "annotator_kind",
+            sa.String,
+            sa.CheckConstraint(
+                "annotator_kind IN ('LLM', 'HUMAN')",
+                name="valid_annotator_kind",
+            ),
+            nullable=False,
+        ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
+        ),
+        sa.UniqueConstraint(
+            "span_rowid",
+            "name",
+            name="uq_span_annotations_span_rowid_name",
+            sqlite_on_conflict="REPLACE",
+        ),
+    )
+
+    op.create_table(
+        "trace_annotations",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("trace_rowid", sa.Integer, sa.ForeignKey("traces.id"), nullable=False),
+        sa.Column("name", sa.String, nullable=False),
+        sa.Column("label", sa.String, nullable=True),
+        sa.Column("score", sa.Float, nullable=True),
+        sa.Column("explanation", sa.String, nullable=True),
+        sa.Column("metadata", sa.JSON, nullable=False),
+        sa.Column(
+            "annotator_kind",
+            sa.String,
+            sa.CheckConstraint(
+                "annotator_kind IN ('LLM', 'HUMAN')",
+                name="valid_annotator_kind",
+            ),
+            nullable=False,
+        ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
+        ),
+        sa.UniqueConstraint(
+            "trace_rowid",
+            "name",
+            name="uq_trace_annotations_trace_rowid_name",
+            sqlite_on_conflict="REPLACE",
+        ),
+    )
+
+    op.create_table(
+        "document_annotations",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("span_rowid", sa.Integer, sa.ForeignKey("spans.id"), nullable=False),
+        sa.Column("document_index", sa.Integer, nullable=False),
+        sa.Column("name", sa.String, nullable=False),
+        sa.Column("label", sa.String, nullable=True),
+        sa.Column("score", sa.Float, nullable=True),
+        sa.Column("explanation", sa.String, nullable=True),
+        sa.Column("metadata", sa.JSON, nullable=False),
+        sa.Column(
+            "annotator_kind",
+            sa.String,
+            sa.CheckConstraint(
+                "annotator_kind IN ('LLM', 'HUMAN')",
+                name="valid_annotator_kind",
+            ),
+            nullable=False,
+        ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
+        ),
+        sa.UniqueConstraint(
+            "span_rowid",
+            "document_index",
+            "name",
+            name="uq_document_annotations_span_rowid_document_index_name",
+            sqlite_on_conflict="REPLACE",
+        ),
+    )
+
     op.bulk_insert(
         projects_table,
         [

@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import shutil
 import warnings
 from abc import ABC, abstractmethod
 from collections import UserList
@@ -29,15 +30,16 @@ from phoenix.config import (
     ENV_PHOENIX_COLLECTOR_ENDPOINT,
     ENV_PHOENIX_HOST,
     ENV_PHOENIX_PORT,
+    get_env_database_connection_str,
     get_env_host,
     get_env_port,
     get_env_project_name,
     get_exported_files,
+    get_working_dir,
 )
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
-from phoenix.db.engines import aio_sqlite_engine
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
@@ -264,6 +266,7 @@ class ProcessSession(Session):
 class ThreadSession(Session):
     def __init__(
         self,
+        database: str,
         primary_dataset: Dataset,
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
@@ -310,7 +313,7 @@ class ThreadSession(Session):
             ).start()
         # Initialize an app service that keeps the server running
         self.app = create_app(
-            engine=aio_sqlite_engine(),
+            database=database,
             export_path=self.export_path,
             model=self.model,
             corpus=self.corpus,
@@ -423,6 +426,23 @@ class ThreadSession(Session):
         return project.export_evaluations()
 
 
+def delete_all(prompt_before_delete: Optional[bool] = True) -> None:
+    """
+    Deletes the entire contents of the working directory. This will delete, traces, evaluations,
+    and any other data stored in the working directory.
+    """
+    working_dir = get_working_dir()
+
+    # See if the working directory exists
+    if working_dir.exists():
+        if prompt_before_delete:
+            input(
+                f"You have data at {working_dir}. Are you sure you want to delete?"
+                + " This cannot be undone. Press Enter to delete, Escape to cancel."
+            )
+        shutil.rmtree(working_dir)
+
+
 def launch_app(
     primary: Optional[Dataset] = None,
     reference: Optional[Dataset] = None,
@@ -533,9 +553,11 @@ def launch_app(
 
     host = host or get_env_host()
     port = port or get_env_port()
+    database = get_env_database_connection_str()
 
     if run_in_thread:
         _session = ThreadSession(
+            database,
             primary,
             reference,
             corpus,
@@ -568,7 +590,7 @@ def launch_app(
         return None
 
     print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
-    print("📺 To view the Phoenix app in a notebook, run `px.active_session().view()`")
+    print(f"💽 Your data is being persisted to {database}")
     print("📖 For more information on how to use Phoenix, check out https://docs.arize.com/phoenix")
     return _session
 
@@ -582,10 +604,15 @@ def active_session() -> Optional[Session]:
     return None
 
 
-def close_app() -> None:
+def close_app(delete_data: bool = False) -> None:
     """
     Closes the phoenix application.
     The application server is shut down and will no longer be accessible.
+
+    Parameters
+    ----------
+    delete_data : bool, optional
+        If set to true, all stored phoenix data, including traces and evaluations. Default False.
     """
     global _session
     if _session is None:
@@ -594,6 +621,9 @@ def close_app() -> None:
     _session.end()
     _session = None
     logger.info("Session closed")
+    if delete_data:
+        logger.info("Deleting all data")
+        delete_all(prompt_before_delete=False)
 
 
 def _get_url(host: str, port: int, notebook_env: NotebookEnvironment) -> str:

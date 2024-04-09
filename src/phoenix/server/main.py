@@ -23,7 +23,6 @@ from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
 from phoenix.datasets.fixtures import FIXTURES, get_datasets
-from phoenix.db.engines import create_engine
 from phoenix.pointcloud.umap_parameters import (
     DEFAULT_MIN_DIST,
     DEFAULT_N_NEIGHBORS,
@@ -239,9 +238,8 @@ if __name__ == "__main__":
 
     working_dir = get_working_dir().resolve()
     db_connection_str = get_env_database_connection_str()
-    engine = create_engine(db_connection_str)
     app = create_app(
-        engine=engine,
+        database=db_connection_str,
         export_path=export_path,
         model=model,
         umap_params=umap_params,
