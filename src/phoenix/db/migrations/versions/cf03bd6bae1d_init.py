@@ -81,7 +81,7 @@ def upgrade() -> None:
     op.create_table(
         "span_annotations",
         sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("span_rowid", sa.Integer, sa.ForeignKey("traces.id"), nullable=False),
+        sa.Column("span_rowid", sa.Integer, sa.ForeignKey("spans.id"), nullable=False),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("label", sa.String, nullable=True),
         sa.Column("score", sa.Float, nullable=True),
