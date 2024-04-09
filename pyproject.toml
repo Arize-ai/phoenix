@@ -267,6 +267,19 @@ recompile = """
 python -m grpc_tools.protoc -I src/phoenix/proto --python_out=src/phoenix --mypy_out=src/phoenix src/phoenix/proto/trace/v1/evaluation.proto
 """
 
+[tool.hatch.envs.requirements]
+dependencies = [
+  "uv",
+]
+
+[tool.hatch.envs.requirements.scripts]
+compile = [
+  "uv pip compile --output-file=container-requirements.txt --extra container --python-version 3.11.2 pyproject.toml",
+]
+upgrade = [
+  "uv pip compile --output-file=container-requirements.txt --extra container --python-version 3.11.2 --upgrade pyproject.toml",
+]
+
 [tool.interrogate]
 fail-under = 0
 # generate-badge = "badges/"
