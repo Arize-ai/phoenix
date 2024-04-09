@@ -611,7 +611,7 @@ def close_app(delete_data: bool = False) -> None:
 
     Parameters
     ----------
-    reset : bool, optional
+    delete_data : bool, optional
         If set to true, all stored phoenix data, including traces and evaluations. Default False.
     """
     global _session
