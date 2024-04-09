@@ -82,8 +82,8 @@ class Project(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
     description: Mapped[Optional[str]]
-    updated_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-    created_at: Mapped[datetime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
 
@@ -141,7 +141,7 @@ class Span(Base):
     attributes: Mapped[Dict[str, Any]]
     events: Mapped[List[Dict[str, Any]]]
     status: Mapped[str] = mapped_column(
-        CheckConstraint("status IN ('OK', 'ERROR', 'UNSET')", "valid_status")
+        CheckConstraint("status IN ('OK', 'ERROR', 'UNSET')", name="valid_status")
     )
     status_message: Mapped[str]
 
@@ -171,3 +171,29 @@ async def init_models(engine: AsyncEngine) -> None:
                 description="default project",
             )
         )
+
+
+class SpanAnnotation(Base):
+    __tablename__ = "span_annotations"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    span_rowid: Mapped[int] = mapped_column(ForeignKey("spans.id"))
+    name: Mapped[str]
+    label: Mapped[Optional[str]]
+    score: Mapped[Optional[float]]
+    explanation: Mapped[Optional[str]]
+    metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    annotator_kind: Mapped[str] = mapped_column(
+        CheckConstraint("annotator_kind IN ('LLM', 'HUMAN')", name="valid_annotator_kind"),
+    )
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    __table_args__ = (
+        UniqueConstraint(
+            "span_rowid",
+            "name",
+            name="uq_span_annotations_span_rowid_name",
+            sqlite_on_conflict="REPLACE",
+        ),
+    )
