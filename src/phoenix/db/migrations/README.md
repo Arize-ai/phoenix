@@ -1,6 +1,6 @@
 # Database
 
-this module is responsible for the database connection and the migrations.
+This module is responsible for the database connection and the migrations.
 
 ## Migrations
 
