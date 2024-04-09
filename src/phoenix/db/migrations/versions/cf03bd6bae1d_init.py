@@ -209,3 +209,6 @@ def downgrade() -> None:
     op.drop_table("projects")
     op.drop_table("traces")
     op.drop_table("spans")
+    op.drop_table("span_annotations")
+    op.drop_table("trace_annotations")
+    op.drop_table("document_annotations")
