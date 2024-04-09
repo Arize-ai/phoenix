@@ -66,7 +66,7 @@ class Base(DeclarativeBase):
         naming_convention={
             "ix": "ix_%(column_0_label)s",
             "uq": "uq_%(table_name)s_%(column_0_name)s",
-            "ck": "ck_%(table_name)s_`%(constraint_name)s`",
+            "ck": "ck_%(table_name)s_%(constraint_name)s",
             "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
             "pk": "pk_%(table_name)s",
         }
@@ -182,6 +182,7 @@ class SpanAnnotation(Base):
     score: Mapped[Optional[float]]
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    annotator_kind: Mapped[str]
     __table_args__ = (
         UniqueConstraint(
             "span_rowid",
@@ -189,4 +190,5 @@ class SpanAnnotation(Base):
             name="uq_span_annotations_span_rowid_name",
             sqlite_on_conflict="UPDATE",
         ),
+        CheckConstraint("annotator_kind IN ('LLM', 'HUMAN')", name="valid_annotator_kind"),
     )

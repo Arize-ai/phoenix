@@ -87,7 +87,16 @@ def upgrade() -> None:
         sa.Column("score", sa.Float, nullable=True),
         sa.Column("explanation", sa.String, nullable=True),
         sa.Column("metadata", sa.JSON, nullable=False),
+        sa.Column(
+            "annotator_kind",
+            sa.String,
+            nullable=False,
+        ),
         sa.UniqueConstraint("span_rowid", "name", name="uq_span_annotations_span_rowid_name"),
+        sa.CheckConstraint(
+            "annotator_kind IN ('LLM', 'HUMAN')",
+            name="valid_annotator_kind",
+        ),
     )
 
     op.bulk_insert(
