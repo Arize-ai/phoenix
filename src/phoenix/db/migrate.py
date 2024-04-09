@@ -9,7 +9,7 @@ from sqlalchemy import URL
 
 
 @contextmanager
-def using_log_level(new_level: int, logger_names: list[str]) -> Generator[Any, Any, Any]:
+def using_log_level(new_level: int, logger_names: list[str]) -> "Generator[Any, Any, Any]":
     original_levels = {}
     try:
         for name in logger_names:
