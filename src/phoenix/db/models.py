@@ -141,7 +141,7 @@ class Span(Base):
     attributes: Mapped[Dict[str, Any]]
     events: Mapped[List[Dict[str, Any]]]
     status: Mapped[str] = mapped_column(
-        CheckConstraint("status IN ('OK', 'ERROR', 'UNSET')", "valid_status")
+        CheckConstraint("status IN ('OK', 'ERROR', 'UNSET')", name="valid_status")
     )
     status_message: Mapped[str]
 
@@ -182,7 +182,9 @@ class SpanAnnotation(Base):
     score: Mapped[Optional[float]]
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
-    annotator_kind: Mapped[str]
+    annotator_kind: Mapped[str] = mapped_column(
+        CheckConstraint("annotator_kind IN ('LLM', 'HUMAN')", name="valid_annotator_kind"),
+    )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -194,5 +196,4 @@ class SpanAnnotation(Base):
             name="uq_span_annotations_span_rowid_name",
             sqlite_on_conflict="UPDATE",
         ),
-        CheckConstraint("annotator_kind IN ('LLM', 'HUMAN')", name="valid_annotator_kind"),
     )

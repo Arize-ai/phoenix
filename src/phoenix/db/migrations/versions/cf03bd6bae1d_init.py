@@ -90,6 +90,10 @@ def upgrade() -> None:
         sa.Column(
             "annotator_kind",
             sa.String,
+            sa.CheckConstraint(
+                "annotator_kind IN ('LLM', 'HUMAN')",
+                name="valid_annotator_kind",
+            ),
             nullable=False,
         ),
         sa.Column(
@@ -106,10 +110,6 @@ def upgrade() -> None:
             onupdate=sa.func.now(),
         ),
         sa.UniqueConstraint("span_rowid", "name", name="uq_span_annotations_span_rowid_name"),
-        sa.CheckConstraint(
-            "annotator_kind IN ('LLM', 'HUMAN')",
-            name="valid_annotator_kind",
-        ),
     )
 
     op.bulk_insert(
