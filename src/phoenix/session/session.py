@@ -426,15 +426,16 @@ class ThreadSession(Session):
         return project.export_evaluations()
 
 
-def reset_all(hard: Optional[bool] = False) -> None:
+def delete_all(prompt_before_delete: Optional[bool] = True) -> None:
     """
-    Resets everything to the initial state.
+    Deletes the entire contents of the working directory. This will delete, traces, evaluations,
+    and any other data stored in the working directory.
     """
     working_dir = get_working_dir()
 
     # See if the working directory exists
     if working_dir.exists():
-        if not hard:
+        if prompt_before_delete:
             input(
                 f"You have data at {working_dir}. Are you sure you want to delete?"
                 + " This cannot be undone. Press Enter to delete."
@@ -603,7 +604,7 @@ def active_session() -> Optional[Session]:
     return None
 
 
-def close_app(reset: bool = False) -> None:
+def close_app(delete_data: bool = False) -> None:
     """
     Closes the phoenix application.
     The application server is shut down and will no longer be accessible.
@@ -620,9 +621,9 @@ def close_app(reset: bool = False) -> None:
     _session.end()
     _session = None
     logger.info("Session closed")
-    if reset:
-        logger.info("Resetting working directory")
-        reset_all(hard=True)
+    if delete_data:
+        logger.info("Deleting all data")
+        delete_all(prompt_before_delete=False)
 
 
 def _get_url(host: str, port: int, notebook_env: NotebookEnvironment) -> str:
