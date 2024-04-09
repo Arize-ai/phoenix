@@ -42,7 +42,9 @@ from phoenix.core.traces import Traces
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context, DataLoaders
-from phoenix.server.api.dataloaders import LatencyMsQuantile
+from phoenix.server.api.dataloaders.latency_ms_quantile import (
+    LatencyMsQuantileDataLoader,
+)
 from phoenix.server.api.routers.evaluation_handler import EvaluationHandler
 from phoenix.server.api.routers.span_handler import SpanHandler
 from phoenix.server.api.routers.trace_handler import TraceHandler
@@ -144,7 +146,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
             traces=self.traces,
             export_path=self.export_path,
             data_loaders=DataLoaders(
-                latency_ms_quantile=LatencyMsQuantile(self.db),
+                latency_ms_quantile=LatencyMsQuantileDataLoader(self.db),
             ),
         )
 

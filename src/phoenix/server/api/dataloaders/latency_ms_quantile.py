@@ -2,15 +2,16 @@ from collections import defaultdict
 from typing import AsyncContextManager, Callable, DefaultDict, List, Optional, Tuple
 
 from ddsketch import ddsketch
+from phoenix.db import models
+from phoenix.server.api.input_types.TimeRange import TimeRange
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.dataloader import DataLoader
 
-from phoenix.db import models
-from phoenix.server.api.input_types.TimeRange import TimeRange
 
-
-class LatencyMsQuantile(DataLoader[Tuple[str, Optional[TimeRange], float], Optional[float]]):
+class LatencyMsQuantileDataLoader(
+    DataLoader[Tuple[str, Optional[TimeRange], float], Optional[float]]
+):
     def __init__(
         self,
         db: Callable[[], AsyncContextManager[AsyncSession]],
