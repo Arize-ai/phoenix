@@ -438,7 +438,7 @@ def delete_all(prompt_before_delete: Optional[bool] = True) -> None:
         if prompt_before_delete:
             input(
                 f"You have data at {working_dir}. Are you sure you want to delete?"
-                + " This cannot be undone. Press Enter to delete."
+                + " This cannot be undone. Press Enter to delete, Escape to cancel."
             )
         shutil.rmtree(working_dir)
 
