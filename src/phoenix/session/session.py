@@ -435,7 +435,10 @@ def reset_all(hard: Optional[bool] = False) -> None:
     # See if the working directory exists
     if working_dir.exists():
         if not hard:
-            input(f"Working directory exists at {working_dir}. Press Enter to delete the directory")
+            input(
+                f"You have data at {working_dir}. Are you sure you want to delete?"
+                + " This cannot be undone. Press Enter to delete."
+            )
         shutil.rmtree(working_dir)
 
 
@@ -608,7 +611,7 @@ def close_app(reset: bool = False) -> None:
     Parameters
     ----------
     reset : bool, optional
-        Whether to reset the working directory. Defaults to False.
+        If set to true, all stored phoenix data, including traces and evaluations. Default False.
     """
     global _session
     if _session is None:
