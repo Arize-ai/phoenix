@@ -197,3 +197,29 @@ class SpanAnnotation(Base):
             sqlite_on_conflict="REPLACE",
         ),
     )
+
+
+class TraceAnnotation(Base):
+    __tablename__ = "trace_annotations"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    trace_rowid: Mapped[int] = mapped_column(ForeignKey("traces.id"))
+    name: Mapped[str]
+    label: Mapped[Optional[str]]
+    score: Mapped[Optional[float]]
+    explanation: Mapped[Optional[str]]
+    metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    annotator_kind: Mapped[str] = mapped_column(
+        CheckConstraint("annotator_kind IN ('LLM', 'HUMAN')", name="valid_annotator_kind"),
+    )
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    __table_args__ = (
+        UniqueConstraint(
+            "trace_rowid",
+            "name",
+            name="uq_trace_annotations_trace_rowid_name",
+            sqlite_on_conflict="REPLACE",
+        ),
+    )
