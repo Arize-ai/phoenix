@@ -3,8 +3,10 @@
     "language": "en",
     "words": [
         "actuals",
+        "aiosqlite",
         "alimit",
         "arize",
+        "asyncio",
         "chatbot",
         "codemirror",
         "Colab",
@@ -38,6 +40,7 @@
         "rgba",
         "seafoam",
         "sqlalchemy",
+        "Starlette",
         "templating",
         "tensorboard",
         "testset",

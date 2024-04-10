@@ -9,7 +9,14 @@ from .datasets.fixtures import ExampleDatasets, load_example
 from .datasets.schema import EmbeddingColumnNames, RetrievalEmbeddingColumnNames, Schema
 from .session.client import Client
 from .session.evaluation import log_evaluations
-from .session.session import NotebookEnvironment, Session, active_session, close_app, launch_app
+from .session.session import (
+    NotebookEnvironment,
+    Session,
+    active_session,
+    close_app,
+    delete_all,
+    launch_app,
+)
 from .trace.fixtures import load_example_traces
 from .trace.trace_dataset import TraceDataset
 from .version import __version__
@@ -41,6 +48,7 @@ __all__ = [
     "active_session",
     "close_app",
     "launch_app",
+    "delete_all",
     "Session",
     "load_example_traces",
     "TraceDataset",

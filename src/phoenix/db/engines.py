@@ -28,6 +28,20 @@ def get_db_url(driver: str = "sqlite+aiosqlite", database: Union[str, Path] = ":
     return URL.create(driver, database=str(database))
 
 
+def get_async_db_url(connection_str: str) -> URL:
+    """
+    Parses the database URL string and returns a URL object that is async
+    """
+    url = make_url(connection_str)
+    if not url.database:
+        raise ValueError("Failed to parse database from connection string")
+    if "sqlite" in url.drivername:
+        return get_db_url(driver="sqlite+aiosqlite", database=url.database)
+    if "postgresql" in url.drivername:
+        return url.set(drivername="postgresql+asyncpg")
+    raise ValueError(f"Unsupported driver: {url.drivername}")
+
+
 def create_engine(connection_str: str, echo: bool = False) -> AsyncEngine:
     """
     Factory to create a SQLAlchemy engine from a URL string.
