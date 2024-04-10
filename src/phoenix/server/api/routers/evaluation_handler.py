@@ -5,6 +5,7 @@ from typing import AsyncIterator
 import pyarrow as pa
 from google.protobuf.message import DecodeError
 from starlette.background import BackgroundTask
+from starlette.datastructures import State
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
@@ -100,11 +101,15 @@ class EvaluationHandler(HTTPEndpoint):
         return Response(
             background=BackgroundTask(
                 self._add_evaluations,
+                request.state,
                 evaluations,
                 project_name,
             )
         )
 
-    async def _add_evaluations(self, evaluations: Evaluations, project_name: str) -> None:
+    async def _add_evaluations(
+        self, state: State, evaluations: Evaluations, project_name: str
+    ) -> None:
         for evaluation in encode_evaluations(evaluations):
+            state.queue_evaluation_for_bulk_insert(evaluation)
             self.traces.put(evaluation, project_name=project_name)

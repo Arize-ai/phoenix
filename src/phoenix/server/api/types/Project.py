@@ -3,7 +3,7 @@ from typing import List, Optional
 
 import strawberry
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import Integer, and_, cast, func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.orm import contains_eager
 from sqlalchemy.sql.functions import coalesce
 from strawberry import ID, UNSET
@@ -116,13 +116,10 @@ class Project(Node):
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
     ) -> int:
-        prompt = models.Span.attributes[LLM_TOKEN_COUNT_PROMPT]
-        completion = models.Span.attributes[LLM_TOKEN_COUNT_COMPLETION]
+        prompt = models.Span.attributes[LLM_TOKEN_COUNT_PROMPT].as_float()
+        completion = models.Span.attributes[LLM_TOKEN_COUNT_COMPLETION].as_float()
         stmt = (
-            select(
-                coalesce(func.sum(cast(prompt, Integer)), 0)
-                + coalesce(func.sum(cast(completion, Integer)), 0)
-            )
+            select(coalesce(func.sum(prompt), 0) + coalesce(func.sum(completion), 0))
             .join(models.Trace)
             .join(models.Project)
             .where(models.Project.name == self.name)

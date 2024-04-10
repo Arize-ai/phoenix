@@ -3,8 +3,8 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy import (
     JSON,
+    TIMESTAMP,
     CheckConstraint,
-    DateTime,
     Dialect,
     ForeignKey,
     MetaData,
@@ -13,6 +13,7 @@ from sqlalchemy import (
     func,
     insert,
 )
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -20,6 +21,11 @@ from sqlalchemy.orm import (
     WriteOnlyMapped,
     mapped_column,
     relationship,
+)
+
+JSON_ = JSON().with_variant(
+    postgresql.JSONB(),  # type: ignore
+    "postgresql",
 )
 
 
@@ -33,7 +39,7 @@ class UtcTimeStamp(TypeDecorator[datetime]):
     """
 
     cache_ok = True
-    impl = DateTime
+    impl = TIMESTAMP(timezone=True)
     _LOCAL_TIMEZONE = datetime.now(timezone.utc).astimezone().tzinfo
 
     def process_bind_param(
@@ -72,8 +78,8 @@ class Base(DeclarativeBase):
         }
     )
     type_annotation_map = {
-        Dict[str, Any]: JSON,
-        List[Dict[str, Any]]: JSON,
+        Dict[str, Any]: JSON_,
+        List[Dict[str, Any]]: JSON_,
     }
 
 

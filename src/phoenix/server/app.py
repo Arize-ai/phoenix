@@ -188,8 +188,11 @@ def _lifespan(
 ) -> StatefulLifespan[Starlette]:
     @contextlib.asynccontextmanager
     async def lifespan(_: Starlette) -> AsyncIterator[Dict[str, Any]]:
-        async with BulkInserter(db, initial_batch_of_spans) as queue_span:
-            yield {"queue_span_for_bulk_insert": queue_span}
+        async with BulkInserter(db, initial_batch_of_spans) as (queue_span, queue_evaluation):
+            yield {
+                "queue_span_for_bulk_insert": queue_span,
+                "queue_evaluation_for_bulk_insert": queue_evaluation,
+            }
 
     return lifespan
 

@@ -10,12 +10,19 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy import JSON
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = "cf03bd6bae1d"
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
+
+JSON_ = JSON().with_variant(
+    postgresql.JSONB(),  # type: ignore
+    "postgresql",
+)
 
 
 def upgrade() -> None:
@@ -27,13 +34,13 @@ def upgrade() -> None:
         sa.Column("description", sa.String, nullable=True),
         sa.Column(
             "created_at",
-            sa.DateTime(timezone=True),
+            sa.TIMESTAMP(timezone=True),
             nullable=False,
             server_default=sa.func.now(),
         ),
         sa.Column(
             "updated_at",
-            sa.DateTime(timezone=True),
+            sa.TIMESTAMP(timezone=True),
             nullable=False,
             server_default=sa.func.now(),
             onupdate=sa.func.now(),
@@ -51,8 +58,8 @@ def upgrade() -> None:
         # TODO(mikeldking): might not be the right place for this
         sa.Column("session_id", sa.String, nullable=True),
         sa.Column("trace_id", sa.String, nullable=False, unique=True),
-        sa.Column("start_time", sa.DateTime(timezone=True), nullable=False, index=True),
-        sa.Column("end_time", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=False, index=True),
+        sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column("latency_ms", sa.Float, nullable=False),
     )
 
@@ -69,10 +76,10 @@ def upgrade() -> None:
         sa.Column("parent_span_id", sa.String, nullable=True, index=True),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("kind", sa.String, nullable=False),
-        sa.Column("start_time", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("end_time", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("attributes", sa.JSON, nullable=False),
-        sa.Column("events", sa.JSON, nullable=False),
+        sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=False),
+        sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=False),
+        sa.Column("attributes", JSON_, nullable=False),
+        sa.Column("events", JSON_, nullable=False),
         sa.Column(
             "status",
             sa.String,
@@ -102,7 +109,7 @@ def upgrade() -> None:
         sa.Column("label", sa.String, nullable=True),
         sa.Column("score", sa.Float, nullable=True),
         sa.Column("explanation", sa.String, nullable=True),
-        sa.Column("metadata", sa.JSON, nullable=False),
+        sa.Column("metadata", JSON_, nullable=False),
         sa.Column(
             "annotator_kind",
             sa.String,
@@ -114,13 +121,13 @@ def upgrade() -> None:
         ),
         sa.Column(
             "created_at",
-            sa.DateTime(timezone=True),
+            sa.TIMESTAMP(timezone=True),
             nullable=False,
             server_default=sa.func.now(),
         ),
         sa.Column(
             "updated_at",
-            sa.DateTime(timezone=True),
+            sa.TIMESTAMP(timezone=True),
             nullable=False,
             server_default=sa.func.now(),
             onupdate=sa.func.now(),
@@ -146,7 +153,7 @@ def upgrade() -> None:
         sa.Column("label", sa.String, nullable=True),
         sa.Column("score", sa.Float, nullable=True),
         sa.Column("explanation", sa.String, nullable=True),
-        sa.Column("metadata", sa.JSON, nullable=False),
+        sa.Column("metadata", JSON_, nullable=False),
         sa.Column(
             "annotator_kind",
             sa.String,
@@ -158,13 +165,13 @@ def upgrade() -> None:
         ),
         sa.Column(
             "created_at",
-            sa.DateTime(timezone=True),
+            sa.TIMESTAMP(timezone=True),
             nullable=False,
             server_default=sa.func.now(),
         ),
         sa.Column(
             "updated_at",
-            sa.DateTime(timezone=True),
+            sa.TIMESTAMP(timezone=True),
             nullable=False,
             server_default=sa.func.now(),
             onupdate=sa.func.now(),
@@ -191,7 +198,7 @@ def upgrade() -> None:
         sa.Column("label", sa.String, nullable=True),
         sa.Column("score", sa.Float, nullable=True),
         sa.Column("explanation", sa.String, nullable=True),
-        sa.Column("metadata", sa.JSON, nullable=False),
+        sa.Column("metadata", JSON_, nullable=False),
         sa.Column(
             "annotator_kind",
             sa.String,
@@ -203,13 +210,13 @@ def upgrade() -> None:
         ),
         sa.Column(
             "created_at",
-            sa.DateTime(timezone=True),
+            sa.TIMESTAMP(timezone=True),
             nullable=False,
             server_default=sa.func.now(),
         ),
         sa.Column(
             "updated_at",
-            sa.DateTime(timezone=True),
+            sa.TIMESTAMP(timezone=True),
             nullable=False,
             server_default=sa.func.now(),
             onupdate=sa.func.now(),
