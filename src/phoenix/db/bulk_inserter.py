@@ -2,7 +2,17 @@ import asyncio
 import logging
 from itertools import islice
 from time import time
-from typing import Any, AsyncContextManager, Callable, Iterable, List, Optional, Tuple, cast
+from typing import (
+    Any,
+    AsyncContextManager,
+    Callable,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    assert_never,
+    cast,
+)
 
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import func, insert, select, update
@@ -110,19 +120,28 @@ async def _insert_evaluation(session: AsyncSession, evaluation: pb.Evaluation) -
         )
     ):
         return
-    await session.scalar(
-        insert(models.SpanAnnotation)
-        .values(
-            span_rowid=span_rowid,
-            name=evaluation.name,
-            label=evaluation.result.label.value,
-            score=evaluation.result.score.value,
-            explanation=evaluation.result.explanation.value,
-            metadata_={},
-            annotator_kind="LLM",
+    if (evaluation_kind := evaluation.subject_id.WhichOneof("kind")) is None:
+        return
+    elif evaluation_kind == "span_id":
+        await session.scalar(
+            insert(models.SpanAnnotation)
+            .values(
+                span_rowid=span_rowid,
+                name=evaluation.name,
+                label=evaluation.result.label.value,
+                score=evaluation.result.score.value,
+                explanation=evaluation.result.explanation.value,
+                metadata_={},
+                annotator_kind="LLM",
+            )
+            .returning(models.SpanAnnotation.id)
         )
-        .returning(models.SpanAnnotation.id)
-    )
+    elif evaluation_kind == "document_retrieval_id":
+        raise NotImplementedError()
+    elif evaluation_kind == "trace_id":
+        raise NotImplementedError()
+    else:
+        assert_never(evaluation_kind)
 
 
 async def _insert_span(session: AsyncSession, span: Span, project_name: str) -> None:
