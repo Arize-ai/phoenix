@@ -55,16 +55,17 @@ class BulkInserter:
         self._spans.append((span, project_name))
 
     def _queue_evaluation(self, evaluation: pb.Evaluation, project_name: str) -> None:
-        print(f"_queue_evaluation: {evaluation}")
         self._evaluations.append((evaluation, project_name))
 
     async def _bulk_insert(self) -> None:
         next_run_at = time() + self._run_interval_seconds
-        while self._spans or self._running:
+        while self._spans or self._evaluations or self._running:
             await asyncio.sleep(next_run_at - time())
             next_run_at = time() + self._run_interval_seconds
             if self._spans:
                 await self._insert_spans()
+            if self._evaluations:
+                await self._insert_evaluations()
 
     async def _insert_spans(self) -> None:
         spans = self._spans
@@ -82,6 +83,34 @@ class BulkInserter:
                             )
             except Exception:
                 logger.exception("Failed to insert spans")
+
+    async def _insert_evaluations(self) -> None:
+        evaluations = self._evaluations
+        self._evaluations = []
+        for i in range(0, len(evaluations), self._max_num_per_transaction):
+            try:
+                async with self._db() as session:
+                    for evaluation, project_name in islice(
+                        evaluations, i, i + self._max_num_per_transaction
+                    ):
+                        try:
+                            async with session.begin_nested():
+                                await _insert_evaluation(session, evaluation, project_name)
+                        except Exception:
+                            logger.exception(
+                                "Failed to insert evaluation "
+                                f"for span_id={evaluation.SubjectId.span_id}"
+                            )
+            except Exception:
+                logger.exception("Failed to insert evaluations")
+
+
+async def _insert_evaluation(
+    session: AsyncSession, evaluation: pb.Evaluation, project_name: str
+) -> None:
+    print("_insert_evaluation")
+    print(f"evaluation: {evaluation}")
+    print(f"project_name: {project_name}")
 
 
 async def _insert_span(session: AsyncSession, span: Span, project_name: str) -> None:
