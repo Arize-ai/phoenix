@@ -91,6 +91,7 @@ class Project(Base):
         "Trace",
         back_populates="project",
         cascade="all, delete-orphan",
+        passive_deletes=True,
         uselist=True,
     )
     __table_args__ = (
