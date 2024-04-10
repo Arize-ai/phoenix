@@ -29,7 +29,9 @@ class BulkInserter:
     def __init__(
         self,
         db: Callable[[], AsyncContextManager[AsyncSession]],
+        *,
         initial_batch_of_spans: Optional[Iterable[Tuple[Span, str]]] = None,
+        initial_batch_of_evaluations: Optional[Iterable[pb.Evaluation]] = None,
         run_interval_in_seconds: float = 0.5,
         max_num_per_transaction: int = 100,
     ) -> None:
@@ -48,7 +50,9 @@ class BulkInserter:
         self._spans: List[Tuple[Span, str]] = (
             [] if initial_batch_of_spans is None else list(initial_batch_of_spans)
         )
-        self._evaluations: List[pb.Evaluation] = []
+        self._evaluations: List[pb.Evaluation] = (
+            [] if initial_batch_of_evaluations is None else list(initial_batch_of_evaluations)
+        )
         self._task: Optional[asyncio.Task[None]] = None
 
     async def __aenter__(
