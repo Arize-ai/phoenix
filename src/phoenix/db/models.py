@@ -3,8 +3,8 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy import (
     JSON,
+    TIMESTAMP,
     CheckConstraint,
-    DateTime,
     Dialect,
     ForeignKey,
     MetaData,
@@ -33,7 +33,7 @@ class UtcTimeStamp(TypeDecorator[datetime]):
     """
 
     cache_ok = True
-    impl = DateTime
+    impl = TIMESTAMP(timezone=True)
     _LOCAL_TIMEZONE = datetime.now(timezone.utc).astimezone().tzinfo
 
     def process_bind_param(
