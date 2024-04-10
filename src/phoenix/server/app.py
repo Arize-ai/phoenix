@@ -215,7 +215,7 @@ def create_app(
             for item in initial_spans
         )
     )
-    engine = create_engine(database)
+    engine = create_engine(database, echo=True)
     db = _db(engine)
     graphql = GraphQLWithContext(
         db=db,

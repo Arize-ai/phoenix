@@ -17,7 +17,6 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
-    WriteOnlyMapped,
     mapped_column,
     relationship,
 )
@@ -87,10 +86,11 @@ class Project(Base):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
 
-    traces: WriteOnlyMapped["Trace"] = relationship(
+    traces: Mapped[List["Trace"]] = relationship(
         "Trace",
         back_populates="project",
         cascade="all, delete-orphan",
+        uselist=True,
     )
     __table_args__ = (
         UniqueConstraint(
@@ -104,7 +104,7 @@ class Project(Base):
 class Trace(Base):
     __tablename__ = "traces"
     id: Mapped[int] = mapped_column(primary_key=True)
-    project_rowid: Mapped[int] = mapped_column(ForeignKey("projects.id"))
+    project_rowid: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
     session_id: Mapped[Optional[str]]
     trace_id: Mapped[str]
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True)
@@ -119,6 +119,7 @@ class Trace(Base):
         "Span",
         back_populates="trace",
         cascade="all, delete-orphan",
+        uselist=True,
     )
     __table_args__ = (
         UniqueConstraint(
@@ -132,7 +133,7 @@ class Trace(Base):
 class Span(Base):
     __tablename__ = "spans"
     id: Mapped[int] = mapped_column(primary_key=True)
-    trace_rowid: Mapped[int] = mapped_column(ForeignKey("traces.id"))
+    trace_rowid: Mapped[int] = mapped_column(ForeignKey("traces.id", ondelete="CASCADE"))
     span_id: Mapped[str]
     parent_span_id: Mapped[Optional[str]] = mapped_column(index=True)
     name: Mapped[str]
@@ -177,7 +178,7 @@ async def init_models(engine: AsyncEngine) -> None:
 class SpanAnnotation(Base):
     __tablename__ = "span_annotations"
     id: Mapped[int] = mapped_column(primary_key=True)
-    span_rowid: Mapped[int] = mapped_column(ForeignKey("spans.id"))
+    span_rowid: Mapped[int] = mapped_column(ForeignKey("spans.id", ondelete="CASCADE"))
     name: Mapped[str]
     label: Mapped[Optional[str]]
     score: Mapped[Optional[float]]
@@ -203,7 +204,7 @@ class SpanAnnotation(Base):
 class TraceAnnotation(Base):
     __tablename__ = "trace_annotations"
     id: Mapped[int] = mapped_column(primary_key=True)
-    trace_rowid: Mapped[int] = mapped_column(ForeignKey("traces.id"))
+    trace_rowid: Mapped[int] = mapped_column(ForeignKey("traces.id", ondelete="CASCADE"))
     name: Mapped[str]
     label: Mapped[Optional[str]]
     score: Mapped[Optional[float]]
@@ -229,7 +230,7 @@ class TraceAnnotation(Base):
 class DocumentAnnotation(Base):
     __tablename__ = "document_annotations"
     id: Mapped[int] = mapped_column(primary_key=True)
-    span_rowid: Mapped[int] = mapped_column(ForeignKey("spans.id"))
+    span_rowid: Mapped[int] = mapped_column(ForeignKey("spans.id", ondelete="CASCADE"))
     document_index: Mapped[int]
     name: Mapped[str]
     label: Mapped[Optional[str]]

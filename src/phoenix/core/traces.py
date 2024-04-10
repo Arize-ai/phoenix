@@ -36,17 +36,17 @@ class Traces:
 
     def get_project(self, project_name: str) -> Optional["Project"]:
         with self._lock:
-            return self._projects.get(project_name)
+            return self._projects.get(project_name, Project())
 
     def get_projects(self) -> Iterator[Tuple[int, str, "Project"]]:
         with self._lock:
             for project_id, (project_name, project) in enumerate(self._projects.items()):
                 if project.is_archived:
                     continue
-                yield project_id, project_name, project
+                yield project_id + 1, project_name, project
 
     def archive_project(self, id: int) -> Optional["Project"]:
-        if id == 0:
+        if id == 1:
             raise ValueError("Cannot archive the default project")
         with self._lock:
             for project_id, _, project in self.get_projects():

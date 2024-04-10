@@ -29,7 +29,7 @@ from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.trace.dsl import SpanFilter
-from phoenix.trace.schemas import SpanID, TraceID
+from phoenix.trace.schemas import SpanID
 
 
 @strawberry.type
@@ -149,10 +149,20 @@ class Project(Node):
         )
 
     @strawberry.field
-    def trace(self, trace_id: ID) -> Optional[Trace]:
-        if self.project.has_trace(TraceID(trace_id)):
-            return Trace(trace_id=trace_id, project=self.project)
-        return None
+    async def trace(self, info: Info[Context, None], trace_id: ID) -> Optional[Trace]:
+        async with info.context.db() as session:
+            if not await session.scalar(
+                select(1)
+                .join_from(models.Trace, models.Project)
+                .where(
+                    and_(
+                        models.Trace.trace_id == str(trace_id),
+                        models.Project.name == self.name,
+                    ),
+                )
+            ):
+                return None
+        return Trace(trace_id=trace_id, project=self.project)
 
     @strawberry.field
     async def spans(
