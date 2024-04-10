@@ -10,13 +10,13 @@ from typing import (
     List,
     Optional,
     Tuple,
-    assert_never,
     cast,
 )
 
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import func, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing_extensions import assert_never
 
 import phoenix.trace.v1 as pb
 from phoenix.db import models
