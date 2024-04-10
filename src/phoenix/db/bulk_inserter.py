@@ -38,12 +38,12 @@ class BulkInserter:
         self._spans: List[Tuple[Span, str]] = (
             [] if initial_batch_of_spans is None else list(initial_batch_of_spans)
         )
-        self._evaluations: List[Tuple[pb.Evaluation, str]] = []
+        self._evaluations: List[pb.Evaluation] = []
         self._task: Optional[asyncio.Task[None]] = None
 
     async def __aenter__(
         self,
-    ) -> Tuple[Callable[[Span, str], None], Callable[[pb.Evaluation, str], None]]:
+    ) -> Tuple[Callable[[Span, str], None], Callable[[pb.Evaluation], None]]:
         self._running = True
         self._task = asyncio.create_task(self._bulk_insert())
         return self._queue_span, self._queue_evaluation
@@ -54,8 +54,8 @@ class BulkInserter:
     def _queue_span(self, span: Span, project_name: str) -> None:
         self._spans.append((span, project_name))
 
-    def _queue_evaluation(self, evaluation: pb.Evaluation, project_name: str) -> None:
-        self._evaluations.append((evaluation, project_name))
+    def _queue_evaluation(self, evaluation: pb.Evaluation) -> None:
+        self._evaluations.append(evaluation)
 
     async def _bulk_insert(self) -> None:
         next_run_at = time() + self._run_interval_seconds
@@ -90,12 +90,10 @@ class BulkInserter:
         for i in range(0, len(evaluations), self._max_num_per_transaction):
             try:
                 async with self._db() as session:
-                    for evaluation, project_name in islice(
-                        evaluations, i, i + self._max_num_per_transaction
-                    ):
+                    for evaluation in islice(evaluations, i, i + self._max_num_per_transaction):
                         try:
                             async with session.begin_nested():
-                                await _insert_evaluation(session, evaluation, project_name)
+                                await _insert_evaluation(session, evaluation)
                         except Exception:
                             logger.exception(
                                 "Failed to insert evaluation "
@@ -105,9 +103,7 @@ class BulkInserter:
                 logger.exception("Failed to insert evaluations")
 
 
-async def _insert_evaluation(
-    session: AsyncSession, evaluation: pb.Evaluation, project_name: str
-) -> None:
+async def _insert_evaluation(session: AsyncSession, evaluation: pb.Evaluation) -> None:
     span_rowid = await session.scalar(
         select(models.Span.id).where(models.Span.span_id == evaluation.subject_id.span_id)
     )

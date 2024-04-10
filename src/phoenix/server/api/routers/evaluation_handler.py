@@ -110,5 +110,5 @@ class EvaluationHandler(HTTPEndpoint):
         self, request: Request, evaluations: Evaluations, project_name: str
     ) -> None:
         for evaluation in encode_evaluations(evaluations):
-            request.state.queue_evaluation_for_bulk_insert(evaluation, project_name)
+            request.state.queue_evaluation_for_bulk_insert(evaluation)
             self.traces.put(evaluation, project_name=project_name)
