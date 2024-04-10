@@ -36,7 +36,7 @@ class Traces:
 
     def get_project(self, project_name: str) -> Optional["Project"]:
         with self._lock:
-            return self._projects.get(project_name, Project())
+            return self._projects.get(project_name)
 
     def put(
         self,
