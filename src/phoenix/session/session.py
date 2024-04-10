@@ -65,6 +65,10 @@ if TYPE_CHECKING:
 else:
     _BaseList = UserList
 
+# Temporary directory for the duration of the session
+global _session_working_dir
+_session_working_dir: Optional[TemporaryDirectory[str]] = None
+
 
 class NotebookEnvironment(Enum):
     COLAB = "colab"
@@ -385,16 +389,23 @@ def delete_all(prompt_before_delete: Optional[bool] = True) -> None:
     Deletes the entire contents of the working directory. This will delete, traces, evaluations,
     and any other data stored in the working directory.
     """
+    global _session_working_dir
     working_dir = get_working_dir()
-
-    # See if the working directory exists
+    directories_to_delete = []
     if working_dir.exists():
+        directories_to_delete.append(working_dir)
+    if _session_working_dir is not None:
+        directories_to_delete.append(Path(_session_working_dir.name))
+
+    # Loop through directories to delete
+    for directory in directories_to_delete:
         if prompt_before_delete:
             input(
-                f"You have data at {working_dir}. Are you sure you want to delete?"
+                f"You have data at {directory}. Are you sure you want to delete?"
                 + " This cannot be undone. Press Enter to delete, Escape to cancel."
             )
-        shutil.rmtree(working_dir)
+        shutil.rmtree(directory)
+    _session_working_dir = None
 
 
 def launch_app(
@@ -407,6 +418,7 @@ def launch_app(
     port: Optional[int] = None,
     run_in_thread: bool = True,
     notebook_environment: Optional[Union[NotebookEnvironment, str]] = None,
+    use_temp_dir: bool = True,
 ) -> Optional[Session]:
     """
     Launches the phoenix application and returns a session to interact with.
@@ -438,6 +450,10 @@ def launch_app(
         The environment the notebook is running in. This is either 'local', 'colab', or 'sagemaker'.
         If not provided, phoenix will try to infer the environment. This is only needed if
         there is a failure to infer the environment.
+    use_temp_dir: bool, optional, default=True
+        Whether to use a temporary directory to store the data. If set to False, the data will be
+        stored in the directory specified by PHOENIX_WORKING_DIR environment variable.
+
 
     Returns
     -------
@@ -511,7 +527,12 @@ def launch_app(
 
     host = host or get_env_host()
     port = port or get_env_port()
-    database = get_env_database_connection_str()
+    if use_temp_dir:
+        global _session_working_dir
+        _session_working_dir = _session_working_dir or TemporaryDirectory()
+        database = f"sqlite:///{_session_working_dir.name}/phoenix.db"
+    else:
+        database = get_env_database_connection_str()
 
     if run_in_thread:
         _session = ThreadSession(
