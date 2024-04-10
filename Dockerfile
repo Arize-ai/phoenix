@@ -36,12 +36,12 @@ RUN pip install uv
 RUN uv venv
 ENV PATH="/phoenix/.venv/bin:$PATH"
 COPY ./container-requirements.txt /phoenix/
-RUN uv pip sync container-requirements.txt
+RUN uv pip sync --compile container-requirements.txt
 COPY ./ /phoenix/
 # Delete symbolic links used during development.
 RUN find src/ -xtype l -delete  
 COPY --from=frontend-builder /phoenix/src/phoenix/server/static/ /phoenix/src/phoenix/server/static/
-RUN uv pip install --no-deps "arize-phoenix @ ."
+RUN uv pip install --compile --no-deps "arize-phoenix @ ."
 
 # The production image is distroless, meaning that it is a minimal image that
 # contains only the necessary dependencies to run the application. This is
