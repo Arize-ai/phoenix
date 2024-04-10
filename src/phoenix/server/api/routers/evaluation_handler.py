@@ -100,11 +100,15 @@ class EvaluationHandler(HTTPEndpoint):
         return Response(
             background=BackgroundTask(
                 self._add_evaluations,
+                request,
                 evaluations,
                 project_name,
             )
         )
 
-    async def _add_evaluations(self, evaluations: Evaluations, project_name: str) -> None:
+    async def _add_evaluations(
+        self, request: Request, evaluations: Evaluations, project_name: str
+    ) -> None:
         for evaluation in encode_evaluations(evaluations):
+            request.state.queue_evaluation_for_bulk_insert(evaluation, project_name)
             self.traces.put(evaluation, project_name=project_name)

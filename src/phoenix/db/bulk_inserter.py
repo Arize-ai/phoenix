@@ -8,6 +8,7 @@ from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import func, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import phoenix.trace.v1 as pb
 from phoenix.db import models
 from phoenix.trace.schemas import Span, SpanStatusCode
 
@@ -37,18 +38,25 @@ class BulkInserter:
         self._spans: List[Tuple[Span, str]] = (
             [] if initial_batch_of_spans is None else list(initial_batch_of_spans)
         )
+        self._evaluations: List[Tuple[pb.Evaluation, str]] = []
         self._task: Optional[asyncio.Task[None]] = None
 
-    async def __aenter__(self) -> Callable[[Span, str], None]:
+    async def __aenter__(
+        self,
+    ) -> Tuple[Callable[[Span, str], None], Callable[[pb.Evaluation, str], None]]:
         self._running = True
         self._task = asyncio.create_task(self._bulk_insert())
-        return self._queue_span
+        return self._queue_span, self._queue_evaluation
 
     async def __aexit__(self, *args: Any) -> None:
         self._running = False
 
     def _queue_span(self, span: Span, project_name: str) -> None:
         self._spans.append((span, project_name))
+
+    def _queue_evaluation(self, evaluation: pb.Evaluation, project_name: str) -> None:
+        print(f"_queue_evaluation: {evaluation}")
+        self._evaluations.append((evaluation, project_name))
 
     async def _bulk_insert(self) -> None:
         next_run_at = time() + self._run_interval_seconds
