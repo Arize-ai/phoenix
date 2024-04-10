@@ -104,28 +104,25 @@ class BulkInserter:
 
 
 async def _insert_evaluation(session: AsyncSession, evaluation: pb.Evaluation) -> None:
-    span_rowid = await session.scalar(
-        select(models.Span.id).where(models.Span.span_id == evaluation.subject_id.span_id)
-    )
-    evaluation_name = evaluation.name
-    evaluation_result = evaluation.result
-    label = evaluation_result.label.value
-    score = evaluation_result.score.value
-    explanation = evaluation_result.explanation.value
-    span_annotation_id = await session.scalar(
+    if not (
+        span_rowid := await session.scalar(
+            select(models.Span.id).where(models.Span.span_id == evaluation.subject_id.span_id)
+        )
+    ):
+        return
+    await session.scalar(
         insert(models.SpanAnnotation)
         .values(
             span_rowid=span_rowid,
-            name=evaluation_name,
-            label=label,
-            score=score,
-            explanation=explanation,
+            name=evaluation.name,
+            label=evaluation.result.label.value,
+            score=evaluation.result.score.value,
+            explanation=evaluation.result.explanation.value,
             metadata_={},
             annotator_kind="LLM",
         )
         .returning(models.SpanAnnotation.id)
     )
-    print(span_annotation_id)
 
 
 async def _insert_span(session: AsyncSession, span: Span, project_name: str) -> None:
