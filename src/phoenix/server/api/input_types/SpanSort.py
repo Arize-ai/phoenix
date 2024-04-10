@@ -1,30 +1,56 @@
-from enum import Enum
+from enum import Enum, auto
 from functools import partial
 from typing import Any, Iterable, Iterator, Optional, Protocol
 
 import pandas as pd
 import strawberry
 from openinference.semconv.trace import SpanAttributes
+from sqlalchemy import Integer, cast, desc, nulls_last
 from strawberry import UNSET
 from typing_extensions import assert_never
 
 import phoenix.trace.v1 as pb
 from phoenix.core.project import WrappedSpan
+from phoenix.db import models
 from phoenix.server.api.types.SortDir import SortDir
-from phoenix.trace.schemas import ComputedAttributes, SpanID
+from phoenix.trace.schemas import SpanID
+
+LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
+LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
+LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
 
 
 @strawberry.enum
 class SpanColumn(Enum):
-    startTime = "start_time"
-    endTime = "end_time"
-    latencyMs = ComputedAttributes.LATENCY_MS
-    tokenCountTotal = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
-    tokenCountPrompt = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
-    tokenCountCompletion = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
-    cumulativeTokenCountTotal = ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_TOTAL
-    cumulativeTokenCountPrompt = ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_PROMPT
-    cumulativeTokenCountCompletion = ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION
+    startTime = auto()
+    endTime = auto()
+    latencyMs = auto()
+    tokenCountTotal = auto()
+    tokenCountPrompt = auto()
+    tokenCountCompletion = auto()
+    cumulativeTokenCountTotal = auto()
+    cumulativeTokenCountPrompt = auto()
+    cumulativeTokenCountCompletion = auto()
+
+
+_SPAN_COLUMN_TO_ORM_EXPR_MAP = {
+    SpanColumn.startTime: models.Span.start_time,
+    SpanColumn.endTime: models.Span.end_time,
+    SpanColumn.latencyMs: models.Span.latency_ms,
+    SpanColumn.tokenCountTotal: cast(
+        models.Span.attributes[LLM_TOKEN_COUNT_TOTAL].as_string(), Integer
+    ),
+    SpanColumn.tokenCountPrompt: cast(
+        models.Span.attributes[LLM_TOKEN_COUNT_PROMPT].as_string(), Integer
+    ),
+    SpanColumn.tokenCountCompletion: cast(
+        models.Span.attributes[LLM_TOKEN_COUNT_COMPLETION].as_string(), Integer
+    ),
+    SpanColumn.cumulativeTokenCountTotal: models.Span.cumulative_llm_token_count_prompt
+    + models.Span.cumulative_llm_token_count_completion,
+    SpanColumn.cumulativeTokenCountPrompt: models.Span.cumulative_llm_token_count_prompt,
+    SpanColumn.cumulativeTokenCountCompletion: models.Span.cumulative_llm_token_count_completion,
+}
 
 
 @strawberry.enum
@@ -52,6 +78,14 @@ class SpanSort:
     eval_result_key: Optional[EvalResultKey] = UNSET
     dir: SortDir
 
+    def to_orm_expr(self) -> Any:
+        if self.col:
+            expr = _SPAN_COLUMN_TO_ORM_EXPR_MAP[self.col]
+            if self.dir == SortDir.desc:
+                expr = desc(expr)
+            return nulls_last(expr)
+        NotImplementedError("not implemented")
+
     def __call__(
         self,
         spans: Iterable[WrappedSpan],
@@ -68,22 +102,11 @@ class SpanSort:
                 evals=evals,
             )
         else:
-            get_sort_key_value = partial(
-                _get_column_value,
-                span_column=self.col or SpanColumn.startTime,
-            )
+            NotImplementedError("This should be unreachable. Use SQL instead.")
         yield from pd.Series(spans, dtype=object).sort_values(
             key=lambda series: series.apply(get_sort_key_value),
             ascending=self.dir.value == SortDir.asc.value,
         )
-
-
-def _get_column_value(span: WrappedSpan, span_column: SpanColumn) -> Any:
-    if span_column is SpanColumn.startTime:
-        return span.start_time
-    if span_column is SpanColumn.endTime:
-        return span.end_time
-    return span[span_column.value]
 
 
 def _get_eval_result_value(

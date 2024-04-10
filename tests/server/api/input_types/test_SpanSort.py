@@ -6,17 +6,18 @@ import pytest
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
 from openinference.semconv.trace import SpanAttributes
 from phoenix.core.project import WrappedSpan
-from phoenix.server.api.input_types.SpanSort import EvalAttr, EvalResultKey, SpanColumn, SpanSort
+from phoenix.server.api.input_types.SpanSort import (
+    _SPAN_COLUMN_TO_ORM_EXPR_MAP,
+    EvalAttr,
+    EvalResultKey,
+    SpanColumn,
+    SpanSort,
+)
 from phoenix.server.api.types.SortDir import SortDir
 
 
-@pytest.mark.parametrize(
-    "col", [SpanColumn.endTime, SpanColumn.latencyMs, SpanColumn.tokenCountTotal]
-)
-def test_sort_by_col(spans, col):
-    span0, span1, span2, span3, span4 = spans
-    sort = SpanSort(col=col, dir=SortDir.desc)
-    assert list(sort(spans)) == [span4, span2, span0, span1, span3]
+def test_span_column_has_orm_expr():
+    assert set(SpanColumn) == set(_SPAN_COLUMN_TO_ORM_EXPR_MAP)
 
 
 @pytest.mark.parametrize("eval_attr", list(EvalAttr))
@@ -62,7 +63,5 @@ def spans():
                 attributes={} if i % 2 else {SpanAttributes.LLM_TOKEN_COUNT_TOTAL: i},
             )
         )
-        if i % 2 == 0:
-            span[SpanColumn.latencyMs.value] = i
         _spans.append(span)
     return _spans
