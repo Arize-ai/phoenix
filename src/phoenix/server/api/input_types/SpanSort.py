@@ -5,7 +5,7 @@ from typing import Any, Iterable, Iterator, Optional, Protocol
 import pandas as pd
 import strawberry
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import Integer, cast, desc, nulls_last
+from sqlalchemy import desc, nulls_last
 from strawberry import UNSET
 from typing_extensions import assert_never
 
@@ -37,15 +37,9 @@ _SPAN_COLUMN_TO_ORM_EXPR_MAP = {
     SpanColumn.startTime: models.Span.start_time,
     SpanColumn.endTime: models.Span.end_time,
     SpanColumn.latencyMs: models.Span.latency_ms,
-    SpanColumn.tokenCountTotal: cast(
-        models.Span.attributes[LLM_TOKEN_COUNT_TOTAL].as_string(), Integer
-    ),
-    SpanColumn.tokenCountPrompt: cast(
-        models.Span.attributes[LLM_TOKEN_COUNT_PROMPT].as_string(), Integer
-    ),
-    SpanColumn.tokenCountCompletion: cast(
-        models.Span.attributes[LLM_TOKEN_COUNT_COMPLETION].as_string(), Integer
-    ),
+    SpanColumn.tokenCountTotal: models.Span.attributes[LLM_TOKEN_COUNT_TOTAL].as_float(),
+    SpanColumn.tokenCountPrompt: models.Span.attributes[LLM_TOKEN_COUNT_PROMPT].as_float(),
+    SpanColumn.tokenCountCompletion: models.Span.attributes[LLM_TOKEN_COUNT_COMPLETION].as_float(),
     SpanColumn.cumulativeTokenCountTotal: models.Span.cumulative_llm_token_count_prompt
     + models.Span.cumulative_llm_token_count_completion,
     SpanColumn.cumulativeTokenCountPrompt: models.Span.cumulative_llm_token_count_prompt,
