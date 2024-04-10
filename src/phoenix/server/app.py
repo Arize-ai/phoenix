@@ -24,9 +24,8 @@ from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context
-from phoenix.server.api.routers.evaluation_handler import EvaluationHandler
-from phoenix.server.api.routers.span_handler import SpanHandler
-from phoenix.server.api.routers.trace_handler import TraceHandler
+from phoenix.server.api.routers.v1 import v1_routes
+from phoenix.server.api.routers.v2 import V2_ROUTES
 from phoenix.server.api.schema import schema
 from phoenix.storage.span_store import SpanStore
 
@@ -171,7 +170,7 @@ def create_app(
         prometheus_middlewares = [Middleware(PrometheusMiddleware)]
     else:
         prometheus_middlewares = []
-    return Starlette(
+    app = Starlette(
         middleware=[
             Middleware(HeadersMiddleware),
             *prometheus_middlewares,
@@ -180,21 +179,9 @@ def create_app(
         routes=(
             []
             if traces is None or read_only
-            else [
-                Route(
-                    "/v1/spans",
-                    type("SpanEndpoint", (SpanHandler,), {"traces": traces}),
-                ),
-                Route(
-                    "/v1/traces",
-                    type("TraceEndpoint", (TraceHandler,), {"traces": traces, "store": span_store}),
-                ),
-                Route(
-                    "/v1/evaluations",
-                    type("EvaluationEndpoint", (EvaluationHandler,), {"traces": traces}),
-                ),
-            ]
+            else v1_routes(traces, span_store)
         )
+        + V2_ROUTES
         + [
             Route("/arize_phoenix_version", version),
             Route("/healthz", check_healthz),
@@ -226,3 +213,6 @@ def create_app(
             ),
         ],
     )
+    app.state.traces = traces
+    app.state.store = span_store
+    return app
