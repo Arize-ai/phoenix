@@ -8,6 +8,7 @@ from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import func, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import phoenix.trace.v1 as pb
 from phoenix.db import models
 from phoenix.trace.schemas import Span, SpanStatusCode
 
@@ -37,12 +38,15 @@ class BulkInserter:
         self._spans: List[Tuple[Span, str]] = (
             [] if initial_batch_of_spans is None else list(initial_batch_of_spans)
         )
+        self._evaluations: List[pb.Evaluation] = []
         self._task: Optional[asyncio.Task[None]] = None
 
-    async def __aenter__(self) -> Callable[[Span, str], None]:
+    async def __aenter__(
+        self,
+    ) -> Tuple[Callable[[Span, str], None], Callable[[pb.Evaluation], None]]:
         self._running = True
         self._task = asyncio.create_task(self._bulk_insert())
-        return self._queue_span
+        return self._queue_span, self._queue_evaluation
 
     async def __aexit__(self, *args: Any) -> None:
         self._running = False
@@ -50,13 +54,18 @@ class BulkInserter:
     def _queue_span(self, span: Span, project_name: str) -> None:
         self._spans.append((span, project_name))
 
+    def _queue_evaluation(self, evaluation: pb.Evaluation) -> None:
+        self._evaluations.append(evaluation)
+
     async def _bulk_insert(self) -> None:
         next_run_at = time() + self._run_interval_seconds
-        while self._spans or self._running:
+        while self._spans or self._evaluations or self._running:
             await asyncio.sleep(next_run_at - time())
             next_run_at = time() + self._run_interval_seconds
             if self._spans:
                 await self._insert_spans()
+            if self._evaluations:
+                await self._insert_evaluations()
 
     async def _insert_spans(self) -> None:
         spans = self._spans
@@ -74,6 +83,46 @@ class BulkInserter:
                             )
             except Exception:
                 logger.exception("Failed to insert spans")
+
+    async def _insert_evaluations(self) -> None:
+        evaluations = self._evaluations
+        self._evaluations = []
+        for i in range(0, len(evaluations), self._max_num_per_transaction):
+            try:
+                async with self._db() as session:
+                    for evaluation in islice(evaluations, i, i + self._max_num_per_transaction):
+                        try:
+                            async with session.begin_nested():
+                                await _insert_evaluation(session, evaluation)
+                        except Exception:
+                            logger.exception(
+                                "Failed to insert evaluation "
+                                f"for span_id={evaluation.SubjectId.span_id}"
+                            )
+            except Exception:
+                logger.exception("Failed to insert evaluations")
+
+
+async def _insert_evaluation(session: AsyncSession, evaluation: pb.Evaluation) -> None:
+    if not (
+        span_rowid := await session.scalar(
+            select(models.Span.id).where(models.Span.span_id == evaluation.subject_id.span_id)
+        )
+    ):
+        return
+    await session.scalar(
+        insert(models.SpanAnnotation)
+        .values(
+            span_rowid=span_rowid,
+            name=evaluation.name,
+            label=evaluation.result.label.value,
+            score=evaluation.result.score.value,
+            explanation=evaluation.result.explanation.value,
+            metadata_={},
+            annotator_kind="LLM",
+        )
+        .returning(models.SpanAnnotation.id)
+    )
 
 
 async def _insert_span(session: AsyncSession, span: Span, project_name: str) -> None:
