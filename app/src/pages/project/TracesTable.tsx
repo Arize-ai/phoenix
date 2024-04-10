@@ -122,9 +122,9 @@ export function TracesTable(props: TracesTableProps) {
                 statusCode: propagatedStatusCode
                 startTime
                 latencyMs
-                tokenCountTotal: cumulativeTokenCountTotal
-                tokenCountPrompt: cumulativeTokenCountPrompt
-                tokenCountCompletion: cumulativeTokenCountCompletion
+                cumulativeTokenCountTotal
+                cumulativeTokenCountPrompt
+                cumulativeTokenCountCompletion
                 parentId
                 input {
                   value
@@ -154,9 +154,9 @@ export function TracesTable(props: TracesTableProps) {
                   startTime
                   latencyMs
                   parentId
-                  tokenCountTotal
-                  tokenCountPrompt
-                  tokenCountCompletion
+                  cumulativeTokenCountTotal: tokenCountTotal
+                  cumulativeTokenCountPrompt: tokenCountPrompt
+                  cumulativeTokenCountCompletion: tokenCountCompletion
                   input {
                     value
                   }
@@ -389,7 +389,7 @@ export function TracesTable(props: TracesTableProps) {
     {
       header: "total tokens",
       minSize: 80,
-      accessorKey: "tokenCountTotal",
+      accessorKey: "cumulativeTokenCountTotal",
       cell: ({ row, getValue }) => {
         const value = getValue();
         if (value === null) {
@@ -398,8 +398,10 @@ export function TracesTable(props: TracesTableProps) {
         return (
           <TokenCount
             tokenCountTotal={value as number}
-            tokenCountPrompt={row.original.tokenCountPrompt || 0}
-            tokenCountCompletion={row.original.tokenCountCompletion || 0}
+            tokenCountPrompt={row.original.cumulativeTokenCountPrompt || 0}
+            tokenCountCompletion={
+              row.original.cumulativeTokenCountCompletion || 0
+            }
           />
         );
       },
