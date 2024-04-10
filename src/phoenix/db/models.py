@@ -10,6 +10,7 @@ from sqlalchemy import (
     MetaData,
     TypeDecorator,
     UniqueConstraint,
+    dialects,
     func,
     insert,
 )
@@ -21,6 +22,8 @@ from sqlalchemy.orm import (
     mapped_column,
     relationship,
 )
+
+JSON_ = JSON().with_variant(dialects.postgresql.JSONB(), "postgresql")
 
 
 class UtcTimeStamp(TypeDecorator[datetime]):
@@ -72,8 +75,8 @@ class Base(DeclarativeBase):
         }
     )
     type_annotation_map = {
-        Dict[str, Any]: JSON,
-        List[Dict[str, Any]]: JSON,
+        Dict[str, Any]: JSON_,
+        List[Dict[str, Any]]: JSON_,
     }
 
 

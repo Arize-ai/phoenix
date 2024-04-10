@@ -17,6 +17,8 @@ down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+JSON_ = sa.JSON().with_variant(sa.dialects.postgresql.JSONB(), "postgresql")
+
 
 def upgrade() -> None:
     projects_table = op.create_table(
@@ -61,8 +63,8 @@ def upgrade() -> None:
         sa.Column("kind", sa.String, nullable=False),
         sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=False),
-        sa.Column("attributes", sa.JSON, nullable=False),
-        sa.Column("events", sa.JSON, nullable=False),
+        sa.Column("attributes", JSON_, nullable=False),
+        sa.Column("events", JSON_, nullable=False),
         sa.Column(
             "status",
             sa.String,
@@ -87,7 +89,7 @@ def upgrade() -> None:
         sa.Column("label", sa.String, nullable=True),
         sa.Column("score", sa.Float, nullable=True),
         sa.Column("explanation", sa.String, nullable=True),
-        sa.Column("metadata", sa.JSON, nullable=False),
+        sa.Column("metadata", JSON_, nullable=False),
         sa.Column(
             "annotator_kind",
             sa.String,
@@ -126,7 +128,7 @@ def upgrade() -> None:
         sa.Column("label", sa.String, nullable=True),
         sa.Column("score", sa.Float, nullable=True),
         sa.Column("explanation", sa.String, nullable=True),
-        sa.Column("metadata", sa.JSON, nullable=False),
+        sa.Column("metadata", JSON_, nullable=False),
         sa.Column(
             "annotator_kind",
             sa.String,
@@ -166,7 +168,7 @@ def upgrade() -> None:
         sa.Column("label", sa.String, nullable=True),
         sa.Column("score", sa.Float, nullable=True),
         sa.Column("explanation", sa.String, nullable=True),
-        sa.Column("metadata", sa.JSON, nullable=False),
+        sa.Column("metadata", JSON_, nullable=False),
         sa.Column(
             "annotator_kind",
             sa.String,
