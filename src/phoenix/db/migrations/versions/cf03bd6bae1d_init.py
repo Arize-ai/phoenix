@@ -10,6 +10,8 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy import JSON
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = "cf03bd6bae1d"
@@ -17,7 +19,10 @@ down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-JSON_ = sa.JSON().with_variant(sa.dialects.postgresql.JSONB(), "postgresql")
+JSON_ = JSON().with_variant(
+    postgresql.JSONB(),  # type: ignore
+    "postgresql",
+)
 
 
 def upgrade() -> None:
