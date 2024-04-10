@@ -260,12 +260,5 @@ class Mutation(ExportEventsMutation):
             await session.delete(project)
         return Query()
 
-    @strawberry.mutation
-    def archive_project(self, info: Info[Context, None], id: GlobalID) -> Query:
-        if (traces := info.context.traces) is not None:
-            node_id = from_global_id_with_expected_type(str(id), "Project")
-            traces.archive_project(node_id)
-        return Query()
-
 
 schema = strawberry.Schema(query=Query, mutation=Mutation)
