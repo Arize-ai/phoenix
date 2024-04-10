@@ -55,7 +55,9 @@ class LatencyMsQuantileDataLoader(DataLoader[Key, Optional[QuantileValue]]):
         async with self._db() as session:
             for segment, probabilities in arguments.items():
                 stmt = (
-                    select(models.Trace.latency_ms).join(models.Project).where(_get_expr(segment))
+                    select(models.Trace.latency_ms)
+                    .join(models.Project)
+                    .where(_get_filter_condition(segment))
                 )
                 sketch = sketches[segment]
                 async for val in await session.stream_scalars(stmt):
@@ -65,7 +67,7 @@ class LatencyMsQuantileDataLoader(DataLoader[Key, Optional[QuantileValue]]):
         return results
 
 
-def _get_expr(segment: Segment) -> OrmExpression:
+def _get_filter_condition(segment: Segment) -> OrmExpression:
     name, (start_time, stop_time) = segment
     if start_time and stop_time:
         return and_(
