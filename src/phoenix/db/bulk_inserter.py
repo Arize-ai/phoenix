@@ -117,7 +117,27 @@ async def _insert_evaluation(session: AsyncSession, evaluation: pb.Evaluation) -
     if (evaluation_kind := evaluation.subject_id.WhichOneof("kind")) is None:
         return
     elif evaluation_kind == "trace_id":
-        raise NotImplementedError()
+        if not (
+            trace_rowid := await session.scalar(
+                select(models.Trace.id).where(
+                    models.Trace.trace_id == evaluation.subject_id.trace_id
+                )
+            )
+        ):
+            return
+        await session.scalar(
+            insert(models.TraceAnnotation)
+            .values(
+                trace_rowid=trace_rowid,
+                name=evaluation.name,
+                label=evaluation.result.label.value,
+                score=evaluation.result.score.value,
+                explanation=evaluation.result.explanation.value,
+                metadata_={},
+                annotator_kind="LLM",
+            )
+            .returning(models.TraceAnnotation.id)
+        )
     elif evaluation_kind == "span_id":
         if not (
             span_rowid := await session.scalar(
