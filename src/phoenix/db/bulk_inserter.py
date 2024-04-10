@@ -114,15 +114,17 @@ class BulkInserter:
 
 
 async def _insert_evaluation(session: AsyncSession, evaluation: pb.Evaluation) -> None:
-    if not (
-        span_rowid := await session.scalar(
-            select(models.Span.id).where(models.Span.span_id == evaluation.subject_id.span_id)
-        )
-    ):
-        return
     if (evaluation_kind := evaluation.subject_id.WhichOneof("kind")) is None:
         return
+    elif evaluation_kind == "trace_id":
+        raise NotImplementedError()
     elif evaluation_kind == "span_id":
+        if not (
+            span_rowid := await session.scalar(
+                select(models.Span.id).where(models.Span.span_id == evaluation.subject_id.span_id)
+            )
+        ):
+            return
         await session.scalar(
             insert(models.SpanAnnotation)
             .values(
@@ -137,9 +139,28 @@ async def _insert_evaluation(session: AsyncSession, evaluation: pb.Evaluation) -
             .returning(models.SpanAnnotation.id)
         )
     elif evaluation_kind == "document_retrieval_id":
-        raise NotImplementedError()
-    elif evaluation_kind == "trace_id":
-        raise NotImplementedError()
+        if not (
+            span_rowid := await session.scalar(
+                select(models.Span.id).where(
+                    models.Span.span_id == evaluation.subject_id.document_retrieval_id.span_id
+                )
+            )
+        ):
+            return
+        await session.scalar(
+            insert(models.DocumentAnnotation)
+            .values(
+                span_rowid=span_rowid,
+                document_index=evaluation.subject_id.document_retrieval_id.document_position,
+                name=evaluation.name,
+                label=evaluation.result.label.value,
+                score=evaluation.result.score.value,
+                explanation=evaluation.result.explanation.value,
+                metadata_={},
+                annotator_kind="LLM",
+            )
+            .returning(models.DocumentAnnotation.id)
+        )
     else:
         assert_never(evaluation_kind)
 
