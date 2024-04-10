@@ -31,8 +31,8 @@ export function ProjectPageHeader(props: {
       @refetchable(queryName: "ProjectPageHeaderQuery") {
         traceCount
         tokenCountTotal
-        latencyMsP50
-        latencyMsP99
+        latencyMsP50: latencyMsQuantile(probability: 0.50)
+        latencyMsP99: latencyMsQuantile(probability: 0.99)
         spanEvaluationNames
         documentEvaluationNames
       }

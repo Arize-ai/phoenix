@@ -50,7 +50,7 @@ export function ProjectsPage() {
               name
               traceCount
               endTime
-              latencyMsP50
+              latencyMsP50: latencyMsQuantile(probability: 0.5)
               tokenCountTotal
             }
           }

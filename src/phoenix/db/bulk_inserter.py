@@ -96,14 +96,15 @@ async def _insert_span(session: AsyncSession, span: Span, project_name: str) -> 
         # datetime from the (sqlite) database, because all datetime in our
         # programs should be timezone-aware.
         if span.start_time < trace.start_time or trace.end_time < span.end_time:
-            trace.start_time = min(trace.start_time, span.start_time)
-            trace.end_time = max(trace.end_time, span.end_time)
+            trace_start_time = min(trace.start_time, span.start_time)
+            trace_end_time = max(trace.end_time, span.end_time)
             await session.execute(
                 update(models.Trace)
                 .where(models.Trace.id == trace_rowid)
                 .values(
-                    start_time=min(trace.start_time, span.start_time),
-                    end_time=max(trace.end_time, span.end_time),
+                    start_time=trace_start_time,
+                    end_time=trace_end_time,
+                    latency_ms=(trace_end_time - trace_start_time).total_seconds() * 1000,
                 )
             )
     else:
@@ -116,6 +117,7 @@ async def _insert_span(session: AsyncSession, span: Span, project_name: str) -> 
                     trace_id=span.context.trace_id,
                     start_time=span.start_time,
                     end_time=span.end_time,
+                    latency_ms=(span.end_time - span.start_time).total_seconds() * 1000,
                 )
                 .returning(models.Trace.id)
             ),

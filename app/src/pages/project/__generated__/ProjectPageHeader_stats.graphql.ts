@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<655195ee2a990f0154d96938251c2da0>>
+ * @generated SignedSource<<60ee6d98e42b7ed3d5b54cd1ea624235>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -58,18 +58,30 @@ const node: ReaderFragment = {
       "storageKey": null
     },
     {
-      "alias": null,
-      "args": null,
+      "alias": "latencyMsP50",
+      "args": [
+        {
+          "kind": "Literal",
+          "name": "probability",
+          "value": 0.5
+        }
+      ],
       "kind": "ScalarField",
-      "name": "latencyMsP50",
-      "storageKey": null
+      "name": "latencyMsQuantile",
+      "storageKey": "latencyMsQuantile(probability:0.5)"
     },
     {
-      "alias": null,
-      "args": null,
+      "alias": "latencyMsP99",
+      "args": [
+        {
+          "kind": "Literal",
+          "name": "probability",
+          "value": 0.99
+        }
+      ],
       "kind": "ScalarField",
-      "name": "latencyMsP99",
-      "storageKey": null
+      "name": "latencyMsQuantile",
+      "storageKey": "latencyMsQuantile(probability:0.99)"
     },
     {
       "alias": null,
@@ -97,6 +109,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "e18ca825b86a66619e25ff123f147ff4";
+(node as any).hash = "9d1c4be9bade9017039ac1969a3cda40";
 
 export default node;

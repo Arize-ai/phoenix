@@ -138,12 +138,15 @@ class Project(Node):
             return (await session.scalar(stmt)) or 0
 
     @strawberry.field
-    def latency_ms_p50(self) -> Optional[float]:
-        return self.project.root_span_latency_ms_quantiles(0.50)
-
-    @strawberry.field
-    def latency_ms_p99(self) -> Optional[float]:
-        return self.project.root_span_latency_ms_quantiles(0.99)
+    async def latency_ms_quantile(
+        self,
+        info: Info[Context, None],
+        probability: float,
+        time_range: Optional[TimeRange] = UNSET,
+    ) -> Optional[float]:
+        return await info.context.data_loaders.latency_ms_quantile.load(
+            (self.name, time_range, probability)
+        )
 
     @strawberry.field
     def trace(self, trace_id: ID) -> Optional[Trace]:

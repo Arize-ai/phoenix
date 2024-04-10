@@ -544,8 +544,7 @@ type Project implements Node {
   recordCount(timeRange: TimeRange): Int!
   traceCount(timeRange: TimeRange): Int!
   tokenCountTotal(timeRange: TimeRange): Int!
-  latencyMsP50: Float
-  latencyMsP99: Float
+  latencyMsQuantile(probability: Float!, timeRange: TimeRange): Float
   trace(traceId: ID!): Trace
   spans(timeRange: TimeRange, first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String): SpanConnection!
 

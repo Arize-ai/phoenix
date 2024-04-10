@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<17a291ff3a779b575dec13cb4a15bbb2>>
+ * @generated SignedSource<<67f3d5d708ee31ce43c3bb4ea3e77795>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -115,18 +115,30 @@ return {
                 "storageKey": null
               },
               {
-                "alias": null,
-                "args": null,
+                "alias": "latencyMsP50",
+                "args": [
+                  {
+                    "kind": "Literal",
+                    "name": "probability",
+                    "value": 0.5
+                  }
+                ],
                 "kind": "ScalarField",
-                "name": "latencyMsP50",
-                "storageKey": null
+                "name": "latencyMsQuantile",
+                "storageKey": "latencyMsQuantile(probability:0.5)"
               },
               {
-                "alias": null,
-                "args": null,
+                "alias": "latencyMsP99",
+                "args": [
+                  {
+                    "kind": "Literal",
+                    "name": "probability",
+                    "value": 0.99
+                  }
+                ],
                 "kind": "ScalarField",
-                "name": "latencyMsP99",
-                "storageKey": null
+                "name": "latencyMsQuantile",
+                "storageKey": "latencyMsQuantile(probability:0.99)"
               },
               {
                 "alias": null,
@@ -152,16 +164,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "bd4c59adfff0b38f6f4357e861b797de",
+    "cacheID": "badea9b7c017c62c14b05faa2cf3fb41",
     "id": null,
     "metadata": {},
     "name": "ProjectPageHeaderQuery",
     "operationKind": "query",
-    "text": "query ProjectPageHeaderQuery(\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectPageHeader_stats\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  traceCount\n  tokenCountTotal\n  latencyMsP50\n  latencyMsP99\n  spanEvaluationNames\n  documentEvaluationNames\n  id\n}\n"
+    "text": "query ProjectPageHeaderQuery(\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectPageHeader_stats\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  traceCount\n  tokenCountTotal\n  latencyMsP50: latencyMsQuantile(probability: 0.5)\n  latencyMsP99: latencyMsQuantile(probability: 0.99)\n  spanEvaluationNames\n  documentEvaluationNames\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e18ca825b86a66619e25ff123f147ff4";
+(node as any).hash = "9d1c4be9bade9017039ac1969a3cda40";
 
 export default node;

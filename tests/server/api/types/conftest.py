@@ -43,6 +43,7 @@ def context_factory() -> Callable[[Dataset, Optional[Dataset]], Context]:
             model=create_model_from_datasets(primary_dataset, reference_dataset),
             export_path=Path(TemporaryDirectory().name),
             db=None,  # TODO(persistence): add mock for db
+            data_loaders=None,  # TODO(persistence): add mock for data_loaders
         )
 
     return create_context
