@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
+    WriteOnlyMapped,
     mapped_column,
     relationship,
 )
@@ -86,7 +87,7 @@ class Project(Base):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
 
-    traces: Mapped[List["Trace"]] = relationship(
+    traces: WriteOnlyMapped[List["Trace"]] = relationship(
         "Trace",
         back_populates="project",
         cascade="all, delete-orphan",
