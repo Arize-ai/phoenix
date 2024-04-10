@@ -58,7 +58,7 @@ class LatencyMsQuantileDataLoader(DataLoader[Key, Optional[QuantileValue]]):
             segment, probability = self._cache_key_fn(key)
             arguments[segment].append((i, probability))
         async with self._db() as session:
-            for time_range_by_name, filter_condition in _get_filter_conditons(arguments.keys()):
+            for time_range_by_name, filter_condition in _get_filter_conditions(arguments.keys()):
                 stmt = (
                     select(models.Project.name, models.Trace.latency_ms)
                     .join(models.Project)
@@ -79,7 +79,7 @@ class LatencyMsQuantileDataLoader(DataLoader[Key, Optional[QuantileValue]]):
         return results
 
 
-def _get_filter_conditons(
+def _get_filter_conditions(
     keys: Iterable[Segment],
 ) -> Iterator[Tuple[Dict[ProjectName, TimeInterval], OrmExpression]]:
     """
