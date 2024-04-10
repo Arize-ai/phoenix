@@ -6,8 +6,18 @@ import pytest
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
 from openinference.semconv.trace import SpanAttributes
 from phoenix.core.project import WrappedSpan
-from phoenix.server.api.input_types.SpanSort import EvalAttr, EvalResultKey, SpanSort
+from phoenix.server.api.input_types.SpanSort import (
+    _SPAN_COLUMN_TO_ORM_EXPR_MAP,
+    EvalAttr,
+    EvalResultKey,
+    SpanColumn,
+    SpanSort,
+)
 from phoenix.server.api.types.SortDir import SortDir
+
+
+def test_span_column_has_orm_expr():
+    assert set(SpanColumn) == set(_SPAN_COLUMN_TO_ORM_EXPR_MAP)
 
 
 @pytest.mark.parametrize("eval_attr", list(EvalAttr))

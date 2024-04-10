@@ -102,7 +102,7 @@ class SpanSort:
                 evals=evals,
             )
         else:
-            NotImplementedError("deprecated")
+            NotImplementedError("This should be unreachable. Use SQL instead.")
         yield from pd.Series(spans, dtype=object).sort_values(
             key=lambda series: series.apply(get_sort_key_value),
             ascending=self.dir.value == SortDir.asc.value,
