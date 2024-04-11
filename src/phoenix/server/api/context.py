@@ -11,13 +11,14 @@ from strawberry.dataloader import DataLoader
 from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
 from phoenix.server.api.input_types.TimeRange import TimeRange
-from phoenix.server.api.types.Evaluation import SpanEvaluation
+from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluation
 
 
 @dataclass
 class DataLoaders:
     latency_ms_quantile: DataLoader[Tuple[str, Optional[TimeRange], float], Optional[float]]
     span_evaluations: DataLoader[int, List[SpanEvaluation]]
+    document_evaluations: DataLoader[int, List[DocumentEvaluation]]
 
 
 @dataclass

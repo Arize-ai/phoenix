@@ -45,6 +45,7 @@ from phoenix.db.engines import create_engine
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
+    DocumentEvaluationsDataLoader,
     LatencyMsQuantileDataLoader,
     SpanEvaluationsDataLoader,
 )
@@ -151,6 +152,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
             data_loaders=DataLoaders(
                 latency_ms_quantile=LatencyMsQuantileDataLoader(self.db),
                 span_evaluations=SpanEvaluationsDataLoader(self.db),
+                document_evaluations=DocumentEvaluationsDataLoader(self.db),
             ),
         )
 
