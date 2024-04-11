@@ -50,8 +50,7 @@ from phoenix.server.api.dataloaders import (
     LatencyMsQuantileDataLoader,
     SpanEvaluationsDataLoader,
 )
-from phoenix.server.api.routers.v1 import v1_routes
-from phoenix.server.api.routers.v2 import V2_ROUTES
+from phoenix.server.api.routers.v1 import V1_ROUTES
 from phoenix.server.api.schema import schema
 from phoenix.storage.span_store import SpanStore
 from phoenix.trace.schemas import Span
@@ -265,8 +264,7 @@ def create_app(
             *prometheus_middlewares,
         ],
         debug=debug,
-        routes=([] if traces is None or read_only else v1_routes(traces, span_store))
-        + V2_ROUTES
+        routes=([] if traces is None else V1_ROUTES)
         + [
             Route("/schema", endpoint=openapi_schema, include_in_schema=False),
             Route("/arize_phoenix_version", version),

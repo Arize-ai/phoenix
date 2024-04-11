@@ -5,6 +5,7 @@ from typing import AsyncIterator
 import pyarrow as pa
 from google.protobuf.message import DecodeError
 from starlette.background import BackgroundTask
+from starlette.datastructures import State
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from starlette.status import (
@@ -134,9 +135,16 @@ async def _process_pyarrow(request: Request, project_name: str, traces: Traces) 
             content="Invalid data in request body",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
-    return Response(background=BackgroundTask(_add_evaluations, evaluations, project_name, traces))
+    return Response(
+        background=BackgroundTask(
+            _add_evaluations, request.state, evaluations, project_name, traces
+        )
+    )
 
 
-async def _add_evaluations(evaluations: Evaluations, project_name: str, traces: Traces) -> None:
+async def _add_evaluations(
+    state: State, evaluations: Evaluations, project_name: str, traces: Traces
+) -> None:
     for evaluation in encode_evaluations(evaluations):
+        state.queue_evaluation_for_bulk_insert(evaluation)
         traces.put(evaluation, project_name=project_name)

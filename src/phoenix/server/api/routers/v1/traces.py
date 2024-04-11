@@ -1,4 +1,3 @@
-import asyncio
 import gzip
 import zlib
 
@@ -78,7 +77,14 @@ async def post_traces(request: Request) -> Response:
     for resource_spans in req.resource_spans:
         project_name = get_project_name(resource_spans.resource.attributes)
         for scope_span in resource_spans.scope_spans:
-            for span in scope_span.spans:
-                traces.put(decode(span), project_name=project_name)
-                await asyncio.sleep(0)
+            for otlp_span in scope_span.spans:
+                span = decode(otlp_span)
+                # TODO(persistence): Decide which one is better: delayed
+                # bulk-insert or insert each request immediately, i.e. one
+                # transaction per request. The bulk-insert is more efficient,
+                # but it queues data in volatile (buffer) memory (for a short
+                # period of time), so the 200 response is not a genuine
+                # confirmation of data persistence.
+                request.state.queue_span_for_bulk_insert(span, project_name)
+                traces.put(span, project_name=project_name)
     return Response()

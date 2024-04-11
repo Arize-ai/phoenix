@@ -88,14 +88,14 @@ class Client(TraceDataExtractor):
                 root_spans_only=root_spans_only,
                 project_name=project_name,
             )
-        response = self._session.get(
+        response = self._session.post(
             url=urljoin(self._base_url, "/v1/spans"),
+            params={"project_name": project_name},
             json={
                 "queries": [q.to_dict() for q in queries],
                 "start_time": _to_iso_format(start_time),
                 "stop_time": _to_iso_format(stop_time),
                 "root_spans_only": root_spans_only,
-                "project_name": project_name,
             },
         )
         if response.status_code == 404:
@@ -138,7 +138,7 @@ class Client(TraceDataExtractor):
             return session.get_evaluations(project_name=project_name)
         response = self._session.get(
             urljoin(self._base_url, "/v1/evaluations"),
-            json={"project_name": project_name},
+            params={"project_name": project_name},
         )
         if response.status_code == 404:
             logger.info("No evaluations found.")
@@ -183,13 +183,13 @@ class Client(TraceDataExtractor):
             table = evaluation.to_pyarrow_table()
             sink = pa.BufferOutputStream()
             headers = {"content-type": "application/x-pandas-arrow"}
-            if project_name:
-                headers["project-name"] = project_name
+            params = {"project-name": project_name}
             with pa.ipc.new_stream(sink, table.schema) as writer:
                 writer.write_table(table)
             self._session.post(
                 urljoin(self._base_url, "/v1/evaluations"),
                 data=cast(bytes, sink.getvalue().to_pybytes()),
+                params=params,
                 headers=headers,
             ).raise_for_status()
 

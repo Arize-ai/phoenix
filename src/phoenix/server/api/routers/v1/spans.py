@@ -13,10 +13,11 @@ from phoenix.trace.dsl import SpanQuery
 from phoenix.utilities import query_spans
 
 
-async def get_spans(request: Request) -> Response:
+# TODO: Add property details to SpanQuery schema
+async def read_spans(request: Request) -> Response:
     """
     summary: Get gets from Phoenix
-    operationId: getSpans
+    operationId: readSpans
     tags:
       - spans
     parameters:
@@ -26,11 +27,45 @@ async def get_spans(request: Request) -> Response:
           type: string
         description: The project name to get evaluations from
         required: false
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              queries:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    select:
+                      type: object
+                    filter:
+                      type: object
+                    explode:
+                      type: object
+                    concat:
+                      type: object
+                    rename:
+                      type: object
+                    index:
+                      type: object
+              start_time:
+                type: string
+                format: date-time
+              stop_time:
+                type: string
+                format: date-time
+              root_spans_only:
+                type: boolean
     responses:
       200:
         description: Success
       404:
         description: Not found
+      422:
+        description: Request body is invalid
     """
     traces: Traces = request.app.state.traces
     payload = await request.json()
