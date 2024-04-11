@@ -203,6 +203,7 @@ if __name__ == "__main__":
     if span_store := get_span_store():
         Thread(target=load_traces_data_from_store, args=(traces, span_store), daemon=True).start()
     fixture_spans = []
+    fixture_evals = []
     if trace_dataset_name is not None:
         fixture_spans = list(
             # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
@@ -250,6 +251,7 @@ if __name__ == "__main__":
         span_store=span_store,
         enable_prometheus=enable_prometheus,
         initial_spans=fixture_spans,
+        initial_evaluations=fixture_evals,
     )
     server = Server(config=Config(app, host=host, port=port))
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()

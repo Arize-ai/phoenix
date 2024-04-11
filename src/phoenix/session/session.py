@@ -8,6 +8,7 @@ from collections import UserList
 from datetime import datetime
 from enum import Enum
 from importlib.util import find_spec
+from itertools import chain
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from threading import Thread
@@ -321,6 +322,11 @@ class ThreadSession(Session):
             umap_params=self.umap_parameters,
             span_store=span_store,
             initial_spans=trace_dataset.to_spans() if trace_dataset else None,
+            initial_evaluations=(
+                chain.from_iterable(map(encode_evaluations, initial_evaluations))
+                if (trace_dataset and (initial_evaluations := trace_dataset.evaluations))
+                else None
+            ),
         )
         self.server = ThreadServer(
             app=self.app,
