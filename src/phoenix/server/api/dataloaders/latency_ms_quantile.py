@@ -11,12 +11,13 @@ from typing import (
 )
 
 from ddsketch.ddsketch import DDSketch
-from phoenix.db import models
-from phoenix.server.api.input_types.TimeRange import TimeRange
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
+
+from phoenix.db import models
+from phoenix.server.api.input_types.TimeRange import TimeRange
 
 ProjectName: TypeAlias = str
 TimeInterval: TypeAlias = Tuple[Optional[datetime], Optional[datetime]]
