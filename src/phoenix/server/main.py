@@ -30,6 +30,7 @@ from phoenix.pointcloud.umap_parameters import (
     UMAPParameters,
 )
 from phoenix.server.app import create_app
+from phoenix.settings import Settings
 from phoenix.storage.span_store import SpanStore
 from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
@@ -119,6 +120,9 @@ if __name__ == "__main__":
     primary_dataset: Inferences = EMPTY_INFERENCES
     reference_dataset: Optional[Inferences] = None
     corpus_dataset: Optional[Inferences] = None
+
+    # Initialize the settings for the Server
+    Settings.log_migrations = True
 
     # automatically remove the pid file when the process is being gracefully terminated
     atexit.register(_remove_pid_file)
