@@ -109,10 +109,7 @@ class BulkInserter:
                             async with session.begin_nested():
                                 await _insert_evaluation(session, evaluation)
                         except Exception:
-                            logger.exception(
-                                "Failed to insert evaluation "
-                                f"for span_id={evaluation.SubjectId.span_id}"
-                            )
+                            logger.exception("Failed to insert evaluation")
             except Exception:
                 logger.exception("Failed to insert evaluations")
 
