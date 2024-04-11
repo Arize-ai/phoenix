@@ -4,16 +4,16 @@ This section introduces _inferences_ and _schemas,_ the starting concepts needed
 
 {% hint style="info" %}
 * For comprehensive descriptions of `phoenix.Inferences` and `phoenix.Schema`, see the [API reference](../api/dataset-and-schema.md).
-* For tips on creating your own Phoenix datasets and schemas, see the [how-to guide](../how-to/define-your-schema/).
+* For tips on creating your own Phoenix inferences and schemas, see the [how-to guide](../how-to/define-your-schema/).
 {% endhint %}
 
-## Datasets
+## Inferences
 
-A _Phoenix dataset_ is an instance of `phoenix.Inferences` that contains three pieces of information:
+_Phoenix inferences_ are an instance of `phoenix.Inferences` that contains three pieces of information:
 
 * The data itself (a pandas dataframe)
 * A [schema](../api/dataset-and-schema.md#phoenix.schema) (a `phoenix.Schema` instance) that describes the [columns](../how-to/define-your-schema/) of your dataframe
-* A dataset name that appears in the UI
+* A name that appears in the UI
 
 For example, if you have a dataframe `prod_df` that is described by a schema `prod_schema`, you can define inferences `prod_ds` with
 
@@ -33,11 +33,11 @@ With no inferences, Phoenix runs in the background and collects trace data emitt
 
 ### Which inference set is which?
 
-> Your reference dataset provides a baseline against which to compare your primary dataset.
+> Your reference inferences provides a baseline against which to compare your primary inferences.
 
 To compare two inference sets with Phoenix, you must select one inference set as _primary_ and one to serve as a _reference_. As the name suggests, your primary inference set contains the data you care about most, perhaps because your model's performance on this data directly affects your customers or users. Your reference inferences, in contrast, is usually of secondary importance and serves as a baseline against which to compare your primary inferences.
 
-Very often, your primary inferences will contain production data and your reference inferences will contain training data. However, that's not always the case; you can imagine a scenario where you want to check your test set for drift relative to your training data, or use your test set as a baseline against which to compare your production data. When choosing primary and reference datasets, it matters less _where_ your data comes from than _how important_ the data is and _what role_ the data serves relative to your other data.
+Very often, your primary inferences will contain production data and your reference inferences will contain training data. However, that's not always the case; you can imagine a scenario where you want to check your test set for drift relative to your training data, or use your test set as a baseline against which to compare your production data. When choosing primary and reference inference sets, it matters less _where_ your data comes from than _how important_ the data is and _what role_ the data serves relative to your other data.
 
 ### Corpus Inference set (Information Retrieval)
 
@@ -76,22 +76,22 @@ schema = px.Schema(
 
 > Usually one, sometimes two.
 
-Each dataset needs a schema. If your primary and reference datasets have the same format, then you only need one schema. For example, if you have dataframes `train_df` and `prod_df` that share an identical format described by a schema named `schema`, then you can define datasets `train_ds` and `prod_ds` with
+Each inference set needs a schema. If your primary and reference inferences have the same format, then you only need one schema. For example, if you have dataframes `train_df` and `prod_df` that share an identical format described by a schema named `schema`, then you can define inference sets `train_ds` and `prod_ds` with
 
-<pre class="language-python"><code class="lang-python">train_ds = px.Dataset(train_df, schema, "training")
-<strong>prod_ds = px.Dataset(prod_df, schema, "production")
+<pre class="language-python"><code class="lang-python">train_ds = px.Inferences(train_df, schema, "training")
+<strong>prod_ds = px.Inferences(prod_df, schema, "production")
 </strong></code></pre>
 
-Sometimes, you'll encounter scenarios where the formats of your primary and reference datasets differ. For example, you'll need two schemas if:
+Sometimes, you'll encounter scenarios where the formats of your primary and reference inference sets differ. For example, you'll need two schemas if:
 
 * Your production data has timestamps indicating the time at which an inference was made, but your training data does not.
 * Your training data has [ground truth](../how-to/define-your-schema/#predictions-and-actuals) (what we call _actuals_ in Phoenix nomenclature), but your production data does not.
 * A new version of your model has a differing set of features from a previous version.
 
-In cases like these, you'll need to define two schemas, one for each dataset. For example, if you have dataframes `train_df` and `prod_df` that are described by schemas `train_schema` and `prod_schema`, respectively, then you can define datasets `train_ds` and `prod_ds` with
+In cases like these, you'll need to define two schemas, one for each inference set. For example, if you have dataframes `train_df` and `prod_df` that are described by schemas `train_schema` and `prod_schema`, respectively, then you can define inference sets `train_ds` and `prod_ds` with
 
-<pre class="language-python"><code class="lang-python">train_ds = px.Dataset(train_df, train_schema, "training")
-<strong>prod_ds = px.Dataset(prod_df, prod_schema, "production")
+<pre class="language-python"><code class="lang-python">train_ds = px.Inferences(train_df, train_schema, "training")
+<strong>prod_ds = px.Inferences(prod_df, prod_schema, "production")
 </strong></code></pre>
 
 #### Schema for Corpus Inferences (Information Retrieval)

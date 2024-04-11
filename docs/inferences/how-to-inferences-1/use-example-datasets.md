@@ -4,17 +4,17 @@ description: Quickly explore Phoenix with concrete examples
 
 # Use Example Inferences
 
-Phoenix ships with a collection of examples so you can quickly try out the app on concrete use-cases. This guide shows you how to download, inspect, and launch the app with example datasets.
+Phoenix ships with a collection of examples so you can quickly try out the app on concrete use-cases. This guide shows you how to download, inspect, and launch the app with example inferences.
 
 ## View Available Inferences
 
-To see a list of datasets available for download, run
+To see a list of inferences available for download, run
 
 ```python
 px.load_example?
 ```
 
-This displays the docstring for the `phoenix.load_example` function, which contain a list of datasets available for download.
+This displays the docstring for the `phoenix.load_example` function, which contain a list of inferences available for download.
 
 ## Download Your Inference set of Choice
 
@@ -28,7 +28,7 @@ inferences
 `px.load_example` returns your downloaded data in the form of an `ExampleInferences` instance. After running the code above, you should see the following in your cell output.
 
 ```
-ExampleInferences(primary=<Dataset "sentiment_classification_language_drift_primary">, reference=<Dataset "sentiment_classification_language_drift_reference">)
+ExampleInferences(primary=<Inferences "sentiment_classification_language_drift_primary">, reference=<Inferences "sentiment_classification_language_drift_reference">)
 ```
 
 ## Inspect Your Inferences
@@ -40,7 +40,7 @@ prim_ds = inferences.primary
 prim_ds.name
 ```
 
-to see the name of the dataset in your cell output:
+to see the name of the inferences in your cell output:
 
 ```
 'sentiment_classification_language_drift_primary'
@@ -52,7 +52,7 @@ Next, run
 prim_ds.schema
 ```
 
-to see your dataset's schema in the cell output:
+to see your inferences' schema in the cell output:
 
 ```
 Schema(prediction_id_column_name='prediction_id', timestamp_column_name='prediction_ts', feature_column_names=['reviewer_age', 'reviewer_gender', 'product_category', 'language'], tag_column_names=None, prediction_label_column_name='pred_label', prediction_score_column_name=None, actual_label_column_name='label', actual_score_column_name=None, embedding_feature_column_names={'text_embedding': EmbeddingColumnNames(vector_column_name='text_vector', raw_data_column_name='text', link_to_data_column_name=None)}, excluded_column_names=None)

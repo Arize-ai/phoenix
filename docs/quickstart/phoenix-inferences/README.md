@@ -91,7 +91,7 @@ train_ds = Inference(dataframe=train_df, schema=train_schema, name="training")
 
 We are now ready to launch Phoenix with our Inferences!
 
-Here, we are passing `train_ds` as the `primary` dataset, as we are only visualizing one dataset (see Step 6 for adding additional datasets).
+Here, we are passing `train_ds` as the `primary` inferences, as we are only visualizing one inference set (see Step 6 for adding additional inference sets).
 
 ```python
 session = px.launch_app(primary=train_ds)

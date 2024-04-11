@@ -8,7 +8,7 @@ For each [embedding](embeddings-analysis.md#embeddings) described in the inferen
 
 ### Embedding Drift Over Time
 
-The picture below shows a time series graph of the drift between two groups of vectors –- the primary (typically production) vectors and reference / baseline vectors. Phoenix uses euclidean distance as the primary measure of embedding drift and helps us identify times where your dataset is diverging from a given reference baseline.&#x20;
+The picture below shows a time series graph of the drift between two groups of vectors –- the primary (typically production) vectors and reference / baseline vectors. Phoenix uses euclidean distance as the primary measure of embedding drift and helps us identify times where your inference set is diverging from a given reference baseline.&#x20;
 
 {% hint style="info" %}
 Note that when you are troubleshooting search and retrieval using [corpus](../how-to-inferences/define-your-schema/corpus-data.md) inferences, the euclidean distance of your queries to your knowledge base vectors is presented as **query distance**&#x20;
@@ -16,9 +16,9 @@ Note that when you are troubleshooting search and retrieval using [corpus](../ho
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/euclidean_distance_timeseries_graph.png" alt="Euclidean distance over time graph"><figcaption><p>Euclidean distance over time</p></figcaption></figure>
 
-Moments of high euclidean distance is an indication that the primary dataset is starting to drift from the reference dataset. As the primary inferences move further away from the reference (both in angle and in magnitude), the euclidean distance increases as well. For this reason times of high euclidean distance are a good starting point for trying to identify new anomalies and areas of drift.
+Moments of high euclidean distance is an indication that the primary inference set is starting to drift from the reference inference set. As the primary inferences move further away from the reference (both in angle and in magnitude), the euclidean distance increases as well. For this reason times of high euclidean distance are a good starting point for trying to identify new anomalies and areas of drift.
 
-<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/euclidean_distance_vectors.png" alt="Breakdown of euclidean distance - two centroids of points diverging"><figcaption><p>Centroids of the two datasets are used to calculate euclidean and cosine distance</p></figcaption></figure>
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/euclidean_distance_vectors.png" alt="Breakdown of euclidean distance - two centroids of points diverging"><figcaption><p>Centroids of the two inferences are used to calculate euclidean and cosine distance</p></figcaption></figure>
 
 {% hint style="info" %}
 For an in-depth guide of euclidean distance and embedding drift, check out[ Arze's ML course ](https://arize.com/blog-course/embedding-drift-euclidean-distance/)
@@ -34,7 +34,7 @@ Phoenix automatically breaks up your embeddings into groups of inferences using 
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/HDBSCAN_drift_analysis.png" alt=""><figcaption></figcaption></figure>
 
-When two datasets are used to initialize phoenix, the clusters are automatically ordered by drift. This means that clusters that are suffering from the highest amount of under-sampling (more in the primary dataset than the reference) are bubbled to the top. You can click on these clusters to view the details of the points contained in each cluster.&#x20;
+When twos are used to initialize phoenix, the clusters are automatically ordered by drift. This means that clusters that are suffering from the highest amount of under-sampling (more in the primary inferences than the reference) are bubbled to the top. You can click on these clusters to view the details of the points contained in each cluster.&#x20;
 
 ### UMAP Point-Cloud
 
@@ -42,4 +42,4 @@ Phoenix projects the embeddings you provided into lower dimensional space (3 dim
 \
 In addition to the point-cloud, another dimension we have at our disposal is color (and in some cases shape). Out of the box phoenix let's you assign colors to the UMAP point-cloud by dimension (features, tags, predictions, actuals), performance (correctness which distinguishes true positives and true negatives from the incorrect predictions), and inference (to highlight areas of drift). This helps you explore your point-cloud from different perspectives depending on what you are looking for.
 
-<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/umap_color_by.png" alt="Color by dataset vs color by correctness vs color by prediction for a computer vision model"><figcaption><p>Color by dataset vs color by correctness vs color by prediction for a computer vision model</p></figcaption></figure>
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/umap_color_by.png" alt="Color by dataset vs color by correctness vs color by prediction for a computer vision model"><figcaption><p>Color by inferences vs color by correctness vs color by prediction for a computer vision model</p></figcaption></figure>
