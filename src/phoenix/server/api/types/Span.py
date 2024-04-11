@@ -7,7 +7,7 @@ from typing import Any, DefaultDict, Dict, Iterable, List, Mapping, Optional, Si
 import numpy as np
 import strawberry
 from openinference.semconv.trace import EmbeddingAttributes, SpanAttributes
-from sqlalchemy import and_, select
+from sqlalchemy import select
 from sqlalchemy.orm import contains_eager
 from strawberry import ID, UNSET
 from strawberry.types import Info
@@ -148,18 +148,7 @@ class Span:
         "respect to its input."
     )  # type: ignore
     async def span_evaluations(self, info: Info[Context, None]) -> List[SpanEvaluation]:
-        async with info.context.db() as session:
-            span_annotations = await session.scalars(
-                select(models.SpanAnnotation).where(
-                    and_(
-                        models.SpanAnnotation.span_rowid == self.span_rowid,
-                        models.SpanAnnotation.annotator_kind == "LLM",
-                    )
-                )
-            )
-        return [
-            SpanEvaluation.from_sql_span_annotation(annotation) for annotation in span_annotations
-        ]
+        return await info.context.data_loaders.span_evaluations.load(self.span_rowid)
 
     @strawberry.field(
         description="Evaluations of the documents associated with the span, e.g. "
