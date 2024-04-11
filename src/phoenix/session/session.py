@@ -268,6 +268,7 @@ class ProcessSession(Session):
 class ThreadSession(Session):
     def __init__(
         self,
+        database: str,
         primary_dataset: Inferences,
         reference_dataset: Optional[Inferences] = None,
         corpus_dataset: Optional[Inferences] = None,
