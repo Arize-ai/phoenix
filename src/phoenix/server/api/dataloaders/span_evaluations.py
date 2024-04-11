@@ -25,15 +25,14 @@ class SpanEvaluationsDataLoader(DataLoader[Key, List[SpanEvaluation]]):
     async def _load_fn(self, keys: List[Key]) -> List[List[SpanEvaluation]]:
         span_evaluations_by_id: DefaultDict[Key, List[SpanEvaluation]] = defaultdict(list)
         async with self._db() as session:
-            span_evaluations = await session.scalars(
+            for span_evaluation in await session.scalars(
                 select(models.SpanAnnotation).where(
                     and_(
                         models.SpanAnnotation.span_rowid.in_(keys),
                         models.SpanAnnotation.annotator_kind == "LLM",
                     )
                 )
-            )
-            for span_evaluation in span_evaluations:
+            ):
                 span_evaluations_by_id[span_evaluation.span_rowid].append(
                     SpanEvaluation.from_sql_span_annotation(span_evaluation)
                 )
