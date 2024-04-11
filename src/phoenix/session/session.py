@@ -41,7 +41,7 @@ from phoenix.config import (
 )
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
-from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
+from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
@@ -109,9 +109,9 @@ class Session(TraceDataExtractor, ABC):
 
     def __init__(
         self,
-        primary_dataset: Dataset,
-        reference_dataset: Optional[Dataset] = None,
-        corpus_dataset: Optional[Dataset] = None,
+        primary_dataset: Inferences,
+        reference_dataset: Optional[Inferences] = None,
+        corpus_dataset: Optional[Inferences] = None,
         trace_dataset: Optional[TraceDataset] = None,
         default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
@@ -178,9 +178,9 @@ _session: Optional[Session] = None
 class ProcessSession(Session):
     def __init__(
         self,
-        primary_dataset: Dataset,
-        reference_dataset: Optional[Dataset] = None,
-        corpus_dataset: Optional[Dataset] = None,
+        primary_dataset: Inferences,
+        reference_dataset: Optional[Inferences] = None,
+        corpus_dataset: Optional[Inferences] = None,
         trace_dataset: Optional[TraceDataset] = None,
         default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
@@ -199,9 +199,9 @@ class ProcessSession(Session):
             notebook_env=notebook_env,
         )
         primary_dataset.to_disc()
-        if isinstance(reference_dataset, Dataset):
+        if isinstance(reference_dataset, Inferences):
             reference_dataset.to_disc()
-        if isinstance(corpus_dataset, Dataset):
+        if isinstance(corpus_dataset, Inferences):
             corpus_dataset.to_disc()
         if isinstance(trace_dataset, TraceDataset):
             trace_dataset.to_disc()
@@ -269,9 +269,9 @@ class ThreadSession(Session):
     def __init__(
         self,
         database: str,
-        primary_dataset: Dataset,
-        reference_dataset: Optional[Dataset] = None,
-        corpus_dataset: Optional[Dataset] = None,
+        primary_dataset: Inferences,
+        reference_dataset: Optional[Inferences] = None,
+        corpus_dataset: Optional[Inferences] = None,
         trace_dataset: Optional[TraceDataset] = None,
         default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
@@ -451,9 +451,9 @@ def delete_all(prompt_before_delete: Optional[bool] = True) -> None:
 
 
 def launch_app(
-    primary: Optional[Dataset] = None,
-    reference: Optional[Dataset] = None,
-    corpus: Optional[Dataset] = None,
+    primary: Optional[Inferences] = None,
+    reference: Optional[Inferences] = None,
+    corpus: Optional[Inferences] = None,
     trace: Optional[TraceDataset] = None,
     default_umap_parameters: Optional[Mapping[str, Any]] = None,
     host: Optional[str] = None,
@@ -474,7 +474,7 @@ def launch_app(
     corpus : Dataset, optional
         The dataset containing corpus for LLM context retrieval.
     trace: TraceDataset, optional
-        **Experimental** The trace dataset containing the trace data.
+        The trace dataset containing the trace data.
     host: str, optional
         The host on which the server runs. It can also be set using environment
         variable `PHOENIX_HOST`, otherwise it defaults to `127.0.0.1`.
@@ -500,9 +500,9 @@ def launch_app(
     Examples
     --------
     >>> import phoenix as px
-    >>> # construct a dataset to analyze
-    >>> dataset = px.Dataset(...)
-    >>> session = px.launch_app(dataset)
+    >>> # construct an inference set to analyze
+    >>> inferences = px.Inferences(...)
+    >>> session = px.launch_app(inferences)
     """
     global _session
 
@@ -512,9 +512,9 @@ def launch_app(
 
     # Stopgap solution to allow the app to run without a primary dataset
     if primary is None:
-        # Dummy dataset
-        # TODO: pass through the lack of a primary dataset to the app
-        primary = EMPTY_DATASET
+        # Dummy inferences
+        # TODO: pass through the lack of a primary inferences to the app
+        primary = EMPTY_INFERENCES
 
     if _session is not None and _session.active:
         logger.warning(

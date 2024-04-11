@@ -21,8 +21,8 @@ from phoenix.config import (
 )
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
-from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
-from phoenix.datasets.fixtures import FIXTURES, get_datasets
+from phoenix.inferences.fixtures import FIXTURES, get_datasets
+from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
 from phoenix.pointcloud.umap_parameters import (
     DEFAULT_MIN_DIST,
     DEFAULT_N_NEIGHBORS,
@@ -116,9 +116,9 @@ if __name__ == "__main__":
     trace_dataset_name: Optional[str] = None
     simulate_streaming: Optional[bool] = None
 
-    primary_dataset: Dataset = EMPTY_DATASET
-    reference_dataset: Optional[Dataset] = None
-    corpus_dataset: Optional[Dataset] = None
+    primary_dataset: Inferences = EMPTY_INFERENCES
+    reference_dataset: Optional[Inferences] = None
+    corpus_dataset: Optional[Inferences] = None
 
     # automatically remove the pid file when the process is being gracefully terminated
     atexit.register(_remove_pid_file)
@@ -160,14 +160,14 @@ if __name__ == "__main__":
         primary_dataset_name = args.primary
         reference_dataset_name = args.reference
         corpus_dataset_name = args.corpus
-        primary_dataset = Dataset.from_name(primary_dataset_name)
+        primary_dataset = Inferences.from_name(primary_dataset_name)
         reference_dataset = (
-            Dataset.from_name(reference_dataset_name)
+            Inferences.from_name(reference_dataset_name)
             if reference_dataset_name is not None
             else None
         )
         corpus_dataset = (
-            None if corpus_dataset_name is None else Dataset.from_name(corpus_dataset_name)
+            None if corpus_dataset_name is None else Inferences.from_name(corpus_dataset_name)
         )
     elif args.command == "fixture":
         fixture_name = args.fixture

@@ -203,6 +203,10 @@ def _lifespan(
     return lifespan
 
 
+async def check_healthz(_: Request) -> PlainTextResponse:
+    return PlainTextResponse("OK")
+
+
 def create_app(
     database: str,
     export_path: Path,
@@ -270,6 +274,7 @@ def create_app(
         )
         + [
             Route("/arize_phoenix_version", version),
+            Route("/healthz", check_healthz),
             Route(
                 "/exports",
                 type(

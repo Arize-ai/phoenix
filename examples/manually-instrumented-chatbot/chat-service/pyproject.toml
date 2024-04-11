@@ -1,0 +1,24 @@
+[project]
+name = "chat-service"
+version = "0.1.0"
+dependencies = [
+  "opentelemetry-api",
+  "opentelemetry-sdk",
+  "opentelemetry-exporter-otlp",
+  "openinference-semantic-conventions",
+  "pydantic",
+  "uvicorn",
+  "fastapi",
+  "httpx",
+]
+requires-python = ">=3.8"
+
+[project.optional-dependencies]
+dev = [
+  "pyright",
+  "ruff",
+  "datamodel-code-generator",
+]
+
+[tool.ruff.lint]
+extend-select = ["I"]

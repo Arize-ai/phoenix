@@ -1,13 +1,13 @@
 from typing import List, Optional, Union
 
-from phoenix.datasets.dataset import Dataset
-from phoenix.datasets.schema import EmbeddingColumnNames, EmbeddingFeatures
+from phoenix.inferences.inferences import Inferences
+from phoenix.inferences.schema import EmbeddingColumnNames, EmbeddingFeatures
 
 from .embedding_dimension import EmbeddingDimension
 
 
 def _get_embedding_dimensions(
-    primary_dataset: Dataset, reference_dataset: Optional[Dataset]
+    primary_dataset: Inferences, reference_dataset: Optional[Inferences]
 ) -> List[EmbeddingDimension]:
     embedding_dimensions: List[EmbeddingDimension] = []
     embedding_features: EmbeddingFeatures = {}
@@ -58,8 +58,8 @@ def _get_embedding_dimensions(
 def _check_embedding_vector_lengths_match_across_datasets(
     embedding_feature_name: str,
     embedding_column_names: EmbeddingColumnNames,
-    primary_dataset: Dataset,
-    reference_dataset: Dataset,
+    primary_dataset: Inferences,
+    reference_dataset: Inferences,
 ) -> None:
     """
     Ensure that for each embedding feature, the vector lengths match across the primary
@@ -86,7 +86,9 @@ def _check_embedding_vector_lengths_match_across_datasets(
         )
 
 
-def _get_column_vector_length(dataset: Dataset, embedding_vector_column_name: str) -> Optional[int]:
+def _get_column_vector_length(
+    dataset: Inferences, embedding_vector_column_name: str
+) -> Optional[int]:
     """
     Because a dataset has already been constructed, we can assume that the lengths
     of the vectors for any given embedding feature in the dataset are the same.
