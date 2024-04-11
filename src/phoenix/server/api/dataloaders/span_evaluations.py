@@ -19,7 +19,7 @@ Key: TypeAlias = int
 
 class SpanEvaluationsDataLoader(DataLoader[Key, List[SpanEvaluation]]):
     def __init__(self, db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
-        super().__init__(load_fn=self._load_fn, max_batch_size=1000)
+        super().__init__(load_fn=self._load_fn)
         self._db = db
 
     async def _load_fn(self, keys: List[Key]) -> List[List[SpanEvaluation]]:
