@@ -62,7 +62,7 @@ async def post_evaluation(request: Request) -> Response:
     content_type = request.headers.get("content-type")
     project_name = request.query_params.get("project_name", DEFAULT_PROJECT_NAME)
     if content_type == "application/x-pandas-arrow":
-        return await _process_pyarrow(request, project_name)
+        return await _process_pyarrow(request, project_name, traces)
     if content_type != "application/x-protobuf":
         return Response("Unsupported content type", status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE)
     body = await request.body()
@@ -118,7 +118,7 @@ async def get_evaluations(request: Request) -> Response:
     return StreamingResponse(content=content(), media_type="application/x-pandas-arrow")
 
 
-async def _process_pyarrow(request: Request, project_name: str) -> Response:
+async def _process_pyarrow(request: Request, project_name: str, traces: Traces) -> Response:
     body = await request.body()
     try:
         reader = pa.ipc.open_stream(body)
@@ -134,15 +134,9 @@ async def _process_pyarrow(request: Request, project_name: str) -> Response:
             content="Invalid data in request body",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
-    return Response(
-        background=BackgroundTask(
-            _add_evaluations,
-            evaluations,
-            project_name,
-        )
-    )
+    return Response(background=BackgroundTask(_add_evaluations, evaluations, project_name, traces))
 
 
-async def _add_evaluations(self, evaluations: Evaluations, project_name: str) -> None:
+async def _add_evaluations(evaluations: Evaluations, project_name: str, traces: Traces) -> None:
     for evaluation in encode_evaluations(evaluations):
-        self.traces.put(evaluation, project_name=project_name)
+        traces.put(evaluation, project_name=project_name)

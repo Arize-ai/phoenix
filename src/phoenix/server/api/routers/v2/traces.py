@@ -9,7 +9,11 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 from opentelemetry.proto.trace.v1.trace_pb2 import TracesData
 from starlette.requests import Request
 from starlette.responses import Response
-from starlette.status import HTTP_403_FORBIDDEN, HTTP_415_UNSUPPORTED_MEDIA_TYPE, HTTP_422_UNPROCESSABLE_ENTITY
+from starlette.status import (
+    HTTP_403_FORBIDDEN,
+    HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+    HTTP_422_UNPROCESSABLE_ENTITY,
+)
 
 from phoenix.core.traces import Traces
 from phoenix.storage.span_store import SpanStore

@@ -148,7 +148,7 @@ async def check_healthz(_: Request) -> PlainTextResponse:
     return PlainTextResponse("OK")
 
 
-async def openapi_schema(request: Request):
+async def openapi_schema(request: Request) -> Response:
     return schemas.OpenAPIResponse(request=request)
 
 
