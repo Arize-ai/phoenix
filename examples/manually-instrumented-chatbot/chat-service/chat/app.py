@@ -19,7 +19,8 @@ from opentelemetry.sdk.trace.export import (
 
 from chat.types import Message, MessagesPayload, MessagesResponse
 
-endpoint = "http://127.0.0.1:6006/v1/traces"
+COLLECTOR_HOST = os.getenv("COLLECTOR_HOST", "localhost")
+endpoint = f"http://{COLLECTOR_HOST}:6006/v1/traces"
 tracer_provider = trace_sdk.TracerProvider()
 tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
 trace_api.set_tracer_provider(tracer_provider)
