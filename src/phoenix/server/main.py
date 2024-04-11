@@ -20,7 +20,7 @@ from phoenix.config import (
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.inferences.fixtures import FIXTURES, get_datasets
-from phoenix.inferences.inferences import EMPTY_DATASET, Inferences
+from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
 from phoenix.pointcloud.umap_parameters import (
     DEFAULT_MIN_DIST,
     DEFAULT_N_NEIGHBORS,
@@ -114,7 +114,7 @@ if __name__ == "__main__":
     trace_dataset_name: Optional[str] = None
     simulate_streaming: Optional[bool] = None
 
-    primary_dataset: Inferences = EMPTY_DATASET
+    primary_dataset: Inferences = EMPTY_INFERENCES
     reference_dataset: Optional[Inferences] = None
     corpus_dataset: Optional[Inferences] = None
 

@@ -36,7 +36,7 @@ from phoenix.config import (
 )
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
-from phoenix.inferences.inferences import EMPTY_DATASET, Inferences
+from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
@@ -473,17 +473,17 @@ def launch_app(
     Examples
     --------
     >>> import phoenix as px
-    >>> # construct a dataset to analyze
-    >>> dataset = px.Dataset(...)
-    >>> session = px.launch_app(dataset)
+    >>> # construct an inference set to analyze
+    >>> inferences = px.Inferences(...)
+    >>> session = px.launch_app(inferences)
     """
     global _session
 
-    # Stopgap solution to allow the app to run without a primary dataset
+    # Stopgap solution to allow the app to run without a primary inferences
     if primary is None:
-        # Dummy dataset
-        # TODO: pass through the lack of a primary dataset to the app
-        primary = EMPTY_DATASET
+        # Dummy inferences
+        # TODO: pass through the lack of a primary inferences to the app
+        primary = EMPTY_INFERENCES
 
     if _session is not None and _session.active:
         logger.warning(
