@@ -20,9 +20,14 @@ from typing_extensions import assert_never
 
 import phoenix.trace.v1 as pb
 from phoenix.db import models
+from phoenix.exceptions import PhoenixException
 from phoenix.trace.schemas import Span, SpanStatusCode
 
 logger = logging.getLogger(__name__)
+
+
+class InsertEvaluationError(PhoenixException):
+    pass
 
 
 class BulkInserter:
@@ -108,27 +113,25 @@ class BulkInserter:
                         try:
                             async with session.begin_nested():
                                 await _insert_evaluation(session, evaluation)
-                        except Exception:
-                            logger.exception(
-                                "Failed to insert evaluation "
-                                f"for span_id={evaluation.SubjectId.span_id}"
-                            )
+                        except InsertEvaluationError as error:
+                            logger.exception(f"Failed to insert evaluation: {str(error)}")
             except Exception:
                 logger.exception("Failed to insert evaluations")
 
 
 async def _insert_evaluation(session: AsyncSession, evaluation: pb.Evaluation) -> None:
     if (evaluation_kind := evaluation.subject_id.WhichOneof("kind")) is None:
-        return
+        raise InsertEvaluationError("Cannot insert an evaluation that has no evaluation kind")
     elif evaluation_kind == "trace_id":
+        trace_id = evaluation.subject_id.trace_id
         if not (
             trace_rowid := await session.scalar(
-                select(models.Trace.id).where(
-                    models.Trace.trace_id == evaluation.subject_id.trace_id
-                )
+                select(models.Trace.id).where(models.Trace.trace_id == trace_id)
             )
         ):
-            return
+            raise InsertEvaluationError(
+                f"Cannot insert a trace evaluation for a missing trace: {trace_id=}"
+            )
         await session.scalar(
             insert(models.TraceAnnotation)
             .values(
@@ -143,12 +146,15 @@ async def _insert_evaluation(session: AsyncSession, evaluation: pb.Evaluation) -
             .returning(models.TraceAnnotation.id)
         )
     elif evaluation_kind == "span_id":
+        span_id = evaluation.subject_id.span_id
         if not (
             span_rowid := await session.scalar(
-                select(models.Span.id).where(models.Span.span_id == evaluation.subject_id.span_id)
+                select(models.Span.id).where(models.Span.span_id == span_id)
             )
         ):
-            return
+            raise InsertEvaluationError(
+                f"Cannot insert a span evaluation for a missing span: {span_id=}"
+            )
         await session.scalar(
             insert(models.SpanAnnotation)
             .values(
@@ -163,14 +169,15 @@ async def _insert_evaluation(session: AsyncSession, evaluation: pb.Evaluation) -
             .returning(models.SpanAnnotation.id)
         )
     elif evaluation_kind == "document_retrieval_id":
+        span_id = evaluation.subject_id.document_retrieval_id.span_id
         if not (
             span_rowid := await session.scalar(
-                select(models.Span.id).where(
-                    models.Span.span_id == evaluation.subject_id.document_retrieval_id.span_id
-                )
+                select(models.Span.id).where(models.Span.span_id == span_id)
             )
         ):
-            return
+            raise InsertEvaluationError(
+                f"Cannot insert a document evaluation for a missing span: {span_id=}"
+            )
         await session.scalar(
             insert(models.DocumentAnnotation)
             .values(
