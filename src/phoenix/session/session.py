@@ -249,6 +249,7 @@ _session: Optional[Session] = None
 class ProcessSession(Session):
     def __init__(
         self,
+        database: str,
         primary_dataset: Inferences,
         reference_dataset: Optional[Inferences] = None,
         corpus_dataset: Optional[Inferences] = None,
@@ -283,12 +284,13 @@ class ProcessSession(Session):
         )
         # Initialize an app service that keeps the server running
         self.app_service = AppService(
-            self.export_path,
-            self.host,
-            self.port,
-            self.root_path,
-            self.primary_dataset.name,
-            umap_params_str,
+            database=database,
+            export_path=self.export_path,
+            host=self.host,
+            port=self.port,
+            root_path=self.root_path,
+            primary_dataset_name=self.primary_dataset.name,
+            umap_params=umap_params_str,
             reference_dataset_name=(
                 self.reference_dataset.name if self.reference_dataset is not None else None
             ),
@@ -549,6 +551,7 @@ def launch_app(
         # TODO: catch exceptions from thread
     else:
         _session = ProcessSession(
+            database,
             primary,
             reference,
             corpus,
