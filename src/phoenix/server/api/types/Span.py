@@ -158,12 +158,8 @@ class Span:
         "a list, and each evaluation is identified by its document's (zero-based) "
         "index in that list."
     )  # type: ignore
-    def document_evaluations(self) -> List[DocumentEvaluation]:
-        span_id = SpanID(str(self.context.span_id))
-        return [
-            DocumentEvaluation.from_pb_evaluation(evaluation)
-            for evaluation in self.project.get_document_evaluations_by_span_id(span_id)
-        ]
+    async def document_evaluations(self, info: Info[Context, None]) -> List[DocumentEvaluation]:
+        return await info.context.data_loaders.document_evaluations.load(self.span_rowid)
 
     @strawberry.field(
         description="Retrieval metrics: NDCG@K, Precision@K, Reciprocal Rank, etc.",
