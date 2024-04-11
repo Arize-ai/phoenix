@@ -44,8 +44,9 @@ from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import create_engine
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context, DataLoaders
-from phoenix.server.api.dataloaders.latency_ms_quantile import (
+from phoenix.server.api.dataloaders import (
     LatencyMsQuantileDataLoader,
+    SpanEvaluationsDataLoader,
 )
 from phoenix.server.api.routers.evaluation_handler import EvaluationHandler
 from phoenix.server.api.routers.span_handler import SpanHandler
@@ -149,6 +150,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
             export_path=self.export_path,
             data_loaders=DataLoaders(
                 latency_ms_quantile=LatencyMsQuantileDataLoader(self.db),
+                span_evaluations=SpanEvaluationsDataLoader(self.db),
             ),
         )
 

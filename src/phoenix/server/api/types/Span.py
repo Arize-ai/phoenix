@@ -100,6 +100,7 @@ class SpanEvent:
 @strawberry.type
 class Span:
     project: strawberry.Private[Project]
+    span_rowid: strawberry.Private[int]
     name: str
     status_code: SpanStatusCode
     status_message: str
@@ -146,12 +147,8 @@ class Span:
         "an LLM, an evaluation may assess the helpfulness of its response with "
         "respect to its input."
     )  # type: ignore
-    def span_evaluations(self) -> List[SpanEvaluation]:
-        span_id = SpanID(str(self.context.span_id))
-        return [
-            SpanEvaluation.from_pb_evaluation(evaluation)
-            for evaluation in self.project.get_evaluations_by_span_id(span_id)
-        ]
+    async def span_evaluations(self, info: Info[Context, None]) -> List[SpanEvaluation]:
+        return await info.context.data_loaders.span_evaluations.load(self.span_rowid)
 
     @strawberry.field(
         description="Evaluations of the documents associated with the span, e.g. "
@@ -240,6 +237,7 @@ def to_gql_span(span: models.Span, project: Project) -> Span:
     num_documents = len(retrieval_documents) if isinstance(retrieval_documents, Sized) else None
     return Span(
         project=project,
+        span_rowid=span.id,
         name=span.name,
         status_code=SpanStatusCode(span.status),
         status_message=span.status_message,
