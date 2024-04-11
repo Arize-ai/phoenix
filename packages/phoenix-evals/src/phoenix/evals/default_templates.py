@@ -406,7 +406,8 @@ HUMAN_VS_AI_PROMPT_RAILS_MAP = OrderedDict({True: "correct", False: "incorrect"}
 SQL_GEN_EVAL_PROMPT_BASE_TEMPLATE = """
 SQL Evaluation Prompt:
 -----------------------
-You are tasked with determining if the SQL generated appropiately answers a given instruction taking into account its generated query and response.
+You are tasked with determining if the SQL generated appropiately answers a given instruction
+taking into account its generated query and response.
 
 Data:
 -----
@@ -414,7 +415,8 @@ Data:
   This section contains the specific task or problem that the sql query is intended to solve.
 
 - [Reference Query]: {query_gen}
-  This is the sql query submitted for evaluation. Analyze it in the context of the provided instruction.
+  This is the sql query submitted for evaluation. Analyze it in the context of the provided
+  instruction.
 
 - [Provided Response]: {response}
   This is the response and/or conclusions made after running the sql query through the database
@@ -428,13 +430,15 @@ You must take into account the response as additional information to determine t
 - "correct" indicates that the sql query correctly solves the instruction.
 - "incorrect" indicates that the sql query correctly does not solve the instruction correctly.
 
-Note: Your response should contain only the word "correct" or "incorrect" with no additional text or characters.
+Note: Your response should contain only the word "correct" or "incorrect" with no additional text
+or characters.
 """
 
 SQL_GEN_EVAL_PROMPT_TEMPLATE_WITH_EXPLANATION = """
 SQL Evaluation Prompt:
 -----------------------
-You are tasked with determining if the SQL generated appropiately answers a given instruction taking into account its generated query and response.
+You are tasked with determining if the SQL generated appropiately answers a given instruction
+taking into account its generated query and response.
 
 Data:
 -----
@@ -442,25 +446,29 @@ Data:
   This section contains the specific task or problem that the sql query is intended to solve.
 
 - [Reference Query]: {query_gen}
-  This is the sql query submitted for evaluation. Analyze it in the context of the provided instruction.
+  This is the sql query submitted for evaluation. Analyze it in the context of the provided
+  instruction.
 
 - [Provided Response]: {response}
   This is the response and/or conclusions made after running the sql query through the database
 
 Evaluation:
 -----------
-Your response should be an explanation and then a single word LABEL: either "correct" or "incorrect".
+Your response should be an explanation and then a single word LABEL: either "correct" or
+"incorrect".
 You must assume that the db exists and that columns are appropiately named.
 You must take into account the response as additional information to determine the correctness.
 
 - "correct" indicates that the sql query correctly solves the instruction.
 - "incorrect" indicates that the sql query correctly does not solve the instruction correctly.
 
-Please read the query and SQL carefully, then write out in a step by step manner an EXPLANATION to show how
+Please read the query and SQL carefully, then write out in a step by step manner an EXPLANATION to
+show how
 to evaluate the readability of the code. Avoid simply stating the correct answer at the outset.
 You are then going to respond with a LABEL (a single word evaluation).
-If the reference query does not answer the instruction or has bugs, please label it as "incorrect". 
-If the reference query functionally solves the instruction problem without any bugs than call it "correct".
+If the reference query does not answer the instruction or has bugs, please label it as "incorrect".
+If the reference query functionally solves the instruction problem without any bugs than call it
+"correct".
 
 Example response:
 ************
@@ -473,7 +481,7 @@ EXPLANATION:
 
 SQL_GEN_EVAL_PROMPT_RAILS_MAP = OrderedDict({True: "correct", False: "incorrect"})
 
-CODE_FUNCTIONALITY_PROMPT_BASE_TEMPLATE  = """
+CODE_FUNCTIONALITY_PROMPT_BASE_TEMPLATE = """
 Code Evaluation Prompt:
 -----------------------
 Evaluate the provided code to determine its correctness in solving the given instruction.
@@ -490,21 +498,24 @@ Evaluation:
 -----------
 Provide a concise response with a single word: either "bug_free" or "is_bug".
 - "bug_free" signifies that the code correctly and efficiently solves the instruction with no bugs.
-- "is_bug" indicates that the code either fails to meet the instruction requirements or contains bugs.
+- "is_bug" indicates that the code either fails the instruction requirements or contains bugs.
 
 Example:
 -----------
 
 [Instruction]: Implement the Fibonacci sequence in Python.
 
-[Reference Code]: 'def fibonacci(n):\n    if n <= 1:\n        return n\n    else:\n        return fibonacci(n - 1) + fibonacci(n - 2)\n\nfor i in range(10):\n    print(fibonacci(i))'
+[Reference Code]: 'def fibonacci(n):\n    if n <= 1:\n        return n\n    else:\n        return
+fibonacci(n - 1) + fibonacci(n - 2)\n\nfor i in range(10):\n    print(fibonacci(i))'
 
 [Output]: bug_free
 
-Note: Assumptions can be made that any code needed for the instruction is correct, and optimization is not a requirement for a correct solution. Your response should consist solely of the words "bug_free" or "is_bug" without additional text or characters.
+Note: Assumptions can be made that any code needed for the instruction is correct, and optimization
+is not a requirement for a correct solution. Your response should consist solely of the words
+"bug_free" or "is_bug" without additional text or characters.
 """
 
-CODE_FUNCTIONALITY_PROMPT_TEMPLATE_WITH_EXPLANATION  = """
+CODE_FUNCTIONALITY_PROMPT_TEMPLATE_WITH_EXPLANATION = """
 Code Evaluation Prompt:
 -----------------------
 Evaluate the provided code to determine its correctness in solving the given instruction.
@@ -519,26 +530,34 @@ Data:
 
 Evaluation:
 -----------
-Provide a concise response with a explanation and a single word LABEL: either "bug_free" or "is_bug".
+Provide a concise response with a explanation and a single word LABEL: either "bug_free" or
+"is_bug".
 - "bug_free" signifies that the code correctly and efficiently solves the instruction with no bugs.
-- "is_bug" indicates that the code either fails to meet the instruction requirements or contains bugs.
+- "is_bug" indicates that the code either fails to meet the instruction requirements or contains
+bugs.
 
 Example:
 -----------
 
 [Instruction]: Implement the Fibonacci sequence in Python.
 
-[Reference Code]: 'def fibonacci(n):\n    if n <= 1:\n        return n\n    else:\n        return fibonacci(n - 1) + fibonacci(n - 2)\n\nfor i in range(10):\n    print(fibonacci(i))'
+[Reference Code]: 'def fibonacci(n):\n    if n <= 1:\n        return n\n    else:\n        return
+fibonacci(n - 1) + fibonacci(n - 2)\n\nfor i in range(10):\n    print(fibonacci(i))'
 
 [Output]: bug_free
 
-Note: Assumptions can be made that any code needed for the instruction is correct, and optimization is not a requirement for a correct solution. Your response should consist solely of the words "bug_free" or "is_bug" without additional text or characters.
+Note: Assumptions can be made that any code needed for the instruction is correct, and optimization
+is not a requirement for a correct solution. Your response should consist solely of the words
+"bug_free" or "is_bug" without additional text or characters.
 
-Please read the instruction and code carefully, then write out in a step by step manner an EXPLANATION to show how
+Please read the instruction and code carefully, then write out in a step by step manner an
+EXPLANATION to show how
 to evaluate the functionality of the code. Avoid simply stating the correct answer at the outset.
 You are then going to respond with a LABEL (a single word evaluation).
-If the reference code functionally solves the instruction problem without any bugs than call it "bug_free". 
-If reference code has bugs or does not functionally solve the instruction problem than call it "is_bug".
+If the reference code functionally solves the instruction problem without any bugs than call it
+"bug_free".
+If reference code has bugs or does not functionally solve the instruction problem than call it
+"is_bug".
 
 Example response:
 ************
