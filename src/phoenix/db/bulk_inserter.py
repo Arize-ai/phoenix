@@ -130,7 +130,7 @@ async def _insert_evaluation(session: AsyncSession, evaluation: pb.Evaluation) -
             )
         ):
             raise InsertEvaluationError(
-                f"Cannot insert a trace evaluation for a missing trace: trace_id={trace_id}"
+                f"Cannot insert a trace evaluation for a missing trace: {trace_id=}"
             )
         await session.scalar(
             insert(models.TraceAnnotation)
