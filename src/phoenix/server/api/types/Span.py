@@ -148,9 +148,8 @@ class Span:
         "respect to its input."
     )  # type: ignore
     async def span_evaluations(self, info: Info[Context, None]) -> List[SpanEvaluation]:
-        span_id = SpanID(str(self.context.span_id))
         async with info.context.db() as session:
-            span_evaluations = await session.scalars(
+            span_annotations = await session.scalars(
                 select(models.SpanAnnotation).where(
                     and_(
                         models.SpanAnnotation.span_rowid == self.span_rowid,
@@ -158,11 +157,8 @@ class Span:
                     )
                 )
             )
-            for span_evaluation in span_evaluations:
-                print(span_evaluation.name)
         return [
-            SpanEvaluation.from_pb_evaluation(evaluation)
-            for evaluation in self.project.get_evaluations_by_span_id(span_id)
+            SpanEvaluation.from_sql_span_annotation(annotation) for annotation in span_annotations
         ]
 
     @strawberry.field(
