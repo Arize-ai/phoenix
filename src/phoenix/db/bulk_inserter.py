@@ -153,7 +153,7 @@ async def _insert_evaluation(session: AsyncSession, evaluation: pb.Evaluation) -
             )
         ):
             raise InsertEvaluationError(
-                f"Cannot insert a span evaluation for a missing span: span_id={span_id}"
+                f"Cannot insert a span evaluation for a missing span: {span_id=}"
             )
         await session.scalar(
             insert(models.SpanAnnotation)
