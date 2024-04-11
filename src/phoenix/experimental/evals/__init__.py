@@ -12,8 +12,6 @@ from .functions import llm_classify, llm_generate, run_evals, run_relevance_eval
 from .models import BedrockModel, LiteLLMModel, OpenAIModel, VertexAIModel
 from .retrievals import compute_precisions_at_k
 from .templates import (
-    CODE_FUNCTIONALITY_PROMPT_RAILS_MAP,
-    CODE_FUNCTIONALITY_PROMPT_TEMPLATE,
     CODE_READABILITY_PROMPT_RAILS_MAP,
     CODE_READABILITY_PROMPT_TEMPLATE,
     HALLUCINATION_PROMPT_RAILS_MAP,
@@ -24,8 +22,6 @@ from .templates import (
     QA_PROMPT_TEMPLATE,
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
-    SQL_GEN_EVAL_PROMPT_RAILS_MAP,
-    SQL_GEN_EVAL_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_RAILS_MAP,
     TOXICITY_PROMPT_TEMPLATE,
     ClassificationTemplate,
@@ -67,10 +63,6 @@ __all__ = [
     "RelevanceEvaluator",
     "SummarizationEvaluator",
     "ToxicityEvaluator",
-    "SQL_GEN_EVAL_PROMPT_RAILS_MAP",
-    "SQL_GEN_EVAL_PROMPT_TEMPLATE",
-    "CODE_FUNCTIONALITY_PROMPT_RAILS_MAP",
-    "CODE_FUNCTIONALITY_PROMPT_TEMPLATE",
 ]
 
 
