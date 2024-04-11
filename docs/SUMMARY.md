@@ -55,6 +55,7 @@
     * [Toxicity](evaluation/how-to-evals/running-pre-tested-evals/toxicity.md)
     * [AI vs Human (Groundtruth)](evaluation/how-to-evals/running-pre-tested-evals/ai-vs-human-groundtruth.md)
     * [Reference (citation) Link](evaluation/how-to-evals/running-pre-tested-evals/reference-link-evals.md)
+    * [SQL Generation Eval](evaluation/how-to-evals/running-pre-tested-evals/sql-generation-eval.md)
   * [Bring Your Own Evaluator](evaluation/how-to-evals/bring-your-own-evaluator.md)
   * [Online Evals](evaluation/how-to-evals/online-evals.md)
 * [Evaluation Models](evaluation/evaluation-models.md)
