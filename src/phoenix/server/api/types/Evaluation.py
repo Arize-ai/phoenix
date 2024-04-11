@@ -1,10 +1,12 @@
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import strawberry
 
 import phoenix.trace.v1 as pb
-from phoenix.db.models import SpanAnnotation
-from phoenix.trace.schemas import SpanID, TraceID
+from phoenix.trace.schemas import TraceID
+
+if TYPE_CHECKING:
+    from phoenix.db.models import DocumentAnnotation, SpanAnnotation
 
 
 @strawberry.interface
@@ -72,7 +74,6 @@ class SpanEvaluation(Evaluation):
 
 @strawberry.type
 class DocumentEvaluation(Evaluation):
-    span_id: strawberry.Private[SpanID]
     document_position: int = strawberry.field(
         description="The zero-based index among retrieved documents, which "
         "is collected as a list (even when ordering is not inherently meaningful)."
@@ -86,12 +87,20 @@ class DocumentEvaluation(Evaluation):
         explanation = result.explanation.value if result.HasField("explanation") else None
         document_retrieval_id = evaluation.subject_id.document_retrieval_id
         document_position = document_retrieval_id.document_position
-        span_id = SpanID(document_retrieval_id.span_id)
         return DocumentEvaluation(
             name=evaluation.name,
             score=score,
             label=label,
             explanation=explanation,
             document_position=document_position,
-            span_id=span_id,
+        )
+
+    @staticmethod
+    def from_sql_document_annotation(annotation: "DocumentAnnotation") -> "DocumentEvaluation":
+        return DocumentEvaluation(
+            name=annotation.name,
+            score=annotation.score,
+            label=annotation.label,
+            explanation=annotation.explanation,
+            document_position=annotation.document_index,
         )
