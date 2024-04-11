@@ -2,11 +2,11 @@
 description: Quickly explore Phoenix with concrete examples
 ---
 
-# Use Example Datasets
+# Use Example Inferences
 
 Phoenix ships with a collection of examples so you can quickly try out the app on concrete use-cases. This guide shows you how to download, inspect, and launch the app with example datasets.
 
-## View Available Datasets
+## View Available Inferences
 
 To see a list of datasets available for download, run
 
@@ -16,27 +16,27 @@ px.load_example?
 
 This displays the docstring for the `phoenix.load_example` function, which contain a list of datasets available for download.
 
-## Download Your Dataset of Choice
+## Download Your Inference set of Choice
 
-Choose the name of a dataset to download and pass it as an argument to `phoenix.load_example`. For example, run the following to download production and training data for our demo sentiment classification model:
-
-```python
-datasets = px.load_example("sentiment_classification_language_drift")
-datasets
-```
-
-`px.load_example` returns your downloaded data in the form of an `ExampleDatasets` instance. After running the code above, you should see the following in your cell output.
-
-```
-ExampleDatasets(primary=<Dataset "sentiment_classification_language_drift_primary">, reference=<Dataset "sentiment_classification_language_drift_reference">)
-```
-
-## Inspect Your Datasets
-
-Next, inspect the name, dataframe, and schema that define your primary dataset. First, run
+Choose the name of an inference set to download and pass it as an argument to `phoenix.load_example`. For example, run the following to download production and training data for our demo sentiment classification model:
 
 ```python
-prim_ds = datasets.primary
+inferences = px.load_example("sentiment_classification_language_drift")
+inferences
+```
+
+`px.load_example` returns your downloaded data in the form of an `ExampleInferences` instance. After running the code above, you should see the following in your cell output.
+
+```
+ExampleInferences(primary=<Dataset "sentiment_classification_language_drift_primary">, reference=<Dataset "sentiment_classification_language_drift_reference">)
+```
+
+## Inspect Your Inferences
+
+Next, inspect the name, dataframe, and schema that define your primary inferences. First, run
+
+```python
+prim_ds = inferences.primary
 prim_ds.name
 ```
 
@@ -64,7 +64,7 @@ Last, run
 prim_ds.dataframe.info()
 ```
 
-to get an overview of your dataset's underlying dataframe:
+to get an overview of your inferences's underlying dataframe:
 
 ```
 <class 'pandas.core.frame.DataFrame'>
@@ -91,7 +91,7 @@ memory usage: 2.6+ MB
 Launch Phoenix with
 
 ```python
-px.launch_app(datasets.primary, datasets.reference)
+px.launch_app(inferences.primary, inferences.reference)
 ```
 
 Follow the instructions in the cell output to open the Phoenix UI in your notebook or in a separate browser tab.

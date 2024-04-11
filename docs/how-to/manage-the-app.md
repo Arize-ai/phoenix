@@ -6,22 +6,22 @@ description: >-
 
 # Manage the App
 
-## Define Your Dataset(s)
+## Define Your Inferences
 
 {% hint style="info" %}
-For a conceptual overview of datasets, including an explanation of when to use a single dataset vs. primary and reference datasets, see [Phoenix Basics](../inferences/inferences.md#datasets).
+For a conceptual overview of datasets, including an explanation of when to use a single dataset vs. primary and reference inferences, see [Phoenix Basics](../inferences/inferences.md#datasets).
 {% endhint %}
 
-To define a dataset, you must load your data into a pandas dataframe and [create a matching schema](define-your-schema/). If you have a dataframe `prim_df` and a matching `prim_schema`, you can define a dataset named "primary" with
+To define inferences, you must load your data into a pandas dataframe and [create a matching schema](define-your-schema/). If you have a dataframe `prim_df` and a matching `prim_schema`, you can define inferences named "primary" with
 
 ```python
-prim_ds = px.Dataset(prim_df, prim_schema, "primary")
+prim_ds = px.Inferences(prim_df, prim_schema, "primary")
 ```
 
 If you additionally have a dataframe `ref_df` and a matching `ref_schema`, you can define a dataset named "reference" with
 
 ```
-ref_ds = px.Dataset(ref_df, ref_schema, "reference")
+ref_ds = px.Inferences(ref_df, ref_schema, "reference")
 ```
 
 See [Corpus Data](../inferences/how-to-inferences/define-your-schema/corpus-data.md) if you have corpus data for an Information Retrieval use case.

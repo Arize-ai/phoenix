@@ -4,7 +4,7 @@ description: How to create Phoenix datasets and schemas for common data formats
 
 # Import Your Data
 
-This guide shows you how to define a Phoenix dataset using your own data.
+This guide shows you how to define Phoenix inferences using your own data.
 
 {% hint style="info" %}
 * For a conceptual overview of the Phoenix API, including a high-level introduction to the notion of datasets and schemas, see [Phoenix Basics](../../inferences/inferences.md#schemas).
@@ -14,13 +14,13 @@ This guide shows you how to define a Phoenix dataset using your own data.
 Once you have a pandas dataframe `df` containing your data and a `schema` object describing the format of your dataframe, you can define your Phoenix dataset either by running
 
 ```python
-ds = px.Dataset(df, schema)
+ds = px.Inferences(df, schema)
 ```
 
 or by optionally providing a name for your dataset that will appear in the UI:
 
 ```python
-ds = px.Dataset(df, schema, name="training")
+ds = px.Inferences(df, schema, name="training")
 ```
 
 As you can see, instantiating your dataset is the easy part. Before you run the code above, you must first wrangle your data into a pandas dataframe and then create a Phoenix schema to describe the format of your dataframe. The rest of this guide shows you how to match your schema to your dataframe with concrete examples.
