@@ -110,13 +110,11 @@ def ensure_working_dir() -> None:
             path.mkdir(parents=True, exist_ok=True)
     except Exception as e:
         print(
-            "⚠️ Failed to initialize the working directory at "
-            + f"{WORKING_DIR} due to an error: {str(e)}"
+            "💥 Failed to initialize the working directory at "
+            + f"{WORKING_DIR} due to an error: {str(e)}."
+            + "Phoenix requires a working directory persist data"
         )
-        print("⚠️ While phoenix will still run, you will not be able to save, load, or export data")
-        print(
-            f"ℹ️ To change, set the `{ENV_PHOENIX_WORKING_DIR}` environment variable before importing phoenix."  # noqa: E501
-        )
+        raise
 
 
 # Invoke ensure_working_dir() to ensure the working directory exists
