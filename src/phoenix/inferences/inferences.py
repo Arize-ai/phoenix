@@ -522,4 +522,4 @@ def _add_prediction_id(num_rows: int) -> List[str]:
 
 
 # A dataset with no data. Useful for stubs
-EMPTY_DATASET = Inferences(pd.DataFrame(), schema=Schema())
+EMPTY_INFERENCES = Inferences(pd.DataFrame(), schema=Schema())

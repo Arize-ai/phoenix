@@ -293,8 +293,8 @@ train_schema = px.Schema(
 prod_schema = replace(train_schema, actual_label_column_name=None)
 
 # Define your production and training datasets.
-prod_ds = px.Dataset(prod_df, prod_schema)
-train_ds = px.Dataset(train_df, train_schema)
+prod_ds = px.Inferences(prod_df, prod_schema)
+train_ds = px.Inferences(train_df, train_schema)
 
 # Launch Phoenix.
 session = px.launch_app(prod_ds, train_ds)
@@ -361,8 +361,8 @@ schema = px.Schema(
 )
 
 # Define your production and training datasets.
-prod_ds = px.Dataset(dataframe=prod_df, schema=schema, name="production")
-train_ds = px.Dataset(dataframe=train_df, schema=schema, name="training")
+prod_ds = px.Inferences(dataframe=prod_df, schema=schema, name="production")
+train_ds = px.Inferences(dataframe=train_df, schema=schema, name="training")
 
 # Launch Phoenix for analysis
 session = px.launch_app(primary=prod_ds, reference=train_ds)
