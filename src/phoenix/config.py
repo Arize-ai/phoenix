@@ -112,7 +112,7 @@ def ensure_working_dir() -> None:
         print(
             "💥 Failed to initialize the working directory at "
             + f"{WORKING_DIR} due to an error: {str(e)}."
-            + "Phoenix requires a working directory persist data"
+            + "Phoenix requires a working directory to persist data"
         )
         raise
 
