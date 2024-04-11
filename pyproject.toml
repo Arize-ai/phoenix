@@ -3,7 +3,7 @@ name = "arize-phoenix"
 description = "AI Observability and Evaluation"
 readme = "README.md"
 requires-python = ">=3.8, <3.13"
-license = "Elastic-2.0"
+license = {text="Elastic-2.0"}
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
   "Observability",
@@ -305,6 +305,7 @@ exclude = [
   "sdist/",
   "tests/",
   "tutorials/",
+  "examples/manually-instrumented-chatbot/"
 ]
 
 [[tool.mypy.overrides]]

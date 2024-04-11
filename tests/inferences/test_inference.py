@@ -12,17 +12,17 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
-import phoenix.datasets.errors as err
+import phoenix.inferences.errors as err
 import pytest
 import pytz
 from pandas import DataFrame, Series, Timestamp
-from phoenix.datasets.dataset import (
-    Dataset,
+from phoenix.inferences.errors import DatasetError
+from phoenix.inferences.inferences import (
+    Inferences,
     _normalize_timestamps,
     _parse_dataframe_and_schema,
 )
-from phoenix.datasets.errors import DatasetError
-from phoenix.datasets.schema import (
+from phoenix.inferences.schema import (
     EmbeddingColumnNames,
     RetrievalEmbeddingColumnNames,
     Schema,
@@ -715,7 +715,7 @@ class TestDataset:
             prediction_label_column_name="prediction_label",
         )
 
-        dataset = Dataset(dataframe=input_dataframe, schema=input_schema)
+        dataset = Inferences(dataframe=input_dataframe, schema=input_schema)
         output_dataframe = dataset.dataframe
         output_schema = dataset.schema
 
@@ -746,7 +746,7 @@ class TestDataset:
             err.InvalidColumnType,
             "Invalid column types: ['prediction_id should be a string or numeric type']",
         ):
-            Dataset(dataframe=input_df, schema=input_schema)
+            Inferences(dataframe=input_df, schema=input_schema)
 
     def test_dataset_validate_invalid_schema_excludes_timestamp(self) -> None:
         input_df = DataFrame(
@@ -769,7 +769,7 @@ class TestDataset:
             "The schema is invalid: timestamp cannot be excluded "
             "because it is already being used as the timestamp column.",
         ):
-            Dataset(dataframe=input_df, schema=input_schema)
+            Inferences(dataframe=input_df, schema=input_schema)
 
     def test_dataset_validate_invalid_schema_excludes_prediction_id(self) -> None:
         input_df = DataFrame(
@@ -793,7 +793,7 @@ class TestDataset:
             "The schema is invalid: prediction_id cannot be excluded because it is "
             "already being used as the prediction id column.",
         ):
-            Dataset(dataframe=input_df, schema=input_schema)
+            Inferences(dataframe=input_df, schema=input_schema)
 
     def test_dataset_validate_invalid_schema_missing_column(self) -> None:
         input_df = DataFrame(
@@ -815,7 +815,7 @@ class TestDataset:
             "The following columns are declared in the Schema "
             "but are not found in the dataframe: prediction_id.",
         ):
-            Dataset(dataframe=input_df, schema=input_schema)
+            Inferences(dataframe=input_df, schema=input_schema)
 
     @property
     def num_records(self):
@@ -1354,94 +1354,9 @@ def test_dataset_with_arize_schema() -> None:
             )
         },
     )
-    dataset = Dataset(dataframe=input_df, schema=input_schema)
+    dataset = Inferences(dataframe=input_df, schema=input_schema)
     assert isinstance(dataset.schema, Schema)
     assert dataset.schema.prediction_id_column_name == "prediction_id"
     assert (
         dataset.schema.embedding_feature_column_names["embedding"].vector_column_name == "embedding"
-    )
-
-
-def test_open_inference_format() -> None:
-    df = DataFrame(
-        {
-            ":feature.[float].retrieved_document_scores:prompt": [
-                [0.53, 0.34, 0.25],
-                [],
-                [0.85, 0.63],
-            ],
-            ":id.id:": ["1", "2", "3"],
-            ":feature.[float].embedding:prompt": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
-            ":timestamp.iso_8601:": [
-                "2023-01-01T02:00:30Z",
-                "2023-01-10T06:00:20Z",
-                "2023-01-05T04:00:25Z",
-            ],
-            ":feature.text:prompt": ["where is Waldo?", "who won?", "how to sing?"],
-            ":prediction.text:response": ["somewhere", "someone", "somehow"],
-            ":feature.[str].retrieved_document_ids:prompt": [["13", "24", "35"], [], ["57", "46"]],
-            ":tag.bool:thumbs_up": [True, False, True],
-            ":feature.str:location": ["US", "Canada", "Mexico"],
-            ":prediction.float.score:cylinders": [1, 2, 3],
-            ":feature.str:country": ["US", "Canada", "Mexico"],
-            ":prediction.str.label:brand": ["Ford", "Toyota", "Honda"],
-            ":actual.float.score:mpg": [29, 34, 15],
-            ":feature.[float].embedding:rating": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
-            ":feature.str.raw_data:image": ["A", "B", "C"],
-            ":actual.str.label:vehicle_type": ["sedan", "truck", "hatchback"],
-            ":feature.str.link_to_data:rating": ["x", "y", "z"],
-            ":tag.bool:thumbs_down": [False, True, False],
-            ":feature.[float].embedding:image": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
-        }
-    )
-    ds = Dataset.from_open_inference(df)
-    assert list(ds.dataframe.columns) == [
-        ":feature.[float].retrieved_document_scores:prompt",
-        ":id.id:",
-        "prompt",
-        ":timestamp.iso_8601:",
-        ":feature.text:prompt",
-        ":feature.[str].retrieved_document_ids:prompt",
-        "thumbs_up",
-        "location",
-        "cylinders",
-        "country",
-        "brand",
-        "mpg",
-        "rating",
-        ":feature.str.raw_data:image",
-        "vehicle_type",
-        ":feature.str.link_to_data:rating",
-        "thumbs_down",
-        "image",
-    ]
-    assert ds.schema == Schema(
-        prediction_id_column_name=":id.id:",
-        timestamp_column_name=":timestamp.iso_8601:",
-        feature_column_names=["country", "location"],
-        tag_column_names=["thumbs_down", "thumbs_up"],
-        prediction_label_column_name="brand",
-        prediction_score_column_name="cylinders",
-        actual_label_column_name="vehicle_type",
-        actual_score_column_name="mpg",
-        prompt_column_names=RetrievalEmbeddingColumnNames(
-            vector_column_name="prompt",
-            raw_data_column_name=":feature.text:prompt",
-            link_to_data_column_name=None,
-            context_retrieval_ids_column_name=":feature.[str].retrieved_document_ids:prompt",
-            context_retrieval_scores_column_name=":feature.[float].retrieved_document_scores:prompt",
-        ),
-        response_column_names="response",
-        embedding_feature_column_names={
-            "image": EmbeddingColumnNames(
-                vector_column_name="image",
-                raw_data_column_name=":feature.str.raw_data:image",
-                link_to_data_column_name=None,
-            ),
-            "rating": EmbeddingColumnNames(
-                vector_column_name="rating",
-                raw_data_column_name=None,
-                link_to_data_column_name=":feature.str.link_to_data:rating",
-            ),
-        },
     )
