@@ -11,6 +11,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import FileResponse, PlainTextResponse, Response
 from starlette.routing import Mount, Route
+from starlette.schemas import SchemaGenerator
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 from starlette.types import Scope
@@ -32,6 +33,8 @@ from phoenix.storage.span_store import SpanStore
 logger = logging.getLogger(__name__)
 
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
+
+schemas = SchemaGenerator({"openapi": "3.0.0", "info": {"title": "Example API", "version": "1.0"}})
 
 
 class AppConfig(NamedTuple):
@@ -145,6 +148,10 @@ async def check_healthz(_: Request) -> PlainTextResponse:
     return PlainTextResponse("OK")
 
 
+async def openapi_schema(request: Request):
+    return schemas.OpenAPIResponse(request=request)
+
+
 def create_app(
     export_path: Path,
     model: Model,
@@ -170,19 +177,17 @@ def create_app(
         prometheus_middlewares = [Middleware(PrometheusMiddleware)]
     else:
         prometheus_middlewares = []
+
     app = Starlette(
         middleware=[
             Middleware(HeadersMiddleware),
             *prometheus_middlewares,
         ],
         debug=debug,
-        routes=(
-            []
-            if traces is None or read_only
-            else v1_routes(traces, span_store)
-        )
+        routes=([] if traces is None or read_only else v1_routes(traces, span_store))
         + V2_ROUTES
         + [
+            Route("/schema", endpoint=openapi_schema, include_in_schema=False),
             Route("/arize_phoenix_version", version),
             Route("/healthz", check_healthz),
             Route(
@@ -215,4 +220,5 @@ def create_app(
     )
     app.state.traces = traces
     app.state.store = span_store
+    app.state.read_only = read_only
     return app

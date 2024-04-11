@@ -8,6 +8,7 @@ from starlette.background import BackgroundTask
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from starlette.status import (
+    HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
     HTTP_415_UNSUPPORTED_MEDIA_TYPE,
     HTTP_422_UNPROCESSABLE_ENTITY,
@@ -21,10 +22,45 @@ from phoenix.session.evaluation import encode_evaluations
 from phoenix.trace.span_evaluations import Evaluations
 
 
-async def post_evaluation(request):
+async def post_evaluation(request: Request) -> Response:
+    """
+    summary: Add an evaluation to Phoenix
+    operationId: addEvaluation
+    tags:
+      - evaluations
+    parameters:
+      - name: project_name
+        in: query
+        schema:
+          type: string
+        description: The project name to add the evaluation to
+        required: false
+    requestBody:
+      required: true
+      content:
+        application/x-protobuf:
+          schema:
+            type: string
+            format: binary
+        application/x-pandas-arrow:
+          schema:
+            type: string
+            format: binary
+    responses:
+      200:
+        description: Success
+      403:
+        description: Forbidden
+      415:
+        description: Unsupported content type, only gzipped protobuf and pandas-arrow are supported
+      422:
+        description: Request body is invalid
+    """
+    if request.app.state.read_only:
+        return Response(status_code=HTTP_403_FORBIDDEN)
     traces: Traces = request.app.state.traces
     content_type = request.headers.get("content-type")
-    project_name = request.headers.get("project-name", DEFAULT_PROJECT_NAME)
+    project_name = request.query_params.get("project_name", DEFAULT_PROJECT_NAME)
     if content_type == "application/x-pandas-arrow":
         return await _process_pyarrow(request, project_name)
     if content_type != "application/x-protobuf":
@@ -39,15 +75,32 @@ async def post_evaluation(request):
     try:
         evaluation.ParseFromString(body)
     except DecodeError:
-        return Response("Request body is invalid", status_code=422)
+        return Response("Request body is invalid", status_code=HTTP_422_UNPROCESSABLE_ENTITY)
     traces.put(evaluation, project_name=project_name)
     return Response()
 
 
-async def get_evaluations(request):
+async def get_evaluations(request: Request) -> Response:
+    """
+    summary: Get evaluations from Phoenix
+    operationId: getEvaluation
+    tags:
+      - evaluations
+    parameters:
+      - name: project_name
+        in: query
+        schema:
+          type: string
+        description: The project name to get evaluations from
+        required: false
+    responses:
+      200:
+        description: Success
+      404:
+        description: Not found
+    """
     traces: Traces = request.app.state.traces
-    payload = await request.json()
-    project_name = payload.pop("project_name", None) or DEFAULT_PROJECT_NAME
+    project_name = request.query_params.get("project_name", DEFAULT_PROJECT_NAME)
     project = traces.get_project(project_name)
     if not project:
         return Response(status_code=HTTP_404_NOT_FOUND)
@@ -58,7 +111,9 @@ async def get_evaluations(request):
 
     async def content() -> AsyncIterator[bytes]:
         for result in results:
-            yield await loop.run_in_executor(None, lambda: table_to_bytes(result.to_pyarrow_table()))
+            yield await loop.run_in_executor(
+                None, lambda: table_to_bytes(result.to_pyarrow_table())
+            )
 
     return StreamingResponse(content=content(), media_type="application/x-pandas-arrow")
 
@@ -89,5 +144,5 @@ async def _process_pyarrow(request: Request, project_name: str) -> Response:
 
 
 async def _add_evaluations(self, evaluations: Evaluations, project_name: str) -> None:
-        for evaluation in encode_evaluations(evaluations):
-            self.traces.put(evaluation, project_name=project_name)
+    for evaluation in encode_evaluations(evaluations):
+        self.traces.put(evaluation, project_name=project_name)
