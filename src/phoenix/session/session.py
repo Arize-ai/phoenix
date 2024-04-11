@@ -507,6 +507,7 @@ def launch_app(
     global _session
 
     # First we must ensure that the working directory is setup
+    # NB: this is because the working directory can be deleted by the user
     ensure_working_dir()
 
     # Stopgap solution to allow the app to run without a primary dataset

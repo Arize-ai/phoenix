@@ -1,6 +1,7 @@
 import logging
 from contextlib import contextmanager
 from pathlib import Path
+from threading import Thread
 from typing import Any, Iterator, List
 
 from alembic import command
@@ -51,3 +52,14 @@ def migrate(url: URL) -> None:
         command.upgrade(alembic_cfg, "head")
     print("---------------------------")
     print("✅ Migrations complete.")
+
+
+def migrate_in_thread(url: URL) -> None:
+    """
+    Runs migrations on the database in a separate thread.
+    This is needed because depending on the context (notebook)
+    the migration process can fail to execute in the main thread.
+    """
+    t = Thread(target=migrate, args=(url,))
+    t.start()
+    t.join()

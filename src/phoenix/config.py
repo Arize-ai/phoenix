@@ -1,8 +1,11 @@
 import os
 import tempfile
 from enum import Enum
+from logging import getLogger
 from pathlib import Path
 from typing import List, Optional
+
+logger = getLogger(__name__)
 
 # Phoenix environment variables
 ENV_PHOENIX_PORT = "PHOENIX_PORT"
@@ -96,6 +99,7 @@ def ensure_working_dir() -> None:
     Ensure the working directory exists. This is needed because the working directory
     must exist before certain operations can be performed.
     """
+    logger.info(f"📋 Ensuring phoenix working directory: {WORKING_DIR}")
     try:
         for path in (
             ROOT_DIR,
