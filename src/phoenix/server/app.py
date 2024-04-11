@@ -48,6 +48,7 @@ from phoenix.server.api.dataloaders import (
     DocumentEvaluationsDataLoader,
     LatencyMsQuantileDataLoader,
     SpanEvaluationsDataLoader,
+    TraceEvaluationsDataLoader,
 )
 from phoenix.server.api.routers.evaluation_handler import EvaluationHandler
 from phoenix.server.api.routers.span_handler import SpanHandler
@@ -153,6 +154,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
                 latency_ms_quantile=LatencyMsQuantileDataLoader(self.db),
                 span_evaluations=SpanEvaluationsDataLoader(self.db),
                 document_evaluations=DocumentEvaluationsDataLoader(self.db),
+                trace_evaluations=TraceEvaluationsDataLoader(self.db),
             ),
         )
 

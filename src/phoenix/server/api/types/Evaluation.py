@@ -1,12 +1,9 @@
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 import strawberry
 
 import phoenix.trace.v1 as pb
-from phoenix.trace.schemas import TraceID
-
-if TYPE_CHECKING:
-    from phoenix.db.models import DocumentAnnotation, SpanAnnotation
+from phoenix.db.models import DocumentAnnotation, SpanAnnotation, TraceAnnotation
 
 
 @strawberry.interface
@@ -29,21 +26,26 @@ class Evaluation:
 
 @strawberry.type
 class TraceEvaluation(Evaluation):
-    trace_id: strawberry.Private[TraceID]
-
     @staticmethod
     def from_pb_evaluation(evaluation: pb.Evaluation) -> "TraceEvaluation":
         result = evaluation.result
         score = result.score.value if result.HasField("score") else None
         label = result.label.value if result.HasField("label") else None
         explanation = result.explanation.value if result.HasField("explanation") else None
-        trace_id = TraceID(evaluation.subject_id.trace_id)
         return TraceEvaluation(
             name=evaluation.name,
             score=score,
             label=label,
             explanation=explanation,
-            trace_id=trace_id,
+        )
+
+    @staticmethod
+    def from_sql_trace_annotation(annotation: TraceAnnotation) -> "TraceEvaluation":
+        return TraceEvaluation(
+            name=annotation.name,
+            score=annotation.score,
+            label=annotation.label,
+            explanation=annotation.explanation,
         )
 
 
@@ -63,7 +65,7 @@ class SpanEvaluation(Evaluation):
         )
 
     @staticmethod
-    def from_sql_span_annotation(annotation: "SpanAnnotation") -> "SpanEvaluation":
+    def from_sql_span_annotation(annotation: SpanAnnotation) -> "SpanEvaluation":
         return SpanEvaluation(
             name=annotation.name,
             score=annotation.score,
@@ -96,7 +98,7 @@ class DocumentEvaluation(Evaluation):
         )
 
     @staticmethod
-    def from_sql_document_annotation(annotation: "DocumentAnnotation") -> "DocumentEvaluation":
+    def from_sql_document_annotation(annotation: DocumentAnnotation) -> "DocumentEvaluation":
         return DocumentEvaluation(
             name=annotation.name,
             score=annotation.score,
