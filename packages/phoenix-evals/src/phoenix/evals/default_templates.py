@@ -551,8 +551,8 @@ is not a requirement for a correct solution. Your response should consist solely
 "bug_free" or "is_bug" without additional text or characters.
 
 Please read the instruction and code carefully, then write out in a step by step manner an
-EXPLANATION to show how
-to evaluate the functionality of the code. Avoid simply stating the correct answer at the outset.
+EXPLANATION to show how to evaluate the functionality of the code. Avoid simply stating the correct
+answer at the outset.
 You are then going to respond with a LABEL (a single word evaluation).
 If the reference code functionally solves the instruction problem without any bugs than call it
 "bug_free".
