@@ -45,7 +45,7 @@ class Project(Node):
         stmt = (
             select(func.min(models.Trace.start_time))
             .join(models.Project)
-            .where(models.Project.name == self.name)
+            .where(models.Project.id == self.id_attr)
         )
         async with info.context.db() as session:
             start_time = await session.scalar(stmt)
@@ -60,7 +60,7 @@ class Project(Node):
         stmt = (
             select(func.max(models.Trace.end_time))
             .join(models.Project)
-            .where(models.Project.name == self.name)
+            .where(models.Project.id == self.id_attr)
         )
         async with info.context.db() as session:
             end_time = await session.scalar(stmt)
@@ -77,7 +77,7 @@ class Project(Node):
             select(func.count(models.Span.id))
             .join(models.Trace)
             .join(models.Project)
-            .where(models.Project.name == self.name)
+            .where(models.Project.id == self.id_attr)
         )
         if time_range:
             stmt = stmt.where(
@@ -98,7 +98,7 @@ class Project(Node):
         stmt = (
             select(func.count(models.Trace.id))
             .join(models.Project)
-            .where(models.Project.name == self.name)
+            .where(models.Project.id == self.id_attr)
         )
         if time_range:
             stmt = stmt.where(
@@ -122,7 +122,7 @@ class Project(Node):
             select(coalesce(func.sum(prompt), 0) + coalesce(func.sum(completion), 0))
             .join(models.Trace)
             .join(models.Project)
-            .where(models.Project.name == self.name)
+            .where(models.Project.id == self.id_attr)
         )
         if time_range:
             stmt = stmt.where(
@@ -184,7 +184,7 @@ class Project(Node):
             select(models.Span)
             .join(models.Trace)
             .join(models.Project)
-            .where(models.Project.name == self.name)
+            .where(models.Project.id == self.id_attr)
             .options(contains_eager(models.Span.trace))
         )
         if time_range:
