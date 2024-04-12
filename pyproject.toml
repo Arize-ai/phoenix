@@ -121,7 +121,7 @@ only-packages = true
 
 [tool.hatch.build.targets.sdist]
 exclude = ["src/phoenix/evals/", "packages/"]
-artifacts = ["src/phoenix/server/static"]
+artifacts = ["src/phoenix/server/static", "src/phoenix/db/migrations"]
 
 [tool.hatch.envs.default]
 dependencies = [
