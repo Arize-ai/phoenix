@@ -120,6 +120,11 @@ class BulkInserter:
 
 
 async def _insert_evaluation(session: AsyncSession, evaluation: pb.Evaluation) -> None:
+    evaluation_name = evaluation.name
+    result = evaluation.result
+    label = result.label.value if result.HasField("label") else None
+    score = result.score.value if result.HasField("score") else None
+    explanation = result.explanation.value if result.HasField("explanation") else None
     if (evaluation_kind := evaluation.subject_id.WhichOneof("kind")) is None:
         raise InsertEvaluationError("Cannot insert an evaluation that has no evaluation kind")
     elif evaluation_kind == "trace_id":
@@ -136,10 +141,10 @@ async def _insert_evaluation(session: AsyncSession, evaluation: pb.Evaluation) -
             insert(models.TraceAnnotation)
             .values(
                 trace_rowid=trace_rowid,
-                name=evaluation.name,
-                label=evaluation.result.label.value,
-                score=evaluation.result.score.value,
-                explanation=evaluation.result.explanation.value,
+                name=evaluation_name,
+                label=label,
+                score=score,
+                explanation=explanation,
                 metadata_={},
                 annotator_kind="LLM",
             )
@@ -159,10 +164,10 @@ async def _insert_evaluation(session: AsyncSession, evaluation: pb.Evaluation) -
             insert(models.SpanAnnotation)
             .values(
                 span_rowid=span_rowid,
-                name=evaluation.name,
-                label=evaluation.result.label.value,
-                score=evaluation.result.score.value,
-                explanation=evaluation.result.explanation.value,
+                name=evaluation_name,
+                label=label,
+                score=score,
+                explanation=explanation,
                 metadata_={},
                 annotator_kind="LLM",
             )
@@ -183,10 +188,10 @@ async def _insert_evaluation(session: AsyncSession, evaluation: pb.Evaluation) -
             .values(
                 span_rowid=span_rowid,
                 document_index=evaluation.subject_id.document_retrieval_id.document_position,
-                name=evaluation.name,
-                label=evaluation.result.label.value,
-                score=evaluation.result.score.value,
-                explanation=evaluation.result.explanation.value,
+                name=evaluation_name,
+                label=label,
+                score=score,
+                explanation=explanation,
                 metadata_={},
                 annotator_kind="LLM",
             )
