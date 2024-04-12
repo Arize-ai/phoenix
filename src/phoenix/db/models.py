@@ -112,7 +112,10 @@ class Project(Base):
 class Trace(Base):
     __tablename__ = "traces"
     id: Mapped[int] = mapped_column(primary_key=True)
-    project_rowid: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    project_rowid: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        index=True,
+    )
     session_id: Mapped[Optional[str]]
     trace_id: Mapped[str]
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True)
@@ -141,7 +144,10 @@ class Trace(Base):
 class Span(Base):
     __tablename__ = "spans"
     id: Mapped[int] = mapped_column(primary_key=True)
-    trace_rowid: Mapped[int] = mapped_column(ForeignKey("traces.id", ondelete="CASCADE"))
+    trace_rowid: Mapped[int] = mapped_column(
+        ForeignKey("traces.id", ondelete="CASCADE"),
+        index=True,
+    )
     span_id: Mapped[str]
     parent_span_id: Mapped[Optional[str]] = mapped_column(index=True)
     name: Mapped[str]
@@ -186,7 +192,10 @@ async def init_models(engine: AsyncEngine) -> None:
 class SpanAnnotation(Base):
     __tablename__ = "span_annotations"
     id: Mapped[int] = mapped_column(primary_key=True)
-    span_rowid: Mapped[int] = mapped_column(ForeignKey("spans.id", ondelete="CASCADE"))
+    span_rowid: Mapped[int] = mapped_column(
+        ForeignKey("spans.id", ondelete="CASCADE"),
+        index=True,
+    )
     name: Mapped[str]
     label: Mapped[Optional[str]]
     score: Mapped[Optional[float]]
@@ -212,7 +221,10 @@ class SpanAnnotation(Base):
 class TraceAnnotation(Base):
     __tablename__ = "trace_annotations"
     id: Mapped[int] = mapped_column(primary_key=True)
-    trace_rowid: Mapped[int] = mapped_column(ForeignKey("traces.id", ondelete="CASCADE"))
+    trace_rowid: Mapped[int] = mapped_column(
+        ForeignKey("traces.id", ondelete="CASCADE"),
+        index=True,
+    )
     name: Mapped[str]
     label: Mapped[Optional[str]]
     score: Mapped[Optional[float]]
@@ -238,7 +250,10 @@ class TraceAnnotation(Base):
 class DocumentAnnotation(Base):
     __tablename__ = "document_annotations"
     id: Mapped[int] = mapped_column(primary_key=True)
-    span_rowid: Mapped[int] = mapped_column(ForeignKey("spans.id", ondelete="CASCADE"))
+    span_rowid: Mapped[int] = mapped_column(
+        ForeignKey("spans.id", ondelete="CASCADE"),
+        index=True,
+    )
     document_index: Mapped[int]
     name: Mapped[str]
     label: Mapped[Optional[str]]
