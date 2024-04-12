@@ -16,7 +16,7 @@ from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluati
 
 @dataclass
 class DataLoaders:
-    latency_ms_quantile: DataLoader[Tuple[str, Optional[TimeRange], float], Optional[float]]
+    latency_ms_quantile: DataLoader[Tuple[int, Optional[TimeRange], float], Optional[float]]
     span_evaluations: DataLoader[int, List[SpanEvaluation]]
     document_evaluations: DataLoader[int, List[DocumentEvaluation]]
 

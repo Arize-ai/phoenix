@@ -49,7 +49,13 @@ def upgrade() -> None:
     op.create_table(
         "traces",
         sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("project_rowid", sa.Integer, sa.ForeignKey("projects.id"), nullable=False),
+        sa.Column(
+            "project_rowid",
+            sa.Integer,
+            sa.ForeignKey("projects.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
         # TODO(mikeldking): might not be the right place for this
         sa.Column("session_id", sa.String, nullable=True),
         sa.Column("trace_id", sa.String, nullable=False, unique=True),
@@ -61,7 +67,13 @@ def upgrade() -> None:
     op.create_table(
         "spans",
         sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("trace_rowid", sa.Integer, sa.ForeignKey("traces.id"), nullable=False),
+        sa.Column(
+            "trace_rowid",
+            sa.Integer,
+            sa.ForeignKey("traces.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("span_id", sa.String, nullable=False, unique=True),
         sa.Column("parent_span_id", sa.String, nullable=True, index=True),
         sa.Column("name", sa.String, nullable=False),
@@ -89,7 +101,13 @@ def upgrade() -> None:
     op.create_table(
         "span_annotations",
         sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("span_rowid", sa.Integer, sa.ForeignKey("spans.id"), nullable=False),
+        sa.Column(
+            "span_rowid",
+            sa.Integer,
+            sa.ForeignKey("spans.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("label", sa.String, nullable=True),
         sa.Column("score", sa.Float, nullable=True),
@@ -128,7 +146,13 @@ def upgrade() -> None:
     op.create_table(
         "trace_annotations",
         sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("trace_rowid", sa.Integer, sa.ForeignKey("traces.id"), nullable=False),
+        sa.Column(
+            "trace_rowid",
+            sa.Integer,
+            sa.ForeignKey("traces.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("label", sa.String, nullable=True),
         sa.Column("score", sa.Float, nullable=True),
@@ -167,7 +191,13 @@ def upgrade() -> None:
     op.create_table(
         "document_annotations",
         sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("span_rowid", sa.Integer, sa.ForeignKey("spans.id"), nullable=False),
+        sa.Column(
+            "span_rowid",
+            sa.Integer,
+            sa.ForeignKey("spans.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("document_index", sa.Integer, nullable=False),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("label", sa.String, nullable=True),

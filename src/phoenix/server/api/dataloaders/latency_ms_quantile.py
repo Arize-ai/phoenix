@@ -19,11 +19,11 @@ from typing_extensions import TypeAlias
 from phoenix.db import models
 from phoenix.server.api.input_types.TimeRange import TimeRange
 
-ProjectName: TypeAlias = str
+ProjectId: TypeAlias = int
 TimeInterval: TypeAlias = Tuple[Optional[datetime], Optional[datetime]]
-Segment: TypeAlias = Tuple[ProjectName, TimeInterval]
+Segment: TypeAlias = Tuple[ProjectId, TimeInterval]
 Probability: TypeAlias = float
-Key: TypeAlias = Tuple[ProjectName, Optional[TimeRange], Probability]
+Key: TypeAlias = Tuple[ProjectId, Optional[TimeRange], Probability]
 ResultPosition: TypeAlias = int
 QuantileValue: TypeAlias = float
 OrmExpression: TypeAlias = Any
@@ -69,21 +69,21 @@ class LatencyMsQuantileDataLoader(DataLoader[Key, Optional[QuantileValue]]):
 
 
 def _get_filter_condition(segment: Segment) -> OrmExpression:
-    name, (start_time, stop_time) = segment
+    id_, (start_time, stop_time) = segment
     if start_time and stop_time:
         return and_(
-            models.Project.name == name,
+            models.Project.id == id_,
             start_time <= models.Trace.start_time,
             models.Trace.start_time < stop_time,
         )
     if start_time:
         return and_(
-            models.Project.name == name,
+            models.Project.id == id_,
             start_time <= models.Trace.start_time,
         )
     if stop_time:
         return and_(
-            models.Project.name == name,
+            models.Project.id == id_,
             models.Trace.start_time < stop_time,
         )
-    return models.Project.name == name
+    return models.Project.id == id_

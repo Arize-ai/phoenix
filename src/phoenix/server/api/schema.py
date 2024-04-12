@@ -4,11 +4,16 @@ from typing import Dict, List, Optional, Set, Union
 import numpy as np
 import numpy.typing as npt
 import strawberry
+from sqlalchemy import select
+from sqlalchemy.orm import load_only
 from strawberry import ID, UNSET
 from strawberry.types import Info
 from typing_extensions import Annotated
 
+from phoenix.config import DEFAULT_PROJECT_NAME
+from phoenix.db import models
 from phoenix.pointcloud.clustering import Hdbscan
+from phoenix.server.api.context import Context
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import (
@@ -16,29 +21,37 @@ from phoenix.server.api.input_types.Coordinates import (
     InputCoordinate3D,
 )
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
-from phoenix.server.api.types.Project import Project
-
-from .context import Context
-from .types.DatasetRole import AncillaryDatasetRole, DatasetRole
-from .types.Dimension import to_gql_dimension
-from .types.EmbeddingDimension import (
+from phoenix.server.api.types.DatasetRole import AncillaryDatasetRole, DatasetRole
+from phoenix.server.api.types.Dimension import to_gql_dimension
+from phoenix.server.api.types.EmbeddingDimension import (
     DEFAULT_CLUSTER_SELECTION_EPSILON,
     DEFAULT_MIN_CLUSTER_SIZE,
     DEFAULT_MIN_SAMPLES,
     to_gql_embedding_dimension,
 )
-from .types.Event import create_event_id, unpack_event_id
-from .types.ExportEventsMutation import ExportEventsMutation
-from .types.Functionality import Functionality
-from .types.Model import Model
-from .types.node import GlobalID, Node, from_global_id, from_global_id_with_expected_type
-from .types.pagination import Connection, ConnectionArgs, Cursor, connection_from_list
+from phoenix.server.api.types.Event import create_event_id, unpack_event_id
+from phoenix.server.api.types.ExportEventsMutation import ExportEventsMutation
+from phoenix.server.api.types.Functionality import Functionality
+from phoenix.server.api.types.Model import Model
+from phoenix.server.api.types.node import (
+    GlobalID,
+    Node,
+    from_global_id,
+    from_global_id_with_expected_type,
+)
+from phoenix.server.api.types.pagination import (
+    Connection,
+    ConnectionArgs,
+    Cursor,
+    connection_from_list,
+)
+from phoenix.server.api.types.Project import Project
 
 
 @strawberry.type
 class Query:
     @strawberry.field
-    def projects(
+    async def projects(
         self,
         info: Info[Context, None],
         first: Optional[int] = 50,
@@ -52,14 +65,16 @@ class Query:
             last=last,
             before=before if isinstance(before, Cursor) else None,
         )
-        data = (
-            []
-            if (traces := info.context.traces) is None
-            else [
-                Project(id_attr=project_id, name=project_name, project=project)
-                for project_id, project_name, project in traces.get_projects()
-            ]
-        )
+        async with info.context.db() as session:
+            projects = await session.scalars(select(models.Project))
+        data = [
+            Project(
+                id_attr=project.id,
+                name=project.name,
+                project=info.context.traces.get_project(project.name),  # type: ignore
+            )
+            for project in projects
+        ]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field
@@ -76,7 +91,7 @@ class Query:
         return Model()
 
     @strawberry.field
-    def node(self, id: GlobalID, info: Info[Context, None]) -> Node:
+    async def node(self, id: GlobalID, info: Info[Context, None]) -> Node:
         type_name, node_id = from_global_id(str(id))
         if type_name == "Dimension":
             dimension = info.context.model.scalar_dimensions[node_id]
@@ -85,17 +100,18 @@ class Query:
             embedding_dimension = info.context.model.embedding_dimensions[node_id]
             return to_gql_embedding_dimension(node_id, embedding_dimension)
         elif type_name == "Project":
-            if (traces := info.context.traces) is not None:
-                projects = {
-                    project_id: (project_name, project)
-                    for project_id, project_name, project in traces.get_projects()
-                }
-                if node_id in projects:
-                    name, project = projects[node_id]
-                    return Project(id_attr=node_id, name=name, project=project)
-            raise Exception(f"Unknown project: {id}")
-
-        raise Exception(f"Unknown node type: {type}")
+            async with info.context.db() as session:
+                project = await session.scalar(
+                    select(models.Project).where(models.Project.id == node_id)
+                )
+            if project is None:
+                raise ValueError(f"Unknown project: {id}")
+            return Project(
+                id_attr=project.id,
+                name=project.name,
+                project=info.context.traces.get_project(project.name),  # type: ignore
+            )
+        raise Exception(f"Unknown node type: {type_name}")
 
     @strawberry.field
     def clusters(
@@ -229,17 +245,19 @@ class Query:
 @strawberry.type
 class Mutation(ExportEventsMutation):
     @strawberry.mutation
-    def delete_project(self, info: Info[Context, None], id: GlobalID) -> Query:
-        if (traces := info.context.traces) is not None:
-            node_id = from_global_id_with_expected_type(str(id), "Project")
-            traces.archive_project(node_id)
-        return Query()
-
-    @strawberry.mutation
-    def archive_project(self, info: Info[Context, None], id: GlobalID) -> Query:
-        if (traces := info.context.traces) is not None:
-            node_id = from_global_id_with_expected_type(str(id), "Project")
-            traces.archive_project(node_id)
+    async def delete_project(self, info: Info[Context, None], id: GlobalID) -> Query:
+        node_id = from_global_id_with_expected_type(str(id), "Project")
+        async with info.context.db() as session:
+            project = await session.scalar(
+                select(models.Project)
+                .where(models.Project.id == node_id)
+                .options(load_only(models.Project.name))
+            )
+            if project is None:
+                raise ValueError(f"Unknown project: {id}")
+            if project.name == DEFAULT_PROJECT_NAME:
+                raise ValueError(f"Cannot delete the {DEFAULT_PROJECT_NAME} project")
+            await session.delete(project)
         return Query()
 
 

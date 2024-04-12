@@ -486,7 +486,6 @@ type Mutation {
   """
   exportClusters(clusters: [ClusterInput!]!, fileName: String): ExportedFile!
   deleteProject(id: GlobalID!): Query!
-  archiveProject(id: GlobalID!): Query!
 }
 
 """A node in the graph with a globally unique ID"""

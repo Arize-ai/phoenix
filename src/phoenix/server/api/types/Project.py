@@ -29,7 +29,7 @@ from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.trace.dsl import SpanFilter
-from phoenix.trace.schemas import SpanID, TraceID
+from phoenix.trace.schemas import SpanID
 
 
 @strawberry.type
@@ -42,10 +42,8 @@ class Project(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[datetime]:
-        stmt = (
-            select(func.min(models.Trace.start_time))
-            .join(models.Project)
-            .where(models.Project.name == self.name)
+        stmt = select(func.min(models.Trace.start_time)).where(
+            models.Trace.project_rowid == self.id_attr
         )
         async with info.context.db() as session:
             start_time = await session.scalar(stmt)
@@ -57,10 +55,8 @@ class Project(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[datetime]:
-        stmt = (
-            select(func.max(models.Trace.end_time))
-            .join(models.Project)
-            .where(models.Project.name == self.name)
+        stmt = select(func.max(models.Trace.end_time)).where(
+            models.Trace.project_rowid == self.id_attr
         )
         async with info.context.db() as session:
             end_time = await session.scalar(stmt)
@@ -76,8 +72,7 @@ class Project(Node):
         stmt = (
             select(func.count(models.Span.id))
             .join(models.Trace)
-            .join(models.Project)
-            .where(models.Project.name == self.name)
+            .where(models.Trace.project_rowid == self.id_attr)
         )
         if time_range:
             stmt = stmt.where(
@@ -95,11 +90,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
     ) -> int:
-        stmt = (
-            select(func.count(models.Trace.id))
-            .join(models.Project)
-            .where(models.Project.name == self.name)
-        )
+        stmt = select(func.count(models.Trace.id)).where(models.Trace.project_rowid == self.id_attr)
         if time_range:
             stmt = stmt.where(
                 and_(
@@ -121,8 +112,7 @@ class Project(Node):
         stmt = (
             select(coalesce(func.sum(prompt), 0) + coalesce(func.sum(completion), 0))
             .join(models.Trace)
-            .join(models.Project)
-            .where(models.Project.name == self.name)
+            .where(models.Trace.project_rowid == self.id_attr)
         )
         if time_range:
             stmt = stmt.where(
@@ -142,14 +132,19 @@ class Project(Node):
         time_range: Optional[TimeRange] = UNSET,
     ) -> Optional[float]:
         return await info.context.data_loaders.latency_ms_quantile.load(
-            (self.name, time_range, probability)
+            (self.id_attr, time_range, probability)
         )
 
     @strawberry.field
-    def trace(self, trace_id: ID) -> Optional[Trace]:
-        if self.project.has_trace(TraceID(trace_id)):
-            return Trace(trace_id=trace_id, project=self.project)
-        return None
+    async def trace(self, info: Info[Context, None], trace_id: ID) -> Optional[Trace]:
+        async with info.context.db() as session:
+            if not await session.scalar(
+                select(models.Trace.id)
+                .where(models.Trace.trace_id == str(trace_id))
+                .where(models.Trace.project_rowid == self.id_attr),
+            ):
+                return None
+        return Trace(trace_id=trace_id, project=self.project)
 
     @strawberry.field
     async def spans(
@@ -173,8 +168,7 @@ class Project(Node):
         stmt = (
             select(models.Span)
             .join(models.Trace)
-            .join(models.Project)
-            .where(models.Project.name == self.name)
+            .where(models.Trace.project_rowid == self.id_attr)
             .options(contains_eager(models.Span.trace))
         )
         if time_range:
