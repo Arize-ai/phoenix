@@ -43,7 +43,7 @@ class Trace:
             spans = await session.scalars(
                 select(models.Span)
                 .join(models.Trace)
-                .filter(models.Trace.id == self.trace_rowid)
+                .where(models.Trace.id == self.trace_rowid)
                 .options(contains_eager(models.Span.trace))
             )
         data = [to_gql_span(span, self.project) for span in spans]
