@@ -139,14 +139,9 @@ class Project(Node):
     async def trace(self, info: Info[Context, None], trace_id: ID) -> Optional[Trace]:
         async with info.context.db() as session:
             if not await session.scalar(
-                select(1)
-                .join_from(models.Trace, models.Project)
-                .where(
-                    and_(
-                        models.Trace.trace_id == str(trace_id),
-                        models.Project.id == self.id_attr,
-                    ),
-                )
+                select(models.Trace.id)
+                .where(models.Trace.trace_id == str(trace_id))
+                .where(models.Trace.project_rowid == self.id_attr),
             ):
                 return None
         return Trace(trace_id=trace_id, project=self.project)
