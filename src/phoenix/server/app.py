@@ -49,9 +49,7 @@ from phoenix.server.api.dataloaders import (
     LatencyMsQuantileDataLoader,
     SpanEvaluationsDataLoader,
 )
-from phoenix.server.api.routers.evaluation_handler import EvaluationHandler
-from phoenix.server.api.routers.span_handler import SpanHandler
-from phoenix.server.api.routers.trace_handler import TraceHandler
+from phoenix.server.api.routers.v1 import V1_ROUTES
 from phoenix.server.api.schema import schema
 from phoenix.storage.span_store import SpanStore
 from phoenix.trace.schemas import Span
@@ -258,24 +256,7 @@ def create_app(
             *prometheus_middlewares,
         ],
         debug=debug,
-        routes=(
-            []
-            if traces is None or read_only
-            else [
-                Route(
-                    "/v1/spans",
-                    type("SpanEndpoint", (SpanHandler,), {"traces": traces}),
-                ),
-                Route(
-                    "/v1/traces",
-                    type("TraceEndpoint", (TraceHandler,), {"traces": traces, "store": span_store}),
-                ),
-                Route(
-                    "/v1/evaluations",
-                    type("EvaluationEndpoint", (EvaluationHandler,), {"traces": traces}),
-                ),
-            ]
-        )
+        routes=([] if traces is None else V1_ROUTES)
         + [
             Route("/arize_phoenix_version", version),
             Route("/healthz", check_healthz),
