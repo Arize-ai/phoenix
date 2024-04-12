@@ -2,12 +2,13 @@ import asyncio
 from logging.config import fileConfig
 
 from alembic import context
+from sqlalchemy import Connection, engine_from_config, pool
+from sqlalchemy.ext.asyncio import AsyncEngine
+
 from phoenix.config import get_env_database_connection_str
 from phoenix.db.engines import get_async_db_url
 from phoenix.db.models import Base
 from phoenix.settings import Settings
-from sqlalchemy import Connection, engine_from_config, pool
-from sqlalchemy.ext.asyncio import AsyncEngine
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
