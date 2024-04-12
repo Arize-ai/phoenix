@@ -17,7 +17,7 @@ from phoenix.utilities import query_spans
 async def query_spans_handler(request: Request) -> Response:
     """
     summary: Query spans using query DSL
-    operationId: readSpans
+    operationId: querySpans
     tags:
       - spans
     parameters:
@@ -127,6 +127,8 @@ async def query_spans_handler(request: Request) -> Response:
 
 async def get_spans_handler(request: Request) -> Response:
     """
+    summary: Deprecated route for querying for spans, use the POST method instead
+    operationId: legacyQuerySpans
     deprecated: true
     """
     traces: Traces = request.app.state.traces
