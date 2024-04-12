@@ -14,9 +14,9 @@ from phoenix.utilities import query_spans
 
 
 # TODO: Add property details to SpanQuery schema
-async def read_spans(request: Request) -> Response:
+async def query_spans_handler(request: Request) -> Response:
     """
-    summary: Get gets from Phoenix
+    summary: Query spans using query DSL
     operationId: readSpans
     tags:
       - spans
@@ -26,7 +26,7 @@ async def read_spans(request: Request) -> Response:
         schema:
           type: string
         description: The project name to get evaluations from
-        required: false
+        default: default
     requestBody:
       required: true
       content:
@@ -66,6 +66,68 @@ async def read_spans(request: Request) -> Response:
         description: Not found
       422:
         description: Request body is invalid
+    """
+    traces: Traces = request.app.state.traces
+    payload = await request.json()
+    queries = payload.pop("queries", [])
+    project_name = (
+        request.query_params.get("project_name")
+        # read from headers for backwards compatibility
+        or request.headers.get("project-name")
+        or DEFAULT_PROJECT_NAME
+    )
+    if not (project := traces.get_project(project_name)):
+        return Response(status_code=HTTP_404_NOT_FOUND)
+    loop = asyncio.get_running_loop()
+    valid_eval_names = (
+        await loop.run_in_executor(
+            None,
+            project.get_span_evaluation_names,
+        )
+        if project
+        else ()
+    )
+    try:
+        span_queries = [
+            SpanQuery.from_dict(
+                query,
+                evals=project,
+                valid_eval_names=valid_eval_names,
+            )
+            for query in queries
+        ]
+    except Exception as e:
+        return Response(
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            content=f"Invalid query: {e}",
+        )
+    results = await loop.run_in_executor(
+        None,
+        partial(
+            query_spans,
+            project,
+            *span_queries,
+            start_time=from_iso_format(payload.get("start_time")),
+            stop_time=from_iso_format(payload.get("stop_time")),
+            root_spans_only=payload.get("root_spans_only"),
+        ),
+    )
+    if not results:
+        return Response(status_code=HTTP_404_NOT_FOUND)
+
+    async def content() -> AsyncIterator[bytes]:
+        for result in results:
+            yield df_to_bytes(result)
+
+    return StreamingResponse(
+        content=content(),
+        media_type="application/x-pandas-arrow",
+    )
+
+
+async def get_spans_handler(request: Request) -> Response:
+    """
+    deprecated: true
     """
     traces: Traces = request.app.state.traces
     payload = await request.json()

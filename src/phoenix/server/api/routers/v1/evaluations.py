@@ -25,8 +25,8 @@ from phoenix.trace.span_evaluations import Evaluations
 
 async def post_evaluation(request: Request) -> Response:
     """
-    summary: Add an evaluation to Phoenix
-    operationId: addEvaluation
+    summary: Add an evaluation to a span, trace, or document
+    operationId: addEvaluations
     tags:
       - evaluations
     parameters:
@@ -35,7 +35,7 @@ async def post_evaluation(request: Request) -> Response:
         schema:
           type: string
         description: The project name to add the evaluation to
-        required: false
+        default: default
     requestBody:
       required: true
       content:
@@ -61,7 +61,12 @@ async def post_evaluation(request: Request) -> Response:
         return Response(status_code=HTTP_403_FORBIDDEN)
     traces: Traces = request.app.state.traces
     content_type = request.headers.get("content-type")
-    project_name = request.query_params.get("project_name", DEFAULT_PROJECT_NAME)
+    project_name = (
+        request.query_params.get("project_name")
+        # read from headers for backwards compatibility
+        or request.headers.get("project-name")
+        or DEFAULT_PROJECT_NAME
+    )
     if content_type == "application/x-pandas-arrow":
         return await _process_pyarrow(request, project_name, traces)
     if content_type != "application/x-protobuf":
@@ -93,7 +98,7 @@ async def get_evaluations(request: Request) -> Response:
         schema:
           type: string
         description: The project name to get evaluations from
-        required: false
+        default: default
     responses:
       200:
         description: Success
@@ -101,7 +106,12 @@ async def get_evaluations(request: Request) -> Response:
         description: Not found
     """
     traces: Traces = request.app.state.traces
-    project_name = request.query_params.get("project_name", DEFAULT_PROJECT_NAME)
+    project_name = (
+        request.query_params.get("project_name")
+        # read from headers for backwards compatibility
+        or request.headers.get("project-name")
+        or DEFAULT_PROJECT_NAME
+    )
     project = traces.get_project(project_name)
     if not project:
         return Response(status_code=HTTP_404_NOT_FOUND)

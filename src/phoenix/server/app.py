@@ -59,7 +59,9 @@ logger = logging.getLogger(__name__)
 
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
 
-schemas = SchemaGenerator({"openapi": "3.0.0", "info": {"title": "Example API", "version": "1.0"}})
+schemas = SchemaGenerator(
+    {"openapi": "3.0.0", "info": {"title": "ArizePhoenix API", "version": "1.0"}}
+)
 
 
 class AppConfig(NamedTuple):
