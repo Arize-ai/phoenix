@@ -42,10 +42,8 @@ class Project(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[datetime]:
-        stmt = (
-            select(func.min(models.Trace.start_time))
-            .join(models.Project)
-            .where(models.Project.id == self.id_attr)
+        stmt = select(func.min(models.Trace.start_time)).where(
+            models.Trace.project_rowid == self.id_attr
         )
         async with info.context.db() as session:
             start_time = await session.scalar(stmt)
@@ -57,10 +55,8 @@ class Project(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[datetime]:
-        stmt = (
-            select(func.max(models.Trace.end_time))
-            .join(models.Project)
-            .where(models.Project.id == self.id_attr)
+        stmt = select(func.max(models.Trace.end_time)).where(
+            models.Trace.project_rowid == self.id_attr
         )
         async with info.context.db() as session:
             end_time = await session.scalar(stmt)
@@ -76,8 +72,7 @@ class Project(Node):
         stmt = (
             select(func.count(models.Span.id))
             .join(models.Trace)
-            .join(models.Project)
-            .where(models.Project.id == self.id_attr)
+            .where(models.Trace.project_rowid == self.id_attr)
         )
         if time_range:
             stmt = stmt.where(
@@ -95,11 +90,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
     ) -> int:
-        stmt = (
-            select(func.count(models.Trace.id))
-            .join(models.Project)
-            .where(models.Project.id == self.id_attr)
-        )
+        stmt = select(func.count(models.Trace.id)).where(models.Trace.project_rowid == self.id_attr)
         if time_range:
             stmt = stmt.where(
                 and_(
@@ -121,8 +112,7 @@ class Project(Node):
         stmt = (
             select(coalesce(func.sum(prompt), 0) + coalesce(func.sum(completion), 0))
             .join(models.Trace)
-            .join(models.Project)
-            .where(models.Project.id == self.id_attr)
+            .where(models.Trace.project_rowid == self.id_attr)
         )
         if time_range:
             stmt = stmt.where(
@@ -183,8 +173,7 @@ class Project(Node):
         stmt = (
             select(models.Span)
             .join(models.Trace)
-            .join(models.Project)
-            .where(models.Project.id == self.id_attr)
+            .where(models.Trace.project_rowid == self.id_attr)
             .options(contains_eager(models.Span.trace))
         )
         if time_range:
