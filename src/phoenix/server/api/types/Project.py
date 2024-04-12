@@ -142,7 +142,7 @@ class Project(Node):
         time_range: Optional[TimeRange] = UNSET,
     ) -> Optional[float]:
         return await info.context.data_loaders.latency_ms_quantile.load(
-            (self.name, time_range, probability)
+            (self.id_attr, time_range, probability)
         )
 
     @strawberry.field
@@ -154,7 +154,7 @@ class Project(Node):
                 .where(
                     and_(
                         models.Trace.trace_id == str(trace_id),
-                        models.Project.name == self.name,
+                        models.Project.id == self.id_attr,
                     ),
                 )
             ):

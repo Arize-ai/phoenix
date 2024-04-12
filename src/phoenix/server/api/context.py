@@ -15,7 +15,7 @@ from phoenix.server.api.input_types.TimeRange import TimeRange
 
 @dataclass
 class DataLoaders:
-    latency_ms_quantile: DataLoader[Tuple[str, Optional[TimeRange], float], Optional[float]]
+    latency_ms_quantile: DataLoader[Tuple[int, Optional[TimeRange], float], Optional[float]]
 
 
 @dataclass
