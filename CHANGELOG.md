@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v3.20.0...arize-phoenix-v3.21.0) (2024-04-12)
+
+
+### Features
+
+* Add SQL and Code Functionality Eval Templates ([#2861](https://github.com/Arize-ai/phoenix/issues/2861)) ([c7d776a](https://github.com/Arize-ai/phoenix/commit/c7d776a23e1843cc1bb5c74059496615700a3396))
+
 ## [3.20.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v3.19.4...arize-phoenix-v3.20.0) (2024-04-10)
 
 
