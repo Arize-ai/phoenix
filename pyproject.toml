@@ -114,7 +114,7 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/phoenix"]
 exclude = ["src/phoenix/evals/"]
-artifacts = ["src/phoenix/server/static", "src/phoenix/db/migrations/alembic.ini"]
+artifacts = ["src/phoenix/server/static", "src/phoenix/db/migrations"]
 
 [tool.hatch.build]
 only-packages = true
