@@ -5,8 +5,10 @@ from types import ModuleType
 from typing import Any, Optional
 
 from .datasets.dataset import Dataset
-from .datasets.fixtures import ExampleDatasets, load_example
-from .datasets.schema import EmbeddingColumnNames, RetrievalEmbeddingColumnNames, Schema
+from .datasets.fixtures import ExampleDatasets
+from .inferences.fixtures import ExampleInferences, load_example
+from .inferences.inferences import Inferences
+from .inferences.schema import EmbeddingColumnNames, RetrievalEmbeddingColumnNames, Schema
 from .session.client import Client
 from .session.evaluation import log_evaluations
 from .session.session import (
@@ -40,11 +42,13 @@ Here are just a few of the things that phoenix does well:
 __all__ = [
     "__version__",
     "Dataset",
+    "ExampleDatasets",
+    "Inferences",
     "EmbeddingColumnNames",
     "RetrievalEmbeddingColumnNames",
     "Schema",
     "load_example",
-    "ExampleDatasets",
+    "ExampleInferences",
     "active_session",
     "close_app",
     "launch_app",

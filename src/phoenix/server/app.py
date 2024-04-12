@@ -36,6 +36,7 @@ from strawberry.asgi import GraphQL
 from strawberry.schema import BaseSchema
 
 import phoenix
+import phoenix.trace.v1 as pb
 from phoenix.config import DEFAULT_PROJECT_NAME, SERVER_DIR
 from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
@@ -43,8 +44,10 @@ from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import create_engine
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context, DataLoaders
-from phoenix.server.api.dataloaders.latency_ms_quantile import (
+from phoenix.server.api.dataloaders import (
+    DocumentEvaluationsDataLoader,
     LatencyMsQuantileDataLoader,
+    SpanEvaluationsDataLoader,
 )
 from phoenix.server.api.routers.evaluation_handler import EvaluationHandler
 from phoenix.server.api.routers.span_handler import SpanHandler
@@ -148,6 +151,8 @@ class GraphQLWithContext(GraphQL):  # type: ignore
             export_path=self.export_path,
             data_loaders=DataLoaders(
                 latency_ms_quantile=LatencyMsQuantileDataLoader(self.db),
+                span_evaluations=SpanEvaluationsDataLoader(self.db),
+                document_evaluations=DocumentEvaluationsDataLoader(self.db),
             ),
         )
 
@@ -185,16 +190,25 @@ def _db(engine: AsyncEngine) -> Callable[[], AsyncContextManager[AsyncSession]]:
 def _lifespan(
     db: Callable[[], AsyncContextManager[AsyncSession]],
     initial_batch_of_spans: Optional[Iterable[Tuple[Span, str]]] = None,
+    initial_batch_of_evaluations: Optional[Iterable[pb.Evaluation]] = None,
 ) -> StatefulLifespan[Starlette]:
     @contextlib.asynccontextmanager
     async def lifespan(_: Starlette) -> AsyncIterator[Dict[str, Any]]:
-        async with BulkInserter(db, initial_batch_of_spans) as (queue_span, queue_evaluation):
+        async with BulkInserter(
+            db,
+            initial_batch_of_spans=initial_batch_of_spans,
+            initial_batch_of_evaluations=initial_batch_of_evaluations,
+        ) as (queue_span, queue_evaluation):
             yield {
                 "queue_span_for_bulk_insert": queue_span,
                 "queue_evaluation_for_bulk_insert": queue_evaluation,
             }
 
     return lifespan
+
+
+async def check_healthz(_: Request) -> PlainTextResponse:
+    return PlainTextResponse("OK")
 
 
 def create_app(
@@ -209,6 +223,7 @@ def create_app(
     read_only: bool = False,
     enable_prometheus: bool = False,
     initial_spans: Optional[Iterable[Union[Span, Tuple[Span, str]]]] = None,
+    initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
 ) -> Starlette:
     initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
         ()
@@ -218,6 +233,7 @@ def create_app(
             for item in initial_spans
         )
     )
+    initial_batch_of_evaluations = () if initial_evaluations is None else initial_evaluations
     engine = create_engine(database)
     db = _db(engine)
     graphql = GraphQLWithContext(
@@ -236,7 +252,7 @@ def create_app(
     else:
         prometheus_middlewares = []
     return Starlette(
-        lifespan=_lifespan(db, initial_batch_of_spans),
+        lifespan=_lifespan(db, initial_batch_of_spans, initial_batch_of_evaluations),
         middleware=[
             Middleware(HeadersMiddleware),
             *prometheus_middlewares,
@@ -262,6 +278,7 @@ def create_app(
         )
         + [
             Route("/arize_phoenix_version", version),
+            Route("/healthz", check_healthz),
             Route(
                 "/exports",
                 type(

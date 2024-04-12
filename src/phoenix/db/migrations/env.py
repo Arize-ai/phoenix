@@ -5,6 +5,7 @@ from alembic import context
 from phoenix.config import get_env_database_connection_str
 from phoenix.db.engines import get_async_db_url
 from phoenix.db.models import Base
+from phoenix.settings import Settings
 from sqlalchemy import Connection, engine_from_config, pool
 from sqlalchemy.ext.asyncio import AsyncEngine
 
@@ -71,6 +72,7 @@ def run_migrations_online() -> None:
                 prefix="sqlalchemy.",
                 poolclass=pool.NullPool,
                 future=True,
+                echo=Settings.log_migrations,
             )
         )
 

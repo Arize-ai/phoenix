@@ -10,7 +10,7 @@ import numpy as np
 from sqlalchemy import URL, event, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
-from phoenix.db.migrate import migrate
+from phoenix.db.migrate import migrate_in_thread
 from phoenix.db.models import init_models
 
 
@@ -72,7 +72,7 @@ def aio_sqlite_engine(
         else:
             asyncio.create_task(init_models(engine))
     else:
-        migrate(engine.url)
+        migrate_in_thread(engine.url)
     return engine
 
 
@@ -85,7 +85,7 @@ def aio_postgresql_engine(
     engine = create_async_engine(url=async_url, echo=echo, json_serializer=_dumps)
     # TODO(persistence): figure out the postgres pragma
     # event.listen(engine.sync_engine, "connect", set_pragma)
-    migrate(engine.url)
+    migrate_in_thread(engine.url)
     return engine
 
 

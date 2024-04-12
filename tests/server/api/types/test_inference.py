@@ -2,17 +2,17 @@ from typing import Callable, Literal, Optional
 
 import pytest
 from pandas import DataFrame, Timestamp
-from phoenix.datasets.dataset import Dataset as InternalDataset
-from phoenix.datasets.dataset import Schema
+from phoenix.inferences.inferences import Inferences as InternalInference
+from phoenix.inferences.inferences import Schema
 from phoenix.server.api.context import Context
 from strawberry.schema import Schema as StrawberrySchema
 from typing_extensions import TypeAlias
 
-ContextFactory: TypeAlias = Callable[[InternalDataset, Optional[InternalDataset]], Context]
+ContextFactory: TypeAlias = Callable[[InternalInference, Optional[InternalInference]], Context]
 
 
 @pytest.fixture
-def input_dataset() -> InternalDataset:
+def input_dataset() -> InternalInference:
     input_df = DataFrame(
         {
             "prediction_label": ["apple", "orange", "grape"],
@@ -28,14 +28,14 @@ def input_dataset() -> InternalDataset:
         prediction_label_column_name="prediction_label",
         timestamp_column_name="timestamp",
     )
-    return InternalDataset(dataframe=input_df, schema=input_schema)
+    return InternalInference(dataframe=input_df, schema=input_schema)
 
 
 class TestDatasetEvents:
     def test_no_input_dimensions_correctly_selects_event_ids_and_all_features_and_tags(
         self,
-        primary_dataset: InternalDataset,
-        reference_dataset: InternalDataset,
+        primary_dataset: InternalInference,
+        reference_dataset: InternalInference,
         context_factory: ContextFactory,
         strawberry_schema: StrawberrySchema,
     ) -> None:
@@ -72,8 +72,8 @@ class TestDatasetEvents:
 
     def test_input_dimensions_correctly_selects_event_ids_and_dimensions(
         self,
-        primary_dataset: InternalDataset,
-        reference_dataset: InternalDataset,
+        primary_dataset: InternalInference,
+        reference_dataset: InternalInference,
         context_factory: ContextFactory,
         strawberry_schema: StrawberrySchema,
     ) -> None:
@@ -129,8 +129,8 @@ class TestDatasetEvents:
 
     def test_empty_event_ids_returns_empty_list(
         self,
-        primary_dataset: InternalDataset,
-        reference_dataset: InternalDataset,
+        primary_dataset: InternalInference,
+        reference_dataset: InternalInference,
         context_factory: ContextFactory,
         strawberry_schema: StrawberrySchema,
     ) -> None:
@@ -147,8 +147,8 @@ class TestDatasetEvents:
 
     def test_empty_input_dimensions_returns_events_with_empty_dimensions(
         self,
-        primary_dataset: InternalDataset,
-        reference_dataset: InternalDataset,
+        primary_dataset: InternalInference,
+        reference_dataset: InternalInference,
         context_factory: ContextFactory,
         strawberry_schema: StrawberrySchema,
     ) -> None:
@@ -177,8 +177,8 @@ class TestDatasetEvents:
 
     def test_event_ids_from_incorrect_dataset_returns_error(
         self,
-        primary_dataset: InternalDataset,
-        reference_dataset: InternalDataset,
+        primary_dataset: InternalInference,
+        reference_dataset: InternalInference,
         context_factory: ContextFactory,
         strawberry_schema: StrawberrySchema,
     ) -> None:
@@ -227,8 +227,8 @@ class TestDatasetEvents:
 
     @staticmethod
     @pytest.fixture
-    def primary_dataset() -> InternalDataset:
-        return InternalDataset(
+    def primary_dataset() -> InternalInference:
+        return InternalInference(
             dataframe=DataFrame(
                 {
                     "prediction_id": ["primary_pred0", "primary_pred1", "primary_pred2"],
@@ -255,8 +255,8 @@ class TestDatasetEvents:
 
     @staticmethod
     @pytest.fixture
-    def reference_dataset() -> InternalDataset:
-        return InternalDataset(
+    def reference_dataset() -> InternalInference:
+        return InternalInference(
             dataframe=DataFrame(
                 {
                     "prediction_id": ["reference_pred0", "reference_pred1", "reference_pred2"],

@@ -1,8 +1,11 @@
 import os
 import tempfile
 from enum import Enum
+from logging import getLogger
 from pathlib import Path
 from typing import List, Optional
+
+logger = getLogger(__name__)
 
 # Phoenix environment variables
 ENV_PHOENIX_PORT = "PHOENIX_PORT"
@@ -85,22 +88,37 @@ GENERATED_DATASET_NAME_PREFIX = "phoenix_dataset_"
 # The work directory for saving, loading, and exporting datasets
 WORKING_DIR = get_working_dir()
 
-try:
-    for path in (
-        ROOT_DIR := WORKING_DIR,
-        EXPORT_DIR := ROOT_DIR / "exports",
-        DATASET_DIR := ROOT_DIR / "datasets",
-        TRACE_DATASET_DIR := ROOT_DIR / "trace_datasets",
-    ):
-        path.mkdir(parents=True, exist_ok=True)
-except Exception as e:
-    print(
-        f"⚠️ Failed to initialize the working directory at {WORKING_DIR} due to an error: {str(e)}"
-    )
-    print("⚠️ While phoenix will still run, you will not be able to save, load, or export data")
-    print(
-        f"ℹ️ To change, set the `{ENV_PHOENIX_WORKING_DIR}` environment variable before importing phoenix."  # noqa: E501
-    )
+ROOT_DIR = WORKING_DIR
+EXPORT_DIR = ROOT_DIR / "exports"
+DATASET_DIR = ROOT_DIR / "datasets"
+TRACE_DATASET_DIR = ROOT_DIR / "trace_datasets"
+
+
+def ensure_working_dir() -> None:
+    """
+    Ensure the working directory exists. This is needed because the working directory
+    must exist before certain operations can be performed.
+    """
+    logger.info(f"📋 Ensuring phoenix working directory: {WORKING_DIR}")
+    try:
+        for path in (
+            ROOT_DIR,
+            EXPORT_DIR,
+            DATASET_DIR,
+            TRACE_DATASET_DIR,
+        ):
+            path.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        print(
+            "💥 Failed to initialize the working directory at "
+            + f"{WORKING_DIR} due to an error: {str(e)}."
+            + "Phoenix requires a working directory to persist data"
+        )
+        raise
+
+
+# Invoke ensure_working_dir() to ensure the working directory exists
+ensure_working_dir()
 
 
 def get_exported_files(directory: Path) -> List[Path]:

@@ -2,24 +2,41 @@ import asyncio
 import logging
 from itertools import islice
 from time import time
-from typing import Any, AsyncContextManager, Callable, Iterable, List, Optional, Tuple, cast
+from typing import (
+    Any,
+    AsyncContextManager,
+    Callable,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    cast,
+)
 
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import func, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing_extensions import assert_never
 
 import phoenix.trace.v1 as pb
 from phoenix.db import models
+from phoenix.exceptions import PhoenixException
 from phoenix.trace.schemas import Span, SpanStatusCode
 
 logger = logging.getLogger(__name__)
+
+
+class InsertEvaluationError(PhoenixException):
+    pass
 
 
 class BulkInserter:
     def __init__(
         self,
         db: Callable[[], AsyncContextManager[AsyncSession]],
+        *,
         initial_batch_of_spans: Optional[Iterable[Tuple[Span, str]]] = None,
+        initial_batch_of_evaluations: Optional[Iterable[pb.Evaluation]] = None,
         run_interval_in_seconds: float = 0.5,
         max_num_per_transaction: int = 100,
     ) -> None:
@@ -38,7 +55,9 @@ class BulkInserter:
         self._spans: List[Tuple[Span, str]] = (
             [] if initial_batch_of_spans is None else list(initial_batch_of_spans)
         )
-        self._evaluations: List[pb.Evaluation] = []
+        self._evaluations: List[pb.Evaluation] = (
+            [] if initial_batch_of_evaluations is None else list(initial_batch_of_evaluations)
+        )
         self._task: Optional[asyncio.Task[None]] = None
 
     async def __aenter__(
@@ -94,35 +113,87 @@ class BulkInserter:
                         try:
                             async with session.begin_nested():
                                 await _insert_evaluation(session, evaluation)
-                        except Exception:
-                            logger.exception(
-                                "Failed to insert evaluation "
-                                f"for span_id={evaluation.SubjectId.span_id}"
-                            )
+                        except InsertEvaluationError as error:
+                            logger.exception(f"Failed to insert evaluation: {str(error)}")
             except Exception:
                 logger.exception("Failed to insert evaluations")
 
 
 async def _insert_evaluation(session: AsyncSession, evaluation: pb.Evaluation) -> None:
-    if not (
-        span_rowid := await session.scalar(
-            select(models.Span.id).where(models.Span.span_id == evaluation.subject_id.span_id)
+    if (evaluation_kind := evaluation.subject_id.WhichOneof("kind")) is None:
+        raise InsertEvaluationError("Cannot insert an evaluation that has no evaluation kind")
+    elif evaluation_kind == "trace_id":
+        trace_id = evaluation.subject_id.trace_id
+        if not (
+            trace_rowid := await session.scalar(
+                select(models.Trace.id).where(models.Trace.trace_id == trace_id)
+            )
+        ):
+            raise InsertEvaluationError(
+                f"Cannot insert a trace evaluation for a missing trace: {trace_id=}"
+            )
+        await session.scalar(
+            insert(models.TraceAnnotation)
+            .values(
+                trace_rowid=trace_rowid,
+                name=evaluation.name,
+                label=evaluation.result.label.value,
+                score=evaluation.result.score.value,
+                explanation=evaluation.result.explanation.value,
+                metadata_={},
+                annotator_kind="LLM",
+            )
+            .returning(models.TraceAnnotation.id)
         )
-    ):
-        return
-    await session.scalar(
-        insert(models.SpanAnnotation)
-        .values(
-            span_rowid=span_rowid,
-            name=evaluation.name,
-            label=evaluation.result.label.value,
-            score=evaluation.result.score.value,
-            explanation=evaluation.result.explanation.value,
-            metadata_={},
-            annotator_kind="LLM",
+    elif evaluation_kind == "span_id":
+        span_id = evaluation.subject_id.span_id
+        if not (
+            span_rowid := await session.scalar(
+                select(models.Span.id).where(models.Span.span_id == span_id)
+            )
+        ):
+            raise InsertEvaluationError(
+                f"Cannot insert a span evaluation for a missing span: {span_id=}"
+            )
+        await session.scalar(
+            insert(models.SpanAnnotation)
+            .values(
+                span_rowid=span_rowid,
+                name=evaluation.name,
+                label=evaluation.result.label.value,
+                score=evaluation.result.score.value,
+                explanation=evaluation.result.explanation.value,
+                metadata_={},
+                annotator_kind="LLM",
+            )
+            .returning(models.SpanAnnotation.id)
         )
-        .returning(models.SpanAnnotation.id)
-    )
+    elif evaluation_kind == "document_retrieval_id":
+        span_id = evaluation.subject_id.document_retrieval_id.span_id
+        if not (
+            span_rowid := await session.scalar(
+                select(models.Span.id).where(models.Span.span_id == span_id)
+            )
+        ):
+            raise InsertEvaluationError(
+                f"Cannot insert a document evaluation for a missing span: {span_id=}"
+            )
+        await session.scalar(
+            insert(models.DocumentAnnotation)
+            .values(
+                span_rowid=span_rowid,
+                document_index=evaluation.subject_id.document_retrieval_id.document_position,
+                name=evaluation.name,
+                label=evaluation.result.label.value,
+                score=evaluation.result.score.value,
+                explanation=evaluation.result.explanation.value,
+                metadata_={},
+                annotator_kind="LLM",
+            )
+            .returning(models.DocumentAnnotation.id)
+        )
+    else:
+        assert_never(evaluation_kind)
 
 
 async def _insert_span(session: AsyncSession, span: Span, project_name: str) -> None:

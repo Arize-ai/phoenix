@@ -1,4 +1,4 @@
-from phoenix.datasets.schema import (
+from phoenix.inferences.schema import (
     EmbeddingColumnNames,
     RetrievalEmbeddingColumnNames,
     Schema,

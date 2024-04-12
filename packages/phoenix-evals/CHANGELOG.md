@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.6.0...arize-phoenix-evals-v0.6.1) (2024-04-04)
+
+
+### Bug Fixes
+
+* switch license format  in toml ([5c6f345](https://github.com/Arize-ai/phoenix/commit/5c6f345691dcab3d460823329ce31b9060bab02c))
+
 ## [0.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.5.0...arize-phoenix-evals-v0.6.0) (2024-03-29)
 
 
