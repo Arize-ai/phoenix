@@ -570,6 +570,59 @@ EXPLANATION:
 
 CODE_FUNCTIONALITY_PROMPT_RAILS_MAP = OrderedDict({True: "bug_free", False: "is_bug"})
 
+USER_FRUSTRATION_PROMPT_BASE_TEMPLATE = """
+  You are given a conversation where between a user and an assistant.
+  Here is the conversation:
+  [BEGIN DATA]
+  *****************
+  Conversation:
+  {conversation}
+  *****************
+  [END DATA]
+
+  Examine the conversation and determine whether or not the user got frustrated from the experience.
+  Frustration can range from midly frustrated to extremely frustrated. If the user seemed frustrated
+  at the beginning of the conversation but seemed satisfied at the end, they should not be deemed
+  as frustrated. Focus on how the user left the conversation.
+
+  Your response must be a single word, either "frustrated" or "ok", and should not
+  contain any text or characters aside from that word. "frustrated" means the user was left
+  frustrated as a result of the conversation. "ok" means that the user did not get frustrated
+  from the conversation.
+"""
+
+USER_FRUSTRATION_PROMPT_TEMPLATE_WITH_EXPLANATION = """
+  You are given a conversation where between a user and an assistant.
+  Here is the conversation:
+  [BEGIN DATA]
+  *****************
+  Conversation:
+  {conversation}
+  *****************
+  [END DATA]
+
+  Examine the conversation and determine whether or not the user got frustrated from the experience.
+  Frustration can range from midly frustrated to extremely frustrated. If the user seemed frustrated
+  at the beginning of the conversation but seemed satisfied at the end, they should not be deemed
+  as frustrated. Focus on how the user left the conversation.
+
+  You are going to respond with an EXPLANATION and LABEL.
+  Please read the text carefully, then write out in a step by step manner an
+  EXPLANATION as to why you think the user is frusterated.
+  Your LABEL response must be a single word, either "frustrated" or "ok", and should not
+  contain any text or characters aside from that word. "frustrated" means the user was left
+  frustrated as a result of the conversation. "ok" means that the user did not get frustrated
+  from the conversation.
+
+Example response:
+************
+EXPLANATION: An explanation of your reasoning for why the user is frusterated
+LABEL: "frustrated" or "ok"
+************
+"""
+
+USER_FRUSTRATION_PROMPT_RAILS_MAP = OrderedDict({True: "frustrated", False: "ok"})
+
 RAG_RELEVANCY_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
     template=RAG_RELEVANCY_PROMPT_BASE_TEMPLATE,
@@ -640,6 +693,13 @@ CODE_FUNCTIONALITY_PROMPT_TEMPLATE = ClassificationTemplate(
     scores=[1, 0],
 )
 
+USER_FRUSTRATION_PROMPT_TEMPLATE = ClassificationTemplate(
+    rails=list(USER_FRUSTRATION_PROMPT_RAILS_MAP.values()),
+    template=USER_FRUSTRATION_PROMPT_BASE_TEMPLATE,
+    explanation_template=USER_FRUSTRATION_PROMPT_TEMPLATE_WITH_EXPLANATION,
+    scores=[1, 0],
+)
+
 
 class EvalCriteria(Enum):
     RELEVANCE = RAG_RELEVANCY_PROMPT_TEMPLATE
@@ -652,3 +712,4 @@ class EvalCriteria(Enum):
     HUMAN_VS_AI = HUMAN_VS_AI_PROMPT_TEMPLATE
     SQL_GEN_EVAL = SQL_GEN_EVAL_PROMPT_TEMPLATE
     CODE_FUNCTIONALITY = CODE_FUNCTIONALITY_PROMPT_TEMPLATE
+    USER_FRUSTRATION = USER_FRUSTRATION_PROMPT_TEMPLATE
