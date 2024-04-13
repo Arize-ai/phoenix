@@ -23,14 +23,14 @@ from phoenix.session.evaluation import encode_evaluations
 from phoenix.trace.span_evaluations import Evaluations
 
 
-async def post_evaluation(request: Request) -> Response:
+async def post_evaluations(request: Request) -> Response:
     """
-    summary: Add an evaluation to a span, trace, or document
+    summary: Add evaluations to a span, trace, or document
     operationId: addEvaluations
     tags:
       - evaluations
     parameters:
-      - name: project_name
+      - name: project-name
         in: query
         schema:
           type: string
@@ -62,7 +62,7 @@ async def post_evaluation(request: Request) -> Response:
     traces: Traces = request.app.state.traces
     content_type = request.headers.get("content-type")
     project_name = (
-        request.query_params.get("project_name")
+        request.query_params.get("project-name")
         # read from headers for backwards compatibility
         or request.headers.get("project-name")
         or DEFAULT_PROJECT_NAME
@@ -93,7 +93,7 @@ async def get_evaluations(request: Request) -> Response:
     tags:
       - evaluations
     parameters:
-      - name: project_name
+      - name: project-name
         in: query
         schema:
           type: string
@@ -107,7 +107,7 @@ async def get_evaluations(request: Request) -> Response:
     """
     traces: Traces = request.app.state.traces
     project_name = (
-        request.query_params.get("project_name")
+        request.query_params.get("project-name")
         # read from headers for backwards compatibility
         or request.headers.get("project-name")
         or DEFAULT_PROJECT_NAME
