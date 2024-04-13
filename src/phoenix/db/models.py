@@ -168,6 +168,7 @@ class Span(Base):
     cumulative_llm_token_count_completion: Mapped[int]
 
     trace: Mapped["Trace"] = relationship("Trace", back_populates="spans")
+    document_annotations: Mapped[List["DocumentAnnotation"]] = relationship(back_populates="span")
 
     __table_args__ = (
         UniqueConstraint(
@@ -267,6 +268,8 @@ class DocumentAnnotation(Base):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
+    span: Mapped["Span"] = relationship(back_populates="document_annotations")
+
     __table_args__ = (
         UniqueConstraint(
             "span_rowid",

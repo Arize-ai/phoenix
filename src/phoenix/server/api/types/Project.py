@@ -1,10 +1,11 @@
 from datetime import datetime
 from typing import List, Optional
 
+import numpy as np
 import strawberry
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import and_, func, select
-from sqlalchemy.orm import contains_eager
+from sqlalchemy.orm import contains_eager, selectinload
 from sqlalchemy.sql.functions import coalesce
 from strawberry import ID, UNSET
 from strawberry.types import Info
@@ -293,37 +294,43 @@ class Project(Node):
         return EvaluationSummary(evaluations, labels)
 
     @strawberry.field
-    def document_evaluation_summary(
+    async def document_evaluation_summary(
         self,
+        info: Info[Context, None],
         evaluation_name: str,
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
     ) -> Optional[DocumentEvaluationSummary]:
-        project = self.project
-        predicate = (
-            SpanFilter(condition=filter_condition, evals=project) if filter_condition else None
-        )
-        span_ids = project.get_document_evaluation_span_ids(evaluation_name)
-        if not span_ids:
-            return None
-        spans = project.get_spans(
-            start_time=time_range.start if time_range else None,
-            stop_time=time_range.end if time_range else None,
-            span_ids=span_ids,
-        )
-        if predicate:
-            spans = filter(predicate, spans)
-        metrics_collection = []
-        for span in spans:
-            span_id = span.context.span_id
-            num_documents = project.get_num_documents(span_id)
-            if not num_documents:
-                continue
-            evaluation_scores = project.get_document_evaluation_scores(
-                span_id=span_id,
-                evaluation_name=evaluation_name,
-                num_documents=num_documents,
+        stmt = (
+            select(models.Span)
+            .join(models.Trace)
+            .where(
+                models.Trace.project_rowid == self.id_attr,
             )
+            .options(selectinload(models.Span.document_annotations))
+            .options(contains_eager(models.Span.trace))
+        )
+        if time_range:
+            stmt = stmt.where(
+                and_(
+                    time_range.start <= models.Span.start_time,
+                    models.Span.start_time < time_range.end,
+                )
+            )
+        # todo: add filter_condition
+        async with info.context.db() as session:
+            sql_spans = await session.scalars(stmt)
+        metrics_collection = []
+        for sql_span in sql_spans:
+            span = to_gql_span(sql_span, self.project)
+            if not (num_documents := span.num_documents):
+                continue
+            evaluation_scores: List[float] = [np.nan] * num_documents
+            for annotation in sql_span.document_annotations:
+                if (score := annotation.score) is not None and (
+                    document_position := annotation.document_index
+                ) < num_documents:
+                    evaluation_scores[document_position] = score
             metrics_collection.append(RetrievalMetrics(evaluation_scores))
         if not metrics_collection:
             return None
