@@ -202,9 +202,6 @@ class Project:
     def get_evaluations_by_span_id(self, span_id: SpanID) -> List[pb.Evaluation]:
         return self._evals.get_evaluations_by_span_id(span_id)
 
-    def get_document_evaluation_span_ids(self, name: EvaluationName) -> Tuple[SpanID, ...]:
-        return self._evals.get_document_evaluation_span_ids(name)
-
     def get_document_evaluations_by_span_id(self, span_id: SpanID) -> List[pb.Evaluation]:
         return self._evals.get_document_evaluations_by_span_id(span_id)
 
@@ -670,11 +667,6 @@ class _Evals:
         with self._lock:
             evaluations = self._evaluations_by_span_id.get(span_id)
             return list(evaluations.values()) if evaluations else []
-
-    def get_document_evaluation_span_ids(self, name: EvaluationName) -> Tuple[SpanID, ...]:
-        with self._lock:
-            document_evaluations = self._document_evaluations_by_name.get(name)
-            return tuple(document_evaluations.keys()) if document_evaluations else ()
 
     def get_document_evaluations_by_span_id(self, span_id: SpanID) -> List[pb.Evaluation]:
         all_evaluations: List[pb.Evaluation] = []
