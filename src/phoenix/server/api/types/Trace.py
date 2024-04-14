@@ -3,7 +3,7 @@ from typing import List, Optional
 import strawberry
 from sqlalchemy import select
 from sqlalchemy.orm import contains_eager
-from strawberry import ID, UNSET, Private
+from strawberry import UNSET
 from strawberry.types import Info
 
 from phoenix.core.project import Project
@@ -17,13 +17,12 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.Span import Span, to_gql_span
-from phoenix.trace.schemas import TraceID
 
 
 @strawberry.type
 class Trace:
-    trace_id: ID
-    project: Private[Project]
+    trace_rowid: strawberry.Private[int]
+    project: strawberry.Private[Project]
 
     @strawberry.field
     async def spans(
@@ -44,13 +43,12 @@ class Trace:
             spans = await session.scalars(
                 select(models.Span)
                 .join(models.Trace)
-                .filter(models.Trace.trace_id == self.trace_id)
+                .where(models.Trace.id == self.trace_rowid)
                 .options(contains_eager(models.Span.trace))
             )
         data = [to_gql_span(span, self.project) for span in spans]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field(description="Evaluations associated with the trace")  # type: ignore
-    def trace_evaluations(self) -> List[TraceEvaluation]:
-        evaluations = self.project.get_evaluations_by_trace_id(TraceID(self.trace_id))
-        return [TraceEvaluation.from_pb_evaluation(evaluation) for evaluation in evaluations]
+    async def trace_evaluations(self, info: Info[Context, None]) -> List[TraceEvaluation]:
+        return await info.context.data_loaders.trace_evaluations.load(self.trace_rowid)
