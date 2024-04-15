@@ -35,10 +35,9 @@ ENV_SPAN_STORAGE_TYPE = "__DANGEROUS__PHOENIX_SPAN_STORAGE_TYPE"
 **EXPERIMENTAL**
 The type of span storage to use.
 """
-ENV_STRUCTURED_LOGS = "PHOENIX_STRUCTURED_LOGS"
+ENV_LOGGING_MODE = "PHOENIX_LOGGING_MODE"
 """
-Whether to enable structured logging. If set to 'true', structured logging to
-stdout will be enabled.
+The logging mode (either 'default' or 'structured').
 """
 
 
@@ -188,24 +187,23 @@ def get_env_database_connection_str() -> str:
     return env_url
 
 
-def get_env_structured_logs() -> bool:
-    if (structured_logs_enabled := (os.getenv(ENV_STRUCTURED_LOGS) or "false").lower()) in [
-        "true",
-        "1",
-        "yes",
-        "on",
-    ]:
-        return True
-    if structured_logs_enabled in ["false", "0", "no", "off"]:
-        return False
+def get_env_logging_mode() -> "LoggingMode":
+    logging_mode = os.getenv(ENV_LOGGING_MODE) or "default"
+    if (logging_mode_lower := logging_mode.lower()) in ["default", "structured"]:
+        return LoggingMode(logging_mode_lower)
     raise ValueError(
-        f"Invalid value `{structured_logs_enabled}` for env var `{ENV_STRUCTURED_LOGS}`. "
-        "Valid values are: 'true', 'false', '1', '0', 'yes', 'no', 'on', 'off' (case-insensitive)."
+        f"Invalid value `{logging_mode}` for env var `{ENV_LOGGING_MODE}`. "
+        "Valid values are: 'default', 'structured' (case-insensitive)."
     )
 
 
 class SpanStorageType(Enum):
     TEXT_FILES = "text-files"
+
+
+class LoggingMode(Enum):
+    DEFAULT = "default"
+    STRUCTURED = "structured"
 
 
 DEFAULT_PROJECT_NAME = "default"

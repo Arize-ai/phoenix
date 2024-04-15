@@ -15,8 +15,8 @@ from phoenix.config import (
     EXPORT_DIR,
     get_env_database_connection_str,
     get_env_host,
+    get_env_logging_mode,
     get_env_port,
-    get_env_structured_logs,
     get_pids_path,
     get_working_dir,
 )
@@ -24,7 +24,7 @@ from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.inferences.fixtures import FIXTURES, get_datasets
 from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
-from phoenix.logging import configure_structured_logging
+from phoenix.logging import configure_logging
 from phoenix.pointcloud.umap_parameters import (
     DEFAULT_MIN_DIST,
     DEFAULT_N_NEIGHBORS,
@@ -197,8 +197,8 @@ if __name__ == "__main__":
         trace_dataset_name = args.trace_fixture
         simulate_streaming = args.simulate_streaming
 
-    if get_env_structured_logs():
-        configure_structured_logging()
+    logging_mode = get_env_logging_mode()
+    configure_logging(logging_mode)
 
     host = args.host or get_env_host()
     port = args.port or get_env_port()
@@ -262,7 +262,14 @@ if __name__ == "__main__":
         initial_spans=fixture_spans,
         initial_evaluations=fixture_evals,
     )
-    server = Server(config=Config(app, host=host, port=port))
+    server = Server(
+        config=Config(
+            app,
+            host=host,
+            port=port,
+            log_config=None,  # logging for uvicorn is configured in the phoenix.logging sub-module
+        )
+    )
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
 
     # Print information about the server

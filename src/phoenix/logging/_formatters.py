@@ -1,22 +1,10 @@
 import json
 from datetime import datetime, timezone
-from logging import DEBUG, Formatter, LogRecord, StreamHandler, getLogger
-from sys import stdout
+from logging import Formatter, LogRecord
 from types import MappingProxyType
 
 
-def configure_structured_logging() -> None:
-    """
-    Configures structured logging.
-    """
-    root_logger = getLogger()
-    root_logger.setLevel(DEBUG)
-    handler = StreamHandler(stdout)
-    handler.setFormatter(_StructuredLogJSONFormatter())
-    root_logger.addHandler(handler)
-
-
-class _StructuredLogJSONFormatter(Formatter):
+class StructuredJSONFormatter(Formatter):
     # todo: add override
     def format(self, record: LogRecord) -> str:
         structured_log_message_data = {
