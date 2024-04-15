@@ -199,7 +199,8 @@ class Client(TraceDataExtractor):
                 headers=headers,
             ).raise_for_status()
 
-    def log_traces(self, trace_dataset: TraceDataset) -> None:
+    def log_traces(self, trace_dataset: TraceDataset, project_name: Optional[str] = None) -> None:
+        project_name = project_name or get_env_project_name()
         spans = trace_dataset.to_spans()
         otlp_spans = [
             ExportTraceServiceRequest(
@@ -209,7 +210,7 @@ class Client(TraceDataExtractor):
                             attributes=[
                                 KeyValue(
                                     key="openinference.project.name",
-                                    value=AnyValue(string_value="default"),
+                                    value=AnyValue(string_value=project_name),
                                 )
                             ]
                         ),
