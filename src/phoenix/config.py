@@ -7,6 +7,7 @@ from typing import List, Optional
 
 logger = getLogger(__name__)
 
+
 # Phoenix environment variables
 ENV_PHOENIX_PORT = "PHOENIX_PORT"
 ENV_PHOENIX_HOST = "PHOENIX_HOST"
@@ -33,6 +34,11 @@ ENV_SPAN_STORAGE_TYPE = "__DANGEROUS__PHOENIX_SPAN_STORAGE_TYPE"
 """
 **EXPERIMENTAL**
 The type of span storage to use.
+"""
+ENV_STRUCTURED_LOGS = "PHOENIX_STRUCTURED_LOGS"
+"""
+Whether to enable structured logging. If set to 'true', structured logging to
+stdout will be enabled.
 """
 
 
@@ -180,6 +186,22 @@ def get_env_database_connection_str() -> str:
         working_dir = get_working_dir()
         return f"sqlite:///{working_dir}/phoenix.db"
     return env_url
+
+
+def get_env_structured_logs() -> bool:
+    if structured_logs_enabled := (os.getenv(ENV_STRUCTURED_LOGS) or "false").lower() in [
+        "true",
+        "1",
+        "yes",
+        "on",
+    ]:
+        return True
+    if structured_logs_enabled in ["false", "0", "no", "off"]:
+        return False
+    raise ValueError(
+        f"Invalid value `{structured_logs_enabled}` for env var `{ENV_STRUCTURED_LOGS}`. "
+        "Valid values are: 'true', 'false', '1', '0', 'yes', 'no', 'on', 'off' (case-insensitive)."
+    )
 
 
 class SpanStorageType(Enum):
