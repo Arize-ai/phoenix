@@ -189,7 +189,7 @@ def get_env_database_connection_str() -> str:
 
 
 def get_env_structured_logs() -> bool:
-    if structured_logs_enabled := (os.getenv(ENV_STRUCTURED_LOGS) or "false").lower() in [
+    if (structured_logs_enabled := (os.getenv(ENV_STRUCTURED_LOGS) or "false").lower()) in [
         "true",
         "1",
         "yes",
