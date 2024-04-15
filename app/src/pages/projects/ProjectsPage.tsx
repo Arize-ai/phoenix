@@ -1,12 +1,19 @@
-import React, { startTransition, useCallback, useMemo } from "react";
+import React, { startTransition, Suspense, useCallback, useMemo } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
-import { formatDistance } from "date-fns";
+import { addDays, formatDistance, subDays } from "date-fns";
 import { css } from "@emotion/react";
 
 import {
   Flex,
   Heading,
+  Icon,
+  Icons,
+  Item,
+  Picker,
   Text,
+  Tooltip,
+  TooltipTrigger,
+  TriggerWrap,
   useNotification,
   View,
 } from "@arizeai/components";
@@ -24,17 +31,43 @@ import { ProjectsPageProjectsQuery } from "./__generated__/ProjectsPageProjectsQ
 import { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
 import { ProjectActionMenu } from "./ProjectActionMenu";
 
-const REFRESH_INTERVAL_MS = 3000;
+const REFRESH_INTERVAL_MS = 10000;
+const LOOKBACK_DAYS = 7;
 
 export function ProjectsPage() {
+  const timeRange = useMemo(() => {
+    // Create a time range for the past 7 days
+    // Artificially set the end time to far in the future so that it is ostensibly is "current"
+    const now = Date.now();
+    return {
+      start: subDays(now, LOOKBACK_DAYS).toISOString(),
+      end: addDays(now, 365).toISOString(),
+    };
+  }, []);
+
+  return (
+    <Suspense>
+      <ProjectsPageContent timeRange={timeRange} />
+    </Suspense>
+  );
+}
+
+export function ProjectsPageContent({
+  timeRange,
+}: {
+  timeRange: { start: string; end: string };
+}) {
   const [notify, holder] = useNotification();
+
   const data = useLazyLoadQuery<ProjectsPageQuery>(
     graphql`
-      query ProjectsPageQuery {
+      query ProjectsPageQuery($timeRange: TimeRange!) {
         ...ProjectsPageProjectsFragment
       }
     `,
-    {}
+    {
+      timeRange,
+    }
   );
   const [projectsData, refetch] = useRefetchableFragment<
     ProjectsPageProjectsQuery,
@@ -48,10 +81,13 @@ export function ProjectsPage() {
             project: node {
               id
               name
-              traceCount
+              traceCount(timeRange: $timeRange)
               endTime
-              latencyMsP50: latencyMsQuantile(probability: 0.5)
-              tokenCountTotal
+              latencyMsP50: latencyMsQuantile(
+                probability: 0.5
+                timeRange: $timeRange
+              )
+              tokenCountTotal(timeRange: $timeRange)
             }
           }
         }
@@ -63,7 +99,7 @@ export function ProjectsPage() {
 
   useInterval(() => {
     startTransition(() => {
-      refetch({}, { fetchPolicy: "store-and-network" });
+      // refetch({}, { fetchPolicy: "store-and-network" });
     });
   }, REFRESH_INTERVAL_MS);
 
@@ -83,6 +119,28 @@ export function ProjectsPage() {
 
   return (
     <Flex direction="column" flex="1 1 auto">
+      <View
+        paddingStart="size-200"
+        paddingEnd="size-200"
+        paddingTop="size-100"
+        paddingBottom="size-100"
+        width="100%"
+        borderBottomColor="grey-200"
+        borderBottomWidth="thin"
+      >
+        <Flex direction="row" justifyContent="end">
+          <Picker
+            aria-label={"Time Range"}
+            addonBefore={<Icon svg={<Icons.CalendarOutline />} />}
+            isDisabled
+            defaultSelectedKey={"7d"}
+          >
+            <Item key="7d">Last 7 Days</Item>
+            <Item key="30d">Last Month</Item>
+            <Item key="90d">All Time</Item>
+          </Picker>
+        </Flex>
+      </View>
       <View padding="size-200" width="100%">
         <ul
           css={css`
@@ -194,6 +252,7 @@ function ProjectItem({
           />
         )}
       </Flex>
+
       <Flex direction="row" justifyContent="space-between">
         <Flex direction="column" flex="none">
           <Text elementType="h3" textSize="medium" color="text-700">
