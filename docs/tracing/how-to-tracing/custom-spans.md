@@ -15,6 +15,10 @@ Phoenix and OpenInference use the OpenTelemetry Trace API to create spans. Becau
 See [here](https://github.com/Arize-ai/phoenix/tree/main/examples/manually-instrumented-chatbot) for an end-to-end example of a manually instrumented application.
 {% endhint %}
 
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/manual_instrumentation_tutorial.ipynb" %}
+
+***
+
 First, ensure you have the API and SDK packages:
 
 ```shell
