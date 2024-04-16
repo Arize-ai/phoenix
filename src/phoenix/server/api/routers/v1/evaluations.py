@@ -1,6 +1,6 @@
 import asyncio
 import gzip
-from typing import AsyncContextManager, AsyncIterator, Callable
+from typing import AsyncContextManager, AsyncIterable, AsyncIterator, Callable, TypeVar
 
 import pandas as pd
 import pyarrow as pa
@@ -29,9 +29,10 @@ from phoenix.core.traces import Traces
 from phoenix.db import models
 from phoenix.server.api.routers.utils import table_to_bytes
 from phoenix.session.evaluation import encode_evaluations
-from phoenix.trace.span_evaluations import Evaluations, SpanEvaluations
+from phoenix.trace.span_evaluations import Evaluations, SpanEvaluations, TraceEvaluations
 
 EvaluationName: TypeAlias = str
+GenericType = TypeVar("GenericType")
 
 
 async def post_evaluations(request: Request) -> Response:
@@ -130,21 +131,19 @@ async def get_evaluations(request: Request) -> Response:
             _read_sql_span_evaluations_into_dataframe,
             project_name,
         )
-    if span_evals_dataframe.empty:
+        trace_evals_dataframe = await connection.run_sync(
+            _read_sql_trace_evaluations_into_dataframe,
+            project_name,
+        )
+    if trace_evals_dataframe.empty and span_evals_dataframe.empty:
         return Response(status_code=HTTP_404_NOT_FOUND)
 
-    loop = asyncio.get_running_loop()
-
-    async def content() -> AsyncIterator[bytes]:
-        for eval_name, span_evals_dataframe_for_name in span_evals_dataframe.groupby(
-            "name", as_index=False
-        ):
-            span_evals = SpanEvaluations(str(eval_name), span_evals_dataframe_for_name)
-            yield await loop.run_in_executor(
-                None, lambda: table_to_bytes(span_evals.to_pyarrow_table())
-            )
-
-    return StreamingResponse(content=content(), media_type="application/x-pandas-arrow")
+    return StreamingResponse(
+        content=achain(
+            _trace_evals_bytes(trace_evals_dataframe), _span_evals_bytes(span_evals_dataframe)
+        ),
+        media_type="application/x-pandas-arrow",
+    )
 
 
 async def _process_pyarrow(request: Request, project_name: str, traces: Traces) -> Response:
@@ -178,6 +177,33 @@ async def _add_evaluations(
         traces.put(evaluation, project_name=project_name)
 
 
+def _read_sql_trace_evaluations_into_dataframe(
+    connectable: Connectable,
+    project_name: str,
+) -> DataFrame:
+    """
+    This function inputs a synchronous connection to pandas.read_sql since
+    it does not support async connections.
+
+    For more information, see:
+
+    https://stackoverflow.com/questions/70848256/how-can-i-use-pandas-read-sql-on-an-async-connection
+    """
+    return pd.read_sql(
+        select(models.TraceAnnotation, models.Trace.trace_id)
+        .join(models.Trace)
+        .join(models.Project)
+        .where(
+            and_(
+                models.Project.name == project_name,
+                models.TraceAnnotation.annotator_kind == "LLM",
+            )
+        ),
+        connectable,
+        index_col="trace_id",
+    )
+
+
 def _read_sql_span_evaluations_into_dataframe(
     connectable: Connectable,
     project_name: str,
@@ -204,3 +230,41 @@ def _read_sql_span_evaluations_into_dataframe(
         connectable,
         index_col="span_id",
     )
+
+
+async def achain(*aiterables: AsyncIterable[GenericType]) -> AsyncIterable[GenericType]:
+    """
+    Chains together multiple async iterables into a single async iterable. The
+    async analogue of itertools.chain.
+    """
+    for aiterable in aiterables:
+        async for value in aiterable:
+            yield value
+
+
+async def _trace_evals_bytes(trace_evals_dataframe: DataFrame) -> AsyncIterator[bytes]:
+    """
+    Converts a trace evaluations dataframe into a pyarrow bytestream.
+    """
+    loop = asyncio.get_running_loop()
+    for trace_eval_name, trace_evals_dataframe_for_name in trace_evals_dataframe.groupby(
+        "name", as_index=False
+    ):
+        trace_evals = TraceEvaluations(str(trace_eval_name), trace_evals_dataframe_for_name)
+        yield await loop.run_in_executor(
+            None, lambda: table_to_bytes(trace_evals.to_pyarrow_table())
+        )
+
+
+async def _span_evals_bytes(span_evals_dataframe: DataFrame) -> AsyncIterator[bytes]:
+    """
+    Converts a span evaluations dataframe into a pyarrow bytestream.
+    """
+    loop = asyncio.get_running_loop()
+    for span_eval_name, span_evals_dataframe_for_name in span_evals_dataframe.groupby(
+        "name", as_index=False
+    ):
+        span_evals = SpanEvaluations(str(span_eval_name), span_evals_dataframe_for_name)
+        yield await loop.run_in_executor(
+            None, lambda: table_to_bytes(span_evals.to_pyarrow_table())
+        )
