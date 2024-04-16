@@ -77,17 +77,28 @@ class BulkInserter:
         self._evaluations.append(evaluation)
 
     async def _bulk_insert(self) -> None:
+        spans_buffer, evaluations_buffer = [], []
         next_run_at = time() + self._run_interval_seconds
         while self._spans or self._evaluations or self._running:
             await asyncio.sleep(next_run_at - time())
             next_run_at = time() + self._run_interval_seconds
             # It's important to grab the buffers at the same time so there's
             # no race condition, since an eval insertion will fail if the span
-            # it references doesn't exist.
-            spans, self._spans = self._spans, []
-            evaluations, self._evaluations = self._evaluations, []
-            await self._insert_spans(spans)
-            await self._insert_evaluations(evaluations)
+            # it references doesn't exist. Grabbing the eval buffer later may
+            # include an eval whose span is in the queue but missed being
+            # included in the span buffer that was grabbed previously.
+            if self._spans:
+                spans_buffer = self._spans
+                self._spans = []
+            if self._evaluations:
+                evaluations_buffer = self._evaluations
+                self._evaluations = []
+            # Spans should be inserted before the evaluations, since an evaluation
+            # insertion will fail if the span it references doesn't exist.
+            if spans_buffer:
+                await self._insert_spans(spans_buffer)
+            if evaluations_buffer:
+                await self._insert_evaluations(evaluations_buffer)
 
     async def _insert_spans(self, spans: List[Tuple[Span, str]]) -> None:
         for i in range(0, len(spans), self._max_num_per_transaction):
