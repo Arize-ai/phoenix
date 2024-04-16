@@ -1,3 +1,4 @@
+import gzip
 import logging
 import weakref
 from datetime import datetime
@@ -7,6 +8,10 @@ from urllib.parse import urljoin
 
 import pandas as pd
 import pyarrow as pa
+from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import ExportTraceServiceRequest
+from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
+from opentelemetry.proto.resource.v1.resource_pb2 import Resource
+from opentelemetry.proto.trace.v1.trace_pb2 import ResourceSpans, ScopeSpans
 from pyarrow import ArrowInvalid
 from requests import Session
 
@@ -18,8 +23,9 @@ from phoenix.config import (
     get_env_project_name,
 )
 from phoenix.session.data_extractor import TraceDataExtractor
-from phoenix.trace import Evaluations
+from phoenix.trace import Evaluations, TraceDataset
 from phoenix.trace.dsl import SpanQuery
+from phoenix.trace.otel import encode
 
 logger = logging.getLogger(__name__)
 
@@ -191,6 +197,39 @@ class Client(TraceDataExtractor):
                 urljoin(self._base_url, "/v1/evaluations"),
                 data=cast(bytes, sink.getvalue().to_pybytes()),
                 headers=headers,
+            ).raise_for_status()
+
+    def log_traces(self, trace_dataset: TraceDataset, project_name: Optional[str] = None) -> None:
+        project_name = project_name or get_env_project_name()
+        spans = trace_dataset.to_spans()
+        otlp_spans = [
+            ExportTraceServiceRequest(
+                resource_spans=[
+                    ResourceSpans(
+                        resource=Resource(
+                            attributes=[
+                                KeyValue(
+                                    key="openinference.project.name",
+                                    value=AnyValue(string_value=project_name),
+                                )
+                            ]
+                        ),
+                        scope_spans=[ScopeSpans(spans=[encode(span)])],
+                    )
+                ],
+            )
+            for span in spans
+        ]
+        for otlp_span in otlp_spans:
+            serialized = otlp_span.SerializeToString()
+            data = gzip.compress(serialized)
+            self._session.post(
+                urljoin(self._base_url, "/v1/traces"),
+                data=data,
+                headers={
+                    "content-type": "application/x-protobuf",
+                    "content-encoding": "gzip",
+                },
             ).raise_for_status()
 
 

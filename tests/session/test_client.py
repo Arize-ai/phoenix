@@ -1,14 +1,21 @@
+import gzip
+from datetime import datetime
 from typing import cast
 from urllib.parse import urljoin
+from uuid import uuid4
 
 import pandas as pd
 import pyarrow as pa
 import pytest
 import responses
+from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
+    ExportTraceServiceRequest,
+)
 from pandas.testing import assert_frame_equal
 from phoenix.session.client import Client
 from phoenix.trace import SpanEvaluations
 from phoenix.trace.dsl import SpanQuery
+from phoenix.trace.trace_dataset import TraceDataset
 
 
 @responses.activate
@@ -61,9 +68,84 @@ def test_get_evaluations(client: Client, endpoint: str, evaluations: SpanEvaluat
     assert client.get_evaluations() == []
 
 
+@responses.activate
+def test_log_traces_sends_oltp_spans(client: Client, endpoint: str, trace_ds: TraceDataset):
+    span_counter = 0
+
+    def request_callback(request):
+        assert request.headers["content-type"] == "application/x-protobuf"
+        assert request.headers["content-encoding"] == "gzip"
+        body = gzip.decompress(request.body)
+        req = ExportTraceServiceRequest()
+        req.ParseFromString(body)
+        nonlocal span_counter
+        span_counter += 1
+        return 200, {}, ""
+
+    url = urljoin(endpoint, "v1/traces")
+    responses.add_callback(
+        responses.POST,
+        url,
+        callback=request_callback,
+        content_type="application/json",
+    )
+    client.log_traces(trace_dataset=trace_ds)
+    assert span_counter == len(trace_ds.dataframe)
+
+
+@responses.activate
+def test_log_traces_to_project(client: Client, endpoint: str, trace_ds: TraceDataset):
+    span_counter = 0
+
+    def request_callback(request):
+        assert request.headers["content-type"] == "application/x-protobuf"
+        assert request.headers["content-encoding"] == "gzip"
+        body = gzip.decompress(request.body)
+        req = ExportTraceServiceRequest()
+        req.ParseFromString(body)
+        resource_spans = req.resource_spans
+        assert len(resource_spans) == 1
+        resource = resource_spans[0].resource
+        assert resource.attributes[0].key == "openinference.project.name"
+        assert resource.attributes[0].value.string_value == "special-project"
+        nonlocal span_counter
+        span_counter += 1
+        return 200, {}, ""
+
+    url = urljoin(endpoint, "v1/traces")
+    responses.add_callback(
+        responses.POST,
+        url,
+        callback=request_callback,
+        content_type="application/json",
+    )
+    client.log_traces(trace_dataset=trace_ds, project_name="special-project")
+    assert span_counter == len(trace_ds.dataframe)
+
+
 @pytest.fixture
 def dataframe() -> pd.DataFrame:
     return pd.DataFrame({"a": [1, 2], "b": [3, 4]}, index=["x", "y"])
+
+
+@pytest.fixture
+def trace_ds() -> TraceDataset:
+    num_records = 5
+    traces_df = pd.DataFrame(
+        {
+            "name": [f"name_{index}" for index in range(num_records)],
+            "span_kind": ["LLM" for index in range(num_records)],
+            "parent_id": [None for index in range(num_records)],
+            "start_time": [datetime.now() for index in range(num_records)],
+            "end_time": [datetime.now() for index in range(num_records)],
+            "message": [f"message_{index}" for index in range(num_records)],
+            "status_code": ["OK" for index in range(num_records)],
+            "status_message": ["" for index in range(num_records)],
+            "context.trace_id": [str(uuid4()) for index in range(num_records)],
+            "context.span_id": [str(uuid4()) for index in range(num_records)],
+        }
+    )
+    return TraceDataset(traces_df)
 
 
 @pytest.fixture
