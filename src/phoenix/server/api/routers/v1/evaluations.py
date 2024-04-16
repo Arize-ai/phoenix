@@ -1,6 +1,6 @@
 import asyncio
 import gzip
-from typing import AsyncContextManager, AsyncIterable, AsyncIterator, Callable, TypeVar
+from typing import AsyncContextManager, AsyncIterator, Callable
 
 import pandas as pd
 import pyarrow as pa
@@ -30,9 +30,9 @@ from phoenix.db import models
 from phoenix.server.api.routers.utils import table_to_bytes
 from phoenix.session.evaluation import encode_evaluations
 from phoenix.trace.span_evaluations import Evaluations, SpanEvaluations, TraceEvaluations
+from phoenix.utilities.async_helpers import achain
 
 EvaluationName: TypeAlias = str
-GenericType = TypeVar("GenericType")
 
 
 async def post_evaluations(request: Request) -> Response:
@@ -230,16 +230,6 @@ def _read_sql_span_evaluations_into_dataframe(
         connectable,
         index_col="span_id",
     )
-
-
-async def achain(*aiterables: AsyncIterable[GenericType]) -> AsyncIterable[GenericType]:
-    """
-    Chains together multiple async iterables into a single async iterable. The
-    async analogue of itertools.chain.
-    """
-    for aiterable in aiterables:
-        async for value in aiterable:
-            yield value
 
 
 async def _trace_evals_bytes(trace_evals_dataframe: DataFrame) -> AsyncIterator[bytes]:
