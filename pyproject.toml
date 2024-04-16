@@ -143,7 +143,6 @@ dependencies = [
   "httpx", # For OpenAI testing
   "respx", # For OpenAI testing
   "nest-asyncio", # for executor testing
-  "pyfakefs", # for experimental storage implementations
 ]
 
 [tool.hatch.envs.type]

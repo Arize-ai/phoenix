@@ -11,7 +11,6 @@ from importlib.util import find_spec
 from itertools import chain
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from threading import Thread
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -53,7 +52,6 @@ from phoenix.trace import Evaluations
 from phoenix.trace.dsl.query import SpanQuery
 from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.utilities import query_spans
-from phoenix.utilities.span_store import get_span_store, load_traces_data_from_store
 
 try:
     from IPython.display import IFrame  # type: ignore
@@ -307,12 +305,6 @@ class ThreadSession(Session):
             for evaluations in trace_dataset.evaluations:
                 for pb_evaluation in encode_evaluations(evaluations):
                     self.traces.put(pb_evaluation)
-        if span_store := get_span_store():
-            Thread(
-                target=load_traces_data_from_store,
-                args=(self.traces, span_store),
-                daemon=True,
-            ).start()
         # Initialize an app service that keeps the server running
         self.app = create_app(
             database=database,
@@ -321,7 +313,6 @@ class ThreadSession(Session):
             corpus=self.corpus,
             traces=self.traces,
             umap_params=self.umap_parameters,
-            span_store=span_store,
             initial_spans=trace_dataset.to_spans() if trace_dataset else None,
             initial_evaluations=(
                 chain.from_iterable(map(encode_evaluations, initial_evaluations))

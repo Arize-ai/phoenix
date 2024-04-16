@@ -53,7 +53,6 @@ from phoenix.server.api.dataloaders import (
 )
 from phoenix.server.api.routers.v1 import V1_ROUTES
 from phoenix.server.api.schema import schema
-from phoenix.storage.span_store import SpanStore
 from phoenix.trace.schemas import Span
 
 logger = logging.getLogger(__name__)
@@ -227,7 +226,6 @@ def create_app(
     umap_params: UMAPParameters,
     corpus: Optional[Model] = None,
     traces: Optional[Traces] = None,
-    span_store: Optional[SpanStore] = None,
     debug: bool = False,
     read_only: bool = False,
     enable_prometheus: bool = False,
@@ -302,6 +300,5 @@ def create_app(
         ],
     )
     app.state.traces = traces
-    app.state.store = span_store
     app.state.read_only = read_only
     return app

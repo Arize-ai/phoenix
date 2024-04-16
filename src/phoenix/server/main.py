@@ -31,7 +31,6 @@ from phoenix.pointcloud.umap_parameters import (
 )
 from phoenix.server.app import create_app
 from phoenix.settings import Settings
-from phoenix.storage.span_store import SpanStore
 from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
     _download_traces_fixture,
@@ -40,7 +39,6 @@ from phoenix.trace.fixtures import (
 )
 from phoenix.trace.otel import decode, encode
 from phoenix.trace.span_json_decoder import json_string_to_span
-from phoenix.utilities.span_store import get_span_store, load_traces_data_from_store
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +157,6 @@ if __name__ == "__main__":
     demo_parser.add_argument("--simulate-streaming", action="store_true")
     args = parser.parse_args()
     export_path = Path(args.export_path) if args.export_path else EXPORT_DIR
-    span_store: Optional[SpanStore] = None
     if args.command == "datasets":
         primary_dataset_name = args.primary
         reference_dataset_name = args.reference
@@ -204,8 +201,6 @@ if __name__ == "__main__":
     )
 
     traces = Traces()
-    if span_store := get_span_store():
-        Thread(target=load_traces_data_from_store, args=(traces, span_store), daemon=True).start()
     fixture_spans = []
     fixture_evals = []
     if trace_dataset_name is not None:
@@ -252,7 +247,6 @@ if __name__ == "__main__":
         corpus=None if corpus_dataset is None else create_model_from_datasets(corpus_dataset),
         debug=args.debug,
         read_only=read_only,
-        span_store=span_store,
         enable_prometheus=enable_prometheus,
         initial_spans=fixture_spans,
         initial_evaluations=fixture_evals,
