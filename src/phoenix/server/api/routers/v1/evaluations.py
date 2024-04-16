@@ -140,40 +140,12 @@ async def get_evaluations(request: Request) -> Response:
     if not span_evaluation_names:
         return Response(status_code=HTTP_404_NOT_FOUND)
 
-    def read_sql_span_evaluations_into_dataframe(
-        connectable: Connectable,
-        evaluation_name: str,
-    ) -> DataFrame:
-        """
-        This function inputs a synchronous connection to pandas.read_sql since
-        it does not support async connections.
-
-        For more information, see:
-
-        https://stackoverflow.com/questions/70848256/how-can-i-use-pandas-read-sql-on-an-async-connection
-        """
-        return pd.read_sql(
-            select(models.SpanAnnotation, models.Span.span_id.label("span_id"))
-            .join(models.Span)
-            .join(models.Trace)
-            .join(models.Project)
-            .where(
-                and_(
-                    models.Project.name == project_name,
-                    models.SpanAnnotation.name == evaluation_name,
-                    models.SpanAnnotation.annotator_kind == "LLM",
-                )
-            ),
-            connectable,
-            index_col="span_id",
-        )
-
     async with db() as session:
         connection = await session.connection()
         evaluation_dataframes: Dict[EvaluationName, DataFrame] = {}
         for evaluation_name in span_evaluation_names:
             evaluation_dataframe = await connection.run_sync(
-                read_sql_span_evaluations_into_dataframe, evaluation_name
+                _read_sql_span_evaluations_into_dataframe, project_name, evaluation_name
             )
             if not evaluation_dataframe.empty:
                 evaluation_dataframes[evaluation_name] = evaluation_dataframe
@@ -222,3 +194,33 @@ async def _add_evaluations(
     for evaluation in encode_evaluations(evaluations):
         state.queue_evaluation_for_bulk_insert(evaluation)
         traces.put(evaluation, project_name=project_name)
+
+
+def _read_sql_span_evaluations_into_dataframe(
+    connectable: Connectable,
+    project_name: str,
+    evaluation_name: str,
+) -> DataFrame:
+    """
+    This function inputs a synchronous connection to pandas.read_sql since
+    it does not support async connections.
+
+    For more information, see:
+
+    https://stackoverflow.com/questions/70848256/how-can-i-use-pandas-read-sql-on-an-async-connection
+    """
+    return pd.read_sql(
+        select(models.SpanAnnotation, models.Span.span_id.label("span_id"))
+        .join(models.Span)
+        .join(models.Trace)
+        .join(models.Project)
+        .where(
+            and_(
+                models.Project.name == project_name,
+                models.SpanAnnotation.name == evaluation_name,
+                models.SpanAnnotation.annotator_kind == "LLM",
+            )
+        ),
+        connectable,
+        index_col="span_id",
+    )
