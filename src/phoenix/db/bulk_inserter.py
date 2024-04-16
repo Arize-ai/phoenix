@@ -77,7 +77,7 @@ class BulkInserter:
         self._evaluations.append(evaluation)
 
     async def _bulk_insert(self) -> None:
-        spans_buffer, evaluations_buffer = [], []
+        spans_buffer, evaluations_buffer = None, None
         next_run_at = time() + self._run_interval_seconds
         while self._spans or self._evaluations or self._running:
             await asyncio.sleep(next_run_at - time())
@@ -97,10 +97,10 @@ class BulkInserter:
             # insertion will fail if the span it references doesn't exist.
             if spans_buffer:
                 await self._insert_spans(spans_buffer)
-                spans_buffer = []
+                spans_buffer = None
             if evaluations_buffer:
                 await self._insert_evaluations(evaluations_buffer)
-                evaluations_buffer = []
+                evaluations_buffer = None
 
     async def _insert_spans(self, spans: List[Tuple[Span, str]]) -> None:
         for i in range(0, len(spans), self._max_num_per_transaction):
