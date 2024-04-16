@@ -15,7 +15,13 @@ from openinference.semconv.trace import (
     ToolCallAttributes,
 )
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
-from phoenix.trace.otel import _decode_identifier, _encode_identifier, _unflatten, decode, encode
+from phoenix.trace.otel import (
+    _decode_identifier,
+    _encode_identifier,
+    _unflatten,
+    decode_otlp_span,
+    encode_span_to_otlp,
+)
 from phoenix.trace.schemas import (
     EXCEPTION_ESCAPED,
     EXCEPTION_MESSAGE,
@@ -49,7 +55,7 @@ TOOL_PARAMETERS = SpanAttributes.TOOL_PARAMETERS
 
 
 def test_decode_encode(span):
-    otlp_span = encode(span)
+    otlp_span = encode_span_to_otlp(span)
     assert otlp_span.name == "test_span"
     assert otlp_span.trace_id == _encode_identifier(span.context.trace_id)
     assert otlp_span.span_id == _encode_identifier(span.context.span_id)
@@ -67,7 +73,7 @@ def test_decode_encode(span):
     assert otlp_span.status.code == otlp.Status.StatusCode.STATUS_CODE_ERROR
     assert otlp_span.status.message == "xyz"
 
-    decoded_span = decode(otlp_span)
+    decoded_span = decode_otlp_span(otlp_span)
     assert decoded_span.context.trace_id == _decode_identifier(
         _encode_identifier(span.context.trace_id)
     )
@@ -93,23 +99,23 @@ def test_decode_encode(span):
 )
 def test_decode_encode_status_code(span, span_status_code, otlp_status_code):
     span = replace(span, status_code=span_status_code)
-    otlp_span = encode(span)
+    otlp_span = encode_span_to_otlp(span)
     assert otlp_span.status.code == otlp_status_code
-    decoded_span = decode(otlp_span)
+    decoded_span = decode_otlp_span(otlp_span)
     assert decoded_span.status_code == span.status_code
 
 
 @pytest.mark.parametrize("span_kind", list(SpanKind))
 def test_decode_encode_span_kind(span, span_kind):
     span = replace(span, span_kind=span_kind)
-    otlp_span = encode(span)
+    otlp_span = encode_span_to_otlp(span)
     assert MessageToJson(
         KeyValue(
             key=OPENINFERENCE_SPAN_KIND,
             value=AnyValue(string_value=span_kind.value),
         )
     ) in set(map(MessageToJson, otlp_span.attributes))
-    decoded_span = decode(otlp_span)
+    decoded_span = decode_otlp_span(otlp_span)
     assert decoded_span.span_kind == span.span_kind
 
 
@@ -152,9 +158,9 @@ def test_decode_encode_span_kind(span, span_kind):
 )
 def test_decode_encode_attributes(span, attributes, otlp_key_value):
     span = replace(span, attributes=attributes)
-    otlp_span = encode(span)
+    otlp_span = encode_span_to_otlp(span)
     assert MessageToJson(otlp_key_value) in set(map(MessageToJson, otlp_span.attributes))
-    decoded_span = decode(otlp_span)
+    decoded_span = decode_otlp_span(otlp_span)
     assert decoded_span.attributes == span.attributes
 
 
@@ -189,7 +195,7 @@ def test_decode_encode_events(span):
         ),
     ]
     span = replace(span, events=events)
-    otlp_span = encode(span)
+    otlp_span = encode_span_to_otlp(span)
     event_otlp_attributes = [
         KeyValue(key="e0", value=AnyValue(string_value="11111")),
         KeyValue(key="e1", value=AnyValue(bool_value=True)),
@@ -231,7 +237,7 @@ def test_decode_encode_events(span):
         ),
     ]
     assert list(map(MessageToJson, otlp_span.events)) == list(map(MessageToJson, otlp_events))
-    decoded_span = decode(otlp_span)
+    decoded_span = decode_otlp_span(otlp_span)
     assert decoded_span.events == span.events
 
 
@@ -258,7 +264,7 @@ def test_decode_encode_documents(span):
         ]
     }
     span = replace(span, attributes=attributes)
-    otlp_span = encode(span)
+    otlp_span = encode_span_to_otlp(span)
     otlp_attributes = [
         KeyValue(
             key=OPENINFERENCE_SPAN_KIND,
@@ -294,7 +300,7 @@ def test_decode_encode_documents(span):
         ),
     ]
     assert set(map(MessageToJson, otlp_span.attributes)) == set(map(MessageToJson, otlp_attributes))
-    decoded_span = decode(otlp_span)
+    decoded_span = decode_otlp_span(otlp_span)
     assert decoded_span.attributes[RETRIEVAL_DOCUMENTS] == span.attributes[RETRIEVAL_DOCUMENTS]
 
 
@@ -309,7 +315,7 @@ def test_decode_encode_embeddings(span):
         ]
     }
     span = replace(span, attributes=attributes)
-    otlp_span = encode(span)
+    otlp_span = encode_span_to_otlp(span)
     vector_otlp_values = [
         AnyValue(double_value=vector[0]),
         AnyValue(double_value=vector[1]),
@@ -338,7 +344,7 @@ def test_decode_encode_embeddings(span):
         ),
     ]
     assert set(map(MessageToJson, otlp_span.attributes)) == set(map(MessageToJson, otlp_attributes))
-    decoded_span = decode(otlp_span)
+    decoded_span = decode_otlp_span(otlp_span)
     assert decoded_span.attributes[EMBEDDING_EMBEDDINGS] == span.attributes[EMBEDDING_EMBEDDINGS]
 
 
@@ -360,7 +366,7 @@ def test_decode_encode_message_tool_calls(span):
         ]
     }
     span = replace(span, attributes=attributes)
-    otlp_span = encode(span)
+    otlp_span = encode_span_to_otlp(span)
     otlp_attributes = [
         KeyValue(
             key=OPENINFERENCE_SPAN_KIND,
@@ -384,14 +390,14 @@ def test_decode_encode_message_tool_calls(span):
         ),
     ]
     assert set(map(MessageToJson, otlp_span.attributes)) == set(map(MessageToJson, otlp_attributes))
-    decoded_span = decode(otlp_span)
+    decoded_span = decode_otlp_span(otlp_span)
     assert decoded_span.attributes[LLM_OUTPUT_MESSAGES] == span.attributes[LLM_OUTPUT_MESSAGES]
 
 
 def test_decode_encode_llm_prompt_template_variables(span):
     attributes = {LLM_PROMPT_TEMPLATE_VARIABLES: {"context_str": "123", "query_str": "321"}}
     span = replace(span, attributes=attributes)
-    otlp_span = encode(span)
+    otlp_span = encode_span_to_otlp(span)
     otlp_attributes = [
         KeyValue(
             key=OPENINFERENCE_SPAN_KIND,
@@ -403,7 +409,7 @@ def test_decode_encode_llm_prompt_template_variables(span):
         ),
     ]
     assert set(map(MessageToJson, otlp_span.attributes)) == set(map(MessageToJson, otlp_attributes))
-    decoded_span = decode(otlp_span)
+    decoded_span = decode_otlp_span(otlp_span)
     assert (
         decoded_span.attributes[LLM_PROMPT_TEMPLATE_VARIABLES]
         == span.attributes[LLM_PROMPT_TEMPLATE_VARIABLES]
@@ -423,7 +429,7 @@ def test_decode_encode_tool_parameters(span):
         }
     }
     span = replace(span, attributes=attributes)
-    otlp_span = encode(span)
+    otlp_span = encode_span_to_otlp(span)
     otlp_attributes = [
         KeyValue(
             key=OPENINFERENCE_SPAN_KIND,
@@ -435,7 +441,7 @@ def test_decode_encode_tool_parameters(span):
         ),
     ]
     assert set(map(MessageToJson, otlp_span.attributes)) == set(map(MessageToJson, otlp_attributes))
-    decoded_span = decode(otlp_span)
+    decoded_span = decode_otlp_span(otlp_span)
     assert decoded_span.attributes[TOOL_PARAMETERS] == span.attributes[TOOL_PARAMETERS]
 
 
