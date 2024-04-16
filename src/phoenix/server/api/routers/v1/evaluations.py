@@ -29,7 +29,12 @@ from phoenix.core.traces import Traces
 from phoenix.db import models
 from phoenix.server.api.routers.utils import table_to_bytes
 from phoenix.session.evaluation import encode_evaluations
-from phoenix.trace.span_evaluations import Evaluations, SpanEvaluations, TraceEvaluations
+from phoenix.trace.span_evaluations import (
+    DocumentEvaluations,
+    Evaluations,
+    SpanEvaluations,
+    TraceEvaluations,
+)
 from phoenix.utilities.async_helpers import achain
 
 EvaluationName: TypeAlias = str
@@ -135,12 +140,18 @@ async def get_evaluations(request: Request) -> Response:
             _read_sql_trace_evaluations_into_dataframe,
             project_name,
         )
-    if trace_evals_dataframe.empty and span_evals_dataframe.empty:
+        document_evals_dataframe = await connection.run_sync(
+            _read_sql_document_evaluations_into_dataframe,
+            project_name,
+        )
+    if trace_evals_dataframe.empty and span_evals_dataframe.empty and not document_evals_dataframe:
         return Response(status_code=HTTP_404_NOT_FOUND)
 
     return StreamingResponse(
         content=achain(
-            _trace_evals_bytes(trace_evals_dataframe), _span_evals_bytes(span_evals_dataframe)
+            _trace_evals_bytes(trace_evals_dataframe),
+            _span_evals_bytes(span_evals_dataframe),
+            _document_evals_bytes(document_evals_dataframe),
         ),
         media_type="application/x-pandas-arrow",
     )
@@ -232,6 +243,38 @@ def _read_sql_span_evaluations_into_dataframe(
     )
 
 
+def _read_sql_document_evaluations_into_dataframe(
+    connectable: Connectable,
+    project_name: str,
+) -> DataFrame:
+    """
+    This function inputs a synchronous connection to pandas.read_sql since
+    it does not support async connections.
+
+    For more information, see:
+
+    https://stackoverflow.com/questions/70848256/how-can-i-use-pandas-read-sql-on-an-async-connection
+    """
+    return pd.read_sql(
+        select(
+            models.DocumentAnnotation,
+            models.DocumentAnnotation.document_index.label("document_position"),
+            models.Span.span_id,
+        )
+        .join(models.Span)
+        .join(models.Trace)
+        .join(models.Project)
+        .where(
+            and_(
+                models.Project.name == project_name,
+                models.SpanAnnotation.annotator_kind == "LLM",
+            )
+        ),
+        connectable,
+        index_col=["span_id", "document_position"],
+    )
+
+
 async def _trace_evals_bytes(trace_evals_dataframe: DataFrame) -> AsyncIterator[bytes]:
     """
     Converts a trace evaluations dataframe into a pyarrow bytestream.
@@ -257,4 +300,20 @@ async def _span_evals_bytes(span_evals_dataframe: DataFrame) -> AsyncIterator[by
         span_evals = SpanEvaluations(str(span_eval_name), span_evals_dataframe_for_name)
         yield await loop.run_in_executor(
             None, lambda: table_to_bytes(span_evals.to_pyarrow_table())
+        )
+
+
+async def _document_evals_bytes(document_evals_dataframe: DataFrame) -> AsyncIterator[bytes]:
+    """
+    Converts a document evaluations dataframe into a pyarrow bytestream.
+    """
+    loop = asyncio.get_running_loop()
+    for document_eval_name, document_evals_dataframe_for_name in document_evals_dataframe.groupby(
+        "name", as_index=False
+    ):
+        document_evals = DocumentEvaluations(
+            str(document_eval_name), document_evals_dataframe_for_name
+        )
+        yield await loop.run_in_executor(
+            None, lambda: table_to_bytes(document_evals.to_pyarrow_table())
         )
