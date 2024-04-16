@@ -85,9 +85,9 @@ class BulkInserter:
             # no race condition, since an eval insertion will fail if the span
             # it references doesn't exist.
             spans, self._spans = self._spans, []
-            evals, self._evaluations = self._evaluations, []
+            evaluations, self._evaluations = self._evaluations, []
             await self._insert_spans(spans)
-            await self._insert_evaluations(evals)
+            await self._insert_evaluations(evaluations)
 
     async def _insert_spans(self, spans: List[Tuple[Span, str]]) -> None:
         for i in range(0, len(spans), self._max_num_per_transaction):
