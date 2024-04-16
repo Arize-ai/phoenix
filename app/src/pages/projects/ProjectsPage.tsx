@@ -6,19 +6,13 @@ import { css } from "@emotion/react";
 import {
   Flex,
   Heading,
-  Icon,
-  Icons,
-  Item,
-  Picker,
   Text,
-  Tooltip,
-  TooltipTrigger,
-  TriggerWrap,
   useNotification,
   View,
 } from "@arizeai/components";
 
 import { Link } from "@phoenix/components";
+import { LastNTimeRangePicker } from "@phoenix/components/datetime/LastNTimeRangePicker";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { useInterval } from "@phoenix/hooks/useInterval";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -129,16 +123,7 @@ export function ProjectsPageContent({
         borderBottomWidth="thin"
       >
         <Flex direction="row" justifyContent="end">
-          <Picker
-            aria-label={"Time Range"}
-            addonBefore={<Icon svg={<Icons.CalendarOutline />} />}
-            isDisabled
-            defaultSelectedKey={"7d"}
-          >
-            <Item key="7d">Last 7 Days</Item>
-            <Item key="30d">Last Month</Item>
-            <Item key="90d">All Time</Item>
-          </Picker>
+          <LastNTimeRangePicker isDisabled selectedKey="7d" />
         </Flex>
       </View>
       <View padding="size-200" width="100%">

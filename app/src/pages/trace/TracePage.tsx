@@ -70,8 +70,8 @@ import { useTheme } from "@phoenix/contexts";
 import {
   ConnectedMarkdownBlock,
   MarkdownDisplayProvider,
-} from "@phoenix/markdown";
-import { ConnectedMarkdownModeRadioGroup } from "@phoenix/markdown/MarkdownModeRadioGroup";
+} from "@phoenix/components/markdown";
+import { ConnectedMarkdownModeRadioGroup } from "@phoenix/components/markdown/MarkdownModeRadioGroup";
 import {
   AttributeDocument,
   AttributeEmbedding,
