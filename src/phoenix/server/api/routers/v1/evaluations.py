@@ -126,8 +126,15 @@ async def get_evaluations(request: Request) -> Response:
     db: Callable[[], AsyncContextManager[AsyncSession]] = request.app.state.db
     async with db() as session:
         span_evaluation_names = await session.scalars(
-            select(distinct(models.SpanAnnotation.name)).where(
-                models.SpanAnnotation.annotator_kind == "LLM"
+            select(distinct(models.SpanAnnotation.name))
+            .join(models.Span)
+            .join(models.Trace)
+            .join(models.Project)
+            .where(
+                and_(
+                    models.Project.name == project_name,
+                    models.SpanAnnotation.annotator_kind == "LLM",
+                )
             )
         )
     if not span_evaluation_names:
