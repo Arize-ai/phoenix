@@ -59,6 +59,11 @@ import {
 } from "@arizeai/openinference-semantic-conventions";
 
 import { CopyToClipboardButton, ExternalLink } from "@phoenix/components";
+import {
+  ConnectedMarkdownBlock,
+  MarkdownDisplayProvider,
+} from "@phoenix/components/markdown";
+import { ConnectedMarkdownModeRadioGroup } from "@phoenix/components/markdown/MarkdownModeRadioGroup";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanItem } from "@phoenix/components/trace/SpanItem";
@@ -67,11 +72,6 @@ import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
 import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
 import { useTheme } from "@phoenix/contexts";
-import {
-  ConnectedMarkdownBlock,
-  MarkdownDisplayProvider,
-} from "@phoenix/markdown";
-import { ConnectedMarkdownModeRadioGroup } from "@phoenix/markdown/MarkdownModeRadioGroup";
 import {
   AttributeDocument,
   AttributeEmbedding,

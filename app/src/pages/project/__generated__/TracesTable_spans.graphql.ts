@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5552d5a646c3a00133b02d98a0386b21>>
+ * @generated SignedSource<<c169f46993fce2002c3236c00702e8fd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -280,6 +280,10 @@ return {
       },
       "kind": "LocalArgument",
       "name": "sort"
+    },
+    {
+      "kind": "RootArgument",
+      "name": "timeRange"
     }
   ],
   "kind": "Fragment",
@@ -335,6 +339,11 @@ return {
           "kind": "Variable",
           "name": "sort",
           "variableName": "sort"
+        },
+        {
+          "kind": "Variable",
+          "name": "timeRange",
+          "variableName": "timeRange"
         }
       ],
       "concreteType": "SpanConnection",
@@ -512,6 +521,6 @@ return {
 };
 })();
 
-(node as any).hash = "2c5b460cc9157d7c5b5ba4b479fbf9ef";
+(node as any).hash = "14afe3462661af191be17a155b27e068";
 
 export default node;

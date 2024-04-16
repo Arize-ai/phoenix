@@ -11,6 +11,7 @@ import {
   View,
 } from "@arizeai/components";
 
+import { useLastNTimeRange } from "@phoenix/components/datetime";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
@@ -25,21 +26,27 @@ export function DocumentEvaluationSummary({
   evaluationName,
 }: DocumentEvaluationSummaryProps) {
   const { projectId } = useParams();
+  const { timeRange } = useLastNTimeRange();
   const data = useLazyLoadQuery<DocumentEvaluationSummaryQuery>(
     graphql`
       query DocumentEvaluationSummaryQuery(
         $evaluationName: String!
         $id: GlobalID!
+        $timeRange: TimeRange!
       ) {
         project: node(id: $id) {
           ...DocumentEvaluationSummaryValueFragment
-            @arguments(evaluationName: $evaluationName)
+            @arguments(evaluationName: $evaluationName, timeRange: $timeRange)
         }
       }
     `,
     {
       id: projectId as string,
       evaluationName,
+      timeRange: {
+        start: timeRange.start.toISOString(),
+        end: timeRange.end.toISOString(),
+      },
     }
   );
   return (
@@ -70,8 +77,14 @@ function EvaluationSummaryValue(props: {
     graphql`
       fragment DocumentEvaluationSummaryValueFragment on Project
       @refetchable(queryName: "DocumentEvaluationSummaryValueQuery")
-      @argumentDefinitions(evaluationName: { type: "String!" }) {
-        documentEvaluationSummary(evaluationName: $evaluationName) {
+      @argumentDefinitions(
+        evaluationName: { type: "String!" }
+        timeRange: { type: "TimeRange!" }
+      ) {
+        documentEvaluationSummary(
+          evaluationName: $evaluationName
+          timeRange: $timeRange
+        ) {
           averageNdcg
           averagePrecision
           meanReciprocalRank

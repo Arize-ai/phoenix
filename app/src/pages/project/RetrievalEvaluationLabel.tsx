@@ -40,7 +40,7 @@ export function RetrievalEvaluationLabel(props: RetrievalEvaluationLabelProps) {
     if (metric === "hit") {
       return score ? "true" : "false";
     }
-    return (typeof score == "number" && formatFloat(score)) || "n/a";
+    return (typeof score == "number" && formatFloat(score)) || "--";
   }, [score, metric]);
   return (
     <TooltipTrigger delay={500} offset={3}>
