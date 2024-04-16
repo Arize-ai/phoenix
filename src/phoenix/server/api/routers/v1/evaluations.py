@@ -1,9 +1,16 @@
 import asyncio
 import gzip
-from typing import AsyncIterator
+from typing import AsyncContextManager, AsyncIterator, Callable, Dict
 
+import pandas as pd
 import pyarrow as pa
 from google.protobuf.message import DecodeError
+from pandas import DataFrame
+from sqlalchemy import and_, distinct, select
+from sqlalchemy.engine import Connectable
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+)
 from starlette.background import BackgroundTask
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -14,13 +21,17 @@ from starlette.status import (
     HTTP_415_UNSUPPORTED_MEDIA_TYPE,
     HTTP_422_UNPROCESSABLE_ENTITY,
 )
+from typing_extensions import TypeAlias
 
 import phoenix.trace.v1 as pb
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.core.traces import Traces
+from phoenix.db import models
 from phoenix.server.api.routers.utils import table_to_bytes
 from phoenix.session.evaluation import encode_evaluations
-from phoenix.trace.span_evaluations import Evaluations
+from phoenix.trace.span_evaluations import Evaluations, SpanEvaluations
+
+EvaluationName: TypeAlias = str
 
 
 async def post_evaluations(request: Request) -> Response:
@@ -105,25 +116,71 @@ async def get_evaluations(request: Request) -> Response:
       404:
         description: Not found
     """
-    traces: Traces = request.app.state.traces
     project_name = (
         request.query_params.get("project-name")
         # read from headers for backwards compatibility
         or request.headers.get("project-name")
         or DEFAULT_PROJECT_NAME
     )
-    project = traces.get_project(project_name)
-    if not project:
-        return Response(status_code=HTTP_404_NOT_FOUND)
-    loop = asyncio.get_running_loop()
-    results = await loop.run_in_executor(None, project.export_evaluations)
-    if not results:
+
+    db: Callable[[], AsyncContextManager[AsyncSession]] = request.app.state.db
+    async with db() as session:
+        span_evaluation_names = await session.scalars(
+            select(distinct(models.SpanAnnotation.name)).where(
+                models.SpanAnnotation.annotator_kind == "LLM"
+            )
+        )
+    if not span_evaluation_names:
         return Response(status_code=HTTP_404_NOT_FOUND)
 
+    def read_sql_span_evaluations_into_dataframe(
+        connectable: Connectable,
+        evaluation_name: str,
+    ) -> DataFrame:
+        """
+        This function inputs a synchronous connection to pandas.read_sql since
+        it does not support async connections.
+
+        For more information, see:
+
+        https://stackoverflow.com/questions/70848256/how-can-i-use-pandas-read-sql-on-an-async-connection
+        """
+        return pd.read_sql(
+            select(models.SpanAnnotation, models.Span.span_id.label("span_id"))
+            .join(models.Span)
+            .join(models.Trace)
+            .join(models.Project)
+            .where(
+                and_(
+                    models.Project.name == project_name,
+                    models.SpanAnnotation.name == evaluation_name,
+                    models.SpanAnnotation.annotator_kind == "LLM",
+                )
+            ),
+            connectable,
+            index_col="span_id",
+        )
+
+    async with db() as session:
+        connection = await session.connection()
+        evaluation_dataframes: Dict[EvaluationName, DataFrame] = {}
+        for evaluation_name in span_evaluation_names:
+            evaluation_dataframe = await connection.run_sync(
+                read_sql_span_evaluations_into_dataframe, evaluation_name
+            )
+            if not evaluation_dataframe.empty:
+                evaluation_dataframes[evaluation_name] = evaluation_dataframe
+
+    if not evaluation_dataframes:
+        return Response(status_code=HTTP_404_NOT_FOUND)
+
+    loop = asyncio.get_running_loop()
+
     async def content() -> AsyncIterator[bytes]:
-        for result in results:
+        for evaluation_name, evaluation_dataframe in evaluation_dataframes.items():
+            span_evaluations = SpanEvaluations(evaluation_name, evaluation_dataframe)
             yield await loop.run_in_executor(
-                None, lambda: table_to_bytes(result.to_pyarrow_table())
+                None, lambda: table_to_bytes(span_evaluations.to_pyarrow_table())
             )
 
     return StreamingResponse(content=content(), media_type="application/x-pandas-arrow")

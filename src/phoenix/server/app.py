@@ -304,4 +304,5 @@ def create_app(
     app.state.traces = traces
     app.state.store = span_store
     app.state.read_only = read_only
+    app.state.db = db
     return app
