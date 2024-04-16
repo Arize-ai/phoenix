@@ -25,7 +25,7 @@ from phoenix.config import (
 from phoenix.session.data_extractor import TraceDataExtractor
 from phoenix.trace import Evaluations, TraceDataset
 from phoenix.trace.dsl import SpanQuery
-from phoenix.trace.otel import encode
+from phoenix.trace.otel import encode_span_to_otlp
 
 logger = logging.getLogger(__name__)
 
@@ -200,6 +200,19 @@ class Client(TraceDataExtractor):
             ).raise_for_status()
 
     def log_traces(self, trace_dataset: TraceDataset, project_name: Optional[str] = None) -> None:
+        """
+        Logs traces from a TraceDataset to the Phoenix server.
+
+        Args:
+            trace_dataset (TraceDataset): A TraceDataset instance with the traces to log to
+                the Phoenix server.
+            project_name (str, optional): The project name under which to log the evaluations.
+                This can be set using environment variables. If not provided, falls back to the
+                default project.
+
+        Returns:
+            None
+        """
         project_name = project_name or get_env_project_name()
         spans = trace_dataset.to_spans()
         otlp_spans = [
@@ -214,7 +227,7 @@ class Client(TraceDataExtractor):
                                 )
                             ]
                         ),
-                        scope_spans=[ScopeSpans(spans=[encode(span)])],
+                        scope_spans=[ScopeSpans(spans=[encode_span_to_otlp(span)])],
                     )
                 ],
             )
