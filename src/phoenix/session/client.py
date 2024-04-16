@@ -138,7 +138,7 @@ class Client(TraceDataExtractor):
             return session.get_evaluations(project_name=project_name)
         response = self._session.get(
             urljoin(self._base_url, "/v1/evaluations"),
-            params={"project-name": project_name},
+            params={"project_name": project_name},
         )
         if response.status_code == 404:
             logger.info("No evaluations found.")
