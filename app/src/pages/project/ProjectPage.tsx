@@ -48,7 +48,7 @@ export function ProjectPage() {
   const { timeRange } = useLastNTimeRange();
   return (
     <Suspense fallback={<Loading />}>
-      <ProjectPagContent
+      <ProjectPageContent
         projectId={projectId as string}
         timeRange={timeRange}
       />
@@ -56,7 +56,7 @@ export function ProjectPage() {
   );
 }
 
-export function ProjectPagContent({
+export function ProjectPageContent({
   projectId,
   timeRange,
 }: {
