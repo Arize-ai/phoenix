@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<60ee6d98e42b7ed3d5b54cd1ea624235>>
+ * @generated SignedSource<<31ebed06492b7a61c472a7beb0be14a9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -25,8 +25,22 @@ export type ProjectPageHeader_stats$key = {
   readonly " $fragmentSpreads": FragmentRefs<"ProjectPageHeader_stats">;
 };
 
-const node: ReaderFragment = {
-  "argumentDefinitions": [],
+const node: ReaderFragment = (function(){
+var v0 = {
+  "kind": "Variable",
+  "name": "timeRange",
+  "variableName": "timeRange"
+},
+v1 = [
+  (v0/*: any*/)
+];
+return {
+  "argumentDefinitions": [
+    {
+      "kind": "RootArgument",
+      "name": "timeRange"
+    }
+  ],
   "kind": "Fragment",
   "metadata": {
     "refetch": {
@@ -45,14 +59,14 @@ const node: ReaderFragment = {
   "selections": [
     {
       "alias": null,
-      "args": null,
+      "args": (v1/*: any*/),
       "kind": "ScalarField",
       "name": "traceCount",
       "storageKey": null
     },
     {
       "alias": null,
-      "args": null,
+      "args": (v1/*: any*/),
       "kind": "ScalarField",
       "name": "tokenCountTotal",
       "storageKey": null
@@ -64,11 +78,12 @@ const node: ReaderFragment = {
           "kind": "Literal",
           "name": "probability",
           "value": 0.5
-        }
+        },
+        (v0/*: any*/)
       ],
       "kind": "ScalarField",
       "name": "latencyMsQuantile",
-      "storageKey": "latencyMsQuantile(probability:0.5)"
+      "storageKey": null
     },
     {
       "alias": "latencyMsP99",
@@ -77,11 +92,12 @@ const node: ReaderFragment = {
           "kind": "Literal",
           "name": "probability",
           "value": 0.99
-        }
+        },
+        (v0/*: any*/)
       ],
       "kind": "ScalarField",
       "name": "latencyMsQuantile",
-      "storageKey": "latencyMsQuantile(probability:0.99)"
+      "storageKey": null
     },
     {
       "alias": null,
@@ -108,7 +124,8 @@ const node: ReaderFragment = {
   "type": "Project",
   "abstractKey": null
 };
+})();
 
-(node as any).hash = "9d1c4be9bade9017039ac1969a3cda40";
+(node as any).hash = "22a98df993a4375f85851e92f6844c09";
 
 export default node;

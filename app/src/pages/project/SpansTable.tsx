@@ -81,6 +81,7 @@ export function SpansTable(props: SpansTableProps) {
             after: $after
             sort: $sort
             filterCondition: $filterCondition
+            timeRange: $timeRange
           ) @connection(key: "SpansTable_spans") {
             edges {
               span: node {

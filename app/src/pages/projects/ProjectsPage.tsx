@@ -11,8 +11,11 @@ import {
   View,
 } from "@arizeai/components";
 
-import { Link } from "@phoenix/components";
-import { LastNTimeRangePicker } from "@phoenix/components/datetime/LastNTimeRangePicker";
+import { Link, Loading } from "@phoenix/components";
+import {
+  ConnectedLastNTimeRangePicker,
+  useLastNTimeRange,
+} from "@phoenix/components/datetime";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { useInterval } from "@phoenix/hooks/useInterval";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -26,32 +29,26 @@ import { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
 import { ProjectActionMenu } from "./ProjectActionMenu";
 
 const REFRESH_INTERVAL_MS = 10000;
-const LOOKBACK_DAYS = 7;
 
 export function ProjectsPage() {
-  const timeRange = useMemo(() => {
-    // Create a time range for the past 7 days
-    // Artificially set the end time to far in the future so that it is ostensibly is "current"
-    const now = Date.now();
-    return {
-      start: subDays(now, LOOKBACK_DAYS).toISOString(),
-      end: addDays(now, 365).toISOString(),
-    };
-  }, []);
+  const { timeRange } = useLastNTimeRange();
 
   return (
-    <Suspense>
+    <Suspense fallback={<Loading />}>
       <ProjectsPageContent timeRange={timeRange} />
     </Suspense>
   );
 }
 
-export function ProjectsPageContent({
-  timeRange,
-}: {
-  timeRange: { start: string; end: string };
-}) {
+export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
   const [notify, holder] = useNotification();
+  // Convert the time range to a variable that can be used in the query
+  const timeRangeVariable = useMemo(() => {
+    return {
+      start: timeRange.start.toISOString(),
+      end: timeRange.end.toISOString(),
+    };
+  }, [timeRange]);
 
   const data = useLazyLoadQuery<ProjectsPageQuery>(
     graphql`
@@ -60,7 +57,7 @@ export function ProjectsPageContent({
       }
     `,
     {
-      timeRange,
+      timeRange: timeRangeVariable,
     }
   );
   const [projectsData, refetch] = useRefetchableFragment<
@@ -93,7 +90,7 @@ export function ProjectsPageContent({
 
   useInterval(() => {
     startTransition(() => {
-      // refetch({}, { fetchPolicy: "store-and-network" });
+      refetch({}, { fetchPolicy: "store-and-network" });
     });
   }, REFRESH_INTERVAL_MS);
 
@@ -123,7 +120,7 @@ export function ProjectsPageContent({
         borderBottomWidth="thin"
       >
         <Flex direction="row" justifyContent="end">
-          <LastNTimeRangePicker isDisabled selectedKey="7d" />
+          <ConnectedLastNTimeRangePicker />
         </Flex>
       </View>
       <View padding="size-200" width="100%">
