@@ -224,7 +224,8 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
     return compiler.process(
         # FIXME: We don't know why sqlite returns a slightly different value.
         # postgresql is correct because it matches the value computed by Python.
-        (func.unixepoch(end_time, "subsec") - func.unixepoch(start_time, "subsec")) * 1000,
+        # unixepoch() gives the same results.
+        (func.julianday(end_time) - func.julianday(start_time)) * 86_400_000,
         **kw,
     )
 
