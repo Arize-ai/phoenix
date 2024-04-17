@@ -17,6 +17,7 @@ import {
   ChartTooltipItem,
   useChartColors,
 } from "@phoenix/components/chart";
+import { useLastNTimeRange } from "@phoenix/components/datetime";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { formatFloat, formatPercent } from "@phoenix/utils/numberFormatUtils";
 
@@ -28,18 +29,27 @@ type EvaluationSummaryProps = {
 };
 export function EvaluationSummary({ evaluationName }: EvaluationSummaryProps) {
   const { projectId } = useParams();
+  const { timeRange } = useLastNTimeRange();
   const data = useLazyLoadQuery<EvaluationSummaryQuery>(
     graphql`
-      query EvaluationSummaryQuery($id: GlobalID!, $evaluationName: String!) {
+      query EvaluationSummaryQuery(
+        $id: GlobalID!
+        $evaluationName: String!
+        $timeRange: TimeRange!
+      ) {
         project: node(id: $id) {
           ...EvaluationSummaryValueFragment
-            @arguments(evaluationName: $evaluationName)
+            @arguments(evaluationName: $evaluationName, timeRange: $timeRange)
         }
       }
     `,
     {
       evaluationName,
       id: projectId as string,
+      timeRange: {
+        start: timeRange.start.toISOString(),
+        end: timeRange.end.toISOString(),
+      },
     }
   );
   return (
@@ -70,8 +80,14 @@ function EvaluationSummaryValue(props: {
     graphql`
       fragment EvaluationSummaryValueFragment on Project
       @refetchable(queryName: "EvaluationSummaryValueQuery")
-      @argumentDefinitions(evaluationName: { type: "String!" }) {
-        spanEvaluationSummary(evaluationName: $evaluationName) {
+      @argumentDefinitions(
+        evaluationName: { type: "String!" }
+        timeRange: { type: "TimeRange!" }
+      ) {
+        spanEvaluationSummary(
+          evaluationName: $evaluationName
+          timeRange: $timeRange
+        ) {
           labelFractions {
             label
             fraction

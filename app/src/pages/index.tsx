@@ -8,3 +8,5 @@ export * from "./Layout";
 export * from "./ErrorElement";
 export * from "./ModelRoot";
 export * from "./TracingRoot";
+export * from "./ProjectsRoot";
+export * from "./projects";

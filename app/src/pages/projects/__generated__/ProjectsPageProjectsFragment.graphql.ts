@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0e05e4abf89531516363c1b9be78fc68>>
+ * @generated SignedSource<<260c2f50f9cb857944f365304ec667e3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -30,8 +30,22 @@ export type ProjectsPageProjectsFragment$key = {
   readonly " $fragmentSpreads": FragmentRefs<"ProjectsPageProjectsFragment">;
 };
 
-const node: ReaderFragment = {
-  "argumentDefinitions": [],
+const node: ReaderFragment = (function(){
+var v0 = {
+  "kind": "Variable",
+  "name": "timeRange",
+  "variableName": "timeRange"
+},
+v1 = [
+  (v0/*: any*/)
+];
+return {
+  "argumentDefinitions": [
+    {
+      "kind": "RootArgument",
+      "name": "timeRange"
+    }
+  ],
   "kind": "Fragment",
   "metadata": {
     "refetch": {
@@ -82,7 +96,7 @@ const node: ReaderFragment = {
                 },
                 {
                   "alias": null,
-                  "args": null,
+                  "args": (v1/*: any*/),
                   "kind": "ScalarField",
                   "name": "traceCount",
                   "storageKey": null
@@ -101,15 +115,16 @@ const node: ReaderFragment = {
                       "kind": "Literal",
                       "name": "probability",
                       "value": 0.5
-                    }
+                    },
+                    (v0/*: any*/)
                   ],
                   "kind": "ScalarField",
                   "name": "latencyMsQuantile",
-                  "storageKey": "latencyMsQuantile(probability:0.5)"
+                  "storageKey": null
                 },
                 {
                   "alias": null,
-                  "args": null,
+                  "args": (v1/*: any*/),
                   "kind": "ScalarField",
                   "name": "tokenCountTotal",
                   "storageKey": null
@@ -127,7 +142,8 @@ const node: ReaderFragment = {
   "type": "Query",
   "abstractKey": null
 };
+})();
 
-(node as any).hash = "b5474884a04e0ab5cfe6e8662450c2e5";
+(node as any).hash = "80cfac4a7e56fc862924dce5da4ed971";
 
 export default node;

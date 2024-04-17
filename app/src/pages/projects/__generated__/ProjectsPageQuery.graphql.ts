@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ea653eac0415a464a1ceb49f5875a66b>>
+ * @generated SignedSource<<9258370758fe1af08d6cb85665285247>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,13 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type ProjectsPageQuery$variables = Record<PropertyKey, never>;
+export type TimeRange = {
+  end: string;
+  start: string;
+};
+export type ProjectsPageQuery$variables = {
+  timeRange: TimeRange;
+};
 export type ProjectsPageQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"ProjectsPageProjectsFragment">;
 };
@@ -19,9 +25,25 @@ export type ProjectsPageQuery = {
   variables: ProjectsPageQuery$variables;
 };
 
-const node: ConcreteRequest = {
+const node: ConcreteRequest = (function(){
+var v0 = [
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "timeRange"
+  }
+],
+v1 = {
+  "kind": "Variable",
+  "name": "timeRange",
+  "variableName": "timeRange"
+},
+v2 = [
+  (v1/*: any*/)
+];
+return {
   "fragment": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "ProjectsPageQuery",
@@ -37,7 +59,7 @@ const node: ConcreteRequest = {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "ProjectsPageQuery",
     "selections": [
@@ -81,7 +103,7 @@ const node: ConcreteRequest = {
                   },
                   {
                     "alias": null,
-                    "args": null,
+                    "args": (v2/*: any*/),
                     "kind": "ScalarField",
                     "name": "traceCount",
                     "storageKey": null
@@ -100,15 +122,16 @@ const node: ConcreteRequest = {
                         "kind": "Literal",
                         "name": "probability",
                         "value": 0.5
-                      }
+                      },
+                      (v1/*: any*/)
                     ],
                     "kind": "ScalarField",
                     "name": "latencyMsQuantile",
-                    "storageKey": "latencyMsQuantile(probability:0.5)"
+                    "storageKey": null
                   },
                   {
                     "alias": null,
-                    "args": null,
+                    "args": (v2/*: any*/),
                     "kind": "ScalarField",
                     "name": "tokenCountTotal",
                     "storageKey": null
@@ -125,15 +148,16 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "28f9e8120b370aeaea11dc87f747e6bc",
+    "cacheID": "991909413909af281a75c58c2cd6996b",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageQuery {\n  ...ProjectsPageProjectsFragment\n}\n\nfragment ProjectsPageProjectsFragment on Query {\n  projects {\n    edges {\n      project: node {\n        id\n        name\n        traceCount\n        endTime\n        latencyMsP50: latencyMsQuantile(probability: 0.5)\n        tokenCountTotal\n      }\n    }\n  }\n}\n"
+    "text": "query ProjectsPageQuery(\n  $timeRange: TimeRange!\n) {\n  ...ProjectsPageProjectsFragment\n}\n\nfragment ProjectsPageProjectsFragment on Query {\n  projects {\n    edges {\n      project: node {\n        id\n        name\n        traceCount(timeRange: $timeRange)\n        endTime\n        latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n        tokenCountTotal(timeRange: $timeRange)\n      }\n    }\n  }\n}\n"
   }
 };
+})();
 
-(node as any).hash = "9091622e2fc47fff9434aeb3407882d4";
+(node as any).hash = "c28f5ced0b3ec4b3b8277d0aac29de2d";
 
 export default node;

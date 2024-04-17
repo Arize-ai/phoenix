@@ -11,7 +11,7 @@ import { Logo } from "./Logo";
 const topNavCSS = css`
   padding: var(--px-spacing-med) var(--px-spacing-med) var(--px-spacing-med)
     12px;
-  border-bottom: 1px solid var(--ac-global-color-grey-100);
+  border-bottom: 1px solid var(--ac-global-color-grey-200);
   flex: none;
   display: flex;
   flex-direction: row;

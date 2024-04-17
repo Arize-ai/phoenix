@@ -113,6 +113,7 @@ export function TracesTable(props: TracesTableProps) {
             sort: $sort
             rootSpansOnly: true
             filterCondition: $filterCondition
+            timeRange: $timeRange
           ) @connection(key: "TracesTable_rootSpans") {
             edges {
               rootSpan: node {
