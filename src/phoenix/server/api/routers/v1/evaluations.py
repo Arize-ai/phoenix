@@ -131,12 +131,12 @@ async def get_evaluations(request: Request) -> Response:
     db: Callable[[], AsyncContextManager[AsyncSession]] = request.app.state.db
     async with db() as session:
         connection = await session.connection()
-        span_evals_dataframe = await connection.run_sync(
-            _read_sql_span_evaluations_into_dataframe,
-            project_name,
-        )
         trace_evals_dataframe = await connection.run_sync(
             _read_sql_trace_evaluations_into_dataframe,
+            project_name,
+        )
+        span_evals_dataframe = await connection.run_sync(
+            _read_sql_span_evaluations_into_dataframe,
             project_name,
         )
         document_evals_dataframe = await connection.run_sync(
