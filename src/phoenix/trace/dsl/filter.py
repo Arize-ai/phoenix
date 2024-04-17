@@ -380,7 +380,24 @@ class _Translator(ast.NodeTransformer):
         source_segment = typing.cast(str, ast.get_source_segment(self._source, node))
         if source_segment in _STRING_NAMES or source_segment in _FLOAT_NAMES:
             return node
-        raise SyntaxError(f"invalid expression: {source_segment}")
+        name = source_segment
+        attr = "as_float" if name in _FLOAT_ATTRIBUTES else "as_string"
+        elts = [ast.Constant(value=name, kind=None)]
+        return ast.Call(
+            func=ast.Attribute(
+                value=ast.Subscript(
+                    value=ast.Name(id="attributes", ctx=ast.Load()),
+                    slice=ast.List(elts=elts, ctx=ast.Load())
+                    if sys.version_info >= (3, 9)
+                    else ast.Index(value=ast.List(elts=elts, ctx=ast.Load())),
+                    ctx=ast.Load(),
+                ),
+                attr=attr,
+                ctx=ast.Load(),
+            ),
+            args=[],
+            keywords=[],
+        )
 
     def visit_Subscript(self, node: ast.Subscript) -> typing.Any:
         if _is_metadata(node):

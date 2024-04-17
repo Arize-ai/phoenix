@@ -111,6 +111,24 @@ def test_select(session: Session) -> None:
     del sq, actual, expected
 
 
+def test_select_nonexistent(session: Session) -> None:
+    sq = SpanQuery().select("name", "opq", "opq.rst")
+    expected = pd.DataFrame(
+        {
+            "context.span_id": ["234", "345", "456", "567"],
+            "name": ["root span", "embedding span", "retriever span", "llm span"],
+            "opq": [None, None, None, None],
+            "opq.rst": [None, None, None, None],
+        }
+    ).set_index("context.span_id")
+    actual = sq(session, project_name="abc")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+    del sq, actual, expected
+
+
 def test_default_project(session: Session) -> None:
     sq = SpanQuery().select(
         "name",
@@ -241,18 +259,14 @@ def test_filter_for_none(session: Session) -> None:
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
-        check_dtype=False,
-        check_column_type=False,
-        check_frame_type=False,
-        check_index_type=False,
     )
     del sq, actual, expected
 
 
-def test_filter_on_substring(session: Session) -> None:
+def test_filter_for_substring(session: Session) -> None:
     sq = (
         SpanQuery()
-        .select("name")
+        .select("input.value")
         .where(
             "'y' in input.value",
         )
@@ -260,7 +274,7 @@ def test_filter_on_substring(session: Session) -> None:
     expected = pd.DataFrame(
         {
             "context.span_id": ["456"],
-            "name": ["retriever span"],
+            "input.value": ["xyz"],
         }
     ).set_index("context.span_id")
     actual = sq(session, project_name="abc")
@@ -272,7 +286,7 @@ def test_filter_on_substring(session: Session) -> None:
 
     sq = (
         SpanQuery()
-        .select("name")
+        .select("input.value")
         .where(
             "'y' not in input.value",
         )
@@ -280,7 +294,53 @@ def test_filter_on_substring(session: Session) -> None:
     expected = pd.DataFrame(
         {
             "context.span_id": ["234"],
-            "name": ["root span"],
+            "input.value": ["210"],
+        }
+    ).set_index("context.span_id")
+    actual = sq(session, project_name="abc")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+    del sq, actual, expected
+
+
+def test_filter_on_nonexistent(session: Session) -> None:
+    sq = (
+        SpanQuery()
+        .select("name")
+        .where(
+            "opq is not None or opq.rst is not None",
+        )
+    )
+    expected = pd.DataFrame(
+        {
+            "context.span_id": [],
+            "name": [],
+        }
+    ).set_index("context.span_id")
+    actual = sq(session, project_name="abc")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+        check_dtype=False,
+        check_column_type=False,
+        check_frame_type=False,
+        check_index_type=False,
+    )
+    del sq, actual, expected
+
+    sq = (
+        SpanQuery()
+        .select("name")
+        .where(
+            "opq is None or opq.rst is None",
+        )
+    )
+    expected = pd.DataFrame(
+        {
+            "context.span_id": ["234", "345", "456", "567"],
+            "name": ["root span", "embedding span", "retriever span", "llm span"],
         }
     ).set_index("context.span_id")
     actual = sq(session, project_name="abc")
