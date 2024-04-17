@@ -243,7 +243,7 @@ def create_app(
         )
     )
     initial_batch_of_evaluations = () if initial_evaluations is None else initial_evaluations
-    engine = create_engine(database)
+    engine = create_engine(database, echo=True)
     db = _db(engine)
     graphql = GraphQLWithContext(
         db=db,
@@ -301,6 +301,7 @@ def create_app(
             ),
         ],
     )
+    app.state.db = db
     app.state.traces = traces
     app.state.store = span_store
     app.state.read_only = read_only
