@@ -199,6 +199,98 @@ def test_stop_time(session: Session) -> None:
     del sq, actual, expected
 
 
+def test_filter_for_none(session: Session) -> None:
+    sq = (
+        SpanQuery()
+        .select("name")
+        .where(
+            "parent_id is None",
+        )
+    )
+    expected = pd.DataFrame(
+        {
+            "context.span_id": [],
+            "name": [],
+        }
+    ).set_index("context.span_id")
+    actual = sq(session, project_name="abc")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+        check_dtype=False,
+        check_column_type=False,
+        check_frame_type=False,
+        check_index_type=False,
+    )
+    del sq, actual, expected
+
+    sq = (
+        SpanQuery()
+        .select("name")
+        .where(
+            "output.value is not None",
+        )
+    )
+    expected = pd.DataFrame(
+        {
+            "context.span_id": ["234"],
+            "name": ["root span"],
+        }
+    ).set_index("context.span_id")
+    actual = sq(session, project_name="abc")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+        check_dtype=False,
+        check_column_type=False,
+        check_frame_type=False,
+        check_index_type=False,
+    )
+    del sq, actual, expected
+
+
+def test_filter_on_substring(session: Session) -> None:
+    sq = (
+        SpanQuery()
+        .select("name")
+        .where(
+            "'y' in input.value",
+        )
+    )
+    expected = pd.DataFrame(
+        {
+            "context.span_id": ["456"],
+            "name": ["retriever span"],
+        }
+    ).set_index("context.span_id")
+    actual = sq(session, project_name="abc")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+    del sq, actual, expected
+
+    sq = (
+        SpanQuery()
+        .select("name")
+        .where(
+            "'y' not in input.value",
+        )
+    )
+    expected = pd.DataFrame(
+        {
+            "context.span_id": ["234"],
+            "name": ["root span"],
+        }
+    ).set_index("context.span_id")
+    actual = sq(session, project_name="abc")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+    del sq, actual, expected
+
+
 def test_filter_on_latency(session: Session) -> None:
     sq = (
         SpanQuery()
@@ -228,7 +320,7 @@ def test_filter_on_metadata(session: Session) -> None:
         SpanQuery()
         .select("embedding.model_name")
         .where(
-            "metadata['a.b.c'] == 123",
+            "12 - metadata['a.b.c'] == -111",
         )
     )
     expected = pd.DataFrame(
@@ -248,7 +340,7 @@ def test_filter_on_metadata(session: Session) -> None:
         SpanQuery()
         .select("embedding.model_name")
         .where(
-            "metadata['1.2.3'] == 'abc'",
+            "'b' in metadata['1.2.3']",
         )
     )
     expected = pd.DataFrame(

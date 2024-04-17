@@ -24,7 +24,12 @@ logger = logging.getLogger(__name__)
 
 
 class Client(TraceDataExtractor):
-    def __init__(self, *, endpoint: Optional[str] = None, **kwargs: Any):
+    def __init__(
+        self,
+        *,
+        endpoint: Optional[str] = None,
+        **kwargs: Any,  # for backward-compatibility
+    ):
         """
         Client for connecting to a Phoenix server.
 
