@@ -29,6 +29,7 @@
       * [AutoGen](tracing/how-to-tracing/instrumentation/auto-instrument-python/autogen-support.md)
     * [Auto Instrument: TS](tracing/how-to-tracing/instrumentation/auto-instrument-ts/README.md)
       * [OpenAI Node SDK](tracing/how-to-tracing/instrumentation/auto-instrument-ts/openai-node-sdk.md)
+      * [LangChain.js](tracing/how-to-tracing/instrumentation/auto-instrument-ts/langchain.js.md)
   * [Manual Instrumentation](tracing/how-to-tracing/manual-instrumentation/README.md)
     * [Instrument: Python](tracing/how-to-tracing/manual-instrumentation/custom-spans.md)
     * [Instrument: TS](tracing/how-to-tracing/manual-instrumentation/javascript.md)

@@ -15,11 +15,11 @@ npm install --save @arizeai/openinference-instrumentation-openai
 To load the OpenAI instrumentation, specify it in the registerInstrumentations call along with any additional instrumentation you wish to enable.
 
 ```typescript
-const { NodeTracerProvider } = require("@opentelemetry/sdk-trace-node");
-const {
+import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
+import {
   OpenAIInstrumentation,
-} = require("@arizeai/openinference-instrumentation-openai");
-const { registerInstrumentations } = require("@opentelemetry/instrumentation");
+} from "@arizeai/openinference-instrumentation-openai";
+import { registerInstrumentations } from "@opentelemetry/instrumentation";
 
 const provider = new NodeTracerProvider();
 provider.register();
