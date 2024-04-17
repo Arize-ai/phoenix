@@ -1,6 +1,6 @@
-import asyncio
 import gzip
-from typing import AsyncContextManager, AsyncIterator, Callable
+from itertools import chain
+from typing import AsyncContextManager, Callable, Iterator, Tuple
 
 import pandas as pd
 import pyarrow as pa
@@ -29,7 +29,12 @@ from phoenix.core.traces import Traces
 from phoenix.db import models
 from phoenix.server.api.routers.utils import table_to_bytes
 from phoenix.session.evaluation import encode_evaluations
-from phoenix.trace.span_evaluations import Evaluations, SpanEvaluations
+from phoenix.trace.span_evaluations import (
+    DocumentEvaluations,
+    Evaluations,
+    SpanEvaluations,
+    TraceEvaluations,
+)
 
 EvaluationName: TypeAlias = str
 
@@ -126,25 +131,44 @@ async def get_evaluations(request: Request) -> Response:
     db: Callable[[], AsyncContextManager[AsyncSession]] = request.app.state.db
     async with db() as session:
         connection = await session.connection()
+        trace_evals_dataframe = await connection.run_sync(
+            _read_sql_trace_evaluations_into_dataframe,
+            project_name,
+        )
         span_evals_dataframe = await connection.run_sync(
             _read_sql_span_evaluations_into_dataframe,
             project_name,
         )
-    if span_evals_dataframe.empty:
+        document_evals_dataframe = await connection.run_sync(
+            _read_sql_document_evaluations_into_dataframe,
+            project_name,
+        )
+    if (
+        trace_evals_dataframe.empty
+        and span_evals_dataframe.empty
+        and document_evals_dataframe.empty
+    ):
         return Response(status_code=HTTP_404_NOT_FOUND)
 
-    loop = asyncio.get_running_loop()
-
-    async def content() -> AsyncIterator[bytes]:
-        for eval_name, span_evals_dataframe_for_name in span_evals_dataframe.groupby(
-            "name", as_index=False
-        ):
-            span_evals = SpanEvaluations(str(eval_name), span_evals_dataframe_for_name)
-            yield await loop.run_in_executor(
-                None, lambda: table_to_bytes(span_evals.to_pyarrow_table())
-            )
-
-    return StreamingResponse(content=content(), media_type="application/x-pandas-arrow")
+    evals = chain[Evaluations](
+        map(
+            lambda args: TraceEvaluations(*args),
+            _groupby_eval_name(trace_evals_dataframe),
+        ),
+        map(
+            lambda args: SpanEvaluations(*args),
+            _groupby_eval_name(span_evals_dataframe),
+        ),
+        map(
+            lambda args: DocumentEvaluations(*args),
+            _groupby_eval_name(document_evals_dataframe),
+        ),
+    )
+    bytestream = map(lambda evals: table_to_bytes(evals.to_pyarrow_table()), evals)
+    return StreamingResponse(
+        content=bytestream,
+        media_type="application/x-pandas-arrow",
+    )
 
 
 async def _process_pyarrow(request: Request, project_name: str, traces: Traces) -> Response:
@@ -178,15 +202,42 @@ async def _add_evaluations(
         traces.put(evaluation, project_name=project_name)
 
 
+def _read_sql_trace_evaluations_into_dataframe(
+    connectable: Connectable,
+    project_name: str,
+) -> DataFrame:
+    """
+    Reads a project's trace evaluations into a pandas dataframe.
+
+    Inputs a synchronous connectable to pandas.read_sql since it does not
+    support async connectables. For more information, see:
+
+    https://stackoverflow.com/questions/70848256/how-can-i-use-pandas-read-sql-on-an-async-connection
+    """
+    return pd.read_sql(
+        select(models.TraceAnnotation, models.Trace.trace_id)
+        .join(models.Trace)
+        .join(models.Project)
+        .where(
+            and_(
+                models.Project.name == project_name,
+                models.TraceAnnotation.annotator_kind == "LLM",
+            )
+        ),
+        connectable,
+        index_col="trace_id",
+    )
+
+
 def _read_sql_span_evaluations_into_dataframe(
     connectable: Connectable,
     project_name: str,
 ) -> DataFrame:
     """
-    This function inputs a synchronous connection to pandas.read_sql since
-    it does not support async connections.
+    Reads a project's span evaluations into a pandas dataframe.
 
-    For more information, see:
+    Inputs a synchronous connectable to pandas.read_sql since it does not
+    support async connectables. For more information, see:
 
     https://stackoverflow.com/questions/70848256/how-can-i-use-pandas-read-sql-on-an-async-connection
     """
@@ -204,3 +255,42 @@ def _read_sql_span_evaluations_into_dataframe(
         connectable,
         index_col="span_id",
     )
+
+
+def _read_sql_document_evaluations_into_dataframe(
+    connectable: Connectable,
+    project_name: str,
+) -> DataFrame:
+    """
+    Reads a project's document evaluations into a pandas dataframe.
+
+    Inputs a synchronous connectable to pandas.read_sql since it does not
+    support async connectables. For more information, see:
+
+    https://stackoverflow.com/questions/70848256/how-can-i-use-pandas-read-sql-on-an-async-connection
+    """
+    return pd.read_sql(
+        select(
+            models.DocumentAnnotation,
+            models.DocumentAnnotation.document_index.label("document_position"),
+            models.Span.span_id,
+        )
+        .join(models.Span)
+        .join(models.Trace)
+        .join(models.Project)
+        .where(
+            and_(
+                models.Project.name == project_name,
+                models.SpanAnnotation.annotator_kind == "LLM",
+            )
+        ),
+        connectable,
+        index_col=["span_id", "document_position"],
+    )
+
+
+def _groupby_eval_name(
+    evals_dataframe: DataFrame,
+) -> Iterator[Tuple[EvaluationName, DataFrame]]:
+    for eval_name, evals_dataframe_for_name in evals_dataframe.groupby("name", as_index=False):
+        yield str(eval_name), evals_dataframe_for_name
