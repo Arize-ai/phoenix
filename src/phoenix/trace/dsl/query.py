@@ -430,7 +430,7 @@ class SpanQuery(_HasTmpSuffix):
         return replace(self, _explode=_explode)
 
     def concat(self, key: str, **kwargs: str) -> "SpanQuery":
-        _concat = Concatenation(key=key, kwargs=kwargs)
+        _concat = Concatenation(key=key, kwargs=kwargs, separator=self._concat.separator)
         return replace(self, _concat=_concat)
 
     def rename(self, **kwargs: str) -> "SpanQuery":
@@ -455,11 +455,13 @@ class SpanQuery(_HasTmpSuffix):
     def __call__(
         self,
         session: Session,
-        project_name: str = DEFAULT_PROJECT_NAME,
+        project_name: Optional[str] = None,
         start_time: Optional[datetime] = None,
         stop_time: Optional[datetime] = None,
         root_spans_only: Optional[bool] = None,
     ) -> pd.DataFrame:
+        if not project_name:
+            project_name = DEFAULT_PROJECT_NAME
         if not (self._select or self._explode or self._concat):
             return _get_spans_dataframe(
                 session,
@@ -474,7 +476,7 @@ class SpanQuery(_HasTmpSuffix):
         conn = session.connection()
         index = _NAMES[self._index.key].label(self._add_tmp_suffix(self._index.key))
         row_id = models.Span.id.label(self._pk_tmp_col_label)
-        stmt = stmt0_orig = (
+        stmt = (
             # We do not allow `group_by` anything other than `row_id` because otherwise
             # it's too complex for the post hoc processing step in pandas.
             select(row_id)
@@ -482,6 +484,17 @@ class SpanQuery(_HasTmpSuffix):
             .join(models.Project)
             .where(models.Project.name == project_name)
         )
+        if start_time:
+            stmt = stmt.where(start_time <= models.Span.start_time)
+        if stop_time:
+            stmt = stmt.where(models.Span.start_time < stop_time)
+        if root_spans_only:
+            parent = aliased(models.Span)
+            stmt = stmt.outerjoin(
+                parent,
+                models.Span.parent_id == parent.span_id,
+            ).where(parent.span_id == None)  # noqa E711
+        stmt0_orig = stmt
         stmt1_filter = None
         if self._filter:
             stmt = stmt1_filter = self._filter(stmt)
