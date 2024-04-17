@@ -420,7 +420,47 @@ def test_filter_on_metadata(session: Session) -> None:
         SpanQuery()
         .select("embedding.model_name")
         .where(
+            "12 - int(metadata['a.b.c']) == -111",
+        )
+    )
+    expected = pd.DataFrame(
+        {
+            "context.span_id": ["345"],
+            "embedding.model_name": ["xyz"],
+        }
+    ).set_index("context.span_id")
+    actual = sq(session, project_name="abc")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+    del sq, actual, expected
+
+    sq = (
+        SpanQuery()
+        .select("embedding.model_name")
+        .where(
             "'b' in metadata['1.2.3']",
+        )
+    )
+    expected = pd.DataFrame(
+        {
+            "context.span_id": ["345"],
+            "embedding.model_name": ["xyz"],
+        }
+    ).set_index("context.span_id")
+    actual = sq(session, project_name="abc")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+    del sq, actual, expected
+
+    sq = (
+        SpanQuery()
+        .select("embedding.model_name")
+        .where(
+            "'b' in str(metadata['1.2.3'])",
         )
     )
     expected = pd.DataFrame(

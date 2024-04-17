@@ -358,7 +358,7 @@ class _Translator(ast.NodeTransformer):
             return _cast_as("Float", arg)
         if node.func.id in ("str",) and _is_float(arg):
             return _cast_as("String", arg)
-        return node
+        return arg
 
     def visit_Attribute(self, node: ast.Attribute) -> typing.Any:
         source_segment = typing.cast(str, ast.get_source_segment(self._source, node))
