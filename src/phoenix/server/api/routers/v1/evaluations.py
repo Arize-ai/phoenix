@@ -143,7 +143,11 @@ async def get_evaluations(request: Request) -> Response:
             _read_sql_document_evaluations_into_dataframe,
             project_name,
         )
-    if trace_evals_dataframe.empty and span_evals_dataframe.empty and document_evals_dataframe:
+    if (
+        trace_evals_dataframe.empty
+        and span_evals_dataframe.empty
+        and document_evals_dataframe.empty
+    ):
         return Response(status_code=HTTP_404_NOT_FOUND)
 
     evals = chain[Evaluations](
