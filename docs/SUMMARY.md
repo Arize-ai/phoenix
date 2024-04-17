@@ -19,14 +19,19 @@
   * [Tracing Core Concepts](tracing/how-to-tracing/tracing-core-concepts.md)
   * [Customize Traces](tracing/how-to-tracing/customize-traces.md)
   * [Auto Instrumentation](tracing/how-to-tracing/instrumentation/README.md)
-    * [LlamaIndex](tracing/how-to-tracing/instrumentation/llamaindex.md)
-    * [LangChain](tracing/how-to-tracing/instrumentation/langchain.md)
-    * [OpenAI](tracing/how-to-tracing/instrumentation/openai.md)
-    * [MistralAI](tracing/how-to-tracing/instrumentation/mistralai.md)
-    * [DSPy](tracing/how-to-tracing/instrumentation/dspy.md)
-    * [Bedrock](tracing/how-to-tracing/instrumentation/bedrock.md)
-    * [AutoGen](tracing/how-to-tracing/instrumentation/autogen-support.md)
-  * [Manual Instrumentation](tracing/how-to-tracing/custom-spans.md)
+    * [Auto Instrument: Python](tracing/how-to-tracing/instrumentation/auto-instrument-python/README.md)
+      * [LlamaIndex](tracing/how-to-tracing/instrumentation/auto-instrument-python/llamaindex.md)
+      * [LangChain](tracing/how-to-tracing/instrumentation/auto-instrument-python/langchain.md)
+      * [OpenAI](tracing/how-to-tracing/instrumentation/auto-instrument-python/openai.md)
+      * [MistralAI](tracing/how-to-tracing/instrumentation/auto-instrument-python/mistralai.md)
+      * [DSPy](tracing/how-to-tracing/instrumentation/auto-instrument-python/dspy.md)
+      * [Bedrock](tracing/how-to-tracing/instrumentation/auto-instrument-python/bedrock.md)
+      * [AutoGen](tracing/how-to-tracing/instrumentation/auto-instrument-python/autogen-support.md)
+    * [Auto Instrument: TS](tracing/how-to-tracing/instrumentation/auto-instrument-ts/README.md)
+      * [OpenAI Node SDK](tracing/how-to-tracing/instrumentation/auto-instrument-ts/openai-node-sdk.md)
+  * [Manual Instrumentation](tracing/how-to-tracing/manual-instrumentation/README.md)
+    * [Instrument: Python](tracing/how-to-tracing/manual-instrumentation/custom-spans.md)
+    * [Instrument: TS](tracing/how-to-tracing/manual-instrumentation/javascript.md)
   * [Querying Spans](tracing/how-to-tracing/extract-data-from-spans.md)
   * [Log Evaluation Results](tracing/how-to-tracing/llm-evaluations.md)
   * [Save and Load Traces](tracing/how-to-tracing/save-and-load-traces.md)
@@ -99,10 +104,6 @@
 * [Arize](integrations/arize/README.md)
   * [Export Data from Arize to Phoenix](integrations/bring-production-data-to-notebook-for-eda-or-retraining.md)
 * [Ragas](integrations/ragas.md)
-
-## 🏴‍☠️ Programming Languages
-
-* [JavaScript](programming-languages/javascript.md)
 
 ## 📚 Reference
 

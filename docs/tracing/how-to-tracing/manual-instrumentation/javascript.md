@@ -1,20 +1,20 @@
 ---
 description: >-
-  While Phoenix is primarily a Python-based Observability and Evaluation
-  framework, it supports other languages like JavaScript
+  While Phoenix is heavily a Python-based Observability and Evaluation
+  framework, it supports other languages like TypeScript / JavaScript
 ---
 
-# JavaScript
+# Instrument: TS
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/nodejs_deployment.png" alt=""><figcaption><p>You can trace your NodeJS application over OpenTelemetry</p></figcaption></figure>
 
-Phoenix is written and maintained in Python to make it natively runnable in Python notebooks. However it can be stood up as as a trace collector so that your LLM traces from your NodeJS application (e.x. LlamaIndex.TS, Langchain.js). The traces collected by the phoenix can them be downloaded from the Phoenix can them be downloaded to a Jupyter notebook and them be used to run evaluations (e.x. [LLM Evals,](../tracing/how-to-tracing/llm-evaluations.md) Ragas)
+Phoenix is written and maintained in Python to make it natively runnable in Python notebooks. However it can be stood up as as a trace collector so that your LLM traces from your NodeJS application (e.x. LlamaIndex.TS, Langchain.js). The traces collected by the phoenix can them be downloaded from the Phoenix can them be downloaded to a Jupyter notebook and them be used to run evaluations (e.x. [LLM Evals,](../llm-evaluations.md) Ragas)
 
 
 
 ## Getting Started
 
-[Instrumentation](../tracing/how-to-tracing/instrumentation/) is the act of adding observability code to an app yourself.
+[Instrumentation](../instrumentation/) is the act of adding observability code to an app yourself.
 
 If you’re instrumenting an app, you need to use the OpenTelemetry SDK for your language. You’ll then use the SDK to initialize OpenTelemetry and the API to instrument your code. This will emit telemetry from your app, and any library you installed that also comes with instrumentation.
 
