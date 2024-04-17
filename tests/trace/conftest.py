@@ -1,6 +1,7 @@
 from typing import Iterator
 
 import pytest
+import sqlean
 from phoenix.db.models import Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -8,7 +9,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 @pytest.fixture(scope="session")
 def session_maker() -> sessionmaker:
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine("sqlite:///:memory:", module=sqlean)
     Base.metadata.create_all(engine)
     return sessionmaker(engine)
 

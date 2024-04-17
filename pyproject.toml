@@ -144,6 +144,7 @@ dependencies = [
   "respx", # For OpenAI testing
   "nest-asyncio", # for executor testing
   "astunparse; python_version<'3.9'",
+  "sqlean.py",
 ]
 
 [tool.hatch.envs.type]
