@@ -207,10 +207,10 @@ def _read_sql_trace_evaluations_into_dataframe(
     project_name: str,
 ) -> DataFrame:
     """
-    This function inputs a synchronous connection to pandas.read_sql since
-    it does not support async connections.
+    Reads a project's trace evaluations into a pandas dataframe.
 
-    For more information, see:
+    Inputs a synchronous connectable to pandas.read_sql since it does not
+    support async connectables. For more information, see:
 
     https://stackoverflow.com/questions/70848256/how-can-i-use-pandas-read-sql-on-an-async-connection
     """
@@ -234,10 +234,10 @@ def _read_sql_span_evaluations_into_dataframe(
     project_name: str,
 ) -> DataFrame:
     """
-    This function inputs a synchronous connection to pandas.read_sql since
-    it does not support async connections.
+    Reads a project's span evaluations into a pandas dataframe.
 
-    For more information, see:
+    Inputs a synchronous connectable to pandas.read_sql since it does not
+    support async connectables. For more information, see:
 
     https://stackoverflow.com/questions/70848256/how-can-i-use-pandas-read-sql-on-an-async-connection
     """
@@ -262,10 +262,10 @@ def _read_sql_document_evaluations_into_dataframe(
     project_name: str,
 ) -> DataFrame:
     """
-    This function inputs a synchronous connection to pandas.read_sql since
-    it does not support async connections.
+    Reads a project's document evaluations into a pandas dataframe.
 
-    For more information, see:
+    Inputs a synchronous connectable to pandas.read_sql since it does not
+    support async connectables. For more information, see:
 
     https://stackoverflow.com/questions/70848256/how-can-i-use-pandas-read-sql-on-an-async-connection
     """
