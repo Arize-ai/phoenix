@@ -375,6 +375,26 @@ def test_filter_on_latency(session: Session) -> None:
     del sq, actual, expected
 
 
+def test_filter_on_cumulative_token_count(session: Session) -> None:
+    sq = (
+        SpanQuery()
+        .select("name")
+        .where("290 < cumulative_token_count.total < 310 and llm.token_count.prompt is None")
+    )
+    expected = pd.DataFrame(
+        {
+            "context.span_id": ["234"],
+            "name": ["root span"],
+        }
+    ).set_index("context.span_id")
+    actual = sq(session, project_name="abc")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+    del sq, actual, expected
+
+
 def test_filter_on_metadata(session: Session) -> None:
     sq = (
         SpanQuery()

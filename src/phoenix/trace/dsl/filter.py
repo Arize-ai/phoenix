@@ -51,6 +51,12 @@ _NAMES = {
     "attributes": models.Span.attributes,
     "events": models.Span.events,
 }
+_BACKWARD_COMPATIBILITY_REPLACEMENTS = {
+    # for backward-compatibility with the previous implementation
+    "cumulative_token_count.completion": "cumulative_llm_token_count_completion",
+    "cumulative_token_count.prompt": "cumulative_llm_token_count_prompt",
+    "cumulative_token_count.total": "cumulative_llm_token_count_total",
+}
 
 
 # TODO(persistence): remove this protocol
@@ -356,8 +362,8 @@ class _Translator(ast.NodeTransformer):
 
     def visit_Attribute(self, node: ast.Attribute) -> typing.Any:
         source_segment = typing.cast(str, ast.get_source_segment(self._source, node))
-        if source_segment in _NAMES:
-            return node
+        if replacement := _BACKWARD_COMPATIBILITY_REPLACEMENTS.get(source_segment):
+            return ast.Name(id=replacement, ctx=ast.Load())
         attr = "as_float" if source_segment in _FLOAT_ATTRIBUTES else "as_string"
         elts = [ast.Constant(value=part, kind=None) for part in _split(source_segment)]
         return ast.Call(
