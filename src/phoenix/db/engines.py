@@ -38,7 +38,6 @@ def get_async_db_url(connection_str: str) -> URL:
     if "sqlite" in url.drivername:
         return get_db_url(driver="sqlite+aiosqlite", database=url.database)
     if "postgresql" in url.drivername:
-        print(f"URL: {url}")
         url = url.set(drivername="postgresql+asyncpg")
         # For some reason username and password cannot be parsed from the typical slot
         # So we need to parse them out manually
@@ -46,7 +45,7 @@ def get_async_db_url(connection_str: str) -> URL:
             url = url.set(
                 query={"user": url.username, "password": url.password}, password=None, username=None
             )
-        print(f"URL: {url.render_as_string(hide_password=False)}")
+
         return url
     raise ValueError(f"Unsupported driver: {url.drivername}")
 
