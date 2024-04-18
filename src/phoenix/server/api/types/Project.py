@@ -226,76 +226,66 @@ class Project(Node):
         )
 
     @strawberry.field
-    def trace_evaluation_summary(
+    async def trace_evaluation_summary(
         self,
+        info: Info[Context, None],
         evaluation_name: str,
         time_range: Optional[TimeRange] = UNSET,
     ) -> Optional[EvaluationSummary]:
-        project = self.project
-        eval_trace_ids = project.get_trace_evaluation_trace_ids(evaluation_name)
-        if not eval_trace_ids:
-            return None
-        trace_ids = project.get_trace_ids(
-            start_time=time_range.start if time_range else None,
-            stop_time=time_range.end if time_range else None,
-            trace_ids=eval_trace_ids,
+        stmt = (
+            select(models.TraceAnnotation)
+            .join(models.Trace)
+            .where(models.Trace.project_rowid == self.id_attr)
+            .where(models.SpanAnnotation.annotator_kind == "LLM")
+            .where(models.SpanAnnotation.name == evaluation_name)
         )
-        evaluations = tuple(
-            evaluation
-            for trace_id in trace_ids
-            if (
-                evaluation := project.get_trace_evaluation(
-                    trace_id,
-                    evaluation_name,
+        if time_range:
+            stmt = stmt.where(
+                and_(
+                    time_range.start <= models.Span.start_time,
+                    models.Span.start_time < time_range.end,
                 )
             )
-            is not None
-        )
+
+        # todo: implement filter condition
+        async with info.context.db() as session:
+            evaluations = list(await session.scalars(stmt))
         if not evaluations:
             return None
-        labels = project.get_trace_evaluation_labels(evaluation_name)
+        labels = self.project.get_trace_evaluation_labels(evaluation_name)
         return EvaluationSummary(evaluations, labels)
 
     @strawberry.field
-    def span_evaluation_summary(
+    async def span_evaluation_summary(
         self,
+        info: Info[Context, None],
         evaluation_name: str,
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
     ) -> Optional[EvaluationSummary]:
-        project = self.project
-        predicate = (
-            SpanFilter(
-                condition=filter_condition,
-                evals=project,
-            )
-            if filter_condition
-            else None
+        stmt = (
+            select(models.SpanAnnotation)
+            .join(models.Span)
+            .join(models.Trace)
+            .where(models.Trace.project_rowid == self.id_attr)
+            .where(models.SpanAnnotation.annotator_kind == "LLM")
+            .where(models.SpanAnnotation.name == evaluation_name)
         )
-        span_ids = project.get_span_evaluation_span_ids(evaluation_name)
-        if not span_ids:
-            return None
-        spans = project.get_spans(
-            start_time=time_range.start if time_range else None,
-            stop_time=time_range.end if time_range else None,
-            span_ids=span_ids,
-        )
-        if predicate:
-            spans = filter(predicate, spans)
-        evaluations = tuple(
-            evaluation
-            for span in spans
-            if (
-                evaluation := project.get_span_evaluation(
-                    span.context.span_id,
-                    evaluation_name,
+        if time_range:
+            stmt = stmt.where(
+                and_(
+                    time_range.start <= models.Span.start_time,
+                    models.Span.start_time < time_range.end,
                 )
             )
-            is not None
-        )
+
+        # todo: implement filter condition
+        async with info.context.db() as session:
+            evaluations = list(await session.scalars(stmt))
         if not evaluations:
             return None
-        labels = project.get_span_evaluation_labels(evaluation_name)
+        labels = self.project.get_span_evaluation_labels(evaluation_name)
+
         return EvaluationSummary(evaluations, labels)
 
     @strawberry.field
