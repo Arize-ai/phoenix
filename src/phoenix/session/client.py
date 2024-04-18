@@ -183,7 +183,7 @@ class Client(TraceDataExtractor):
             table = evaluation.to_pyarrow_table()
             sink = pa.BufferOutputStream()
             headers = {"content-type": "application/x-pandas-arrow"}
-            params = {"project-name": project_name}
+            params = {"project_name": project_name}
             with pa.ipc.new_stream(sink, table.schema) as writer:
                 writer.write_table(table)
             self._session.post(
