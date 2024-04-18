@@ -252,10 +252,11 @@ class Project(Node):
         # todo: implement filter condition
         async with info.context.db() as session:
             evaluations = await session.scalars(filtered)
-            all_evaluations = await session.scalars(unfiltered)
         if not evaluations:
             return None
-        labels = {evaluation.label for evaluation in all_evaluations}
+        labels = await session.scalars(
+            unfiltered.with_only_columns(distinct(models.TraceAnnotation.label))
+        )
         return EvaluationSummary(evaluations, labels)
 
     @strawberry.field
@@ -287,10 +288,11 @@ class Project(Node):
         # todo: implement filter condition
         async with info.context.db() as session:
             evaluations = await session.scalars(filtered)
-            all_evaluations = await session.scalars(unfiltered)
         if not evaluations:
             return None
-        labels = {evaluation.label for evaluation in all_evaluations}
+        labels = await session.scalars(
+            unfiltered.with_only_columns(distinct(models.TraceAnnotation.label))
+        )
         return EvaluationSummary(evaluations, labels)
 
     @strawberry.field
