@@ -251,8 +251,8 @@ class Project(Node):
 
         # todo: implement filter condition
         async with info.context.db() as session:
-            evaluations = list(await session.scalars(filtered))
-            all_evaluations = list(await session.scalars(unfiltered))
+            evaluations = await session.scalars(filtered)
+            all_evaluations = await session.scalars(unfiltered)
         if not evaluations:
             return None
         labels = {evaluation.label for evaluation in all_evaluations}
@@ -286,8 +286,8 @@ class Project(Node):
 
         # todo: implement filter condition
         async with info.context.db() as session:
-            evaluations = list(await session.scalars(filtered))
-            all_evaluations = list(await session.scalars(unfiltered))
+            evaluations = await session.scalars(filtered)
+            all_evaluations = await session.scalars(unfiltered)
         if not evaluations:
             return None
         labels = {evaluation.label for evaluation in all_evaluations}

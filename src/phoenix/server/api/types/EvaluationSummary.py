@@ -1,6 +1,6 @@
 import math
 from functools import cached_property
-from typing import List, Optional, Sequence, Tuple, Union, cast
+from typing import List, Optional, Sequence, Union, cast
 
 import pandas as pd
 import strawberry
@@ -21,13 +21,13 @@ class LabelFraction:
 @strawberry.type
 class EvaluationSummary:
     count: int
-    labels: Sequence[str, ...]
+    labels: Sequence[str]
     annotations: Private[Sequence[AnnotationType]]
 
     def __init__(
         self,
         annotations: Sequence[AnnotationType],
-        labels: Tuple[str, ...],
+        labels: Sequence[str],
     ) -> None:
         self.annotations = annotations
         self.labels = labels
