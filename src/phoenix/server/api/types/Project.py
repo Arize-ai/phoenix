@@ -232,15 +232,17 @@ class Project(Node):
         evaluation_name: str,
         time_range: Optional[TimeRange] = UNSET,
     ) -> Optional[EvaluationSummary]:
-        stmt = (
+        base_query = (
             select(models.TraceAnnotation)
             .join(models.Trace)
             .where(models.Trace.project_rowid == self.id_attr)
             .where(models.SpanAnnotation.annotator_kind == "LLM")
             .where(models.SpanAnnotation.name == evaluation_name)
         )
+        unfiltered = base_query
+        filtered = base_query
         if time_range:
-            stmt = stmt.where(
+            filtered = filtered.where(
                 and_(
                     time_range.start <= models.Span.start_time,
                     models.Span.start_time < time_range.end,
@@ -249,10 +251,11 @@ class Project(Node):
 
         # todo: implement filter condition
         async with info.context.db() as session:
-            evaluations = list(await session.scalars(stmt))
+            evaluations = list(await session.scalars(filtered))
+            all_evaluations = list(await session.scalars(unfiltered))
         if not evaluations:
             return None
-        labels = self.project.get_trace_evaluation_labels(evaluation_name)
+        labels = {evaluation.label for evaluation in all_evaluations}
         return EvaluationSummary(evaluations, labels)
 
     @strawberry.field
@@ -263,7 +266,7 @@ class Project(Node):
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
     ) -> Optional[EvaluationSummary]:
-        stmt = (
+        base_query = (
             select(models.SpanAnnotation)
             .join(models.Span)
             .join(models.Trace)
@@ -271,8 +274,10 @@ class Project(Node):
             .where(models.SpanAnnotation.annotator_kind == "LLM")
             .where(models.SpanAnnotation.name == evaluation_name)
         )
+        unfiltered = base_query
+        filtered = base_query
         if time_range:
-            stmt = stmt.where(
+            filtered = filtered.where(
                 and_(
                     time_range.start <= models.Span.start_time,
                     models.Span.start_time < time_range.end,
@@ -281,11 +286,11 @@ class Project(Node):
 
         # todo: implement filter condition
         async with info.context.db() as session:
-            evaluations = list(await session.scalars(stmt))
+            evaluations = list(await session.scalars(filtered))
+            all_evaluations = list(await session.scalars(unfiltered))
         if not evaluations:
             return None
-        labels = self.project.get_span_evaluation_labels(evaluation_name)
-
+        labels = {evaluation.label for evaluation in all_evaluations}
         return EvaluationSummary(evaluations, labels)
 
     @strawberry.field

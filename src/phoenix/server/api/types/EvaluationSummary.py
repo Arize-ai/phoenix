@@ -9,7 +9,7 @@ from strawberry import Private
 
 from phoenix.db import models
 
-annotation_type = Union[models.SpanAnnotation, models.TraceAnnotation]
+AnnotationType = Union[models.SpanAnnotation, models.TraceAnnotation]
 
 
 @strawberry.type
@@ -21,12 +21,12 @@ class LabelFraction:
 @strawberry.type
 class EvaluationSummary:
     count: int
-    labels: Tuple[str, ...]
-    annotations: Private[Sequence[annotation_type]]
+    labels: Sequence[str, ...]
+    annotations: Private[Sequence[AnnotationType]]
 
     def __init__(
         self,
-        annotations: Sequence[annotation_type],
+        annotations: Sequence[AnnotationType],
         labels: Tuple[str, ...],
     ) -> None:
         self.annotations = annotations
