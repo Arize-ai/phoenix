@@ -122,7 +122,7 @@ async def get_evaluations(request: Request) -> Response:
         description: Not found
     """
     project_name = (
-        request.query_params.get("project_name")
+        request.query_params.get("project-name")
         # read from headers for backwards compatibility
         or request.headers.get("project-name")
         or DEFAULT_PROJECT_NAME
