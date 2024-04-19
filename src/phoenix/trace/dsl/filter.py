@@ -365,7 +365,8 @@ class _Translator(ast.NodeTransformer):
         if replacement := _BACKWARD_COMPATIBILITY_REPLACEMENTS.get(source_segment):
             return ast.Name(id=replacement, ctx=ast.Load())
         attr = "as_float" if source_segment in _FLOAT_ATTRIBUTES else "as_string"
-        elts = [ast.Constant(value=part, kind=None) for part in _split(source_segment)]
+        source_segment_parts = _split(source_segment)
+        elts = [ast.Constant(value=part, kind=None) for part in source_segment_parts]
         return ast.Call(
             func=ast.Attribute(
                 value=ast.Subscript(
