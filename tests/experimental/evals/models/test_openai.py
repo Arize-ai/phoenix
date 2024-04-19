@@ -42,7 +42,6 @@ def test_azure_openai_model_added_custom_header(monkeypatch):
             azure_endpoint="https://example-endpoint.openai.azure.com",
             default_headers=default_headers,
         )
-        model._init_open_ai()
 
     assert isinstance(model._client, AzureOpenAI)
     # check if custom header is added to headers
