@@ -37,6 +37,11 @@ class Client(TraceDataExtractor):
             endpoint (str, optional): Phoenix server endpoint, e.g. http://localhost:6006. If not
                 provided, the endpoint will be inferred from the environment variables.
         """
+        if "use_active_session_if_available" in kwargs:
+            print(
+                "`use_active_session_if_available` is deprecated "
+                "and will be removed in the future."
+            )
         host = get_env_host()
         if host == "0.0.0.0":
             host = "127.0.0.1"
