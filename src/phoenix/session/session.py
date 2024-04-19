@@ -67,7 +67,7 @@ else:
 
 # Temporary directory for the duration of the session
 global _session_working_dir
-_session_working_dir: Optional[TemporaryDirectory[str]] = None
+_session_working_dir: Optional["TemporaryDirectory[str]"] = None
 
 
 class NotebookEnvironment(Enum):
