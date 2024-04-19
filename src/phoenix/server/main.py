@@ -242,7 +242,7 @@ if __name__ == "__main__":
 
     working_dir = get_working_dir().resolve()
     app = create_app(
-        database=db_connection_str,
+        database_url=db_connection_str,
         export_path=export_path,
         model=model,
         umap_params=umap_params,
