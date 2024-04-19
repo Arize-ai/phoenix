@@ -46,7 +46,7 @@ async def post_evaluations(request: Request) -> Response:
     tags:
       - evaluations
     parameters:
-      - name: project_name
+      - name: project-name
         in: query
         schema:
           type: string
@@ -78,9 +78,8 @@ async def post_evaluations(request: Request) -> Response:
     traces: Traces = request.app.state.traces
     content_type = request.headers.get("content-type")
     project_name = (
-        request.query_params.get("project_name")
+        request.query_params.get("project-name")
         # read from headers for backwards compatibility
-        # project_name headers are hyphenated per convention
         or request.headers.get("project-name")
         or DEFAULT_PROJECT_NAME
     )
@@ -110,7 +109,7 @@ async def get_evaluations(request: Request) -> Response:
     tags:
       - evaluations
     parameters:
-      - name: project_name
+      - name: project-name
         in: query
         schema:
           type: string
@@ -123,9 +122,8 @@ async def get_evaluations(request: Request) -> Response:
         description: Not found
     """
     project_name = (
-        request.query_params.get("project_name")
+        request.query_params.get("project-name")
         # read from headers for backwards compatibility
-        # project_name headers are hyphenated per convention
         or request.headers.get("project-name")
         or DEFAULT_PROJECT_NAME
     )

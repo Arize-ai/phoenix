@@ -21,7 +21,7 @@ async def query_spans_handler(request: Request) -> Response:
     tags:
       - spans
     parameters:
-      - name: project_name
+      - name: project-name
         in: query
         schema:
           type: string
@@ -71,9 +71,8 @@ async def query_spans_handler(request: Request) -> Response:
     payload = await request.json()
     queries = payload.pop("queries", [])
     project_name = (
-        request.query_params.get("project_name")
+        request.query_params.get("project-name")
         # read from headers for backwards compatibility
-        # project_name headers are hyphenated per convention
         or request.headers.get("project-name")
         or DEFAULT_PROJECT_NAME
     )
