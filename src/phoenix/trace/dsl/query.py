@@ -245,7 +245,10 @@ class Explosion(_HasTmpSuffix, Projection):
             df = df.set_index(self.index_keys[0])
             return df
         df_explode = pd.DataFrame.from_records(records.to_list(), index=records.index)
-        df = _outer_join(df, df_explode)
+        if dialect == _SQLITE:
+            df = _outer_join(df, df_explode)
+        else:
+            df = pd.concat([df, df_explode], axis=1)
         df = df.set_index(self.index_keys)
         return df
 
