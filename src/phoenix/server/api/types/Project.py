@@ -4,7 +4,7 @@ from typing import List, Optional
 import numpy as np
 import strawberry
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, distinct, func, select
 from sqlalchemy.orm import contains_eager, selectinload
 from sqlalchemy.sql.functions import coalesce
 from strawberry import ID, UNSET
