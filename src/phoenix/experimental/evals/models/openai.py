@@ -109,8 +109,8 @@ class OpenAIModel(BaseEvalModel):
     azure_deployment: Optional[str] = field(default=None)
     azure_ad_token: Optional[str] = field(default=None)
     azure_ad_token_provider: Optional[Callable[[], str]] = field(default=None)
-    # Additional fields required by AzureOpenAI
     default_headers: Optional[Mapping[str, str]] = field(default=None)
+    """Default headers required by AzureOpenAI"""
 
     # Deprecated fields
     model_name: Optional[str] = field(default=None)
