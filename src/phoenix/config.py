@@ -25,14 +25,17 @@ ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME"
 """
 The project name to use when logging traces and evals. defaults to 'default'.
 """
-ENV_PHOENIX_SQL_DATABASE = "__DANGEROUS__PHOENIX_SQL_DATABASE"
+ENV_PHOENIX_SQL_DATABASE_URL = "PHOENIX_SQL_DATABASE_URL"
 """
-The database URL to use when logging traces and evals.
-"""
-ENV_SPAN_STORAGE_TYPE = "__DANGEROUS__PHOENIX_SPAN_STORAGE_TYPE"
-"""
-**EXPERIMENTAL**
-The type of span storage to use.
+The SQL database URL to use when logging traces and evals.
+By default, Phoenix uses an SQLite database and stores it in the working directory.
+
+Phoenix supports two types of database URLs:
+- SQLite: 'sqlite:///path/to/database.db'
+- PostgreSQL: 'postgresql://@host/dbname?user=user&password=password' or 'postgresql://user:password@host/dbname'
+
+Note that if you plan on using SQLite, it's advised to to use a persistent volume
+and simply point the PHOENIX_WORKING_DIR to that volume.
 """
 
 
@@ -158,24 +161,8 @@ def get_env_project_name() -> str:
     return os.getenv(ENV_PHOENIX_PROJECT_NAME) or DEFAULT_PROJECT_NAME
 
 
-def get_env_span_storage_type() -> Optional["SpanStorageType"]:
-    """
-    Get the type of span storage to use.
-    """
-    if not (env_type_str := os.getenv(ENV_SPAN_STORAGE_TYPE)):
-        return None
-    try:
-        return SpanStorageType(env_type_str.lower())
-    except ValueError:
-        raise ValueError(
-            f"⚠️ Invalid span storage type value `{env_type_str}` defined by the "
-            f"environment variable `{ENV_SPAN_STORAGE_TYPE}`. Valid values are: "
-            f"{', '.join(t.value for t in SpanStorageType)}."
-        )
-
-
 def get_env_database_connection_str() -> str:
-    env_url = os.getenv(ENV_PHOENIX_SQL_DATABASE)
+    env_url = os.getenv(ENV_PHOENIX_SQL_DATABASE_URL)
     if env_url is None:
         working_dir = get_working_dir()
         return f"sqlite:///{working_dir}/phoenix.db"

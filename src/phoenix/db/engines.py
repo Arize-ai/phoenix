@@ -28,6 +28,10 @@ def get_db_url(driver: str = "sqlite+aiosqlite", database: Union[str, Path] = ":
     return URL.create(driver, database=str(database))
 
 
+def get_printable_db_url(connection_str: str) -> str:
+    return make_url(connection_str).render_as_string(hide_password=True)
+
+
 def get_async_db_url(connection_str: str) -> URL:
     """
     Parses the database URL string and returns a URL object that is async
