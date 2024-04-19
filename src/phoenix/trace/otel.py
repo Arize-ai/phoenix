@@ -22,6 +22,14 @@ from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyVa
 from opentelemetry.util.types import Attributes, AttributeValue
 from typing_extensions import TypeAlias, assert_never
 
+from phoenix.trace.attributes import (
+    JSON_STRING_ATTRIBUTES,
+    flatten,
+    get_attribute_value,
+    has_mapping,
+    load_json_strings,
+    unflatten,
+)
 from phoenix.trace.schemas import (
     EXCEPTION_ESCAPED,
     EXCEPTION_MESSAGE,
@@ -35,14 +43,6 @@ from phoenix.trace.schemas import (
     SpanKind,
     SpanStatusCode,
     TraceID,
-)
-from phoenix.utilities.attributes import (
-    JSON_STRING_ATTRIBUTES,
-    flatten,
-    get_attribute_value,
-    has_mapping,
-    load_json_strings,
-    unflatten,
 )
 
 DOCUMENT_METADATA = DocumentAttributes.DOCUMENT_METADATA

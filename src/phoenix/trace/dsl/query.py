@@ -9,7 +9,9 @@ from typing import (
     Any,
     DefaultDict,
     Dict,
+    Iterable,
     List,
+    Literal,
     Mapping,
     Optional,
     Sequence,
@@ -18,16 +20,13 @@ from typing import (
 
 import pandas as pd
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import JSON, Column, Select, and_, func, select
+from sqlalchemy import JSON, Column, Label, Select, SQLColumnExpression, and_, func, select
 from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.orm import Session, aliased
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
-from phoenix.trace.dsl import SpanFilter
-from phoenix.trace.dsl.filter import _NAMES, SupportsGetSpanEvaluation
-from phoenix.trace.schemas import ATTRIBUTE_PREFIX
-from phoenix.utilities.attributes import (
+from phoenix.trace.attributes import (
     JSON_STRING_ATTRIBUTES,
     SEMANTIC_CONVENTIONS,
     flatten,
@@ -35,10 +34,13 @@ from phoenix.utilities.attributes import (
     load_json_strings,
     unflatten,
 )
+from phoenix.trace.dsl import SpanFilter
+from phoenix.trace.dsl.filter import Projector, SupportsGetSpanEvaluation
+from phoenix.trace.schemas import ATTRIBUTE_PREFIX
 
-# supported dialects
-_SQLITE = "sqlite"
-_POSTGRESQL = "postgresql"
+# supported SQL dialects
+_SQLITE: Literal["sqlite"] = "sqlite"
+_POSTGRESQL: Literal["postgresql"] = "postgresql"
 
 RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
 
@@ -68,32 +70,35 @@ class _Base:
 @dataclass(frozen=True)
 class Projection(_Base):
     key: str = ""
+    _projector: Projector = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         super().__post_init__()
         object.__setattr__(self, "key", _unalias(self.key))
+        object.__setattr__(self, "_projector", Projector(self.key))
 
     def __bool__(self) -> bool:
         return bool(self.key)
+
+    def __call__(self) -> SQLColumnExpression[Any]:
+        return self._projector()
 
     def to_dict(self) -> Dict[str, Any]:
         return {"key": self.key}
 
     @classmethod
     def from_dict(cls, obj: Mapping[str, Any]) -> "Projection":
-        return cls(
-            **({"key": cast(str, key)} if (key := obj.get("key")) else {}),
-        )
+        return cls(**({"key": cast(str, key)} if (key := obj.get("key")) else {}))
 
 
 @dataclass(frozen=True)
 class _HasTmpSuffix(_Base):
     _tmp_suffix: str = field(init=False, repr=False)
-    """Ideally every column name should get a temporary random suffix that will
+    """Ideally every column label should get a temporary random suffix that will
     be removed at the end. This is necessary during query construction because
-    sqlalchemy is not always foolproof, so we should actively avoid name
-    collisions, which is increasingly likely as queries get more complex. The
-    suffix is randomized per instance.
+    sqlalchemy is not always foolproof, e.g. we have seen `group_by` clauses that
+    were incorrect or ambiguous. We should actively avoid name collisions, which
+    is increasingly likely as queries get more complex.
     """
 
     def __post_init__(self) -> None:
@@ -137,20 +142,25 @@ class Explosion(_HasTmpSuffix, Projection):
         return [self._primary_index.key, f"{self._position_prefix}position"]
 
     def with_primary_index_key(self, _: str) -> "Explosion":
-        print("`.with_primary_index_key(...)` is deprecated and wil be removed in the future.")
+        print("`.with_primary_index_key(...)` is deprecated and will be removed in the future.")
         return self
 
-    def update_sql(self, sql: Select[Any], dialect: str) -> Select[Any]:
-        array = models.Span.attributes[self.key.split(".")]
+    def update_sql(
+        self,
+        stmt: Select[Any],
+        dialect: Literal["sqlite", "postgresql"],
+    ) -> Select[Any]:
+        array = self()
         if dialect == _SQLITE:
             # Because sqlite doesn't support `WITH ORDINALITY`, the order of
             # the returned (table) values is not guaranteed. So we resort to
             # post hoc processing using pandas.
-            return sql.where(
+            stmt = stmt.where(
                 func.json_type(array) == "array",
             ).add_columns(
                 array.label(self._array_tmp_col_label),
             )
+            return stmt
         elif dialect == _POSTGRESQL:
             element = (
                 func.jsonb_array_elements(array)
@@ -162,26 +172,28 @@ class Explosion(_HasTmpSuffix, Projection):
                 .render_derived()
             )
             obj, position = element.c.obj, element.c.position
-            return sql.where(
-                and_(
-                    func.jsonb_typeof(array) == "array",
-                    func.jsonb_typeof(obj) == "object",
+            # Use zero-based indexing for backward-compatibility.
+            position_label = (position - 1).label(f"{self._position_prefix}position")
+            if self.kwargs:
+                columns: Iterable[Label[Any]] = (
+                    obj[key.split(".")].label(self._add_tmp_suffix(name))
+                    for name, key in self.kwargs.items()
                 )
-            ).add_columns(
-                # Use zero-based indexing for backward-compatibility.
-                (position - 1).label(f"{self._position_prefix}position"),
-                *(
-                    (
-                        obj[key.split(".")].label(self._add_tmp_suffix(name))
-                        for name, key in self.kwargs.items()
-                    )
-                    if self.kwargs
-                    else (obj.label(self._array_tmp_col_label),)
-                ),
+            else:
+                columns = (obj.label(self._array_tmp_col_label),)
+            stmt = (
+                stmt.where(func.jsonb_typeof(array) == "array")
+                .where(func.jsonb_typeof(obj) == "object")
+                .add_columns(position_label, *columns)
             )
+            return stmt
         raise NotImplementedError(f"Unsupported dialect: {dialect}")
 
-    def update_df(self, df: pd.DataFrame, dialect: str) -> pd.DataFrame:
+    def update_df(
+        self,
+        df: pd.DataFrame,
+        dialect: Literal["sqlite", "postgresql"],
+    ) -> pd.DataFrame:
         df = df.rename(self._remove_tmp_suffix, axis=1)
         if df.empty:
             columns = list(
@@ -193,21 +205,18 @@ class Explosion(_HasTmpSuffix, Projection):
                     )
                 )
             )
-            return pd.DataFrame(columns=columns).set_index(self.index_keys)
-        if dialect == _POSTGRESQL and not self.kwargs:
-            records = df.loc[:, self._array_tmp_col_label].map(flatten).map(dict).dropna()
-            return pd.concat(
-                [
-                    df.drop(self._array_tmp_col_label, axis=1),
-                    pd.DataFrame.from_records(records.to_list(), index=records.index),
-                ],
-                axis=1,
-            ).set_index(self.index_keys)
+            df = pd.DataFrame(columns=columns).set_index(self.index_keys)
+            return df
+        if dialect != _SQLITE and self.kwargs:
+            df = df.set_index(self.index_keys)
+            return df
         if dialect == _SQLITE:
             # Because sqlite doesn't support `WITH ORDINALITY`, the order of
             # the returned (table) values is not guaranteed. So we resort to
             # post hoc processing using pandas.
             def _extract_values(array: List[Any]) -> List[Dict[str, Any]]:
+                if not isinstance(array, Iterable):
+                    return []
                 if not self.kwargs:
                     return [
                         {
@@ -228,14 +237,20 @@ class Explosion(_HasTmpSuffix, Projection):
                     res.append(values)
                 return res
 
-            records = df.loc[:, self._array_tmp_col_label].map(_extract_values).explode().dropna()
-            df_explode = pd.DataFrame.from_records(records.to_list(), index=records.index)
-            return (
-                df.drop(self._array_tmp_col_label, axis=1)
-                .join(df_explode, how="outer")
-                .set_index(self.index_keys)
-            )
-        return df.set_index(self.index_keys)
+            records = df.loc[:, self._array_tmp_col_label].dropna().map(_extract_values).explode()
+        else:
+            records = df.loc[:, self._array_tmp_col_label].dropna().map(flatten).map(dict)
+        df = df.drop(self._array_tmp_col_label, axis=1)
+        if records.empty:
+            df = df.set_index(self.index_keys[0])
+            return df
+        df_explode = pd.DataFrame.from_records(records.to_list(), index=records.index)
+        if dialect == _SQLITE:
+            df = _outer_join(df, df_explode)
+        else:
+            df = pd.concat([df, df_explode], axis=1)
+        df = df.set_index(self.index_keys)
+        return df
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -267,7 +282,7 @@ class Concatenation(_HasTmpSuffix, Projection):
     separator: str = "\n\n"
 
     _array_tmp_col_label: str = field(init=False, repr=False)
-    """For sqlite we need to store the array in a temporary column to be able
+    """For SQLite we need to store the array in a temporary column to be able
     to concatenate it later in pandas. `_array_tmp_col_label` is the name of
     this temporary column. The temporary column will have a unique name
     per instance.
@@ -280,17 +295,22 @@ class Concatenation(_HasTmpSuffix, Projection):
     def with_separator(self, separator: str = "\n\n") -> "Concatenation":
         return replace(self, separator=separator)
 
-    def update_sql(self, stmt: Select[Any], dialect: str) -> Select[Any]:
-        array = models.Span.attributes[self.key.split(".")]
+    def update_sql(
+        self,
+        stmt: Select[Any],
+        dialect: Literal["sqlite", "postgresql"],
+    ) -> Select[Any]:
+        array = self()
         if dialect == _SQLITE:
-            # Because sqlite doesn't support WITH ORDINALITY, the order of
-            # the returned (table) values is not guaranteed. So we resort to
-            # post-processing using pandas.
-            return stmt.where(
+            # Because SQLite doesn't support `WITH ORDINALITY`, the order of
+            # the returned table-values is not guaranteed. So we resort to
+            # post hoc processing using pandas.
+            stmt = stmt.where(
                 func.json_type(array) == "array",
             ).add_columns(
                 array.label(self._array_tmp_col_label),
             )
+            return stmt
         if dialect == _POSTGRESQL:
             element = (
                 (
@@ -306,36 +326,39 @@ class Concatenation(_HasTmpSuffix, Projection):
                 .render_derived()
             )
             obj, position = element.c.obj, element.c.position
-            return (
+            if self.kwargs:
+                columns: Iterable[Label[Any]] = (
+                    func.string_agg(
+                        obj[key.split(".")].as_string(),
+                        aggregate_order_by(self.separator, position),  # type: ignore
+                    ).label(self._add_tmp_suffix(label))
+                    for label, key in self.kwargs.items()
+                )
+            else:
+                columns = (
+                    func.string_agg(
+                        obj,
+                        aggregate_order_by(self.separator, position),  # type: ignore
+                    ).label(self.key),
+                )
+            stmt = (
                 stmt.where(
                     and_(
                         func.jsonb_typeof(array) == "array",
                         *((func.jsonb_typeof(obj) == "object",) if self.kwargs else ()),
                     )
                 )
-                .add_columns(
-                    *(
-                        (
-                            func.string_agg(
-                                obj[key.split(".")].as_string(),
-                                aggregate_order_by(self.separator, position),  # type: ignore
-                            ).label(self._add_tmp_suffix(name))
-                            for name, key in self.kwargs.items()
-                        )
-                        if self.kwargs
-                        else (
-                            func.string_agg(
-                                obj,
-                                aggregate_order_by(self.separator, position),  # type: ignore
-                            ).label(self.key),
-                        )
-                    ),
-                )
+                .add_columns(*columns)
                 .group_by(*stmt.columns.keys())
             )
+            return stmt
         raise NotImplementedError(f"Unsupported dialect: {dialect}")
 
-    def update_df(self, df: pd.DataFrame, dialect: str) -> pd.DataFrame:
+    def update_df(
+        self,
+        df: pd.DataFrame,
+        dialect: Literal["sqlite", "postgresql"],
+    ) -> pd.DataFrame:
         df = df.rename(self._remove_tmp_suffix, axis=1)
         if df.empty:
             columns = list(
@@ -348,20 +371,22 @@ class Concatenation(_HasTmpSuffix, Projection):
             )
             return pd.DataFrame(columns=columns, index=df.index)
         if dialect == _SQLITE:
-            # Because sqlite doesn't support WITH ORDINALITY, the order of
-            # the returned (table) values is not guaranteed. So we resort to
-            # post-processing using pandas.
+            # Because SQLite doesn't support `WITH ORDINALITY`, the order of
+            # the returned table-values is not guaranteed. So we resort to
+            # post hoc processing using pandas.
             def _concat_values(array: List[Any]) -> Dict[str, Any]:
+                if not isinstance(array, Iterable):
+                    return {}
                 if not self.kwargs:
                     return {self.key: self.separator.join(str(obj) for obj in array)}
                 values: DefaultDict[str, List[str]] = defaultdict(list)
                 for i, obj in enumerate(array):
                     if not isinstance(obj, Mapping):
                         continue
-                    for name, key in self.kwargs.items():
+                    for label, key in self.kwargs.items():
                         if (value := get_attribute_value(obj, key)) is not None:
-                            values[name].append(str(value))
-                return {k: self.separator.join(v) for k, v in values.items()}
+                            values[label].append(str(value))
+                return {label: self.separator.join(vs) for label, vs in values.items()}
 
             records = df.loc[:, self._array_tmp_col_label].map(_concat_values)
             df_concat = pd.DataFrame.from_records(records.to_list(), index=records.index)
@@ -395,12 +420,12 @@ class Concatenation(_HasTmpSuffix, Projection):
 @dataclass(frozen=True)
 class SpanQuery(_HasTmpSuffix):
     _select: Mapping[str, Projection] = field(default_factory=lambda: MappingProxyType({}))
-    _concat: Concatenation = field(default_factory=Concatenation)
-    _explode: Explosion = field(default_factory=Explosion)
-    _filter: SpanFilter = field(default_factory=SpanFilter)
+    _concat: Optional[Concatenation] = field(default=None)
+    _explode: Optional[Explosion] = field(default=None)
+    _filter: Optional[SpanFilter] = field(default=None)
     _rename: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
     _index: Projection = field(default_factory=lambda: Projection("context.span_id"))
-
+    _concat_separator: str = field(default="\n\n", repr=False)
     _pk_tmp_col_label: str = field(init=False, repr=False)
     """We use `_pk_tmp_col_label` as a temporary column for storing
     the row id, i.e. the primary key, of the spans table. This will help
@@ -426,11 +451,21 @@ class SpanQuery(_HasTmpSuffix):
         return replace(self, _filter=_filter)
 
     def explode(self, key: str, **kwargs: str) -> "SpanQuery":
+        assert (
+            isinstance(key, str) and key
+        ), "The field name for explosion must be a non-empty string."
         _explode = Explosion(key=key, kwargs=kwargs, primary_index_key=self._index.key)
         return replace(self, _explode=_explode)
 
     def concat(self, key: str, **kwargs: str) -> "SpanQuery":
-        _concat = Concatenation(key=key, kwargs=kwargs, separator=self._concat.separator)
+        assert (
+            isinstance(key, str) and key
+        ), "The field name for concatenation must be a non-empty string."
+        _concat = (
+            Concatenation(key=key, kwargs=kwargs, separator=self._concat.separator)
+            if self._concat
+            else Concatenation(key=key, kwargs=kwargs, separator=self._concat_separator)
+        )
         return replace(self, _concat=_concat)
 
     def rename(self, **kwargs: str) -> "SpanQuery":
@@ -439,15 +474,21 @@ class SpanQuery(_HasTmpSuffix):
 
     def with_index(self, key: str = "context.span_id") -> "SpanQuery":
         _index = Projection(key=key)
-        return replace(self, _index=_index, _explode=replace(self._explode, primary_index_key=key))
+        return (
+            replace(self, _index=_index, _explode=replace(self._explode, primary_index_key=key))
+            if self._explode
+            else replace(self, _index=_index)
+        )
 
     def with_concat_separator(self, separator: str = "\n\n") -> "SpanQuery":
+        if not self._concat:
+            return replace(self, _concat_separator=separator)
         _concat = self._concat.with_separator(separator)
         return replace(self, _concat=_concat)
 
     def with_explode_primary_index_key(self, _: str) -> "SpanQuery":
         print(
-            "`.with_explode_primary_index_key(...)` is deprecated and wil be "
+            "`.with_explode_primary_index_key(...)` is deprecated and will be "
             "removed in the future. Use `.with_index(...)` instead."
         )
         return self
@@ -465,22 +506,21 @@ class SpanQuery(_HasTmpSuffix):
         if not (self._select or self._explode or self._concat):
             return _get_spans_dataframe(
                 session,
-                self._filter,
                 project_name,
+                self._filter,
                 start_time,
                 stop_time,
                 root_spans_only,
             )
         assert session.bind is not None
-        dialect = session.bind.dialect.name
-        conn = session.connection()
-        index = _NAMES[self._index.key].label(self._add_tmp_suffix(self._index.key))
+        dialect = cast(Literal["sqlite", "postgresql"], session.bind.dialect.name)
+        assert dialect in ("sqlite", "postgresql")
         row_id = models.Span.id.label(self._pk_tmp_col_label)
-        stmt = (
+        stmt: Select[Any] = (
             # We do not allow `group_by` anything other than `row_id` because otherwise
             # it's too complex for the post hoc processing step in pandas.
             select(row_id)
-            .join_from(models.Span, models.Trace)
+            .join(models.Trace)
             .join(models.Project)
             .where(models.Project.name == project_name)
         )
@@ -494,39 +534,36 @@ class SpanQuery(_HasTmpSuffix):
                 parent,
                 models.Span.parent_id == parent.span_id,
             ).where(parent.span_id == None)  # noqa E711
-        stmt0_orig = stmt
-        stmt1_filter = None
+        stmt0_orig: Select[Any] = stmt
+        stmt1_filter: Optional[Select[Any]] = None
         if self._filter:
             stmt = stmt1_filter = self._filter(stmt)
-        stmt2_select = None
+        stmt2_select: Optional[Select[Any]] = None
         if self._select:
-            stmt = stmt2_select = stmt.add_columns(
-                *(
-                    (
-                        models.Span.attributes[proj.key.split(".")]
-                        if proj.key not in _NAMES
-                        else _NAMES[proj.key]
-                    ).label(self._add_tmp_suffix(name))
-                    for name, proj in self._select.items()
-                )
+            columns: Iterable[Label[Any]] = (
+                proj().label(self._add_tmp_suffix(label)) for label, proj in self._select.items()
             )
-        stmt3_explode = None
+            stmt = stmt2_select = stmt.add_columns(*columns)
+        stmt3_explode: Optional[Select[Any]] = None
         if self._explode:
             stmt = stmt3_explode = self._explode.update_sql(stmt, dialect)
+        index: Label[Any] = self._index().label(self._add_tmp_suffix(self._index.key))
         df: Optional[pd.DataFrame] = None
-        # `concat` is separate because it has `group_by` but we can't always
-        # join to it as a subquery because it may require post hoc processing
-        # in pandas, so it's kept separate for simplicity.
+        # `concat` is done separately because it has `group_by` but we can't
+        # always join to it as a subquery because it may require post hoc
+        # processing in pandas. It's kept separate for simplicity.
         df_concat: Optional[pd.DataFrame] = None
+        conn = session.connection()
         if self._explode or not self._concat:
             if index.name not in stmt.selected_columns.keys():
                 stmt = stmt.add_columns(index)
-            df = pd.read_sql(stmt, conn)
+            df = pd.read_sql_query(stmt, conn, self._pk_tmp_col_label)
         if self._concat:
             if df is not None:
+                assert stmt3_explode is not None
                 # We can't include stmt3_explode because it may be trying to
                 # explode the same column that we're trying to concatenate,
-                # resulting in duplicates.
+                # resulting in duplicated joins.
                 stmt_no_explode = (
                     stmt2_select
                     if stmt2_select is not None
@@ -535,33 +572,26 @@ class SpanQuery(_HasTmpSuffix):
                 stmt4_concat = stmt_no_explode.with_only_columns(row_id)
             else:
                 assert stmt3_explode is None
-                stmt4_concat = (
-                    stmt.add_columns(index)
-                    if index.name not in stmt.selected_columns.keys()
-                    else stmt
-                )
+                stmt4_concat = stmt
+            if (df is None or df.empty) and index.name not in stmt4_concat.selected_columns.keys():
+                stmt4_concat = stmt4_concat.add_columns(index)
             stmt4_concat = self._concat.update_sql(stmt4_concat, dialect)
-            df_concat = pd.read_sql(stmt4_concat, conn)
+            df_concat = pd.read_sql_query(stmt4_concat, conn, self._pk_tmp_col_label)
             df_concat = self._concat.update_df(df_concat, dialect)
-            assert df_concat is not None
-            if df is not None:
-                df_concat = df_concat.set_index(self._pk_tmp_col_label)
         assert df is not None or df_concat is not None
         if df is None:
-            assert df_concat is not None
-            df = df_concat.drop(self._pk_tmp_col_label, axis=1)
+            df = df_concat
         elif df_concat is not None:
-            df = df.set_index(self._pk_tmp_col_label)
-            df = df.join(df_concat, how="inner")
-        else:
-            df = df.drop(self._pk_tmp_col_label, axis=1)
+            df = _outer_join(df, df_concat)
+        assert df is not None and self._pk_tmp_col_label not in df.columns
         df = df.rename(self._remove_tmp_suffix, axis=1)
         if self._explode:
             df = self._explode.update_df(df, dialect)
         else:
             df = df.set_index(self._index.key)
         df = df.rename(_ALIASES, axis=1, errors="ignore")
-        return df.rename(self._rename, axis=1, errors="ignore")
+        df = df.rename(self._rename, axis=1, errors="ignore")
+        return df
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -570,9 +600,9 @@ class SpanQuery(_HasTmpSuffix):
                 if self._select
                 else {}
             ),
-            "filter": self._filter.to_dict(),
-            "explode": self._explode.to_dict(),
-            "concat": self._concat.to_dict(),
+            **({"filter": self._filter.to_dict()} if self._filter else {}),
+            **({"explode": self._explode.to_dict()} if self._explode else {}),
+            **({"concat": self._concat.to_dict()} if self._concat else {}),
             **({"rename": dict(self._rename)} if self._rename else {}),
             "index": self._index.to_dict(),
         }
@@ -633,16 +663,16 @@ class SpanQuery(_HasTmpSuffix):
 
 def _get_spans_dataframe(
     session: Session,
-    span_filter: SpanFilter,
     project_name: str,
+    span_filter: Optional[SpanFilter] = None,
     start_time: Optional[datetime] = None,
     stop_time: Optional[datetime] = None,
     root_spans_only: Optional[bool] = None,
 ) -> pd.DataFrame:
-    # legacy labels for backward-compatibility
+    # use legacy labels for backward-compatibility
     span_id_label = "context.span_id"
     trace_id_label = "context.trace_id"
-    stmt = (
+    stmt: Select[Any] = (
         select(
             models.Span.name,
             models.Span.span_kind,
@@ -660,7 +690,8 @@ def _get_spans_dataframe(
         .join(models.Project)
         .where(models.Project.name == project_name)
     )
-    stmt = span_filter(stmt)
+    if span_filter:
+        stmt = span_filter(stmt)
     if start_time:
         stmt = stmt.where(start_time <= models.Span.start_time)
     if stop_time:
@@ -671,25 +702,39 @@ def _get_spans_dataframe(
             parent,
             models.Span.parent_id == parent.span_id,
         ).where(parent.span_id == None)  # noqa E711
-    df = pd.read_sql(stmt, session.connection()).set_index(span_id_label, drop=False)
-    if (attrs_label := "attributes") in df.columns:
-        df_attributes = pd.DataFrame.from_records(
-            df.attributes.map(_flatten_semantic_conventions),
-        ).set_axis(df.index, axis=0)
-        df = pd.concat(
-            [
-                df.drop(attrs_label, axis=1),
-                df_attributes.add_prefix(attrs_label + "."),
-            ],
-            axis=1,
-        )
+    conn = session.connection()
+    # set `drop=False` for backward-compatibility
+    df = pd.read_sql_query(stmt, conn).set_index(span_id_label, drop=False)
+    if df.empty:
+        return df.drop("attributes", axis=1)
+    df_attributes = pd.DataFrame.from_records(
+        df.attributes.map(_flatten_semantic_conventions),
+    ).set_axis(df.index, axis=0)
+    df = pd.concat(
+        [
+            df.drop("attributes", axis=1),
+            df_attributes.add_prefix("attributes" + "."),
+        ],
+        axis=1,
+    )
+    return df
+
+
+def _outer_join(left: pd.DataFrame, right: pd.DataFrame) -> pd.DataFrame:
+    if (columns_intersection := left.columns.intersection(right.columns)).empty:
+        df = left.join(right, how="outer")
+    else:
+        df = left.join(right, how="outer", lsuffix="_L", rsuffix="_R")
+        for col in columns_intersection:
+            df.loc[:, col] = df.loc[:, f"{col}_L"].fillna(df.loc[:, f"{col}_R"])
+            df = df.drop([f"{col}_L", f"{col}_R"], axis=1)
     return df
 
 
 def _flatten_semantic_conventions(attributes: Mapping[str, Any]) -> Dict[str, Any]:
     # This may be inefficient, but is needed to preserve backward-compatibility.
-    # Custom attributes do not get flattened.
-    return unflatten(
+    # For example, custom attributes do not get flattened.
+    ans = unflatten(
         load_json_strings(
             flatten(
                 attributes,
@@ -699,3 +744,4 @@ def _flatten_semantic_conventions(attributes: Mapping[str, Any]) -> Dict[str, An
         ),
         prefix_exclusions=SEMANTIC_CONVENTIONS,
     )
+    return ans

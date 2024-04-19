@@ -30,6 +30,7 @@ from wrapt import ObjectProxy
 import phoenix.trace.v1 as pb
 from phoenix.datetime_utils import right_open_time_range
 from phoenix.trace import DocumentEvaluations, Evaluations, SpanEvaluations
+from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.schemas import (
     ComputedAttributes,
     Span,
@@ -37,7 +38,6 @@ from phoenix.trace.schemas import (
     SpanStatusCode,
     TraceID,
 )
-from phoenix.utilities.attributes import get_attribute_value
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())

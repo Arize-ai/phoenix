@@ -28,6 +28,7 @@ class Client(TraceDataExtractor):
         self,
         *,
         endpoint: Optional[str] = None,
+        warn_if_server_not_running: bool = True,
         **kwargs: Any,  # for backward-compatibility
     ):
         """
@@ -37,6 +38,11 @@ class Client(TraceDataExtractor):
             endpoint (str, optional): Phoenix server endpoint, e.g. http://localhost:6006. If not
                 provided, the endpoint will be inferred from the environment variables.
         """
+        if "use_active_session_if_available" in kwargs:
+            print(
+                "`use_active_session_if_available` is deprecated "
+                "and will be removed in the future."
+            )
         host = get_env_host()
         if host == "0.0.0.0":
             host = "127.0.0.1"
@@ -45,7 +51,8 @@ class Client(TraceDataExtractor):
         )
         self._session = Session()
         weakref.finalize(self, self._session.close)
-        self._warn_if_phoenix_is_not_running()
+        if warn_if_server_not_running:
+            self._warn_if_phoenix_is_not_running()
 
     def query_spans(
         self,
@@ -75,7 +82,7 @@ class Client(TraceDataExtractor):
             queries = (SpanQuery(),)
         response = self._session.post(
             url=urljoin(self._base_url, "/v1/spans"),
-            params={"project_name": project_name},
+            params={"project-name": project_name},
             json={
                 "queries": [q.to_dict() for q in queries],
                 "start_time": _to_iso_format(start_time),
@@ -121,7 +128,7 @@ class Client(TraceDataExtractor):
         project_name = project_name or get_env_project_name()
         response = self._session.get(
             urljoin(self._base_url, "/v1/evaluations"),
-            params={"project_name": project_name},
+            params={"project-name": project_name},
         )
         if response.status_code == 404:
             logger.info("No evaluations found.")

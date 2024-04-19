@@ -38,7 +38,15 @@ def get_async_db_url(connection_str: str) -> URL:
     if "sqlite" in url.drivername:
         return get_db_url(driver="sqlite+aiosqlite", database=url.database)
     if "postgresql" in url.drivername:
-        return url.set(drivername="postgresql+asyncpg")
+        url = url.set(drivername="postgresql+asyncpg")
+        # For some reason username and password cannot be parsed from the typical slot
+        # So we need to parse them out manually
+        if url.username and url.password:
+            url = url.set(
+                query={"user": url.username, "password": url.password}, password=None, username=None
+            )
+
+        return url
     raise ValueError(f"Unsupported driver: {url.drivername}")
 
 
@@ -81,7 +89,7 @@ def aio_postgresql_engine(
     echo: bool = False,
 ) -> AsyncEngine:
     # Swap out the engine
-    async_url = url.set(drivername="postgresql+asyncpg")
+    async_url = get_async_db_url(url.render_as_string(hide_password=False))
     engine = create_async_engine(url=async_url, echo=echo, json_serializer=_dumps)
     # TODO(persistence): figure out the postgres pragma
     # event.listen(engine.sync_engine, "connect", set_pragma)

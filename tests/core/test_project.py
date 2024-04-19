@@ -8,9 +8,9 @@ import pytest
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
 from phoenix.core.project import Project, _Spans
+from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.otel import decode
 from phoenix.trace.schemas import ComputedAttributes
-from phoenix.utilities.attributes import get_attribute_value
 
 
 @pytest.mark.parametrize("permutation", list(permutations(range(5))))

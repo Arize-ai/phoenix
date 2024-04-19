@@ -150,6 +150,7 @@ def _insert_project_abc(session: Session) -> None:
                 "metadata": {
                     "a.b.c": 123,
                     "1.2.3": "abc",
+                    "x.y": {"z.a": {"b.c": 321}},
                 },
                 "embedding": {
                     "model_name": "xyz",
@@ -179,6 +180,7 @@ def _insert_project_abc(session: Session) -> None:
             start_time=datetime.fromisoformat("2021-01-01T00:00:05.000+00:00"),
             end_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
             attributes={
+                "attributes": "attributes",
                 "input": {
                     "value": "xyz",
                 },
@@ -210,6 +212,7 @@ def _insert_project_abc(session: Session) -> None:
             start_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
             end_time=datetime.fromisoformat("2021-01-01T00:00:30.000+00:00"),
             attributes={
+                "attributes": {"attributes": "attributes"},
                 "llm": {
                     "token_count": {
                         "prompt": 100,

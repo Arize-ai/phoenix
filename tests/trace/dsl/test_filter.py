@@ -1,9 +1,10 @@
+import ast
 import sys
-from typing import Any
+from typing import Any, List, Optional
 
 import pytest
 from phoenix.db import models
-from phoenix.trace.dsl.filter import SpanFilter
+from phoenix.trace.dsl.filter import SpanFilter, _get_attribute_keys_list
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -11,6 +12,62 @@ if sys.version_info >= (3, 9):
     from ast import unparse
 else:
     from astunparse import unparse
+
+
+@pytest.mark.parametrize(
+    "expression,expected",
+    [
+        ("output.value", ["output", "value"]),
+        ("llm.token_count.completion", ["llm", "token_count", "completion"]),
+        ("attributes['key']", ["key"]),
+        ("attributes['a']['b.c'][['d']]", ["a", "b.c", "d"]),
+        ("attributes['a'][['b.c']][['d']]", ["a", "b.c", "d"]),
+        ("attributes[['a']]['b.c'][['d']]", ["a", "b.c", "d"]),
+        ("attributes['a'][['b.c', 'd']]", ["a", "b.c", "d"]),
+        ("attributes['a']['b.c'][['d']][0]", ["a", "b.c", "d", 0]),
+        ("attributes[['a', 1]]['b.c'][['d']]", ["a", 1, "b.c", "d"]),
+        ("attributes[[1, 'a']]['b.c'][['d']]", None),
+        ("attributes[0]['b.c'][['d']]", None),
+        ("attributes[[0]]['b.c'][['d']]", None),
+        ("attributes['a'][[]]['b']", None),
+        ("attributes[[]]", None),
+        ("attributes[[['a']]]", None),
+        ("attributes[None]", None),
+        ("attributes['a'][True]", None),
+        ("attributes['a'][[True]]", None),
+        ("attributes['a'][1+1]", None),
+        ("attributes['a'][[1+1]]", None),
+        ("metadata['key']", ["metadata", "key"]),
+        ("metadata['a']['b.c'][['d']]", ["metadata", "a", "b.c", "d"]),
+        ("metadata['a'][['b.c']][['d']]", ["metadata", "a", "b.c", "d"]),
+        ("metadata[['a']]['b.c'][['d']]", ["metadata", "a", "b.c", "d"]),
+        ("metadata['a'][['b.c', 'd']]", ["metadata", "a", "b.c", "d"]),
+        ("metadata['a']['b.c'][['d']][0]", ["metadata", "a", "b.c", "d", 0]),
+        ("metadata[['a', 1]]['b.c'][['d']]", ["metadata", "a", 1, "b.c", "d"]),
+        ("metadata[[1, 'a']]['b.c'][['d']]", None),
+        ("metadata[0]['b.c'][['d']]", None),
+        ("metadata[[0]]['b.c'][['d']]", None),
+        ("metadata['a'][[]]['b']", None),
+        ("metadata[[]]", None),
+        ("metadata[[['a']]]", None),
+        ("metadata[None]", None),
+        ("metadata['a'][True]", None),
+        ("metadata['a'][[True]]", None),
+        ("metadata['a'][1+1]", None),
+        ("metadata['a'][[1+1]]", None),
+        ("abc", None),
+        ("123", None),
+    ],
+)
+def test_get_attribute_keys_list(expression: str, expected: Optional[List[str]]) -> None:
+    actual = _get_attribute_keys_list(
+        ast.parse(expression, mode="eval").body,
+    )
+    if expected is None:
+        assert actual is None
+    else:
+        assert isinstance(actual, list)
+        assert [c.value for c in actual] == expected
 
 
 @pytest.mark.parametrize(
@@ -36,9 +93,9 @@ else:
         ),
         (
             "llm.token_count.total - llm.token_count.prompt > 1000",
-            "cast(attributes[['llm', 'token_count', 'total']].as_float() - attributes[['llm', 'token_count', 'prompt']].as_float(), Float) > 1000"  # noqa E501
+            "attributes[['llm', 'token_count', 'total']].as_float() - attributes[['llm', 'token_count', 'prompt']].as_float() > 1000"  # noqa E501
             if sys.version_info >= (3, 9)
-            else "cast((attributes[['llm', 'token_count', 'total']].as_float() - attributes[['llm', 'token_count', 'prompt']].as_float()), Float) > 1000",  # noqa E501
+            else "(attributes[['llm', 'token_count', 'total']].as_float() - attributes[['llm', 'token_count', 'prompt']].as_float()) > 1000",  # noqa E501
         ),
         (
             "first.value in (1,) and second.value in ('2',) and '3' in third.value",
@@ -52,9 +109,21 @@ else:
         ),
         (
             "first.value + 1 < second.value",
-            "cast(attributes[['first', 'value']].as_float() + 1, Float) < attributes[['second', 'value']].as_float()"  # noqa E501
+            "attributes[['first', 'value']].as_float() + 1 < attributes[['second', 'value']].as_float()"  # noqa E501
             if sys.version_info >= (3, 9)
-            else "cast((attributes[['first', 'value']].as_float() + 1), Float) < attributes[['second', 'value']].as_float()",  # noqa E501
+            else "(attributes[['first', 'value']].as_float() + 1) < attributes[['second', 'value']].as_float()",  # noqa E501
+        ),
+        (
+            "first.value * second.value > third.value",
+            "attributes[['first', 'value']].as_float() * attributes[['second', 'value']].as_float() > attributes[['third', 'value']].as_float()"  # noqa E501
+            if sys.version_info >= (3, 9)
+            else "(attributes[['first', 'value']].as_float() * attributes[['second', 'value']].as_float()) > attributes[['third', 'value']].as_float()",  # noqa E501
+        ),
+        (
+            "first.value + second.value > third.value",
+            "cast(attributes[['first', 'value']].as_string() + attributes[['second', 'value']].as_string(), String) > attributes[['third', 'value']].as_string()"  # noqa E501
+            if sys.version_info >= (3, 9)
+            else "cast((attributes[['first', 'value']].as_string() + attributes[['second', 'value']].as_string()), String) > attributes[['third', 'value']].as_string()",  # noqa E501
         ),
         (
             "my.value == '1.0' or float(my.value) < 2.0",
@@ -62,9 +131,21 @@ else:
             if sys.version_info >= (3, 9)
             else "or_((attributes[['my', 'value']].as_string() == '1.0'), (attributes[['my', 'value']].as_float() < 2.0))",  # noqa E501
         ),
+        (
+            "not(-metadata['a.b'] + float(metadata[['c.d']]) != metadata[['e.f', 'g.h']])",
+            "not_(-attributes[['metadata', 'a.b']].as_float() + attributes[['metadata', 'c.d']].as_float() != attributes[['metadata', 'e.f', 'g.h']].as_float())"  # noqa E501
+            if sys.version_info >= (3, 9)
+            else "not_((((- attributes[['metadata', 'a.b']].as_float()) + attributes[['metadata', 'c.d']].as_float()) != attributes[['metadata', 'e.f', 'g.h']].as_float()))",  # noqa E501
+        ),
+        (
+            "attributes['attributes'] == attributes[['attributes']] != attributes[['attributes', 'attributes']]",  # noqa E501
+            "and_(attributes[['attributes']].as_string() == attributes[['attributes']].as_string(), attributes[['attributes']].as_string() != attributes[['attributes', 'attributes']].as_string())"  # noqa E501
+            if sys.version_info >= (3, 9)
+            else "and_((attributes[['attributes']].as_string() == attributes[['attributes']].as_string()), (attributes[['attributes']].as_string() != attributes[['attributes', 'attributes']].as_string()))",  # noqa E501
+        ),
     ],
 )
-def test_translated(session: Session, expression: str, expected: str) -> None:
+def test_filter_translated(session: Session, expression: str, expected: str) -> None:
     f = SpanFilter(expression)
     assert _unparse(f.translated) == expected
     # next line is only to test that the syntax is accepted

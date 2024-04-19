@@ -65,6 +65,10 @@ if TYPE_CHECKING:
 else:
     _BaseList = UserList
 
+# Temporary directory for the duration of the session
+global _session_working_dir
+_session_working_dir: Optional["TemporaryDirectory[str]"] = None
+
 
 class NotebookEnvironment(Enum):
     COLAB = "colab"
@@ -105,6 +109,7 @@ class Session(TraceDataExtractor, ABC):
 
     def __init__(
         self,
+        database_url: str,
         primary_dataset: Inferences,
         reference_dataset: Optional[Inferences] = None,
         corpus_dataset: Optional[Inferences] = None,
@@ -114,6 +119,7 @@ class Session(TraceDataExtractor, ABC):
         port: Optional[int] = None,
         notebook_env: Optional[NotebookEnvironment] = None,
     ):
+        self._database_url = database_url
         self.primary_dataset = primary_dataset
         self.reference_dataset = reference_dataset
         self.corpus_dataset = corpus_dataset
@@ -129,8 +135,7 @@ class Session(TraceDataExtractor, ABC):
         self.root_path = _get_root_path(self.notebook_env, self.port)
         host = "127.0.0.1" if self.host == "0.0.0.0" else self.host
         self._client = Client(
-            endpoint=f"http://{host}:{self.port}",
-            use_active_session_if_available=False,
+            endpoint=f"http://{host}:{self.port}", warn_if_server_not_running=False
         )
 
     def query_spans(
@@ -238,6 +243,10 @@ class Session(TraceDataExtractor, ABC):
         """Returns the url for the phoenix app"""
         return _get_url(self.host, self.port, self.notebook_env)
 
+    @property
+    def database_url(self) -> str:
+        return self._database_url
+
 
 _session: Optional[Session] = None
 
@@ -245,6 +254,7 @@ _session: Optional[Session] = None
 class ProcessSession(Session):
     def __init__(
         self,
+        database_url: str,
         primary_dataset: Inferences,
         reference_dataset: Optional[Inferences] = None,
         corpus_dataset: Optional[Inferences] = None,
@@ -256,6 +266,7 @@ class ProcessSession(Session):
         notebook_env: Optional[NotebookEnvironment] = None,
     ) -> None:
         super().__init__(
+            database_url=database_url,
             primary_dataset=primary_dataset,
             reference_dataset=reference_dataset,
             corpus_dataset=corpus_dataset,
@@ -279,12 +290,13 @@ class ProcessSession(Session):
         )
         # Initialize an app service that keeps the server running
         self.app_service = AppService(
-            self.export_path,
-            self.host,
-            self.port,
-            self.root_path,
-            self.primary_dataset.name,
-            umap_params_str,
+            database_url=database_url,
+            export_path=self.export_path,
+            host=self.host,
+            port=self.port,
+            root_path=self.root_path,
+            primary_dataset_name=self.primary_dataset.name,
+            umap_params=umap_params_str,
             reference_dataset_name=(
                 self.reference_dataset.name if self.reference_dataset is not None else None
             ),
@@ -308,7 +320,7 @@ class ProcessSession(Session):
 class ThreadSession(Session):
     def __init__(
         self,
-        database: str,
+        database_url: str,
         primary_dataset: Inferences,
         reference_dataset: Optional[Inferences] = None,
         corpus_dataset: Optional[Inferences] = None,
@@ -320,6 +332,7 @@ class ThreadSession(Session):
         notebook_env: Optional[NotebookEnvironment] = None,
     ):
         super().__init__(
+            database_url=database_url,
             primary_dataset=primary_dataset,
             reference_dataset=reference_dataset,
             corpus_dataset=corpus_dataset,
@@ -349,7 +362,7 @@ class ThreadSession(Session):
                     self.traces.put(pb_evaluation)
         # Initialize an app service that keeps the server running
         self.app = create_app(
-            database=database,
+            database_url=database_url,
             export_path=self.export_path,
             model=self.model,
             corpus=self.corpus,
@@ -385,16 +398,23 @@ def delete_all(prompt_before_delete: Optional[bool] = True) -> None:
     Deletes the entire contents of the working directory. This will delete, traces, evaluations,
     and any other data stored in the working directory.
     """
+    global _session_working_dir
     working_dir = get_working_dir()
-
-    # See if the working directory exists
+    directories_to_delete = []
     if working_dir.exists():
+        directories_to_delete.append(working_dir)
+    if _session_working_dir is not None:
+        directories_to_delete.append(Path(_session_working_dir.name))
+
+    # Loop through directories to delete
+    for directory in directories_to_delete:
         if prompt_before_delete:
             input(
-                f"You have data at {working_dir}. Are you sure you want to delete?"
+                f"You have data at {directory}. Are you sure you want to delete?"
                 + " This cannot be undone. Press Enter to delete, Escape to cancel."
             )
-        shutil.rmtree(working_dir)
+        shutil.rmtree(directory)
+    _session_working_dir = None
 
 
 def launch_app(
@@ -407,6 +427,7 @@ def launch_app(
     port: Optional[int] = None,
     run_in_thread: bool = True,
     notebook_environment: Optional[Union[NotebookEnvironment, str]] = None,
+    use_temp_dir: bool = True,
 ) -> Optional[Session]:
     """
     Launches the phoenix application and returns a session to interact with.
@@ -438,6 +459,10 @@ def launch_app(
         The environment the notebook is running in. This is either 'local', 'colab', or 'sagemaker'.
         If not provided, phoenix will try to infer the environment. This is only needed if
         there is a failure to infer the environment.
+    use_temp_dir: bool, optional, default=True
+        Whether to use a temporary directory to store the data. If set to False, the data will be
+        stored in the directory specified by PHOENIX_WORKING_DIR environment variable via SQLite.
+
 
     Returns
     -------
@@ -511,11 +536,16 @@ def launch_app(
 
     host = host or get_env_host()
     port = port or get_env_port()
-    database = get_env_database_connection_str()
+    if use_temp_dir:
+        global _session_working_dir
+        _session_working_dir = _session_working_dir or TemporaryDirectory()
+        database_url = f"sqlite:///{_session_working_dir.name}/phoenix.db"
+    else:
+        database_url = get_env_database_connection_str()
 
     if run_in_thread:
         _session = ThreadSession(
-            database,
+            database_url,
             primary,
             reference,
             corpus,
@@ -528,6 +558,7 @@ def launch_app(
         # TODO: catch exceptions from thread
     else:
         _session = ProcessSession(
+            database_url,
             primary,
             reference,
             corpus,
@@ -548,7 +579,8 @@ def launch_app(
         return None
 
     print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
-    print(f"💽 Your data is being persisted to {database}")
+    if not use_temp_dir:
+        print(f"💽 Your data is being persisted to {database_url}")
     print("📖 For more information on how to use Phoenix, check out https://docs.arize.com/phoenix")
     return _session
 

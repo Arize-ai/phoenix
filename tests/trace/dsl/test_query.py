@@ -34,7 +34,12 @@ def test_select_all(session: Session) -> None:
             "attributes.output.value": ["321", None, None, None],
             "attributes.llm.token_count.prompt": [None, None, None, 100.0],
             "attributes.llm.token_count.completion": [None, None, None, 200.0],
-            "attributes.metadata": [None, {"a.b.c": 123, "1.2.3": "abc"}, None, None],
+            "attributes.metadata": [
+                None,
+                {"a.b.c": 123, "1.2.3": "abc", "x.y": {"z.a": {"b.c": 321}}},
+                None,
+                None,
+            ],
             "attributes.embedding.model_name": [None, "xyz", None, None],
             "attributes.embedding.embeddings": [
                 None,
@@ -55,6 +60,7 @@ def test_select_all(session: Session) -> None:
                 ],
                 None,
             ],
+            "attributes.attributes": [None, None, "attributes", {"attributes": "attributes"}],
             "events": [[], [], [], []],
         }
     ).set_index("context.span_id", drop=False)
@@ -63,7 +69,29 @@ def test_select_all(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
+
+
+def test_select_all_with_no_data(session: Session) -> None:
+    sq = SpanQuery()
+    expected = pd.DataFrame(
+        columns=[
+            "context.span_id",
+            "context.trace_id",
+            "parent_id",
+            "name",
+            "span_kind",
+            "status_code",
+            "status_message",
+            "start_time",
+            "end_time",
+            "events",
+        ]
+    ).set_index("context.span_id", drop=False)
+    actual = sq(session, project_name="opq")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
 
 
 def test_select(session: Session) -> None:
@@ -80,8 +108,9 @@ def test_select(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
+
+def test_select_parent_id_as_span_id(session: Session) -> None:
     sq = SpanQuery().select("name", span_id="parent_id")
     expected = pd.DataFrame(
         {
@@ -94,8 +123,9 @@ def test_select(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
+
+def test_select_trace_id_as_index(session: Session) -> None:
     sq = SpanQuery().select("span_id").with_index("trace_id")
     expected = pd.DataFrame(
         {
@@ -108,7 +138,6 @@ def test_select(session: Session) -> None:
         actual.sort_index().sort_index(axis=1).sort_values("context.span_id"),
         expected.sort_index().sort_index(axis=1).sort_values("context.span_id"),
     )
-    del sq, actual, expected
 
 
 def test_select_nonexistent(session: Session) -> None:
@@ -126,7 +155,6 @@ def test_select_nonexistent(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
 
 def test_default_project(session: Session) -> None:
@@ -146,7 +174,6 @@ def test_default_project(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
 
 def test_root_spans_only(session: Session) -> None:
@@ -170,7 +197,6 @@ def test_root_spans_only(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
 
 def test_start_time(session: Session) -> None:
@@ -192,7 +218,6 @@ def test_start_time(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
 
 def test_stop_time(session: Session) -> None:
@@ -214,7 +239,6 @@ def test_stop_time(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
 
 def test_filter_for_none(session: Session) -> None:
@@ -240,8 +264,9 @@ def test_filter_for_none(session: Session) -> None:
         check_frame_type=False,
         check_index_type=False,
     )
-    del sq, actual, expected
 
+
+def test_filter_for_not_none(session: Session) -> None:
     sq = (
         SpanQuery()
         .select("name")
@@ -260,7 +285,6 @@ def test_filter_for_none(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
 
 def test_filter_for_substring(session: Session) -> None:
@@ -282,8 +306,9 @@ def test_filter_for_substring(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
+
+def test_filter_for_not_substring(session: Session) -> None:
     sq = (
         SpanQuery()
         .select("input.value")
@@ -302,10 +327,9 @@ def test_filter_for_substring(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
 
-def test_filter_on_nonexistent(session: Session) -> None:
+def test_filter_on_nonexistent_is_not_none(session: Session) -> None:
     sq = (
         SpanQuery()
         .select("name")
@@ -314,22 +338,16 @@ def test_filter_on_nonexistent(session: Session) -> None:
         )
     )
     expected = pd.DataFrame(
-        {
-            "context.span_id": [],
-            "name": [],
-        }
+        columns=["context.span_id", "name"],
     ).set_index("context.span_id")
     actual = sq(session, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
-        check_dtype=False,
-        check_column_type=False,
-        check_frame_type=False,
-        check_index_type=False,
     )
-    del sq, actual, expected
 
+
+def test_filter_on_nonexistent_is_none(session: Session) -> None:
     sq = (
         SpanQuery()
         .select("name")
@@ -348,7 +366,6 @@ def test_filter_on_nonexistent(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
 
 def test_filter_on_latency(session: Session) -> None:
@@ -372,7 +389,6 @@ def test_filter_on_latency(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
 
 def test_filter_on_cumulative_token_count(session: Session) -> None:
@@ -392,13 +408,12 @@ def test_filter_on_cumulative_token_count(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
 
-def test_filter_on_metadata(session: Session) -> None:
+def test_filter_on_metadata_with_arithmetic(session: Session) -> None:
     sq = (
         SpanQuery()
-        .select("embedding.model_name")
+        .select("metadata['a.b.c']")
         .where(
             "12 - metadata['a.b.c'] == -111",
         )
@@ -406,7 +421,7 @@ def test_filter_on_metadata(session: Session) -> None:
     expected = pd.DataFrame(
         {
             "context.span_id": ["345"],
-            "embedding.model_name": ["xyz"],
+            "metadata['a.b.c']": [123],
         }
     ).set_index("context.span_id")
     actual = sq(session, project_name="abc")
@@ -414,11 +429,12 @@ def test_filter_on_metadata(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
+
+def test_filter_on_metadata_cast_as_int(session: Session) -> None:
     sq = (
         SpanQuery()
-        .select("embedding.model_name")
+        .select("metadata['a.b.c']")
         .where(
             "12 - int(metadata['a.b.c']) == -111",
         )
@@ -426,7 +442,7 @@ def test_filter_on_metadata(session: Session) -> None:
     expected = pd.DataFrame(
         {
             "context.span_id": ["345"],
-            "embedding.model_name": ["xyz"],
+            "metadata['a.b.c']": [123],
         }
     ).set_index("context.span_id")
     actual = sq(session, project_name="abc")
@@ -434,11 +450,12 @@ def test_filter_on_metadata(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
+
+def test_filter_on_metadata_substring_search(session: Session) -> None:
     sq = (
         SpanQuery()
-        .select("embedding.model_name")
+        .select("metadata['1.2.3']")
         .where(
             "'b' in metadata['1.2.3']",
         )
@@ -446,7 +463,7 @@ def test_filter_on_metadata(session: Session) -> None:
     expected = pd.DataFrame(
         {
             "context.span_id": ["345"],
-            "embedding.model_name": ["xyz"],
+            "metadata['1.2.3']": ["abc"],
         }
     ).set_index("context.span_id")
     actual = sq(session, project_name="abc")
@@ -454,11 +471,12 @@ def test_filter_on_metadata(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
+
+def test_filter_on_metadata_cast_as_str(session: Session) -> None:
     sq = (
         SpanQuery()
-        .select("embedding.model_name")
+        .select("metadata['1.2.3']")
         .where(
             "'b' in str(metadata['1.2.3'])",
         )
@@ -466,7 +484,7 @@ def test_filter_on_metadata(session: Session) -> None:
     expected = pd.DataFrame(
         {
             "context.span_id": ["345"],
-            "embedding.model_name": ["xyz"],
+            "metadata['1.2.3']": ["abc"],
         }
     ).set_index("context.span_id")
     actual = sq(session, project_name="abc")
@@ -474,10 +492,135 @@ def test_filter_on_metadata(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
 
-def test_filter_on_span_id(session: Session) -> None:
+def test_filter_on_metadata_using_subscript_key(session: Session) -> None:
+    sq = (
+        SpanQuery()
+        .select("metadata['1.2.3']")
+        .where(
+            "metadata['1.2.3'] == 'abc'",
+        )
+    )
+    expected = pd.DataFrame(
+        {
+            "context.span_id": ["345"],
+            "metadata['1.2.3']": ["abc"],
+        }
+    ).set_index("context.span_id")
+    actual = sq(session, project_name="abc")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+
+
+def test_filter_on_metadata_using_subscript_keys_list_with_single_key(session: Session) -> None:
+    sq = (
+        SpanQuery()
+        .select("metadata[['1.2.3']]")
+        .where(
+            "metadata[['1.2.3']] == 'abc'",
+        )
+    )
+    expected = pd.DataFrame(
+        {
+            "context.span_id": ["345"],
+            "metadata[['1.2.3']]": ["abc"],
+        }
+    ).set_index("context.span_id")
+    actual = sq(session, project_name="abc")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+
+
+def test_filter_on_metadata_using_subscript_keys_list_with_multiple_keys(session: Session) -> None:
+    sq = (
+        SpanQuery()
+        .select("metadata[['x.y', 'z.a']]")
+        .where(
+            "metadata[['x.y', 'z.a', 'b.c']] == 321",
+        )
+    )
+    expected = pd.DataFrame(
+        {
+            "context.span_id": ["345"],
+            "metadata[['x.y', 'z.a']]": [{"b.c": 321}],
+        }
+    ).set_index("context.span_id")
+    actual = sq(session, project_name="abc")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+
+
+def test_filter_on_attribute_using_subscript_key(session: Session) -> None:
+    sq = (
+        SpanQuery()
+        .select("attributes['attributes']")
+        .where(
+            "attributes['attributes'] == 'attributes'",
+        )
+    )
+    expected = pd.DataFrame(
+        {
+            "context.span_id": ["456"],
+            "attributes['attributes']": ["attributes"],
+        }
+    ).set_index("context.span_id")
+    actual = sq(session, project_name="abc")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+
+
+def test_filter_on_attribute_using_subscript_keys_list_with_single_key(session: Session) -> None:
+    sq = (
+        SpanQuery()
+        .select("attributes[['attributes']]")
+        .where(
+            "attributes[['attributes']] == 'attributes'",
+        )
+    )
+    expected = pd.DataFrame(
+        {
+            "context.span_id": ["456"],
+            "attributes[['attributes']]": ["attributes"],
+        }
+    ).set_index("context.span_id")
+    actual = sq(session, project_name="abc")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+
+
+def test_filter_on_attribute_using_subscript_keys_list_with_multiple_keys(session: Session) -> None:
+    sq = (
+        SpanQuery()
+        .select("attributes[['attributes', 'attributes']]")
+        .where(
+            "attributes[['attributes', 'attributes']] == 'attributes'",
+        )
+    )
+    expected = pd.DataFrame(
+        {
+            "context.span_id": ["567"],
+            "attributes[['attributes', 'attributes']]": ["attributes"],
+        }
+    ).set_index("context.span_id")
+    actual = sq(session, project_name="abc")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+
+
+def test_filter_on_span_id_single(session: Session) -> None:
     sq = (
         SpanQuery()
         .select("embedding.model_name")
@@ -496,8 +639,9 @@ def test_filter_on_span_id(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
+
+def test_filter_on_span_id_multiple(session: Session) -> None:
     sq = (
         SpanQuery()
         .select("embedding.model_name")
@@ -516,13 +660,12 @@ def test_filter_on_span_id(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
 
-def test_filter_on_trace_id(session: Session) -> None:
+def test_filter_on_trace_id_single(session: Session) -> None:
     sq = (
         SpanQuery()
-        .select("metadata")
+        .select("trace_id")
         .where(
             "trace_id == '012'",
         )
@@ -530,7 +673,7 @@ def test_filter_on_trace_id(session: Session) -> None:
     expected = pd.DataFrame(
         {
             "context.span_id": ["234", "345", "456", "567"],
-            "metadata": [None, {"a.b.c": 123, "1.2.3": "abc"}, None, None],
+            "context.trace_id": ["012", "012", "012", "012"],
         }
     ).set_index("context.span_id")
     actual = sq(session, project_name="abc")
@@ -538,11 +681,12 @@ def test_filter_on_trace_id(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
+
+def test_filter_on_trace_id_multiple(session: Session) -> None:
     sq = (
         SpanQuery()
-        .select("metadata")
+        .select("trace_id")
         .where(
             "trace_id in ('012',)",
         )
@@ -550,7 +694,7 @@ def test_filter_on_trace_id(session: Session) -> None:
     expected = pd.DataFrame(
         {
             "context.span_id": ["234", "345", "456", "567"],
-            "metadata": [None, {"a.b.c": 123, "1.2.3": "abc"}, None, None],
+            "context.trace_id": ["012", "012", "012", "012"],
         }
     ).set_index("context.span_id")
     actual = sq(session, project_name="abc")
@@ -558,10 +702,9 @@ def test_filter_on_trace_id(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
 
-def test_explode(session: Session) -> None:
+def test_explode_embeddings_no_select(session: Session) -> None:
     sq = SpanQuery().explode("embedding.embeddings")
     expected = pd.DataFrame(
         {
@@ -576,8 +719,9 @@ def test_explode(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
+
+def test_explode_embeddings_with_select_and_no_kwargs(session: Session) -> None:
     sq = (
         SpanQuery()
         .select("embedding.model_name")
@@ -599,8 +743,9 @@ def test_explode(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
+
+def test_explode_documents_no_select(session: Session) -> None:
     sq = SpanQuery().explode(
         "retrieval.documents",
         content="document.content",
@@ -619,8 +764,9 @@ def test_explode(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
+
+def test_explode_documents_with_select_and_non_ascii_kwargs(session: Session) -> None:
     sq = (
         SpanQuery()
         .select("trace_id")
@@ -646,10 +792,9 @@ def test_explode(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
 
-def test_concat(session: Session) -> None:
+def test_concat_documents_no_select(session: Session) -> None:
     sq = SpanQuery().concat(
         "retrieval.documents",
         content="document.content",
@@ -665,8 +810,24 @@ def test_concat(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
+
+def test_concat_documents_no_select_but_no_data(session: Session) -> None:
+    sq = SpanQuery().concat(
+        "retrieval.documents",
+        content="document.content",
+    )
+    expected = pd.DataFrame(
+        columns=["context.span_id", "content"],
+    ).set_index("context.span_id")
+    actual = sq(session, project_name="opq")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+
+
+def test_concat_documents_with_select(session: Session) -> None:
     sq = (
         SpanQuery()
         .select("trace_id")
@@ -687,8 +848,47 @@ def test_concat(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
+
+def test_concat_documents_with_select_but_no_data(session: Session) -> None:
+    sq = (
+        SpanQuery()
+        .select("trace_id")
+        .concat(
+            "retrieval.documents",
+            content="document.content",
+        )
+    )
+    expected = pd.DataFrame(
+        columns=["context.span_id", "content", "context.trace_id"],
+    ).set_index("context.span_id")
+    actual = sq(session, project_name="opq")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+
+
+def test_concat_documents_with_select_but_with_typo_in_array_name(session: Session) -> None:
+    sq = (
+        SpanQuery()
+        .select("trace_id")
+        .concat(
+            "retriever.documents",
+            content="document.content",
+        )
+    )
+    expected = pd.DataFrame(
+        columns=["context.span_id", "content", "context.trace_id"],
+    ).set_index("context.span_id")
+    actual = sq(session, project_name="abc")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+
+
+def test_concat_documents_with_select_and_non_default_separator(session: Session) -> None:
     sq = (
         SpanQuery()
         .with_index("name")
@@ -709,10 +909,9 @@ def test_concat(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
 
-def test_explode_and_concat(session: Session) -> None:
+def test_explode_and_concat_on_same_array(session: Session) -> None:
     sq = (
         SpanQuery()
         .concat(
@@ -737,11 +936,121 @@ def test_explode_and_concat(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected
 
+
+def test_explode_and_concat_on_same_array_but_no_data(session: Session) -> None:
     sq = (
         SpanQuery()
-        .select("trace_id")
+        .concat(
+            "retrieval.documents",
+            content="document.content",
+        )
+        .explode(
+            "retrieval.documents",
+            score="document.score",
+        )
+    )
+    expected = pd.DataFrame(
+        columns=[
+            "context.span_id",
+            "document_position",
+            "content",
+            "score",
+        ]
+    ).set_index(["context.span_id", "document_position"])
+    actual = sq(session, project_name="opq")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+
+
+def test_explode_and_concat_on_same_array_with_same_label(session: Session) -> None:
+    sq = (
+        SpanQuery()
+        .concat(
+            "retrieval.documents",
+            content="document.content",
+        )
+        .explode(
+            "retrieval.documents",
+            content="document.content",
+        )
+    )
+    expected = pd.DataFrame(
+        {
+            "context.span_id": ["456", "456", "456"],
+            "document_position": [0, 1, 2],
+            "content": ["A\n\nB\n\nC", "A\n\nB\n\nC", "A\n\nB\n\nC"],
+        }
+    ).set_index(["context.span_id", "document_position"])
+    actual = sq(session, project_name="abc")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+
+
+def test_explode_and_concat_on_same_array_but_with_typo_in_concat_array_name(
+    session: Session,
+) -> None:
+    sq = (
+        SpanQuery()
+        .concat(
+            "retriever.documents",
+            content="document.content",
+        )
+        .explode(
+            "retrieval.documents",
+            score="document.score",
+        )
+    )
+    expected = pd.DataFrame(
+        {
+            "context.span_id": ["456", "456", "456"],
+            "document_position": [0, 1, 2],
+            "content": [None, None, None],
+            "score": [1, 2, 3],
+        }
+    ).set_index(["context.span_id", "document_position"])
+    actual = sq(session, project_name="abc")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+
+
+def test_explode_and_concat_on_same_array_but_with_typo_in_explode_array_name(
+    session: Session,
+) -> None:
+    sq = (
+        SpanQuery()
+        .concat(
+            "retrieval.documents",
+            content="document.content",
+        )
+        .explode(
+            "retriever.documents",
+            score="document.score",
+        )
+    )
+    expected = pd.DataFrame(
+        {
+            "context.span_id": ["456"],
+            "content": ["A\n\nB\n\nC"],
+        }
+    ).set_index(["context.span_id"])
+    actual = sq(session, project_name="abc")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+
+
+def test_explode_and_concat_on_same_array_with_non_ascii_kwargs(session: Session) -> None:
+    sq = (
+        SpanQuery()
+        .select("name")
         .concat(
             "retrieval.documents",
             **{"콘텐츠": "document.content"},
@@ -755,7 +1064,7 @@ def test_explode_and_concat(session: Session) -> None:
         {
             "context.span_id": ["456", "456", "456"],
             "document_position": [0, 1, 2],
-            "context.trace_id": ["012", "012", "012"],
+            "name": ["retriever span", "retriever span", "retriever span"],
             "콘텐츠": ["A\n\nB\n\nC", "A\n\nB\n\nC", "A\n\nB\n\nC"],
             "スコア": [1, 2, 3],
         }
@@ -765,4 +1074,3 @@ def test_explode_and_concat(session: Session) -> None:
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
-    del sq, actual, expected

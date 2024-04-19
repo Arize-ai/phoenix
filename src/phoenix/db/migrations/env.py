@@ -66,7 +66,9 @@ def run_migrations_online() -> None:
         config = context.config.get_section(context.config.config_ini_section) or {}
         if "sqlalchemy.url" not in config:
             connection_str = get_env_database_connection_str()
-            config["sqlalchemy.url"] = str(get_async_db_url(connection_str))
+            config["sqlalchemy.url"] = get_async_db_url(connection_str).render_as_string(
+                hide_password=False
+            )
         connectable = AsyncEngine(
             engine_from_config(
                 config,
