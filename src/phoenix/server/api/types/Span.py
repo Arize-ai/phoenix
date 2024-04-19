@@ -19,8 +19,8 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
 from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluation
 from phoenix.server.api.types.MimeType import MimeType
+from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.schemas import SpanID
-from phoenix.utilities.attributes import get_attribute_value
 
 EMBEDDING_EMBEDDINGS = SpanAttributes.EMBEDDING_EMBEDDINGS
 EMBEDDING_VECTOR = EmbeddingAttributes.EMBEDDING_VECTOR

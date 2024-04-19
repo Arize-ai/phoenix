@@ -21,8 +21,8 @@ from typing_extensions import assert_never
 import phoenix.trace.v1 as pb
 from phoenix.db import models
 from phoenix.exceptions import PhoenixException
+from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.schemas import Span, SpanStatusCode
-from phoenix.utilities.attributes import get_attribute_value
 
 logger = logging.getLogger(__name__)
 

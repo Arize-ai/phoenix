@@ -1,3 +1,20 @@
+"""
+Span attribute keys have a special relationship with the `.` separator. When
+a span attribute is ingested from protobuf, it's in the form of a key value
+pair such as `("llm.token_count.completion", 123)`. What we need to do is to split
+the key by the `.` separator and turn it into part of a nested dictionary such
+as {"llm": {"token_count": {"completion": 123}}}. We also need to reverse this
+process, which is to flatten the nested dictionary into a list of key value
+pairs. This module provides functions to do both of these operations.
+
+Note that digit keys are treated as indices of a nested array. For example,
+the digits inside `("retrieval.documents.0.document.content", 'A')` and
+`("retrieval.documents.1.document.content": 'B')` turn the sub-keys following
+them into a nested list of dictionaries i.e.
+{`retrieval: {"documents": [{"document": {"content": "A"}}, {"document":
+{"content": "B"}}]}`.
+"""
+
 import inspect
 import json
 from typing import (
@@ -66,6 +83,15 @@ def flatten(
     recurse_on_sequence: bool = False,
     json_string_attributes: Optional[Sequence[str]] = None,
 ) -> Iterator[Tuple[str, Any]]:
+    """
+    Flatten a nested dictionary or a sequence of dictionaries into a list of
+    key value pairs. If `recurse_on_sequence` is True, then the function will
+    also recursively flatten nested sequences of dictionaries. If
+    `json_string_attributes` is provided, then the function will interpret the
+    attributes in the list as JSON strings and convert them into dictionaries.
+    The `prefix` argument is used to prefix the keys in the output list, but
+    it's mostly used internally to facilitate recursion.
+    """
     if isinstance(obj, Mapping):
         yield from _flatten_mapping(
             obj,
@@ -87,6 +113,12 @@ def flatten(
 
 
 def has_mapping(sequence: Iterable[Any]) -> bool:
+    """
+    Check if a sequence contains a dictionary. We don't flatten sequences that
+    only contain primitive types, such as strings, integers, etc. Conversely,
+    we'll only un-flatten digit sub-keys if it can be interpreted the index of
+    an array of dictionaries.
+    """
     for item in sequence:
         if isinstance(item, Mapping):
             return True
@@ -98,6 +130,14 @@ def get_attribute_value(
     key: str,
     separator: str = ".",
 ) -> Optional[Any]:
+    """
+    Get the value of a nested attribute from a dictionary. The `key` is a
+    string that represents the path to the attribute, where each level is
+    separated by the `separator`. For example, if the dictionary is
+    `{"a": {"b": {"c": 1}}}` and the key is `"a.b.c"`, then the function
+    will return `1`. If the key is `"a.b"`, then the function will return
+    `{"c": 1}`.
+    """
     if not attributes:
         return None
     sub_keys = key.split(separator)
@@ -127,7 +167,11 @@ def _partition_with_prefix_exclusion(
     separator: str = ".",
     prefix_exclusions: Sequence[str] = (),
 ) -> Tuple[str, str, str]:
-    # prefix_exclusions should be sorted by length from the longest to the shortest
+    """
+    Partition `key` by `separator`, but exclude prefixes in `prefix_exclusions`,
+    which is usually the list of semantic conventions. `prefix_exclusions` should
+    be sorted by length from the longest to the shortest
+    """
     for prefix in prefix_exclusions:
         if key.startswith(prefix) and (
             len(key) == len(prefix) or key[len(prefix) :].startswith(separator)
@@ -137,7 +181,11 @@ def _partition_with_prefix_exclusion(
 
 
 class _Trie(DefaultDict[Union[str, int], "_Trie"]):
-    """Prefix Tree with special handling for indices (i.e. all-digit keys)."""
+    """
+    Prefix Tree with special handling for indices (i.e. all-digit keys). Indices
+    represent the position of an element in a nested list, while branches represent
+    the keys of a nested dictionary.
+    """
 
     def __init__(self) -> None:
         super().__init__(_Trie)
@@ -171,7 +219,8 @@ def _build_trie(
     prefix_exclusions: Sequence[str] = (),
     separator: str = ".",
 ) -> _Trie:
-    """Build a Trie (a.k.a. prefix tree) from `key_value_pairs`, by partitioning the keys by
+    """
+    Build a Trie (a.k.a. prefix tree) from `key_value_pairs`, by partitioning the keys by
     separator. Each partition is a branch in the Trie. Special handling is done for partitions
     that are all digits, e.g. "0", "12", etc., which are converted to integers and collected
     as indices.
@@ -205,6 +254,12 @@ def _walk(
     prefix: str = "",
     separator: str = ".",
 ) -> Iterator[Tuple[str, Any]]:
+    """
+    Walk the Trie and yield key value pairs. If the Trie node has a value, then
+    yield the prefix and the value. If the Trie node has indices, then yield the
+    prefix and a list of dictionaries. If the Trie node has branches, then yield
+    the prefix and a dictionary.
+    """
     if trie.value is not None:
         yield prefix, trie.value
     elif prefix and trie.indices:
@@ -231,6 +286,14 @@ def _flatten_mapping(
     json_string_attributes: Optional[Sequence[str]] = None,
     separator: str = ".",
 ) -> Iterator[Tuple[str, Any]]:
+    """
+    Flatten a nested dictionary into a list of key value pairs. If `recurse_on_sequence`
+    is True, then the function will also recursively flatten nested sequences of dictionaries.
+    If `json_string_attributes` is provided, then the function will interpret the attributes
+    in the list as JSON strings and convert them into dictionaries. The `prefix` argument is
+    used to prefix the keys in the output list, but it's mostly used internally to facilitate
+    recursion.
+    """
     for key, value in mapping.items():
         prefixed_key = f"{prefix}{separator}{key}" if prefix else key
         if isinstance(value, Mapping):
@@ -264,6 +327,14 @@ def _flatten_sequence(
     json_string_attributes: Optional[Sequence[str]] = None,
     separator: str = ".",
 ) -> Iterator[Tuple[str, Any]]:
+    """
+    Flatten a sequence of dictionaries into a list of key value pairs. If `recurse_on_sequence`
+    is True, then the function will also recursively flatten nested sequences of dictionaries.
+    If `json_string_attributes` is provided, then the function will interpret the attributes
+    in the list as JSON strings and convert them into dictionaries. The `prefix` argument is
+    used to prefix the keys in the output list, but it's mostly used internally to facilitate
+    recursion.
+    """
     if isinstance(sequence, str) or not has_mapping(sequence):
         yield prefix, sequence
     for idx, obj in enumerate(sequence):
