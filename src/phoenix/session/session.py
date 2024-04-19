@@ -109,7 +109,7 @@ class Session(TraceDataExtractor, ABC):
 
     def __init__(
         self,
-        database: str,
+        database_url: str,
         primary_dataset: Inferences,
         reference_dataset: Optional[Inferences] = None,
         corpus_dataset: Optional[Inferences] = None,
@@ -119,7 +119,7 @@ class Session(TraceDataExtractor, ABC):
         port: Optional[int] = None,
         notebook_env: Optional[NotebookEnvironment] = None,
     ):
-        self.database = database
+        self._database_url = database_url
         self.primary_dataset = primary_dataset
         self.reference_dataset = reference_dataset
         self.corpus_dataset = corpus_dataset
@@ -243,7 +243,7 @@ class Session(TraceDataExtractor, ABC):
 
     @property
     def database_url(self) -> str:
-        return self.database
+        return self._database_url
 
 
 _session: Optional[Session] = None
@@ -252,7 +252,7 @@ _session: Optional[Session] = None
 class ProcessSession(Session):
     def __init__(
         self,
-        database: str,
+        database_url: str,
         primary_dataset: Inferences,
         reference_dataset: Optional[Inferences] = None,
         corpus_dataset: Optional[Inferences] = None,
@@ -264,7 +264,7 @@ class ProcessSession(Session):
         notebook_env: Optional[NotebookEnvironment] = None,
     ) -> None:
         super().__init__(
-            database=database,
+            database_url=database_url,
             primary_dataset=primary_dataset,
             reference_dataset=reference_dataset,
             corpus_dataset=corpus_dataset,
@@ -288,7 +288,7 @@ class ProcessSession(Session):
         )
         # Initialize an app service that keeps the server running
         self.app_service = AppService(
-            database=database,
+            database_url=database_url,
             export_path=self.export_path,
             host=self.host,
             port=self.port,
@@ -318,7 +318,7 @@ class ProcessSession(Session):
 class ThreadSession(Session):
     def __init__(
         self,
-        database: str,
+        database_url: str,
         primary_dataset: Inferences,
         reference_dataset: Optional[Inferences] = None,
         corpus_dataset: Optional[Inferences] = None,
@@ -330,7 +330,7 @@ class ThreadSession(Session):
         notebook_env: Optional[NotebookEnvironment] = None,
     ):
         super().__init__(
-            database=database,
+            database_url=database_url,
             primary_dataset=primary_dataset,
             reference_dataset=reference_dataset,
             corpus_dataset=corpus_dataset,
@@ -360,7 +360,7 @@ class ThreadSession(Session):
                     self.traces.put(pb_evaluation)
         # Initialize an app service that keeps the server running
         self.app = create_app(
-            database=database,
+            database_url=database_url,
             export_path=self.export_path,
             model=self.model,
             corpus=self.corpus,
@@ -537,13 +537,13 @@ def launch_app(
     if use_temp_dir:
         global _session_working_dir
         _session_working_dir = _session_working_dir or TemporaryDirectory()
-        database = f"sqlite:///{_session_working_dir.name}/phoenix.db"
+        database_url = f"sqlite:///{_session_working_dir.name}/phoenix.db"
     else:
-        database = get_env_database_connection_str()
+        database_url = get_env_database_connection_str()
 
     if run_in_thread:
         _session = ThreadSession(
-            database,
+            database_url,
             primary,
             reference,
             corpus,
@@ -556,7 +556,7 @@ def launch_app(
         # TODO: catch exceptions from thread
     else:
         _session = ProcessSession(
-            database,
+            database_url,
             primary,
             reference,
             corpus,
@@ -578,7 +578,7 @@ def launch_app(
 
     print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
     if not use_temp_dir:
-        print(f"💽 Your data is being persisted to {database}")
+        print(f"💽 Your data is being persisted to {database_url}")
     print("📖 For more information on how to use Phoenix, check out https://docs.arize.com/phoenix")
     return _session
 

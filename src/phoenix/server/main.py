@@ -126,7 +126,7 @@ if __name__ == "__main__":
     atexit.register(_remove_pid_file)
 
     parser = ArgumentParser()
-    parser.add_argument("--database", required=False)
+    parser.add_argument("--database-url", required=False)
     parser.add_argument("--export_path")
     parser.add_argument("--host", type=str, required=False)
     parser.add_argument("--port", type=int, required=False)
@@ -157,7 +157,9 @@ if __name__ == "__main__":
     )
     demo_parser.add_argument("--simulate-streaming", action="store_true")
     args = parser.parse_args()
-    db_connection_str = args.database if args.database else get_env_database_connection_str()
+    db_connection_str = (
+        args.database_url if args.database_url else get_env_database_connection_str()
+    )
     export_path = Path(args.export_path) if args.export_path else EXPORT_DIR
     if args.command == "datasets":
         primary_dataset_name = args.primary
