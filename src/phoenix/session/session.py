@@ -134,7 +134,9 @@ class Session(TraceDataExtractor, ABC):
         self.notebook_env = notebook_env or _get_notebook_environment()
         self.root_path = _get_root_path(self.notebook_env, self.port)
         host = "127.0.0.1" if self.host == "0.0.0.0" else self.host
-        self._client = Client(endpoint=f"http://{host}:{self.port}", warn_if_not_running=False)
+        self._client = Client(
+            endpoint=f"http://{host}:{self.port}", warn_if_server_not_running=False
+        )
 
     def query_spans(
         self,
