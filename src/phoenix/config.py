@@ -25,7 +25,7 @@ ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME"
 """
 The project name to use when logging traces and evals. defaults to 'default'.
 """
-ENV_PHOENIX_SQL_DATABASE = "PHOENIX_SQL_DATABASE"
+ENV_PHOENIX_SQL_DATABASE_URL = "PHOENIX_SQL_DATABASE_URL"
 """
 The SQL database URL to use when logging traces and evals.
 By default, Phoenix uses an SQLite database and stores it in the working directory.
@@ -162,7 +162,7 @@ def get_env_project_name() -> str:
 
 
 def get_env_database_connection_str() -> str:
-    env_url = os.getenv(ENV_PHOENIX_SQL_DATABASE)
+    env_url = os.getenv(ENV_PHOENIX_SQL_DATABASE_URL)
     if env_url is None:
         working_dir = get_working_dir()
         return f"sqlite:///{working_dir}/phoenix.db"
