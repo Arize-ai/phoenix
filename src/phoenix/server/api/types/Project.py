@@ -190,9 +190,11 @@ class Project(Node):
             parent = select(models.Span.span_id).alias()
             stmt = stmt.outerjoin(
                 parent,
-                models.Span.parent_span_id == parent.c.span_id,
+                models.Span.parent_id == parent.c.span_id,
             ).where(parent.c.span_id.is_(None))
-        # TODO(persistence): enable filter
+        if filter_condition:
+            span_filter = SpanFilter(condition=filter_condition)
+            stmt = span_filter(stmt)
         if sort:
             stmt = stmt.order_by(sort.to_orm_expr())
         async with info.context.db() as session:
@@ -366,5 +368,5 @@ class Project(Node):
             )
 
 
-LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
-LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
+LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT.split(".")
+LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION.split(".")

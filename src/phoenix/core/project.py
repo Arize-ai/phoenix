@@ -30,6 +30,7 @@ from wrapt import ObjectProxy
 import phoenix.trace.v1 as pb
 from phoenix.datetime_utils import right_open_time_range
 from phoenix.trace import DocumentEvaluations, Evaluations, SpanEvaluations
+from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.schemas import (
     ComputedAttributes,
     Span,
@@ -64,7 +65,7 @@ class WrappedSpan(ObjectProxy):  # type: ignore
     def __getitem__(self, key: Union[str, ComputedAttributes]) -> Any:
         if isinstance(key, ComputedAttributes):
             return self._self_computed_values.get(key)
-        return self.__wrapped__.attributes.get(key)
+        return get_attribute_value(self.__wrapped__.attributes, key)
 
     def __setitem__(self, key: ComputedAttributes, value: Any) -> None:
         if not isinstance(key, ComputedAttributes):
@@ -508,10 +509,16 @@ class _Spans:
     def _update_cached_statistics(self, span: WrappedSpan) -> None:
         # Update statistics for quick access later
         span_id = span.context.span_id
-        if token_count_update := span.attributes.get(SpanAttributes.LLM_TOKEN_COUNT_TOTAL):
+        if token_count_update := get_attribute_value(
+            span.attributes, SpanAttributes.LLM_TOKEN_COUNT_TOTAL
+        ):
             self._token_count_total += token_count_update
         if isinstance(
-            (retrieval_documents := span.attributes.get(SpanAttributes.RETRIEVAL_DOCUMENTS)),
+            (
+                retrieval_documents := get_attribute_value(
+                    span.attributes, SpanAttributes.RETRIEVAL_DOCUMENTS
+                )
+            ),
             Sized,
         ) and (num_documents_update := len(retrieval_documents)):
             self._num_documents[span_id] += num_documents_update

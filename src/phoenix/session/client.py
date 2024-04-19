@@ -2,7 +2,7 @@ import logging
 import weakref
 from datetime import datetime
 from io import BytesIO
-from typing import List, Optional, Union, cast
+from typing import Any, List, Optional, Union, cast
 from urllib.parse import urljoin
 
 import pandas as pd
@@ -10,7 +10,6 @@ import pyarrow as pa
 from pyarrow import ArrowInvalid
 from requests import Session
 
-import phoenix as px
 from phoenix.config import (
     get_env_collector_endpoint,
     get_env_host,
@@ -29,7 +28,7 @@ class Client(TraceDataExtractor):
         self,
         *,
         endpoint: Optional[str] = None,
-        use_active_session_if_available: bool = True,
+        **kwargs: Any,  # for backward-compatibility
     ):
         """
         Client for connecting to a Phoenix server.
@@ -37,12 +36,12 @@ class Client(TraceDataExtractor):
         Args:
             endpoint (str, optional): Phoenix server endpoint, e.g. http://localhost:6006. If not
                 provided, the endpoint will be inferred from the environment variables.
-            use_active_session_if_available (bool, optional): If px.active_session() is available
-                in the same runtime, e.g. the same Jupyter notebook, delegate the request to the
-                active session instead of making HTTP requests. This argument is set to False if
-                endpoint is provided explicitly.
         """
-        self._use_active_session_if_available = use_active_session_if_available and not endpoint
+        if "use_active_session_if_available" in kwargs:
+            print(
+                "`use_active_session_if_available` is deprecated "
+                "and will be removed in the future."
+            )
         host = get_env_host()
         if host == "0.0.0.0":
             host = "127.0.0.1"
@@ -51,8 +50,7 @@ class Client(TraceDataExtractor):
         )
         self._session = Session()
         weakref.finalize(self, self._session.close)
-        if not (self._use_active_session_if_available and px.active_session()):
-            self._warn_if_phoenix_is_not_running()
+        self._warn_if_phoenix_is_not_running()
 
     def query_spans(
         self,
@@ -80,14 +78,6 @@ class Client(TraceDataExtractor):
         project_name = project_name or get_env_project_name()
         if not queries:
             queries = (SpanQuery(),)
-        if self._use_active_session_if_available and (session := px.active_session()):
-            return session.query_spans(
-                *queries,
-                start_time=start_time,
-                stop_time=stop_time,
-                root_spans_only=root_spans_only,
-                project_name=project_name,
-            )
         response = self._session.post(
             url=urljoin(self._base_url, "/v1/spans"),
             params={"project-name": project_name},
@@ -134,8 +124,6 @@ class Client(TraceDataExtractor):
                 empty list if no evaluations are found.
         """
         project_name = project_name or get_env_project_name()
-        if self._use_active_session_if_available and (session := px.active_session()):
-            return session.get_evaluations(project_name=project_name)
         response = self._session.get(
             urljoin(self._base_url, "/v1/evaluations"),
             params={"project-name": project_name},

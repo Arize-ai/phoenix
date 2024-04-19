@@ -61,7 +61,6 @@ def upgrade() -> None:
         sa.Column("trace_id", sa.String, nullable=False, unique=True),
         sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=False, index=True),
         sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=False),
-        sa.Column("latency_ms", sa.Float, nullable=False),
     )
 
     op.create_table(
@@ -75,24 +74,23 @@ def upgrade() -> None:
             index=True,
         ),
         sa.Column("span_id", sa.String, nullable=False, unique=True),
-        sa.Column("parent_span_id", sa.String, nullable=True, index=True),
+        sa.Column("parent_id", sa.String, nullable=True, index=True),
         sa.Column("name", sa.String, nullable=False),
-        sa.Column("kind", sa.String, nullable=False),
+        sa.Column("span_kind", sa.String, nullable=False),
         sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column("attributes", JSON_, nullable=False),
         sa.Column("events", JSON_, nullable=False),
         sa.Column(
-            "status",
+            "status_code",
             sa.String,
             # TODO(mikeldking): this doesn't seem to work...
-            sa.CheckConstraint("status IN ('OK', 'ERROR', 'UNSET')", "valid_status"),
+            sa.CheckConstraint("status_code IN ('OK', 'ERROR', 'UNSET')", "valid_status"),
             nullable=False,
             default="UNSET",
             server_default="UNSET",
         ),
         sa.Column("status_message", sa.String, nullable=False),
-        sa.Column("latency_ms", sa.Float, nullable=False),
         sa.Column("cumulative_error_count", sa.Integer, nullable=False),
         sa.Column("cumulative_llm_token_count_prompt", sa.Integer, nullable=False),
         sa.Column("cumulative_llm_token_count_completion", sa.Integer, nullable=False),

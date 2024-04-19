@@ -34,7 +34,6 @@ from phoenix.config import (
     get_env_database_connection_str,
     get_env_host,
     get_env_port,
-    get_env_project_name,
     get_exported_files,
     get_working_dir,
 )
@@ -51,7 +50,6 @@ from phoenix.session.evaluation import encode_evaluations
 from phoenix.trace import Evaluations
 from phoenix.trace.dsl.query import SpanQuery
 from phoenix.trace.trace_dataset import TraceDataset
-from phoenix.utilities import query_spans
 
 try:
     from IPython.display import IFrame  # type: ignore
@@ -129,6 +127,77 @@ class Session(TraceDataExtractor, ABC):
         self.exported_data = ExportedData()
         self.notebook_env = notebook_env or _get_notebook_environment()
         self.root_path = _get_root_path(self.notebook_env, self.port)
+        host = "127.0.0.1" if self.host == "0.0.0.0" else self.host
+        self._client = Client(
+            endpoint=f"http://{host}:{self.port}",
+            use_active_session_if_available=False,
+        )
+
+    def query_spans(
+        self,
+        *queries: SpanQuery,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+        root_spans_only: Optional[bool] = None,
+        project_name: Optional[str] = None,
+    ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
+        """
+        Queries the spans in the project based on the provided parameters.
+
+        Parameters
+        ----------
+            queries : *SpanQuery
+                Variable-length argument list of SpanQuery objects representing
+                the queries to be executed.
+
+            start_time : datetime, optional
+                 datetime representing the start time of the query.
+
+            stop_time : datetime, optional
+                datetime representing the stop time of the query.
+
+            root_spans_only : boolean, optional
+                whether to include only root spans in the results.
+
+            project_name : string, optional
+                name of the project to query. Defaults to the project name set
+                in the environment variable `PHOENIX_PROJECT_NAME` or 'default' if not set.
+
+        Returns:
+            results : DataFrame
+                DataFrame or list of DataFrames containing the query results.
+        """
+        return self._client.query_spans(
+            *queries,
+            start_time=start_time,
+            stop_time=stop_time,
+            root_spans_only=root_spans_only,
+            project_name=project_name,
+        )
+
+    def get_evaluations(
+        self,
+        project_name: Optional[str] = None,
+    ) -> List[Evaluations]:
+        """
+        Get the evaluations for a project.
+
+        Parameters
+        ----------
+            project_name :  str, optional
+                The name of the project. If not provided, the project name set
+                in the environment variable `PHOENIX_PROJECT_NAME` will be used.
+                Otherwise, 'default' will be used.
+
+        Returns
+        -------
+            evaluations : List[Evaluations]
+                A list of evaluations for the specified project.
+
+        """
+        return self._client.get_evaluations(
+            project_name=project_name,
+        )
 
     @abstractmethod
     def end(self) -> None:
@@ -226,11 +295,6 @@ class ProcessSession(Session):
                 self.trace_dataset.name if self.trace_dataset is not None else None
             ),
         )
-        host = "127.0.0.1" if self.host == "0.0.0.0" else self.host
-        self._client = Client(
-            endpoint=f"http://{host}:{self.port}",
-            use_active_session_if_available=False,
-        )
 
     @property
     def active(self) -> bool:
@@ -239,28 +303,6 @@ class ProcessSession(Session):
     def end(self) -> None:
         self.app_service.stop()
         self.temp_dir.cleanup()
-
-    def query_spans(
-        self,
-        *queries: SpanQuery,
-        start_time: Optional[datetime] = None,
-        stop_time: Optional[datetime] = None,
-        root_spans_only: Optional[bool] = None,
-        project_name: Optional[str] = None,
-    ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
-        return self._client.query_spans(
-            *queries,
-            start_time=start_time,
-            stop_time=stop_time,
-            root_spans_only=root_spans_only,
-            project_name=project_name,
-        )
-
-    def get_evaluations(
-        self,
-        project_name: Optional[str] = None,
-    ) -> List[Evaluations]:
-        return self._client.get_evaluations()
 
 
 class ThreadSession(Session):
@@ -336,92 +378,6 @@ class ThreadSession(Session):
     def end(self) -> None:
         self.server.close()
         self.temp_dir.cleanup()
-
-    def query_spans(
-        self,
-        *queries: SpanQuery,
-        start_time: Optional[datetime] = None,
-        stop_time: Optional[datetime] = None,
-        root_spans_only: Optional[bool] = None,
-        project_name: Optional[str] = None,
-    ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
-        """
-        Queries the spans in the project based on the provided parameters.
-
-        Parameters
-        ----------
-            queries : *SpanQuery
-                Variable-length argument list of SpanQuery objects representing
-                the queries to be executed.
-
-            start_time : datetime, optional
-                 datetime representing the start time of the query.
-
-            stop_time : datetime, optional
-                datetime representing the stop time of the query.
-
-            root_spans_only : boolean, optional
-                whether to include only root spans in the results.
-
-            project_name : string, optional
-                name of the project to query. Defaults to the project name set
-                in the environment variable `PHOENIX_PROJECT_NAME` or 'default' if not set.
-
-        Returns:
-            results : DataFrame
-                DataFrame or list of DataFrames containing the query results.
-        """
-        if not (traces := self.traces) or not (
-            project := traces.get_project(project_name or get_env_project_name())
-        ):
-            return None
-        if not queries:
-            queries = (SpanQuery(),)
-        valid_eval_names = project.get_span_evaluation_names() if project else ()
-        queries = tuple(
-            SpanQuery.from_dict(
-                query.to_dict(),
-                evals=project,
-                valid_eval_names=valid_eval_names,
-            )
-            for query in queries
-        )
-        results = query_spans(
-            project,
-            *queries,
-            start_time=start_time,
-            stop_time=stop_time,
-            root_spans_only=root_spans_only,
-        )
-        if len(results) == 1:
-            df = results[0]
-            return None if df.shape == (0, 0) else df
-        return results
-
-    def get_evaluations(
-        self,
-        project_name: Optional[str] = None,
-    ) -> List[Evaluations]:
-        """
-        Get the evaluations for a project.
-
-        Parameters
-        ----------
-            project_name :  str, optional
-                The name of the project. If not provided, the project name set
-                in the environment variable `PHOENIX_PROJECT_NAME` will be used.
-                Otherwise, 'default' will be used.
-
-        Returns
-        -------
-            evaluations : List[Evaluations]
-                A list of evaluations for the specified project.
-
-        """
-        project_name = project_name or get_env_project_name()
-        if not (traces := self.traces) or not (project := traces.get_project(project_name)):
-            return []
-        return project.export_evaluations()
 
 
 def delete_all(prompt_before_delete: Optional[bool] = True) -> None:

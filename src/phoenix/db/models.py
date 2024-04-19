@@ -5,7 +5,9 @@ from sqlalchemy import (
     JSON,
     TIMESTAMP,
     CheckConstraint,
+    ColumnElement,
     Dialect,
+    Float,
     ForeignKey,
     MetaData,
     TypeDecorator,
@@ -15,6 +17,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -22,6 +26,7 @@ from sqlalchemy.orm import (
     mapped_column,
     relationship,
 )
+from sqlalchemy.sql import expression
 
 JSON_ = JSON().with_variant(
     postgresql.JSONB(),  # type: ignore
@@ -120,7 +125,15 @@ class Trace(Base):
     trace_id: Mapped[str]
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
-    latency_ms: Mapped[float]
+
+    @hybrid_property
+    def latency_ms(self) -> float:
+        return (self.end_time - self.start_time).total_seconds() * 1000
+
+    @latency_ms.inplace.expression
+    @classmethod
+    def _latency_ms_expression(cls) -> ColumnElement[float]:
+        return LatencyMs(cls.start_time, cls.end_time)
 
     project: Mapped["Project"] = relationship(
         "Project",
@@ -149,23 +162,35 @@ class Span(Base):
         index=True,
     )
     span_id: Mapped[str]
-    parent_span_id: Mapped[Optional[str]] = mapped_column(index=True)
+    parent_id: Mapped[Optional[str]] = mapped_column(index=True)
     name: Mapped[str]
-    kind: Mapped[str]
+    span_kind: Mapped[str]
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     attributes: Mapped[Dict[str, Any]]
     events: Mapped[List[Dict[str, Any]]]
-    status: Mapped[str] = mapped_column(
-        CheckConstraint("status IN ('OK', 'ERROR', 'UNSET')", name="valid_status")
+    status_code: Mapped[str] = mapped_column(
+        CheckConstraint("status_code IN ('OK', 'ERROR', 'UNSET')", name="valid_status")
     )
     status_message: Mapped[str]
 
     # TODO(mikeldking): is computed columns possible here
-    latency_ms: Mapped[float]
     cumulative_error_count: Mapped[int]
     cumulative_llm_token_count_prompt: Mapped[int]
     cumulative_llm_token_count_completion: Mapped[int]
+
+    @hybrid_property
+    def latency_ms(self) -> float:
+        return (self.end_time - self.start_time).total_seconds() * 1000
+
+    @latency_ms.inplace.expression
+    @classmethod
+    def _latency_ms_expression(cls) -> ColumnElement[float]:
+        return LatencyMs(cls.start_time, cls.end_time)
+
+    @hybrid_property
+    def cumulative_llm_token_count_total(self) -> int:
+        return self.cumulative_llm_token_count_prompt + self.cumulative_llm_token_count_completion
 
     trace: Mapped["Trace"] = relationship("Trace", back_populates="spans")
     document_annotations: Mapped[List["DocumentAnnotation"]] = relationship(back_populates="span")
@@ -176,6 +201,32 @@ class Span(Base):
             name="uq_spans_span_id",
             sqlite_on_conflict="IGNORE",
         ),
+    )
+
+
+class LatencyMs(expression.FunctionElement[float]):
+    inherit_cache = True
+    type = Float()
+    name = "latency_ms"
+
+
+@compiles(LatencyMs)  # type: ignore
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    start_time, end_time = list(element.clauses)
+    return compiler.process(
+        (func.extract("EPOCH", end_time) - func.extract("EPOCH", start_time)) * 1000, **kw
+    )
+
+
+@compiles(LatencyMs, "sqlite")  # type: ignore
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    start_time, end_time = list(element.clauses)
+    return compiler.process(
+        # FIXME: We don't know why sqlite returns a slightly different value.
+        # postgresql is correct because it matches the value computed by Python.
+        # unixepoch() gives the same results.
+        (func.julianday(end_time) - func.julianday(start_time)) * 86_400_000,
+        **kw,
     )
 
 

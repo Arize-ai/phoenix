@@ -36,27 +36,17 @@ import {
   ViewStyleProps,
 } from "@arizeai/components";
 import {
-  DOCUMENT_CONTENT,
-  DOCUMENT_ID,
-  DOCUMENT_METADATA,
-  DOCUMENT_SCORE,
-  EMBEDDING_TEXT,
   EmbeddingAttributePostfixes,
   LLMAttributePostfixes,
-  LLMPromptTemplateAttributePostfixes,
-  MESSAGE_CONTENT,
-  MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
-  MESSAGE_FUNCTION_CALL_NAME,
-  MESSAGE_NAME,
-  MESSAGE_ROLE,
-  MESSAGE_TOOL_CALLS,
+  MessageAttributePostfixes,
   RerankerAttributePostfixes,
   RetrievalAttributePostfixes,
-  SemanticAttributePrefixes,
-  TOOL_CALL_FUNCTION_ARGUMENTS_JSON,
-  TOOL_CALL_FUNCTION_NAME,
   ToolAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
+import {
+  DocumentAttributePostfixes,
+  SemanticAttributePrefixes,
+} from "@arizeai/openinference-semantic-conventions/src/trace/SemanticConventions";
 
 import { CopyToClipboardButton, ExternalLink } from "@phoenix/components";
 import {
@@ -75,8 +65,13 @@ import { useTheme } from "@phoenix/contexts";
 import {
   AttributeDocument,
   AttributeEmbedding,
+  AttributeEmbeddingEmbedding,
+  AttributeLlm,
   AttributeMessage,
   AttributePromptTemplate,
+  AttributeReranker,
+  AttributeRetrieval,
+  AttributeTool,
 } from "@phoenix/openInference/tracing/types";
 import { assertUnreachable, isStringArray } from "@phoenix/typeUtils";
 import { formatFloat, numberFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -98,7 +93,13 @@ type DocumentEvaluation = Span["documentEvaluations"][number];
 /**
  * A span attribute object that is a map of string to an unknown value
  */
-type AttributeObject = Record<string, unknown>;
+type AttributeObject = {
+  [SemanticAttributePrefixes.retrieval]?: AttributeRetrieval;
+  [SemanticAttributePrefixes.embedding]?: AttributeEmbedding;
+  [SemanticAttributePrefixes.tool]?: AttributeTool;
+  [SemanticAttributePrefixes.reranker]?: AttributeReranker;
+  [SemanticAttributePrefixes.llm]?: AttributeLlm;
+};
 
 /**
  * Hook that safely parses a JSON string.
@@ -114,30 +115,6 @@ const useSafelyParsedJSON = (
     }
   }, [jsonStr]);
 };
-
-function isAttributeObject(value: unknown): value is AttributeObject {
-  if (
-    value != null &&
-    typeof value === "object" &&
-    !Object.keys(value).find((key) => typeof key != "string")
-  ) {
-    return true;
-  }
-  return false;
-}
-
-export function isAttributePromptTemplate(
-  value: unknown
-): value is AttributePromptTemplate {
-  if (
-    isAttributeObject(value) &&
-    typeof value[LLMPromptTemplateAttributePostfixes.template] === "string" &&
-    typeof value[LLMPromptTemplateAttributePostfixes.variables] === "object"
-  ) {
-    return true;
-  }
-  return false;
-}
 
 const spanHasException = (span: Span) => {
   return span.events.some((event) => event.name === "exception");
@@ -571,13 +548,10 @@ function SpanInfo({ span }: { span: Span }) {
 function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
   const { spanAttributes, span } = props;
   const { input, output } = span;
-  const llmAttributes = useMemo<AttributeObject | null>(() => {
-    const llmAttrs = spanAttributes[SemanticAttributePrefixes.llm];
-    if (typeof llmAttrs === "object") {
-      return llmAttrs as AttributeObject;
-    }
-    return null;
-  }, [spanAttributes]);
+  const llmAttributes = useMemo<AttributeLlm | null>(
+    () => spanAttributes[SemanticAttributePrefixes.llm] || null,
+    [spanAttributes]
+  );
 
   const modelName = useMemo<string | null>(() => {
     if (llmAttributes == null) {
@@ -594,16 +568,18 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
     if (llmAttributes == null) {
       return [];
     }
-    return (llmAttributes[LLMAttributePostfixes.input_messages] ||
-      []) as AttributeMessage[];
+    return (llmAttributes[LLMAttributePostfixes.input_messages]?.map(
+      (obj) => obj[SemanticAttributePrefixes.message]
+    ) || []) as AttributeMessage[];
   }, [llmAttributes]);
 
   const outputMessages = useMemo<AttributeMessage[]>(() => {
     if (llmAttributes == null) {
       return [];
     }
-    return (llmAttributes[LLMAttributePostfixes.output_messages] ||
-      []) as AttributeMessage[];
+    return (llmAttributes[LLMAttributePostfixes.output_messages]?.map(
+      (obj) => obj[SemanticAttributePrefixes.message]
+    ) || []) as AttributeMessage[];
   }, [llmAttributes]);
 
   const prompts = useMemo<string[]>(() => {
@@ -621,10 +597,9 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
     if (llmAttributes == null) {
       return null;
     }
-
     const maybePromptTemplate =
       llmAttributes[LLMAttributePostfixes.prompt_template];
-    if (!isAttributePromptTemplate(maybePromptTemplate)) {
+    if (maybePromptTemplate == null) {
       return null;
     }
     return maybePromptTemplate;
@@ -794,19 +769,17 @@ function RetrieverSpanInfo(props: {
 }) {
   const { spanAttributes, span } = props;
   const { input } = span;
-  const retrieverAttributes = useMemo<AttributeObject | null>(() => {
-    const retrieverAttrs = spanAttributes[SemanticAttributePrefixes.retrieval];
-    if (typeof retrieverAttrs === "object") {
-      return retrieverAttrs as AttributeObject;
-    }
-    return null;
-  }, [spanAttributes]);
+  const retrieverAttributes = useMemo<AttributeRetrieval | null>(
+    () => spanAttributes[SemanticAttributePrefixes.retrieval] || null,
+    [spanAttributes]
+  );
   const documents = useMemo<AttributeDocument[]>(() => {
     if (retrieverAttributes == null) {
       return [];
     }
-    return (retrieverAttributes[RetrievalAttributePostfixes.documents] ||
-      []) as AttributeDocument[];
+    return (retrieverAttributes[RetrievalAttributePostfixes.documents]?.map(
+      (obj) => obj[SemanticAttributePrefixes.document]
+    ) || []) as AttributeDocument[];
   }, [retrieverAttributes]);
 
   // Construct a map of document position to document evaluations
@@ -918,13 +891,10 @@ function RerankerSpanInfo(props: {
   spanAttributes: AttributeObject;
 }) {
   const { spanAttributes } = props;
-  const rerankerAttributes = useMemo<AttributeObject | null>(() => {
-    const rerankerAttrs = spanAttributes[SemanticAttributePrefixes.reranker];
-    if (typeof rerankerAttrs === "object") {
-      return rerankerAttrs as AttributeObject;
-    }
-    return null;
-  }, [spanAttributes]);
+  const rerankerAttributes = useMemo<AttributeReranker | null>(
+    () => spanAttributes[SemanticAttributePrefixes.reranker] || null,
+    [spanAttributes]
+  );
   const query = useMemo<string>(() => {
     if (rerankerAttributes == null) {
       return "";
@@ -936,14 +906,17 @@ function RerankerSpanInfo(props: {
     if (rerankerAttributes == null) {
       return [];
     }
-    return (rerankerAttributes[RerankerAttributePostfixes.input_documents] ||
-      []) as AttributeDocument[];
+    return (rerankerAttributes[RerankerAttributePostfixes.input_documents]?.map(
+      (obj) => obj[SemanticAttributePrefixes.document]
+    ) || []) as AttributeDocument[];
   }, [rerankerAttributes]);
   const output_documents = useMemo<AttributeDocument[]>(() => {
     if (rerankerAttributes == null) {
       return [];
     }
-    return (rerankerAttributes[RerankerAttributePostfixes.output_documents] ||
+    return (rerankerAttributes[
+      RerankerAttributePostfixes.output_documents
+    ]?.map((obj) => obj[SemanticAttributePrefixes.document]) ||
       []) as AttributeDocument[];
   }, [rerankerAttributes]);
 
@@ -1024,19 +997,17 @@ function EmbeddingSpanInfo(props: {
   spanAttributes: AttributeObject;
 }) {
   const { spanAttributes } = props;
-  const embeddingAttributes = useMemo<AttributeObject | null>(() => {
-    const embeddingAttrs = spanAttributes[SemanticAttributePrefixes.embedding];
-    if (typeof embeddingAttrs === "object") {
-      return embeddingAttrs as AttributeObject;
-    }
-    return null;
-  }, [spanAttributes]);
-  const embeddings = useMemo<AttributeEmbedding[]>(() => {
+  const embeddingAttributes = useMemo<AttributeEmbedding | null>(
+    () => spanAttributes[SemanticAttributePrefixes.embedding] || null,
+    [spanAttributes]
+  );
+  const embeddings = useMemo<AttributeEmbeddingEmbedding[]>(() => {
     if (embeddingAttributes == null) {
       return [];
     }
-    return (embeddingAttributes[EmbeddingAttributePostfixes.embeddings] ||
-      []) as AttributeDocument[];
+    return (embeddingAttributes[EmbeddingAttributePostfixes.embeddings]?.map(
+      (obj) => obj[SemanticAttributePrefixes.embedding]
+    ) || []) as AttributeEmbeddingEmbedding[];
   }, [embeddingAttributes]);
 
   const hasEmbeddings = embeddings.length > 0;
@@ -1071,7 +1042,7 @@ function EmbeddingSpanInfo(props: {
                         title="Embedded Text"
                       >
                         <ConnectedMarkdownBlock>
-                          {embedding[EMBEDDING_TEXT] || ""}
+                          {embedding[EmbeddingAttributePostfixes.text] || ""}
                         </ConnectedMarkdownBlock>
                       </Card>
                     </MarkdownDisplayProvider>
@@ -1088,14 +1059,10 @@ function EmbeddingSpanInfo(props: {
 
 function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
   const { spanAttributes } = props;
-  const toolAttributes = useMemo<AttributeObject>(() => {
-    const toolAttrs = spanAttributes[SemanticAttributePrefixes.tool];
-    if (typeof toolAttrs === "object") {
-      return toolAttrs as AttributeObject;
-    }
-    return {};
-  }, [spanAttributes]);
-
+  const toolAttributes = useMemo<AttributeTool>(
+    () => spanAttributes[SemanticAttributePrefixes.tool] || {},
+    [spanAttributes]
+  );
   const hasToolAttributes = Object.keys(toolAttributes).length > 0;
   if (!hasToolAttributes) {
     return null;
@@ -1168,8 +1135,9 @@ function DocumentItem({
   borderColor: ViewProps["borderColor"];
   labelColor: LabelProps["color"];
 }) {
-  const metadata = document[DOCUMENT_METADATA];
+  const metadata = document[DocumentAttributePostfixes.metadata];
   const hasEvaluations = documentEvaluations && documentEvaluations.length;
+  const documentContent = document[DocumentAttributePostfixes.content];
   return (
     <Card
       {...defaultCardProps}
@@ -1182,23 +1150,25 @@ function DocumentItem({
       title={
         <Flex direction="row" gap="size-50" alignItems="center">
           <Icon svg={<Icons.FileOutline />} />
-          <Heading level={4}>document {document[DOCUMENT_ID]}</Heading>
+          <Heading level={4}>
+            document {document[DocumentAttributePostfixes.id]}
+          </Heading>
         </Flex>
       }
       extra={
-        typeof document[DOCUMENT_SCORE] === "number" && (
+        typeof document[DocumentAttributePostfixes.score] === "number" && (
           <Label color={labelColor}>{`score ${numberFormatter(
-            document[DOCUMENT_SCORE]
+            document[DocumentAttributePostfixes.score]
           )}`}</Label>
         )
       }
     >
       <Flex direction="column">
-        <View padding="size-200">
-          <ConnectedMarkdownBlock>
-            {document[DOCUMENT_CONTENT]}
-          </ConnectedMarkdownBlock>
-        </View>
+        {documentContent && (
+          <View padding="size-200">
+            <ConnectedMarkdownBlock>{documentContent}</ConnectedMarkdownBlock>
+          </View>
+        )}
         {metadata && (
           <>
             <View borderColor={borderColor} borderTopWidth="thin">
@@ -1288,12 +1258,15 @@ function DocumentItem({
 }
 
 function LLMMessage({ message }: { message: AttributeMessage }) {
-  const messageContent = message[MESSAGE_CONTENT];
-  const toolCalls = message[MESSAGE_TOOL_CALLS] || [];
+  const messageContent = message[MessageAttributePostfixes.content];
+  const toolCalls =
+    message[MessageAttributePostfixes.tool_calls]?.map(
+      (obj) => obj[SemanticAttributePrefixes.tool_call]
+    ) || [];
   const hasFunctionCall =
-    message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] &&
-    message[MESSAGE_FUNCTION_CALL_NAME];
-  const role = message[MESSAGE_ROLE];
+    message[MessageAttributePostfixes.function_call_arguments_json] &&
+    message[MessageAttributePostfixes.function_call_name];
+  const role = message[MessageAttributePostfixes.role] || "unknown";
   const messageStyles = useMemo<ViewStyleProps>(() => {
     if (role === "user") {
       return {
@@ -1328,7 +1301,10 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
         {...defaultCardProps}
         {...messageStyles}
         title={
-          role + (message[MESSAGE_NAME] ? `: ${message[MESSAGE_NAME]}` : "")
+          role +
+          (message[MessageAttributePostfixes.name]
+            ? `: ${message[MessageAttributePostfixes.name]}`
+            : "")
         }
         extra={
           <Flex direction="row" gap="size-100">
@@ -1341,9 +1317,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
       >
         <Flex direction="column" alignItems="start">
           {messageContent ? (
-            <ConnectedMarkdownBlock>
-              {message[MESSAGE_CONTENT]}
-            </ConnectedMarkdownBlock>
+            <ConnectedMarkdownBlock>{messageContent}</ConnectedMarkdownBlock>
           ) : null}
           {toolCalls.length > 0
             ? toolCalls.map((toolCall, idx) => {
@@ -1355,11 +1329,9 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                       margin: var(--ac-global-dimension-static-size-100) 0;
                     `}
                   >
-                    {toolCall[TOOL_CALL_FUNCTION_NAME] as string}(
+                    {toolCall?.function?.name as string}(
                     {JSON.stringify(
-                      JSON.parse(
-                        toolCall[TOOL_CALL_FUNCTION_ARGUMENTS_JSON] as string
-                      ),
+                      JSON.parse(toolCall?.function?.arguments as string),
                       null,
                       2
                     )}
@@ -1376,10 +1348,12 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                 margin: var(--ac-global-dimension-static-size-100) 0;
               `}
             >
-              {message[MESSAGE_FUNCTION_CALL_NAME] as string}(
+              {message[MessageAttributePostfixes.function_call_name] as string}(
               {JSON.stringify(
                 JSON.parse(
-                  message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] as string
+                  message[
+                    MessageAttributePostfixes.function_call_arguments_json
+                  ] as string
                 ),
                 null,
                 2

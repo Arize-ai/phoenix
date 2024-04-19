@@ -241,7 +241,7 @@ def _read_sql_span_evaluations_into_dataframe(
 
     https://stackoverflow.com/questions/70848256/how-can-i-use-pandas-read-sql-on-an-async-connection
     """
-    return pd.read_sql(
+    return pd.read_sql_query(
         select(models.SpanAnnotation, models.Span.span_id)
         .join(models.Span)
         .join(models.Trace)

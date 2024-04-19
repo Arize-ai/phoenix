@@ -8,6 +8,7 @@ import pytest
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
 from phoenix.core.project import Project, _Spans
+from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.otel import decode
 from phoenix.trace.schemas import ComputedAttributes
 
@@ -33,7 +34,10 @@ def test_ingestion(
 
         assert _id_str(otlp_span.span_id) in _spans, f"{i=}, {s=}"
         latest_span = next(project.get_spans(span_ids=[_id_str(otlp_span.span_id)]))
-        expected_token_count_total += latest_span.attributes[SpanAttributes.LLM_TOKEN_COUNT_TOTAL]
+        expected_token_count_total += get_attribute_value(
+            latest_span.attributes,
+            SpanAttributes.LLM_TOKEN_COUNT_TOTAL,
+        )
         assert project.token_count_total == expected_token_count_total, f"{i=}, {s=}"
         ingested_ids.add(latest_span.context.span_id)
 
@@ -43,10 +47,10 @@ def test_ingestion(
         # across a missing parent.
         for span_id in ingested_ids.intersection(child_ids.keys()):
             span = next(project.get_spans(span_ids=[span_id]))
-            assert span[ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_TOTAL] == span.attributes[
-                SpanAttributes.LLM_TOKEN_COUNT_TOTAL
-            ] + sum(
-                span.attributes[SpanAttributes.LLM_TOKEN_COUNT_TOTAL]
+            assert span[ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_TOTAL] == get_attribute_value(
+                span.attributes, SpanAttributes.LLM_TOKEN_COUNT_TOTAL
+            ) + sum(
+                get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_TOTAL)
                 for span in project.get_spans(
                     span_ids=list(_connected_descendant_ids(span_id, child_ids, ingested_ids))
                 )

@@ -21,6 +21,7 @@ from typing_extensions import assert_never
 import phoenix.trace.v1 as pb
 from phoenix.db import models
 from phoenix.exceptions import PhoenixException
+from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.schemas import Span, SpanStatusCode
 
 logger = logging.getLogger(__name__)
@@ -241,7 +242,6 @@ async def _insert_span(session: AsyncSession, span: Span, project_name: str) -> 
                 .values(
                     start_time=trace_start_time,
                     end_time=trace_end_time,
-                    latency_ms=(trace_end_time - trace_start_time).total_seconds() * 1000,
                 )
             )
     else:
@@ -254,17 +254,16 @@ async def _insert_span(session: AsyncSession, span: Span, project_name: str) -> 
                     trace_id=span.context.trace_id,
                     start_time=span.start_time,
                     end_time=span.end_time,
-                    latency_ms=(span.end_time - span.start_time).total_seconds() * 1000,
                 )
                 .returning(models.Trace.id)
             ),
         )
     cumulative_error_count = int(span.status_code is SpanStatusCode.ERROR)
     cumulative_llm_token_count_prompt = cast(
-        int, span.attributes.get(SpanAttributes.LLM_TOKEN_COUNT_PROMPT, 0)
+        int, get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_PROMPT) or 0
     )
     cumulative_llm_token_count_completion = cast(
-        int, span.attributes.get(SpanAttributes.LLM_TOKEN_COUNT_COMPLETION, 0)
+        int, get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_COMPLETION) or 0
     )
     if accumulation := (
         await session.execute(
@@ -272,27 +271,25 @@ async def _insert_span(session: AsyncSession, span: Span, project_name: str) -> 
                 func.sum(models.Span.cumulative_error_count),
                 func.sum(models.Span.cumulative_llm_token_count_prompt),
                 func.sum(models.Span.cumulative_llm_token_count_completion),
-            ).where(models.Span.parent_span_id == span.context.span_id)
+            ).where(models.Span.parent_id == span.context.span_id)
         )
     ).first():
         cumulative_error_count += cast(int, accumulation[0] or 0)
         cumulative_llm_token_count_prompt += cast(int, accumulation[1] or 0)
         cumulative_llm_token_count_completion += cast(int, accumulation[2] or 0)
-    latency_ms = (span.end_time - span.start_time).total_seconds() * 1000
     session.add(
         models.Span(
             span_id=span.context.span_id,
             trace_rowid=trace_rowid,
-            parent_span_id=span.parent_id,
-            kind=span.span_kind.value,
+            parent_id=span.parent_id,
+            span_kind=span.span_kind.value,
             name=span.name,
             start_time=span.start_time,
             end_time=span.end_time,
             attributes=span.attributes,
             events=span.events,
-            status=span.status_code.value,
+            status_code=span.status_code.value,
             status_message=span.status_message,
-            latency_ms=latency_ms,
             cumulative_error_count=cumulative_error_count,
             cumulative_llm_token_count_prompt=cumulative_llm_token_count_prompt,
             cumulative_llm_token_count_completion=cumulative_llm_token_count_completion,
@@ -300,17 +297,17 @@ async def _insert_span(session: AsyncSession, span: Span, project_name: str) -> 
     )
     # Propagate cumulative values to ancestors. This is usually a no-op, since
     # the parent usually arrives after the child. But in the event that a
-    # child arrives after its parent, we need to make sure the all the
+    # child arrives after its parent, we need to make sure that all the
     # ancestors' cumulative values are updated.
     ancestors = (
-        select(models.Span.id, models.Span.parent_span_id)
+        select(models.Span.id, models.Span.parent_id)
         .where(models.Span.span_id == span.parent_id)
         .cte(recursive=True)
     )
     child = ancestors.alias()
     ancestors = ancestors.union_all(
-        select(models.Span.id, models.Span.parent_span_id).join(
-            child, models.Span.span_id == child.c.parent_span_id
+        select(models.Span.id, models.Span.parent_id).join(
+            child, models.Span.span_id == child.c.parent_id
         )
     )
     await session.execute(

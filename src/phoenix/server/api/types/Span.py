@@ -1,8 +1,7 @@
 import json
-from collections import defaultdict
 from datetime import datetime
 from enum import Enum
-from typing import Any, DefaultDict, Dict, Iterable, List, Mapping, Optional, Sized, cast
+from typing import Any, List, Mapping, Optional, Sized, cast
 
 import numpy as np
 import strawberry
@@ -20,6 +19,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
 from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluation
 from phoenix.server.api.types.MimeType import MimeType
+from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.schemas import SpanID
 
 EMBEDDING_EMBEDDINGS = SpanAttributes.EMBEDDING_EMBEDDINGS
@@ -54,7 +54,9 @@ class SpanKind(Enum):
 
     @classmethod
     def _missing_(cls, v: Any) -> Optional["SpanKind"]:
-        return None if v else cls.unknown
+        if v and isinstance(v, str) and not v.isupper():
+            return cls(v.upper())
+        return cls.unknown
 
 
 @strawberry.type
@@ -206,14 +208,14 @@ class Span:
         async with info.context.db() as session:
             descendant_ids = (
                 select(models.Span.id, models.Span.span_id)
-                .filter(models.Span.parent_span_id == str(self.context.span_id))
+                .filter(models.Span.parent_id == str(self.context.span_id))
                 .cte(recursive=True)
             )
             parent_ids = descendant_ids.alias()
             descendant_ids = descendant_ids.union_all(
                 select(models.Span.id, models.Span.span_id).join(
                     parent_ids,
-                    models.Span.parent_span_id == parent_ids.c.span_id,
+                    models.Span.parent_id == parent_ids.c.span_id,
                 )
             )
             spans = await session.scalars(
@@ -227,18 +229,18 @@ class Span:
 
 def to_gql_span(span: models.Span, project: Project) -> Span:
     events: List[SpanEvent] = list(map(SpanEvent.from_dict, span.events))
-    input_value = cast(Optional[str], span.attributes.get(INPUT_VALUE))
-    output_value = cast(Optional[str], span.attributes.get(OUTPUT_VALUE))
-    retrieval_documents = span.attributes.get(RETRIEVAL_DOCUMENTS)
+    input_value = cast(Optional[str], get_attribute_value(span.attributes, INPUT_VALUE))
+    output_value = cast(Optional[str], get_attribute_value(span.attributes, OUTPUT_VALUE))
+    retrieval_documents = get_attribute_value(span.attributes, RETRIEVAL_DOCUMENTS)
     num_documents = len(retrieval_documents) if isinstance(retrieval_documents, Sized) else None
     return Span(
         project=project,
         span_rowid=span.id,
         name=span.name,
-        status_code=SpanStatusCode(span.status),
+        status_code=SpanStatusCode(span.status_code),
         status_message=span.status_message,
-        parent_id=cast(Optional[ID], span.parent_span_id),
-        span_kind=SpanKind(span.kind),
+        parent_id=cast(Optional[ID], span.parent_id),
+        span_kind=SpanKind(span.span_kind),
         start_time=span.start_time,
         end_time=span.end_time,
         latency_ms=span.latency_ms,
@@ -246,35 +248,36 @@ def to_gql_span(span: models.Span, project: Project) -> Span:
             trace_id=cast(ID, span.trace.trace_id),
             span_id=cast(ID, span.span_id),
         ),
-        attributes=json.dumps(
-            _nested_attributes(_hide_embedding_vectors(span.attributes)),
-            cls=_JSONEncoder,
-        ),
-        metadata=_convert_metadata_to_string(span.attributes.get(METADATA)),
+        attributes=json.dumps(span.attributes, cls=_JSONEncoder),
+        # TODO(persistence): hide the embedding vectors as a string instead,
+        # e.g. f"<{len(vector)} dimensional vector>"
+        metadata=_convert_metadata_to_string(get_attribute_value(span.attributes, METADATA)),
         num_documents=num_documents,
         token_count_total=cast(
             Optional[int],
-            span.attributes.get(LLM_TOKEN_COUNT_TOTAL),
+            get_attribute_value(span.attributes, LLM_TOKEN_COUNT_TOTAL),
         ),
         token_count_prompt=cast(
             Optional[int],
-            span.attributes.get(LLM_TOKEN_COUNT_PROMPT),
+            get_attribute_value(span.attributes, LLM_TOKEN_COUNT_PROMPT),
         ),
         token_count_completion=cast(
             Optional[int],
-            span.attributes.get(LLM_TOKEN_COUNT_COMPLETION),
+            get_attribute_value(span.attributes, LLM_TOKEN_COUNT_COMPLETION),
         ),
         cumulative_token_count_total=span.cumulative_llm_token_count_prompt
         + span.cumulative_llm_token_count_completion,
         cumulative_token_count_prompt=span.cumulative_llm_token_count_prompt,
         cumulative_token_count_completion=span.cumulative_llm_token_count_completion,
         propagated_status_code=(
-            SpanStatusCode.ERROR if span.cumulative_error_count else SpanStatusCode(span.status)
+            SpanStatusCode.ERROR
+            if span.cumulative_error_count
+            else SpanStatusCode(span.status_code)
         ),
         events=events,
         input=(
             SpanIOValue(
-                mime_type=MimeType(span.attributes.get(INPUT_MIME_TYPE)),
+                mime_type=MimeType(get_attribute_value(span.attributes, INPUT_MIME_TYPE)),
                 value=input_value,
             )
             if input_value is not None
@@ -282,7 +285,7 @@ def to_gql_span(span: models.Span, project: Project) -> Span:
         ),
         output=(
             SpanIOValue(
-                mime_type=MimeType(span.attributes.get(OUTPUT_MIME_TYPE)),
+                mime_type=MimeType(get_attribute_value(span.attributes, OUTPUT_MIME_TYPE)),
                 value=output_value,
             )
             if output_value is not None
@@ -304,39 +307,6 @@ class _JSONEncoder(json.JSONEncoder):
         if isinstance(obj, np.floating):
             return float(obj)
         return super().default(obj)
-
-
-def _trie() -> DefaultDict[str, Any]:
-    return defaultdict(_trie)
-
-
-def _nested_attributes(
-    attributes: Mapping[str, Any],
-) -> DefaultDict[str, Any]:
-    nested_attributes = _trie()
-    for attribute_name, attribute_value in attributes.items():
-        trie = nested_attributes
-        keys = attribute_name.split(".")
-        for key in keys[:-1]:
-            trie = trie[key]
-        trie[keys[-1]] = attribute_value
-    return nested_attributes
-
-
-def _hide_embedding_vectors(
-    attributes: Mapping[str, Any],
-) -> Dict[str, Any]:
-    _attributes = dict(attributes)
-    if not isinstance((embeddings := _attributes.get(EMBEDDING_EMBEDDINGS)), Iterable):
-        return _attributes
-    _embeddings = []
-    for embedding in embeddings:
-        _embedding = dict(embedding)
-        if isinstance((vector := _embedding.get(EMBEDDING_VECTOR)), Sized):
-            _embedding[EMBEDDING_VECTOR] = f"<{len(vector)} dimensional vector>"
-        _embeddings.append(_embedding)
-    _attributes[EMBEDDING_EMBEDDINGS] = _embeddings
-    return _attributes
 
 
 def _convert_metadata_to_string(metadata: Any) -> Optional[str]:
