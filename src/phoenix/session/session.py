@@ -109,6 +109,7 @@ class Session(TraceDataExtractor, ABC):
 
     def __init__(
         self,
+        database: str,
         primary_dataset: Inferences,
         reference_dataset: Optional[Inferences] = None,
         corpus_dataset: Optional[Inferences] = None,
@@ -118,6 +119,7 @@ class Session(TraceDataExtractor, ABC):
         port: Optional[int] = None,
         notebook_env: Optional[NotebookEnvironment] = None,
     ):
+        self.database = database
         self.primary_dataset = primary_dataset
         self.reference_dataset = reference_dataset
         self.corpus_dataset = corpus_dataset
@@ -132,10 +134,7 @@ class Session(TraceDataExtractor, ABC):
         self.notebook_env = notebook_env or _get_notebook_environment()
         self.root_path = _get_root_path(self.notebook_env, self.port)
         host = "127.0.0.1" if self.host == "0.0.0.0" else self.host
-        self._client = Client(
-            endpoint=f"http://{host}:{self.port}",
-            use_active_session_if_available=False,
-        )
+        self._client = Client(endpoint=f"http://{host}:{self.port}", warn_if_not_running=False)
 
     def query_spans(
         self,
@@ -242,6 +241,10 @@ class Session(TraceDataExtractor, ABC):
         """Returns the url for the phoenix app"""
         return _get_url(self.host, self.port, self.notebook_env)
 
+    @property
+    def database_url(self) -> str:
+        return self.database
+
 
 _session: Optional[Session] = None
 
@@ -261,6 +264,7 @@ class ProcessSession(Session):
         notebook_env: Optional[NotebookEnvironment] = None,
     ) -> None:
         super().__init__(
+            database=database,
             primary_dataset=primary_dataset,
             reference_dataset=reference_dataset,
             corpus_dataset=corpus_dataset,
@@ -326,6 +330,7 @@ class ThreadSession(Session):
         notebook_env: Optional[NotebookEnvironment] = None,
     ):
         super().__init__(
+            database=database,
             primary_dataset=primary_dataset,
             reference_dataset=reference_dataset,
             corpus_dataset=corpus_dataset,
@@ -454,7 +459,7 @@ def launch_app(
         there is a failure to infer the environment.
     use_temp_dir: bool, optional, default=True
         Whether to use a temporary directory to store the data. If set to False, the data will be
-        stored in the directory specified by PHOENIX_WORKING_DIR environment variable.
+        stored in the directory specified by PHOENIX_WORKING_DIR environment variable via SQLite.
 
 
     Returns
@@ -572,7 +577,8 @@ def launch_app(
         return None
 
     print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
-    print(f"💽 Your data is being persisted to {database}")
+    if not use_temp_dir:
+        print(f"💽 Your data is being persisted to {database}")
     print("📖 For more information on how to use Phoenix, check out https://docs.arize.com/phoenix")
     return _session
 
