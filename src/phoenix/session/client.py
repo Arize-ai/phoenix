@@ -28,6 +28,7 @@ class Client(TraceDataExtractor):
         self,
         *,
         endpoint: Optional[str] = None,
+        warn_if_server_not_running: bool = True,
         **kwargs: Any,  # for backward-compatibility
     ):
         """
@@ -50,7 +51,8 @@ class Client(TraceDataExtractor):
         )
         self._session = Session()
         weakref.finalize(self, self._session.close)
-        self._warn_if_phoenix_is_not_running()
+        if warn_if_server_not_running:
+            self._warn_if_phoenix_is_not_running()
 
     def query_spans(
         self,

@@ -220,7 +220,7 @@ async def openapi_schema(request: Request) -> Response:
 
 
 def create_app(
-    database: str,
+    database_url: str,
     export_path: Path,
     model: Model,
     umap_params: UMAPParameters,
@@ -241,7 +241,7 @@ def create_app(
         )
     )
     initial_batch_of_evaluations = () if initial_evaluations is None else initial_evaluations
-    engine = create_engine(database)
+    engine = create_engine(database_url)
     db = _db(engine)
     graphql = GraphQLWithContext(
         db=db,
