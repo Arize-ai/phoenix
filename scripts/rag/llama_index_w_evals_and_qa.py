@@ -43,8 +43,6 @@ from phoenix.evals import (
     llm_classify,
 )
 from phoenix.evals.models import BaseModel, set_verbosity
-
-# from phoenix.experimental.evals.templates import NOT_PARSABLE
 from plotresults import (
     plot_latency_graphs,
     plot_mean_average_precision_graphs,
