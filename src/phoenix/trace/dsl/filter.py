@@ -1,4 +1,5 @@
 import ast
+import re
 import sys
 import typing
 from dataclasses import dataclass, field
@@ -6,8 +7,10 @@ from difflib import SequenceMatcher
 from types import MappingProxyType
 
 import sqlalchemy
+from sqlalchemy.orm import aliased
+from sqlalchemy.orm.util import AliasedClass
 from sqlalchemy.sql.expression import Select
-from typing_extensions import TypeGuard, assert_never
+from typing_extensions import TypeAlias, TypeGuard, assert_never
 
 import phoenix.trace.v1 as pb
 from phoenix.db import models
@@ -17,6 +20,10 @@ _VALID_EVAL_ATTRIBUTES: typing.Tuple[str, ...] = tuple(
     field.name for field in pb.Evaluation.Result.DESCRIPTOR.fields
 )
 
+
+AnnotationAlias: TypeAlias = str
+EvalExpression: TypeAlias = str
+EvalName: TypeAlias = str
 
 # Because postgresql is strongly typed, we cast JSON values to string
 # by default unless it's hinted otherwise as done here.
@@ -83,6 +90,12 @@ class SpanFilter:
     valid_eval_names: typing.Optional[typing.Sequence[str]] = None
     translated: ast.Expression = field(init=False, repr=False)
     compiled: typing.Any = field(init=False, repr=False)
+    aliased_annotations: typing.Tuple[AliasedClass[models.SpanAnnotation]] = field(
+        init=False, repr=False
+    )
+    join_aliased_tables: typing.Callable[[Select[typing.Any]], Select[typing.Any]] = field(
+        init=False, repr=False
+    )
 
     def __bool__(self) -> bool:
         return bool(self.condition)
@@ -92,20 +105,30 @@ class SpanFilter:
             return
         root = ast.parse(source, mode="eval")
         _validate_expression(root, source, valid_eval_names=self.valid_eval_names)
-        translated = _FilterTranslator(source).visit(root)
+        source, aliased_annotations, join_aliased_tables = _apply_aliases(source)
+        root = ast.parse(source, mode="eval")
+        translated = _FilterTranslator(
+            source=source,
+            annotation_aliases=[_get_alias(annotation) for annotation in aliased_annotations],
+        ).visit(root)
         ast.fix_missing_locations(translated)
         compiled = compile(translated, filename="", mode="eval")
-        object.__setattr__(self, "translated", translated)
         object.__setattr__(self, "compiled", compiled)
+        object.__setattr__(self, "aliased_annotations", aliased_annotations)
+        object.__setattr__(self, "join_aliased_tables", join_aliased_tables)
 
     def __call__(self, select: Select[typing.Any]) -> Select[typing.Any]:
         if not self.condition:
             return select
-        return select.where(
+        return self.join_aliased_tables(select).where(
             eval(
                 self.compiled,
                 {
                     **_NAMES,
+                    **{
+                        _get_alias(annotation): annotation
+                        for annotation in self.aliased_annotations
+                    },
                     "not_": sqlalchemy.not_,
                     "and_": sqlalchemy.and_,
                     "or_": sqlalchemy.or_,
@@ -298,14 +321,6 @@ class _ProjectionTranslator(ast.NodeTransformer):
     def visit_Expression(self, node: ast.Expression) -> typing.Any:
         return ast.Expression(body=self.visit(node.body))
 
-    def visit_Attribute(self, node: ast.Attribute) -> typing.Any:
-        source_segment = typing.cast(str, ast.get_source_segment(self._source, node))
-        if replacement := _BACKWARD_COMPATIBILITY_REPLACEMENTS.get(source_segment):
-            return ast.Name(id=replacement, ctx=ast.Load())
-        if (keys := _get_attribute_keys_list(node)) is not None:
-            return _as_attribute(keys)
-        raise SyntaxError(f"invalid expression: {source_segment}")
-
     def visit_Name(self, node: ast.Name) -> typing.Any:
         source_segment = typing.cast(str, ast.get_source_segment(self._source, node))
         if source_segment in _STRING_NAMES or source_segment in _FLOAT_NAMES:
@@ -321,6 +336,20 @@ class _ProjectionTranslator(ast.NodeTransformer):
 
 # TODO(persistence): support `evals['name'].score` et. al.
 class _FilterTranslator(_ProjectionTranslator):
+    def __init__(self, source: str, annotation_aliases: typing.Sequence[str]) -> None:
+        super().__init__(source)
+        self._annotation_aliases = annotation_aliases
+
+    def visit_Attribute(self, node: ast.Attribute) -> typing.Any:
+        source_segment = typing.cast(str, ast.get_source_segment(self._source, node))
+        if replacement := _BACKWARD_COMPATIBILITY_REPLACEMENTS.get(source_segment):
+            return ast.Name(id=replacement, ctx=ast.Load())
+        if (keys := _get_attribute_keys_list(node)) is None:
+            raise SyntaxError(f"invalid expression: {source_segment}")
+        if keys and keys[0].value in self._annotation_aliases:
+            return node
+        return _as_attribute(keys)
+
     def visit_Compare(self, node: ast.Compare) -> typing.Any:
         if len(node.comparators) > 1:
             args: typing.List[typing.Any] = []
@@ -687,3 +716,57 @@ def _find_best_match(
         if score > best_score:
             best_choice, best_score = choice, score
     return best_choice, best_score
+
+
+def _apply_aliases(
+    source: str,
+) -> typing.Tuple[
+    str,
+    typing.Tuple[AliasedClass[models.SpanAnnotation], ...],
+    typing.Callable[[Select[typing.Any]], Select[typing.Any]],
+]:
+    aliased_annotations: typing.Dict[EvalName, AliasedClass[models.SpanAnnotation]] = {}
+    for eval_expression, eval_name in _parse_eval_expressions_and_names(source):
+        if (aliased_annotation := aliased_annotations.get(eval_name)) is None:
+            aliased_annotation = typing.cast(
+                AliasedClass[models.SpanAnnotation],
+                aliased(models.SpanAnnotation, name=f"span_annotation_{len(aliased_annotations)}"),
+            )
+            aliased_annotations[eval_name] = aliased_annotation
+        alias = _get_alias(aliased_annotation)
+        source = source.replace(eval_expression, alias)
+
+    def join_aliased_tables(stmt: Select[typing.Any]) -> Select[typing.Any]:
+        for eval_name, AliasedSpanAnnotation in MappingProxyType(aliased_annotations).items():
+            stmt = stmt.join(
+                AliasedSpanAnnotation,
+                onclause=(
+                    sqlalchemy.and_(
+                        AliasedSpanAnnotation.span_rowid == models.Span.id,
+                        AliasedSpanAnnotation.name == eval_name,
+                    )
+                ),
+            )
+        return stmt
+
+    return source, tuple(aliased_annotations.values()), join_aliased_tables
+
+
+def _parse_eval_expressions_and_names(
+    source: str,
+) -> typing.Iterator[typing.Tuple[EvalExpression, EvalName]]:
+    for match in re.finditer(r"""(evals\[("(.*)"|'(.*)')\])""", source):
+        (
+            eval_expression,
+            _,
+            double_quoted_eval_name,
+            single_quoted_eval_name,
+        ) = match.groups()
+        yield (
+            eval_expression,
+            double_quoted_eval_name or single_quoted_eval_name or "",
+        )
+
+
+def _get_alias(aliased_annotation: AliasedClass[models.SpanAnnotation]) -> AnnotationAlias:
+    return str(sqlalchemy.inspect(aliased_annotation).name)
