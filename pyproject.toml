@@ -43,7 +43,7 @@ dependencies = [
   "tqdm",
   "requests",
   "opentelemetry-sdk",
-  "opentelemetry-proto",
+  "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
   "opentelemetry-exporter-otlp",
   "openinference-semantic-conventions>=0.1.5",
   "openinference-instrumentation",
