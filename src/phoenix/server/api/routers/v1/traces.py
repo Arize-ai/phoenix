@@ -14,7 +14,7 @@ from starlette.status import (
 )
 
 from phoenix.core.traces import Traces
-from phoenix.trace.otel import decode
+from phoenix.trace.otel import decode_otlp_span
 from phoenix.utilities.project import get_project_name
 
 
@@ -73,7 +73,7 @@ async def post_traces(request: Request) -> Response:
         project_name = get_project_name(resource_spans.resource.attributes)
         for scope_span in resource_spans.scope_spans:
             for otlp_span in scope_span.spans:
-                span = decode(otlp_span)
+                span = decode_otlp_span(otlp_span)
                 # TODO(persistence): Decide which one is better: delayed
                 # bulk-insert or insert each request immediately, i.e. one
                 # transaction per request. The bulk-insert is more efficient,
