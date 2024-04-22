@@ -103,7 +103,7 @@ jobs:
         if: ${{ needs.changes.outputs.phoenix == 'true' }}
         strategy:
             matrix:
-                os: [macos-latest, windows-latest, ubuntu-latest]
+                os: [macos-12, windows-latest, ubuntu-latest]
                 python-version: ["3.8"]
         steps:
             - name: Checkout Repository
