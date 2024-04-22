@@ -21,6 +21,7 @@ from phoenix.config import (
 )
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
+from phoenix.db import get_printable_db_url
 from phoenix.inferences.fixtures import FIXTURES, get_datasets
 from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
 from phoenix.pointcloud.umap_parameters import (
@@ -263,7 +264,7 @@ if __name__ == "__main__":
         "version": phoenix_version,
         "host": host,
         "port": port,
-        "storage": db_connection_str,
+        "storage": get_printable_db_url(db_connection_str),
     }
     print(_WELCOME_MESSAGE.format(**config))
 
