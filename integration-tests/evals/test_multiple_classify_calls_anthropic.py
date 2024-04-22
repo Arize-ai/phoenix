@@ -1,7 +1,6 @@
 import pandas as pd
-from phoenix.experimental.evals.functions import llm_classify
-from phoenix.experimental.evals.models.anthropic import AnthropicModel
-from phoenix.experimental.evals.templates.default_templates import (
+from phoenix.evals import AnthropicModel, llm_classify
+from phoenix.evals.default_templates import (
     RAG_RELEVANCY_PROMPT_TEMPLATE,
 )
 
