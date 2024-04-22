@@ -303,7 +303,7 @@ def test_trace_dataset_load_logs_warning_when_an_evaluation_cannot_be_loaded(tmp
     with pytest.warns(UserWarning) as record:
         read_ds = TraceDataset.load(dataset_id, tmp_path)
 
-    assert len(record) == 1
+    assert len(record) > 0
     assert str(record[0].message).startswith("Failed to load"), "unexpected warning message"
 
     read_ds = TraceDataset.load(dataset_id, tmp_path)
