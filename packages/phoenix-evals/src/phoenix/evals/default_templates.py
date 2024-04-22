@@ -401,8 +401,227 @@ or "incorrect" LABEL: "correct" or "incorrect"
 
 EXPLANATION:
 """
-
 HUMAN_VS_AI_PROMPT_RAILS_MAP = OrderedDict({True: "correct", False: "incorrect"})
+
+SQL_GEN_EVAL_PROMPT_BASE_TEMPLATE = """
+SQL Evaluation Prompt:
+-----------------------
+You are tasked with determining if the SQL generated appropiately answers a given instruction
+taking into account its generated query and response.
+
+Data:
+-----
+- [Instruction]: {question}
+  This section contains the specific task or problem that the sql query is intended to solve.
+
+- [Reference Query]: {query_gen}
+  This is the sql query submitted for evaluation. Analyze it in the context of the provided
+  instruction.
+
+- [Provided Response]: {response}
+  This is the response and/or conclusions made after running the sql query through the database
+
+Evaluation:
+-----------
+Your response should be a single word: either "correct" or "incorrect".
+You must assume that the db exists and that columns are appropiately named.
+You must take into account the response as additional information to determine the correctness.
+
+- "correct" indicates that the sql query correctly solves the instruction.
+- "incorrect" indicates that the sql query correctly does not solve the instruction correctly.
+
+Note: Your response should contain only the word "correct" or "incorrect" with no additional text
+or characters.
+"""
+
+SQL_GEN_EVAL_PROMPT_TEMPLATE_WITH_EXPLANATION = """
+SQL Evaluation Prompt:
+-----------------------
+You are tasked with determining if the SQL generated appropiately answers a given instruction
+taking into account its generated query and response.
+
+Data:
+-----
+- [Instruction]: {question}
+  This section contains the specific task or problem that the sql query is intended to solve.
+
+- [Reference Query]: {query_gen}
+  This is the sql query submitted for evaluation. Analyze it in the context of the provided
+  instruction.
+
+- [Provided Response]: {response}
+  This is the response and/or conclusions made after running the sql query through the database
+
+Evaluation:
+-----------
+Your response should be an explanation and then a single word LABEL: either "correct" or
+"incorrect".
+You must assume that the db exists and that columns are appropiately named.
+You must take into account the response as additional information to determine the correctness.
+
+- "correct" indicates that the sql query correctly solves the instruction.
+- "incorrect" indicates that the sql query correctly does not solve the instruction correctly.
+
+Please read the query and SQL carefully, then write out in a step by step manner an EXPLANATION to
+show how
+to evaluate the readability of the code. Avoid simply stating the correct answer at the outset.
+You are then going to respond with a LABEL (a single word evaluation).
+If the reference query does not answer the instruction or has bugs, please label it as "incorrect".
+If the reference query functionally solves the instruction problem without any bugs than call it
+"correct".
+
+Example response:
+************
+EXPLANATION: An explanation of your reasoning for why query is correct or incorrect
+LABEL: "correct" or "incorrect"
+************
+
+EXPLANATION:
+"""
+
+SQL_GEN_EVAL_PROMPT_RAILS_MAP = OrderedDict({True: "correct", False: "incorrect"})
+
+CODE_FUNCTIONALITY_PROMPT_BASE_TEMPLATE = """
+Code Evaluation Prompt:
+-----------------------
+Evaluate the provided code to determine its correctness in solving the given instruction.
+
+Data:
+-----
+[Instruction]: {coding_instruction}
+  Clearly define the task or problem that the code aims to address.
+
+[Reference Code]: {code}
+  Examine the submitted code for evaluation in the context of the provided instruction.
+
+Evaluation:
+-----------
+Provide a concise response with a single word: either "bug_free" or "is_bug".
+- "bug_free" signifies that the code correctly and efficiently solves the instruction with no bugs.
+- "is_bug" indicates that the code either fails the instruction requirements or contains bugs.
+
+Example:
+-----------
+
+[Instruction]: Implement the Fibonacci sequence in Python.
+
+[Reference Code]: 'def fibonacci(n):\n    if n <= 1:\n        return n\n    else:\n        return
+fibonacci(n - 1) + fibonacci(n - 2)\n\nfor i in range(10):\n    print(fibonacci(i))'
+
+[Output]: bug_free
+
+Note: Assumptions can be made that any code needed for the instruction is correct, and optimization
+is not a requirement for a correct solution. Your response should consist solely of the words
+"bug_free" or "is_bug" without additional text or characters.
+"""
+
+CODE_FUNCTIONALITY_PROMPT_TEMPLATE_WITH_EXPLANATION = """
+Code Evaluation Prompt:
+-----------------------
+Evaluate the provided code to determine its correctness in solving the given instruction.
+
+Data:
+-----
+[Instruction]: {coding_instruction}
+  Clearly define the task or problem that the code aims to address.
+
+[Reference Code]: {code}
+  Examine the submitted code for evaluation in the context of the provided instruction.
+
+Evaluation:
+-----------
+Provide a concise response with a explanation and a single word LABEL: either "bug_free" or
+"is_bug".
+- "bug_free" signifies that the code correctly and efficiently solves the instruction with no bugs.
+- "is_bug" indicates that the code either fails to meet the instruction requirements or contains
+bugs.
+
+Example:
+-----------
+
+[Instruction]: Implement the Fibonacci sequence in Python.
+
+[Reference Code]: 'def fibonacci(n):\n    if n <= 1:\n        return n\n    else:\n        return
+fibonacci(n - 1) + fibonacci(n - 2)\n\nfor i in range(10):\n    print(fibonacci(i))'
+
+[Output]: bug_free
+
+Note: Assumptions can be made that any code needed for the instruction is correct, and optimization
+is not a requirement for a correct solution. Your response should consist solely of the words
+"bug_free" or "is_bug" without additional text or characters.
+
+Please read the instruction and code carefully, then write out in a step by step manner an
+EXPLANATION to show how to evaluate the functionality of the code. Avoid simply stating the correct
+answer at the outset.
+You are then going to respond with a LABEL (a single word evaluation).
+If the reference code functionally solves the instruction problem without any bugs than call it
+"bug_free".
+If reference code has bugs or does not functionally solve the instruction problem than call it
+"is_bug".
+
+Example response:
+************
+EXPLANATION: An explanation of your reasoning for why the code is bug_free or is_bug
+LABEL: "bug_free" or "is_bug"
+************
+
+EXPLANATION:
+"""
+
+CODE_FUNCTIONALITY_PROMPT_RAILS_MAP = OrderedDict({True: "bug_free", False: "is_bug"})
+
+USER_FRUSTRATION_PROMPT_BASE_TEMPLATE = """
+  You are given a conversation where between a user and an assistant.
+  Here is the conversation:
+  [BEGIN DATA]
+  *****************
+  Conversation:
+  {conversation}
+  *****************
+  [END DATA]
+
+  Examine the conversation and determine whether or not the user got frustrated from the experience.
+  Frustration can range from midly frustrated to extremely frustrated. If the user seemed frustrated
+  at the beginning of the conversation but seemed satisfied at the end, they should not be deemed
+  as frustrated. Focus on how the user left the conversation.
+
+  Your response must be a single word, either "frustrated" or "ok", and should not
+  contain any text or characters aside from that word. "frustrated" means the user was left
+  frustrated as a result of the conversation. "ok" means that the user did not get frustrated
+  from the conversation.
+"""
+
+USER_FRUSTRATION_PROMPT_TEMPLATE_WITH_EXPLANATION = """
+  You are given a conversation where between a user and an assistant.
+  Here is the conversation:
+  [BEGIN DATA]
+  *****************
+  Conversation:
+  {conversation}
+  *****************
+  [END DATA]
+
+  Examine the conversation and determine whether or not the user got frustrated from the experience.
+  Frustration can range from midly frustrated to extremely frustrated. If the user seemed frustrated
+  at the beginning of the conversation but seemed satisfied at the end, they should not be deemed
+  as frustrated. Focus on how the user left the conversation.
+
+  You are going to respond with an EXPLANATION and LABEL.
+  Please read the text carefully, then write out in a step by step manner an
+  EXPLANATION as to why you think the user is frusterated.
+  Your LABEL response must be a single word, either "frustrated" or "ok", and should not
+  contain any text or characters aside from that word. "frustrated" means the user was left
+  frustrated as a result of the conversation. "ok" means that the user did not get frustrated
+  from the conversation.
+
+Example response:
+************
+EXPLANATION: An explanation of your reasoning for why the user is frusterated
+LABEL: "frustrated" or "ok"
+************
+"""
+
+USER_FRUSTRATION_PROMPT_RAILS_MAP = OrderedDict({True: "frustrated", False: "ok"})
 
 RAG_RELEVANCY_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
@@ -460,6 +679,27 @@ HUMAN_VS_AI_PROMPT_TEMPLATE = ClassificationTemplate(
     scores=[1, 0],
 )
 
+SQL_GEN_EVAL_PROMPT_TEMPLATE = ClassificationTemplate(
+    rails=list(SQL_GEN_EVAL_PROMPT_RAILS_MAP.values()),
+    template=SQL_GEN_EVAL_PROMPT_BASE_TEMPLATE,
+    explanation_template=SQL_GEN_EVAL_PROMPT_TEMPLATE_WITH_EXPLANATION,
+    scores=[1, 0],
+)
+
+CODE_FUNCTIONALITY_PROMPT_TEMPLATE = ClassificationTemplate(
+    rails=list(CODE_FUNCTIONALITY_PROMPT_RAILS_MAP.values()),
+    template=CODE_FUNCTIONALITY_PROMPT_BASE_TEMPLATE,
+    explanation_template=CODE_FUNCTIONALITY_PROMPT_TEMPLATE_WITH_EXPLANATION,
+    scores=[1, 0],
+)
+
+USER_FRUSTRATION_PROMPT_TEMPLATE = ClassificationTemplate(
+    rails=list(USER_FRUSTRATION_PROMPT_RAILS_MAP.values()),
+    template=USER_FRUSTRATION_PROMPT_BASE_TEMPLATE,
+    explanation_template=USER_FRUSTRATION_PROMPT_TEMPLATE_WITH_EXPLANATION,
+    scores=[1, 0],
+)
+
 
 class EvalCriteria(Enum):
     RELEVANCE = RAG_RELEVANCY_PROMPT_TEMPLATE
@@ -470,3 +710,6 @@ class EvalCriteria(Enum):
     CODE_READABILITY = CODE_READABILITY_PROMPT_TEMPLATE
     REFERENCE_LINK_CORRECTNESS = REFERENCE_LINK_CORRECTNESS_PROMPT_TEMPLATE
     HUMAN_VS_AI = HUMAN_VS_AI_PROMPT_TEMPLATE
+    SQL_GEN_EVAL = SQL_GEN_EVAL_PROMPT_TEMPLATE
+    CODE_FUNCTIONALITY = CODE_FUNCTIONALITY_PROMPT_TEMPLATE
+    USER_FRUSTRATION = USER_FRUSTRATION_PROMPT_TEMPLATE

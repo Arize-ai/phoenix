@@ -56,7 +56,7 @@ TOOL_PARAMETERS = SpanAttributes.TOOL_PARAMETERS
 LLM_PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
 
 
-def decode(otlp_span: otlp.Span) -> Span:
+def decode_otlp_span(otlp_span: otlp.Span) -> Span:
     trace_id = cast(TraceID, _decode_identifier(otlp_span.trace_id))
     span_id = cast(SpanID, _decode_identifier(otlp_span.span_id))
     parent_id = _decode_identifier(otlp_span.parent_span_id)
@@ -166,7 +166,7 @@ def _decode_status(otlp_status: otlp.Status) -> Tuple[SpanStatusCode, StatusMess
 _BILLION = 1_000_000_000  # for converting seconds to nanoseconds
 
 
-def encode(span: Span) -> otlp.Span:
+def encode_span_to_otlp(span: Span) -> otlp.Span:
     trace_id: bytes = _encode_identifier(span.context.trace_id)
     span_id: bytes = _encode_identifier(span.context.span_id)
     parent_span_id: bytes = _encode_identifier(span.parent_id)
@@ -285,6 +285,6 @@ def _encode_value(value: AttributeValue) -> AnyValue:
 
 
 __all__ = [
-    "encode",
-    "decode",
+    "encode_span_to_otlp",
+    "decode_otlp_span",
 ]
