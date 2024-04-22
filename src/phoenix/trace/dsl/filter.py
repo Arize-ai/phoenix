@@ -113,6 +113,7 @@ class SpanFilter:
         ).visit(root)
         ast.fix_missing_locations(translated)
         compiled = compile(translated, filename="", mode="eval")
+        object.__setattr__(self, "translated", translated)
         object.__setattr__(self, "compiled", compiled)
         object.__setattr__(self, "aliased_annotations", aliased_annotations)
         object.__setattr__(self, "join_aliased_tables", join_aliased_tables)
@@ -314,6 +315,14 @@ class _ProjectionTranslator(ast.NodeTransformer):
         # In Python 3.8, we have to use `ast.get_source_segment(source, node)`.
         # In Python 3.9+, we can use `ast.unparse(node)` (no need for `source`).
         self._source = source
+
+    def visit_Attribute(self, node: ast.Attribute) -> typing.Any:
+        source_segment = typing.cast(str, ast.get_source_segment(self._source, node))
+        if replacement := _BACKWARD_COMPATIBILITY_REPLACEMENTS.get(source_segment):
+            return ast.Name(id=replacement, ctx=ast.Load())
+        if (keys := _get_attribute_keys_list(node)) is None:
+            raise SyntaxError(f"invalid expression: {source_segment}")
+        return _as_attribute(keys)
 
     def visit_generic(self, node: ast.AST) -> typing.Any:
         raise SyntaxError(f"invalid expression: {ast.get_source_segment(self._source, node)}")
