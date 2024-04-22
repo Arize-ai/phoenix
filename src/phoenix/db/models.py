@@ -10,6 +10,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     MetaData,
+    String,
     TypeDecorator,
     UniqueConstraint,
     func,
@@ -28,9 +29,26 @@ from sqlalchemy.orm import (
 )
 from sqlalchemy.sql import expression
 
-JSON_ = JSON().with_variant(
-    postgresql.JSONB(),  # type: ignore
-    "postgresql",
+
+class JSONB(JSON):
+    __visit_name__ = "JSONB"
+
+
+@compiles(JSONB, "sqlite")  # type: ignore
+def _(*args: Any, **kwargs: Any) -> str:
+    return "JSONB"
+
+
+JSON_ = (
+    JSON()
+    .with_variant(
+        postgresql.JSONB(),  # type: ignore
+        "postgresql",
+    )
+    .with_variant(
+        JSONB(),
+        "sqlite",
+    )
 )
 
 
@@ -228,6 +246,30 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
         (func.julianday(end_time) - func.julianday(start_time)) * 86_400_000,
         **kw,
     )
+
+
+class TextContains(expression.FunctionElement[str]):
+    inherit_cache = True
+    type = String()
+    name = "text_contains"
+
+
+@compiles(TextContains)  # type: ignore
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    string, substring = list(element.clauses)
+    return compiler.process(string.contains(substring), **kw)
+
+
+@compiles(TextContains, "postgresql")  # type: ignore
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    string, substring = list(element.clauses)
+    return compiler.process(func.strpos(string, substring) > 0, **kw)
+
+
+@compiles(TextContains, "sqlite")  # type: ignore
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    string, substring = list(element.clauses)
+    return compiler.process(func.text_contains(string, substring) > 0, **kw)
 
 
 async def init_models(engine: AsyncEngine) -> None:
