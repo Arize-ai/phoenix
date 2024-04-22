@@ -238,8 +238,8 @@ class Project(Node):
             select(models.TraceAnnotation)
             .join(models.Trace)
             .where(models.Trace.project_rowid == self.id_attr)
-            .where(models.SpanAnnotation.annotator_kind == "LLM")
-            .where(models.SpanAnnotation.name == evaluation_name)
+            .where(models.TraceAnnotation.annotator_kind == "LLM")
+            .where(models.TraceAnnotation.name == evaluation_name)
         )
         unfiltered = base_query
         filtered = base_query
