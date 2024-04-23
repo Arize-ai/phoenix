@@ -793,6 +793,6 @@ def _parse_eval_expressions_and_names(
         ) = match.groups()
         yield (
             eval_expression,
-            double_quoted_eval_name or single_quoted_eval_name or "",
+            double_quoted_eval_name or single_quoted_eval_name,
             typing.cast(EvalAttribute, evaluation_attribute_name),
         )
