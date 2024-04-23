@@ -139,7 +139,7 @@ dependencies = [
 
 [tool.hatch.envs.type]
 dependencies = [
-  "mypy==1.5.1",
+  "mypy==1.9.0",
   "tenacity",
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "types-psutil",
@@ -155,7 +155,7 @@ dependencies = [
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
-  "ruff==0.3.0",
+  "ruff==0.4.1",
 ]
 
 [tool.hatch.envs.notebooks]
