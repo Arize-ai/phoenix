@@ -22,11 +22,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 class JSONB(JSON):
+    # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     __visit_name__ = "JSONB"
 
 
 @compiles(JSONB, "sqlite")  # type: ignore
 def _(*args: Any, **kwargs: Any) -> str:
+    # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     return "JSONB"
 
 
