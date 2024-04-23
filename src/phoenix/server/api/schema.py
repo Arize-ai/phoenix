@@ -71,6 +71,8 @@ class Query:
             Project(
                 id_attr=project.id,
                 name=project.name,
+                gradient_start_color=project.gradient_start_color,
+                gradient_end_color=project.gradient_end_color,
                 project=info.context.traces.get_project(project.name),  # type: ignore
             )
             for project in projects
@@ -109,6 +111,8 @@ class Query:
             return Project(
                 id_attr=project.id,
                 name=project.name,
+                gradient_start_color=project.gradient_start_color,
+                gradient_end_color=project.gradient_end_color,
                 project=info.context.traces.get_project(project.name),  # type: ignore
             )
         raise Exception(f"Unknown node type: {type_name}")

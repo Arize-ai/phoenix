@@ -538,6 +538,8 @@ type Point3D {
 type Project implements Node {
   id: GlobalID!
   name: String!
+  gradientStartColor: String!
+  gradientEndColor: String!
   startTime: DateTime
   endTime: DateTime
   recordCount(timeRange: TimeRange): Int!

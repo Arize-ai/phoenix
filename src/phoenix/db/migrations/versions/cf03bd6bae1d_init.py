@@ -53,6 +53,18 @@ def upgrade() -> None:
         sa.Column("name", sa.String, nullable=False, unique=True),
         sa.Column("description", sa.String, nullable=True),
         sa.Column(
+            "gradient_start_color",
+            sa.String,
+            nullable=False,
+            server_default=sa.text("'#5bdbff'"),
+        ),
+        sa.Column(
+            "gradient_end_color",
+            sa.String,
+            nullable=False,
+            server_default=sa.text("'#1c76fc'"),
+        ),
+        sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
             nullable=False,

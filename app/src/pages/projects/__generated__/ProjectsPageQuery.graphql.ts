@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9258370758fe1af08d6cb85665285247>>
+ * @generated SignedSource<<2c9bcedff081a32e9f8aeb4d472a624d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -103,6 +103,20 @@ return {
                   },
                   {
                     "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "gradientStartColor",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "gradientEndColor",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
                     "args": (v2/*: any*/),
                     "kind": "ScalarField",
                     "name": "traceCount",
@@ -148,12 +162,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "991909413909af281a75c58c2cd6996b",
+    "cacheID": "9e5408cfa88c6d82157f9979960611bd",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageQuery(\n  $timeRange: TimeRange!\n) {\n  ...ProjectsPageProjectsFragment\n}\n\nfragment ProjectsPageProjectsFragment on Query {\n  projects {\n    edges {\n      project: node {\n        id\n        name\n        traceCount(timeRange: $timeRange)\n        endTime\n        latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n        tokenCountTotal(timeRange: $timeRange)\n      }\n    }\n  }\n}\n"
+    "text": "query ProjectsPageQuery(\n  $timeRange: TimeRange!\n) {\n  ...ProjectsPageProjectsFragment\n}\n\nfragment ProjectsPageProjectsFragment on Query {\n  projects {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        traceCount(timeRange: $timeRange)\n        endTime\n        latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n        tokenCountTotal(timeRange: $timeRange)\n      }\n    }\n  }\n}\n"
   }
 };
 })();
