@@ -783,7 +783,7 @@ def _apply_eval_aliases(
 def _parse_eval_expressions_and_names(
     source: str,
 ) -> typing.Iterator[typing.Tuple[EvalExpression, EvalName, EvalAttribute]]:
-    for match in re.finditer(r"""(evals\[("(.*)"|'(.*)')\][.](label|score))""", source):
+    for match in re.finditer(r"""(evals\[("(.*?)"|'(.*?)')\][.](label|score))""", source):
         (
             eval_expression,
             _,

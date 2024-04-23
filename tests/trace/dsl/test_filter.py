@@ -1,10 +1,13 @@
 import ast
 import sys
 from typing import Any, List, Optional
+from unittest.mock import patch
+from uuid import UUID
 
+import phoenix.trace.dsl.filter
 import pytest
 from phoenix.db import models
-from phoenix.trace.dsl.filter import SpanFilter, _get_attribute_keys_list
+from phoenix.trace.dsl.filter import SpanFilter, _apply_eval_aliases, _get_attribute_keys_list
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -150,6 +153,59 @@ def test_filter_translated(session: Session, expression: str, expected: str) -> 
     assert _unparse(f.translated) == expected
     # next line is only to test that the syntax is accepted
     session.scalar(f(select(models.Span.id)))
+
+
+@pytest.mark.parametrize(
+    "filter_condition,expected",
+    [
+        pytest.param(
+            """evals["Q&A Correctness"].label is not None""",
+            "span_annotation_0_label_00000000000000000000000000000000 is not None",
+            id="double-quoted-eval-name",
+        ),
+        pytest.param(
+            """evals['Q&A Correctness'].label is not None""",
+            "span_annotation_0_label_00000000000000000000000000000000 is not None",
+            id="single-quoted-eval-name",
+        ),
+        pytest.param(
+            """evals[""].label is not None""",
+            "span_annotation_0_label_00000000000000000000000000000000 is not None",
+            id="empty-eval-name",
+        ),
+        pytest.param(
+            """evals['Hallucination'].label == 'correct' or evals['Hallucination'].score < 0.5""",  # noqa E501
+            "span_annotation_0_label_00000000000000000000000000000000 == 'correct' or span_annotation_0_score_00000000000000000000000000000000 < 0.5",  # noqa E501
+            id="repeated-single-quoted-eval-name",
+        ),
+        pytest.param(
+            """evals["Hallucination"].label == 'correct' or evals["Hallucination"].score < 0.5""",  # noqa E501
+            "span_annotation_0_label_00000000000000000000000000000000 == 'correct' or span_annotation_0_score_00000000000000000000000000000000 < 0.5",  # noqa E501
+            id="repeated-double-quoted-eval-name",
+        ),
+        pytest.param(
+            """evals['Hallucination'].label == 'correct' or evals["Hallucination"].score < 0.5""",  # noqa E501
+            "span_annotation_0_label_00000000000000000000000000000000 == 'correct' or span_annotation_0_score_00000000000000000000000000000000 < 0.5",  # noqa E501
+            id="repeated-mixed-quoted-eval-name",
+        ),
+        pytest.param(
+            """evals['Q&A Correctness'].label == 'correct' and evals["Hallucination"].score < 0.5""",  # noqa E501
+            "span_annotation_0_label_00000000000000000000000000000000 == 'correct' and span_annotation_1_score_00000000000000000000000000000000 < 0.5",  # noqa E501
+            id="distinct-mixed-quoted-eval-names",
+        ),
+        pytest.param(
+            """evals["Hallucination].label is not None""",
+            """evals["Hallucination].label is not None""",
+            id="missing-quote",
+        ),
+    ],
+)
+def test_apply_eval_aliases(filter_condition: str, expected: str) -> None:
+    with patch.object(
+        phoenix.trace.dsl.filter, "uuid4", return_value=UUID("00000000-0000-0000-0000-000000000000")
+    ):
+        aliased, _ = _apply_eval_aliases(filter_condition)
+    assert aliased == expected
 
 
 def _unparse(exp: Any) -> str:
