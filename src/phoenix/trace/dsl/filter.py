@@ -29,15 +29,15 @@ EvalName: TypeAlias = str
 
 
 @dataclass(frozen=True)
-class EvalAlias:
-    eval_index: int
-    eval_name: EvalName
+class AliasedAnnotationRelation:
+    index: int
+    name: str
     AliasedSpanAnnotation: AliasedClass[models.SpanAnnotation] = field(init=False, repr=False)
     _label_attribute_alias: str = field(init=False, repr=False)
     _score_attribute_alias: str = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
-        table_alias = f"span_annotation_{self.eval_index}"
+        table_alias = f"span_annotation_{self.index}"
         alias_id = str(uuid4()).replace("-", "")  # prevent conflicts with user-defined attributes
         label_attribute_alias = f"{table_alias}_label_{alias_id}"
         score_attribute_alias = f"{table_alias}_score_{alias_id}"
@@ -128,7 +128,9 @@ class SpanFilter:
     valid_eval_names: typing.Optional[typing.Sequence[str]] = None
     translated: ast.Expression = field(init=False, repr=False)
     compiled: typing.Any = field(init=False, repr=False)
-    eval_aliases: typing.Tuple[EvalAlias] = field(init=False, repr=False)
+    aliased_annotation_relations: typing.Tuple[AliasedAnnotationRelation] = field(
+        init=False, repr=False
+    )
 
     def __bool__(self) -> bool:
         return bool(self.condition)
@@ -138,11 +140,11 @@ class SpanFilter:
             return
         root = ast.parse(source, mode="eval")
         _validate_expression(root, source, valid_eval_names=self.valid_eval_names)
-        source, eval_aliases = _apply_eval_aliases(source)
-        object.__setattr__(self, "eval_aliases", eval_aliases)
+        source, aliased_annotation_relations = _apply_eval_aliases(source)
+        object.__setattr__(self, "aliased_annotation_relations", aliased_annotation_relations)
         root = ast.parse(source, mode="eval")
         translated = _FilterTranslator(
-            source=source, names=(alias for alias, _ in self.aliased_eval_attributes())
+            source=source, names=(alias for alias, _ in self._aliased_annotation_attributes())
         ).visit(root)
         ast.fix_missing_locations(translated)
         compiled = compile(translated, filename="", mode="eval")
@@ -152,12 +154,12 @@ class SpanFilter:
     def __call__(self, select: Select[typing.Any]) -> Select[typing.Any]:
         if not self.condition:
             return select
-        return self.join_aliased_relations(select).where(
+        return self._join_aliased_relations(select).where(
             eval(
                 self.compiled,
                 {
                     **_NAMES,
-                    **dict(self.aliased_eval_attributes()),
+                    **dict(self._aliased_annotation_attributes()),
                     "not_": sqlalchemy.not_,
                     "and_": sqlalchemy.and_,
                     "or_": sqlalchemy.or_,
@@ -182,9 +184,9 @@ class SpanFilter:
     ) -> "SpanFilter":
         return cls(condition=obj.get("condition") or "")
 
-    def join_aliased_relations(self, stmt: Select[typing.Any]) -> Select[typing.Any]:
-        for eval_alias in self.eval_aliases:
-            eval_name = eval_alias.eval_name
+    def _join_aliased_relations(self, stmt: Select[typing.Any]) -> Select[typing.Any]:
+        for eval_alias in self.aliased_annotation_relations:
+            eval_name = eval_alias.name
             AliasedSpanAnnotation = eval_alias.AliasedSpanAnnotation
             stmt = stmt.join(
                 AliasedSpanAnnotation,
@@ -197,8 +199,12 @@ class SpanFilter:
             )
         return stmt
 
-    def aliased_eval_attributes(self) -> typing.Iterator[typing.Tuple[str, Mapped[typing.Any]]]:
-        yield from chain.from_iterable(eval_alias.attributes for eval_alias in self.eval_aliases)
+    def _aliased_annotation_attributes(
+        self,
+    ) -> typing.Iterator[typing.Tuple[str, Mapped[typing.Any]]]:
+        yield from chain.from_iterable(
+            eval_alias.attributes for eval_alias in self.aliased_annotation_relations
+        )
 
 
 @dataclass(frozen=True)
@@ -764,12 +770,12 @@ def _apply_eval_aliases(
     source: str,
 ) -> typing.Tuple[
     str,
-    typing.Tuple[EvalAlias, ...],
+    typing.Tuple[AliasedAnnotationRelation, ...],
 ]:
-    eval_aliases: typing.Dict[EvalName, EvalAlias] = {}
+    eval_aliases: typing.Dict[EvalName, AliasedAnnotationRelation] = {}
     for eval_expression, eval_name, eval_attribute in _parse_eval_expressions_and_names(source):
         if (eval_alias := eval_aliases.get(eval_name)) is None:
-            eval_alias = EvalAlias(eval_index=len(eval_aliases), eval_name=eval_name)
+            eval_alias = AliasedAnnotationRelation(index=len(eval_aliases), name=eval_name)
             eval_aliases[eval_name] = eval_alias
         alias_name = eval_alias.attribute_alias(eval_attribute)
         source = source.replace(eval_expression, alias_name)
