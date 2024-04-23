@@ -275,7 +275,7 @@ class Project(Node):
         base_query = (
             select(models.SpanAnnotation)
             .join(models.Span)
-            .join(models.Trace)
+            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
             .where(models.Trace.project_rowid == self.id_attr)
             .where(models.SpanAnnotation.annotator_kind == "LLM")
             .where(models.SpanAnnotation.name == evaluation_name)
