@@ -845,7 +845,7 @@ def _parse_eval_expressions_and_names(
     evals["<eval-name>"].<attribute>
     ```
     """
-    for match in re.finditer(r"""(evals\[("(.*?)"|'(.*?)')\][.](label|score))""", source):
+    for match in re.finditer(r"""\b(evals\[("(.*?)"|'(.*?)')\][.](label|score))\b""", source):
         (
             eval_expression,
             _,

@@ -206,7 +206,27 @@ def test_filter_translated(session: Session, expression: str, expected: str) -> 
         pytest.param(
             """evals["Hallucination].label is not None""",
             """evals["Hallucination].label is not None""",
-            id="missing-quote",
+            id="missing-right-quotation-mark",
+        ),
+        pytest.param(
+            """evals["Hallucination"].label == 'correct' orevals["Hallucination"].score < 0.5""",  # noqa E501
+            """span_annotation_0_label_000000 == 'correct' orevals["Hallucination"].score < 0.5""",  # noqa E501
+            id="no-word-boundary-on-the-left",
+        ),
+        pytest.param(
+            """evals["Hallucination"].scoreq < 0.5""",  # noqa E501
+            """evals["Hallucination"].scoreq < 0.5""",  # noqa E501
+            id="no-word-boundary-on-the-right",
+        ),
+        pytest.param(
+            """0.5 <evals["Hallucination"].score""",  # noqa E501
+            """0.5 <span_annotation_0_score_000000""",  # noqa E501
+            id="left-word-boundary-without-space",
+        ),
+        pytest.param(
+            """evals["Hallucination"].score< 0.5""",  # noqa E501
+            """span_annotation_0_score_000000< 0.5""",  # noqa E501
+            id="right-word-boundary-without-space",
         ),
     ],
 )
