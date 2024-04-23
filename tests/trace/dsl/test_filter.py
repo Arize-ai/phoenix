@@ -147,7 +147,9 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[List[str]])
         ),
         (
             """evals['Q&A Correctness'].label == 'correct' and evals["Hallucination"].score < 0.5""",  # noqa E501
-            "and_(span_annotation_0_label_000000 == 'correct', cast(span_annotation_1_score_000000 Float) < 0.5)",  # noqa E501
+            "and_(span_annotation_0_label_000000 == 'correct', cast(span_annotation_1_score_000000 Float) < 0.5)"  # noqa E501
+            if sys.version_info >= (3, 9)
+            else "and_((span_annotation_0_label_000000 == 'correct'), (cast(span_annotation_1_score_000000 Float)) < 0.5)",  # noqa E501
         ),
     ],
 )
