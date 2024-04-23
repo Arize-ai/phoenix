@@ -2,7 +2,6 @@ import ast
 import sys
 from typing import Any, List, Optional
 from unittest.mock import patch
-from uuid import UUID
 
 import phoenix.trace.dsl.filter
 import pytest
@@ -148,13 +147,15 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[List[str]])
         ),
         (
             """evals['Q&A Correctness'].label == 'correct' and evals["Hallucination"].score < 0.5""",  # noqa E501
-            "and_(span_annotation_0_label_00000000000000000000000000000000 == 'correct', cast(span_annotation_1_score_00000000000000000000000000000000, Float) < 0.5)",  # noqa E501
+            "and_(span_annotation_0_label_000000 == 'correct', cast(span_annotation_1_score_000000 Float) < 0.5)",  # noqa E501
         ),
     ],
 )
 def test_filter_translated(session: Session, expression: str, expected: str) -> None:
     with patch.object(
-        phoenix.trace.dsl.filter, "uuid4", return_value=UUID("00000000-0000-0000-0000-000000000000")
+        phoenix.trace.dsl.filter,
+        "randint",
+        return_value=0,
     ):
         f = SpanFilter(expression)
     assert _unparse(f.translated) == expected
@@ -167,37 +168,37 @@ def test_filter_translated(session: Session, expression: str, expected: str) -> 
     [
         pytest.param(
             """evals["Q&A Correctness"].label is not None""",
-            "span_annotation_0_label_00000000000000000000000000000000 is not None",
+            "span_annotation_0_label_000000 is not None",
             id="double-quoted-eval-name",
         ),
         pytest.param(
             """evals['Q&A Correctness'].label is not None""",
-            "span_annotation_0_label_00000000000000000000000000000000 is not None",
+            "span_annotation_0_label_000000 is not None",
             id="single-quoted-eval-name",
         ),
         pytest.param(
             """evals[""].label is not None""",
-            "span_annotation_0_label_00000000000000000000000000000000 is not None",
+            "span_annotation_0_label_000000 is not None",
             id="empty-eval-name",
         ),
         pytest.param(
             """evals['Hallucination'].label == 'correct' or evals['Hallucination'].score < 0.5""",  # noqa E501
-            "span_annotation_0_label_00000000000000000000000000000000 == 'correct' or span_annotation_0_score_00000000000000000000000000000000 < 0.5",  # noqa E501
+            "span_annotation_0_label_000000 == 'correct' or span_annotation_0_score_000000 < 0.5",  # noqa E501
             id="repeated-single-quoted-eval-name",
         ),
         pytest.param(
             """evals["Hallucination"].label == 'correct' or evals["Hallucination"].score < 0.5""",  # noqa E501
-            "span_annotation_0_label_00000000000000000000000000000000 == 'correct' or span_annotation_0_score_00000000000000000000000000000000 < 0.5",  # noqa E501
+            "span_annotation_0_label_000000 == 'correct' or span_annotation_0_score_000000 < 0.5",  # noqa E501
             id="repeated-double-quoted-eval-name",
         ),
         pytest.param(
             """evals['Hallucination'].label == 'correct' or evals["Hallucination"].score < 0.5""",  # noqa E501
-            "span_annotation_0_label_00000000000000000000000000000000 == 'correct' or span_annotation_0_score_00000000000000000000000000000000 < 0.5",  # noqa E501
+            "span_annotation_0_label_000000 == 'correct' or span_annotation_0_score_000000 < 0.5",  # noqa E501
             id="repeated-mixed-quoted-eval-name",
         ),
         pytest.param(
             """evals['Q&A Correctness'].label == 'correct' and evals["Hallucination"].score < 0.5""",  # noqa E501
-            "span_annotation_0_label_00000000000000000000000000000000 == 'correct' and span_annotation_1_score_00000000000000000000000000000000 < 0.5",  # noqa E501
+            "span_annotation_0_label_000000 == 'correct' and span_annotation_1_score_000000 < 0.5",  # noqa E501
             id="distinct-mixed-quoted-eval-names",
         ),
         pytest.param(
@@ -208,9 +209,7 @@ def test_filter_translated(session: Session, expression: str, expected: str) -> 
     ],
 )
 def test_apply_eval_aliases(filter_condition: str, expected: str) -> None:
-    with patch.object(
-        phoenix.trace.dsl.filter, "uuid4", return_value=UUID("00000000-0000-0000-0000-000000000000")
-    ):
+    with patch.object(phoenix.trace.dsl.filter, "randint", return_value=0):
         aliased, _ = _apply_eval_aliases(filter_condition)
     assert aliased == expected
 

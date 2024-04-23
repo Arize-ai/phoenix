@@ -5,8 +5,8 @@ import typing
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from itertools import chain
+from random import randint
 from types import MappingProxyType
-from uuid import uuid4
 
 import sqlalchemy
 from sqlalchemy.orm import Mapped, aliased
@@ -45,7 +45,7 @@ class AliasedAnnotationRelation:
 
     def __post_init__(self) -> None:
         table_alias = f"span_annotation_{self.index}"
-        alias_id = str(uuid4()).replace("-", "")  # prevent conflicts with user-defined attributes
+        alias_id = f"{randint(0, 10**6):06d}"  # prevent conflicts with user-defined attributes
         label_attribute_alias = f"{table_alias}_label_{alias_id}"
         score_attribute_alias = f"{table_alias}_score_{alias_id}"
         AliasedSpanAnnotation = aliased(models.SpanAnnotation, name=table_alias)
