@@ -31,13 +31,13 @@ from sqlalchemy.sql import expression
 
 
 class JSONB(JSON):
-    # See https://docs.sqlalchemy.org/en/20/core/compiler.html
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     __visit_name__ = "JSONB"
 
 
 @compiles(JSONB, "sqlite")  # type: ignore
 def _(*args: Any, **kwargs: Any) -> str:
-    # See https://docs.sqlalchemy.org/en/20/core/compiler.html
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     return "JSONB"
 
 
@@ -63,6 +63,7 @@ class UtcTimeStamp(TypeDecorator[datetime]):
     programs are always timezone-aware.
     """
 
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
     impl = TIMESTAMP(timezone=True)
     _LOCAL_TIMEZONE = datetime.now(timezone.utc).astimezone().tzinfo
