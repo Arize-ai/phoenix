@@ -152,7 +152,7 @@ class Project(Node):
                 )
             ) is None:
                 return None
-        return Trace(trace_rowid=trace_rowid, project=self.project)
+        return Trace(trace_rowid=trace_rowid)
 
     @strawberry.field
     async def spans(
@@ -201,7 +201,7 @@ class Project(Node):
             stmt = stmt.order_by(sort.to_orm_expr())
         async with info.context.db() as session:
             spans = await session.scalars(stmt)
-        data = [to_gql_span(span, self.project) for span in spans]
+        data = [to_gql_span(span) for span in spans]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field(
@@ -330,7 +330,7 @@ class Project(Node):
             sql_spans = await session.scalars(stmt)
         metrics_collection = []
         for sql_span in sql_spans:
-            span = to_gql_span(sql_span, self.project)
+            span = to_gql_span(sql_span)
             if not (num_documents := span.num_documents):
                 continue
             evaluation_scores: List[float] = [np.nan] * num_documents

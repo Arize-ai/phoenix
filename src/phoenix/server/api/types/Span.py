@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 from enum import Enum
+from itertools import groupby
 from typing import Any, List, Mapping, Optional, Sized, cast
 
 import numpy as np
@@ -12,7 +13,6 @@ from strawberry import ID, UNSET
 from strawberry.types import Info
 
 import phoenix.trace.schemas as trace_schema
-from phoenix.core.project import Project
 from phoenix.db import models
 from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from phoenix.server.api.context import Context
@@ -20,7 +20,6 @@ from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalM
 from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluation
 from phoenix.server.api.types.MimeType import MimeType
 from phoenix.trace.attributes import get_attribute_value
-from phoenix.trace.schemas import SpanID
 
 EMBEDDING_EMBEDDINGS = SpanAttributes.EMBEDDING_EMBEDDINGS
 EMBEDDING_VECTOR = EmbeddingAttributes.EMBEDDING_VECTOR
@@ -101,7 +100,6 @@ class SpanEvent:
 
 @strawberry.type
 class Span:
-    project: strawberry.Private[Project]
     span_rowid: strawberry.Private[int]
     name: str
     status_code: SpanStatusCode
@@ -166,33 +164,38 @@ class Span:
     @strawberry.field(
         description="Retrieval metrics: NDCG@K, Precision@K, Reciprocal Rank, etc.",
     )  # type: ignore
-    def document_retrieval_metrics(
+    async def document_retrieval_metrics(
         self,
+        info: Info[Context, None],
         evaluation_name: Optional[str] = UNSET,
     ) -> List[DocumentRetrievalMetrics]:
         if not self.num_documents:
             return []
-        span_id = SpanID(str(self.context.span_id))
-        all_document_evaluation_names = self.project.get_document_evaluation_names(span_id)
-        if not all_document_evaluation_names:
+        mda = models.DocumentAnnotation
+        stmt = (
+            select(mda.name, mda.score, mda.document_index)
+            .where(mda.score != None)  # noqa: E711
+            .where(mda.span_rowid == self.span_rowid)
+            .where(mda.document_index >= 0)
+            .where(mda.document_index < self.num_documents)
+            .where(mda.annotator_kind == "LLM")
+            .order_by(mda.name)
+        )
+        if evaluation_name:
+            stmt = stmt.where(mda.name == evaluation_name)
+        async with info.context.db() as session:
+            rows = await session.execute(stmt)
+        if not rows:
             return []
-        if evaluation_name is UNSET:
-            evaluation_names = all_document_evaluation_names
-        elif evaluation_name not in all_document_evaluation_names:
-            return []
-        else:
-            evaluation_names = [evaluation_name]
         retrieval_metrics = []
-        for name in evaluation_names:
-            evaluation_scores = self.project.get_document_evaluation_scores(
-                span_id=span_id,
-                evaluation_name=name,
-                num_documents=self.num_documents,
-            )
+        for name, group in groupby(rows, lambda r: r.name):
+            scores: List[float] = [np.nan] * self.num_documents
+            for row in group:
+                scores[row.document_index] = row.score
             retrieval_metrics.append(
                 DocumentRetrievalMetrics(
                     evaluation_name=name,
-                    metrics=RetrievalMetrics(evaluation_scores),
+                    metrics=RetrievalMetrics(scores),
                 )
             )
         return retrieval_metrics
@@ -224,17 +227,16 @@ class Span:
                 .join(models.Trace)
                 .options(contains_eager(models.Span.trace))
             )
-        return [to_gql_span(span, self.project) for span in spans]
+        return [to_gql_span(span) for span in spans]
 
 
-def to_gql_span(span: models.Span, project: Project) -> Span:
+def to_gql_span(span: models.Span) -> Span:
     events: List[SpanEvent] = list(map(SpanEvent.from_dict, span.events))
     input_value = cast(Optional[str], get_attribute_value(span.attributes, INPUT_VALUE))
     output_value = cast(Optional[str], get_attribute_value(span.attributes, OUTPUT_VALUE))
     retrieval_documents = get_attribute_value(span.attributes, RETRIEVAL_DOCUMENTS)
     num_documents = len(retrieval_documents) if isinstance(retrieval_documents, Sized) else None
     return Span(
-        project=project,
         span_rowid=span.id,
         name=span.name,
         status_code=SpanStatusCode(span.status_code),
