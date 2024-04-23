@@ -15,6 +15,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
     insert,
+    text,
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -96,12 +97,12 @@ class Project(Base):
     description: Mapped[Optional[str]]
     gradient_start_color: Mapped[str] = mapped_column(
         String,
-        server_default=func.text("'#5bdbff'"),
+        server_default=text("'#5bdbff'"),
     )
 
     gradient_end_color: Mapped[str] = mapped_column(
         String,
-        server_default=func.text("'#1c76fc'"),
+        server_default=text("'#1c76fc'"),
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
