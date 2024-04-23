@@ -6,12 +6,13 @@ Create Date: 2024-04-03 19:41:48.871555
 
 """
 
-from typing import Sequence, Union
+from typing import Any, Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import JSON
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.ext.compiler import compiles
 
 # revision identifiers, used by Alembic.
 revision: str = "cf03bd6bae1d"
@@ -19,9 +20,28 @@ down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-JSON_ = JSON().with_variant(
-    postgresql.JSONB(),  # type: ignore
-    "postgresql",
+
+class JSONB(JSON):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    __visit_name__ = "JSONB"
+
+
+@compiles(JSONB, "sqlite")  # type: ignore
+def _(*args: Any, **kwargs: Any) -> str:
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    return "JSONB"
+
+
+JSON_ = (
+    JSON()
+    .with_variant(
+        postgresql.JSONB(),  # type: ignore
+        "postgresql",
+    )
+    .with_variant(
+        JSONB(),
+        "sqlite",
+    )
 )
 
 
@@ -32,6 +52,18 @@ def upgrade() -> None:
         # TODO does the uniqueness constraint need to be named
         sa.Column("name", sa.String, nullable=False, unique=True),
         sa.Column("description", sa.String, nullable=True),
+        sa.Column(
+            "gradient_start_color",
+            sa.String,
+            nullable=False,
+            server_default=sa.text("'#5bdbff'"),
+        ),
+        sa.Column(
+            "gradient_end_color",
+            sa.String,
+            nullable=False,
+            server_default=sa.text("'#1c76fc'"),
+        ),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),

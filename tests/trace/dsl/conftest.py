@@ -12,8 +12,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 @pytest.fixture(scope="session")
 def session_maker() -> sessionmaker:
-    # `sqlean` is added to help with running the test on GitHub CI for Windows,
-    # because its version of SQLite doesn't have `JSON_EXTRACT`.
+    sqlean.extensions.enable_all()
     engine = create_engine("sqlite:///:memory:", module=sqlean, echo=True)
     Base.metadata.create_all(engine)
     session_maker = sessionmaker(engine)
@@ -124,7 +123,7 @@ def _insert_project_abc(session: Session) -> None:
             start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
             end_time=datetime.fromisoformat("2021-01-01T00:00:30.000+00:00"),
             attributes={
-                "input": {"value": "210"},
+                "input": {"value": "xy%z*"},
                 "output": {"value": "321"},
             },
             events=[],
@@ -147,6 +146,9 @@ def _insert_project_abc(session: Session) -> None:
             start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
             end_time=datetime.fromisoformat("2021-01-01T00:00:05.000+00:00"),
             attributes={
+                "input": {
+                    "value": "XY%*Z",
+                },
                 "metadata": {
                     "a.b.c": 123,
                     "1.2.3": "abc",
@@ -182,7 +184,7 @@ def _insert_project_abc(session: Session) -> None:
             attributes={
                 "attributes": "attributes",
                 "input": {
-                    "value": "xyz",
+                    "value": "xy%*z",
                 },
                 "retrieval": {
                     "documents": [

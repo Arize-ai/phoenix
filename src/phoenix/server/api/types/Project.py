@@ -36,6 +36,8 @@ from phoenix.trace.schemas import SpanID
 @strawberry.type
 class Project(Node):
     name: str
+    gradient_start_color: str
+    gradient_end_color: str
     project: strawberry.Private[CoreProject]
 
     @strawberry.field

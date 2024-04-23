@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<72f2e8a0e846252624ba834ea2739ade>>
+ * @generated SignedSource<<2a8c4f4e6dc6baf963fd2dd708dc5909>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -103,6 +103,20 @@ return {
                   },
                   {
                     "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "gradientStartColor",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "gradientEndColor",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
                     "args": (v2/*: any*/),
                     "kind": "ScalarField",
                     "name": "traceCount",
@@ -148,16 +162,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "84f80c7e08a0397a97091aa2b4d45ae8",
+    "cacheID": "b7b294ef46695c71a41287c42ec9392f",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageProjectsQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageProjectsQuery(\n  $timeRange: TimeRange\n) {\n  ...ProjectsPageProjectsFragment\n}\n\nfragment ProjectsPageProjectsFragment on Query {\n  projects {\n    edges {\n      project: node {\n        id\n        name\n        traceCount(timeRange: $timeRange)\n        endTime\n        latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n        tokenCountTotal(timeRange: $timeRange)\n      }\n    }\n  }\n}\n"
+    "text": "query ProjectsPageProjectsQuery(\n  $timeRange: TimeRange\n) {\n  ...ProjectsPageProjectsFragment\n}\n\nfragment ProjectsPageProjectsFragment on Query {\n  projects {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        traceCount(timeRange: $timeRange)\n        endTime\n        latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n        tokenCountTotal(timeRange: $timeRange)\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "80cfac4a7e56fc862924dce5da4ed971";
+(node as any).hash = "eed3bc970f109d273b6235f9eb0811ae";
 
 export default node;

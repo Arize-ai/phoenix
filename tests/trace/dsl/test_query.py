@@ -30,7 +30,7 @@ def test_select_all(session: Session) -> None:
                 datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
                 datetime.fromisoformat("2021-01-01T00:00:30.000+00:00"),
             ],
-            "attributes.input.value": ["210", None, "xyz", None],
+            "attributes.input.value": ["xy%z*", "XY%*Z", "xy%*z", None],
             "attributes.output.value": ["321", None, None, None],
             "attributes.llm.token_count.prompt": [None, None, None, 100.0],
             "attributes.llm.token_count.completion": [None, None, None, 200.0],
@@ -287,18 +287,18 @@ def test_filter_for_not_none(session: Session) -> None:
     )
 
 
-def test_filter_for_substring(session: Session) -> None:
+def test_filter_for_substring_case_sensitive_not_glob_not_like(session: Session) -> None:
     sq = (
         SpanQuery()
         .select("input.value")
         .where(
-            "'y' in input.value",
+            "'y%*' in input.value",
         )
     )
     expected = pd.DataFrame(
         {
             "context.span_id": ["456"],
-            "input.value": ["xyz"],
+            "input.value": ["xy%*z"],
         }
     ).set_index("context.span_id")
     actual = sq(session, project_name="abc")
@@ -308,18 +308,18 @@ def test_filter_for_substring(session: Session) -> None:
     )
 
 
-def test_filter_for_not_substring(session: Session) -> None:
+def test_filter_for_not_substring_case_sensitive_not_glob_not_like(session: Session) -> None:
     sq = (
         SpanQuery()
         .select("input.value")
         .where(
-            "'y' not in input.value",
+            "'y%*' not in input.value",
         )
     )
     expected = pd.DataFrame(
         {
-            "context.span_id": ["234"],
-            "input.value": ["210"],
+            "context.span_id": ["234", "345"],
+            "input.value": ["xy%z*", "XY%*Z"],
         }
     ).set_index("context.span_id")
     actual = sq(session, project_name="abc")

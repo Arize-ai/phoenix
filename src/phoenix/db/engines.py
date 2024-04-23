@@ -2,16 +2,19 @@ import asyncio
 import json
 from datetime import datetime
 from enum import Enum
-from pathlib import Path
 from sqlite3 import Connection
-from typing import Any, Union
+from typing import Any
 
+import aiosqlite
 import numpy as np
+import sqlean
 from sqlalchemy import URL, event, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from phoenix.db.migrate import migrate_in_thread
 from phoenix.db.models import init_models
+
+sqlean.extensions.enable("text")
 
 
 def set_sqlite_pragma(connection: Connection, _: Any) -> None:
@@ -22,10 +25,6 @@ def set_sqlite_pragma(connection: Connection, _: Any) -> None:
     cursor.execute("PRAGMA cache_size = -32000;")
     cursor.execute("PRAGMA busy_timeout = 10000;")
     cursor.close()
-
-
-def get_db_url(driver: str = "sqlite+aiosqlite", database: Union[str, Path] = ":memory:") -> URL:
-    return URL.create(driver, database=str(database))
 
 
 def get_printable_db_url(connection_str: str) -> str:
@@ -39,9 +38,11 @@ def get_async_db_url(connection_str: str) -> URL:
     url = make_url(connection_str)
     if not url.database:
         raise ValueError("Failed to parse database from connection string")
-    if "sqlite" in url.drivername:
-        return get_db_url(driver="sqlite+aiosqlite", database=url.database)
-    if "postgresql" in url.drivername:
+    if url.drivername.partition("+")[0] == "sqlite":
+        if url.database.startswith(":memory:"):
+            url = url.set(query={"cache": "shared"})
+        return url.set(drivername="sqlite+aiosqlite")
+    if url.drivername.partition("+")[0] == "postgresql":
         url = url.set(drivername="postgresql+asyncpg")
         # For some reason username and password cannot be parsed from the typical slot
         # So we need to parse them out manually
@@ -61,22 +62,36 @@ def create_engine(connection_str: str, echo: bool = False) -> AsyncEngine:
     url = make_url(connection_str)
     if not url.database:
         raise ValueError("Failed to parse database from connection string")
-    if "sqlite" in url.drivername:
-        # Split the URL to get the database name
-        return aio_sqlite_engine(database=url.database, echo=echo)
-    if "postgresql" in url.drivername:
+    if url.drivername.partition("+")[0] == "sqlite":
+        return aio_sqlite_engine(url=url, echo=echo)
+    if url.drivername.partition("+")[0] == "postgresql":
         return aio_postgresql_engine(url=url, echo=echo)
     raise ValueError(f"Unsupported driver: {url.drivername}")
 
 
 def aio_sqlite_engine(
-    database: Union[str, Path] = ":memory:",
+    url: URL,
     echo: bool = False,
 ) -> AsyncEngine:
-    url = get_db_url(driver="sqlite+aiosqlite", database=database)
-    engine = create_async_engine(url=url, echo=echo, json_serializer=_dumps)
+    async_url = get_async_db_url(url.render_as_string())
+    assert async_url.database
+
+    def async_creator() -> aiosqlite.Connection:
+        conn = aiosqlite.Connection(
+            lambda: sqlean.connect(async_url.database, uri=True),
+            iter_chunk_size=64,
+        )
+        conn.daemon = True
+        return conn
+
+    engine = create_async_engine(
+        url=async_url,
+        echo=echo,
+        json_serializer=_dumps,
+        async_creator=async_creator,
+    )
     event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
-    if str(database) == ":memory:":
+    if async_url.database.startswith(":memory:"):
         try:
             asyncio.get_running_loop()
         except RuntimeError:

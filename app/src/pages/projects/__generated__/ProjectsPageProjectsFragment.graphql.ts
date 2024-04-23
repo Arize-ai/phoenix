@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<260c2f50f9cb857944f365304ec667e3>>
+ * @generated SignedSource<<4b18018d5ea6f754fd9c0b1591bcc4a2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,6 +15,8 @@ export type ProjectsPageProjectsFragment$data = {
     readonly edges: ReadonlyArray<{
       readonly project: {
         readonly endTime: string | null;
+        readonly gradientEndColor: string;
+        readonly gradientStartColor: string;
         readonly id: string;
         readonly latencyMsP50: number | null;
         readonly name: string;
@@ -96,6 +98,20 @@ return {
                 },
                 {
                   "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "gradientStartColor",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "gradientEndColor",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
                   "args": (v1/*: any*/),
                   "kind": "ScalarField",
                   "name": "traceCount",
@@ -144,6 +160,6 @@ return {
 };
 })();
 
-(node as any).hash = "80cfac4a7e56fc862924dce5da4ed971";
+(node as any).hash = "eed3bc970f109d273b6235f9eb0811ae";
 
 export default node;

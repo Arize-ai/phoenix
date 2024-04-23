@@ -10,10 +10,12 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     MetaData,
+    String,
     TypeDecorator,
     UniqueConstraint,
     func,
     insert,
+    text,
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -28,9 +30,28 @@ from sqlalchemy.orm import (
 )
 from sqlalchemy.sql import expression
 
-JSON_ = JSON().with_variant(
-    postgresql.JSONB(),  # type: ignore
-    "postgresql",
+
+class JSONB(JSON):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    __visit_name__ = "JSONB"
+
+
+@compiles(JSONB, "sqlite")  # type: ignore
+def _(*args: Any, **kwargs: Any) -> str:
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    return "JSONB"
+
+
+JSON_ = (
+    JSON()
+    .with_variant(
+        postgresql.JSONB(),  # type: ignore
+        "postgresql",
+    )
+    .with_variant(
+        JSONB(),
+        "sqlite",
+    )
 )
 
 
@@ -43,6 +64,7 @@ class UtcTimeStamp(TypeDecorator[datetime]):
     programs are always timezone-aware.
     """
 
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
     impl = TIMESTAMP(timezone=True)
     _LOCAL_TIMEZONE = datetime.now(timezone.utc).astimezone().tzinfo
@@ -93,6 +115,15 @@ class Project(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
     description: Mapped[Optional[str]]
+    gradient_start_color: Mapped[str] = mapped_column(
+        String,
+        server_default=text("'#5bdbff'"),
+    )
+
+    gradient_end_color: Mapped[str] = mapped_column(
+        String,
+        server_default=text("'#1c76fc'"),
+    )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -128,11 +159,13 @@ class Trace(Base):
 
     @hybrid_property
     def latency_ms(self) -> float:
+        # See https://docs.sqlalchemy.org/en/20/orm/extensions/hybrid.html
         return (self.end_time - self.start_time).total_seconds() * 1000
 
     @latency_ms.inplace.expression
     @classmethod
     def _latency_ms_expression(cls) -> ColumnElement[float]:
+        # See https://docs.sqlalchemy.org/en/20/orm/extensions/hybrid.html
         return LatencyMs(cls.start_time, cls.end_time)
 
     project: Mapped["Project"] = relationship(
@@ -181,11 +214,13 @@ class Span(Base):
 
     @hybrid_property
     def latency_ms(self) -> float:
+        # See https://docs.sqlalchemy.org/en/20/orm/extensions/hybrid.html
         return (self.end_time - self.start_time).total_seconds() * 1000
 
     @latency_ms.inplace.expression
     @classmethod
     def _latency_ms_expression(cls) -> ColumnElement[float]:
+        # See https://docs.sqlalchemy.org/en/20/orm/extensions/hybrid.html
         return LatencyMs(cls.start_time, cls.end_time)
 
     @hybrid_property
@@ -205,6 +240,7 @@ class Span(Base):
 
 
 class LatencyMs(expression.FunctionElement[float]):
+    # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     inherit_cache = True
     type = Float()
     name = "latency_ms"
@@ -212,6 +248,7 @@ class LatencyMs(expression.FunctionElement[float]):
 
 @compiles(LatencyMs)  # type: ignore
 def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     start_time, end_time = list(element.clauses)
     return compiler.process(
         (func.extract("EPOCH", end_time) - func.extract("EPOCH", start_time)) * 1000, **kw
@@ -220,6 +257,7 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
 
 @compiles(LatencyMs, "sqlite")  # type: ignore
 def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     start_time, end_time = list(element.clauses)
     return compiler.process(
         # FIXME: We don't know why sqlite returns a slightly different value.
@@ -228,6 +266,34 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
         (func.julianday(end_time) - func.julianday(start_time)) * 86_400_000,
         **kw,
     )
+
+
+class TextContains(expression.FunctionElement[str]):
+    # See https://docs.sqlalchemy.org/en/20/core/compiler.html
+    inherit_cache = True
+    type = String()
+    name = "text_contains"
+
+
+@compiles(TextContains)  # type: ignore
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    # See https://docs.sqlalchemy.org/en/20/core/compiler.html
+    string, substring = list(element.clauses)
+    return compiler.process(string.contains(substring), **kw)
+
+
+@compiles(TextContains, "postgresql")  # type: ignore
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    # See https://docs.sqlalchemy.org/en/20/core/compiler.html
+    string, substring = list(element.clauses)
+    return compiler.process(func.strpos(string, substring) > 0, **kw)
+
+
+@compiles(TextContains, "sqlite")  # type: ignore
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    # See https://docs.sqlalchemy.org/en/20/core/compiler.html
+    string, substring = list(element.clauses)
+    return compiler.process(func.text_contains(string, substring) > 0, **kw)
 
 
 async def init_models(engine: AsyncEngine) -> None:
