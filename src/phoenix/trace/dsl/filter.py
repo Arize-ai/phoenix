@@ -845,17 +845,15 @@ def _parse_eval_expressions_and_names(
     evals["<eval-name>"].<attribute>
     ```
     """
-    pattern = re.compile(r"""\b(evals\[("(.*?)"|'(.*?)')\][.](label|score))\b""")
+    pattern = re.compile(r"""\b(evals\[(".*?"|'.*?')\][.](label|score))\b""")
     for match in pattern.finditer(source):
         (
             eval_expression,
-            _,
-            double_quoted_eval_name,
-            single_quoted_eval_name,
+            quoted_eval_name,
             evaluation_attribute_name,
         ) = match.groups()
         yield (
             eval_expression,
-            double_quoted_eval_name or single_quoted_eval_name,
+            quoted_eval_name[1:-1],
             typing.cast(EvalAttribute, evaluation_attribute_name),
         )
