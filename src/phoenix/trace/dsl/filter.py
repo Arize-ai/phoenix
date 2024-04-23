@@ -30,6 +30,13 @@ EvalName: TypeAlias = str
 
 @dataclass(frozen=True)
 class AliasedAnnotationRelation:
+    """
+    Represents an aliased `span_annotation` relation (i.e., SQL table). Used to
+    perform joins on span evaluations during filtering. An alias is required
+    because the `span_annotation` may be joined multiple times for different
+    evaluation names.
+    """
+
     index: int
     name: str
     AliasedSpanAnnotation: AliasedClass[models.SpanAnnotation] = field(init=False, repr=False)
@@ -52,10 +59,17 @@ class AliasedAnnotationRelation:
 
     @property
     def attributes(self) -> typing.Iterator[typing.Tuple[str, Mapped[typing.Any]]]:
+        """
+        Alias names and attributes (i.e., columns) of the `span_annotation`
+        relation.
+        """
         yield self._label_attribute_alias, self.AliasedSpanAnnotation.label
         yield self._score_attribute_alias, self.AliasedSpanAnnotation.score
 
     def attribute_alias(self, attribute_name: str) -> str:
+        """
+        Returns an alias for the given attribute (i.e., column).
+        """
         if attribute_name == "label":
             return self._label_attribute_alias
         if attribute_name == "score":
@@ -185,6 +199,21 @@ class SpanFilter:
         return cls(condition=obj.get("condition") or "")
 
     def _join_aliased_relations(self, stmt: Select[typing.Any]) -> Select[typing.Any]:
+        """
+        Joins the aliased relations to the given statement. E.g., for the filter condition:
+
+        ```
+        evals["Hallucination"].score > 0.5
+        ```
+
+        an alias (e.g., `A`) is generated for the `span_annotations` relation. An input statement
+        `select(Span)` is transformed to:
+
+        ```
+        A = aliased(SpanAnnotation)
+        select(Span).join(A, onclause=(and_(Span.id == A.span_rowid, A.name == "Hallucination")))
+        ```
+        """
         for eval_alias in self.aliased_annotation_relations:
             eval_name = eval_alias.name
             AliasedSpanAnnotation = eval_alias.AliasedSpanAnnotation
@@ -202,6 +231,10 @@ class SpanFilter:
     def _aliased_annotation_attributes(
         self,
     ) -> typing.Iterator[typing.Tuple[str, Mapped[typing.Any]]]:
+        """
+        Yields all alias names and attributes (i.e., columns) for the aliased
+        annotation relations (tables).
+        """
         yield from chain.from_iterable(
             eval_alias.attributes for eval_alias in self.aliased_annotation_relations
         )
@@ -368,10 +401,12 @@ class _ProjectionTranslator(ast.NodeTransformer):
         # In Python 3.8, we have to use `ast.get_source_segment(source, node)`.
         # In Python 3.9+, we can use `ast.unparse(node)` (no need for `source`).
         self._source = source
-        self._names = (
-            (tuple(names) if names is not None else ())
-            + tuple(_STRING_NAMES.keys())
-            + tuple(_FLOAT_NAMES.keys())
+        self._names = frozenset(
+            chain(
+                (iter(names) if names is not None else ()),
+                _STRING_NAMES.keys(),
+                _FLOAT_NAMES.keys(),
+            )
         )
 
     def visit_generic(self, node: ast.AST) -> typing.Any:
@@ -772,6 +807,24 @@ def _apply_eval_aliases(
     str,
     typing.Tuple[AliasedAnnotationRelation, ...],
 ]:
+    """
+    Substitutes `evals[<eval-name>].<attribute>` with aliases. Returns the
+    updated source code in addition to the aliased relations.
+
+    Example:
+
+    input:
+
+    ```
+    evals['Hallucination'].label == 'correct' or evals['Hallucination'].score < 0.5
+    ```
+
+    output:
+
+    ```
+    span_annotation_0_label_123 == 'correct' or span_annotation_0_score_456 < 0.5
+    ```
+    """
     eval_aliases: typing.Dict[EvalName, AliasedAnnotationRelation] = {}
     for eval_expression, eval_name, eval_attribute in _parse_eval_expressions_and_names(source):
         if (eval_alias := eval_aliases.get(eval_name)) is None:
@@ -785,6 +838,13 @@ def _apply_eval_aliases(
 def _parse_eval_expressions_and_names(
     source: str,
 ) -> typing.Iterator[typing.Tuple[EvalExpression, EvalName, EvalAttribute]]:
+    """
+    Parses filter conditions for evaluation expressions of the form:
+
+    ```
+    evals["<eval-name>"].<attribute>
+    ```
+    """
     for match in re.finditer(r"""(evals\[("(.*?)"|'(.*?)')\][.](label|score))""", source):
         (
             eval_expression,
