@@ -348,6 +348,7 @@ export function SpansTable(props: SpansTableProps) {
       sorting,
       columnVisibility,
     },
+    manualSorting: true,
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
