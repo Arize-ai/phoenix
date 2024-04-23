@@ -172,22 +172,27 @@ class Span:
         if not self.num_documents:
             return []
         stmt = (
-            select(models.DocumentAnnotation)
+            select(
+                models.DocumentAnnotation.name,
+                models.DocumentAnnotation.score,
+                models.DocumentAnnotation.document_index,
+            )
+            .where(models.DocumentAnnotation.score != None)  # noqa: E711
             .where(models.DocumentAnnotation.span_rowid == self.span_rowid)
             .order_by(models.DocumentAnnotation.name)
         )
         if evaluation_name:
             stmt = stmt.where(models.DocumentAnnotation.name == evaluation_name)
         async with info.context.db() as session:
-            annotations = await session.scalars(stmt)
-        if not annotations:
+            scores = await session.execute(stmt)
+        if not scores:
             return []
         retrieval_metrics = []
-        for name, annos in groupby(annotations, lambda a: a.name):
+        for name, group in groupby(scores, lambda grp: grp[0]):
             evaluation_scores: List[float] = [np.nan] * self.num_documents
-            for anno in annos:
-                if (score := anno.score) is not None and (
-                    document_position := anno.document_index
+            for _, score, position in group:
+                if (score := score) is not None and (
+                    document_position := position
                 ) < self.num_documents:
                     evaluation_scores[document_position] = score
             retrieval_metrics.append(
