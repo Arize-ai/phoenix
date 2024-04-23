@@ -9,7 +9,7 @@ from openinference.semconv.trace import SpanAttributes
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
 from phoenix.core.project import Project, _Spans
 from phoenix.trace.attributes import get_attribute_value
-from phoenix.trace.otel import decode
+from phoenix.trace.otel import decode_otlp_span
 from phoenix.trace.schemas import ComputedAttributes
 
 
@@ -27,7 +27,7 @@ def test_ingestion(
     ingested_ids = set()
     for i, s in enumerate(permutation):
         otlp_span = otlp_trace[s]
-        project.add_span(decode(otlp_span))
+        project.add_span(decode_otlp_span(otlp_span))
 
         assert len(list(project.get_trace(trace_id))) == i + 1, f"{i=}, {s=}"
         assert project.span_count() == i + 1, f"{i=}, {s=}"

@@ -44,7 +44,7 @@ dependencies = [
   "tqdm",
   "requests",
   "opentelemetry-sdk",
-  "opentelemetry-proto",
+  "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
   "opentelemetry-exporter-otlp",
   "openinference-semantic-conventions>=0.1.5",
   "openinference-instrumentation",
@@ -149,7 +149,7 @@ dependencies = [
 
 [tool.hatch.envs.type]
 dependencies = [
-  "mypy==1.5.1",
+  "mypy==1.9.0",
   "tenacity",
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "types-psutil",
@@ -165,7 +165,7 @@ dependencies = [
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
-  "ruff==0.3.0",
+  "ruff==0.4.1",
 ]
 
 [tool.hatch.envs.notebooks]
