@@ -6,7 +6,6 @@ from sqlalchemy.orm import contains_eager
 from strawberry import UNSET
 from strawberry.types import Info
 
-from phoenix.core.project import Project
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.Evaluation import TraceEvaluation
@@ -22,7 +21,6 @@ from phoenix.server.api.types.Span import Span, to_gql_span
 @strawberry.type
 class Trace:
     trace_rowid: strawberry.Private[int]
-    project: strawberry.Private[Project]
 
     @strawberry.field
     async def spans(
@@ -46,7 +44,7 @@ class Trace:
                 .where(models.Trace.id == self.trace_rowid)
                 .options(contains_eager(models.Span.trace))
             )
-        data = [to_gql_span(span, self.project) for span in spans]
+        data = [to_gql_span(span) for span in spans]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field(description="Evaluations associated with the trace")  # type: ignore
