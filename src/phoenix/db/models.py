@@ -10,6 +10,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     MetaData,
+    String,
     TypeDecorator,
     UniqueConstraint,
     func,
@@ -93,6 +94,15 @@ class Project(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
     description: Mapped[Optional[str]]
+    gradient_start_color: Mapped[str] = mapped_column(
+        String,
+        server_default=func.text("'#5bdbff'"),
+    )
+
+    gradient_end_color: Mapped[str] = mapped_column(
+        String,
+        server_default=func.text("'#1c76fc'"),
+    )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()

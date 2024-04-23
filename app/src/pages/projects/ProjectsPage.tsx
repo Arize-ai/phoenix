@@ -72,6 +72,8 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
             project: node {
               id
               name
+              gradientStartColor
+              gradientEndColor
               traceCount(timeRange: $timeRange)
               endTime
               latencyMsP50: latencyMsQuantile(
@@ -155,7 +157,13 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
   );
 }
 
-function ProjectIcon() {
+function ProjectIcon({
+  gradientStartColor,
+  gradientEndColor,
+}: {
+  gradientStartColor: string;
+  gradientEndColor: string;
+}) {
   return (
     <div
       css={css`
@@ -164,8 +172,8 @@ function ProjectIcon() {
         height: 32px;
         background: linear-gradient(
           136.27deg,
-          rgb(91, 219, 255) 14.03%,
-          rgb(28, 118, 252) 84.38%
+          ${gradientStartColor} 14.03%,
+          ${gradientEndColor} 84.38%
         );
         flex-shrink: 0;
       `}
@@ -182,7 +190,14 @@ function ProjectItem({
   canDelete,
   onProjectDelete,
 }: ProjectItemProps) {
-  const { endTime, traceCount, tokenCountTotal, latencyMsP50 } = project;
+  const {
+    endTime,
+    traceCount,
+    tokenCountTotal,
+    latencyMsP50,
+    gradientStartColor,
+    gradientEndColor,
+  } = project;
   const lastUpdatedText = useMemo(() => {
     if (endTime) {
       return `Last updated  ${formatDistance(new Date(endTime), new Date(), { addSuffix: true })}`;
@@ -209,7 +224,10 @@ function ProjectItem({
     >
       <Flex direction="row" justifyContent="space-between" alignItems="start">
         <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
-          <ProjectIcon />
+          <ProjectIcon
+            gradientStartColor={gradientStartColor}
+            gradientEndColor={gradientEndColor}
+          />
           <Flex direction="column" minWidth={0}>
             <Heading
               level={2}
