@@ -184,17 +184,15 @@ class Span:
         if evaluation_name:
             stmt = stmt.where(models.DocumentAnnotation.name == evaluation_name)
         async with info.context.db() as session:
-            scores = await session.execute(stmt)
-        if not scores:
+            rows = await session.execute(stmt)
+        if not rows:
             return []
         retrieval_metrics = []
-        for name, group in groupby(scores, lambda grp: grp[0]):
+        for name, group in groupby(rows, lambda r: r.name):
             evaluation_scores: List[float] = [np.nan] * self.num_documents
-            for _, score, position in group:
-                if (score := score) is not None and (
-                    document_position := position
-                ) < self.num_documents:
-                    evaluation_scores[document_position] = score
+            for row in group:
+                if (position := row.document_index) < len(evaluation_scores):
+                    evaluation_scores[position] = row.score
             retrieval_metrics.append(
                 DocumentRetrievalMetrics(
                     evaluation_name=name,
