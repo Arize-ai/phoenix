@@ -206,7 +206,7 @@ def llm_classify(
     )
 
     results = executor.run(prompts.tolist())
-    labels, explanations, responses = zip(*results)
+    labels, explanations, responses = zip(*results)  # type: ignore
 
     return pd.DataFrame(
         data={
