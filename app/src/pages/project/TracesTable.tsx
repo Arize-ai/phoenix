@@ -456,6 +456,7 @@ export function TracesTable(props: TracesTableProps) {
     columns,
     data: tableData,
     onExpandedChange: setExpanded,
+    manualSorting: true,
     getSubRows: (row) => row.children,
     state: {
       sorting,
