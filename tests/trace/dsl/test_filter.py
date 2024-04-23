@@ -75,15 +75,15 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[List[str]])
     [
         (
             "parent_id is not None and 'abc' in name or span_kind == 'LLM' and span_id in ('123',)",  # noqa E501
-            "or_(and_(parent_id != None, name.contains('abc')), and_(span_kind == 'LLM', span_id.in_(('123',))))"  # noqa E501
+            "or_(and_(parent_id != None, TextContains(name, 'abc')), and_(span_kind == 'LLM', span_id.in_(('123',))))"  # noqa E501
             if sys.version_info >= (3, 9)
-            else "or_(and_((parent_id != None), name.contains('abc')), and_((span_kind == 'LLM'), span_id.in_(('123',))))",  # noqa E501
+            else "or_(and_((parent_id != None), TextContains(name, 'abc')), and_((span_kind == 'LLM'), span_id.in_(('123',))))",  # noqa E501
         ),
         (
             "(parent_id is None or 'abc' not in name) and not (span_kind != 'LLM' or span_id not in ('123',))",  # noqa E501
-            "and_(or_(parent_id == None, not_(name.contains('abc'))), not_(or_(span_kind != 'LLM', span_id.not_in(('123',)))))"  # noqa E501
+            "and_(or_(parent_id == None, not_(TextContains(name, 'abc'))), not_(or_(span_kind != 'LLM', span_id.not_in(('123',)))))"  # noqa E501
             if sys.version_info >= (3, 9)
-            else "and_(or_((parent_id == None), not_(name.contains('abc'))), not_(or_((span_kind != 'LLM'), span_id.not_in(('123',)))))",  # noqa E501
+            else "and_(or_((parent_id == None), not_(TextContains(name, 'abc'))), not_(or_((span_kind != 'LLM'), span_id.not_in(('123',)))))",  # noqa E501
         ),
         (
             "1000 < latency_ms < 2000 or status_code == 'ERROR' or 2000 <= cumulative_llm_token_count_total",  # noqa E501
@@ -99,7 +99,7 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[List[str]])
         ),
         (
             "first.value in (1,) and second.value in ('2',) and '3' in third.value",
-            "and_(attributes[['first', 'value']].as_float().in_((1,)), attributes[['second', 'value']].as_string().in_(('2',)), attributes[['third', 'value']].as_string().contains('3'))",  # noqa E501
+            "and_(attributes[['first', 'value']].as_float().in_((1,)), attributes[['second', 'value']].as_string().in_(('2',)), TextContains(attributes[['third', 'value']].as_string(), '3'))",  # noqa E501
         ),
         (
             "'1.0' < my.value < 2.0",

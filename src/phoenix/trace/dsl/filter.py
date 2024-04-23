@@ -112,6 +112,7 @@ class SpanFilter:
                     "cast": sqlalchemy.cast,
                     "Float": sqlalchemy.Float,
                     "String": sqlalchemy.String,
+                    "TextContains": models.TextContains,
                 },
             )
         )
@@ -344,13 +345,8 @@ class _FilterTranslator(_ProjectionTranslator):
                 or (typing.cast(str, ast.get_source_segment(self._source, right))) in _NAMES
             ):
                 call = ast.Call(
-                    # TODO(persistence): FIXME: This turns into `LIKE` which for sqlite is
-                    # case-insensitive. We want case-sensitive matching for strings,
-                    # so for sqlite we need to turn this into `GLOB` instead.
-                    # TODO(persistence): FIXME: Special characters such as `%` for `LIKE`
-                    # and `*` for `GLOB` need to be escaped.
-                    func=ast.Attribute(value=right, attr="contains", ctx=ast.Load()),
-                    args=[left],
+                    func=ast.Name(id="TextContains", ctx=ast.Load()),
+                    args=[right, left],
                     keywords=[],
                 )
                 if isinstance(op, ast.NotIn):
