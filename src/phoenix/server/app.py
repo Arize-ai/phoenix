@@ -28,6 +28,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import FileResponse, PlainTextResponse, Response
 from starlette.routing import Mount, Route
+from starlette.schemas import SchemaGenerator
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 from starlette.types import Scope, StatefulLifespan
@@ -36,22 +37,31 @@ from strawberry.asgi import GraphQL
 from strawberry.schema import BaseSchema
 
 import phoenix
+import phoenix.trace.v1 as pb
 from phoenix.config import DEFAULT_PROJECT_NAME, SERVER_DIR
 from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
 from phoenix.db.bulk_inserter import BulkInserter
+from phoenix.db.engines import create_engine
 from phoenix.pointcloud.umap_parameters import UMAPParameters
-from phoenix.server.api.context import Context
-from phoenix.server.api.routers.evaluation_handler import EvaluationHandler
-from phoenix.server.api.routers.span_handler import SpanHandler
-from phoenix.server.api.routers.trace_handler import TraceHandler
+from phoenix.server.api.context import Context, DataLoaders
+from phoenix.server.api.dataloaders import (
+    DocumentEvaluationsDataLoader,
+    LatencyMsQuantileDataLoader,
+    SpanEvaluationsDataLoader,
+    TraceEvaluationsDataLoader,
+)
+from phoenix.server.api.routers.v1 import V1_ROUTES
 from phoenix.server.api.schema import schema
-from phoenix.storage.span_store import SpanStore
 from phoenix.trace.schemas import Span
 
 logger = logging.getLogger(__name__)
 
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
+
+schemas = SchemaGenerator(
+    {"openapi": "3.0.0", "info": {"title": "ArizePhoenix API", "version": "1.0"}}
+)
 
 
 class AppConfig(NamedTuple):
@@ -142,6 +152,12 @@ class GraphQLWithContext(GraphQL):  # type: ignore
             corpus=self.corpus,
             traces=self.traces,
             export_path=self.export_path,
+            data_loaders=DataLoaders(
+                latency_ms_quantile=LatencyMsQuantileDataLoader(self.db),
+                span_evaluations=SpanEvaluationsDataLoader(self.db),
+                document_evaluations=DocumentEvaluationsDataLoader(self.db),
+                trace_evaluations=TraceEvaluationsDataLoader(self.db),
+            ),
         )
 
 
@@ -178,27 +194,43 @@ def _db(engine: AsyncEngine) -> Callable[[], AsyncContextManager[AsyncSession]]:
 def _lifespan(
     db: Callable[[], AsyncContextManager[AsyncSession]],
     initial_batch_of_spans: Optional[Iterable[Tuple[Span, str]]] = None,
+    initial_batch_of_evaluations: Optional[Iterable[pb.Evaluation]] = None,
 ) -> StatefulLifespan[Starlette]:
     @contextlib.asynccontextmanager
     async def lifespan(_: Starlette) -> AsyncIterator[Dict[str, Any]]:
-        async with BulkInserter(db, initial_batch_of_spans) as queue_span:
-            yield {"queue_span_for_bulk_insert": queue_span}
+        async with BulkInserter(
+            db,
+            initial_batch_of_spans=initial_batch_of_spans,
+            initial_batch_of_evaluations=initial_batch_of_evaluations,
+        ) as (queue_span, queue_evaluation):
+            yield {
+                "queue_span_for_bulk_insert": queue_span,
+                "queue_evaluation_for_bulk_insert": queue_evaluation,
+            }
 
     return lifespan
 
 
+async def check_healthz(_: Request) -> PlainTextResponse:
+    return PlainTextResponse("OK")
+
+
+async def openapi_schema(request: Request) -> Response:
+    return schemas.OpenAPIResponse(request=request)
+
+
 def create_app(
-    engine: AsyncEngine,
+    database_url: str,
     export_path: Path,
     model: Model,
     umap_params: UMAPParameters,
     corpus: Optional[Model] = None,
     traces: Optional[Traces] = None,
-    span_store: Optional[SpanStore] = None,
     debug: bool = False,
     read_only: bool = False,
     enable_prometheus: bool = False,
     initial_spans: Optional[Iterable[Union[Span, Tuple[Span, str]]]] = None,
+    initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
 ) -> Starlette:
     initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
         ()
@@ -208,6 +240,8 @@ def create_app(
             for item in initial_spans
         )
     )
+    initial_batch_of_evaluations = () if initial_evaluations is None else initial_evaluations
+    engine = create_engine(database_url)
     db = _db(engine)
     graphql = GraphQLWithContext(
         db=db,
@@ -224,33 +258,19 @@ def create_app(
         prometheus_middlewares = [Middleware(PrometheusMiddleware)]
     else:
         prometheus_middlewares = []
-    return Starlette(
-        lifespan=_lifespan(db, initial_batch_of_spans),
+
+    app = Starlette(
+        lifespan=_lifespan(db, initial_batch_of_spans, initial_batch_of_evaluations),
         middleware=[
             Middleware(HeadersMiddleware),
             *prometheus_middlewares,
         ],
         debug=debug,
-        routes=(
-            []
-            if traces is None or read_only
-            else [
-                Route(
-                    "/v1/spans",
-                    type("SpanEndpoint", (SpanHandler,), {"traces": traces}),
-                ),
-                Route(
-                    "/v1/traces",
-                    type("TraceEndpoint", (TraceHandler,), {"traces": traces, "store": span_store}),
-                ),
-                Route(
-                    "/v1/evaluations",
-                    type("EvaluationEndpoint", (EvaluationHandler,), {"traces": traces}),
-                ),
-            ]
-        )
+        routes=([] if traces is None else V1_ROUTES)
         + [
+            Route("/schema", endpoint=openapi_schema, include_in_schema=False),
             Route("/arize_phoenix_version", version),
+            Route("/healthz", check_healthz),
             Route(
                 "/exports",
                 type(
@@ -279,3 +299,7 @@ def create_app(
             ),
         ],
     )
+    app.state.traces = traces
+    app.state.read_only = read_only
+    app.state.db = db
+    return app

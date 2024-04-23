@@ -5,11 +5,20 @@ from types import ModuleType
 from typing import Any, Optional
 
 from .datasets.dataset import Dataset
-from .datasets.fixtures import ExampleDatasets, load_example
-from .datasets.schema import EmbeddingColumnNames, RetrievalEmbeddingColumnNames, Schema
+from .datasets.fixtures import ExampleDatasets
+from .inferences.fixtures import ExampleInferences, load_example
+from .inferences.inferences import Inferences
+from .inferences.schema import EmbeddingColumnNames, RetrievalEmbeddingColumnNames, Schema
 from .session.client import Client
 from .session.evaluation import log_evaluations
-from .session.session import NotebookEnvironment, Session, active_session, close_app, launch_app
+from .session.session import (
+    NotebookEnvironment,
+    Session,
+    active_session,
+    close_app,
+    delete_all,
+    launch_app,
+)
 from .trace.fixtures import load_example_traces
 from .trace.trace_dataset import TraceDataset
 from .version import __version__
@@ -33,14 +42,17 @@ Here are just a few of the things that phoenix does well:
 __all__ = [
     "__version__",
     "Dataset",
+    "ExampleDatasets",
+    "Inferences",
     "EmbeddingColumnNames",
     "RetrievalEmbeddingColumnNames",
     "Schema",
     "load_example",
-    "ExampleDatasets",
+    "ExampleInferences",
     "active_session",
     "close_app",
     "launch_app",
+    "delete_all",
     "Session",
     "load_example_traces",
     "TraceDataset",

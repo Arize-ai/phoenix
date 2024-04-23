@@ -1,46 +1,86 @@
 import {
-  DOCUMENT_CONTENT,
-  DOCUMENT_ID,
-  DOCUMENT_METADATA,
-  DOCUMENT_SCORE,
-  EMBEDDING_TEXT,
+  EmbeddingAttributePostfixes,
+  LLMAttributePostfixes,
   LLMPromptTemplateAttributePostfixes,
-  MESSAGE_CONTENT,
-  MESSAGE_NAME,
-  MESSAGE_ROLE,
-  MESSAGE_TOOL_CALLS,
-  TOOL_CALL_FUNCTION_ARGUMENTS_JSON,
-  TOOL_CALL_FUNCTION_NAME,
+  MessageAttributePostfixes,
+  RerankerAttributePostfixes,
+  RetrievalAttributePostfixes,
+  ToolAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
+import {
+  DocumentAttributePostfixes,
+  SemanticAttributePrefixes,
+} from "@arizeai/openinference-semantic-conventions/src/trace/SemanticConventions";
 
+export type AttributeTool = {
+  [ToolAttributePostfixes.name]?: string;
+  [ToolAttributePostfixes.description]?: string;
+  [ToolAttributePostfixes.parameters]?: string;
+};
 export type AttributeToolCall = {
-  [TOOL_CALL_FUNCTION_NAME]: string;
-  [TOOL_CALL_FUNCTION_ARGUMENTS_JSON]: string;
+  function?: {
+    name?: string;
+    arguments?: string;
+  };
 };
 
+export type AttributeMessages = {
+  [SemanticAttributePrefixes.message]?: AttributeMessage;
+}[];
 export type AttributeMessage = {
-  [MESSAGE_ROLE]: string;
-  [MESSAGE_CONTENT]: string;
-  [MESSAGE_NAME]?: string;
-  [MESSAGE_TOOL_CALLS]?: AttributeToolCall[];
-  [key: string]: unknown;
+  [MessageAttributePostfixes.role]?: string;
+  [MessageAttributePostfixes.content]?: string;
+  [MessageAttributePostfixes.name]?: string;
+  [MessageAttributePostfixes.function_call_name]?: string;
+  [MessageAttributePostfixes.function_call_arguments_json]?: string;
+  [MessageAttributePostfixes.tool_calls]?: {
+    [SemanticAttributePrefixes.tool_call]?: AttributeToolCall;
+  }[];
 };
 
+export type AttributeRetrieval = {
+  [RetrievalAttributePostfixes.documents]?: {
+    [SemanticAttributePrefixes.document]?: AttributeDocument;
+  }[];
+};
 export type AttributeDocument = {
-  [DOCUMENT_ID]?: string;
-  [DOCUMENT_CONTENT]: string;
-  [DOCUMENT_SCORE]?: number;
-  [DOCUMENT_METADATA]?: string;
-  [key: string]: unknown;
+  [DocumentAttributePostfixes.id]?: string;
+  [DocumentAttributePostfixes.content]?: string;
+  [DocumentAttributePostfixes.score]?: number;
+  [DocumentAttributePostfixes.metadata]?: string;
 };
 
 export type AttributeEmbedding = {
-  [EMBEDDING_TEXT]?: string;
-  [key: string]: unknown;
+  [EmbeddingAttributePostfixes.model_name]?: string;
+  [EmbeddingAttributePostfixes.embeddings]?: {
+    [SemanticAttributePrefixes.embedding]?: AttributeEmbeddingEmbedding;
+  }[];
+};
+export type AttributeEmbeddingEmbedding = {
+  [EmbeddingAttributePostfixes.text]?: string;
+};
+
+export type AttributeReranker = {
+  [RerankerAttributePostfixes.query]?: string;
+  [RerankerAttributePostfixes.input_documents]?: {
+    [SemanticAttributePrefixes.document]?: AttributeDocument;
+  }[];
+  [RerankerAttributePostfixes.output_documents]?: {
+    [SemanticAttributePrefixes.document]?: AttributeDocument;
+  }[];
+};
+
+export type AttributeLlm = {
+  [LLMAttributePostfixes.model_name]?: string;
+  [LLMAttributePostfixes.token_count]?: number;
+  [LLMAttributePostfixes.input_messages]?: AttributeMessages;
+  [LLMAttributePostfixes.output_messages]?: AttributeMessages;
+  [LLMAttributePostfixes.invocation_parameters]?: string;
+  [LLMAttributePostfixes.prompts]?: string[];
+  [LLMAttributePostfixes.prompt_template]?: AttributePromptTemplate;
 };
 
 export type AttributePromptTemplate = {
   [LLMPromptTemplateAttributePostfixes.template]: string;
   [LLMPromptTemplateAttributePostfixes.variables]: Record<string, string>;
-  [key: string]: unknown;
 };

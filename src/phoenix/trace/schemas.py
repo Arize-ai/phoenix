@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, NamedTuple, Optional, Union
+from typing import Any, Dict, List, Mapping, NamedTuple, Optional
 from uuid import UUID
 
 EXCEPTION_TYPE = "exception.type"
@@ -54,9 +54,7 @@ class SpanKind(Enum):
 
 TraceID = str
 SpanID = str
-AttributePrimitiveValue = Union[str, bool, float, int]
-AttributeValue = Union[AttributePrimitiveValue, List[AttributePrimitiveValue]]
-SpanAttributes = Dict[str, AttributeValue]
+SpanAttributes = Mapping[str, Any]
 
 
 @dataclass(frozen=True)

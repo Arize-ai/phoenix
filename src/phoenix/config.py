@@ -1,8 +1,11 @@
 import os
 import tempfile
 from enum import Enum
+from logging import getLogger
 from pathlib import Path
 from typing import List, Optional
+
+logger = getLogger(__name__)
 
 # Phoenix environment variables
 ENV_PHOENIX_PORT = "PHOENIX_PORT"
@@ -22,14 +25,17 @@ ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME"
 """
 The project name to use when logging traces and evals. defaults to 'default'.
 """
-ENV_PHOENIX_SQL_DATABASE = "__DANGEROUS__PHOENIX_SQL_DATABASE"
+ENV_PHOENIX_SQL_DATABASE_URL = "PHOENIX_SQL_DATABASE_URL"
 """
-The database URL to use when logging traces and evals.
-"""
-ENV_SPAN_STORAGE_TYPE = "__DANGEROUS__PHOENIX_SPAN_STORAGE_TYPE"
-"""
-**EXPERIMENTAL**
-The type of span storage to use.
+The SQL database URL to use when logging traces and evals.
+By default, Phoenix uses an SQLite database and stores it in the working directory.
+
+Phoenix supports two types of database URLs:
+- SQLite: 'sqlite:///path/to/database.db'
+- PostgreSQL: 'postgresql://@host/dbname?user=user&password=password' or 'postgresql://user:password@host/dbname'
+
+Note that if you plan on using SQLite, it's advised to to use a persistent volume
+and simply point the PHOENIX_WORKING_DIR to that volume.
 """
 
 
@@ -85,22 +91,37 @@ GENERATED_DATASET_NAME_PREFIX = "phoenix_dataset_"
 # The work directory for saving, loading, and exporting datasets
 WORKING_DIR = get_working_dir()
 
-try:
-    for path in (
-        ROOT_DIR := WORKING_DIR,
-        EXPORT_DIR := ROOT_DIR / "exports",
-        DATASET_DIR := ROOT_DIR / "datasets",
-        TRACE_DATASET_DIR := ROOT_DIR / "trace_datasets",
-    ):
-        path.mkdir(parents=True, exist_ok=True)
-except Exception as e:
-    print(
-        f"⚠️ Failed to initialize the working directory at {WORKING_DIR} due to an error: {str(e)}"
-    )
-    print("⚠️ While phoenix will still run, you will not be able to save, load, or export data")
-    print(
-        f"ℹ️ To change, set the `{ENV_PHOENIX_WORKING_DIR}` environment variable before importing phoenix."  # noqa: E501
-    )
+ROOT_DIR = WORKING_DIR
+EXPORT_DIR = ROOT_DIR / "exports"
+DATASET_DIR = ROOT_DIR / "datasets"
+TRACE_DATASET_DIR = ROOT_DIR / "trace_datasets"
+
+
+def ensure_working_dir() -> None:
+    """
+    Ensure the working directory exists. This is needed because the working directory
+    must exist before certain operations can be performed.
+    """
+    logger.info(f"📋 Ensuring phoenix working directory: {WORKING_DIR}")
+    try:
+        for path in (
+            ROOT_DIR,
+            EXPORT_DIR,
+            DATASET_DIR,
+            TRACE_DATASET_DIR,
+        ):
+            path.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        print(
+            "💥 Failed to initialize the working directory at "
+            + f"{WORKING_DIR} due to an error: {str(e)}."
+            + "Phoenix requires a working directory to persist data"
+        )
+        raise
+
+
+# Invoke ensure_working_dir() to ensure the working directory exists
+ensure_working_dir()
 
 
 def get_exported_files(directory: Path) -> List[Path]:
@@ -140,24 +161,8 @@ def get_env_project_name() -> str:
     return os.getenv(ENV_PHOENIX_PROJECT_NAME) or DEFAULT_PROJECT_NAME
 
 
-def get_env_span_storage_type() -> Optional["SpanStorageType"]:
-    """
-    Get the type of span storage to use.
-    """
-    if not (env_type_str := os.getenv(ENV_SPAN_STORAGE_TYPE)):
-        return None
-    try:
-        return SpanStorageType(env_type_str.lower())
-    except ValueError:
-        raise ValueError(
-            f"⚠️ Invalid span storage type value `{env_type_str}` defined by the "
-            f"environment variable `{ENV_SPAN_STORAGE_TYPE}`. Valid values are: "
-            f"{', '.join(t.value for t in SpanStorageType)}."
-        )
-
-
 def get_env_database_connection_str() -> str:
-    env_url = os.getenv(ENV_PHOENIX_SQL_DATABASE)
+    env_url = os.getenv(ENV_PHOENIX_SQL_DATABASE_URL)
     if env_url is None:
         working_dir = get_working_dir()
         return f"sqlite:///{working_dir}/phoenix.db"

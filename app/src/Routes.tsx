@@ -5,7 +5,6 @@ import { createBrowserRouter } from "react-router-dom";
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
 import { projectLoader, ProjectPage } from "./pages/project";
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
-import { ProjectsPage } from "./pages/projects/ProjectsPage";
 import {
   dimensionLoader,
   DimensionPage,
@@ -16,6 +15,8 @@ import {
   Layout,
   ModelPage,
   ModelRoot,
+  ProjectsPage,
+  ProjectsRoot,
   TracePage,
   TracingRoot,
 } from "./pages";
@@ -54,7 +55,11 @@ const router = createBrowserRouter(
           />
         </Route>
       </Route>
-      <Route path="/projects" handle={{ crumb: () => "projects" }}>
+      <Route
+        path="/projects"
+        handle={{ crumb: () => "projects" }}
+        element={<ProjectsRoot />}
+      >
         <Route index element={<ProjectsPage />} />
         <Route
           path=":projectId"

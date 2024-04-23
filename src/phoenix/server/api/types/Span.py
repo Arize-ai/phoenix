@@ -1,8 +1,8 @@
 import json
-from collections import defaultdict
 from datetime import datetime
 from enum import Enum
-from typing import Any, DefaultDict, Dict, Iterable, List, Mapping, Optional, Sized, cast
+from itertools import groupby
+from typing import Any, List, Mapping, Optional, Sized, cast
 
 import numpy as np
 import strawberry
@@ -13,14 +13,13 @@ from strawberry import ID, UNSET
 from strawberry.types import Info
 
 import phoenix.trace.schemas as trace_schema
-from phoenix.core.project import Project
 from phoenix.db import models
 from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
 from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluation
 from phoenix.server.api.types.MimeType import MimeType
-from phoenix.trace.schemas import SpanID
+from phoenix.trace.attributes import get_attribute_value
 
 EMBEDDING_EMBEDDINGS = SpanAttributes.EMBEDDING_EMBEDDINGS
 EMBEDDING_VECTOR = EmbeddingAttributes.EMBEDDING_VECTOR
@@ -54,7 +53,9 @@ class SpanKind(Enum):
 
     @classmethod
     def _missing_(cls, v: Any) -> Optional["SpanKind"]:
-        return None if v else cls.unknown
+        if v and isinstance(v, str) and not v.isupper():
+            return cls(v.upper())
+        return cls.unknown
 
 
 @strawberry.type
@@ -99,7 +100,7 @@ class SpanEvent:
 
 @strawberry.type
 class Span:
-    project: strawberry.Private[Project]
+    span_rowid: strawberry.Private[int]
     name: str
     status_code: SpanStatusCode
     status_message: str
@@ -146,12 +147,8 @@ class Span:
         "an LLM, an evaluation may assess the helpfulness of its response with "
         "respect to its input."
     )  # type: ignore
-    def span_evaluations(self) -> List[SpanEvaluation]:
-        span_id = SpanID(str(self.context.span_id))
-        return [
-            SpanEvaluation.from_pb_evaluation(evaluation)
-            for evaluation in self.project.get_evaluations_by_span_id(span_id)
-        ]
+    async def span_evaluations(self, info: Info[Context, None]) -> List[SpanEvaluation]:
+        return await info.context.data_loaders.span_evaluations.load(self.span_rowid)
 
     @strawberry.field(
         description="Evaluations of the documents associated with the span, e.g. "
@@ -161,43 +158,44 @@ class Span:
         "a list, and each evaluation is identified by its document's (zero-based) "
         "index in that list."
     )  # type: ignore
-    def document_evaluations(self) -> List[DocumentEvaluation]:
-        span_id = SpanID(str(self.context.span_id))
-        return [
-            DocumentEvaluation.from_pb_evaluation(evaluation)
-            for evaluation in self.project.get_document_evaluations_by_span_id(span_id)
-        ]
+    async def document_evaluations(self, info: Info[Context, None]) -> List[DocumentEvaluation]:
+        return await info.context.data_loaders.document_evaluations.load(self.span_rowid)
 
     @strawberry.field(
         description="Retrieval metrics: NDCG@K, Precision@K, Reciprocal Rank, etc.",
     )  # type: ignore
-    def document_retrieval_metrics(
+    async def document_retrieval_metrics(
         self,
+        info: Info[Context, None],
         evaluation_name: Optional[str] = UNSET,
     ) -> List[DocumentRetrievalMetrics]:
         if not self.num_documents:
             return []
-        span_id = SpanID(str(self.context.span_id))
-        all_document_evaluation_names = self.project.get_document_evaluation_names(span_id)
-        if not all_document_evaluation_names:
+        mda = models.DocumentAnnotation
+        stmt = (
+            select(mda.name, mda.score, mda.document_index)
+            .where(mda.score != None)  # noqa: E711
+            .where(mda.span_rowid == self.span_rowid)
+            .where(mda.document_index >= 0)
+            .where(mda.document_index < self.num_documents)
+            .where(mda.annotator_kind == "LLM")
+            .order_by(mda.name)
+        )
+        if evaluation_name:
+            stmt = stmt.where(mda.name == evaluation_name)
+        async with info.context.db() as session:
+            rows = await session.execute(stmt)
+        if not rows:
             return []
-        if evaluation_name is UNSET:
-            evaluation_names = all_document_evaluation_names
-        elif evaluation_name not in all_document_evaluation_names:
-            return []
-        else:
-            evaluation_names = [evaluation_name]
         retrieval_metrics = []
-        for name in evaluation_names:
-            evaluation_scores = self.project.get_document_evaluation_scores(
-                span_id=span_id,
-                evaluation_name=name,
-                num_documents=self.num_documents,
-            )
+        for name, group in groupby(rows, lambda r: r.name):
+            scores: List[float] = [np.nan] * self.num_documents
+            for row in group:
+                scores[row.document_index] = row.score
             retrieval_metrics.append(
                 DocumentRetrievalMetrics(
                     evaluation_name=name,
-                    metrics=RetrievalMetrics(evaluation_scores),
+                    metrics=RetrievalMetrics(scores),
                 )
             )
         return retrieval_metrics
@@ -213,14 +211,14 @@ class Span:
         async with info.context.db() as session:
             descendant_ids = (
                 select(models.Span.id, models.Span.span_id)
-                .filter(models.Span.parent_span_id == str(self.context.span_id))
+                .filter(models.Span.parent_id == str(self.context.span_id))
                 .cte(recursive=True)
             )
             parent_ids = descendant_ids.alias()
             descendant_ids = descendant_ids.union_all(
                 select(models.Span.id, models.Span.span_id).join(
                     parent_ids,
-                    models.Span.parent_span_id == parent_ids.c.span_id,
+                    models.Span.parent_id == parent_ids.c.span_id,
                 )
             )
             spans = await session.scalars(
@@ -229,22 +227,22 @@ class Span:
                 .join(models.Trace)
                 .options(contains_eager(models.Span.trace))
             )
-        return [to_gql_span(span, self.project) for span in spans]
+        return [to_gql_span(span) for span in spans]
 
 
-def to_gql_span(span: models.Span, project: Project) -> Span:
+def to_gql_span(span: models.Span) -> Span:
     events: List[SpanEvent] = list(map(SpanEvent.from_dict, span.events))
-    input_value = cast(Optional[str], span.attributes.get(INPUT_VALUE))
-    output_value = cast(Optional[str], span.attributes.get(OUTPUT_VALUE))
-    retrieval_documents = span.attributes.get(RETRIEVAL_DOCUMENTS)
+    input_value = cast(Optional[str], get_attribute_value(span.attributes, INPUT_VALUE))
+    output_value = cast(Optional[str], get_attribute_value(span.attributes, OUTPUT_VALUE))
+    retrieval_documents = get_attribute_value(span.attributes, RETRIEVAL_DOCUMENTS)
     num_documents = len(retrieval_documents) if isinstance(retrieval_documents, Sized) else None
     return Span(
-        project=project,
+        span_rowid=span.id,
         name=span.name,
-        status_code=SpanStatusCode(span.status),
+        status_code=SpanStatusCode(span.status_code),
         status_message=span.status_message,
-        parent_id=cast(Optional[ID], span.parent_span_id),
-        span_kind=SpanKind(span.kind),
+        parent_id=cast(Optional[ID], span.parent_id),
+        span_kind=SpanKind(span.span_kind),
         start_time=span.start_time,
         end_time=span.end_time,
         latency_ms=span.latency_ms,
@@ -252,35 +250,36 @@ def to_gql_span(span: models.Span, project: Project) -> Span:
             trace_id=cast(ID, span.trace.trace_id),
             span_id=cast(ID, span.span_id),
         ),
-        attributes=json.dumps(
-            _nested_attributes(_hide_embedding_vectors(span.attributes)),
-            cls=_JSONEncoder,
-        ),
-        metadata=_convert_metadata_to_string(span.attributes.get(METADATA)),
+        attributes=json.dumps(span.attributes, cls=_JSONEncoder),
+        # TODO(persistence): hide the embedding vectors as a string instead,
+        # e.g. f"<{len(vector)} dimensional vector>"
+        metadata=_convert_metadata_to_string(get_attribute_value(span.attributes, METADATA)),
         num_documents=num_documents,
         token_count_total=cast(
             Optional[int],
-            span.attributes.get(LLM_TOKEN_COUNT_TOTAL),
+            get_attribute_value(span.attributes, LLM_TOKEN_COUNT_TOTAL),
         ),
         token_count_prompt=cast(
             Optional[int],
-            span.attributes.get(LLM_TOKEN_COUNT_PROMPT),
+            get_attribute_value(span.attributes, LLM_TOKEN_COUNT_PROMPT),
         ),
         token_count_completion=cast(
             Optional[int],
-            span.attributes.get(LLM_TOKEN_COUNT_COMPLETION),
+            get_attribute_value(span.attributes, LLM_TOKEN_COUNT_COMPLETION),
         ),
         cumulative_token_count_total=span.cumulative_llm_token_count_prompt
         + span.cumulative_llm_token_count_completion,
         cumulative_token_count_prompt=span.cumulative_llm_token_count_prompt,
         cumulative_token_count_completion=span.cumulative_llm_token_count_completion,
         propagated_status_code=(
-            SpanStatusCode.ERROR if span.cumulative_error_count else SpanStatusCode(span.status)
+            SpanStatusCode.ERROR
+            if span.cumulative_error_count
+            else SpanStatusCode(span.status_code)
         ),
         events=events,
         input=(
             SpanIOValue(
-                mime_type=MimeType(span.attributes.get(INPUT_MIME_TYPE)),
+                mime_type=MimeType(get_attribute_value(span.attributes, INPUT_MIME_TYPE)),
                 value=input_value,
             )
             if input_value is not None
@@ -288,7 +287,7 @@ def to_gql_span(span: models.Span, project: Project) -> Span:
         ),
         output=(
             SpanIOValue(
-                mime_type=MimeType(span.attributes.get(OUTPUT_MIME_TYPE)),
+                mime_type=MimeType(get_attribute_value(span.attributes, OUTPUT_MIME_TYPE)),
                 value=output_value,
             )
             if output_value is not None
@@ -310,39 +309,6 @@ class _JSONEncoder(json.JSONEncoder):
         if isinstance(obj, np.floating):
             return float(obj)
         return super().default(obj)
-
-
-def _trie() -> DefaultDict[str, Any]:
-    return defaultdict(_trie)
-
-
-def _nested_attributes(
-    attributes: Mapping[str, Any],
-) -> DefaultDict[str, Any]:
-    nested_attributes = _trie()
-    for attribute_name, attribute_value in attributes.items():
-        trie = nested_attributes
-        keys = attribute_name.split(".")
-        for key in keys[:-1]:
-            trie = trie[key]
-        trie[keys[-1]] = attribute_value
-    return nested_attributes
-
-
-def _hide_embedding_vectors(
-    attributes: Mapping[str, Any],
-) -> Dict[str, Any]:
-    _attributes = dict(attributes)
-    if not isinstance((embeddings := _attributes.get(EMBEDDING_EMBEDDINGS)), Iterable):
-        return _attributes
-    _embeddings = []
-    for embedding in embeddings:
-        _embedding = dict(embedding)
-        if isinstance((vector := _embedding.get(EMBEDDING_VECTOR)), Sized):
-            _embedding[EMBEDDING_VECTOR] = f"<{len(vector)} dimensional vector>"
-        _embeddings.append(_embedding)
-    _attributes[EMBEDDING_EMBEDDINGS] = _embeddings
-    return _attributes
 
 
 def _convert_metadata_to_string(metadata: Any) -> Optional[str]:

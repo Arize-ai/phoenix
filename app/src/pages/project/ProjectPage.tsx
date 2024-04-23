@@ -1,10 +1,16 @@
-import React, { Suspense } from "react";
+import React, { Suspense, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Outlet } from "react-router";
 import { useParams } from "react-router";
 import { css } from "@emotion/react";
 
-import { TabPane, Tabs } from "@arizeai/components";
+import { Flex, TabPane, Tabs } from "@arizeai/components";
+
+import { Loading } from "@phoenix/components";
+import {
+  ConnectedLastNTimeRangePicker,
+  useLastNTimeRange,
+} from "@phoenix/components/datetime";
 
 import { ProjectPageQuery } from "./__generated__/ProjectPageQuery.graphql";
 import { ProjectPageHeader } from "./ProjectPageHeader";
@@ -39,9 +45,34 @@ const mainCSS = css`
 
 export function ProjectPage() {
   const { projectId } = useParams();
+  const { timeRange } = useLastNTimeRange();
+  return (
+    <Suspense fallback={<Loading />}>
+      <ProjectPageContent
+        projectId={projectId as string}
+        timeRange={timeRange}
+      />
+    </Suspense>
+  );
+}
+
+export function ProjectPageContent({
+  projectId,
+  timeRange,
+}: {
+  projectId: string;
+  timeRange: TimeRange;
+}) {
+  const timeRangeVariable = useMemo(() => {
+    return {
+      start: timeRange.start.toISOString(),
+      end: timeRange.end.toISOString(),
+    };
+  }, [timeRange]);
+
   const data = useLazyLoadQuery<ProjectPageQuery>(
     graphql`
-      query ProjectPageQuery($id: GlobalID!) {
+      query ProjectPageQuery($id: GlobalID!, $timeRange: TimeRange!) {
         project: node(id: $id) {
           ...SpansTable_spans
           ...TracesTable_spans
@@ -52,6 +83,7 @@ export function ProjectPage() {
     `,
     {
       id: projectId as string,
+      timeRange: timeRangeVariable,
     },
     {
       fetchPolicy: "store-and-network",
@@ -61,7 +93,12 @@ export function ProjectPage() {
     <main css={mainCSS}>
       <ProjectPageHeader
         project={data.project}
-        extra={<StreamToggle project={data.project} />}
+        extra={
+          <Flex direction="row" alignItems="center" gap="size-100">
+            <StreamToggle project={data.project} />
+            <ConnectedLastNTimeRangePicker />
+          </Flex>
+        }
       />
       <Tabs>
         <TabPane name="Traces">

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1ca05331feed5049450215752f1dac3a>>
+ * @generated SignedSource<<00fcb6827d05a601812486d86793bcf4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,9 +10,14 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type TimeRange = {
+  end: string;
+  start: string;
+};
 export type EvaluationSummaryValueQuery$variables = {
   evaluationName: string;
   id: string;
+  timeRange: TimeRange;
 };
 export type EvaluationSummaryValueQuery$data = {
   readonly node: {
@@ -25,49 +30,61 @@ export type EvaluationSummaryValueQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "evaluationName"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "id"
-  }
-],
-v1 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "evaluationName"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "id"
+},
+v2 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "timeRange"
+},
+v3 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "id"
   }
 ],
-v2 = [
+v4 = [
   {
     "kind": "Variable",
     "name": "evaluationName",
     "variableName": "evaluationName"
+  },
+  {
+    "kind": "Variable",
+    "name": "timeRange",
+    "variableName": "timeRange"
   }
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/),
+      (v2/*: any*/)
+    ],
     "kind": "Fragment",
     "metadata": null,
     "name": "EvaluationSummaryValueQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
           {
-            "args": (v2/*: any*/),
+            "args": (v4/*: any*/),
             "kind": "FragmentSpread",
             "name": "EvaluationSummaryValueFragment"
           }
@@ -80,13 +97,17 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v2/*: any*/),
+      (v1/*: any*/)
+    ],
     "kind": "Operation",
     "name": "EvaluationSummaryValueQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -115,7 +136,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v4/*: any*/),
                 "concreteType": "EvaluationSummary",
                 "kind": "LinkedField",
                 "name": "spanEvaluationSummary",
@@ -166,16 +187,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ec476c88443196a472ace6723b0ff2c9",
+    "cacheID": "99465624550be40aec8146116c3a223b",
     "id": null,
     "metadata": {},
     "name": "EvaluationSummaryValueQuery",
     "operationKind": "query",
-    "text": "query EvaluationSummaryValueQuery(\n  $evaluationName: String!\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...EvaluationSummaryValueFragment_qsFcK\n    __isNode: __typename\n    id\n  }\n}\n\nfragment EvaluationSummaryValueFragment_qsFcK on Project {\n  spanEvaluationSummary(evaluationName: $evaluationName) {\n    labelFractions {\n      label\n      fraction\n    }\n    meanScore\n  }\n  id\n}\n"
+    "text": "query EvaluationSummaryValueQuery(\n  $evaluationName: String!\n  $timeRange: TimeRange!\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...EvaluationSummaryValueFragment_1dJL9N\n    __isNode: __typename\n    id\n  }\n}\n\nfragment EvaluationSummaryValueFragment_1dJL9N on Project {\n  spanEvaluationSummary(evaluationName: $evaluationName, timeRange: $timeRange) {\n    labelFractions {\n      label\n      fraction\n    }\n    meanScore\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7a04af8ec5267dc13f778d7ee088691a";
+(node as any).hash = "ba0ee13567d5484ec0697c50e1a77bfa";
 
 export default node;

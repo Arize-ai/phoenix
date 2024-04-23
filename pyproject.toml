@@ -3,7 +3,7 @@ name = "arize-phoenix"
 description = "AI Observability and Evaluation"
 readme = "README.md"
 requires-python = ">=3.8, <3.13"
-license = "Elastic-2.0"
+license = {text="Elastic-2.0"}
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
   "Observability",
@@ -40,19 +40,21 @@ dependencies = [
   "wrapt",
   "sortedcontainers",
   "protobuf>=3.20, <6.0",
+  "ddsketch",
   "tqdm",
   "requests",
   "opentelemetry-sdk",
-  "opentelemetry-proto",
+  "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
   "opentelemetry-exporter-otlp",
   "openinference-semantic-conventions>=0.1.5",
   "openinference-instrumentation",
   "openinference-instrumentation-langchain>=0.1.12",
   "openinference-instrumentation-llama-index>=1.2.0",
   "openinference-instrumentation-openai>=0.1.4",
-  "sqlalchemy>=2, <3",
+  "sqlalchemy[asyncio]>=2.0.4, <3",
   "alembic>=1.3.0, <2",
   "aiosqlite",
+  "sqlean.py>=3.45.1",
 ]
 dynamic = ["version"]
 
@@ -113,14 +115,14 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/phoenix"]
 exclude = ["src/phoenix/evals/"]
-artifacts = ["src/phoenix/server/static"]
+artifacts = ["src/phoenix/server/static", "src/phoenix/db/migrations"]
 
 [tool.hatch.build]
 only-packages = true
 
 [tool.hatch.build.targets.sdist]
 exclude = ["src/phoenix/evals/", "packages/"]
-artifacts = ["src/phoenix/server/static"]
+artifacts = ["src/phoenix/server/static", "src/phoenix/db/migrations"]
 
 [tool.hatch.envs.default]
 dependencies = [
@@ -142,12 +144,12 @@ dependencies = [
   "httpx", # For OpenAI testing
   "respx", # For OpenAI testing
   "nest-asyncio", # for executor testing
-  "pyfakefs", # for experimental storage implementations
+  "astunparse; python_version<'3.9'",  # `ast.unparse(...)` is only available starting with Python 3.9
 ]
 
 [tool.hatch.envs.type]
 dependencies = [
-  "mypy==1.5.1",
+  "mypy==1.9.0",
   "tenacity",
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "types-psutil",
@@ -163,7 +165,7 @@ dependencies = [
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
-  "ruff==0.3.0",
+  "ruff==0.4.1",
 ]
 
 [tool.hatch.envs.notebooks]
@@ -304,6 +306,7 @@ exclude = [
   "sdist/",
   "tests/",
   "tutorials/",
+  "examples/manually-instrumented-chatbot/"
 ]
 
 [[tool.mypy.overrides]]
@@ -321,6 +324,7 @@ module = [
   "nest_asyncio",
   "opentelemetry.*",
   "pyarrow",
+  "sqlean",
 ]
 ignore_missing_imports = true
 

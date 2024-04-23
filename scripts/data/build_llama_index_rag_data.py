@@ -16,7 +16,7 @@ from llama_index.callbacks import CallbackManager, OpenInferenceCallbackHandler
 from llama_index.callbacks.open_inference_callback import as_dataframe
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms import OpenAI
-from phoenix.experimental.evals.retrievals import (
+from phoenix.evals.retrievals import (
     classify_relevance,
     compute_precisions_at_k,
 )

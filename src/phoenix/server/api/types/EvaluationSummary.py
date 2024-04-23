@@ -1,13 +1,15 @@
 import math
 from functools import cached_property
-from typing import List, Optional, Tuple, cast
+from typing import List, Optional, Sequence, Union, cast
 
 import pandas as pd
 import strawberry
 from pandas.api.types import CategoricalDtype
 from strawberry import Private
 
-import phoenix.trace.v1 as pb
+from phoenix.db import models
+
+AnnotationType = Union[models.SpanAnnotation, models.TraceAnnotation]
 
 
 @strawberry.type
@@ -19,17 +21,17 @@ class LabelFraction:
 @strawberry.type
 class EvaluationSummary:
     count: int
-    labels: Tuple[str, ...]
-    evaluations: Private[Tuple[pb.Evaluation, ...]]
+    labels: Sequence[str]
+    annotations: Private[Sequence[AnnotationType]]
 
     def __init__(
         self,
-        evaluations: Tuple[pb.Evaluation, ...],
-        labels: Tuple[str, ...],
+        annotations: Sequence[AnnotationType],
+        labels: Sequence[str],
     ) -> None:
-        self.evaluations = evaluations
+        self.annotations = annotations
         self.labels = labels
-        self.count = len(evaluations)
+        self.count = len(annotations)
 
     @strawberry.field
     def label_fractions(self) -> List[LabelFraction]:
@@ -57,19 +59,13 @@ class EvaluationSummary:
     @cached_property
     def _eval_scores(self) -> "pd.Series[float]":
         return pd.Series(
-            (
-                evaluation.result.score.value if evaluation.result.HasField("score") else None
-                for evaluation in self.evaluations
-            ),
+            (evaluation.score for evaluation in self.annotations),
             dtype=float,
         )
 
     @cached_property
     def _eval_labels(self) -> "pd.Series[CategoricalDtype]":
         return pd.Series(
-            (
-                evaluation.result.label.value if evaluation.result.HasField("label") else None
-                for evaluation in self.evaluations
-            ),
+            (evaluation.label for evaluation in self.annotations),
             dtype=CategoricalDtype(categories=self.labels),  # type: ignore
         )

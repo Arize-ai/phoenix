@@ -8,7 +8,7 @@ from numpy.testing import assert_almost_equal
 from pandas import DataFrame, Series, Timestamp
 from phoenix.core.model_schema import Model
 from phoenix.core.model_schema_adapter import create_model_from_datasets
-from phoenix.datasets.dataset import Dataset, EmbeddingColumnNames, Schema
+from phoenix.inferences.inferences import EmbeddingColumnNames, Inferences, Schema
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.Granularity import Granularity
 from phoenix.server.api.input_types.TimeRange import TimeRange
@@ -46,7 +46,7 @@ class TestDriftMetricTimeSeries:
                 "embedding_feature": EmbeddingColumnNames(vector_column_name="embedding_vector")
             },
         )
-        primary_dataset = Dataset(
+        primary_dataset = Inferences(
             dataframe=primary_dataframe,
             schema=schema,
         )
@@ -116,11 +116,11 @@ class TestDriftMetricTimeSeries:
                 "embedding_feature": EmbeddingColumnNames(vector_column_name="embedding_vector")
             },
         )
-        primary_dataset = Dataset(
+        primary_dataset = Inferences(
             dataframe=primary_dataframe,
             schema=schema,
         )
-        reference_dataset = Dataset(
+        reference_dataset = Inferences(
             dataframe=reference_dataframe,
             schema=schema,
         )
@@ -182,11 +182,11 @@ class TestDriftMetricTimeSeries:
                 "embedding_feature": EmbeddingColumnNames(vector_column_name="embedding_vector")
             },
         )
-        primary_dataset = Dataset(
+        primary_dataset = Inferences(
             dataframe=primary_dataframe,
             schema=schema,
         )
-        reference_dataset = Dataset(
+        reference_dataset = Inferences(
             dataframe=reference_dataframe,
             schema=schema,
         )
@@ -273,11 +273,11 @@ class TestDriftMetricTimeSeries:
                 "embedding_feature": EmbeddingColumnNames(vector_column_name="embedding_vector")
             },
         )
-        primary_dataset = Dataset(
+        primary_dataset = Inferences(
             dataframe=primary_dataframe,
             schema=schema,
         )
-        reference_dataset = Dataset(
+        reference_dataset = Inferences(
             dataframe=reference_dataframe,
             schema=schema,
         )
@@ -335,7 +335,7 @@ class TestDriftMetric:
                 "embedding_feature": EmbeddingColumnNames(vector_column_name="embedding_vector")
             },
         )
-        primary_dataset = Dataset(
+        primary_dataset = Inferences(
             dataframe=primary_dataframe,
             schema=schema,
         )
@@ -401,11 +401,11 @@ class TestDriftMetric:
                 "embedding_feature": EmbeddingColumnNames(vector_column_name="embedding_vector")
             },
         )
-        primary_dataset = Dataset(
+        primary_dataset = Inferences(
             dataframe=primary_dataframe,
             schema=schema,
         )
-        reference_dataset = Dataset(
+        reference_dataset = Inferences(
             dataframe=reference_dataframe,
             schema=schema,
         )
@@ -475,8 +475,8 @@ class TestDriftMetric:
                 "embedding_feature": EmbeddingColumnNames(vector_column_name="embedding_vector")
             },
         )
-        primary_dataset = Dataset(dataframe=primary_dataframe, schema=schema)
-        reference_dataset = Dataset(dataframe=reference_dataframe, schema=schema)
+        primary_dataset = Inferences(dataframe=primary_dataframe, schema=schema)
+        reference_dataset = Inferences(dataframe=reference_dataframe, schema=schema)
         model = create_model_from_datasets(primary_dataset, reference_dataset)
         distance = EmbeddingDimension(
             name="embedding_feature",
@@ -534,8 +534,8 @@ class TestDriftMetric:
                 "embedding_feature": EmbeddingColumnNames(vector_column_name="embedding_vector")
             },
         )
-        primary_dataset = Dataset(dataframe=primary_dataframe, schema=schema)
-        reference_dataset = Dataset(dataframe=reference_dataframe, schema=schema)
+        primary_dataset = Inferences(dataframe=primary_dataframe, schema=schema)
+        reference_dataset = Inferences(dataframe=reference_dataframe, schema=schema)
         model = create_model_from_datasets(primary_dataset, reference_dataset)
         distance = EmbeddingDimension(
             name="embedding_feature",

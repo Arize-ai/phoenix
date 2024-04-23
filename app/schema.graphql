@@ -486,7 +486,6 @@ type Mutation {
   """
   exportClusters(clusters: [ClusterInput!]!, fileName: String): ExportedFile!
   deleteProject(id: GlobalID!): Query!
-  archiveProject(id: GlobalID!): Query!
 }
 
 """A node in the graph with a globally unique ID"""
@@ -539,13 +538,14 @@ type Point3D {
 type Project implements Node {
   id: GlobalID!
   name: String!
+  gradientStartColor: String!
+  gradientEndColor: String!
   startTime: DateTime
   endTime: DateTime
   recordCount(timeRange: TimeRange): Int!
   traceCount(timeRange: TimeRange): Int!
   tokenCountTotal(timeRange: TimeRange): Int!
-  latencyMsP50: Float
-  latencyMsP99: Float
+  latencyMsQuantile(probability: Float!, timeRange: TimeRange): Float
   trace(traceId: ID!): Trace
   spans(timeRange: TimeRange, first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String): SpanConnection!
 
@@ -803,7 +803,6 @@ type TimeSeriesDataPoint {
 }
 
 type Trace {
-  traceId: ID!
   spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
 
   """Evaluations associated with the trace"""

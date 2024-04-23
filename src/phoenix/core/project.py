@@ -30,6 +30,7 @@ from wrapt import ObjectProxy
 import phoenix.trace.v1 as pb
 from phoenix.datetime_utils import right_open_time_range
 from phoenix.trace import DocumentEvaluations, Evaluations, SpanEvaluations
+from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.schemas import (
     ComputedAttributes,
     Span,
@@ -64,7 +65,7 @@ class WrappedSpan(ObjectProxy):  # type: ignore
     def __getitem__(self, key: Union[str, ComputedAttributes]) -> Any:
         if isinstance(key, ComputedAttributes):
             return self._self_computed_values.get(key)
-        return self.__wrapped__.attributes.get(key)
+        return get_attribute_value(self.__wrapped__.attributes, key)
 
     def __setitem__(self, key: ComputedAttributes, value: Any) -> None:
         if not isinstance(key, ComputedAttributes):
@@ -201,9 +202,6 @@ class Project:
 
     def get_evaluations_by_span_id(self, span_id: SpanID) -> List[pb.Evaluation]:
         return self._evals.get_evaluations_by_span_id(span_id)
-
-    def get_document_evaluation_span_ids(self, name: EvaluationName) -> Tuple[SpanID, ...]:
-        return self._evals.get_document_evaluation_span_ids(name)
 
     def get_document_evaluations_by_span_id(self, span_id: SpanID) -> List[pb.Evaluation]:
         return self._evals.get_document_evaluations_by_span_id(span_id)
@@ -511,10 +509,16 @@ class _Spans:
     def _update_cached_statistics(self, span: WrappedSpan) -> None:
         # Update statistics for quick access later
         span_id = span.context.span_id
-        if token_count_update := span.attributes.get(SpanAttributes.LLM_TOKEN_COUNT_TOTAL):
+        if token_count_update := get_attribute_value(
+            span.attributes, SpanAttributes.LLM_TOKEN_COUNT_TOTAL
+        ):
             self._token_count_total += token_count_update
         if isinstance(
-            (retrieval_documents := span.attributes.get(SpanAttributes.RETRIEVAL_DOCUMENTS)),
+            (
+                retrieval_documents := get_attribute_value(
+                    span.attributes, SpanAttributes.RETRIEVAL_DOCUMENTS
+                )
+            ),
             Sized,
         ) and (num_documents_update := len(retrieval_documents)):
             self._num_documents[span_id] += num_documents_update
@@ -670,11 +674,6 @@ class _Evals:
         with self._lock:
             evaluations = self._evaluations_by_span_id.get(span_id)
             return list(evaluations.values()) if evaluations else []
-
-    def get_document_evaluation_span_ids(self, name: EvaluationName) -> Tuple[SpanID, ...]:
-        with self._lock:
-            document_evaluations = self._document_evaluations_by_name.get(name)
-            return tuple(document_evaluations.keys()) if document_evaluations else ()
 
     def get_document_evaluations_by_span_id(self, span_id: SpanID) -> List[pb.Evaluation]:
         all_evaluations: List[pb.Evaluation] = []

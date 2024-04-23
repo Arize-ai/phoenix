@@ -21,9 +21,9 @@ from phoenix.config import (
 )
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
-from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
-from phoenix.datasets.fixtures import FIXTURES, get_datasets
-from phoenix.db.engines import create_engine
+from phoenix.db import get_printable_db_url
+from phoenix.inferences.fixtures import FIXTURES, get_datasets
+from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
 from phoenix.pointcloud.umap_parameters import (
     DEFAULT_MIN_DIST,
     DEFAULT_N_NEIGHBORS,
@@ -31,16 +31,15 @@ from phoenix.pointcloud.umap_parameters import (
     UMAPParameters,
 )
 from phoenix.server.app import create_app
-from phoenix.storage.span_store import SpanStore
+from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
     _download_traces_fixture,
     _get_trace_fixture_by_name,
     get_evals_from_fixture,
 )
-from phoenix.trace.otel import decode, encode
+from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.span_json_decoder import json_string_to_span
-from phoenix.utilities.span_store import get_span_store, load_traces_data_from_store
 
 logger = logging.getLogger(__name__)
 
@@ -117,14 +116,18 @@ if __name__ == "__main__":
     trace_dataset_name: Optional[str] = None
     simulate_streaming: Optional[bool] = None
 
-    primary_dataset: Dataset = EMPTY_DATASET
-    reference_dataset: Optional[Dataset] = None
-    corpus_dataset: Optional[Dataset] = None
+    primary_dataset: Inferences = EMPTY_INFERENCES
+    reference_dataset: Optional[Inferences] = None
+    corpus_dataset: Optional[Inferences] = None
+
+    # Initialize the settings for the Server
+    Settings.log_migrations = True
 
     # automatically remove the pid file when the process is being gracefully terminated
     atexit.register(_remove_pid_file)
 
     parser = ArgumentParser()
+    parser.add_argument("--database-url", required=False)
     parser.add_argument("--export_path")
     parser.add_argument("--host", type=str, required=False)
     parser.add_argument("--port", type=int, required=False)
@@ -155,20 +158,22 @@ if __name__ == "__main__":
     )
     demo_parser.add_argument("--simulate-streaming", action="store_true")
     args = parser.parse_args()
+    db_connection_str = (
+        args.database_url if args.database_url else get_env_database_connection_str()
+    )
     export_path = Path(args.export_path) if args.export_path else EXPORT_DIR
-    span_store: Optional[SpanStore] = None
     if args.command == "datasets":
         primary_dataset_name = args.primary
         reference_dataset_name = args.reference
         corpus_dataset_name = args.corpus
-        primary_dataset = Dataset.from_name(primary_dataset_name)
+        primary_dataset = Inferences.from_name(primary_dataset_name)
         reference_dataset = (
-            Dataset.from_name(reference_dataset_name)
+            Inferences.from_name(reference_dataset_name)
             if reference_dataset_name is not None
             else None
         )
         corpus_dataset = (
-            None if corpus_dataset_name is None else Dataset.from_name(corpus_dataset_name)
+            None if corpus_dataset_name is None else Inferences.from_name(corpus_dataset_name)
         )
     elif args.command == "fixture":
         fixture_name = args.fixture
@@ -201,14 +206,13 @@ if __name__ == "__main__":
     )
 
     traces = Traces()
-    if span_store := get_span_store():
-        Thread(target=load_traces_data_from_store, args=(traces, span_store), daemon=True).start()
     fixture_spans = []
+    fixture_evals = []
     if trace_dataset_name is not None:
         fixture_spans = list(
             # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
             # `encode` removes the hyphens in the UUIDs.
-            decode(encode(json_string_to_span(json_span)))
+            decode_otlp_span(encode_span_to_otlp(json_string_to_span(json_span)))
             for json_span in _download_traces_fixture(
                 _get_trace_fixture_by_name(trace_dataset_name)
             )
@@ -238,10 +242,8 @@ if __name__ == "__main__":
         start_prometheus()
 
     working_dir = get_working_dir().resolve()
-    db_connection_str = get_env_database_connection_str()
-    engine = create_engine(db_connection_str)
     app = create_app(
-        engine=engine,
+        database_url=db_connection_str,
         export_path=export_path,
         model=model,
         umap_params=umap_params,
@@ -249,9 +251,9 @@ if __name__ == "__main__":
         corpus=None if corpus_dataset is None else create_model_from_datasets(corpus_dataset),
         debug=args.debug,
         read_only=read_only,
-        span_store=span_store,
         enable_prometheus=enable_prometheus,
         initial_spans=fixture_spans,
+        initial_evaluations=fixture_evals,
     )
     server = Server(config=Config(app, host=host, port=port))
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
@@ -262,7 +264,7 @@ if __name__ == "__main__":
         "version": phoenix_version,
         "host": host,
         "port": port,
-        "storage": db_connection_str,
+        "storage": get_printable_db_url(db_connection_str),
     }
     print(_WELCOME_MESSAGE.format(**config))
 

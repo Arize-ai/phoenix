@@ -6,18 +6,18 @@ import pandas as pd
 from pandas.api.types import is_object_dtype
 from typing_extensions import TypeAlias, TypeGuard
 
-from phoenix import Dataset, EmbeddingColumnNames
+from phoenix import EmbeddingColumnNames, Inferences
 from phoenix.core.model import _get_embedding_dimensions
 from phoenix.core.model_schema import Embedding, Model, RetrievalEmbedding, Schema
-from phoenix.datasets.schema import RetrievalEmbeddingColumnNames
-from phoenix.datasets.schema import Schema as DatasetSchema
+from phoenix.inferences.schema import RetrievalEmbeddingColumnNames
+from phoenix.inferences.schema import Schema as DatasetSchema
 
 DatasetName: TypeAlias = str
 ColumnName: TypeAlias = str
 DisplayName: TypeAlias = str
 
 
-def create_model_from_datasets(*datasets: Optional[Dataset]) -> Model:
+def create_model_from_datasets(*datasets: Optional[Inferences]) -> Model:
     # TODO: move this validation into model_schema.Model.
     if len(datasets) > 1 and datasets[0] is not None:
         # Check that for each embedding dimension all vectors
@@ -132,8 +132,8 @@ def create_model_from_datasets(*datasets: Optional[Dataset]) -> Model:
     )
 
 
-def _is_dataset(obj: Optional[Dataset]) -> TypeGuard[Dataset]:
-    return type(obj) is Dataset
+def _is_dataset(obj: Optional[Inferences]) -> TypeGuard[Inferences]:
+    return type(obj) is Inferences
 
 
 def _take_first_str(iterator: Iterable[str]) -> str:
