@@ -189,14 +189,14 @@ class Span:
             return []
         retrieval_metrics = []
         for name, group in groupby(rows, lambda r: r.name):
-            evaluation_scores: List[float] = [np.nan] * self.num_documents
+            scores: List[float] = [np.nan] * self.num_documents
             for row in group:
-                if (position := row.document_index) < len(evaluation_scores):
-                    evaluation_scores[position] = row.score
+                if (position := row.document_index) < len(scores):
+                    scores[position] = row.score
             retrieval_metrics.append(
                 DocumentRetrievalMetrics(
                     evaluation_name=name,
-                    metrics=RetrievalMetrics(evaluation_scores),
+                    metrics=RetrievalMetrics(scores),
                 )
             )
         return retrieval_metrics
