@@ -363,7 +363,7 @@ class Project(Node):
             evaluation_scores: List[float] = [np.nan] * num_documents
             for annotation in sql_span.document_annotations:
                 if (score := annotation.score) is not None and (
-                    document_position := annotation.document_index
+                    document_position := annotation.document_position
                 ) < num_documents:
                     evaluation_scores[document_position] = score
             metrics_collection.append(RetrievalMetrics(evaluation_scores))

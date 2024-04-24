@@ -372,7 +372,7 @@ class DocumentAnnotation(Base):
         ForeignKey("spans.id", ondelete="CASCADE"),
         index=True,
     )
-    document_index: Mapped[int]
+    document_position: Mapped[int]
     name: Mapped[str]
     label: Mapped[Optional[str]]
     score: Mapped[Optional[float]]
@@ -390,9 +390,9 @@ class DocumentAnnotation(Base):
     __table_args__ = (
         UniqueConstraint(
             "span_rowid",
-            "document_index",
+            "document_position",
             "name",
-            name="uq_document_annotations_span_rowid_document_index_name",
+            name="uq_document_annotations_span_rowid_document_position_name",
             sqlite_on_conflict="REPLACE",
         ),
     )

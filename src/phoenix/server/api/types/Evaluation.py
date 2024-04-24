@@ -104,5 +104,5 @@ class DocumentEvaluation(Evaluation):
             score=annotation.score,
             label=annotation.label,
             explanation=annotation.explanation,
-            document_position=annotation.document_index,
+            document_position=annotation.document_position,
         )

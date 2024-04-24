@@ -173,11 +173,11 @@ class Span:
             return []
         mda = models.DocumentAnnotation
         stmt = (
-            select(mda.name, mda.score, mda.document_index)
+            select(mda.name, mda.score, mda.document_position)
             .where(mda.score != None)  # noqa: E711
             .where(mda.span_rowid == self.span_rowid)
-            .where(mda.document_index >= 0)
-            .where(mda.document_index < self.num_documents)
+            .where(mda.document_position >= 0)
+            .where(mda.document_position < self.num_documents)
             .where(mda.annotator_kind == "LLM")
             .order_by(mda.name)
         )
@@ -191,7 +191,7 @@ class Span:
         for name, group in groupby(rows, lambda r: r.name):
             scores: List[float] = [np.nan] * self.num_documents
             for row in group:
-                scores[row.document_index] = row.score
+                scores[row.document_position] = row.score
             retrieval_metrics.append(
                 DocumentRetrievalMetrics(
                     evaluation_name=name,

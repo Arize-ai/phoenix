@@ -208,7 +208,7 @@ async def _insert_evaluation(session: AsyncSession, evaluation: pb.Evaluation) -
             insert(models.DocumentAnnotation)
             .values(
                 span_rowid=span_rowid,
-                document_index=evaluation.subject_id.document_retrieval_id.document_position,
+                document_position=evaluation.subject_id.document_retrieval_id.document_position,
                 name=evaluation_name,
                 label=label,
                 score=score,

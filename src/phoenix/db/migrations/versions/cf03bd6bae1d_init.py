@@ -228,7 +228,7 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
-        sa.Column("document_index", sa.Integer, nullable=False),
+        sa.Column("document_position", sa.Integer, nullable=False),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("label", sa.String, nullable=True),
         sa.Column("score", sa.Float, nullable=True),
@@ -258,9 +258,9 @@ def upgrade() -> None:
         ),
         sa.UniqueConstraint(
             "span_rowid",
-            "document_index",
+            "document_position",
             "name",
-            name="uq_document_annotations_span_rowid_document_index_name",
+            name="uq_document_annotations_span_rowid_document_position_name",
             sqlite_on_conflict="REPLACE",
         ),
     )
