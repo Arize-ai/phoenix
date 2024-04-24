@@ -1,14 +1,20 @@
+import asyncio
 from datetime import datetime
 from typing import List, Optional
 
+import nest_asyncio
 import pandas as pd
+import pytest
 from pandas.testing import assert_frame_equal
 from phoenix.trace.dsl import SpanQuery
 from phoenix.trace.dsl.helpers import get_qa_with_reference, get_retrieved_documents
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
-def test_get_retrieved_documents(session: Session) -> None:
+@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
+async def test_get_retrieved_documents(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     mock = _Mock(session)
     expected = pd.DataFrame(
         {
@@ -27,7 +33,10 @@ def test_get_retrieved_documents(session: Session) -> None:
     )
 
 
-def test_get_qa_with_reference(session: Session) -> None:
+@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
+def test_get_qa_with_reference(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     mock = _Mock(session)
     expected = pd.DataFrame(
         {
@@ -45,7 +54,7 @@ def test_get_qa_with_reference(session: Session) -> None:
 
 
 class _Mock:
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
     def query_spans(
@@ -55,12 +64,15 @@ class _Mock:
         stop_time: Optional[datetime] = None,
         project_name: Optional[str] = None,
     ) -> List[pd.DataFrame]:
+        nest_asyncio.apply()
         ans = [
-            sq(
-                self.session,
-                start_time=start_time,
-                stop_time=stop_time,
-                project_name=project_name,
+            asyncio.run(
+                self.session.run_sync(
+                    sq,
+                    start_time=start_time,
+                    stop_time=stop_time,
+                    project_name=project_name,
+                )
             )
             for sq in span_queries
         ]

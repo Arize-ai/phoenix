@@ -1,48 +1,32 @@
 from datetime import datetime
-from typing import Iterator
 
 import pytest
-import sqlean
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
-from phoenix.db.models import Base
-from sqlalchemy import create_engine, insert
-from sqlalchemy.orm import Session, sessionmaker
-
-
-@pytest.fixture(scope="session")
-def session_maker() -> sessionmaker:
-    sqlean.extensions.enable_all()
-    engine = create_engine("sqlite:///:memory:", module=sqlean, echo=True)
-    Base.metadata.create_all(engine)
-    session_maker = sessionmaker(engine)
-    with session_maker.begin() as session:
-        _insert_project_default(session)
-        _insert_project_abc(session)
-    return session_maker
+from sqlalchemy import insert
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.fixture()
-def session(session_maker: sessionmaker) -> Iterator[Session]:
-    with session_maker.begin() as session:
-        yield session
-
-
-def _insert_project_default(session: Session) -> None:
-    project_row_id = session.scalar(
-        insert(models.Project).values(name=DEFAULT_PROJECT_NAME).returning(models.Project.id)
-    )
-    trace_row_id = session.scalar(
-        insert(models.Trace)
-        .values(
-            trace_id="0123",
-            project_rowid=project_row_id,
-            start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
-            end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
+async def default_project(session: AsyncSession) -> None:
+    project_row_id = (
+        await session.execute(
+            insert(models.Project).values(name=DEFAULT_PROJECT_NAME).returning(models.Project.id)
         )
-        .returning(models.Trace.id)
-    )
-    _ = session.scalar(
+    ).fetchone()[0]
+    trace_row_id = (
+        await session.execute(
+            insert(models.Trace)
+            .values(
+                trace_id="0123",
+                project_rowid=project_row_id,
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
+            )
+            .returning(models.Trace.id)
+        )
+    ).fetchone()[0]
+    await session.execute(
         insert(models.Span)
         .values(
             trace_rowid=trace_row_id,
@@ -65,7 +49,7 @@ def _insert_project_default(session: Session) -> None:
         )
         .returning(models.Span.id)
     )
-    _ = session.scalar(
+    await session.execute(
         insert(models.Span)
         .values(
             trace_rowid=trace_row_id,
@@ -98,21 +82,26 @@ def _insert_project_default(session: Session) -> None:
     )
 
 
-def _insert_project_abc(session: Session) -> None:
-    project_row_id = session.scalar(
-        insert(models.Project).values(name="abc").returning(models.Project.id)
-    )
-    trace_row_id = session.scalar(
-        insert(models.Trace)
-        .values(
-            trace_id="012",
-            project_rowid=project_row_id,
-            start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
-            end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
+@pytest.fixture()
+async def abc_project(session: AsyncSession) -> None:
+    project_row_id = (
+        await session.execute(
+            insert(models.Project).values(name="abc").returning(models.Project.id)
         )
-        .returning(models.Trace.id)
-    )
-    _ = session.scalar(
+    ).fetchone()[0]
+    trace_row_id = (
+        await session.execute(
+            insert(models.Trace)
+            .values(
+                trace_id="012",
+                project_rowid=project_row_id,
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
+            )
+            .returning(models.Trace.id)
+        )
+    ).fetchone()[0]
+    _ = await session.execute(
         insert(models.Span)
         .values(
             trace_rowid=trace_row_id,
@@ -123,7 +112,7 @@ def _insert_project_abc(session: Session) -> None:
             start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
             end_time=datetime.fromisoformat("2021-01-01T00:00:30.000+00:00"),
             attributes={
-                "input": {"value": "xy%z*"},
+                "input": {"value": "210"},
                 "output": {"value": "321"},
             },
             events=[],
@@ -135,7 +124,7 @@ def _insert_project_abc(session: Session) -> None:
         )
         .returning(models.Span.id)
     )
-    _ = session.scalar(
+    _ = await session.execute(
         insert(models.Span)
         .values(
             trace_rowid=trace_row_id,
@@ -146,9 +135,6 @@ def _insert_project_abc(session: Session) -> None:
             start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
             end_time=datetime.fromisoformat("2021-01-01T00:00:05.000+00:00"),
             attributes={
-                "input": {
-                    "value": "XY%*Z",
-                },
                 "metadata": {
                     "a.b.c": 123,
                     "1.2.3": "abc",
@@ -171,7 +157,7 @@ def _insert_project_abc(session: Session) -> None:
         )
         .returning(models.Span.id)
     )
-    _ = session.scalar(
+    _ = await session.execute(
         insert(models.Span)
         .values(
             trace_rowid=trace_row_id,
@@ -184,7 +170,7 @@ def _insert_project_abc(session: Session) -> None:
             attributes={
                 "attributes": "attributes",
                 "input": {
-                    "value": "xy%*z",
+                    "value": "xyz",
                 },
                 "retrieval": {
                     "documents": [
@@ -203,7 +189,7 @@ def _insert_project_abc(session: Session) -> None:
         )
         .returning(models.Span.id)
     )
-    _ = session.scalar(
+    _ = await session.execute(
         insert(models.Span)
         .values(
             trace_rowid=trace_row_id,
