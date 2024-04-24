@@ -30,7 +30,6 @@ from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.trace.dsl import SpanFilter
-from phoenix.trace.schemas import SpanID
 
 
 @strawberry.type
@@ -208,26 +207,56 @@ class Project(Node):
         description="Names of all available evaluations for traces. "
         "(The list contains no duplicates.)"
     )  # type: ignore
-    def trace_evaluation_names(self) -> List[str]:
-        return self.project.get_trace_evaluation_names()
+    async def trace_evaluation_names(
+        self,
+        info: Info[Context, None],
+    ) -> List[str]:
+        stmt = (
+            select(distinct(models.TraceAnnotation.name))
+            .join(models.Trace)
+            .where(models.Trace.project_rowid == self.id_attr)
+            .where(models.TraceAnnotation.annotator_kind == "LLM")
+        )
+        async with info.context.db() as session:
+            return list(await session.scalars(stmt))
 
     @strawberry.field(
         description="Names of all available evaluations for spans. "
         "(The list contains no duplicates.)"
     )  # type: ignore
-    def span_evaluation_names(self) -> List[str]:
-        return self.project.get_span_evaluation_names()
+    async def span_evaluation_names(
+        self,
+        info: Info[Context, None],
+    ) -> List[str]:
+        stmt = (
+            select(distinct(models.SpanAnnotation.name))
+            .join(models.Span)
+            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+            .where(models.Trace.project_rowid == self.id_attr)
+            .where(models.SpanAnnotation.annotator_kind == "LLM")
+        )
+        async with info.context.db() as session:
+            return list(await session.scalars(stmt))
 
     @strawberry.field(
         description="Names of available document evaluations.",
     )  # type: ignore
-    def document_evaluation_names(
+    async def document_evaluation_names(
         self,
+        info: Info[Context, None],
         span_id: Optional[ID] = UNSET,
     ) -> List[str]:
-        return self.project.get_document_evaluation_names(
-            None if span_id is UNSET else SpanID(span_id),
+        stmt = (
+            select(distinct(models.DocumentAnnotation.name))
+            .join(models.Span)
+            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+            .where(models.Trace.project_rowid == self.id_attr)
+            .where(models.DocumentAnnotation.annotator_kind == "LLM")
         )
+        if span_id:
+            stmt = stmt.where(models.Span.span_id == str(span_id))
+        async with info.context.db() as session:
+            return list(await session.scalars(stmt))
 
     @strawberry.field
     async def trace_evaluation_summary(
@@ -355,13 +384,13 @@ class Project(Node):
         return info.context.streaming_last_updated_at()
 
     @strawberry.field
-    def validate_span_filter_condition(self, condition: str) -> ValidationResult:
-        valid_eval_names = self.project.get_span_evaluation_names()
+    async def validate_span_filter_condition(self, condition: str) -> ValidationResult:
+        # TODO(persistence): this query is too expensive to run on every validation
+        # valid_eval_names = await self.span_evaluation_names()
         try:
             SpanFilter(
                 condition=condition,
-                evals=self.project,
-                valid_eval_names=valid_eval_names,
+                # valid_eval_names=valid_eval_names,
             )
             return ValidationResult(is_valid=True, error_message=None)
         except SyntaxError as e:
