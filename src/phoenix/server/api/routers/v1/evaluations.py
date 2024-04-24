@@ -27,6 +27,7 @@ import phoenix.trace.v1 as pb
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.core.traces import Traces
 from phoenix.db import models
+from phoenix.exceptions import PhoenixEvaluationNameIsMissing
 from phoenix.server.api.routers.utils import table_to_bytes
 from phoenix.session.evaluation import encode_evaluations
 from phoenix.trace.span_evaluations import (
@@ -98,6 +99,11 @@ async def post_evaluations(request: Request) -> Response:
         evaluation.ParseFromString(body)
     except DecodeError:
         return Response("Request body is invalid", status_code=HTTP_422_UNPROCESSABLE_ENTITY)
+    if not evaluation.name.strip():
+        return Response(
+            "Evaluation name must not be blank/empty",
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+        )
     traces.put(evaluation, project_name=project_name)
     return Response()
 
@@ -182,7 +188,12 @@ async def _process_pyarrow(request: Request, project_name: str, traces: Traces) 
         )
     try:
         evaluations = Evaluations.from_pyarrow_reader(reader)
-    except Exception:
+    except Exception as e:
+        if isinstance(e, PhoenixEvaluationNameIsMissing):
+            return Response(
+                "Evaluation name must not be blank/empty",
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            )
         return Response(
             content="Invalid data in request body",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
