@@ -27,6 +27,8 @@ EvalAttribute: TypeAlias = typing.Literal["label", "score"]
 EvalExpression: TypeAlias = str
 EvalName: TypeAlias = str
 
+EVAL_EXPRESSION_PATTERN = re.compile(r"""\b(evals\[(".*?"|'.*?')\][.](label|score))\b""")
+
 
 @dataclass(frozen=True)
 class AliasedAnnotationRelation:
@@ -403,11 +405,9 @@ class _ProjectionTranslator(ast.NodeTransformer):
         # In Python 3.9+, we can use `ast.unparse(node)` (no need for `source`).
         self._source = source
         self._reserved_keywords = frozenset(
-            chain(
-                reserved_keywords,
-                _STRING_NAMES.keys(),
-                _FLOAT_NAMES.keys(),
-            )
+            *reserved_keywords,
+            *_STRING_NAMES.keys(),
+            *_FLOAT_NAMES.keys(),
         )
 
     def visit_generic(self, node: ast.AST) -> typing.Any:
@@ -846,8 +846,7 @@ def _parse_eval_expressions_and_names(
     evals["<eval-name>"].<attribute>
     ```
     """
-    pattern = re.compile(r"""\b(evals\[(".*?"|'.*?')\][.](label|score))\b""")
-    for match in pattern.finditer(source):
+    for match in EVAL_EXPRESSION_PATTERN.finditer(source):
         (
             eval_expression,
             quoted_eval_name,
