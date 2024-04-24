@@ -144,7 +144,10 @@ class SpanFilter:
     valid_eval_names: typing.Optional[typing.Sequence[str]] = None
     translated: ast.Expression = field(init=False, repr=False)
     compiled: typing.Any = field(init=False, repr=False)
-    aliased_annotation_relations: typing.Tuple[AliasedAnnotationRelation] = field(
+    _aliased_annotation_relations: typing.Tuple[AliasedAnnotationRelation] = field(
+        init=False, repr=False
+    )
+    _aliased_annotation_attributes: typing.Dict[str, Mapped[typing.Any]] = field(
         init=False, repr=False
     )
 
@@ -157,16 +160,26 @@ class SpanFilter:
         root = ast.parse(source, mode="eval")
         _validate_expression(root, source, valid_eval_names=self.valid_eval_names)
         source, aliased_annotation_relations = _apply_eval_aliasing(source)
-        object.__setattr__(self, "aliased_annotation_relations", aliased_annotation_relations)
         root = ast.parse(source, mode="eval")
         translated = _FilterTranslator(
             source=source,
-            reserved_keywords=(alias for alias, _ in self._aliased_annotation_attributes()),
+            reserved_keywords=(
+                alias
+                for aliased_annotation in aliased_annotation_relations
+                for alias, _ in aliased_annotation.attributes
+            ),
         ).visit(root)
         ast.fix_missing_locations(translated)
         compiled = compile(translated, filename="", mode="eval")
+        aliased_annotation_attributes = {
+            attribute
+            for aliased_annotation in aliased_annotation_relations
+            for attribute in aliased_annotation.attributes
+        }
         object.__setattr__(self, "translated", translated)
         object.__setattr__(self, "compiled", compiled)
+        object.__setattr__(self, "_aliased_annotation_relations", aliased_annotation_relations)
+        object.__setattr__(self, "_aliased_annotation_attributes", aliased_annotation_attributes)
 
     def __call__(self, select: Select[typing.Any]) -> Select[typing.Any]:
         if not self.condition:
@@ -176,7 +189,7 @@ class SpanFilter:
                 self.compiled,
                 {
                     **_NAMES,
-                    **dict(self._aliased_annotation_attributes()),
+                    **self._aliased_annotation_attributes,
                     "not_": sqlalchemy.not_,
                     "and_": sqlalchemy.and_,
                     "or_": sqlalchemy.or_,
@@ -217,7 +230,7 @@ class SpanFilter:
         select(Span).join(A, onclause=(and_(Span.id == A.span_rowid, A.name == "Hallucination")))
         ```
         """
-        for eval_alias in self.aliased_annotation_relations:
+        for eval_alias in self._aliased_annotation_relations:
             eval_name = eval_alias.name
             AliasedSpanAnnotation = eval_alias.table
             stmt = stmt.join(
@@ -230,17 +243,6 @@ class SpanFilter:
                 ),
             )
         return stmt
-
-    def _aliased_annotation_attributes(
-        self,
-    ) -> typing.Iterator[typing.Tuple[str, Mapped[typing.Any]]]:
-        """
-        Yields all alias names and attributes (i.e., columns) for the aliased
-        annotation relations (tables).
-        """
-        yield from chain.from_iterable(
-            eval_alias.attributes for eval_alias in self.aliased_annotation_relations
-        )
 
 
 @dataclass(frozen=True)
