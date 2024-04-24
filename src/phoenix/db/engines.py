@@ -14,6 +14,10 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from phoenix.db.migrate import migrate_in_thread
 from phoenix.db.models import init_models
 
+# supported backends
+_SQLITE = "sqlite"
+_POSTGRESQL = "postgresql"
+
 sqlean.extensions.enable("text")
 
 
@@ -38,21 +42,23 @@ def get_async_db_url(connection_str: str) -> URL:
     url = make_url(connection_str)
     if not url.database:
         raise ValueError("Failed to parse database from connection string")
-    if url.drivername.partition("+")[0] == "sqlite":
+    backend = url.get_backend_name()
+    if backend == _SQLITE:
         if url.database.startswith(":memory:"):
             url = url.set(query={"cache": "shared"})
         return url.set(drivername="sqlite+aiosqlite")
-    if url.drivername.partition("+")[0] == "postgresql":
+    if backend == _POSTGRESQL:
         url = url.set(drivername="postgresql+asyncpg")
         # For some reason username and password cannot be parsed from the typical slot
         # So we need to parse them out manually
         if url.username and url.password:
             url = url.set(
-                query={"user": url.username, "password": url.password}, password=None, username=None
+                query={"user": url.username, "password": url.password},
+                password=None,
+                username=None,
             )
-
         return url
-    raise ValueError(f"Unsupported driver: {url.drivername}")
+    raise ValueError(f"Unsupported backend: {backend}")
 
 
 def create_engine(connection_str: str, echo: bool = False) -> AsyncEngine:
@@ -62,11 +68,12 @@ def create_engine(connection_str: str, echo: bool = False) -> AsyncEngine:
     url = make_url(connection_str)
     if not url.database:
         raise ValueError("Failed to parse database from connection string")
-    if url.drivername.partition("+")[0] == "sqlite":
+    backend = url.get_backend_name()
+    if backend == _SQLITE:
         return aio_sqlite_engine(url=url, echo=echo)
-    if url.drivername.partition("+")[0] == "postgresql":
+    if backend == _POSTGRESQL:
         return aio_postgresql_engine(url=url, echo=echo)
-    raise ValueError(f"Unsupported driver: {url.drivername}")
+    raise ValueError(f"Unsupported backend: {backend}")
 
 
 def aio_sqlite_engine(
@@ -74,11 +81,11 @@ def aio_sqlite_engine(
     echo: bool = False,
 ) -> AsyncEngine:
     async_url = get_async_db_url(url.render_as_string())
-    assert async_url.database
+    database = async_url.render_as_string().partition("///")[-1]  # includes query
 
     def async_creator() -> aiosqlite.Connection:
         conn = aiosqlite.Connection(
-            lambda: sqlean.connect(async_url.database, uri=True),
+            lambda: sqlean.connect(f"file:{database}", uri=True),
             iter_chunk_size=64,
         )
         conn.daemon = True
@@ -91,7 +98,7 @@ def aio_sqlite_engine(
         async_creator=async_creator,
     )
     event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
-    if async_url.database.startswith(":memory:"):
+    if database.startswith(":memory:"):
         try:
             asyncio.get_running_loop()
         except RuntimeError:
