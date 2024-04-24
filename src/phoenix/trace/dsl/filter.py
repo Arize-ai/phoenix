@@ -667,18 +667,6 @@ def _as_attribute(
         else ast.Index(value=ast.List(elts=keys, ctx=ast.Load())),
         ctx=ast.Load(),
     )
-    # if as_float is None:
-    #     return value
-    #     as_float = ".".join(str(k.value) for k in keys) in _FLOAT_ATTRIBUTES
-    # return ast.Call(
-    #     func=ast.Attribute(
-    #         value=,
-    #         attr="as_float" if as_float else "as_string",
-    #         ctx=ast.Load(),
-    #     ),
-    #     args=[],
-    #     keywords=[],
-    # )
 
 
 def _is_eval(node: typing.Any) -> TypeGuard[ast.Subscript]:
