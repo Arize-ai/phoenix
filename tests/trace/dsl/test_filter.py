@@ -1,10 +1,12 @@
 import ast
 import sys
 from typing import Any, List, Optional
+from unittest.mock import patch
 
+import phoenix.trace.dsl.filter
 import pytest
 from phoenix.db import models
-from phoenix.trace.dsl.filter import SpanFilter, _get_attribute_keys_list
+from phoenix.trace.dsl.filter import SpanFilter, _apply_eval_aliasing, _get_attribute_keys_list
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -143,13 +145,95 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[List[str]])
             if sys.version_info >= (3, 9)
             else "and_((attributes[['attributes']].as_string() == attributes[['attributes']].as_string()), (attributes[['attributes']].as_string() != attributes[['attributes', 'attributes']].as_string()))",  # noqa E501
         ),
+        (
+            """evals['Q&A Correctness'].label == 'correct' and evals["Hallucination"].score < 0.5""",  # noqa E501
+            "and_(span_annotation_0_label_000000 == 'correct', cast(span_annotation_1_score_000000, Float) < 0.5)"  # noqa E501
+            if sys.version_info >= (3, 9)
+            else "and_((span_annotation_0_label_000000 == 'correct'), (cast(span_annotation_1_score_000000, Float) < 0.5))",  # noqa E501
+        ),
     ],
 )
 def test_filter_translated(session: Session, expression: str, expected: str) -> None:
-    f = SpanFilter(expression)
+    with patch.object(
+        phoenix.trace.dsl.filter,
+        "randint",
+        return_value=0,
+    ):
+        f = SpanFilter(expression)
     assert _unparse(f.translated) == expected
     # next line is only to test that the syntax is accepted
     session.scalar(f(select(models.Span.id)))
+
+
+@pytest.mark.parametrize(
+    "filter_condition,expected",
+    [
+        pytest.param(
+            """evals["Q&A Correctness"].label is not None""",
+            "span_annotation_0_label_000000 is not None",
+            id="double-quoted-eval-name",
+        ),
+        pytest.param(
+            """evals['Q&A Correctness'].label is not None""",
+            "span_annotation_0_label_000000 is not None",
+            id="single-quoted-eval-name",
+        ),
+        pytest.param(
+            """evals[""].label is not None""",
+            "span_annotation_0_label_000000 is not None",
+            id="empty-eval-name",
+        ),
+        pytest.param(
+            """evals['Hallucination'].label == 'correct' or evals['Hallucination'].score < 0.5""",  # noqa E501
+            "span_annotation_0_label_000000 == 'correct' or span_annotation_0_score_000000 < 0.5",  # noqa E501
+            id="repeated-single-quoted-eval-name",
+        ),
+        pytest.param(
+            """evals["Hallucination"].label == 'correct' or evals["Hallucination"].score < 0.5""",  # noqa E501
+            "span_annotation_0_label_000000 == 'correct' or span_annotation_0_score_000000 < 0.5",  # noqa E501
+            id="repeated-double-quoted-eval-name",
+        ),
+        pytest.param(
+            """evals['Hallucination'].label == 'correct' or evals["Hallucination"].score < 0.5""",  # noqa E501
+            "span_annotation_0_label_000000 == 'correct' or span_annotation_0_score_000000 < 0.5",  # noqa E501
+            id="repeated-mixed-quoted-eval-name",
+        ),
+        pytest.param(
+            """evals['Q&A Correctness'].label == 'correct' and evals["Hallucination"].score < 0.5""",  # noqa E501
+            "span_annotation_0_label_000000 == 'correct' and span_annotation_1_score_000000 < 0.5",  # noqa E501
+            id="distinct-mixed-quoted-eval-names",
+        ),
+        pytest.param(
+            """evals["Hallucination].label is not None""",
+            """evals["Hallucination].label is not None""",
+            id="missing-right-quotation-mark",
+        ),
+        pytest.param(
+            """evals["Hallucination"].label == 'correct' orevals["Hallucination"].score < 0.5""",  # noqa E501
+            """span_annotation_0_label_000000 == 'correct' orevals["Hallucination"].score < 0.5""",  # noqa E501
+            id="no-word-boundary-on-the-left",
+        ),
+        pytest.param(
+            """evals["Hallucination"].scoreq < 0.5""",  # noqa E501
+            """evals["Hallucination"].scoreq < 0.5""",  # noqa E501
+            id="no-word-boundary-on-the-right",
+        ),
+        pytest.param(
+            """0.5 <evals["Hallucination"].score""",  # noqa E501
+            """0.5 <span_annotation_0_score_000000""",  # noqa E501
+            id="left-word-boundary-without-space",
+        ),
+        pytest.param(
+            """evals["Hallucination"].score< 0.5""",  # noqa E501
+            """span_annotation_0_score_000000< 0.5""",  # noqa E501
+            id="right-word-boundary-without-space",
+        ),
+    ],
+)
+def test_apply_eval_aliasing(filter_condition: str, expected: str) -> None:
+    with patch.object(phoenix.trace.dsl.filter, "randint", return_value=0):
+        aliased, _ = _apply_eval_aliasing(filter_condition)
+    assert aliased == expected
 
 
 def _unparse(exp: Any) -> str:

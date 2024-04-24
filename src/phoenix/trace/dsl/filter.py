@@ -1,13 +1,18 @@
 import ast
+import re
 import sys
 import typing
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
+from itertools import chain
+from random import randint
 from types import MappingProxyType
 
 import sqlalchemy
+from sqlalchemy.orm import Mapped, aliased
+from sqlalchemy.orm.util import AliasedClass
 from sqlalchemy.sql.expression import Select
-from typing_extensions import TypeGuard, assert_never
+from typing_extensions import TypeAlias, TypeGuard, assert_never
 
 import phoenix.trace.v1 as pb
 from phoenix.db import models
@@ -16,6 +21,62 @@ from phoenix.trace.schemas import SpanID
 _VALID_EVAL_ATTRIBUTES: typing.Tuple[str, ...] = tuple(
     field.name for field in pb.Evaluation.Result.DESCRIPTOR.fields
 )
+
+
+EvalAttribute: TypeAlias = typing.Literal["label", "score"]
+EvalExpression: TypeAlias = str
+EvalName: TypeAlias = str
+
+EVAL_EXPRESSION_PATTERN = re.compile(r"""\b(evals\[(".*?"|'.*?')\][.](label|score))\b""")
+
+
+@dataclass(frozen=True)
+class AliasedAnnotationRelation:
+    """
+    Represents an aliased `span_annotation` relation (i.e., SQL table). Used to
+    perform joins on span evaluations during filtering. An alias is required
+    because the `span_annotation` may be joined multiple times for different
+    evaluation names.
+    """
+
+    index: int
+    name: str
+    table: AliasedClass[models.SpanAnnotation] = field(init=False, repr=False)
+    _label_attribute_alias: str = field(init=False, repr=False)
+    _score_attribute_alias: str = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        table_alias = f"span_annotation_{self.index}"
+        alias_id = f"{randint(0, 10**6):06d}"  # prevent conflicts with user-defined attributes
+        label_attribute_alias = f"{table_alias}_label_{alias_id}"
+        score_attribute_alias = f"{table_alias}_score_{alias_id}"
+        table = aliased(models.SpanAnnotation, name=table_alias)
+        object.__setattr__(self, "_label_attribute_alias", label_attribute_alias)
+        object.__setattr__(self, "_score_attribute_alias", score_attribute_alias)
+        object.__setattr__(
+            self,
+            "table",
+            table,
+        )
+
+    @property
+    def attributes(self) -> typing.Iterator[typing.Tuple[str, Mapped[typing.Any]]]:
+        """
+        Alias names and attributes (i.e., columns) of the `span_annotation`
+        relation.
+        """
+        yield self._label_attribute_alias, self.table.label
+        yield self._score_attribute_alias, self.table.score
+
+    def attribute_alias(self, attribute: EvalAttribute) -> str:
+        """
+        Returns an alias for the given attribute (i.e., column).
+        """
+        if attribute == "label":
+            return self._label_attribute_alias
+        if attribute == "score":
+            return self._score_attribute_alias
+        assert_never(attribute)
 
 
 # Because postgresql is strongly typed, we cast JSON values to string
@@ -81,6 +142,12 @@ class SpanFilter:
     valid_eval_names: typing.Optional[typing.Sequence[str]] = None
     translated: ast.Expression = field(init=False, repr=False)
     compiled: typing.Any = field(init=False, repr=False)
+    _aliased_annotation_relations: typing.Tuple[AliasedAnnotationRelation] = field(
+        init=False, repr=False
+    )
+    _aliased_annotation_attributes: typing.Dict[str, Mapped[typing.Any]] = field(
+        init=False, repr=False
+    )
 
     def __bool__(self) -> bool:
         return bool(self.condition)
@@ -90,20 +157,37 @@ class SpanFilter:
             return
         root = ast.parse(source, mode="eval")
         _validate_expression(root, source, valid_eval_names=self.valid_eval_names)
-        translated = _FilterTranslator(source).visit(root)
+        source, aliased_annotation_relations = _apply_eval_aliasing(source)
+        root = ast.parse(source, mode="eval")
+        translated = _FilterTranslator(
+            source=source,
+            reserved_keywords=(
+                alias
+                for aliased_annotation in aliased_annotation_relations
+                for alias, _ in aliased_annotation.attributes
+            ),
+        ).visit(root)
         ast.fix_missing_locations(translated)
         compiled = compile(translated, filename="", mode="eval")
+        aliased_annotation_attributes = {
+            alias: attribute
+            for aliased_annotation in aliased_annotation_relations
+            for alias, attribute in aliased_annotation.attributes
+        }
         object.__setattr__(self, "translated", translated)
         object.__setattr__(self, "compiled", compiled)
+        object.__setattr__(self, "_aliased_annotation_relations", aliased_annotation_relations)
+        object.__setattr__(self, "_aliased_annotation_attributes", aliased_annotation_attributes)
 
     def __call__(self, select: Select[typing.Any]) -> Select[typing.Any]:
         if not self.condition:
             return select
-        return select.where(
+        return self._join_aliased_relations(select).where(
             eval(
                 self.compiled,
                 {
                     **_NAMES,
+                    **self._aliased_annotation_attributes,
                     "not_": sqlalchemy.not_,
                     "and_": sqlalchemy.and_,
                     "or_": sqlalchemy.or_,
@@ -128,6 +212,36 @@ class SpanFilter:
             condition=obj.get("condition") or "",
             valid_eval_names=valid_eval_names,
         )
+
+    def _join_aliased_relations(self, stmt: Select[typing.Any]) -> Select[typing.Any]:
+        """
+        Joins the aliased relations to the given statement. E.g., for the filter condition:
+
+        ```
+        evals["Hallucination"].score > 0.5
+        ```
+
+        an alias (e.g., `A`) is generated for the `span_annotations` relation. An input statement
+        `select(Span)` is transformed to:
+
+        ```
+        A = aliased(SpanAnnotation)
+        select(Span).join(A, onclause=(and_(Span.id == A.span_rowid, A.name == "Hallucination")))
+        ```
+        """
+        for eval_alias in self._aliased_annotation_relations:
+            eval_name = eval_alias.name
+            AliasedSpanAnnotation = eval_alias.table
+            stmt = stmt.join(
+                AliasedSpanAnnotation,
+                onclause=(
+                    sqlalchemy.and_(
+                        AliasedSpanAnnotation.span_rowid == models.Span.id,
+                        AliasedSpanAnnotation.name == eval_name,
+                    )
+                ),
+            )
+        return stmt
 
 
 @dataclass(frozen=True)
@@ -286,11 +400,18 @@ def _is_float(node: typing.Any) -> TypeGuard[ast.Call]:
 
 
 class _ProjectionTranslator(ast.NodeTransformer):
-    def __init__(self, source: str) -> None:
+    def __init__(self, source: str, reserved_keywords: typing.Iterable[str] = ()) -> None:
         # Regarding the need for `source: str` for getting source segments:
         # In Python 3.8, we have to use `ast.get_source_segment(source, node)`.
         # In Python 3.9+, we can use `ast.unparse(node)` (no need for `source`).
         self._source = source
+        self._reserved_keywords = frozenset(
+            chain(
+                reserved_keywords,
+                _STRING_NAMES.keys(),
+                _FLOAT_NAMES.keys(),
+            )
+        )
 
     def visit_generic(self, node: ast.AST) -> typing.Any:
         raise SyntaxError(f"invalid expression: {ast.get_source_segment(self._source, node)}")
@@ -308,7 +429,7 @@ class _ProjectionTranslator(ast.NodeTransformer):
 
     def visit_Name(self, node: ast.Name) -> typing.Any:
         source_segment = typing.cast(str, ast.get_source_segment(self._source, node))
-        if source_segment in _STRING_NAMES or source_segment in _FLOAT_NAMES:
+        if source_segment in self._reserved_keywords:
             return node
         name = source_segment
         return _as_attribute([ast.Constant(value=name, kind=None)])
@@ -682,3 +803,60 @@ def _find_best_match(
         if score > best_score:
             best_choice, best_score = choice, score
     return best_choice, best_score
+
+
+def _apply_eval_aliasing(
+    source: str,
+) -> typing.Tuple[
+    str,
+    typing.Tuple[AliasedAnnotationRelation, ...],
+]:
+    """
+    Substitutes `evals[<eval-name>].<attribute>` with aliases. Returns the
+    updated source code in addition to the aliased relations.
+
+    Example:
+
+    input:
+
+    ```
+    evals['Hallucination'].label == 'correct' or evals['Hallucination'].score < 0.5
+    ```
+
+    output:
+
+    ```
+    span_annotation_0_label_123 == 'correct' or span_annotation_0_score_456 < 0.5
+    ```
+    """
+    eval_aliases: typing.Dict[EvalName, AliasedAnnotationRelation] = {}
+    for eval_expression, eval_name, eval_attribute in _parse_eval_expressions_and_names(source):
+        if (eval_alias := eval_aliases.get(eval_name)) is None:
+            eval_alias = AliasedAnnotationRelation(index=len(eval_aliases), name=eval_name)
+            eval_aliases[eval_name] = eval_alias
+        alias_name = eval_alias.attribute_alias(eval_attribute)
+        source = source.replace(eval_expression, alias_name)
+    return source, tuple(eval_aliases.values())
+
+
+def _parse_eval_expressions_and_names(
+    source: str,
+) -> typing.Iterator[typing.Tuple[EvalExpression, EvalName, EvalAttribute]]:
+    """
+    Parses filter conditions for evaluation expressions of the form:
+
+    ```
+    evals["<eval-name>"].<attribute>
+    ```
+    """
+    for match in EVAL_EXPRESSION_PATTERN.finditer(source):
+        (
+            eval_expression,
+            quoted_eval_name,
+            evaluation_attribute_name,
+        ) = match.groups()
+        yield (
+            eval_expression,
+            quoted_eval_name[1:-1],
+            typing.cast(EvalAttribute, evaluation_attribute_name),
+        )
