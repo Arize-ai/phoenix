@@ -172,9 +172,9 @@ class SpanFilter:
         ast.fix_missing_locations(translated)
         compiled = compile(translated, filename="", mode="eval")
         aliased_annotation_attributes = {
-            attribute
+            alias: attribute
             for aliased_annotation in aliased_annotation_relations
-            for attribute in aliased_annotation.attributes
+            for alias, attribute in aliased_annotation.attributes
         }
         object.__setattr__(self, "translated", translated)
         object.__setattr__(self, "compiled", compiled)
