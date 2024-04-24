@@ -4,6 +4,7 @@ from typing import Any, Optional, Protocol
 import strawberry
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import desc, nulls_last
+from sqlalchemy.sql.expression import Select
 from strawberry import UNSET
 
 import phoenix.trace.v1 as pb
@@ -68,10 +69,12 @@ class SpanSort:
     eval_result_key: Optional[EvalResultKey] = UNSET
     dir: SortDir
 
-    def to_orm_expr(self) -> Any:
+    def __call__(self, stmt: Select[Any]) -> Select[Any]:
         if self.col:
             expr = _SPAN_COLUMN_TO_ORM_EXPR_MAP[self.col]
             if self.dir == SortDir.desc:
                 expr = desc(expr)
-            return nulls_last(expr)
-        NotImplementedError("not implemented")
+            return stmt.order_by(nulls_last(expr))
+        if self.eval_result_key:
+            raise NotImplementedError("not implemented")
+        raise NotImplementedError("not implemented")
