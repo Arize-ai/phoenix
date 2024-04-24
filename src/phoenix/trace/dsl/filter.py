@@ -78,8 +78,6 @@ class SupportsGetSpanEvaluation(typing.Protocol):
 @dataclass(frozen=True)
 class SpanFilter:
     condition: str = ""
-    # TODO(persistence): remove `evals` and `valid_eval_names` from this class
-    evals: typing.Optional[SupportsGetSpanEvaluation] = None
     valid_eval_names: typing.Optional[typing.Sequence[str]] = None
     translated: ast.Expression = field(init=False, repr=False)
     compiled: typing.Any = field(init=False, repr=False)
@@ -124,11 +122,12 @@ class SpanFilter:
     def from_dict(
         cls,
         obj: typing.Mapping[str, typing.Any],
-        # TODO(persistence): remove `evals` and `valid_eval_names` from this class
-        evals: typing.Optional[SupportsGetSpanEvaluation] = None,
         valid_eval_names: typing.Optional[typing.Sequence[str]] = None,
     ) -> "SpanFilter":
-        return cls(condition=obj.get("condition") or "")
+        return cls(
+            condition=obj.get("condition") or "",
+            valid_eval_names=valid_eval_names,
+        )
 
 
 @dataclass(frozen=True)

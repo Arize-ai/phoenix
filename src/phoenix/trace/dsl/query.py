@@ -35,7 +35,7 @@ from phoenix.trace.attributes import (
     unflatten,
 )
 from phoenix.trace.dsl import SpanFilter
-from phoenix.trace.dsl.filter import Projector, SupportsGetSpanEvaluation
+from phoenix.trace.dsl.filter import Projector
 from phoenix.trace.schemas import ATTRIBUTE_PREFIX
 
 # supported SQL dialects
@@ -611,7 +611,6 @@ class SpanQuery(_HasTmpSuffix):
     def from_dict(
         cls,
         obj: Mapping[str, Any],
-        evals: Optional[SupportsGetSpanEvaluation] = None,
         valid_eval_names: Optional[Sequence[str]] = None,
     ) -> "SpanQuery":
         return cls(
@@ -631,7 +630,6 @@ class SpanQuery(_HasTmpSuffix):
                 {
                     "_filter": SpanFilter.from_dict(
                         cast(Mapping[str, Any], filter),
-                        evals=evals,
                         valid_eval_names=valid_eval_names,
                     )
                 }  # type: ignore
