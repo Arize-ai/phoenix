@@ -276,7 +276,7 @@ def _read_sql_document_evaluations_into_dataframe(
     return pd.read_sql(
         select(
             models.DocumentAnnotation,
-            models.DocumentAnnotation.document_index.label("document_position"),
+            models.DocumentAnnotation.document_position.label("document_position"),
             models.Span.span_id,
         )
         .join(models.Span)
