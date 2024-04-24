@@ -19,11 +19,12 @@ def pytest_addoption(parser):
 
 
 def pytest_collection_modifyitems(config, items):
-    for item in items:
-        skip_postgres = pytest.mark.skip(reason="Skipping Postgres tests")
-        if "session" in item.fixturenames:
-            if "postgres" in item.callspec.params.values():
-                item.add_marker(skip_postgres)
+    skip_postgres = pytest.mark.skip(reason="Skipping Postgres tests")
+    if config.getoption("--skip-postgres"):
+        for item in items:
+            if "session" in item.fixturenames:
+                if "postgres" in item.callspec.params.values():
+                    item.add_marker(skip_postgres)
 
 
 @pytest.fixture
