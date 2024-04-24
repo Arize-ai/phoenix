@@ -348,7 +348,7 @@ class Project(Node):
         )
 
     @strawberry.field
-    async def streaming_last_updated_at(
+    def streaming_last_updated_at(
         self,
         info: Info[Context, None],
     ) -> Optional[datetime]:

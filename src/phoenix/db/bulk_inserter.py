@@ -329,8 +329,3 @@ async def _insert_span(session: AsyncSession, span: Span, project_name: str) -> 
             + cumulative_llm_token_count_completion,
         )
     )
-    await session.execute(
-        update(models.Project)
-        .where(models.Project.id == project_rowid)
-        .values(data_last_added_at=datetime.now(timezone.utc))
-    )
