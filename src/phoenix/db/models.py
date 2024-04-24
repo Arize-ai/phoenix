@@ -152,7 +152,6 @@ class Trace(Base):
         ForeignKey("projects.id", ondelete="CASCADE"),
         index=True,
     )
-    session_id: Mapped[Optional[str]]
     trace_id: Mapped[str]
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
