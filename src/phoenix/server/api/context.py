@@ -10,7 +10,6 @@ from starlette.websockets import WebSocket
 from strawberry.dataloader import DataLoader
 
 from phoenix.core.model_schema import Model
-from phoenix.core.traces import Traces
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluation, TraceEvaluation
 
@@ -32,5 +31,4 @@ class Context:
     model: Model
     export_path: Path
     corpus: Optional[Model] = None
-    traces: Optional[Traces] = None
     streaming_last_updated_at: Callable[[], Optional[datetime]] = lambda: None

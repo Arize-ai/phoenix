@@ -13,7 +13,6 @@ from starlette.status import (
     HTTP_422_UNPROCESSABLE_ENTITY,
 )
 
-from phoenix.core.traces import Traces
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.utilities.project import get_project_name
 
@@ -43,7 +42,6 @@ async def post_traces(request: Request) -> Response:
     """
     if request.app.state.read_only:
         return Response(status_code=HTTP_403_FORBIDDEN)
-    traces: Traces = request.app.state.traces
     content_type = request.headers.get("content-type")
     if content_type != "application/x-protobuf":
         return Response(
@@ -81,5 +79,4 @@ async def post_traces(request: Request) -> Response:
                 # period of time), so the 200 response is not a genuine
                 # confirmation of data persistence.
                 request.state.queue_span_for_bulk_insert(span, project_name)
-                traces.put(span, project_name=project_name)
     return Response()

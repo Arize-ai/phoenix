@@ -73,16 +73,16 @@ class Query:
                 name=project.name,
                 gradient_start_color=project.gradient_start_color,
                 gradient_end_color=project.gradient_end_color,
-                project=info.context.traces.get_project(project.name),  # type: ignore
             )
             for project in projects
         ]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field
-    def functionality(self, info: Info[Context, None]) -> "Functionality":
+    async def functionality(self, info: Info[Context, None]) -> "Functionality":
         has_model_inferences = not info.context.model.is_empty
-        has_traces = info.context.traces is not None
+        async with info.context.db() as session:
+            has_traces = (await session.scalar(select(models.Trace).limit(1))) is not None
         return Functionality(
             model_inferences=has_model_inferences,
             tracing=has_traces,
@@ -113,7 +113,6 @@ class Query:
                 name=project.name,
                 gradient_start_color=project.gradient_start_color,
                 gradient_end_color=project.gradient_end_color,
-                project=info.context.traces.get_project(project.name),  # type: ignore
             )
         raise Exception(f"Unknown node type: {type_name}")
 

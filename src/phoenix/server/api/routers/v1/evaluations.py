@@ -25,7 +25,6 @@ from typing_extensions import TypeAlias
 
 import phoenix.trace.v1 as pb
 from phoenix.config import DEFAULT_PROJECT_NAME
-from phoenix.core.traces import Traces
 from phoenix.db import models
 from phoenix.exceptions import PhoenixEvaluationNameIsMissing
 from phoenix.server.api.routers.utils import table_to_bytes
@@ -76,7 +75,6 @@ async def post_evaluations(request: Request) -> Response:
     """
     if request.app.state.read_only:
         return Response(status_code=HTTP_403_FORBIDDEN)
-    traces: Traces = request.app.state.traces
     content_type = request.headers.get("content-type")
     project_name = (
         request.query_params.get("project-name")
@@ -85,7 +83,7 @@ async def post_evaluations(request: Request) -> Response:
         or DEFAULT_PROJECT_NAME
     )
     if content_type == "application/x-pandas-arrow":
-        return await _process_pyarrow(request, project_name, traces)
+        return await _process_pyarrow(request, project_name)
     if content_type != "application/x-protobuf":
         return Response("Unsupported content type", status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE)
     body = await request.body()
@@ -104,7 +102,7 @@ async def post_evaluations(request: Request) -> Response:
             "Evaluation name must not be blank/empty",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
-    traces.put(evaluation, project_name=project_name)
+    request.state.queue_evaluation_for_bulk_insert(evaluation, project_name=project_name)
     return Response()
 
 
@@ -177,7 +175,7 @@ async def get_evaluations(request: Request) -> Response:
     )
 
 
-async def _process_pyarrow(request: Request, project_name: str, traces: Traces) -> Response:
+async def _process_pyarrow(request: Request, project_name: str) -> Response:
     body = await request.body()
     try:
         reader = pa.ipc.open_stream(body)
@@ -199,18 +197,13 @@ async def _process_pyarrow(request: Request, project_name: str, traces: Traces) 
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
     return Response(
-        background=BackgroundTask(
-            _add_evaluations, request.state, evaluations, project_name, traces
-        )
+        background=BackgroundTask(_add_evaluations, request.state, evaluations, project_name)
     )
 
 
-async def _add_evaluations(
-    state: State, evaluations: Evaluations, project_name: str, traces: Traces
-) -> None:
+async def _add_evaluations(state: State, evaluations: Evaluations, project_name: str) -> None:
     for evaluation in encode_evaluations(evaluations):
         state.queue_evaluation_for_bulk_insert(evaluation)
-        traces.put(evaluation, project_name=project_name)
 
 
 def _read_sql_trace_evaluations_into_dataframe(

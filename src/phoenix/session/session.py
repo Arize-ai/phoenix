@@ -38,7 +38,6 @@ from phoenix.config import (
     get_working_dir,
 )
 from phoenix.core.model_schema_adapter import create_model_from_datasets
-from phoenix.core.traces import Traces
 from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import create_app
@@ -100,7 +99,6 @@ class Session(TraceDataExtractor, ABC):
     """Session that maintains a 1-1 shared state with the Phoenix App."""
 
     trace_dataset: Optional[TraceDataset]
-    traces: Optional[Traces]
     notebook_env: NotebookEnvironment
     """The notebook environment that the session is running in."""
 
@@ -353,20 +351,12 @@ class ThreadSession(Session):
             if corpus_dataset is not None
             else None
         )
-        self.traces = Traces()
-        if trace_dataset:
-            for span in trace_dataset.to_spans():
-                self.traces.put(span)
-            for evaluations in trace_dataset.evaluations:
-                for pb_evaluation in encode_evaluations(evaluations):
-                    self.traces.put(pb_evaluation)
         # Initialize an app service that keeps the server running
         self.app = create_app(
             database_url=database_url,
             export_path=self.export_path,
             model=self.model,
             corpus=self.corpus,
-            traces=self.traces,
             umap_params=self.umap_parameters,
             initial_spans=trace_dataset.to_spans() if trace_dataset else None,
             initial_evaluations=(
