@@ -6,7 +6,7 @@ from unittest.mock import patch
 import phoenix.trace.dsl.filter
 import pytest
 from phoenix.db import models
-from phoenix.trace.dsl.filter import SpanFilter, _apply_eval_aliases, _get_attribute_keys_list
+from phoenix.trace.dsl.filter import SpanFilter, _apply_eval_aliasing, _get_attribute_keys_list
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -230,9 +230,9 @@ def test_filter_translated(session: Session, expression: str, expected: str) -> 
         ),
     ],
 )
-def test_apply_eval_aliases(filter_condition: str, expected: str) -> None:
+def test_apply_eval_aliasing(filter_condition: str, expected: str) -> None:
     with patch.object(phoenix.trace.dsl.filter, "randint", return_value=0):
-        aliased, _ = _apply_eval_aliases(filter_condition)
+        aliased, _ = _apply_eval_aliasing(filter_condition)
     assert aliased == expected
 
 

@@ -154,7 +154,7 @@ class SpanFilter:
             return
         root = ast.parse(source, mode="eval")
         _validate_expression(root, source, valid_eval_names=self.valid_eval_names)
-        source, aliased_annotation_relations = _apply_eval_aliases(source)
+        source, aliased_annotation_relations = _apply_eval_aliasing(source)
         object.__setattr__(self, "aliased_annotation_relations", aliased_annotation_relations)
         root = ast.parse(source, mode="eval")
         translated = _FilterTranslator(
@@ -802,7 +802,7 @@ def _find_best_match(
     return best_choice, best_score
 
 
-def _apply_eval_aliases(
+def _apply_eval_aliasing(
     source: str,
 ) -> typing.Tuple[
     str,
