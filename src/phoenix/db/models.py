@@ -392,6 +392,7 @@ class DocumentAnnotation(Base):
             "span_rowid",
             "document_position",
             "name",
+            name="uq_document_annotations_span_rowid_document_position_name",
             sqlite_on_conflict="REPLACE",
         ),
     )
