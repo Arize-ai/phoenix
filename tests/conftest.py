@@ -9,6 +9,21 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 
+def pytest_addoption(parser):
+    parser.addoption(
+        "--skip-postgres", action="store_true", default=False,
+        help="Skip tests that require Postgres"
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    for item in items:
+        skip_postgres = pytest.mark.skip(reason="Skipping Postgres tests")
+        if "session" in item.fixturenames:
+            if "postgres" in item.callspec.params.values():
+                item.add_marker(skip_postgres)
+
+
 @pytest.fixture
 def openai_api_key(monkeypatch: pytest.MonkeyPatch) -> str:
     api_key = "sk-0123456789"
