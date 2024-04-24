@@ -1,4 +1,4 @@
-from typing import Any, AsyncGenerator
+from typing import AsyncGenerator
 
 import pytest
 import sqlean
