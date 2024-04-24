@@ -4,6 +4,7 @@ import sys
 import typing
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
+from itertools import chain
 from random import randint
 from types import MappingProxyType
 
@@ -405,10 +406,12 @@ class _ProjectionTranslator(ast.NodeTransformer):
         # In Python 3.8, we have to use `ast.get_source_segment(source, node)`.
         # In Python 3.9+, we can use `ast.unparse(node)` (no need for `source`).
         self._source = source
-        self._reserved_keywords: typing.FrozenSet[str] = frozenset(
-            *reserved_keywords,
-            *_STRING_NAMES.keys(),
-            *_FLOAT_NAMES.keys(),
+        self._reserved_keywords = frozenset(
+            chain(
+                reserved_keywords,
+                _STRING_NAMES.keys(),
+                _FLOAT_NAMES.keys(),
+            )
         )
 
     def visit_generic(self, node: ast.AST) -> typing.Any:
