@@ -397,16 +397,14 @@ def _is_float(node: typing.Any) -> TypeGuard[ast.Call]:
 
 
 class _ProjectionTranslator(ast.NodeTransformer):
-    def __init__(
-        self, source: str, reserved_keywords: typing.Optional[typing.Iterable[str]] = None
-    ) -> None:
+    def __init__(self, source: str, reserved_keywords: typing.Iterable[str] = ()) -> None:
         # Regarding the need for `source: str` for getting source segments:
         # In Python 3.8, we have to use `ast.get_source_segment(source, node)`.
         # In Python 3.9+, we can use `ast.unparse(node)` (no need for `source`).
         self._source = source
         self._reserved_keywords = frozenset(
             chain(
-                (iter(reserved_keywords) if reserved_keywords is not None else ()),
+                reserved_keywords,
                 _STRING_NAMES.keys(),
                 _FLOAT_NAMES.keys(),
             )
