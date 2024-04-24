@@ -24,3 +24,7 @@ coverage.xml
 
 # devtools
 pyrightconfig.json
+
+# Tutorial files
+/tutorials/**/.cache
+/tutorials/**/*.log
