@@ -158,7 +158,8 @@ class SpanFilter:
         object.__setattr__(self, "aliased_annotation_relations", aliased_annotation_relations)
         root = ast.parse(source, mode="eval")
         translated = _FilterTranslator(
-            source=source, names=(alias for alias, _ in self._aliased_annotation_attributes())
+            source=source,
+            reserved_keywords=(alias for alias, _ in self._aliased_annotation_attributes()),
         ).visit(root)
         ast.fix_missing_locations(translated)
         compiled = compile(translated, filename="", mode="eval")
@@ -396,14 +397,16 @@ def _is_float(node: typing.Any) -> TypeGuard[ast.Call]:
 
 
 class _ProjectionTranslator(ast.NodeTransformer):
-    def __init__(self, source: str, names: typing.Optional[typing.Iterable[str]] = None) -> None:
+    def __init__(
+        self, source: str, reserved_keywords: typing.Optional[typing.Iterable[str]] = None
+    ) -> None:
         # Regarding the need for `source: str` for getting source segments:
         # In Python 3.8, we have to use `ast.get_source_segment(source, node)`.
         # In Python 3.9+, we can use `ast.unparse(node)` (no need for `source`).
         self._source = source
-        self._names = frozenset(
+        self._reserved_keywords = frozenset(
             chain(
-                (iter(names) if names is not None else ()),
+                (iter(reserved_keywords) if reserved_keywords is not None else ()),
                 _STRING_NAMES.keys(),
                 _FLOAT_NAMES.keys(),
             )
@@ -425,7 +428,7 @@ class _ProjectionTranslator(ast.NodeTransformer):
 
     def visit_Name(self, node: ast.Name) -> typing.Any:
         source_segment = typing.cast(str, ast.get_source_segment(self._source, node))
-        if source_segment in self._names:
+        if source_segment in self._reserved_keywords:
             return node
         name = source_segment
         return _as_attribute([ast.Constant(value=name, kind=None)])
