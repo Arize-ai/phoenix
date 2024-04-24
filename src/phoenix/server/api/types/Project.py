@@ -350,8 +350,9 @@ class Project(Node):
     @strawberry.field
     def streaming_last_updated_at(
         self,
+        info: Info[Context, None],
     ) -> Optional[datetime]:
-        return self.project.last_updated_at
+        return info.context.streaming_last_updated_at()
 
     @strawberry.field
     def validate_span_filter_condition(self, condition: str) -> ValidationResult:

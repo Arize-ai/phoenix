@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from datetime import datetime, timezone
 from itertools import islice
 from time import time
 from typing import (
@@ -60,6 +61,11 @@ class BulkInserter:
             [] if initial_batch_of_evaluations is None else list(initial_batch_of_evaluations)
         )
         self._task: Optional[asyncio.Task[None]] = None
+        self._last_inserted_at: Optional[datetime] = None
+
+    @property
+    def last_inserted_at(self) -> Optional[datetime]:
+        return self._last_inserted_at
 
     async def __aenter__(
         self,
@@ -117,6 +123,7 @@ class BulkInserter:
                             )
             except Exception:
                 logger.exception("Failed to insert spans")
+        self._last_inserted_at = datetime.now(timezone.utc)
 
     async def _insert_evaluations(self, evaluations: List[pb.Evaluation]) -> None:
         for i in range(0, len(evaluations), self._max_num_per_transaction):
@@ -130,6 +137,7 @@ class BulkInserter:
                             logger.exception(f"Failed to insert evaluation: {str(error)}")
             except Exception:
                 logger.exception("Failed to insert evaluations")
+        self._last_inserted_at = datetime.now(timezone.utc)
 
 
 async def _insert_evaluation(session: AsyncSession, evaluation: pb.Evaluation) -> None:
