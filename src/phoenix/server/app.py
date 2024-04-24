@@ -1,5 +1,6 @@
 import contextlib
 import logging
+from datetime import datetime
 from pathlib import Path
 from typing import (
     Any,
@@ -131,12 +132,14 @@ class GraphQLWithContext(GraphQL):  # type: ignore
         graphiql: bool = False,
         corpus: Optional[Model] = None,
         traces: Optional[Traces] = None,
+        streaming_last_updated_at: Callable[[], Optional[datetime]] = lambda: None,
     ) -> None:
         self.db = db
         self.model = model
         self.corpus = corpus
         self.traces = traces
         self.export_path = export_path
+        self.streaming_last_updated_at = streaming_last_updated_at
         super().__init__(schema, graphiql=graphiql)
 
     async def get_context(
@@ -152,6 +155,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
             corpus=self.corpus,
             traces=self.traces,
             export_path=self.export_path,
+            streaming_last_updated_at=self.streaming_last_updated_at,
             data_loaders=DataLoaders(
                 latency_ms_quantile=LatencyMsQuantileDataLoader(self.db),
                 span_evaluations=SpanEvaluationsDataLoader(self.db),
@@ -192,17 +196,11 @@ def _db(engine: AsyncEngine) -> Callable[[], AsyncContextManager[AsyncSession]]:
 
 
 def _lifespan(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
-    initial_batch_of_spans: Optional[Iterable[Tuple[Span, str]]] = None,
-    initial_batch_of_evaluations: Optional[Iterable[pb.Evaluation]] = None,
+    bulk_inserter: BulkInserter,
 ) -> StatefulLifespan[Starlette]:
     @contextlib.asynccontextmanager
     async def lifespan(_: Starlette) -> AsyncIterator[Dict[str, Any]]:
-        async with BulkInserter(
-            db,
-            initial_batch_of_spans=initial_batch_of_spans,
-            initial_batch_of_evaluations=initial_batch_of_evaluations,
-        ) as (queue_span, queue_evaluation):
+        async with bulk_inserter as (queue_span, queue_evaluation):
             yield {
                 "queue_span_for_bulk_insert": queue_span,
                 "queue_evaluation_for_bulk_insert": queue_evaluation,
@@ -243,6 +241,11 @@ def create_app(
     initial_batch_of_evaluations = () if initial_evaluations is None else initial_evaluations
     engine = create_engine(database_url)
     db = _db(engine)
+    bulk_inserter = BulkInserter(
+        db,
+        initial_batch_of_spans=initial_batch_of_spans,
+        initial_batch_of_evaluations=initial_batch_of_evaluations,
+    )
     graphql = GraphQLWithContext(
         db=db,
         schema=schema,
@@ -251,6 +254,7 @@ def create_app(
         traces=traces,
         export_path=export_path,
         graphiql=True,
+        streaming_last_updated_at=lambda: bulk_inserter.last_inserted_at,
     )
     if enable_prometheus:
         from phoenix.server.prometheus import PrometheusMiddleware
@@ -260,7 +264,7 @@ def create_app(
         prometheus_middlewares = []
 
     app = Starlette(
-        lifespan=_lifespan(db, initial_batch_of_spans, initial_batch_of_evaluations),
+        lifespan=_lifespan(bulk_inserter),
         middleware=[
             Middleware(HeadersMiddleware),
             *prometheus_middlewares,

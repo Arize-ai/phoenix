@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import AsyncContextManager, Callable, List, Optional, Tuple, Union
 
@@ -32,3 +33,4 @@ class Context:
     export_path: Path
     corpus: Optional[Model] = None
     traces: Optional[Traces] = None
+    streaming_last_updated_at: Callable[[], Optional[datetime]] = lambda: None

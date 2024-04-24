@@ -128,7 +128,6 @@ class Project(Base):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    data_last_added_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
 
     traces: WriteOnlyMapped[List["Trace"]] = relationship(
         "Trace",

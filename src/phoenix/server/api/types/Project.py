@@ -352,8 +352,7 @@ class Project(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[datetime]:
-        async with info.context.db() as session:
-            return await session.scalar(select(models.Project.data_last_added_at))
+        return info.context.streaming_last_updated_at()
 
     @strawberry.field
     def validate_span_filter_condition(self, condition: str) -> ValidationResult:
