@@ -321,7 +321,7 @@ class Project(Node):
         async with info.context.db() as session:
             evaluations = list(await session.scalars(filtered))
             all_labels = await session.scalars(
-                unfiltered.with_only_columns(distinct(models.TraceAnnotation.label))
+                unfiltered.with_only_columns(distinct(models.SpanAnnotation.label))
             )
             labels = [label for label in all_labels if label is not None]
         if not evaluations or labels:
