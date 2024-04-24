@@ -4,17 +4,16 @@ from typing import List, Optional
 
 import nest_asyncio
 import pandas as pd
-import pytest
 from pandas.testing import assert_frame_equal
 from phoenix.trace.dsl import SpanQuery
 from phoenix.trace.dsl.helpers import get_qa_with_reference, get_retrieved_documents
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_get_retrieved_documents(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
+    nest_asyncio.apply()  # needed to use an async session inside the client Mock
     mock = _Mock(session)
     expected = pd.DataFrame(
         {
@@ -33,10 +32,10 @@ async def test_get_retrieved_documents(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 def test_get_qa_with_reference(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
+    nest_asyncio.apply()  # needed to use an async session inside the client Mock
     mock = _Mock(session)
     expected = pd.DataFrame(
         {
@@ -64,7 +63,6 @@ class _Mock:
         stop_time: Optional[datetime] = None,
         project_name: Optional[str] = None,
     ) -> List[pd.DataFrame]:
-        nest_asyncio.apply()
         ans = [
             asyncio.run(
                 self.session.run_sync(

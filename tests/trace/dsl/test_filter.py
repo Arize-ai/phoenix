@@ -147,7 +147,6 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[List[str]])
         ),
     ],
 )
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_filter_translated(
     session: AsyncSession, expression: str, expected: str, default_project: None, abc_project: None
 ) -> None:

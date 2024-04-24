@@ -4,6 +4,7 @@ import pytest
 import sqlean
 from phoenix.db import models
 from psycopg import Connection
+from pytest_postgresql import factories
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -13,6 +14,9 @@ def openai_api_key(monkeypatch: pytest.MonkeyPatch) -> str:
     api_key = "sk-0123456789"
     monkeypatch.setenv("OPENAI_API_KEY", api_key)
     return api_key
+
+
+phoenix_postgresql = factories.postgresql("postgresql_proc")
 
 
 def create_async_postgres_engine(psycopg_connection: Connection) -> sessionmaker:
@@ -30,16 +34,16 @@ def create_async_sqlite_engine() -> sessionmaker:
     return create_async_engine("sqlite+aiosqlite:///:memory:", module=sqlean, echo=True)
 
 
-@pytest.fixture()
-async def postgres_engine(postgresql: Connection) -> AsyncGenerator[sessionmaker, None]:
-    engine = create_async_postgres_engine(postgresql)
+@pytest.fixture
+async def postgres_engine(phoenix_postgresql: Connection) -> AsyncGenerator[sessionmaker, None]:
+    engine = create_async_postgres_engine(phoenix_postgresql)
     async with engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
     yield engine
     await engine.dispose()
 
 
-@pytest.fixture()
+@pytest.fixture
 async def sqlite_engine() -> AsyncGenerator[sessionmaker, None]:
     engine = create_async_sqlite_engine()
     async with engine.begin() as conn:
@@ -48,19 +52,19 @@ async def sqlite_engine() -> AsyncGenerator[sessionmaker, None]:
     await engine.dispose()
 
 
-@pytest.fixture
+@pytest.fixture(params=["sqlite", "postgres"])
 def session(request) -> AsyncSession:
     return request.getfixturevalue(request.param)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 async def sqlite(sqlite_engine: sessionmaker) -> AsyncGenerator[AsyncSession, None]:
     async_session = sessionmaker(sqlite_engine, expire_on_commit=False, class_=AsyncSession)
     async with async_session() as session:
         yield session
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 async def postgres(postgres_engine: sessionmaker) -> AsyncGenerator[AsyncSession, None]:
     async_session = sessionmaker(postgres_engine, expire_on_commit=False, class_=AsyncSession)
     async with async_session() as session:
