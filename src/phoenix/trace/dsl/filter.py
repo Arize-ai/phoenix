@@ -66,15 +66,15 @@ class AliasedAnnotationRelation:
         yield self._label_attribute_alias, self.AliasedSpanAnnotation.label
         yield self._score_attribute_alias, self.AliasedSpanAnnotation.score
 
-    def attribute_alias(self, attribute_name: str) -> str:
+    def attribute_alias(self, attribute: EvalAttribute) -> str:
         """
         Returns an alias for the given attribute (i.e., column).
         """
-        if attribute_name == "label":
+        if attribute == "label":
             return self._label_attribute_alias
-        if attribute_name == "score":
+        if attribute == "score":
             return self._score_attribute_alias
-        raise ValueError(f"Invalid attribute name: {attribute_name}")
+        assert_never(attribute)
 
 
 # Because postgresql is strongly typed, we cast JSON values to string
