@@ -10,7 +10,6 @@ from sqlalchemy.sql.functions import coalesce
 from strawberry import ID, UNSET
 from strawberry.types import Info
 
-from phoenix.core.project import Project as CoreProject
 from phoenix.datetime_utils import right_open_time_range
 from phoenix.db import models
 from phoenix.metrics.retrieval_metrics import RetrievalMetrics
@@ -37,7 +36,6 @@ class Project(Node):
     name: str
     gradient_start_color: str
     gradient_end_color: str
-    project: strawberry.Private[CoreProject]
 
     @strawberry.field
     async def start_time(

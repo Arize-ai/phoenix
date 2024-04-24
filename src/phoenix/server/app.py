@@ -41,7 +41,6 @@ import phoenix
 import phoenix.trace.v1 as pb
 from phoenix.config import DEFAULT_PROJECT_NAME, SERVER_DIR
 from phoenix.core.model_schema import Model
-from phoenix.core.traces import Traces
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import create_engine
 from phoenix.pointcloud.umap_parameters import UMAPParameters
@@ -131,13 +130,11 @@ class GraphQLWithContext(GraphQL):  # type: ignore
         export_path: Path,
         graphiql: bool = False,
         corpus: Optional[Model] = None,
-        traces: Optional[Traces] = None,
         streaming_last_updated_at: Callable[[], Optional[datetime]] = lambda: None,
     ) -> None:
         self.db = db
         self.model = model
         self.corpus = corpus
-        self.traces = traces
         self.export_path = export_path
         self.streaming_last_updated_at = streaming_last_updated_at
         super().__init__(schema, graphiql=graphiql)
@@ -153,7 +150,6 @@ class GraphQLWithContext(GraphQL):  # type: ignore
             db=self.db,
             model=self.model,
             corpus=self.corpus,
-            traces=self.traces,
             export_path=self.export_path,
             streaming_last_updated_at=self.streaming_last_updated_at,
             data_loaders=DataLoaders(
@@ -223,7 +219,6 @@ def create_app(
     model: Model,
     umap_params: UMAPParameters,
     corpus: Optional[Model] = None,
-    traces: Optional[Traces] = None,
     debug: bool = False,
     read_only: bool = False,
     enable_prometheus: bool = False,
@@ -251,7 +246,6 @@ def create_app(
         schema=schema,
         model=model,
         corpus=corpus,
-        traces=traces,
         export_path=export_path,
         graphiql=True,
         streaming_last_updated_at=lambda: bulk_inserter.last_inserted_at,
@@ -270,7 +264,7 @@ def create_app(
             *prometheus_middlewares,
         ],
         debug=debug,
-        routes=([] if traces is None else V1_ROUTES)
+        routes=V1_ROUTES
         + [
             Route("/schema", endpoint=openapi_schema, include_in_schema=False),
             Route("/arize_phoenix_version", version),
@@ -303,7 +297,6 @@ def create_app(
             ),
         ],
     )
-    app.state.traces = traces
     app.state.read_only = read_only
     app.state.db = db
     return app

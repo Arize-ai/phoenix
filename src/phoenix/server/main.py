@@ -3,10 +3,9 @@ import logging
 import os
 from argparse import ArgumentParser
 from pathlib import Path
-from random import random
 from threading import Thread
 from time import sleep, time
-from typing import Iterable, Optional, Protocol, TypeVar
+from typing import Optional
 
 import pkg_resources
 from uvicorn import Config, Server
@@ -20,7 +19,6 @@ from phoenix.config import (
     get_working_dir,
 )
 from phoenix.core.model_schema_adapter import create_model_from_datasets
-from phoenix.core.traces import Traces
 from phoenix.db import get_printable_db_url
 from phoenix.inferences.fixtures import FIXTURES, get_datasets
 from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
@@ -88,24 +86,6 @@ def _remove_pid_file() -> None:
 
 def _get_pid_file() -> Path:
     return get_pids_path() / str(os.getpid())
-
-
-_Item = TypeVar("_Item", contravariant=True)
-
-
-class _SupportsPut(Protocol[_Item]):
-    def put(self, item: _Item) -> None: ...
-
-
-def _load_items(
-    queue: _SupportsPut[_Item],
-    items: Iterable[_Item],
-    simulate_streaming: Optional[bool] = False,
-) -> None:
-    for item in items:
-        if simulate_streaming:
-            sleep(random())
-        queue.put(item)
 
 
 DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_SAMPLES}"
@@ -205,7 +185,6 @@ if __name__ == "__main__":
         reference_dataset,
     )
 
-    traces = Traces()
     fixture_spans = []
     fixture_evals = []
     if trace_dataset_name is not None:
@@ -217,17 +196,7 @@ if __name__ == "__main__":
                 _get_trace_fixture_by_name(trace_dataset_name)
             )
         )
-        Thread(
-            target=_load_items,
-            args=(traces, fixture_spans, simulate_streaming),
-            daemon=True,
-        ).start()
         fixture_evals = list(get_evals_from_fixture(trace_dataset_name))
-        Thread(
-            target=_load_items,
-            args=(traces, fixture_evals, simulate_streaming),
-            daemon=True,
-        ).start()
     umap_params_list = args.umap_params.split(",")
     umap_params = UMAPParameters(
         min_dist=float(umap_params_list[0]),
@@ -247,7 +216,6 @@ if __name__ == "__main__":
         export_path=export_path,
         model=model,
         umap_params=umap_params,
-        traces=traces,
         corpus=None if corpus_dataset is None else create_model_from_datasets(corpus_dataset),
         debug=args.debug,
         read_only=read_only,
