@@ -41,6 +41,7 @@
         "RERANKER",
         "respx",
         "rgba",
+        "rowid",
         "seafoam",
         "sqlalchemy",
         "Starlette",
