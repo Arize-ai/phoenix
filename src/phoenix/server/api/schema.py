@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Set, Union
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from sqlalchemy import delete, query, select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import load_only
 from strawberry import ID, UNSET
 from strawberry.types import Info
@@ -266,13 +266,9 @@ class Mutation(ExportEventsMutation):
     @strawberry.mutation
     async def clear_project(self, info: Info[Context, None], id: GlobalID) -> Query:
         project_id = from_global_id_with_expected_type(str(id), "Project")
-        delete_statement = delete(models.Span).where(
-            models.Span.trace_rowid.in_(
-                query(models.Trace.id).filter(models.Trace.project_rowid == project_id)
-            )
-        )
+        delete_statement = delete(models.Trace).where(models.Trace.project_rowid == project_id)
         async with info.context.db() as session:
-            await session.delete(delete_statement)
+            await session.execute(delete_statement)
         return Query()
 
 
