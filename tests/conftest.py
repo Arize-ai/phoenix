@@ -11,8 +11,10 @@ from sqlalchemy.orm import sessionmaker
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--skip-postgres", action="store_true", default=False,
-        help="Skip tests that require Postgres"
+        "--skip-postgres",
+        action="store_true",
+        default=False,
+        help="Skip tests that require Postgres",
     )
 
 
