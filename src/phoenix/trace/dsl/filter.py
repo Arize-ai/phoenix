@@ -41,7 +41,7 @@ class AliasedAnnotationRelation:
 
     index: int
     name: str
-    AliasedSpanAnnotation: AliasedClass[models.SpanAnnotation] = field(init=False, repr=False)
+    table: AliasedClass[models.SpanAnnotation] = field(init=False, repr=False)
     _label_attribute_alias: str = field(init=False, repr=False)
     _score_attribute_alias: str = field(init=False, repr=False)
 
@@ -50,13 +50,13 @@ class AliasedAnnotationRelation:
         alias_id = f"{randint(0, 10**6):06d}"  # prevent conflicts with user-defined attributes
         label_attribute_alias = f"{table_alias}_label_{alias_id}"
         score_attribute_alias = f"{table_alias}_score_{alias_id}"
-        AliasedSpanAnnotation = aliased(models.SpanAnnotation, name=table_alias)
+        table = aliased(models.SpanAnnotation, name=table_alias)
         object.__setattr__(self, "_label_attribute_alias", label_attribute_alias)
         object.__setattr__(self, "_score_attribute_alias", score_attribute_alias)
         object.__setattr__(
             self,
-            "AliasedSpanAnnotation",
-            AliasedSpanAnnotation,
+            "table",
+            table,
         )
 
     @property
@@ -65,8 +65,8 @@ class AliasedAnnotationRelation:
         Alias names and attributes (i.e., columns) of the `span_annotation`
         relation.
         """
-        yield self._label_attribute_alias, self.AliasedSpanAnnotation.label
-        yield self._score_attribute_alias, self.AliasedSpanAnnotation.score
+        yield self._label_attribute_alias, self.table.label
+        yield self._score_attribute_alias, self.table.score
 
     def attribute_alias(self, attribute: EvalAttribute) -> str:
         """
@@ -219,7 +219,7 @@ class SpanFilter:
         """
         for eval_alias in self.aliased_annotation_relations:
             eval_name = eval_alias.name
-            AliasedSpanAnnotation = eval_alias.AliasedSpanAnnotation
+            AliasedSpanAnnotation = eval_alias.table
             stmt = stmt.join(
                 AliasedSpanAnnotation,
                 onclause=(
@@ -405,9 +405,11 @@ class _ProjectionTranslator(ast.NodeTransformer):
         # In Python 3.9+, we can use `ast.unparse(node)` (no need for `source`).
         self._source = source
         self._reserved_keywords = frozenset(
-            *reserved_keywords,
-            *_STRING_NAMES.keys(),
-            *_FLOAT_NAMES.keys(),
+            chain(
+                reserved_keywords,
+                _STRING_NAMES.keys(),
+                _FLOAT_NAMES.keys(),
+            )
         )
 
     def visit_generic(self, node: ast.AST) -> typing.Any:
