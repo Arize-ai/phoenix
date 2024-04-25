@@ -272,14 +272,14 @@ class Mutation(ExportEventsMutation):
         return Query()
 
 
-strawberry_extensions = []
+_extensions = []
 if is_phoenix_server_instrumentation_enabled():
     from strawberry.extensions.tracing import OpenTelemetryExtension
 
-    strawberry_extensions.append(OpenTelemetryExtension)
+    _extensions.append(OpenTelemetryExtension)
 
 schema = strawberry.Schema(
     query=Query,
     mutation=Mutation,
-    extensions=strawberry_extensions,
+    extensions=_extensions,
 )
