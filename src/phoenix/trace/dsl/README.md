@@ -2,7 +2,7 @@ This Phoenix module uses Python's `ast` module. The code snippets below provides
 
 # Abstract Syntax Tree (AST)
 
-The idea is that any Python expression can be parsed into an AST, and then transformed into different one. The new AST can then be compiled back into a Python expression and evaluated at runtime.
+The idea is that any Python expression can be parsed into an AST, and then transformed into a different one. The new AST can then be compiled back into a Python expression and evaluated at runtime.
 
 ```python
 import ast
@@ -17,10 +17,11 @@ print(ast.dump(ast.parse("1", mode="eval").body, indent=4))
 print(ast.dump(ast.parse("'xyz'", mode="eval").body, indent=4))
 ```
 ### Output
-    Constant(value=None)
-    Constant(value=1)
-    Constant(value='xyz')
-
+```python
+Constant(value=None)
+Constant(value=1)
+Constant(value='xyz')
+```
 
 # Name
 https://docs.python.org/3/library/ast.html#ast.Name
@@ -29,8 +30,9 @@ https://docs.python.org/3/library/ast.html#ast.Name
 print(ast.dump(ast.parse("xyz", mode="eval").body, indent=4))
 ```
 ### Output
-    Name(id='xyz', ctx=Load())
-
+```python
+Name(id='xyz', ctx=Load())
+```
 
 # Compilation and Evaluation
 https://docs.python.org/3/library/functions.html#compile
@@ -42,8 +44,9 @@ compiled = compile(parsed, filename="", mode="eval")
 eval(compiled, {"xyz": 42})
 ```
 ### Output
-    42
-
+```python
+42
+```
 
 # Attribute
 https://docs.python.org/3/library/ast.html#ast.Attribute
@@ -52,14 +55,15 @@ https://docs.python.org/3/library/ast.html#ast.Attribute
 print(ast.dump(ast.parse("llm.token_count.completion", mode="eval").body, indent=4))
 ```
 ### Output
-    Attribute(
-        value=Attribute(
-            value=Name(id='llm', ctx=Load()),
-            attr='token_count',
-            ctx=Load()),
-        attr='completion',
-        ctx=Load())
-
+```python
+Attribute(
+    value=Attribute(
+        value=Name(id='llm', ctx=Load()),
+        attr='token_count',
+        ctx=Load()),
+    attr='completion',
+    ctx=Load())
+```
 
 # Subscript
 https://docs.python.org/3/library/ast.html#ast.Subscript
@@ -68,16 +72,17 @@ https://docs.python.org/3/library/ast.html#ast.Subscript
 print(ast.dump(ast.parse("attributes[['llm', 'token_count', 'completion']]", mode="eval").body, indent=4))
 ```
 ### Output
-    Subscript(
-        value=Name(id='attributes', ctx=Load()),
-        slice=List(
-            elts=[
-                Constant(value='llm'),
-                Constant(value='token_count'),
-                Constant(value='completion')],
-            ctx=Load()),
-        ctx=Load())
-
+```python
+Subscript(
+    value=Name(id='attributes', ctx=Load()),
+    slice=List(
+        elts=[
+            Constant(value='llm'),
+            Constant(value='token_count'),
+            Constant(value='completion')],
+        ctx=Load()),
+    ctx=Load())
+```
 
 # Translation of Attribute to Subscript
 https://docs.python.org/3/library/ast.html#ast.NodeTransformer
@@ -106,5 +111,6 @@ translated = Translator().visit(parsed)
 print(ast.unparse(translated))
 ```
 ### Output
-    attributes[['llm', 'token_count', 'completion']]
-
+```python
+attributes[['llm', 'token_count', 'completion']]
+```
