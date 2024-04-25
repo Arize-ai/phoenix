@@ -45,11 +45,11 @@ def create_async_postgres_engine(psycopg_connection: Connection) -> sessionmaker
     host = connection.info.host
     port = connection.info.port
     async_database_url = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}"
-    return create_async_engine(async_database_url, echo=True)
+    return create_async_engine(async_database_url)
 
 
 def create_async_sqlite_engine() -> sessionmaker:
-    return create_async_engine("sqlite+aiosqlite:///:memory:", module=sqlean, echo=True)
+    return create_async_engine("sqlite+aiosqlite:///:memory:", module=sqlean)
 
 
 @pytest.fixture

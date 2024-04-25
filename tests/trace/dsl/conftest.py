@@ -7,25 +7,21 @@ from sqlalchemy import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-@pytest.fixture()
+@pytest.fixture
 async def default_project(session: AsyncSession) -> None:
-    project_row_id = (
-        await session.execute(
-            insert(models.Project).values(name=DEFAULT_PROJECT_NAME).returning(models.Project.id)
+    project_row_id = await session.scalar(
+        insert(models.Project).values(name=DEFAULT_PROJECT_NAME).returning(models.Project.id)
+    )
+    trace_row_id = await session.scalar(
+        insert(models.Trace)
+        .values(
+            trace_id="0123",
+            project_rowid=project_row_id,
+            start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+            end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
         )
-    ).fetchone()[0]
-    trace_row_id = (
-        await session.execute(
-            insert(models.Trace)
-            .values(
-                trace_id="0123",
-                project_rowid=project_row_id,
-                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
-                end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
-            )
-            .returning(models.Trace.id)
-        )
-    ).fetchone()[0]
+        .returning(models.Trace.id)
+    )
     await session.execute(
         insert(models.Span)
         .values(
@@ -82,26 +78,22 @@ async def default_project(session: AsyncSession) -> None:
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 async def abc_project(session: AsyncSession) -> None:
-    project_row_id = (
-        await session.execute(
-            insert(models.Project).values(name="abc").returning(models.Project.id)
+    project_row_id = await session.scalar(
+        insert(models.Project).values(name="abc").returning(models.Project.id)
+    )
+    trace_row_id = await session.scalar(
+        insert(models.Trace)
+        .values(
+            trace_id="012",
+            project_rowid=project_row_id,
+            start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+            end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
         )
-    ).fetchone()[0]
-    trace_row_id = (
-        await session.execute(
-            insert(models.Trace)
-            .values(
-                trace_id="012",
-                project_rowid=project_row_id,
-                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
-                end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
-            )
-            .returning(models.Trace.id)
-        )
-    ).fetchone()[0]
-    _ = await session.execute(
+        .returning(models.Trace.id)
+    )
+    await session.execute(
         insert(models.Span)
         .values(
             trace_rowid=trace_row_id,
@@ -112,7 +104,7 @@ async def abc_project(session: AsyncSession) -> None:
             start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
             end_time=datetime.fromisoformat("2021-01-01T00:00:30.000+00:00"),
             attributes={
-                "input": {"value": "210"},
+                "input": {"value": "xy%z*"},
                 "output": {"value": "321"},
             },
             events=[],
@@ -124,7 +116,7 @@ async def abc_project(session: AsyncSession) -> None:
         )
         .returning(models.Span.id)
     )
-    _ = await session.execute(
+    await session.execute(
         insert(models.Span)
         .values(
             trace_rowid=trace_row_id,
@@ -135,6 +127,9 @@ async def abc_project(session: AsyncSession) -> None:
             start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
             end_time=datetime.fromisoformat("2021-01-01T00:00:05.000+00:00"),
             attributes={
+                "input": {
+                    "value": "XY%*Z",
+                },
                 "metadata": {
                     "a.b.c": 123,
                     "1.2.3": "abc",
@@ -157,7 +152,7 @@ async def abc_project(session: AsyncSession) -> None:
         )
         .returning(models.Span.id)
     )
-    _ = await session.execute(
+    await session.execute(
         insert(models.Span)
         .values(
             trace_rowid=trace_row_id,
@@ -170,7 +165,7 @@ async def abc_project(session: AsyncSession) -> None:
             attributes={
                 "attributes": "attributes",
                 "input": {
-                    "value": "xyz",
+                    "value": "xy%*z",
                 },
                 "retrieval": {
                     "documents": [
@@ -189,7 +184,7 @@ async def abc_project(session: AsyncSession) -> None:
         )
         .returning(models.Span.id)
     )
-    _ = await session.execute(
+    await session.execute(
         insert(models.Span)
         .values(
             trace_rowid=trace_row_id,
