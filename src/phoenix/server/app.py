@@ -15,7 +15,6 @@ from typing import (
     Union,
 )
 
-import strawberry
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -59,7 +58,7 @@ from phoenix.server.api.dataloaders import (
 )
 from phoenix.server.api.dataloaders.span_descendants import SpanDescendantsDataLoader
 from phoenix.server.api.routers.v1 import V1_ROUTES
-from phoenix.server.api.schema import Mutation, Query
+from phoenix.server.api.schema import schema
 from phoenix.trace.schemas import Span
 
 logger = logging.getLogger(__name__)
@@ -244,23 +243,15 @@ def create_app(
     )
     initial_batch_of_evaluations = () if initial_evaluations is None else initial_evaluations
     engine = create_engine(database_url)
+    if is_phoenix_server_instrumentation_enabled():
+        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+
+        SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
     db = _db(engine)
     bulk_inserter = BulkInserter(
         db,
         initial_batch_of_spans=initial_batch_of_spans,
         initial_batch_of_evaluations=initial_batch_of_evaluations,
-    )
-    strawberry_extensions = []
-    if is_phoenix_server_instrumentation_enabled():
-        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
-        from strawberry.extensions.tracing import OpenTelemetryExtension
-
-        SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
-        strawberry_extensions.append(OpenTelemetryExtension)
-    schema = strawberry.Schema(
-        query=Query,
-        mutation=Mutation,
-        extensions=strawberry_extensions,
     )
     graphql = GraphQLWithContext(
         db=db,
