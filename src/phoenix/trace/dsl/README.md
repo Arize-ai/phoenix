@@ -83,7 +83,7 @@ print(ast.dump(ast.parse("attributes[['llm', 'token_count', 'completion']]", mod
 https://docs.python.org/3/library/ast.html#ast.NodeTransformer
 
 ```python
-class translator(ast.NodeTransformer):
+class Translator(ast.NodeTransformer):
     def visit_Attribute(self, node):
         path = []
         while isinstance(node, ast.Attribute):
@@ -102,7 +102,7 @@ class translator(ast.NodeTransformer):
         )
 
 parsed = ast.parse("llm.token_count.completion", mode="eval")
-translated = translator().visit(parsed)
+translated = Translator().visit(parsed)
 print(ast.unparse(translated))
 ```
 ### Output
