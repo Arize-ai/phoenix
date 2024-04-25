@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 from threading import Thread
 from time import sleep, time
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 import pkg_resources
 from uvicorn import Config, Server
@@ -40,9 +40,6 @@ from phoenix.trace.fixtures import (
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.span_json_decoder import json_string_to_span
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
