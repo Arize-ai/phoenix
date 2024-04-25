@@ -121,8 +121,6 @@ if __name__ == "__main__":
     parser.add_argument("--umap_params", type=str, required=False, default=DEFAULT_UMAP_PARAMS_STR)
     parser.add_argument("--debug", action="store_false")
     parser.add_argument("--enable-prometheus", type=bool, default=False)
-    parser.add_argument("--server-trace-collector-http-endpoint", type=str, required=False)
-    parser.add_argument("--server-trace-collector-grpc-endpoint", type=str, required=False)
     subparsers = parser.add_subparsers(dest="command", required=True)
     serve_parser = subparsers.add_parser("serve")
     datasets_parser = subparsers.add_parser("datasets")
