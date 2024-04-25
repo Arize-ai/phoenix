@@ -166,7 +166,6 @@ def upgrade() -> None:
         sa.UniqueConstraint(
             "span_rowid",
             "name",
-            name="uq_span_annotations_span_rowid_name",
             sqlite_on_conflict="REPLACE",
         ),
     )
@@ -211,7 +210,6 @@ def upgrade() -> None:
         sa.UniqueConstraint(
             "trace_rowid",
             "name",
-            name="uq_trace_annotations_trace_rowid_name",
             sqlite_on_conflict="REPLACE",
         ),
     )
@@ -258,7 +256,6 @@ def upgrade() -> None:
             "span_rowid",
             "document_position",
             "name",
-            name="uq_document_annotations_span_rowid_document_position_name",
             sqlite_on_conflict="REPLACE",
         ),
     )
