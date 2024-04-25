@@ -42,7 +42,7 @@ import phoenix.trace.v1 as pb
 from phoenix.config import (
     DEFAULT_PROJECT_NAME,
     SERVER_DIR,
-    is_phoenix_server_instrumentation_enabled,
+    is_server_instrumentation_enabled,
 )
 from phoenix.core.model_schema import Model
 from phoenix.db.bulk_inserter import BulkInserter
@@ -243,7 +243,7 @@ def create_app(
     )
     initial_batch_of_evaluations = () if initial_evaluations is None else initial_evaluations
     engine = create_engine(database_url)
-    if is_phoenix_server_instrumentation_enabled():
+    if is_server_instrumentation_enabled():
         from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 
         SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
