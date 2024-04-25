@@ -3,7 +3,8 @@ from typing import Any, Optional, Protocol
 
 import strawberry
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import desc, nulls_last
+from sqlalchemy import and_, desc, nulls_last
+from sqlalchemy.sql.expression import Select
 from strawberry import UNSET
 
 import phoenix.trace.v1 as pb
@@ -29,6 +30,12 @@ class SpanColumn(Enum):
     cumulativeTokenCountCompletion = auto()
 
 
+@strawberry.enum
+class EvalAttr(Enum):
+    score = "score"
+    label = "label"
+
+
 _SPAN_COLUMN_TO_ORM_EXPR_MAP = {
     SpanColumn.startTime: models.Span.start_time,
     SpanColumn.endTime: models.Span.end_time,
@@ -42,11 +49,10 @@ _SPAN_COLUMN_TO_ORM_EXPR_MAP = {
     SpanColumn.cumulativeTokenCountCompletion: models.Span.cumulative_llm_token_count_completion,
 }
 
-
-@strawberry.enum
-class EvalAttr(Enum):
-    score = "score"
-    label = "label"
+_EVAL_ATTR_TO_ORM_EXPR_MAP = {
+    EvalAttr.score: models.SpanAnnotation.score,
+    EvalAttr.label: models.SpanAnnotation.label,
+}
 
 
 @strawberry.input
@@ -68,10 +74,22 @@ class SpanSort:
     eval_result_key: Optional[EvalResultKey] = UNSET
     dir: SortDir
 
-    def to_orm_expr(self) -> Any:
-        if self.col:
+    def update_orm_expr(self, stmt: Select[Any]) -> Select[Any]:
+        if self.col and not self.eval_result_key:
             expr = _SPAN_COLUMN_TO_ORM_EXPR_MAP[self.col]
             if self.dir == SortDir.desc:
                 expr = desc(expr)
-            return nulls_last(expr)
-        NotImplementedError("not implemented")
+            return stmt.order_by(nulls_last(expr))
+        if self.eval_result_key and not self.col:
+            eval_name = self.eval_result_key.name
+            expr = _EVAL_ATTR_TO_ORM_EXPR_MAP[self.eval_result_key.attr]
+            if self.dir == SortDir.desc:
+                expr = desc(expr)
+            return stmt.join(
+                models.SpanAnnotation,
+                onclause=and_(
+                    models.SpanAnnotation.span_rowid == models.Span.id,
+                    models.SpanAnnotation.name == eval_name,
+                ),
+            ).order_by(expr)
+        raise ValueError("Exactly one of `col` or `evalResultKey` must be specified on `SpanSort`.")
