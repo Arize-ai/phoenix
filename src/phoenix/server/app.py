@@ -43,6 +43,7 @@ from phoenix.config import DEFAULT_PROJECT_NAME, SERVER_DIR
 from phoenix.core.model_schema import Model
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import create_engine
+from phoenix.exceptions import PhoenixMigrationError
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
@@ -236,7 +237,19 @@ def create_app(
         )
     )
     initial_batch_of_evaluations = () if initial_evaluations is None else initial_evaluations
-    engine = create_engine(database_url)
+    try:
+        engine = create_engine(database_url)
+    except PhoenixMigrationError as e:
+        msg = (
+            "\n\n⚠️⚠️ Phoenix failed to migrate the database to the latest version. ⚠️⚠️\n\n"
+            "Ensure that the Phoenix database configuration is correct and\n"
+            f"available at {database_url}.\n\n"
+            "Please refer to the stack trace to determine how to resolve any migration errors and\n"
+            "try again or refer to the Alembic documentation to run migrations manually:\n"
+            "https://alembic.sqlalchemy.org/en/latest/tutorial.html#the-migration-environment\n\n"
+            ""
+        )
+        raise PhoenixMigrationError(msg) from e
     db = _db(engine)
     bulk_inserter = BulkInserter(
         db,
