@@ -163,20 +163,25 @@ export function ProjectActionMenu({
             alignItems={"center"}
           >
             <Icon svg={<Icons.Refresh />} />
-            <Text>Clear Project</Text>
+            <Text>Clear Data</Text>
           </Flex>
         </Item>
-        <Item key={ProjectAction.DELETE}>
-          <Flex
-            direction={"row"}
-            gap="size-75"
-            justifyContent={"start"}
-            alignItems={"center"}
-          >
-            <Icon svg={<Icons.TrashOutline />} />
-            <Text>Delete</Text>
-          </Flex>
-        </Item>
+        {canDelete ? (
+          <Item key={ProjectAction.DELETE}>
+            <Flex
+              direction={"row"}
+              gap="size-75"
+              justifyContent={"start"}
+              alignItems={"center"}
+            >
+              <Icon svg={<Icons.TrashOutline />} />
+              <Text>Delete</Text>
+            </Flex>
+          </Item>
+        ) : (
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (null as any)
+        )}
       </ActionMenu>
       <DialogContainer
         type="modal"
