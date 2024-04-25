@@ -99,6 +99,7 @@ def _get_tracer_provider(
     if not (http_endpoint or grpc_endpoint):
         return None
 
+    from opentelemetry import trace as trace_api
     from opentelemetry.sdk import trace as trace_sdk
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
@@ -115,6 +116,7 @@ def _get_tracer_provider(
         )
 
         tracer_provider.add_span_processor(BatchSpanProcessor(GrpcExporter(grpc_endpoint)))
+    trace_api.set_tracer_provider(tracer_provider)
     return tracer_provider
 
 

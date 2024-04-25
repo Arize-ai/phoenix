@@ -16,6 +16,7 @@ from typing import (
     Union,
 )
 
+import strawberry
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -55,7 +56,7 @@ from phoenix.server.api.dataloaders import (
 )
 from phoenix.server.api.dataloaders.span_descendants import SpanDescendantsDataLoader
 from phoenix.server.api.routers.v1 import V1_ROUTES
-from phoenix.server.api.schema import schema
+from phoenix.server.api.schema import Mutation, Query
 from phoenix.trace.schemas import Span
 
 if TYPE_CHECKING:
@@ -256,6 +257,17 @@ def create_app(
         db,
         initial_batch_of_spans=initial_batch_of_spans,
         initial_batch_of_evaluations=initial_batch_of_evaluations,
+    )
+    if tracer_provider:
+        from strawberry.extensions.tracing import OpenTelemetryExtension
+
+        extensions = [OpenTelemetryExtension]
+    else:
+        extensions = []
+    schema = strawberry.Schema(
+        query=Query,
+        mutation=Mutation,
+        extensions=extensions,
     )
     graphql = GraphQLWithContext(
         db=db,

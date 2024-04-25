@@ -104,6 +104,7 @@ container = [
   "opentelemetry-exporter-otlp",
   "opentelemetry-instrumentation-starlette",
   "opentelemetry-instrumentation-sqlalchemy",
+  "strawberry-graphql[opentelemetry]",
 ]
 
 [project.urls]
@@ -174,6 +175,7 @@ dependencies = [
   "opentelemetry-exporter-otlp",
   "opentelemetry-instrumentation-starlette",
   "opentelemetry-instrumentation-sqlalchemy",
+  "strawberry-graphql[opentelemetry]",
 ]
 
 [tool.hatch.envs.style]

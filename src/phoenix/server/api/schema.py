@@ -270,6 +270,3 @@ class Mutation(ExportEventsMutation):
         async with info.context.db() as session:
             await session.execute(delete_statement)
         return Query()
-
-
-schema = strawberry.Schema(query=Query, mutation=Mutation)
