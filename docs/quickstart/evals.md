@@ -4,36 +4,50 @@ description: Evaluate your LLM application with Phoenix
 
 # Quickstart: Evals
 
-This quickstart shows how Phoenix helps you evaluate data from your LLM application.
+This quickstart guide will show you through the basics of evaluating data from your LLM application.
 
-You will:
+## 1. Install Phoenix Evals
 
-* Export a dataframe from your Phoenix session that contains traces from an instrumented LLM application,
-* Evaluate your trace data for:
-  * **Relevance:** Are the retrieved documents grounded in the response?
-  * **Q\&A correctness:** Are your application's responses grounded in the retrieved context?
-  * **Hallucinations:** Is your application making up false information?
-* Ingest the evaluations into Phoenix to see the results annotated on the corresponding spans and traces.
+{% tabs %}
+{% tab title="Using pip" %}
+```python
+pip install arize-phoenix[evals]
+```
+{% endtab %}
 
-To get you up and running quickly, we'll download some pre-existing trace data collected from a LlamaIndex application (in practice, this data would be collected by [instrumenting your LLM application](llm-traces.md) with an OpenInference-compatible tracer).
+{% tab title="Using conda" %}
+```git
+conda install -c conda-forge arize-phoenix[evals]
+```
+{% endtab %}
+{% endtabs %}
+
+## 2. Export Data and Launch Phoenix
+
+Export a dataframe from your Phoenix session that contains traces from your LLM application.
+
+{% hint style="info" %}
+If you are interested in a subset of your data, you can export with a custom query. Learn more [here](../tracing/how-to-tracing/extract-data-from-spans.md).
+{% endhint %}
+
+For the sake of this guide, we'll download some pre-existing trace data collected from a LlamaIndex application (in practice, this data would be collected by [instrumenting your LLM application](llm-traces.md) with an OpenInference-compatible tracer).
 
 ```python
 from urllib.request import urlopen
-
 from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.trace.utils import json_lines_to_df
 
+# Replace with the URL to your trace data
 traces_url = "https://storage.googleapis.com/arize-assets/phoenix/datasets/unstructured/llm/context-retrieval/trace.jsonl"
 with urlopen(traces_url) as response:
     lines = [line.decode("utf-8") for line in response.readlines()]
 trace_ds = TraceDataset(json_lines_to_df(lines))
 ```
 
-Launch Phoenix. You can open use Phoenix within your notebook or in a separate browser window by opening the URL.
+Then, start Phoenix to view and manage your evaluations.
 
 ```python
 import phoenix as px
-
 session = px.launch_app(trace=trace_ds)
 session.view()
 ```
@@ -42,90 +56,66 @@ You should now see a view like this.
 
 ![A view of the Phoenix UI prior to adding evaluation annotations](https://storage.googleapis.com/arize-assets/phoenix/assets/docs/notebooks/evals/traces\_without\_evaluation\_annotations.png)
 
-Export your retrieved documents and query data from your session into a pandas dataframe.
+## 3. Evaluate and Log Results
 
-{% hint style="info" %}
-If you are interested in a niche subset of your data, you can export with a custom query. Learn more [here](../tracing/how-to-tracing/extract-data-from-spans.md).
-{% endhint %}
+Set up evaluators (in this casefor hallucinations and Q\&A correctness), run the evaluations, and log the results to visualize them in Phoenix.
 
+{% tabs %}
+{% tab title="Hallucinations and Q&A Evaluations" %}
 ```python
-from phoenix.session.evaluation import get_qa_with_reference, get_retrieved_documents
+!pip install openai
 
-retrieved_documents_df = get_retrieved_documents(px.Client())
-queries_df = get_qa_with_reference(px.Client())
+from phoenix.experimental.evals import OpenAIModel, HallucinationEvaluator, QAEvaluator
+from phoenix.experimental.evals import run_evals
+import nest_asyncio
+nest_asyncio.apply()  # This is needed for concurrency in notebook environments
+
+# Set your OpenAI API key
+api_key = "your-api-key"  # Replace with your actual API key
+eval_model = OpenAIModel(model="gpt-4-turbo-preview", api_key=api_key)
+
+# Define your evaluators
+hallucination_evaluator = HallucinationEvaluator(eval_model)
+qa_evaluator = QAEvaluator(eval_model)
+
+# Run the evaluations
+# Assume 'queries_df' is your input dataframe for Q&A correctness
+# and 'spans_df' is your input dataframe for hallucinations
+hallucination_eval_df, qa_eval_df = run_evals(
+    dataframe=queries_df,
+    evaluators=[hallucination_evaluator, qa_evaluator],
+    provide_explanation=True
+)
+
+# Log the evaluations
+from phoenix.trace import SpanEvaluations
+
+px.Client().log_evaluations(
+    SpanEvaluations(eval_name="Hallucination", dataframe=hallucination_eval_df),
+    SpanEvaluations(eval_name="QA Correctness", dataframe=qa_eval_df)
+)
 ```
-
-Phoenix evaluates your application data by prompting an LLM to classify whether a retrieved document is relevant or irrelevant to the corresponding query, whether a response is grounded in a retrieved document, etc. You can even get explanations generated by the LLM to help you understand the results of your evaluations!
+{% endtab %}
+{% endtabs %}
 
 {% hint style="info" %}
 This quickstart uses OpenAI and requires an OpenAI API key, but we support a wide variety of APIs and [models](../api/evaluation-models.md).
 {% endhint %}
 
-Install the OpenAI SDK with `pip install openai` and instantiate your model.
+## 4. Analyze Your Evaluations
 
-```python
-from phoenix.experimental.evals import OpenAIModel
-
-api_key = None  # set your api key here or with the OPENAI_API_KEY environment variable
-eval_model = OpenAIModel(model_name="gpt-4-turbo-preview", api_key=api_key)
-```
-
-You'll next define your evaluators. Evaluators are built on top of language models and prompt the LLM to assess the quality of responses, the relevance of retrieved documents, etc., and provide a quality signal even in the absence of human-labeled data. Pick an evaluator type and instantiate it with the language model you want to use to perform evaluations using our battle-tested evaluation templates.
-
-![A diagram depicting how evaluators are composed of LLMs and evaluation prompt templates and product labels, scores, and explanations from input data (e.g., queries, references, outputs, etc.)](https://storage.googleapis.com/arize-assets/phoenix/assets/docs/notebooks/evals/evaluators\_diagram.png)
-
-```python
-from phoenix.experimental.evals import (
-    HallucinationEvaluator,
-    QAEvaluator,
-    RelevanceEvaluator,
-)
-
-hallucination_evaluator = HallucinationEvaluator(eval_model)
-qa_correctness_evaluator = QAEvaluator(eval_model)
-relevance_evaluator = RelevanceEvaluator(eval_model)
-```
-
-Run your evaluations.
-
-```python
-import nest_asyncio
-from phoenix.experimental.evals import (
-    run_evals,
-)
-
-nest_asyncio.apply()  # needed for concurrency in notebook environments
-
-hallucination_eval_df, qa_correctness_eval_df = run_evals(
-    dataframe=queries_df,
-    evaluators=[hallucination_evaluator, qa_correctness_evaluator],
-    provide_explanation=True,
-)
-relevance_eval_df = run_evals(
-    dataframe=retrieved_documents_df,
-    evaluators=[relevance_evaluator],
-    provide_explanation=True,
-)[0]
-```
-
-Log your evaluations to your running Phoenix session.
-
-```python
-from phoenix.trace import DocumentEvaluations, SpanEvaluations
-
-px.Client().log_evaluations(
-    SpanEvaluations(eval_name="Hallucination", dataframe=hallucination_eval_df),
-    SpanEvaluations(eval_name="QA Correctness", dataframe=qa_correctness_eval_df),
-    DocumentEvaluations(eval_name="Relevance", dataframe=relevance_eval_df),
-)
-```
-
-Your evaluations should now appear as annotations on your spans in Phoenix!
+After logging your evaluations, open Phoenix to review your results. Inspect evaluation statistics, identify problematic spans, and explore the reasoning behind each evaluation.
 
 ```python
 print(f"🔥🐦 Open back up Phoenix in case you closed it: {session.url}")
 ```
 
-You can view aggregate evaluation statistics, surface problematic spans, understand the LLM's reason for each evaluation by reading the corresponding explanation, and pinpoint the cause (irrelevant retrievals, incorrect parameterization of your LLM, etc.) of your LLM application's poor responses.
+You can view aggregate evaluation statistics, surface problematic spans, and understand the LLM's reason for each evaluation by simply reading the corresponding explanation. Phoenix seamlessly pinpoints the cause (irrelevant retrievals, incorrect parameterization of your LLM, etc.) of your LLM application's poor responses.
 
 ![A view of the Phoenix UI with evaluation annotations](https://storage.googleapis.com/arize-assets/phoenix/assets/docs/notebooks/evals/traces\_with\_evaluation\_annotations.png)
+
+If you're interested in extending your evaluations to include relevance, explore our detailed [Colab guide](https://colab.research.google.com/).
+
+Now that you're set up, read through the [Concepts Section](https://docs.arize.com/phoenix/evaluation/concepts-evals) to get an understanding of the different components.
+
+If you want to learn how to accomplish a particular task, check out the [How-To Guides](https://docs.arize.com/phoenix/evaluation/how-to-evals).
