@@ -110,6 +110,20 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
     [notify, refetch]
   );
 
+  const onClear = useCallback(
+    (projectName: string) => {
+      startTransition(() => {
+        refetch({}, { fetchPolicy: "store-and-network" });
+        notify({
+          variant: "success",
+          title: "Project Cleared",
+          message: `Project ${projectName} has been cleared of traces.`,
+        });
+      });
+    },
+    [notify, refetch]
+  );
+
   return (
     <Flex direction="column" flex="1 1 auto">
       <View
@@ -144,8 +158,8 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
               >
                 <ProjectItem
                   project={project}
-                  canDelete={project.name !== "default"} // the default project cannot be deleted
                   onProjectDelete={() => onDelete(project.name)}
+                  onProjectClear={() => onClear(project.name)}
                 />
               </Link>
             </li>
@@ -182,13 +196,13 @@ function ProjectIcon({
 }
 type ProjectItemProps = {
   project: ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"];
-  canDelete: boolean;
   onProjectDelete: () => void;
+  onProjectClear: () => void;
 };
 function ProjectItem({
   project,
-  canDelete,
   onProjectDelete,
+  onProjectClear,
 }: ProjectItemProps) {
   const {
     endTime,
@@ -244,13 +258,12 @@ function ProjectItem({
             </Text>
           </Flex>
         </Flex>
-        {canDelete && (
-          <ProjectActionMenu
-            projectId={project.id}
-            projectName={project.name}
-            onProjectDelete={onProjectDelete}
-          />
-        )}
+        <ProjectActionMenu
+          projectId={project.id}
+          projectName={project.name}
+          onProjectDelete={onProjectDelete}
+          onProjectClear={onProjectClear}
+        />
       </Flex>
 
       <Flex direction="row" justifyContent="space-between">
