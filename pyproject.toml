@@ -94,13 +94,15 @@ llama-index = [
   "llama-index-callbacks-arize-phoenix>=0.1.2",
   "openinference-instrumentation-llama-index>=1.2.0",
 ]
-
 pg = [
   "asyncpg",
 ]
-
 container = [
   "prometheus-client",
+  "opentelemetry-sdk",
+  "opentelemetry-proto>=1.12.0",
+  "opentelemetry-instrumentation-starlette",
+  "opentelemetry-instrumentation-sqlalchemy",
 ]
 
 [project.urls]
@@ -166,6 +168,10 @@ dependencies = [
   "openai>=1.0.0",
   "litellm>=1.0.3",
   "prometheus_client",
+  "opentelemetry-sdk",
+  "opentelemetry-proto>=1.12.0",
+  "opentelemetry-instrumentation-starlette",
+  "opentelemetry-instrumentation-sqlalchemy",
 ]
 
 [tool.hatch.envs.style]

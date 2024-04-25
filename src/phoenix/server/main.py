@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 from threading import Thread
 from time import sleep, time
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import pkg_resources
 from uvicorn import Config, Server
@@ -38,6 +38,9 @@ from phoenix.trace.fixtures import (
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.span_json_decoder import json_string_to_span
+
+if TYPE_CHECKING:
+    from opentelemetry.trace import TracerProvider
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +91,33 @@ def _get_pid_file() -> Path:
     return get_pids_path() / str(os.getpid())
 
 
+def _get_tracer_provider(
+    *,
+    http_endpoint: Optional[str] = None,
+    grpc_endpoint: Optional[str] = None,
+) -> Optional["TracerProvider"]:
+    if not (http_endpoint or grpc_endpoint):
+        return None
+
+    from opentelemetry.sdk import trace as trace_sdk
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+    tracer_provider = trace_sdk.TracerProvider()
+    if http_endpoint:
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+            OTLPSpanExporter as HttpExporter,
+        )
+
+        tracer_provider.add_span_processor(BatchSpanProcessor(HttpExporter(http_endpoint)))
+    if grpc_endpoint:
+        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+            OTLPSpanExporter as GrpcExporter,
+        )
+
+        tracer_provider.add_span_processor(BatchSpanProcessor(GrpcExporter(grpc_endpoint)))
+    return tracer_provider
+
+
 DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_SAMPLES}"
 
 if __name__ == "__main__":
@@ -116,6 +146,8 @@ if __name__ == "__main__":
     parser.add_argument("--umap_params", type=str, required=False, default=DEFAULT_UMAP_PARAMS_STR)
     parser.add_argument("--debug", action="store_false")
     parser.add_argument("--enable-prometheus", type=bool, default=False)
+    parser.add_argument("--server-trace-collector-http-endpoint", type=str, required=False)
+    parser.add_argument("--server-trace-collector-grpc-endpoint", type=str, required=False)
     subparsers = parser.add_subparsers(dest="command", required=True)
     serve_parser = subparsers.add_parser("serve")
     datasets_parser = subparsers.add_parser("datasets")
@@ -211,6 +243,10 @@ if __name__ == "__main__":
         start_prometheus()
 
     working_dir = get_working_dir().resolve()
+    tracer_provider: Optional["TracerProvider"] = _get_tracer_provider(
+        http_endpoint=args.server_trace_collector_http_endpoint,
+        grpc_endpoint=args.server_trace_collector_grpc_endpoint,
+    )
     app = create_app(
         database_url=db_connection_str,
         export_path=export_path,
@@ -222,7 +258,12 @@ if __name__ == "__main__":
         enable_prometheus=enable_prometheus,
         initial_spans=fixture_spans,
         initial_evaluations=fixture_evals,
+        tracer_provider=tracer_provider,
     )
+    if tracer_provider:
+        from opentelemetry.instrumentation.starlette import StarletteInstrumentor
+
+        StarletteInstrumentor.instrument_app(app, tracer_provider=tracer_provider)
     server = Server(config=Config(app, host=host, port=port))
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
 
