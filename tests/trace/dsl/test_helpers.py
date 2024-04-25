@@ -10,7 +10,7 @@ from phoenix.trace.dsl.helpers import get_qa_with_reference, get_retrieved_docum
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-async def test_get_retrieved_documents(
+def test_get_retrieved_documents(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
     nest_asyncio.apply()  # needed to use an async session inside the client Mock
