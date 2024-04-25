@@ -88,4 +88,6 @@ class DocumentRetrievalMetricsDataLoader(DataLoader[Key, List[DocumentRetrievalM
                     if req_name is None or req_name == name:
                         key = (span_rowid, req_num, req_name)
                         results[key].append(drm)
-        return [results.get(key, []) for key in keys]
+        # Make sure to copy the result, so we don't return the same list
+        # object to two different requesters.
+        return [(results.get(key) or []).copy() for key in keys]
