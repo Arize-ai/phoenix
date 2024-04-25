@@ -1,38 +1,18 @@
 from datetime import datetime
-from typing import Iterator
 
 import pytest
-import sqlean
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
-from phoenix.db.models import Base
-from sqlalchemy import create_engine, insert
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import insert
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
-@pytest.fixture(scope="session")
-def session_maker() -> sessionmaker:
-    sqlean.extensions.enable_all()
-    engine = create_engine("sqlite:///:memory:", module=sqlean, echo=True)
-    Base.metadata.create_all(engine)
-    session_maker = sessionmaker(engine)
-    with session_maker.begin() as session:
-        _insert_project_default(session)
-        _insert_project_abc(session)
-    return session_maker
-
-
-@pytest.fixture()
-def session(session_maker: sessionmaker) -> Iterator[Session]:
-    with session_maker.begin() as session:
-        yield session
-
-
-def _insert_project_default(session: Session) -> None:
-    project_row_id = session.scalar(
+@pytest.fixture
+async def default_project(session: AsyncSession) -> None:
+    project_row_id = await session.scalar(
         insert(models.Project).values(name=DEFAULT_PROJECT_NAME).returning(models.Project.id)
     )
-    trace_row_id = session.scalar(
+    trace_row_id = await session.scalar(
         insert(models.Trace)
         .values(
             trace_id="0123",
@@ -42,7 +22,7 @@ def _insert_project_default(session: Session) -> None:
         )
         .returning(models.Trace.id)
     )
-    _ = session.scalar(
+    await session.execute(
         insert(models.Span)
         .values(
             trace_rowid=trace_row_id,
@@ -65,7 +45,7 @@ def _insert_project_default(session: Session) -> None:
         )
         .returning(models.Span.id)
     )
-    _ = session.scalar(
+    await session.execute(
         insert(models.Span)
         .values(
             trace_rowid=trace_row_id,
@@ -98,11 +78,12 @@ def _insert_project_default(session: Session) -> None:
     )
 
 
-def _insert_project_abc(session: Session) -> None:
-    project_row_id = session.scalar(
+@pytest.fixture
+async def abc_project(session: AsyncSession) -> None:
+    project_row_id = await session.scalar(
         insert(models.Project).values(name="abc").returning(models.Project.id)
     )
-    trace_row_id = session.scalar(
+    trace_row_id = await session.scalar(
         insert(models.Trace)
         .values(
             trace_id="012",
@@ -112,7 +93,7 @@ def _insert_project_abc(session: Session) -> None:
         )
         .returning(models.Trace.id)
     )
-    _ = session.scalar(
+    await session.execute(
         insert(models.Span)
         .values(
             trace_rowid=trace_row_id,
@@ -135,7 +116,7 @@ def _insert_project_abc(session: Session) -> None:
         )
         .returning(models.Span.id)
     )
-    _ = session.scalar(
+    await session.execute(
         insert(models.Span)
         .values(
             trace_rowid=trace_row_id,
@@ -171,7 +152,7 @@ def _insert_project_abc(session: Session) -> None:
         )
         .returning(models.Span.id)
     )
-    _ = session.scalar(
+    await session.execute(
         insert(models.Span)
         .values(
             trace_rowid=trace_row_id,
@@ -203,7 +184,7 @@ def _insert_project_abc(session: Session) -> None:
         )
         .returning(models.Span.id)
     )
-    _ = session.scalar(
+    await session.execute(
         insert(models.Span)
         .values(
             trace_rowid=trace_row_id,

@@ -62,6 +62,14 @@ To install LangChain from source,
 
 ## Testing and Linting
 
+Phoenix is backed with either a `sqlite` or `postgresql` database. By default, tests that involve
+persistence in some way run against both backends. Ensure that `postgresql` is installed on your
+system.
+
+```
+brew install postgresql
+```
+
 Phoenix uses `hatch` as the project management tool to lint and test source code and to build the package. After creating and activating your `phoenix` virtual environment, view your `hatch` environments, dependencies and, scripts defined in `pyproject.toml` with
 
 ```bash
@@ -86,10 +94,16 @@ To format your code, run
 hatch run style:fix
 ```
 
-To run tests with coverage, run
+To run tests
 
 ```bash
-hatch run test:coverage
+hatch run tests
+```
+
+Optionally, you can skip `postgresql` tests
+
+```bash
+hatch run tests --skip-postgres
 ```
 
 The following resources are helpful to learn more about the capabilities of `hatch` and to familiarize yourself with the CLI.

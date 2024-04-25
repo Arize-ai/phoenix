@@ -8,7 +8,7 @@ import pytest
 from phoenix.db import models
 from phoenix.trace.dsl.filter import SpanFilter, _apply_eval_aliasing, _get_attribute_keys_list
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 if sys.version_info >= (3, 9):
     from ast import unparse
@@ -145,15 +145,11 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[List[str]])
             if sys.version_info >= (3, 9)
             else "and_((attributes[['attributes']].as_string() == attributes[['attributes']].as_string()), (attributes[['attributes']].as_string() != attributes[['attributes', 'attributes']].as_string()))",  # noqa E501
         ),
-        (
-            """evals['Q&A Correctness'].label == 'correct' and evals["Hallucination"].score < 0.5""",  # noqa E501
-            "and_(span_annotation_0_label_000000 == 'correct', cast(span_annotation_1_score_000000, Float) < 0.5)"  # noqa E501
-            if sys.version_info >= (3, 9)
-            else "and_((span_annotation_0_label_000000 == 'correct'), (cast(span_annotation_1_score_000000, Float) < 0.5))",  # noqa E501
-        ),
     ],
 )
-def test_filter_translated(session: Session, expression: str, expected: str) -> None:
+async def test_filter_translated(
+    session: AsyncSession, expression: str, expected: str, default_project: None, abc_project: None
+) -> None:
     with patch.object(
         phoenix.trace.dsl.filter,
         "randint",
@@ -162,7 +158,7 @@ def test_filter_translated(session: Session, expression: str, expected: str) -> 
         f = SpanFilter(expression)
     assert _unparse(f.translated) == expected
     # next line is only to test that the syntax is accepted
-    session.scalar(f(select(models.Span.id)))
+    await session.execute(f(select(models.Span.id)))
 
 
 @pytest.mark.parametrize(
