@@ -22,7 +22,7 @@ class DataLoaders:
     document_evaluations: DataLoader[int, List[DocumentEvaluation]]
     trace_evaluations: DataLoader[int, List[TraceEvaluation]]
     document_retrieval_metrics: DataLoader[
-        Tuple[int, int, Optional[str]], List[DocumentRetrievalMetrics]
+        Tuple[int, Optional[str], int], List[DocumentRetrievalMetrics]
     ]
 
 

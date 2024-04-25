@@ -170,7 +170,7 @@ class Span:
         if not self.num_documents:
             return []
         return await info.context.data_loaders.document_retrieval_metrics.load(
-            (self.span_rowid, self.num_documents, evaluation_name or None),
+            (self.span_rowid, evaluation_name or None, self.num_documents),
         )
 
     @strawberry.field(
