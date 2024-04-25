@@ -3,7 +3,6 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from typing import (
-    TYPE_CHECKING,
     Any,
     AsyncContextManager,
     AsyncIterator,
@@ -62,9 +61,6 @@ from phoenix.server.api.dataloaders.span_descendants import SpanDescendantsDataL
 from phoenix.server.api.routers.v1 import V1_ROUTES
 from phoenix.server.api.schema import Mutation, Query
 from phoenix.trace.schemas import Span
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
