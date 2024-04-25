@@ -94,7 +94,7 @@
 
 ## ⌨️ API
 
-* [Inferences and Schema](api/dataset-and-schema.md)
+* [Inferences, Spans and Traces](api/dataset-and-schema.md)
 * [Session](api/session.md)
 * [Client](api/client.md)
 * [Evals](api/evals.md)
