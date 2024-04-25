@@ -6,8 +6,6 @@ from typing import Any, List, Mapping, Optional, Sized, cast
 import numpy as np
 import strawberry
 from openinference.semconv.trace import EmbeddingAttributes, SpanAttributes
-from sqlalchemy import select
-from sqlalchemy.orm import contains_eager
 from strawberry import ID, UNSET
 from strawberry.types import Info
 
@@ -180,26 +178,8 @@ class Span:
         self,
         info: Info[Context, None],
     ) -> List["Span"]:
-        # TODO(persistence): add dataloader (to avoid N+1 queries) or change how this is fetched
-        async with info.context.db() as session:
-            descendant_ids = (
-                select(models.Span.id, models.Span.span_id)
-                .filter(models.Span.parent_id == str(self.context.span_id))
-                .cte(recursive=True)
-            )
-            parent_ids = descendant_ids.alias()
-            descendant_ids = descendant_ids.union_all(
-                select(models.Span.id, models.Span.span_id).join(
-                    parent_ids,
-                    models.Span.parent_id == parent_ids.c.span_id,
-                )
-            )
-            spans = await session.scalars(
-                select(models.Span)
-                .join(descendant_ids, models.Span.id == descendant_ids.c.id)
-                .join(models.Trace)
-                .options(contains_eager(models.Span.trace))
-            )
+        span_id = str(self.context.span_id)
+        spans = await info.context.data_loaders.span_descendants.load(span_id)
         return [to_gql_span(span) for span in spans]
 
 
