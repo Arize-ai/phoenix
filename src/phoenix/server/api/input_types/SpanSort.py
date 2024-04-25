@@ -3,7 +3,7 @@ from typing import Any, Optional, Protocol
 
 import strawberry
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import desc, nulls_last
+from sqlalchemy import and_, desc, nulls_last
 from sqlalchemy.sql.expression import Select
 from strawberry import UNSET
 
@@ -30,6 +30,12 @@ class SpanColumn(Enum):
     cumulativeTokenCountCompletion = auto()
 
 
+@strawberry.enum
+class EvalAttr(Enum):
+    score = "score"
+    label = "label"
+
+
 _SPAN_COLUMN_TO_ORM_EXPR_MAP = {
     SpanColumn.startTime: models.Span.start_time,
     SpanColumn.endTime: models.Span.end_time,
@@ -43,11 +49,10 @@ _SPAN_COLUMN_TO_ORM_EXPR_MAP = {
     SpanColumn.cumulativeTokenCountCompletion: models.Span.cumulative_llm_token_count_completion,
 }
 
-
-@strawberry.enum
-class EvalAttr(Enum):
-    score = "score"
-    label = "label"
+_EVAL_ATTR_TO_ORM_EXPR_MAP = {
+    EvalAttr.score: models.SpanAnnotation.score,
+    EvalAttr.label: models.SpanAnnotation.label,
+}
 
 
 @strawberry.input
@@ -76,5 +81,15 @@ class SpanSort:
                 expr = desc(expr)
             return stmt.order_by(nulls_last(expr))
         if self.eval_result_key:
-            raise NotImplementedError("not implemented")
+            eval_name = self.eval_result_key.name
+            expr = _EVAL_ATTR_TO_ORM_EXPR_MAP[self.eval_result_key.attr]
+            if self.dir == SortDir.desc:
+                expr = desc(expr)
+            return stmt.join(
+                models.SpanAnnotation,
+                onclause=and_(
+                    models.SpanAnnotation.span_rowid == models.Span.id,
+                    models.SpanAnnotation.name == eval_name,
+                ),
+            ).order_by(expr)
         raise NotImplementedError("not implemented")
