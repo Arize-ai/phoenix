@@ -10,6 +10,7 @@ from starlette.websockets import WebSocket
 from strawberry.dataloader import DataLoader
 
 from phoenix.core.model_schema import Model
+from phoenix.db import models
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluation, TraceEvaluation
 
@@ -20,6 +21,7 @@ class DataLoaders:
     span_evaluations: DataLoader[int, List[SpanEvaluation]]
     document_evaluations: DataLoader[int, List[DocumentEvaluation]]
     trace_evaluations: DataLoader[int, List[TraceEvaluation]]
+    span_descendants: DataLoader[str, List[models.Span]]
 
 
 @dataclass

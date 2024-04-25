@@ -51,6 +51,7 @@ from phoenix.server.api.dataloaders import (
     SpanEvaluationsDataLoader,
     TraceEvaluationsDataLoader,
 )
+from phoenix.server.api.dataloaders.span_descendants import SpanDescendantsDataLoader
 from phoenix.server.api.routers.v1 import V1_ROUTES
 from phoenix.server.api.schema import schema
 from phoenix.trace.schemas import Span
@@ -157,6 +158,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
                 span_evaluations=SpanEvaluationsDataLoader(self.db),
                 document_evaluations=DocumentEvaluationsDataLoader(self.db),
                 trace_evaluations=TraceEvaluationsDataLoader(self.db),
+                span_descendants=SpanDescendantsDataLoader(self.db),
             ),
         )
 
