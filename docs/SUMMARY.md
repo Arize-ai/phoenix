@@ -95,8 +95,8 @@
 ## ⌨️ API
 
 * [Inferences and Schema](api/dataset-and-schema.md)
-* [Session & Spans](api/session.md)
-* [Client & Spans](api/client.md)
+* [Session](api/session.md)
+* [Client & Get Spans](api/client.md)
 * [Evals](api/evals.md)
 * [Models](api/evaluation-models.md)
 
