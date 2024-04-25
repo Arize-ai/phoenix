@@ -74,7 +74,7 @@ class SpanSort:
     eval_result_key: Optional[EvalResultKey] = UNSET
     dir: SortDir
 
-    def __call__(self, stmt: Select[Any]) -> Select[Any]:
+    def update_orm_expr(self, stmt: Select[Any]) -> Select[Any]:
         if self.col and not self.eval_result_key:
             expr = _SPAN_COLUMN_TO_ORM_EXPR_MAP[self.col]
             if self.dir == SortDir.desc:
