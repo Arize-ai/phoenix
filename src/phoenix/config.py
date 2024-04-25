@@ -38,6 +38,20 @@ Note that if you plan on using SQLite, it's advised to to use a persistent volum
 and simply point the PHOENIX_WORKING_DIR to that volume.
 """
 
+# Phoenix server OpenTelemetry instrumentation environment variables
+ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT = (
+    "PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT"
+)
+ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT = (
+    "PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT"
+)
+
+
+def is_server_instrumentation_enabled() -> bool:
+    return bool(
+        os.getenv(ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT)
+    ) or bool(os.getenv(ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT))
+
 
 def _get_temp_path() -> Path:
     """Get path to  directory in which to store temp phoenix server files."""

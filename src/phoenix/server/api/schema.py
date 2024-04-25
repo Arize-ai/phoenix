@@ -10,7 +10,7 @@ from strawberry import ID, UNSET
 from strawberry.types import Info
 from typing_extensions import Annotated
 
-from phoenix.config import DEFAULT_PROJECT_NAME
+from phoenix.config import DEFAULT_PROJECT_NAME, is_server_instrumentation_enabled
 from phoenix.db import models
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.context import Context
@@ -272,4 +272,14 @@ class Mutation(ExportEventsMutation):
         return Query()
 
 
-schema = strawberry.Schema(query=Query, mutation=Mutation)
+_extensions = []
+if is_server_instrumentation_enabled():
+    from strawberry.extensions.tracing import OpenTelemetryExtension
+
+    _extensions.append(OpenTelemetryExtension)
+
+schema = strawberry.Schema(
+    query=Query,
+    mutation=Mutation,
+    extensions=_extensions,
+)
