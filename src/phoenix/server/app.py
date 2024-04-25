@@ -250,14 +250,13 @@ def create_app(
         initial_batch_of_spans=initial_batch_of_spans,
         initial_batch_of_evaluations=initial_batch_of_evaluations,
     )
+    strawberry_extensions = []
     if is_phoenix_server_instrumentation_enabled():
         from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
         from strawberry.extensions.tracing import OpenTelemetryExtension
 
         SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
-        strawberry_extensions = [OpenTelemetryExtension]
-    else:
-        strawberry_extensions = []
+        strawberry_extensions.append(OpenTelemetryExtension)
     schema = strawberry.Schema(
         query=Query,
         mutation=Mutation,
