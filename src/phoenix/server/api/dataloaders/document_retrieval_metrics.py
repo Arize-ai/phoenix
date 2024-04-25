@@ -90,4 +90,4 @@ class DocumentRetrievalMetricsDataLoader(DataLoader[Key, List[DocumentRetrievalM
                         results[key].append(drm)
         # Make sure to copy the result, so we don't return the same list
         # object to two different requesters.
-        return [(results.get(key) or []).copy() for key in keys]
+        return [results[key].copy() for key in keys]
