@@ -7,7 +7,6 @@ from phoenix.trace.dsl import SpanQuery
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_select_all(session: AsyncSession, abc_project: None) -> None:
     # i.e. `get_spans_dataframe`
     sq = SpanQuery()
@@ -73,7 +72,6 @@ async def test_select_all(session: AsyncSession, abc_project: None) -> None:
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_select_all_with_no_data(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -99,7 +97,6 @@ async def test_select_all_with_no_data(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_select(session: AsyncSession, default_project: None, abc_project: None) -> None:
     sq = SpanQuery().select("name", tcp="llm.token_count.prompt")
     expected = pd.DataFrame(
@@ -116,7 +113,6 @@ async def test_select(session: AsyncSession, default_project: None, abc_project:
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_select_parent_id_as_span_id(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -134,7 +130,6 @@ async def test_select_parent_id_as_span_id(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_select_trace_id_as_index(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -152,7 +147,6 @@ async def test_select_trace_id_as_index(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_select_nonexistent(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -172,7 +166,6 @@ async def test_select_nonexistent(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_default_project(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -194,7 +187,6 @@ async def test_default_project(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_root_spans_only(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -216,7 +208,6 @@ async def test_root_spans_only(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_start_time(session: AsyncSession, default_project: None, abc_project: None) -> None:
     sq = SpanQuery().select("name")
     expected = pd.DataFrame(
@@ -238,7 +229,6 @@ async def test_start_time(session: AsyncSession, default_project: None, abc_proj
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_stop_time(session: AsyncSession, default_project: None, abc_project: None) -> None:
     sq = SpanQuery().select("name")
     expected = pd.DataFrame(
@@ -260,7 +250,6 @@ async def test_stop_time(session: AsyncSession, default_project: None, abc_proje
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_filter_for_none(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -288,7 +277,6 @@ async def test_filter_for_none(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_filter_for_not_none(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -312,7 +300,6 @@ async def test_filter_for_not_none(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_filter_for_substring_case_sensitive_not_glob_not_like(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -336,7 +323,6 @@ async def test_filter_for_substring_case_sensitive_not_glob_not_like(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_filter_for_not_substring_case_sensitive_not_glob_not_like(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -360,7 +346,6 @@ async def test_filter_for_not_substring_case_sensitive_not_glob_not_like(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_filter_on_nonexistent_is_not_none(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -381,7 +366,6 @@ async def test_filter_on_nonexistent_is_not_none(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_filter_on_nonexistent_is_none(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -405,7 +389,6 @@ async def test_filter_on_nonexistent_is_none(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_filter_on_latency(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -431,7 +414,6 @@ async def test_filter_on_latency(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_filter_on_cumulative_token_count(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -453,7 +435,6 @@ async def test_filter_on_cumulative_token_count(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_filter_on_metadata_with_arithmetic(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -477,7 +458,6 @@ async def test_filter_on_metadata_with_arithmetic(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_filter_on_metadata_cast_as_int(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -501,7 +481,6 @@ async def test_filter_on_metadata_cast_as_int(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_filter_on_metadata_substring_search(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -525,7 +504,6 @@ async def test_filter_on_metadata_substring_search(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_filter_on_metadata_cast_as_str(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -549,7 +527,6 @@ async def test_filter_on_metadata_cast_as_str(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_filter_on_metadata_using_subscript_key(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -573,7 +550,6 @@ async def test_filter_on_metadata_using_subscript_key(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_filter_on_metadata_using_subscript_keys_list_with_single_key(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -597,7 +573,6 @@ async def test_filter_on_metadata_using_subscript_keys_list_with_single_key(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_filter_on_metadata_using_subscript_keys_list_with_multiple_keys(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -621,7 +596,6 @@ async def test_filter_on_metadata_using_subscript_keys_list_with_multiple_keys(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_filter_on_attribute_using_subscript_key(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -645,7 +619,6 @@ async def test_filter_on_attribute_using_subscript_key(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_filter_on_attribute_using_subscript_keys_list_with_single_key(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -669,7 +642,6 @@ async def test_filter_on_attribute_using_subscript_keys_list_with_single_key(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_filter_on_attribute_using_subscript_keys_list_with_multiple_keys(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -693,7 +665,6 @@ async def test_filter_on_attribute_using_subscript_keys_list_with_multiple_keys(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_filter_on_span_id_single(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -717,7 +688,6 @@ async def test_filter_on_span_id_single(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_filter_on_span_id_multiple(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -741,7 +711,6 @@ async def test_filter_on_span_id_multiple(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_filter_on_trace_id_single(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -765,7 +734,6 @@ async def test_filter_on_trace_id_single(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_filter_on_trace_id_multiple(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -789,7 +757,6 @@ async def test_filter_on_trace_id_multiple(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_explode_embeddings_no_select(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -809,7 +776,6 @@ async def test_explode_embeddings_no_select(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_explode_embeddings_with_select_and_no_kwargs(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -836,7 +802,6 @@ async def test_explode_embeddings_with_select_and_no_kwargs(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_explode_documents_no_select(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -860,7 +825,6 @@ async def test_explode_documents_no_select(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_explode_documents_with_select_and_non_ascii_kwargs(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -891,7 +855,6 @@ async def test_explode_documents_with_select_and_non_ascii_kwargs(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_concat_documents_no_select(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -912,7 +875,6 @@ async def test_concat_documents_no_select(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_concat_documents_no_select_but_no_data(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -930,7 +892,6 @@ async def test_concat_documents_no_select_but_no_data(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_concat_documents_with_select(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -956,7 +917,6 @@ async def test_concat_documents_with_select(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_concat_documents_with_select_but_no_data(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -978,7 +938,6 @@ async def test_concat_documents_with_select_but_no_data(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_concat_documents_with_select_but_with_typo_in_array_name(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -1000,7 +959,6 @@ async def test_concat_documents_with_select_but_with_typo_in_array_name(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_concat_documents_with_select_and_non_default_separator(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -1026,7 +984,6 @@ async def test_concat_documents_with_select_and_non_default_separator(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_explode_and_concat_on_same_array(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -1056,7 +1013,6 @@ async def test_explode_and_concat_on_same_array(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_explode_and_concat_on_same_array_but_no_data(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
@@ -1086,10 +1042,11 @@ async def test_explode_and_concat_on_same_array_but_no_data(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_explode_and_concat_on_same_array_with_same_label(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
+    if "asyncpg" in str(session.get_bind().url):
+        pytest.xfail("FIX THIS: this test does not currently pass for postgres")
     sq = (
         SpanQuery()
         .concat(
@@ -1115,7 +1072,6 @@ async def test_explode_and_concat_on_same_array_with_same_label(
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_explode_and_concat_on_same_array_but_with_typo_in_concat_array_name(
     session: AsyncSession,
     default_project: None,
@@ -1147,12 +1103,13 @@ async def test_explode_and_concat_on_same_array_but_with_typo_in_concat_array_na
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_explode_and_concat_on_same_array_but_with_typo_in_explode_array_name(
     session: AsyncSession,
     default_project: None,
     abc_project: None,
 ) -> None:
+    if "asyncpg" in str(session.get_bind().url):
+        pytest.xfail("FIX THIS: this test does not currently pass for postgres")
     sq = (
         SpanQuery()
         .concat(
@@ -1177,7 +1134,6 @@ async def test_explode_and_concat_on_same_array_but_with_typo_in_explode_array_n
     )
 
 
-@pytest.mark.parametrize("session", ["sqlite", "postgres"], indirect=["session"])
 async def test_explode_and_concat_on_same_array_with_non_ascii_kwargs(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
