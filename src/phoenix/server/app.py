@@ -47,6 +47,7 @@ from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
     DocumentEvaluationsDataLoader,
+    DocumentRetrievalMetricsDataLoader,
     LatencyMsQuantileDataLoader,
     SpanEvaluationsDataLoader,
     TraceEvaluationsDataLoader,
@@ -157,6 +158,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
                 span_evaluations=SpanEvaluationsDataLoader(self.db),
                 document_evaluations=DocumentEvaluationsDataLoader(self.db),
                 trace_evaluations=TraceEvaluationsDataLoader(self.db),
+                document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(self.db),
             ),
         )
 

@@ -1,7 +1,6 @@
 import json
 from datetime import datetime
 from enum import Enum
-from itertools import groupby
 from typing import Any, List, Mapping, Optional, Sized, cast
 
 import numpy as np
@@ -14,7 +13,6 @@ from strawberry.types import Info
 
 import phoenix.trace.schemas as trace_schema
 from phoenix.db import models
-from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
 from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluation
@@ -171,34 +169,9 @@ class Span:
     ) -> List[DocumentRetrievalMetrics]:
         if not self.num_documents:
             return []
-        mda = models.DocumentAnnotation
-        stmt = (
-            select(mda.name, mda.score, mda.document_position)
-            .where(mda.score != None)  # noqa: E711
-            .where(mda.span_rowid == self.span_rowid)
-            .where(mda.document_position >= 0)
-            .where(mda.document_position < self.num_documents)
-            .where(mda.annotator_kind == "LLM")
-            .order_by(mda.name)
+        return await info.context.data_loaders.document_retrieval_metrics.load(
+            (self.span_rowid, evaluation_name or None, self.num_documents),
         )
-        if evaluation_name:
-            stmt = stmt.where(mda.name == evaluation_name)
-        async with info.context.db() as session:
-            rows = await session.execute(stmt)
-        if not rows:
-            return []
-        retrieval_metrics = []
-        for name, group in groupby(rows, lambda r: r.name):
-            scores: List[float] = [np.nan] * self.num_documents
-            for row in group:
-                scores[row.document_position] = row.score
-            retrieval_metrics.append(
-                DocumentRetrievalMetrics(
-                    evaluation_name=name,
-                    metrics=RetrievalMetrics(scores),
-                )
-            )
-        return retrieval_metrics
 
     @strawberry.field(
         description="All descendant spans (children, grandchildren, etc.)",
