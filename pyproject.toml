@@ -101,6 +101,7 @@ container = [
   "prometheus-client",
   "opentelemetry-sdk",
   "opentelemetry-proto>=1.12.0",
+  "opentelemetry-exporter-otlp",
   "opentelemetry-instrumentation-starlette",
   "opentelemetry-instrumentation-sqlalchemy",
 ]
@@ -170,6 +171,7 @@ dependencies = [
   "prometheus_client",
   "opentelemetry-sdk",
   "opentelemetry-proto>=1.12.0",
+  "opentelemetry-exporter-otlp",
   "opentelemetry-instrumentation-starlette",
   "opentelemetry-instrumentation-sqlalchemy",
 ]
