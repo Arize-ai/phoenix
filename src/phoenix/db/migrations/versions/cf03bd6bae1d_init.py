@@ -88,8 +88,6 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
-        # TODO(mikeldking): might not be the right place for this
-        sa.Column("session_id", sa.String, nullable=True),
         sa.Column("trace_id", sa.String, nullable=False, unique=True),
         sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=False, index=True),
         sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=False),

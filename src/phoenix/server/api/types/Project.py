@@ -195,7 +195,7 @@ class Project(Node):
             span_filter = SpanFilter(condition=filter_condition)
             stmt = span_filter(stmt)
         if sort:
-            stmt = stmt.order_by(sort.to_orm_expr())
+            stmt = sort.update_orm_expr(stmt)
         async with info.context.db() as session:
             spans = await session.scalars(stmt)
         data = [to_gql_span(span) for span in spans]

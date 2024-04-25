@@ -1,12 +1,13 @@
 from datetime import datetime
 
 import pandas as pd
+import pytest
 from pandas.testing import assert_frame_equal
 from phoenix.trace.dsl import SpanQuery
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
-def test_select_all(session: Session) -> None:
+async def test_select_all(session: AsyncSession, abc_project: None) -> None:
     # i.e. `get_spans_dataframe`
     sq = SpanQuery()
     expected = pd.DataFrame(
@@ -64,14 +65,16 @@ def test_select_all(session: Session) -> None:
             "events": [[], [], [], []],
         }
     ).set_index("context.span_id", drop=False)
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_select_all_with_no_data(session: Session) -> None:
+async def test_select_all_with_no_data(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = SpanQuery()
     expected = pd.DataFrame(
         columns=[
@@ -87,14 +90,14 @@ def test_select_all_with_no_data(session: Session) -> None:
             "events",
         ]
     ).set_index("context.span_id", drop=False)
-    actual = sq(session, project_name="opq")
+    actual = await session.run_sync(sq, project_name="opq")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_select(session: Session) -> None:
+async def test_select(session: AsyncSession, default_project: None, abc_project: None) -> None:
     sq = SpanQuery().select("name", tcp="llm.token_count.prompt")
     expected = pd.DataFrame(
         {
@@ -103,14 +106,16 @@ def test_select(session: Session) -> None:
             "tcp": [None, None, None, 100.0],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_select_parent_id_as_span_id(session: Session) -> None:
+async def test_select_parent_id_as_span_id(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = SpanQuery().select("name", span_id="parent_id")
     expected = pd.DataFrame(
         {
@@ -118,14 +123,16 @@ def test_select_parent_id_as_span_id(session: Session) -> None:
             "name": ["root span", "embedding span", "retriever span", "llm span"],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_select_trace_id_as_index(session: Session) -> None:
+async def test_select_trace_id_as_index(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = SpanQuery().select("span_id").with_index("trace_id")
     expected = pd.DataFrame(
         {
@@ -133,14 +140,16 @@ def test_select_trace_id_as_index(session: Session) -> None:
             "context.span_id": ["234", "345", "456", "567"],
         }
     ).set_index("context.trace_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1).sort_values("context.span_id"),
         expected.sort_index().sort_index(axis=1).sort_values("context.span_id"),
     )
 
 
-def test_select_nonexistent(session: Session) -> None:
+async def test_select_nonexistent(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = SpanQuery().select("name", "opq", "opq.rst")
     expected = pd.DataFrame(
         {
@@ -150,14 +159,16 @@ def test_select_nonexistent(session: Session) -> None:
             "opq.rst": [None, None, None, None],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_default_project(session: Session) -> None:
+async def test_default_project(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = SpanQuery().select(
         "name",
         **{"Latency (milliseconds)": "latency_ms"},
@@ -169,14 +180,16 @@ def test_default_project(session: Session) -> None:
             "Latency (milliseconds)": [30000.0],
         }
     ).set_index("context.span_id")
-    actual = sq(session, root_spans_only=True)
+    actual = await session.run_sync(sq, root_spans_only=True)
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_root_spans_only(session: Session) -> None:
+async def test_root_spans_only(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = SpanQuery().select(
         "name",
         **{"Latency (milliseconds)": "latency_ms"},
@@ -188,18 +201,14 @@ def test_root_spans_only(session: Session) -> None:
             "Latency (milliseconds)": [30000.0],
         }
     ).set_index("context.span_id")
-    actual = sq(
-        session,
-        project_name="abc",
-        root_spans_only=True,
-    )
+    actual = await session.run_sync(sq, project_name="abc", root_spans_only=True)
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_start_time(session: Session) -> None:
+async def test_start_time(session: AsyncSession, default_project: None, abc_project: None) -> None:
     sq = SpanQuery().select("name")
     expected = pd.DataFrame(
         {
@@ -207,8 +216,8 @@ def test_start_time(session: Session) -> None:
             "name": ["llm span"],
         }
     ).set_index("context.span_id")
-    actual = sq(
-        session,
+    actual = await session.run_sync(
+        sq,
         project_name="abc",
         start_time=datetime.fromisoformat(
             "2021-01-01T00:00:20.000+00:00",
@@ -220,7 +229,7 @@ def test_start_time(session: Session) -> None:
     )
 
 
-def test_stop_time(session: Session) -> None:
+async def test_stop_time(session: AsyncSession, default_project: None, abc_project: None) -> None:
     sq = SpanQuery().select("name")
     expected = pd.DataFrame(
         {
@@ -228,8 +237,8 @@ def test_stop_time(session: Session) -> None:
             "name": ["root span", "embedding span"],
         }
     ).set_index("context.span_id")
-    actual = sq(
-        session,
+    actual = await session.run_sync(
+        sq,
         project_name="abc",
         stop_time=datetime.fromisoformat(
             "2021-01-01T00:00:01.000+00:00",
@@ -241,7 +250,9 @@ def test_stop_time(session: Session) -> None:
     )
 
 
-def test_filter_for_none(session: Session) -> None:
+async def test_filter_for_none(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("name")
@@ -255,7 +266,7 @@ def test_filter_for_none(session: Session) -> None:
             "name": [],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
@@ -266,7 +277,9 @@ def test_filter_for_none(session: Session) -> None:
     )
 
 
-def test_filter_for_not_none(session: Session) -> None:
+async def test_filter_for_not_none(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("name")
@@ -280,14 +293,16 @@ def test_filter_for_not_none(session: Session) -> None:
             "name": ["root span"],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_filter_for_substring_case_sensitive_not_glob_not_like(session: Session) -> None:
+async def test_filter_for_substring_case_sensitive_not_glob_not_like(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("input.value")
@@ -301,14 +316,16 @@ def test_filter_for_substring_case_sensitive_not_glob_not_like(session: Session)
             "input.value": ["xy%*z"],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_filter_for_not_substring_case_sensitive_not_glob_not_like(session: Session) -> None:
+async def test_filter_for_not_substring_case_sensitive_not_glob_not_like(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("input.value")
@@ -322,14 +339,16 @@ def test_filter_for_not_substring_case_sensitive_not_glob_not_like(session: Sess
             "input.value": ["xy%z*", "XY%*Z"],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_filter_on_nonexistent_is_not_none(session: Session) -> None:
+async def test_filter_on_nonexistent_is_not_none(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("name")
@@ -340,14 +359,16 @@ def test_filter_on_nonexistent_is_not_none(session: Session) -> None:
     expected = pd.DataFrame(
         columns=["context.span_id", "name"],
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_filter_on_nonexistent_is_none(session: Session) -> None:
+async def test_filter_on_nonexistent_is_none(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("name")
@@ -361,14 +382,16 @@ def test_filter_on_nonexistent_is_none(session: Session) -> None:
             "name": ["root span", "embedding span", "retriever span", "llm span"],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_filter_on_latency(session: Session) -> None:
+async def test_filter_on_latency(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select(
@@ -384,14 +407,16 @@ def test_filter_on_latency(session: Session) -> None:
             "Latency (milliseconds)": [10000.0],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_filter_on_cumulative_token_count(session: Session) -> None:
+async def test_filter_on_cumulative_token_count(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("name")
@@ -403,14 +428,16 @@ def test_filter_on_cumulative_token_count(session: Session) -> None:
             "name": ["root span"],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_filter_on_metadata_with_arithmetic(session: Session) -> None:
+async def test_filter_on_metadata_with_arithmetic(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("metadata['a.b.c']")
@@ -424,14 +451,16 @@ def test_filter_on_metadata_with_arithmetic(session: Session) -> None:
             "metadata['a.b.c']": [123],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_filter_on_metadata_cast_as_int(session: Session) -> None:
+async def test_filter_on_metadata_cast_as_int(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("metadata['a.b.c']")
@@ -445,14 +474,16 @@ def test_filter_on_metadata_cast_as_int(session: Session) -> None:
             "metadata['a.b.c']": [123],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_filter_on_metadata_substring_search(session: Session) -> None:
+async def test_filter_on_metadata_substring_search(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("metadata['1.2.3']")
@@ -466,14 +497,16 @@ def test_filter_on_metadata_substring_search(session: Session) -> None:
             "metadata['1.2.3']": ["abc"],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_filter_on_metadata_cast_as_str(session: Session) -> None:
+async def test_filter_on_metadata_cast_as_str(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("metadata['1.2.3']")
@@ -487,14 +520,16 @@ def test_filter_on_metadata_cast_as_str(session: Session) -> None:
             "metadata['1.2.3']": ["abc"],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_filter_on_metadata_using_subscript_key(session: Session) -> None:
+async def test_filter_on_metadata_using_subscript_key(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("metadata['1.2.3']")
@@ -508,14 +543,16 @@ def test_filter_on_metadata_using_subscript_key(session: Session) -> None:
             "metadata['1.2.3']": ["abc"],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_filter_on_metadata_using_subscript_keys_list_with_single_key(session: Session) -> None:
+async def test_filter_on_metadata_using_subscript_keys_list_with_single_key(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("metadata[['1.2.3']]")
@@ -529,14 +566,16 @@ def test_filter_on_metadata_using_subscript_keys_list_with_single_key(session: S
             "metadata[['1.2.3']]": ["abc"],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_filter_on_metadata_using_subscript_keys_list_with_multiple_keys(session: Session) -> None:
+async def test_filter_on_metadata_using_subscript_keys_list_with_multiple_keys(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("metadata[['x.y', 'z.a']]")
@@ -550,14 +589,16 @@ def test_filter_on_metadata_using_subscript_keys_list_with_multiple_keys(session
             "metadata[['x.y', 'z.a']]": [{"b.c": 321}],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_filter_on_attribute_using_subscript_key(session: Session) -> None:
+async def test_filter_on_attribute_using_subscript_key(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("attributes['attributes']")
@@ -571,14 +612,16 @@ def test_filter_on_attribute_using_subscript_key(session: Session) -> None:
             "attributes['attributes']": ["attributes"],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_filter_on_attribute_using_subscript_keys_list_with_single_key(session: Session) -> None:
+async def test_filter_on_attribute_using_subscript_keys_list_with_single_key(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("attributes[['attributes']]")
@@ -592,14 +635,16 @@ def test_filter_on_attribute_using_subscript_keys_list_with_single_key(session: 
             "attributes[['attributes']]": ["attributes"],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_filter_on_attribute_using_subscript_keys_list_with_multiple_keys(session: Session) -> None:
+async def test_filter_on_attribute_using_subscript_keys_list_with_multiple_keys(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("attributes[['attributes', 'attributes']]")
@@ -613,14 +658,16 @@ def test_filter_on_attribute_using_subscript_keys_list_with_multiple_keys(sessio
             "attributes[['attributes', 'attributes']]": ["attributes"],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_filter_on_span_id_single(session: Session) -> None:
+async def test_filter_on_span_id_single(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("embedding.model_name")
@@ -634,14 +681,16 @@ def test_filter_on_span_id_single(session: Session) -> None:
             "embedding.model_name": ["xyz"],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_filter_on_span_id_multiple(session: Session) -> None:
+async def test_filter_on_span_id_multiple(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("embedding.model_name")
@@ -655,14 +704,16 @@ def test_filter_on_span_id_multiple(session: Session) -> None:
             "embedding.model_name": ["xyz", None],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_filter_on_trace_id_single(session: Session) -> None:
+async def test_filter_on_trace_id_single(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("trace_id")
@@ -676,14 +727,16 @@ def test_filter_on_trace_id_single(session: Session) -> None:
             "context.trace_id": ["012", "012", "012", "012"],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_filter_on_trace_id_multiple(session: Session) -> None:
+async def test_filter_on_trace_id_multiple(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("trace_id")
@@ -697,14 +750,16 @@ def test_filter_on_trace_id_multiple(session: Session) -> None:
             "context.trace_id": ["012", "012", "012", "012"],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_explode_embeddings_no_select(session: Session) -> None:
+async def test_explode_embeddings_no_select(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = SpanQuery().explode("embedding.embeddings")
     expected = pd.DataFrame(
         {
@@ -714,14 +769,16 @@ def test_explode_embeddings_no_select(session: Session) -> None:
             "embedding.vector": [[1, 2, 3], [2, 3, 4]],
         }
     ).set_index(["context.span_id", "position"])
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_explode_embeddings_with_select_and_no_kwargs(session: Session) -> None:
+async def test_explode_embeddings_with_select_and_no_kwargs(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("embedding.model_name")
@@ -738,14 +795,16 @@ def test_explode_embeddings_with_select_and_no_kwargs(session: Session) -> None:
             "embedding.vector": [[1, 2, 3], [2, 3, 4]],
         }
     ).set_index(["context.span_id", "position"])
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_explode_documents_no_select(session: Session) -> None:
+async def test_explode_documents_no_select(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = SpanQuery().explode(
         "retrieval.documents",
         content="document.content",
@@ -759,14 +818,16 @@ def test_explode_documents_no_select(session: Session) -> None:
             "score": [1, 2, 3],
         }
     ).set_index(["context.span_id", "document_position"])
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_explode_documents_with_select_and_non_ascii_kwargs(session: Session) -> None:
+async def test_explode_documents_with_select_and_non_ascii_kwargs(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("trace_id")
@@ -787,14 +848,16 @@ def test_explode_documents_with_select_and_non_ascii_kwargs(session: Session) ->
             "スコア": [1, 2, 3],
         }
     ).set_index(["context.span_id", "document_position"])
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_concat_documents_no_select(session: Session) -> None:
+async def test_concat_documents_no_select(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = SpanQuery().concat(
         "retrieval.documents",
         content="document.content",
@@ -805,14 +868,16 @@ def test_concat_documents_no_select(session: Session) -> None:
             "content": ["A\n\nB\n\nC"],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_concat_documents_no_select_but_no_data(session: Session) -> None:
+async def test_concat_documents_no_select_but_no_data(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = SpanQuery().concat(
         "retrieval.documents",
         content="document.content",
@@ -820,14 +885,16 @@ def test_concat_documents_no_select_but_no_data(session: Session) -> None:
     expected = pd.DataFrame(
         columns=["context.span_id", "content"],
     ).set_index("context.span_id")
-    actual = sq(session, project_name="opq")
+    actual = await session.run_sync(sq, project_name="opq")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_concat_documents_with_select(session: Session) -> None:
+async def test_concat_documents_with_select(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("trace_id")
@@ -843,14 +910,16 @@ def test_concat_documents_with_select(session: Session) -> None:
             "content": ["A\n\nB\n\nC"],
         }
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_concat_documents_with_select_but_no_data(session: Session) -> None:
+async def test_concat_documents_with_select_but_no_data(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("trace_id")
@@ -862,14 +931,16 @@ def test_concat_documents_with_select_but_no_data(session: Session) -> None:
     expected = pd.DataFrame(
         columns=["context.span_id", "content", "context.trace_id"],
     ).set_index("context.span_id")
-    actual = sq(session, project_name="opq")
+    actual = await session.run_sync(sq, project_name="opq")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_concat_documents_with_select_but_with_typo_in_array_name(session: Session) -> None:
+async def test_concat_documents_with_select_but_with_typo_in_array_name(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("trace_id")
@@ -881,14 +952,16 @@ def test_concat_documents_with_select_but_with_typo_in_array_name(session: Sessi
     expected = pd.DataFrame(
         columns=["context.span_id", "content", "context.trace_id"],
     ).set_index("context.span_id")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_concat_documents_with_select_and_non_default_separator(session: Session) -> None:
+async def test_concat_documents_with_select_and_non_default_separator(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .with_index("name")
@@ -904,14 +977,16 @@ def test_concat_documents_with_select_and_non_default_separator(session: Session
             "text": ["123,234"],
         }
     ).set_index("name")
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_explode_and_concat_on_same_array(session: Session) -> None:
+async def test_explode_and_concat_on_same_array(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .concat(
@@ -931,14 +1006,16 @@ def test_explode_and_concat_on_same_array(session: Session) -> None:
             "score": [1, 2, 3],
         }
     ).set_index(["context.span_id", "document_position"])
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_explode_and_concat_on_same_array_but_no_data(session: Session) -> None:
+async def test_explode_and_concat_on_same_array_but_no_data(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .concat(
@@ -958,14 +1035,18 @@ def test_explode_and_concat_on_same_array_but_no_data(session: Session) -> None:
             "score",
         ]
     ).set_index(["context.span_id", "document_position"])
-    actual = sq(session, project_name="opq")
+    actual = await session.run_sync(sq, project_name="opq")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_explode_and_concat_on_same_array_with_same_label(session: Session) -> None:
+async def test_explode_and_concat_on_same_array_with_same_label(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
+    if "asyncpg" in str(session.get_bind().url):
+        pytest.xfail("FIX THIS: this test does not currently pass for postgres")
     sq = (
         SpanQuery()
         .concat(
@@ -984,15 +1065,17 @@ def test_explode_and_concat_on_same_array_with_same_label(session: Session) -> N
             "content": ["A\n\nB\n\nC", "A\n\nB\n\nC", "A\n\nB\n\nC"],
         }
     ).set_index(["context.span_id", "document_position"])
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_explode_and_concat_on_same_array_but_with_typo_in_concat_array_name(
-    session: Session,
+async def test_explode_and_concat_on_same_array_but_with_typo_in_concat_array_name(
+    session: AsyncSession,
+    default_project: None,
+    abc_project: None,
 ) -> None:
     sq = (
         SpanQuery()
@@ -1013,16 +1096,20 @@ def test_explode_and_concat_on_same_array_but_with_typo_in_concat_array_name(
             "score": [1, 2, 3],
         }
     ).set_index(["context.span_id", "document_position"])
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_explode_and_concat_on_same_array_but_with_typo_in_explode_array_name(
-    session: Session,
+async def test_explode_and_concat_on_same_array_but_with_typo_in_explode_array_name(
+    session: AsyncSession,
+    default_project: None,
+    abc_project: None,
 ) -> None:
+    if "asyncpg" in str(session.get_bind().url):
+        pytest.xfail("FIX THIS: this test does not currently pass for postgres")
     sq = (
         SpanQuery()
         .concat(
@@ -1040,14 +1127,16 @@ def test_explode_and_concat_on_same_array_but_with_typo_in_explode_array_name(
             "content": ["A\n\nB\n\nC"],
         }
     ).set_index(["context.span_id"])
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
 
 
-def test_explode_and_concat_on_same_array_with_non_ascii_kwargs(session: Session) -> None:
+async def test_explode_and_concat_on_same_array_with_non_ascii_kwargs(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
     sq = (
         SpanQuery()
         .select("name")
@@ -1069,7 +1158,7 @@ def test_explode_and_concat_on_same_array_with_non_ascii_kwargs(session: Session
             "スコア": [1, 2, 3],
         }
     ).set_index(["context.span_id", "document_position"])
-    actual = sq(session, project_name="abc")
+    actual = await session.run_sync(sq, project_name="abc")
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),

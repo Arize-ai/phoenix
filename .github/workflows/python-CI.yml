@@ -116,6 +116,21 @@ jobs:
               run: |
                   python -m pip install --upgrade pip==${{ env.pip-version }}
                   pip install hatch
-            - name: Run tests
+            - name: Install PostgreSQL (Ubuntu)
+              if: runner.os == 'Linux'
               run: |
-                  hatch run test:tests
+                sudo apt-get -yqq install postgresql
+            - name: Run tests (Ubuntu)
+              if: runner.os == 'Linux'
+              run: |
+                hatch run test:tests
+
+            - name: Run tests (macOS)
+              if: runner.os == 'macOS'
+              run: |
+                hatch run test:tests --skip-postgres
+
+            - name: Run tests (Windows)
+              if: runner.os == 'Windows'
+              run: |
+                hatch run test:tests --skip-postgres
