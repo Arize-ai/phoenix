@@ -41,7 +41,11 @@ from strawberry.schema import BaseSchema
 
 import phoenix
 import phoenix.trace.v1 as pb
-from phoenix.config import DEFAULT_PROJECT_NAME, SERVER_DIR
+from phoenix.config import (
+    DEFAULT_PROJECT_NAME,
+    SERVER_DIR,
+    is_phoenix_server_instrumentation_enabled,
+)
 from phoenix.core.model_schema import Model
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import create_engine
@@ -60,7 +64,7 @@ from phoenix.server.api.schema import Mutation, Query
 from phoenix.trace.schemas import Span
 
 if TYPE_CHECKING:
-    from opentelemetry.trace import TracerProvider
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -233,7 +237,6 @@ def create_app(
     enable_prometheus: bool = False,
     initial_spans: Optional[Iterable[Union[Span, Tuple[Span, str]]]] = None,
     initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
-    tracer_provider: Optional["TracerProvider"] = None,
 ) -> Starlette:
     initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
         ()
@@ -245,29 +248,24 @@ def create_app(
     )
     initial_batch_of_evaluations = () if initial_evaluations is None else initial_evaluations
     engine = create_engine(database_url)
-    if tracer_provider:
-        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
-
-        SQLAlchemyInstrumentor().instrument(
-            engine=engine.sync_engine,
-            tracer_provider=tracer_provider,
-        )
     db = _db(engine)
     bulk_inserter = BulkInserter(
         db,
         initial_batch_of_spans=initial_batch_of_spans,
         initial_batch_of_evaluations=initial_batch_of_evaluations,
     )
-    if tracer_provider:
+    if is_phoenix_server_instrumentation_enabled():
+        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
         from strawberry.extensions.tracing import OpenTelemetryExtension
 
-        extensions = [OpenTelemetryExtension]
+        SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
+        strawberry_extensions = [OpenTelemetryExtension]
     else:
-        extensions = []
+        strawberry_extensions = []
     schema = strawberry.Schema(
         query=Query,
         mutation=Mutation,
-        extensions=extensions,
+        extensions=strawberry_extensions,
     )
     graphql = GraphQLWithContext(
         db=db,

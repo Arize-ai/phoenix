@@ -17,6 +17,8 @@ from phoenix.config import (
     get_env_port,
     get_pids_path,
     get_working_dir,
+    initialize_opentelemetry_tracer_provider,
+    is_phoenix_server_instrumentation_enabled,
 )
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.db import get_printable_db_url
@@ -40,7 +42,7 @@ from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.span_json_decoder import json_string_to_span
 
 if TYPE_CHECKING:
-    from opentelemetry.trace import TracerProvider
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -89,35 +91,6 @@ def _remove_pid_file() -> None:
 
 def _get_pid_file() -> Path:
     return get_pids_path() / str(os.getpid())
-
-
-def _get_tracer_provider(
-    *,
-    http_endpoint: Optional[str] = None,
-    grpc_endpoint: Optional[str] = None,
-) -> Optional["TracerProvider"]:
-    if not (http_endpoint or grpc_endpoint):
-        return None
-
-    from opentelemetry import trace as trace_api
-    from opentelemetry.sdk import trace as trace_sdk
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor
-
-    tracer_provider = trace_sdk.TracerProvider()
-    if http_endpoint:
-        from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
-            OTLPSpanExporter as HttpExporter,
-        )
-
-        tracer_provider.add_span_processor(BatchSpanProcessor(HttpExporter(http_endpoint)))
-    if grpc_endpoint:
-        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
-            OTLPSpanExporter as GrpcExporter,
-        )
-
-        tracer_provider.add_span_processor(BatchSpanProcessor(GrpcExporter(grpc_endpoint)))
-    trace_api.set_tracer_provider(tracer_provider)
-    return tracer_provider
 
 
 DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_SAMPLES}"
@@ -245,10 +218,6 @@ if __name__ == "__main__":
         start_prometheus()
 
     working_dir = get_working_dir().resolve()
-    tracer_provider: Optional["TracerProvider"] = _get_tracer_provider(
-        http_endpoint=args.server_trace_collector_http_endpoint,
-        grpc_endpoint=args.server_trace_collector_grpc_endpoint,
-    )
     app = create_app(
         database_url=db_connection_str,
         export_path=export_path,
@@ -260,12 +229,12 @@ if __name__ == "__main__":
         enable_prometheus=enable_prometheus,
         initial_spans=fixture_spans,
         initial_evaluations=fixture_evals,
-        tracer_provider=tracer_provider,
     )
-    if tracer_provider:
+    if is_phoenix_server_instrumentation_enabled():
         from opentelemetry.instrumentation.starlette import StarletteInstrumentor
 
-        StarletteInstrumentor.instrument_app(app, tracer_provider=tracer_provider)
+        initialize_opentelemetry_tracer_provider()
+        StarletteInstrumentor.instrument_app(app)
     server = Server(config=Config(app, host=host, port=port))
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
 
