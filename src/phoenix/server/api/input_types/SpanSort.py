@@ -75,12 +75,12 @@ class SpanSort:
     dir: SortDir
 
     def __call__(self, stmt: Select[Any]) -> Select[Any]:
-        if self.col:
+        if self.col and not self.eval_result_key:
             expr = _SPAN_COLUMN_TO_ORM_EXPR_MAP[self.col]
             if self.dir == SortDir.desc:
                 expr = desc(expr)
             return stmt.order_by(nulls_last(expr))
-        if self.eval_result_key:
+        if self.eval_result_key and not self.col:
             eval_name = self.eval_result_key.name
             expr = _EVAL_ATTR_TO_ORM_EXPR_MAP[self.eval_result_key.attr]
             if self.dir == SortDir.desc:
@@ -92,4 +92,4 @@ class SpanSort:
                     models.SpanAnnotation.name == eval_name,
                 ),
             ).order_by(expr)
-        raise NotImplementedError("not implemented")
+        raise ValueError("Exactly one of `col` or `evalResultKey` must be specified on `SpanSort`.")
