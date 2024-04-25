@@ -26,7 +26,7 @@ class SpanDescendantsDataLoader(DataLoader[Key, List[models.Span]]):
 
     async def _load_fn(self, keys: List[Key]) -> List[List[models.Span]]:
         root_ids = {span_id for span_id in keys}
-        root_id_label = f"{randint(0, 10**6):06}"
+        root_id_label = f"root_id_{randint(0, 10**6):06}"
         descendant_ids = (
             select(
                 models.Span.id,
