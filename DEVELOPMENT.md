@@ -110,7 +110,8 @@ To run tests
 hatch run tests
 ```
 
-In order to run database tests against both `sqlite` and `postgresql`
+By default, database tests only run against `sqlite`, in order to run database tests against
+a `postgresql` database as well, use the `--run-postgres` flag
 
 ```bash
 hatch run tests --run-postgres
