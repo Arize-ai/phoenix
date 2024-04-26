@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6672904288ff278703554f24f4a4b611>>
+ * @generated SignedSource<<403c587087714464973de2bbe42708ea>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,17 +9,17 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Mutation } from 'relay-runtime';
-export type ProjectActionMenuMutation$variables = {
+export type ProjectActionMenuClearMutation$variables = {
   projectId: string;
 };
-export type ProjectActionMenuMutation$data = {
-  readonly deleteProject: {
+export type ProjectActionMenuClearMutation$data = {
+  readonly clearProject: {
     readonly __typename: "Query";
   };
 };
-export type ProjectActionMenuMutation = {
-  response: ProjectActionMenuMutation$data;
-  variables: ProjectActionMenuMutation$variables;
+export type ProjectActionMenuClearMutation = {
+  response: ProjectActionMenuClearMutation$data;
+  variables: ProjectActionMenuClearMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -42,7 +42,7 @@ v1 = [
     ],
     "concreteType": "Query",
     "kind": "LinkedField",
-    "name": "deleteProject",
+    "name": "clearProject",
     "plural": false,
     "selections": [
       {
@@ -61,7 +61,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "ProjectActionMenuMutation",
+    "name": "ProjectActionMenuClearMutation",
     "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -70,20 +70,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "ProjectActionMenuMutation",
+    "name": "ProjectActionMenuClearMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "9b9e922bf9a468e4b6166e10cd1110ab",
+    "cacheID": "df98f55f45a3f0fd18cce292075de372",
     "id": null,
     "metadata": {},
-    "name": "ProjectActionMenuMutation",
+    "name": "ProjectActionMenuClearMutation",
     "operationKind": "mutation",
-    "text": "mutation ProjectActionMenuMutation(\n  $projectId: GlobalID!\n) {\n  deleteProject(id: $projectId) {\n    __typename\n  }\n}\n"
+    "text": "mutation ProjectActionMenuClearMutation(\n  $projectId: GlobalID!\n) {\n  clearProject(id: $projectId) {\n    __typename\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "170d4680c5e7c589eedced2ddabe68a8";
+(node as any).hash = "797829dd3e5805e9484727123e51b5c3";
 
 export default node;
