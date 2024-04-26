@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from queue import Queue
+from queue import Empty, Queue
 from threading import Thread
 from typing import Optional
 
@@ -58,7 +58,11 @@ def migrate_in_thread(url: URL) -> None:
     t.start()
     t.join()
 
-    result = error_queue.get()
+    try:
+        result = error_queue.get(False)
+    except Empty:
+        return
+
     if result is not None:
         error_message = (
             "\n\nUnable to migrate configured Phoenix DB. Original error:\n"
