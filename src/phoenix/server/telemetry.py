@@ -45,7 +45,7 @@ def initialize_opentelemetry_tracer_provider() -> "TracerProvider":
         ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT
     ):
         logger.info(f"Using HTTP collector endpoint: {http_endpoint}")
-        http_endpoint = normalize_http_collector_endpoint(http_endpoint + "/v1/traces")
+        http_endpoint = normalize_http_collector_endpoint(http_endpoint) + "/v1/traces"
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
             OTLPSpanExporter as HttpExporter,
         )
