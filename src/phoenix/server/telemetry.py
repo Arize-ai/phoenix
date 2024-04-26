@@ -1,4 +1,8 @@
 import os
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from opentelemetry.trace import TracerProvider
 
 from phoenix.config import (
     ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT,
@@ -6,8 +10,7 @@ from phoenix.config import (
 )
 
 
-def initialize_opentelemetry_tracer_provider() -> None:
-    from opentelemetry import trace as trace_api
+def initialize_opentelemetry_tracer_provider() -> "TracerProvider":
     from opentelemetry.sdk import trace as trace_sdk
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
@@ -28,4 +31,4 @@ def initialize_opentelemetry_tracer_provider() -> None:
         )
 
         tracer_provider.add_span_processor(BatchSpanProcessor(GrpcExporter(grpc_endpoint)))
-    trace_api.set_tracer_provider(tracer_provider)
+    return tracer_provider
