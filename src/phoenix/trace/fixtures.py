@@ -228,7 +228,7 @@ def _reset_fixture_span_ids_and_timestamps(
                 trace_id=new_trace_ids[span.context.trace_id],
                 span_id=new_span_ids[span.context.span_id],
             ),
-            parent_id=new_span_ids.get(span.parent_id),
+            parent_id=new_span_ids.get(span.parent_id, span.parent_id),
             start_time=span.start_time + time_diff,
             end_time=span.end_time + time_diff,
         )
