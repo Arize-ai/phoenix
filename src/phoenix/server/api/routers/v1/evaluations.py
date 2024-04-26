@@ -76,14 +76,8 @@ async def post_evaluations(request: Request) -> Response:
     if request.app.state.read_only:
         return Response(status_code=HTTP_403_FORBIDDEN)
     content_type = request.headers.get("content-type")
-    project_name = (
-        request.query_params.get("project-name")
-        # read from headers for backwards compatibility
-        or request.headers.get("project-name")
-        or DEFAULT_PROJECT_NAME
-    )
     if content_type == "application/x-pandas-arrow":
-        return await _process_pyarrow(request, project_name)
+        return await _process_pyarrow(request)
     if content_type != "application/x-protobuf":
         return Response("Unsupported content type", status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE)
     body = await request.body()
@@ -102,7 +96,7 @@ async def post_evaluations(request: Request) -> Response:
             "Evaluation name must not be blank/empty",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
-    request.state.queue_evaluation_for_bulk_insert(evaluation, project_name=project_name)
+    request.state.queue_evaluation_for_bulk_insert(evaluation)
     return Response()
 
 
@@ -175,7 +169,7 @@ async def get_evaluations(request: Request) -> Response:
     )
 
 
-async def _process_pyarrow(request: Request, project_name: str) -> Response:
+async def _process_pyarrow(request: Request) -> Response:
     body = await request.body()
     try:
         reader = pa.ipc.open_stream(body)
@@ -196,12 +190,10 @@ async def _process_pyarrow(request: Request, project_name: str) -> Response:
             content="Invalid data in request body",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
-    return Response(
-        background=BackgroundTask(_add_evaluations, request.state, evaluations, project_name)
-    )
+    return Response(background=BackgroundTask(_add_evaluations, request.state, evaluations))
 
 
-async def _add_evaluations(state: State, evaluations: Evaluations, project_name: str) -> None:
+async def _add_evaluations(state: State, evaluations: Evaluations) -> None:
     for evaluation in encode_evaluations(evaluations):
         state.queue_evaluation_for_bulk_insert(evaluation)
 
