@@ -109,7 +109,7 @@ TRACES_FIXTURES: List[TracesFixture] = [
 NAME_TO_TRACES_FIXTURE = {fixture.name: fixture for fixture in TRACES_FIXTURES}
 
 
-def _get_trace_fixture_by_name(fixture_name: str) -> TracesFixture:
+def get_trace_fixture_by_name(fixture_name: str) -> TracesFixture:
     """
     Returns the fixture whose name matches the input name.
 
@@ -124,7 +124,7 @@ def _get_trace_fixture_by_name(fixture_name: str) -> TracesFixture:
     return NAME_TO_TRACES_FIXTURE[fixture_name]
 
 
-def _download_traces_fixture(
+def download_traces_fixture(
     fixture: TracesFixture,
     host: Optional[str] = "https://storage.googleapis.com/",
     bucket: Optional[str] = "arize-assets",
@@ -142,12 +142,12 @@ def load_example_traces(use_case: str) -> TraceDataset:
     """
     Loads a trace dataframe by name.
     """
-    fixture = _get_trace_fixture_by_name(use_case)
-    return TraceDataset(json_lines_to_df(_download_traces_fixture(fixture)))
+    fixture = get_trace_fixture_by_name(use_case)
+    return TraceDataset(json_lines_to_df(download_traces_fixture(fixture)))
 
 
 def get_evals_from_fixture(use_case: str) -> Iterator[pb.Evaluation]:
-    fixture = _get_trace_fixture_by_name(use_case)
+    fixture = get_trace_fixture_by_name(use_case)
     for eval_fixture in fixture.evaluation_fixtures:
         yield from _read_eval_fixture(eval_fixture)
 
@@ -201,55 +201,59 @@ def _url(
     return f"{host}{bucket}/{prefix}{file_name}"
 
 
-def _reset_fixture_span_ids_and_timestamps(
+def reset_fixture_span_ids_and_timestamps(
     spans: Iterable[Span],
     evals: Iterable[pb.Evaluation] = (),
 ) -> Tuple[List[Span], List[pb.Evaluation]]:
-    now = datetime.now(timezone.utc)
     old_spans, old_evals = list(spans), list(evals)
-    new_trace_ids: Dict[Optional[str], str] = {}
-    new_span_ids: Dict[Optional[str], str] = {}
-    for span in old_spans:
-        new_trace_ids[span.context.trace_id] = hexlify(
-            getrandbits(128).to_bytes(16, "big"),
-        ).decode()
-        new_span_ids[span.context.span_id] = hexlify(
-            getrandbits(64).to_bytes(8, "big"),
-        ).decode()
-    max_start_time = max(old_spans, key=lambda span: span.start_time)
-    time_diff = now - max_start_time.start_time
+    new_trace_ids: Dict[str, str] = {}
+    new_span_ids: Dict[str, str] = {}
+    for old_span in old_spans:
+        new_trace_ids[old_span.context.trace_id] = _new_trace_id()
+        new_span_ids[old_span.context.span_id] = _new_span_id()
+        if old_span.parent_id:
+            new_span_ids[old_span.parent_id] = _new_span_id()
+    for old_eval in old_evals:
+        subject_id = old_eval.subject_id
+        if trace_id := subject_id.trace_id:
+            new_trace_ids[trace_id] = _new_trace_id()
+        elif span_id := subject_id.span_id:
+            new_span_ids[span_id] = _new_span_id()
+        elif span_id := subject_id.document_retrieval_id.span_id:
+            new_span_ids[span_id] = _new_span_id()
+    max_end_time = max(old_span.end_time for old_span in old_spans)
+    time_diff = datetime.now(timezone.utc) - max_end_time
     new_spans: List[Span] = []
     new_evals: List[pb.Evaluation] = []
-    for span in old_spans:
+    for old_span in old_spans:
+        new_trace_id = new_trace_ids[old_span.context.trace_id]
+        new_span_id = new_span_ids[old_span.context.span_id]
+        new_parent_id = new_span_ids[old_span.parent_id] if old_span.parent_id else None
         new_span = replace(
-            span,
-            context=replace(
-                span.context,
-                trace_id=new_trace_ids[span.context.trace_id],
-                span_id=new_span_ids[span.context.span_id],
-            ),
-            parent_id=new_span_ids.get(span.parent_id, span.parent_id),
-            start_time=span.start_time + time_diff,
-            end_time=span.end_time + time_diff,
+            old_span,
+            context=replace(old_span.context, trace_id=new_trace_id, span_id=new_span_id),
+            parent_id=new_parent_id,
+            start_time=old_span.start_time + time_diff,
+            end_time=old_span.end_time + time_diff,
         )
         new_spans.append(new_span)
-    for eval in old_evals:
+    for old_eval in old_evals:
         new_eval = pb.Evaluation()
-        new_eval.CopyFrom(eval)
-        if new_eval.subject_id.HasField("document_retrieval_id"):
-            new_eval.subject_id.document_retrieval_id.span_id = new_span_ids.get(
-                eval.subject_id.document_retrieval_id.span_id,
-                eval.subject_id.document_retrieval_id.span_id,
-            )
-        elif new_eval.subject_id.HasField("span_id"):
-            new_eval.subject_id.span_id = new_span_ids.get(
-                eval.subject_id.span_id,
-                eval.subject_id.span_id,
-            )
-        elif new_eval.subject_id.HasField("trace_id"):
-            new_eval.subject_id.trace_id = new_trace_ids.get(
-                eval.subject_id.trace_id,
-                eval.subject_id.trace_id,
-            )
+        new_eval.CopyFrom(old_eval)
+        subject_id = new_eval.subject_id
+        if trace_id := subject_id.trace_id:
+            subject_id.trace_id = new_trace_ids[trace_id]
+        elif span_id := subject_id.span_id:
+            subject_id.span_id = new_span_ids[span_id]
+        elif span_id := subject_id.document_retrieval_id.span_id:
+            subject_id.document_retrieval_id.span_id = new_span_ids[span_id]
         new_evals.append(new_eval)
     return new_spans, new_evals
+
+
+def _new_trace_id() -> str:
+    return hexlify(getrandbits(128).to_bytes(16, "big")).decode()
+
+
+def _new_span_id() -> str:
+    return hexlify(getrandbits(64).to_bytes(8, "big")).decode()

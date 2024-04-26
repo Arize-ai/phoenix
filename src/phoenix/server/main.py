@@ -35,10 +35,10 @@ from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
-    _download_traces_fixture,
-    _get_trace_fixture_by_name,
-    _reset_fixture_span_ids_and_timestamps,
+    download_traces_fixture,
     get_evals_from_fixture,
+    get_trace_fixture_by_name,
+    reset_fixture_span_ids_and_timestamps,
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
@@ -193,13 +193,13 @@ if __name__ == "__main__":
     fixture_spans: List[Span] = []
     fixture_evals: List[pb.Evaluation] = []
     if trace_dataset_name is not None:
-        fixture_spans, fixture_evals = _reset_fixture_span_ids_and_timestamps(
+        fixture_spans, fixture_evals = reset_fixture_span_ids_and_timestamps(
             (
                 # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
                 # `encode` removes the hyphens in the UUIDs.
                 decode_otlp_span(encode_span_to_otlp(json_string_to_span(json_span)))
-                for json_span in _download_traces_fixture(
-                    _get_trace_fixture_by_name(trace_dataset_name)
+                for json_span in download_traces_fixture(
+                    get_trace_fixture_by_name(trace_dataset_name)
                 )
             ),
             get_evals_from_fixture(trace_dataset_name),
