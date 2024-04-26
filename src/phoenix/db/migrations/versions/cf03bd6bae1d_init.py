@@ -49,7 +49,6 @@ def upgrade() -> None:
     projects_table = op.create_table(
         "projects",
         sa.Column("id", sa.Integer, primary_key=True),
-        # TODO does the uniqueness constraint need to be named
         sa.Column("name", sa.String, nullable=False, unique=True),
         sa.Column("description", sa.String, nullable=True),
         sa.Column(
@@ -166,7 +165,6 @@ def upgrade() -> None:
         sa.UniqueConstraint(
             "span_rowid",
             "name",
-            name="uq_span_annotations_span_rowid_name",
             sqlite_on_conflict="REPLACE",
         ),
     )
@@ -211,7 +209,6 @@ def upgrade() -> None:
         sa.UniqueConstraint(
             "trace_rowid",
             "name",
-            name="uq_trace_annotations_trace_rowid_name",
             sqlite_on_conflict="REPLACE",
         ),
     )
@@ -258,7 +255,6 @@ def upgrade() -> None:
             "span_rowid",
             "document_position",
             "name",
-            name="uq_document_annotations_span_rowid_document_position_name",
             sqlite_on_conflict="REPLACE",
         ),
     )

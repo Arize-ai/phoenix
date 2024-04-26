@@ -97,8 +97,8 @@ class Base(DeclarativeBase):
     # https://alembic.sqlalchemy.org/en/latest/naming.html#integration-of-naming-conventions-into-operations-autogenerate
     metadata = MetaData(
         naming_convention={
-            "ix": "ix_%(column_0_label)s",
-            "uq": "uq_%(table_name)s_%(column_0_name)s",
+            "ix": "ix_%(table_name)s_%(column_0_N_name)s",
+            "uq": "uq_%(table_name)s_%(column_0_N_name)s",
             "ck": "ck_%(table_name)s_`%(constraint_name)s`",
             "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
             "pk": "pk_%(table_name)s",
@@ -139,7 +139,6 @@ class Project(Base):
     __table_args__ = (
         UniqueConstraint(
             "name",
-            name="uq_projects_name",
             sqlite_on_conflict="IGNORE",
         ),
     )
@@ -180,7 +179,6 @@ class Trace(Base):
     __table_args__ = (
         UniqueConstraint(
             "trace_id",
-            name="uq_traces_trace_id",
             sqlite_on_conflict="IGNORE",
         ),
     )
@@ -232,7 +230,6 @@ class Span(Base):
     __table_args__ = (
         UniqueConstraint(
             "span_id",
-            name="uq_spans_span_id",
             sqlite_on_conflict="IGNORE",
         ),
     )
@@ -329,7 +326,6 @@ class SpanAnnotation(Base):
         UniqueConstraint(
             "span_rowid",
             "name",
-            name="uq_span_annotations_span_rowid_name",
             sqlite_on_conflict="REPLACE",
         ),
     )
@@ -358,7 +354,6 @@ class TraceAnnotation(Base):
         UniqueConstraint(
             "trace_rowid",
             "name",
-            name="uq_trace_annotations_trace_rowid_name",
             sqlite_on_conflict="REPLACE",
         ),
     )
@@ -391,7 +386,6 @@ class DocumentAnnotation(Base):
             "span_rowid",
             "document_position",
             "name",
-            name="uq_document_annotations_span_rowid_document_position_name",
             sqlite_on_conflict="REPLACE",
         ),
     )
