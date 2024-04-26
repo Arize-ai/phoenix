@@ -1,6 +1,7 @@
 import atexit
 import logging
 import os
+import warnings
 from argparse import ArgumentParser
 from pathlib import Path
 from threading import Thread
@@ -14,6 +15,7 @@ import phoenix.trace.v1 as pb
 from phoenix.config import (
     EXPORT_DIR,
     get_env_database_connection_str,
+    get_env_enable_prometheus,
     get_env_host,
     get_env_port,
     get_pids_path,
@@ -210,7 +212,17 @@ if __name__ == "__main__":
     )
     read_only = args.read_only
     logger.info(f"Server umap params: {umap_params}")
-    if enable_prometheus := args.enable_prometheus:
+    if enable_prometheus := (
+        get_env_enable_prometheus() or (cli_enable_prometheus := args.enable_prometheus)
+    ):
+        if cli_enable_prometheus:
+            warnings.warn(
+                "The --enable-prometheus command line argument is being deprecated "
+                "and will be removed in an upcoming release. "
+                "Please set the PHOENIX_ENABLE_PROMETHEUS environment variable to TRUE.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         from phoenix.server.prometheus import start_prometheus
 
         start_prometheus()

@@ -38,6 +38,11 @@ Note that if you plan on using SQLite, it's advised to to use a persistent volum
 and simply point the PHOENIX_WORKING_DIR to that volume.
 """
 
+ENV_PHOENIX_ENABLE_PROMETHEUS = "PHOENIX_ENABLE_PROMETHEUS"
+"""
+Whether to enable Prometheus. Defaults to false.
+"""
+
 # Phoenix server OpenTelemetry instrumentation environment variables
 ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT = (
     "PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT"
@@ -181,6 +186,19 @@ def get_env_database_connection_str() -> str:
         working_dir = get_working_dir()
         return f"sqlite:///{working_dir}/phoenix.db"
     return env_url
+
+
+def get_env_enable_prometheus() -> bool:
+    if (enable_promotheus := os.getenv(ENV_PHOENIX_ENABLE_PROMETHEUS)) is None or (
+        enable_promotheus_lower := enable_promotheus.lower()
+    ) == "false":
+        return False
+    if enable_promotheus_lower == "true":
+        return True
+    raise ValueError(
+        f"Invalid value for environment variable {ENV_PHOENIX_ENABLE_PROMETHEUS}: "
+        f"{enable_promotheus}. Value values are 'TRUE' and 'FALSE' (case-insensitive)."
+    )
 
 
 class SpanStorageType(Enum):
