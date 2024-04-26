@@ -59,7 +59,7 @@ def migrate_in_thread(url: URL) -> None:
     t.join()
 
     try:
-        result = error_queue.get(False)
+        result = error_queue.get_nowait()
     except Empty:
         return
 
