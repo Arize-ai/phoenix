@@ -90,7 +90,7 @@ class SpanEvent:
         return SpanEvent(
             name=event["name"],
             message=cast(str, event["attributes"].get(trace_schema.EXCEPTION_MESSAGE) or ""),
-            timestamp=event["timestamp"],
+            timestamp=datetime.fromisoformat(event["timestamp"]),
         )
 
 
