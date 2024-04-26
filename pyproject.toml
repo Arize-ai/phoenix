@@ -73,7 +73,7 @@ dev = [
   "pytest-postgresql",
   "asyncpg",
   "psycopg[binary]",
-  "strawberry-graphql[debug-server,opentelemetry]==0.227.2", # need to pin version because we're monkey-patching
+  "strawberry-graphql[debug-server,opentelemetry]==0.227.2",  # need to pin version because we're monkey-patching
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
   "llama-index>=0.10.3",
