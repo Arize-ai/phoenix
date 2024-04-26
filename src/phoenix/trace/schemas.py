@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Mapping, NamedTuple, Optional
+from typing import Any, List, Mapping, NamedTuple, Optional
 from uuid import UUID
 
 EXCEPTION_TYPE = "exception.type"
@@ -71,7 +71,7 @@ class SpanConversationAttributes:
 
 
 @dataclass(frozen=True)
-class SpanEvent(Dict[str, Any]):
+class SpanEvent:
     """
     A Span Event can be thought of as a structured log message (or annotation)
     on a Span, typically used to denote a meaningful, singular point in time

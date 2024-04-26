@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from dataclasses import asdict
 from datetime import datetime, timezone
 from itertools import islice
 from time import time
@@ -295,7 +296,7 @@ async def _insert_span(session: AsyncSession, span: Span, project_name: str) -> 
             start_time=span.start_time,
             end_time=span.end_time,
             attributes=span.attributes,
-            events=span.events,
+            events=[asdict(event) for event in span.events],
             status_code=span.status_code.value,
             status_message=span.status_message,
             cumulative_error_count=cumulative_error_count,
