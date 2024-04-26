@@ -31,7 +31,7 @@ dependencies = [
   "starlette",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.208.2",
+  "strawberry-graphql==0.227.2",  # need to pin version because we're monkey-patching
   "pyarrow",
   "typing-extensions>=4.5; python_version<'3.12'",
   # A minimum version of typing-extensions==4.6.0 is needed to avoid this issue on Python 3.12: https://github.com/Azure/azure-sdk-for-python/issues/33442#issuecomment-1847886784
@@ -73,7 +73,7 @@ dev = [
   "pytest-postgresql",
   "asyncpg",
   "psycopg[binary]",
-  "strawberry-graphql[debug-server]==0.208.2",
+  "strawberry-graphql[debug-server,opentelemetry]==0.227.2",  # need to pin version because we're monkey-patching
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
   "llama-index>=0.10.3",
@@ -104,7 +104,7 @@ container = [
   "opentelemetry-exporter-otlp",
   "opentelemetry-instrumentation-starlette",
   "opentelemetry-instrumentation-sqlalchemy",
-  "strawberry-graphql[opentelemetry]",
+  "strawberry-graphql[opentelemetry]==0.227.2",  # need to pin version because we're monkey-patching
 ]
 
 [project.urls]
@@ -175,7 +175,7 @@ dependencies = [
   "opentelemetry-exporter-otlp",
   "opentelemetry-instrumentation-starlette",
   "opentelemetry-instrumentation-sqlalchemy",
-  "strawberry-graphql[opentelemetry]",
+  "strawberry-graphql[opentelemetry]==0.227.2",  # need to pin version because we're monkey-patching
 ]
 
 [tool.hatch.envs.style]
@@ -274,7 +274,7 @@ check = [
 
 [tool.hatch.envs.gql]
 dependencies = [
-  "strawberry-graphql[cli]==0.208.2",
+  "strawberry-graphql[cli]==0.227.2",  # need to pin version because we're monkey-patching
   "requests",
 ]
 

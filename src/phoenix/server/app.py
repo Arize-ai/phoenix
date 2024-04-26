@@ -3,6 +3,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Any,
     AsyncContextManager,
     AsyncIterator,
@@ -13,8 +14,10 @@ from typing import (
     Optional,
     Tuple,
     Union,
+    cast,
 )
 
+import strawberry
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -42,7 +45,7 @@ import phoenix.trace.v1 as pb
 from phoenix.config import (
     DEFAULT_PROJECT_NAME,
     SERVER_DIR,
-    is_server_instrumentation_enabled,
+    server_instrumentation_is_enabled,
 )
 from phoenix.core.model_schema import Model
 from phoenix.db.bulk_inserter import BulkInserter
@@ -60,6 +63,7 @@ from phoenix.server.api.dataloaders import (
 from phoenix.server.api.dataloaders.span_descendants import SpanDescendantsDataLoader
 from phoenix.server.api.routers.v1 import V1_ROUTES
 from phoenix.server.api.schema import schema
+from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.trace.schemas import Span
 
 logger = logging.getLogger(__name__)
@@ -259,21 +263,45 @@ def create_app(
             ""
         )
         raise PhoenixMigrationError(msg) from e
-
-    if is_server_instrumentation_enabled():
-        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
-
-        SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
-
     db = _db(engine)
     bulk_inserter = BulkInserter(
         db,
         initial_batch_of_spans=initial_batch_of_spans,
         initial_batch_of_evaluations=initial_batch_of_evaluations,
     )
+    tracer_provider = None
+    strawberry_extensions = schema.get_extensions()
+    if server_instrumentation_is_enabled():
+        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+        from opentelemetry.trace import TracerProvider
+        from strawberry.extensions.tracing import OpenTelemetryExtension
+
+        tracer_provider = initialize_opentelemetry_tracer_provider()
+        SQLAlchemyInstrumentor().instrument(
+            engine=engine.sync_engine,
+            tracer_provider=tracer_provider,
+        )
+        if TYPE_CHECKING:
+            # Type-check the class before monkey-patching its private attribute.
+            assert OpenTelemetryExtension._tracer
+
+        class _OpenTelemetryExtension(OpenTelemetryExtension):
+            def __init__(self, *args: Any, **kwargs: Any) -> None:
+                super().__init__(*args, **kwargs)
+                # Monkey-patch its private tracer to eliminate usage of the global
+                # TracerProvider, which in a notebook setting could be the one
+                # used by OpenInference.
+                self._tracer = cast(TracerProvider, tracer_provider).get_tracer("strawberry")
+
+        strawberry_extensions.append(_OpenTelemetryExtension)
     graphql = GraphQLWithContext(
         db=db,
-        schema=schema,
+        schema=strawberry.Schema(
+            query=schema.query,
+            mutation=schema.mutation,
+            subscription=schema.subscription,
+            extensions=strawberry_extensions,
+        ),
         model=model,
         corpus=corpus,
         export_path=export_path,
@@ -286,7 +314,6 @@ def create_app(
         prometheus_middlewares = [Middleware(PrometheusMiddleware)]
     else:
         prometheus_middlewares = []
-
     app = Starlette(
         lifespan=_lifespan(bulk_inserter),
         middleware=[
@@ -329,4 +356,8 @@ def create_app(
     )
     app.state.read_only = read_only
     app.state.db = db
+    if tracer_provider:
+        from opentelemetry.instrumentation.starlette import StarletteInstrumentor
+
+        StarletteInstrumentor.instrument_app(app, tracer_provider=tracer_provider)
     return app

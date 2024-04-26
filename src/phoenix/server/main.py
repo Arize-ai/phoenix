@@ -18,7 +18,6 @@ from phoenix.config import (
     get_env_port,
     get_pids_path,
     get_working_dir,
-    is_server_instrumentation_enabled,
 )
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.db import get_printable_db_url
@@ -31,7 +30,6 @@ from phoenix.pointcloud.umap_parameters import (
     UMAPParameters,
 )
 from phoenix.server.app import create_app
-from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
@@ -230,11 +228,6 @@ if __name__ == "__main__":
         initial_spans=fixture_spans,
         initial_evaluations=fixture_evals,
     )
-    if is_server_instrumentation_enabled():
-        from opentelemetry.instrumentation.starlette import StarletteInstrumentor
-
-        initialize_opentelemetry_tracer_provider()
-        StarletteInstrumentor.instrument_app(app)
     server = Server(config=Config(app, host=host, port=port))
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
 
