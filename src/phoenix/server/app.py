@@ -50,6 +50,7 @@ from phoenix.config import (
 from phoenix.core.model_schema import Model
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import create_engine
+from phoenix.exceptions import PhoenixMigrationError
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
@@ -246,6 +247,23 @@ def create_app(
         )
     )
     initial_batch_of_evaluations = () if initial_evaluations is None else initial_evaluations
+    try:
+        engine = create_engine(database_url)
+    except PhoenixMigrationError as e:
+        msg = (
+            "\n\n⚠️⚠️ Phoenix failed to migrate the database to the latest version. ⚠️⚠️\n\n"
+            "The database may be in a dirty state. To resolve this, the Alembic CLI can be used\n"
+            "from the `src/phoenix/db` directory inside the Phoenix project root. From here,\n"
+            "revert any partial migrations and run `alembic stamp` to reset the migration state,\n"
+            "then try starting Phoenix again.\n\n"
+            "If issues persist, please reach out for support in the Arize community Slack:\n"
+            "https://arize-ai.slack.com\n\n"
+            "You can also refer to the Alembic documentation for more information:\n"
+            "https://alembic.sqlalchemy.org/en/latest/tutorial.html\n\n"
+            ""
+        )
+        raise PhoenixMigrationError(msg) from e
+
     engine = create_engine(database_url)
     db = _db(engine)
     bulk_inserter = BulkInserter(
