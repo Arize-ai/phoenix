@@ -1,5 +1,23 @@
 # Migrations
 
+## Migrating from legacy `phoenix.Dataset` to `phoenix.Inferences`
+
+- `phoenix.Dataset` has been renamed to `phoenix.Inferences`
+- `phoenix.ExampleDataset` has been renamed to `phoenix.ExampleInferences`
+- All other methods and related functions and classes remain under the `phoenix` namespace
+
+#### Old
+
+```python
+from phoenix import Dataset, ExampleDataset
+```
+
+#### New
+
+```python
+from phoenix import Inferences, ExampleInferences
+```
+
 ## Migrating from `phoenix.experimental.evals` to `phoenix.evals`
 
 - Phoenix has now moved promoted the `evals` module out of experimental and can be installed as a separate extra.
