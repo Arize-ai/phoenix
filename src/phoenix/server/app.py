@@ -263,8 +263,6 @@ def create_app(
             ""
         )
         raise PhoenixMigrationError(msg) from e
-
-    engine = create_engine(database_url)
     db = _db(engine)
     bulk_inserter = BulkInserter(
         db,
