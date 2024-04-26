@@ -15,19 +15,21 @@ logger = getLogger(__name__)
 
 def normalize_http_collector_endpoint(endpoint: str) -> str:
     normalized_endpoint = endpoint
-    if not endpoint.startswith("http://") and not endpoint.startswith("https://"):
+    if not normalized_endpoint.startswith("http://") and not normalized_endpoint.startswith(
+        "https://"
+    ):
         logger.warning(
             "HTTP collector endpoint should include the protocol (http:// or https://)."
             "Assuming http."
         )
         # assume http if no protocol is provided
         normalized_endpoint = f"http://{endpoint}"
-    if endpoint.endswith("/v1/traces"):
+    if normalized_endpoint.endswith("/v1/traces"):
         logger.warning(
             "HTTP collector endpoint should not include the /v1/traces path. Removing it."
         )
         # remove the /v1/traces path
-        normalized_endpoint = endpoint[: -len("/v1/traces")]
+        normalized_endpoint = normalized_endpoint[: -len("/v1/traces")]
     # remove trailing slashes
     normalized_endpoint = normalized_endpoint.rstrip("/")
     return normalized_endpoint
