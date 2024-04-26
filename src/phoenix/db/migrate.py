@@ -28,7 +28,6 @@ def migrate(url: URL, error_queue: Optional[Queue] = None) -> None:
         url: The database URL.
     """
     try:
-        raise RuntimeError("oh my god")
         log_migrations = Settings.log_migrations
         printif(log_migrations, "🏃‍♀️‍➡️ Running migrations on the database.")
         printif(log_migrations, "---------------------------")

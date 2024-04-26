@@ -242,11 +242,14 @@ def create_app(
     except PhoenixMigrationError as e:
         msg = (
             "\n\n⚠️⚠️ Phoenix failed to migrate the database to the latest version. ⚠️⚠️\n\n"
-            "Ensure that the Phoenix database configuration is correct and\n"
-            f"available at {database_url}.\n\n"
-            "Please refer to the stack trace to determine how to resolve any migration errors and\n"
-            "try again or refer to the Alembic documentation to run migrations manually:\n"
-            "https://alembic.sqlalchemy.org/en/latest/tutorial.html#the-migration-environment\n\n"
+            "The database may be in a dirty state. To resolve this, the Alembic CLI can be used\n"
+            "from the `src/phoenix/db` directory inside the Phoenix project root. From here,\n"
+            "revert any partial migrations and run `alembic stamp` to reset the migration state,\n"
+            "then try starting Phoenix again.\n\n"
+            "If issues persist, please reach out for support in the Arize community Slack:\n"
+            "https://arize-ai.slack.com\n\n"
+            "You can also refer to the Alembic documentation for more information:\n"
+            "https://alembic.sqlalchemy.org/en/latest/tutorial.html\n\n"
             ""
         )
         raise PhoenixMigrationError(msg) from e
