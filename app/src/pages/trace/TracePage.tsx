@@ -1465,6 +1465,7 @@ function SpanIO({ span }: { span: Span }) {
           title="All Attributes"
           titleExtra={attributesContextualHelp}
           {...defaultCardProps}
+          bodyStyle={{ padding: 0 }}
           extra={<CopyToClipboardButton text={span.attributes} />}
         >
           <JSONBlock>{span.attributes}</JSONBlock>
