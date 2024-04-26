@@ -1,10 +1,10 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, cast
 
 import numpy as np
 import strawberry
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import and_, distinct, func, select
+from sqlalchemy import ScalarResult, and_, distinct, func, select
 from sqlalchemy.orm import contains_eager, selectinload
 from sqlalchemy.sql.functions import coalesce
 from strawberry import ID, UNSET
@@ -283,13 +283,17 @@ class Project(Node):
         # todo: implement filter condition
         async with info.context.db() as session:
             evaluations = list(await session.scalars(filtered))
-            all_labels = await session.scalars(
-                unfiltered.with_only_columns(distinct(models.TraceAnnotation.label))
+            if not evaluations:
+                return None
+            labels = cast(
+                ScalarResult[str],
+                await session.scalars(
+                    unfiltered.with_only_columns(distinct(models.TraceAnnotation.label)).where(
+                        models.TraceAnnotation.label.is_not(None)
+                    )
+                ),
             )
-            labels = [label for label in all_labels if label is not None]
-        if not evaluations or labels:
-            return None
-        return EvaluationSummary(evaluations, labels)
+        return EvaluationSummary(evaluations, list(labels))
 
     @strawberry.field
     async def span_evaluation_summary(
@@ -320,13 +324,17 @@ class Project(Node):
         # todo: implement filter condition
         async with info.context.db() as session:
             evaluations = list(await session.scalars(filtered))
-            all_labels = await session.scalars(
-                unfiltered.with_only_columns(distinct(models.SpanAnnotation.label))
+            if not evaluations:
+                return None
+            labels = cast(
+                ScalarResult[str],
+                await session.scalars(
+                    unfiltered.with_only_columns(distinct(models.SpanAnnotation.label)).where(
+                        models.SpanAnnotation.label.is_not(None)
+                    )
+                ),
             )
-            labels = [label for label in all_labels if label is not None]
-        if not evaluations or labels:
-            return None
-        return EvaluationSummary(evaluations, labels)
+        return EvaluationSummary(evaluations, list(labels))
 
     @strawberry.field
     async def document_evaluation_summary(
