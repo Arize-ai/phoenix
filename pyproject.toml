@@ -46,6 +46,7 @@ dependencies = [
   "opentelemetry-sdk",
   "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
   "opentelemetry-exporter-otlp",
+  "opentelemetry-semantic-conventions",
   "openinference-semantic-conventions>=0.1.5",
   "openinference-instrumentation",
   "openinference-instrumentation-langchain>=0.1.12",
@@ -102,6 +103,7 @@ container = [
   "opentelemetry-sdk",
   "opentelemetry-proto>=1.12.0",
   "opentelemetry-exporter-otlp",
+  "opentelemetry-semantic-conventions",
   "opentelemetry-instrumentation-starlette",
   "opentelemetry-instrumentation-sqlalchemy",
   "strawberry-graphql[opentelemetry]==0.227.2",  # need to pin version because we're monkey-patching
@@ -173,6 +175,7 @@ dependencies = [
   "opentelemetry-sdk",
   "opentelemetry-proto>=1.12.0",
   "opentelemetry-exporter-otlp",
+  "opentelemetry-semantic-conventions",
   "opentelemetry-instrumentation-starlette",
   "opentelemetry-instrumentation-sqlalchemy",
   "strawberry-graphql[opentelemetry]==0.227.2",  # need to pin version because we're monkey-patching
