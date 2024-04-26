@@ -1,16 +1,16 @@
 import os
 from typing import TYPE_CHECKING
 
+from phoenix.config import (
+    ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT,
+    ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT,
+)
+
 if TYPE_CHECKING:
     from opentelemetry.trace import TracerProvider
 from logging import getLogger
 
 logger = getLogger(__name__)
-
-from phoenix.config import (  # noqa: E402
-    ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT,
-    ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT,
-)
 
 
 def normalize_http_collector_endpoint(endpoint: str) -> str:
@@ -35,7 +35,6 @@ def normalize_http_collector_endpoint(endpoint: str) -> str:
 
 def initialize_opentelemetry_tracer_provider() -> "TracerProvider":
     logger.info("Initializing OpenTelemetry tracer provider")
-    from opentelemetry import trace as trace_api
     from opentelemetry.sdk import trace as trace_sdk
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
