@@ -1,11 +1,15 @@
-from dataclasses import dataclass, field
-from typing import Iterable, Iterator, List, NamedTuple, Optional, Tuple, cast
+from binascii import hexlify
+from dataclasses import dataclass, field, replace
+from datetime import datetime, timezone
+from random import getrandbits
+from typing import Dict, Iterable, Iterator, List, NamedTuple, Optional, Tuple, cast
 from urllib import request
 
 import pandas as pd
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
 
 import phoenix.trace.v1 as pb
+from phoenix.trace.schemas import Span
 from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.trace.utils import json_lines_to_df
 
@@ -195,3 +199,57 @@ def _url(
     prefix: Optional[str] = "phoenix/traces/",
 ) -> str:
     return f"{host}{bucket}/{prefix}{file_name}"
+
+
+def _reset_fixture_span_ids_and_timestamps(
+    spans: Iterable[Span],
+    evals: Iterable[pb.Evaluation] = (),
+) -> Tuple[List[Span], List[pb.Evaluation]]:
+    now = datetime.now(timezone.utc)
+    old_spans, old_evals = list(spans), list(evals)
+    new_trace_ids: Dict[Optional[str], str] = {}
+    new_span_ids: Dict[Optional[str], str] = {}
+    for span in old_spans:
+        new_trace_ids[span.context.trace_id] = hexlify(
+            getrandbits(128).to_bytes(16, "big"),
+        ).decode()
+        new_span_ids[span.context.span_id] = hexlify(
+            getrandbits(64).to_bytes(8, "big"),
+        ).decode()
+    max_start_time = max(old_spans, key=lambda span: span.start_time)
+    time_diff = now - max_start_time.start_time
+    new_spans: List[Span] = []
+    new_evals: List[pb.Evaluation] = []
+    for span in old_spans:
+        new_span = replace(
+            span,
+            context=replace(
+                span.context,
+                trace_id=new_trace_ids[span.context.trace_id],
+                span_id=new_span_ids[span.context.span_id],
+            ),
+            parent_id=new_span_ids.get(span.parent_id),
+            start_time=span.start_time + time_diff,
+            end_time=span.end_time + time_diff,
+        )
+        new_spans.append(new_span)
+    for eval in old_evals:
+        new_eval = pb.Evaluation()
+        new_eval.CopyFrom(eval)
+        if new_eval.subject_id.HasField("document_retrieval_id"):
+            new_eval.subject_id.document_retrieval_id.span_id = new_span_ids.get(
+                eval.subject_id.document_retrieval_id.span_id,
+                eval.subject_id.document_retrieval_id.span_id,
+            )
+        elif new_eval.subject_id.HasField("span_id"):
+            new_eval.subject_id.span_id = new_span_ids.get(
+                eval.subject_id.span_id,
+                eval.subject_id.span_id,
+            )
+        elif new_eval.subject_id.HasField("trace_id"):
+            new_eval.subject_id.trace_id = new_trace_ids.get(
+                eval.subject_id.trace_id,
+                eval.subject_id.trace_id,
+            )
+        new_evals.append(new_eval)
+    return new_spans, new_evals

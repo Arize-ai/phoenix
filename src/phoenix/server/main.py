@@ -5,11 +5,12 @@ from argparse import ArgumentParser
 from pathlib import Path
 from threading import Thread
 from time import sleep, time
-from typing import Optional
+from typing import List, Optional
 
 import pkg_resources
 from uvicorn import Config, Server
 
+import phoenix.trace.v1 as pb
 from phoenix.config import (
     EXPORT_DIR,
     get_env_database_connection_str,
@@ -36,9 +37,11 @@ from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
     _download_traces_fixture,
     _get_trace_fixture_by_name,
+    _reset_fixture_span_ids_and_timestamps,
     get_evals_from_fixture,
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
+from phoenix.trace.schemas import Span
 from phoenix.trace.span_json_decoder import json_string_to_span
 
 logger = logging.getLogger(__name__)
@@ -187,18 +190,20 @@ if __name__ == "__main__":
         reference_dataset,
     )
 
-    fixture_spans = []
-    fixture_evals = []
+    fixture_spans: List[Span] = []
+    fixture_evals: List[pb.Evaluation] = []
     if trace_dataset_name is not None:
-        fixture_spans = list(
-            # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
-            # `encode` removes the hyphens in the UUIDs.
-            decode_otlp_span(encode_span_to_otlp(json_string_to_span(json_span)))
-            for json_span in _download_traces_fixture(
-                _get_trace_fixture_by_name(trace_dataset_name)
-            )
+        fixture_spans, fixture_evals = _reset_fixture_span_ids_and_timestamps(
+            (
+                # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
+                # `encode` removes the hyphens in the UUIDs.
+                decode_otlp_span(encode_span_to_otlp(json_string_to_span(json_span)))
+                for json_span in _download_traces_fixture(
+                    _get_trace_fixture_by_name(trace_dataset_name)
+                )
+            ),
+            get_evals_from_fixture(trace_dataset_name),
         )
-        fixture_evals = list(get_evals_from_fixture(trace_dataset_name))
     umap_params_list = args.umap_params.split(",")
     umap_params = UMAPParameters(
         min_dist=float(umap_params_list[0]),
