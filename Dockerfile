@@ -61,4 +61,4 @@ EXPOSE 9090
 # Run the Phoenix server. Note that the ENTRYPOINT of the base image invokes
 # Python, so no explicit invocation of Python is needed here. See
 # https://github.com/GoogleContainerTools/distroless/blob/16dc4a6a33838006fe956e4c19f049ece9c18a8d/python3/BUILD#L55
-CMD ["-m", "phoenix.server.main", "--host", "0.0.0.0", "--port", "6006", "--enable-prometheus", "True", "serve"]
+CMD ["-m", "phoenix.server.main", "--host", "0.0.0.0", "--port", "6006", "serve"]
