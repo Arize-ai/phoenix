@@ -191,7 +191,7 @@ python3 -m phoenix.server.main --port 6006 serve
 
 Note that the above simply starts the phoenix server locally. A simple way to make sure your application always has a running phoenix server as a collector is to run the phoenix server as a side car.
 
-here is a n example **compose.yaml**
+Here is an example **compose.yaml**
 
 ```yaml
 services:
