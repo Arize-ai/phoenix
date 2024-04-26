@@ -49,7 +49,6 @@ def upgrade() -> None:
     projects_table = op.create_table(
         "projects",
         sa.Column("id", sa.Integer, primary_key=True),
-        # TODO does the uniqueness constraint need to be named
         sa.Column("name", sa.String, nullable=False, unique=True),
         sa.Column("description", sa.String, nullable=True),
         sa.Column(
