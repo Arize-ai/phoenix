@@ -2,6 +2,7 @@
 """
 Llama Index implementation of a chunking and query testing system
 """
+
 import datetime
 import logging
 import os
@@ -10,38 +11,38 @@ import time
 from typing import Dict, List
 
 import cohere
-import llama_index
 import numpy as np
 import pandas as pd
 import phoenix as px
-import phoenix.experimental.evals.templates.default_templates as templates
+import phoenix.evals.default_templates as templates
 import requests
+import tiktoken
 from bs4 import BeautifulSoup
-from llama_index import (
-    LLMPredictor,
+from llama_index.core import (
+    Document,
     ServiceContext,
     StorageContext,
     VectorStoreIndex,
-    download_loader,
     load_index_from_storage,
+    set_global_handler,
 )
-from llama_index.callbacks import CallbackManager, LlamaDebugHandler
-from llama_index.indices.query.query_transform import HyDEQueryTransform
-from llama_index.indices.query.query_transform.base import StepDecomposeQueryTransform
-from llama_index.llms import OpenAI
-from llama_index.node_parser import SimpleNodeParser
+from llama_index.core.callbacks import CallbackManager, LlamaDebugHandler
+from llama_index.core.indices.query.query_transform import HyDEQueryTransform
+from llama_index.core.indices.query.query_transform.base import StepDecomposeQueryTransform
+from llama_index.core.node_parser import SimpleNodeParser
+from llama_index.core.query_engine import MultiStepQueryEngine, TransformQueryEngine
+from llama_index.legacy import (
+    LLMPredictor,
+)
+from llama_index.legacy.readers.web import BeautifulSoupWebReader
+from llama_index.llms.openai import OpenAI
 from llama_index.postprocessor.cohere_rerank import CohereRerank
-from llama_index.query_engine.multistep_query_engine import MultiStepQueryEngine
-from llama_index.query_engine.transform_query_engine import TransformQueryEngine
-from phoenix.experimental.evals import (
+from openinference.semconv.trace import DocumentAttributes, SpanAttributes
+from phoenix.evals import (
     OpenAIModel,
     llm_classify,
-    run_relevance_eval,
 )
-from phoenix.experimental.evals.functions.processing import concatenate_and_truncate_chunks
-from phoenix.experimental.evals.models import BaseEvalModel
-
-# from phoenix.experimental.evals.templates import NOT_PARSABLE
+from phoenix.evals.models import BaseModel, set_verbosity
 from plotresults import (
     plot_latency_graphs,
     plot_mean_average_precision_graphs,
@@ -55,6 +56,111 @@ from sklearn.metrics import ndcg_score
 LOGGING_LEVEL = 20  # INFO
 logging.basicConfig(level=LOGGING_LEVEL)
 logger = logging.getLogger("evals")
+
+
+DOCUMENT_CONTENT = DocumentAttributes.DOCUMENT_CONTENT
+INPUT_VALUE = SpanAttributes.INPUT_VALUE
+RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
+OPENINFERENCE_QUERY_COLUMN_NAME = "attributes." + INPUT_VALUE
+OPENINFERENCE_DOCUMENT_COLUMN_NAME = "attributes." + RETRIEVAL_DOCUMENTS
+
+OPENAI_MODEL_TOKEN_LIMIT_MAPPING = {
+    "gpt-3.5-turbo-instruct": 4096,
+    "gpt-3.5-turbo-0301": 4096,
+    "gpt-3.5-turbo-0613": 4096,  # Current gpt-3.5-turbo default
+    "gpt-3.5-turbo-16k-0613": 16385,
+    "gpt-4-0314": 8192,
+    "gpt-4-0613": 8192,  # Current gpt-4 default
+    "gpt-4-32k-0314": 32768,
+    "gpt-4-32k-0613": 32768,
+    "gpt-4-1106-preview": 128000,
+    "gpt-4-vision-preview": 128000,
+}
+
+ANTHROPIC_MODEL_TOKEN_LIMIT_MAPPING = {
+    "claude-2.1": 200000,
+    "claude-2.0": 100000,
+    "claude-instant-1.2": 100000,
+}
+
+# https://cloud.google.com/vertex-ai/docs/generative-ai/learn/models
+GEMINI_MODEL_TOKEN_LIMIT_MAPPING = {
+    "gemini-pro": 32760,
+    "gemini-pro-vision": 16384,
+}
+
+BEDROCK_MODEL_TOKEN_LIMIT_MAPPING = {
+    "anthropic.claude-instant-v1": 100 * 1024,
+    "anthropic.claude-v1": 100 * 1024,
+    "anthropic.claude-v2": 100 * 1024,
+    "amazon.titan-text-express-v1": 8 * 1024,
+    "ai21.j2-mid-v1": 8 * 1024,
+    "ai21.j2-ultra-v1": 8 * 1024,
+}
+
+MODEL_TOKEN_LIMIT = {
+    **OPENAI_MODEL_TOKEN_LIMIT_MAPPING,
+    **ANTHROPIC_MODEL_TOKEN_LIMIT_MAPPING,
+    **GEMINI_MODEL_TOKEN_LIMIT_MAPPING,
+    **BEDROCK_MODEL_TOKEN_LIMIT_MAPPING,
+}
+
+
+def get_encoder(model: BaseModel) -> tiktoken.Encoding:
+    try:
+        encoding = tiktoken.encoding_for_model(model._model_name)
+    except KeyError:
+        encoding = tiktoken.get_encoding("cl100k_base")
+    return encoding
+
+
+def max_context_size(model: BaseModel) -> int:
+    # default to 4096
+    return MODEL_TOKEN_LIMIT.get(model._model_name, 4096)
+
+
+def get_tokens_from_text(encoder: tiktoken.Encoding, text: str) -> List[int]:
+    return encoder.encode(text)
+
+
+def get_text_from_tokens(encoder: tiktoken.Encoding, tokens: List[int]) -> str:
+    return encoder.decode(tokens)
+
+
+def truncate_text_by_model(model: BaseModel, text: str, token_buffer: int = 0) -> str:
+    """Truncates text using a give model token limit.
+    Args:
+        model (BaseModel): The model to use as reference.
+        text (str): The text to be truncated.
+        token_buffer (int, optional): The number of tokens to be left as buffer. For example, if the
+        `model` has a token limit of 1,000 and we want to leave a buffer of 50, the text will be
+        truncated such that the resulting text comprises 950 tokens. Defaults to 0.
+    Returns:
+        str: Truncated text
+    """
+    encoder = get_encoder(model)
+    max_token_count = max_context_size(model) - token_buffer
+    tokens = get_tokens_from_text(encoder, text)
+    if len(tokens) > max_token_count:
+        return get_text_from_tokens(encoder, tokens[:max_token_count]) + "..."
+    return text
+
+
+def concatenate_and_truncate_chunks(chunks: List[str], model: BaseModel, token_buffer: int) -> str:
+    """_summary_"""
+    """Given a list of `chunks` of text, this function will return the concatenated chunks
+    truncated to a token limit given by the `model` and `token_buffer`. See the function
+    `truncate_text_by_model` for information on the truncation process.
+    Args:
+        chunks (List[str]): A list of pieces of text.
+        model (BaseModel): The model to use as reference.
+        token_buffer (int): The number of tokens to be left as buffer. For example, if the
+        `model` has a token limit of 1,000 and we want to leave a buffer of 50, the text will be
+        truncated such that the resulting text comprises 950 tokens. Defaults to 0.
+    Returns:
+        str: A prompt string that fits within a model's context window.
+    """
+    return truncate_text_by_model(model=model, text=" ".join(chunks), token_buffer=token_buffer)
 
 
 # URL and Website download utilities
@@ -176,7 +282,7 @@ def run_experiments(
     web_title,
     save_dir,
     llama_index_model,
-    eval_model: BaseEvalModel,
+    eval_model: BaseModel,
     template: str,
 ):
     logger.info(f"LAMAINDEX MODEL : {llama_index_model}")
@@ -224,6 +330,7 @@ def run_experiments(
                     logger.info(f"K : {k}")
 
                     time_start = time.time()
+                    # return engine, query
                     response = engine.query(query)
                     time_end = time.time()
                     response_latency = time_end - time_start
@@ -297,7 +404,7 @@ def run_experiments(
 # Running the main Phoenix Evals both Q&A and Retrieval
 def df_evals(
     df: pd.DataFrame,
-    model: BaseEvalModel,
+    model: BaseModel,
     formatted_evals_column: str,
     template: str,
 ):
@@ -306,7 +413,9 @@ def df_evals(
         lambda chunks: concatenate_and_truncate_chunks(chunks=chunks, model=model, token_buffer=700)
     )
 
-    df = df.rename(columns={"query": "question", "response": "sampled_answer"})
+    df = df.rename(
+        columns={"query": "input", "response": "output", "retrieved_context_list": "reference"}
+    )
     # Q&A Eval: Did the LLM get the answer right? Checking the LLM
     Q_and_A_classifications = llm_classify(
         dataframe=df,
@@ -318,7 +427,7 @@ def df_evals(
     # Retreival Eval: Did I have the relevant data to even answer the question?
     # Checking retrieval system
 
-    df = df.rename(columns={"question": "query", "retrieved_context_list": "reference"})
+    df = df.rename(columns={"question": "input", "retrieved_context_list": "reference"})
     # query_column_name needs to also adjust the template to uncomment the
     # 2 fields in the function call below and delete the line above
     df[formatted_evals_column] = run_relevance_eval(
@@ -326,14 +435,14 @@ def df_evals(
         model=model,
         template=templates.RAG_RELEVANCY_PROMPT_TEMPLATE,
         rails=list(templates.RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
-        query_column_name="query",
-        # document_column_name="retrieved_context_list",
+        query_column_name="input",
+        document_column_name="reference",
     )
 
     # We want 0, 1 values for the metrics
-    value_map = {"relevant": 1, "irrelevant": 0, "UNPARSABLE": 0}
+    value_map = {"relevant": 1, "unrelated": 0, "UNPARSABLE": 0}
     df[formatted_evals_column] = df[formatted_evals_column].apply(
-        lambda values: [value_map.get(value) for value in values]
+        lambda values: [value_map.get(value, 0) for value in values]
     )
     return df
 
@@ -427,7 +536,6 @@ def main():
         logger.info(f"LOADED {len(urls)} URLS")
 
         logger.info("GRABBING DOCUMENTS")
-        BeautifulSoupWebReader = download_loader("BeautifulSoupWebReader")
         logger.info("LOADING DOCUMENTS FROM URLS")
         # You need to 'pip install lxml'
         loader = BeautifulSoupWebReader()
@@ -441,12 +549,15 @@ def main():
         with open(raw_docs_filepath, "rb") as file:
             documents = pickle.load(file)
 
+    # convert legacy documents to new format
+    documents = [Document(**document.__dict__) for document in documents]
+
     # Look for a URL in the output to open the App in a browser.
     px.launch_app()
     # The App is initially empty, but as you proceed with the steps below,
     # traces will appear automatically as your LlamaIndex application runs.
 
-    llama_index.set_global_handler("arize_phoenix")
+    set_global_handler("arize_phoenix")
 
     # Run all of your LlamaIndex applications as usual and traces
     # will be collected and displayed in Phoenix.
@@ -500,6 +611,114 @@ def main():
         show=False,
         remove_zero=False,
     )
+
+
+def run_relevance_eval(
+    dataframe,
+    model,
+    template,
+    rails,
+    query_column_name,
+    document_column_name,
+    verbose=False,
+    system_instruction=None,
+):
+    """
+    Given a pandas dataframe containing queries and retrieved documents, classifies the relevance of
+    each retrieved document to the corresponding query using an LLM.
+    Args:
+        dataframe (pd.DataFrame): A pandas dataframe containing queries and retrieved documents. If
+        both query_column_name and reference_column_name are present in the input dataframe, those
+        columns are used as inputs and should appear in the following format:
+        - The entries of the query column must be strings.
+        - The entries of the documents column must be lists of strings. Each list may contain an
+          arbitrary number of document texts retrieved for the corresponding query.
+        If the input dataframe is lacking either query_column_name or reference_column_name but has
+        query and retrieved document columns in OpenInference trace format named
+        "attributes.input.value" and "attributes.retrieval.documents", respectively, then those
+        columns are used as inputs and should appear in the following format:
+        - The entries of the query column must be strings.
+        - The entries of the document column must be lists of OpenInference document objects, each
+          object being a dictionary that stores the document text under the key "document.content".
+        This latter format is intended for running evaluations on exported OpenInference trace
+        dataframes. For more information on the OpenInference tracing specification, see
+        https://github.com/Arize-ai/openinference/.
+        model (BaseEvalModel): The model used for evaluation.
+        template (Union[PromptTemplate, str], optional): The template used for evaluation.
+        rails (List[str], optional): A list of strings representing the possible output classes of
+        the model's predictions.
+        query_column_name (str, optional): The name of the query column in the dataframe, which
+        should also be a template variable.
+        reference_column_name (str, optional): The name of the document column in the dataframe,
+        which should also be a template variable.
+        system_instruction (Optional[str], optional): An optional system message.
+        verbose (bool, optional): If True, prints detailed information to stdout such as model
+        invocation parameters and retry info. Default False.
+    Returns:
+        List[List[str]]: A list of relevant and not relevant classifications. The "shape" of the
+        list should mirror the "shape" of the retrieved documents column, in the sense that it has
+        the same length as the input dataframe and each sub-list has the same length as the
+        corresponding list in the retrieved documents column. The values in the sub-lists are either
+        entries from the rails argument or "NOT_PARSABLE" in the case where the LLM output could not
+        be parsed.
+    """
+
+    with set_verbosity(model, verbose) as verbose_model:
+        query_column = dataframe.get(query_column_name)
+        document_column = dataframe.get(document_column_name)
+        if query_column is None or document_column is None:
+            openinference_query_column = dataframe.get(OPENINFERENCE_QUERY_COLUMN_NAME)
+            openinference_document_column = dataframe.get(OPENINFERENCE_DOCUMENT_COLUMN_NAME)
+            if openinference_query_column is None or openinference_document_column is None:
+                raise ValueError(
+                    f'Dataframe columns must include either "{query_column_name}" and '
+                    f'"{document_column_name}", or "{OPENINFERENCE_QUERY_COLUMN_NAME}" and '
+                    f'"{OPENINFERENCE_DOCUMENT_COLUMN_NAME}".'
+                )
+            query_column = openinference_query_column
+            document_column = openinference_document_column.map(
+                lambda docs: _get_contents_from_openinference_documents(docs)
+                if docs is not None
+                else None
+            )
+
+        queries = query_column.tolist()
+        document_lists = document_column.tolist()
+        indexes = []
+        expanded_queries = []
+        expanded_documents = []
+        for index, (query, documents) in enumerate(zip(queries, document_lists)):
+            if query is None or documents is None:
+                continue
+            for document in documents:
+                indexes.append(index)
+                expanded_queries.append(query)
+                expanded_documents.append(document)
+        predictions = llm_classify(
+            dataframe=pd.DataFrame(
+                {
+                    query_column_name: expanded_queries,
+                    document_column_name: expanded_documents,
+                }
+            ),
+            model=verbose_model,
+            template=template,
+            rails=rails,
+            system_instruction=system_instruction,
+            verbose=verbose,
+        ).iloc[:, 0]
+        outputs: List[List[str]] = [[] for _ in range(len(dataframe))]
+        for index, prediction in zip(indexes, predictions):
+            outputs[index].append(prediction)
+        return outputs
+
+
+def _get_contents_from_openinference_documents(documents):
+    """
+    Get document contents from an iterable of OpenInference document objects, which are dictionaries
+    containing the document text under the "document.content" key.
+    """
+    return [doc.get(DOCUMENT_CONTENT) if isinstance(doc, dict) else None for doc in documents]
 
 
 if __name__ == "__main__":

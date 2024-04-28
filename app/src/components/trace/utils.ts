@@ -22,7 +22,7 @@ export function createSpanTree<TSpan extends ISpanItem>(
   const rootSpans: SpanTreeNode<TSpan>[] = [];
   for (const span of spans) {
     const spanTreeItem = spanMap.get(span.context.spanId);
-    if (span.parentId === null) {
+    if (span.parentId === null || !spanMap.has(span.parentId)) {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       rootSpans.push(spanTreeItem!);
     } else {

@@ -1,57 +1,88 @@
 from collections import defaultdict
-from datetime import datetime
-from itertools import chain
-from typing import Dict, List, Optional, Set, Tuple, Union, cast
+from typing import Dict, List, Optional, Set, Union
 
 import numpy as np
 import numpy.typing as npt
 import strawberry
+from sqlalchemy import delete, select
+from sqlalchemy.orm import load_only
 from strawberry import ID, UNSET
 from strawberry.types import Info
 from typing_extensions import Annotated
 
-from phoenix.metrics.retrieval_metrics import RetrievalMetrics
+from phoenix.config import DEFAULT_PROJECT_NAME
+from phoenix.db import models
 from phoenix.pointcloud.clustering import Hdbscan
+from phoenix.server.api.context import Context
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import (
     InputCoordinate2D,
     InputCoordinate3D,
 )
-from phoenix.server.api.input_types.SpanSort import SpanSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
-from phoenix.trace.dsl import SpanFilter
-from phoenix.trace.schemas import SpanID, TraceID
-
-from .context import Context
-from .input_types.TimeRange import TimeRange
-from .types.DatasetInfo import TraceDatasetInfo
-from .types.DatasetRole import AncillaryDatasetRole, DatasetRole
-from .types.Dimension import to_gql_dimension
-from .types.DocumentEvaluationSummary import DocumentEvaluationSummary
-from .types.EmbeddingDimension import (
+from phoenix.server.api.types.DatasetRole import AncillaryDatasetRole, DatasetRole
+from phoenix.server.api.types.Dimension import to_gql_dimension
+from phoenix.server.api.types.EmbeddingDimension import (
     DEFAULT_CLUSTER_SELECTION_EPSILON,
     DEFAULT_MIN_CLUSTER_SIZE,
     DEFAULT_MIN_SAMPLES,
     to_gql_embedding_dimension,
 )
-from .types.EvaluationSummary import EvaluationSummary
-from .types.Event import create_event_id, unpack_event_id
-from .types.ExportEventsMutation import ExportEventsMutation
-from .types.Functionality import Functionality
-from .types.Model import Model
-from .types.node import GlobalID, Node, from_global_id
-from .types.pagination import Connection, ConnectionArgs, Cursor, connection_from_list
-from .types.Span import Span, to_gql_span
-from .types.ValidationResult import ValidationResult
+from phoenix.server.api.types.Event import create_event_id, unpack_event_id
+from phoenix.server.api.types.ExportEventsMutation import ExportEventsMutation
+from phoenix.server.api.types.Functionality import Functionality
+from phoenix.server.api.types.Model import Model
+from phoenix.server.api.types.node import (
+    GlobalID,
+    Node,
+    from_global_id,
+    from_global_id_with_expected_type,
+)
+from phoenix.server.api.types.pagination import (
+    Connection,
+    ConnectionArgs,
+    Cursor,
+    connection_from_list,
+)
+from phoenix.server.api.types.Project import Project
 
 
 @strawberry.type
 class Query:
     @strawberry.field
-    def functionality(self, info: Info[Context, None]) -> "Functionality":
+    async def projects(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[Cursor] = UNSET,
+        before: Optional[Cursor] = UNSET,
+    ) -> Connection[Project]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, Cursor) else None,
+            last=last,
+            before=before if isinstance(before, Cursor) else None,
+        )
+        async with info.context.db() as session:
+            projects = await session.scalars(select(models.Project))
+        data = [
+            Project(
+                id_attr=project.id,
+                name=project.name,
+                gradient_start_color=project.gradient_start_color,
+                gradient_end_color=project.gradient_end_color,
+            )
+            for project in projects
+        ]
+        return connection_from_list(data=data, args=args)
+
+    @strawberry.field
+    async def functionality(self, info: Info[Context, None]) -> "Functionality":
         has_model_inferences = not info.context.model.is_empty
-        has_traces = info.context.traces is not None
+        async with info.context.db() as session:
+            has_traces = (await session.scalar(select(models.Trace).limit(1))) is not None
         return Functionality(
             model_inferences=has_model_inferences,
             tracing=has_traces,
@@ -62,7 +93,7 @@ class Query:
         return Model()
 
     @strawberry.field
-    def node(self, id: GlobalID, info: Info[Context, None]) -> Node:
+    async def node(self, id: GlobalID, info: Info[Context, None]) -> Node:
         type_name, node_id = from_global_id(str(id))
         if type_name == "Dimension":
             dimension = info.context.model.scalar_dimensions[node_id]
@@ -70,8 +101,20 @@ class Query:
         elif type_name == "EmbeddingDimension":
             embedding_dimension = info.context.model.embedding_dimensions[node_id]
             return to_gql_embedding_dimension(node_id, embedding_dimension)
-
-        raise Exception(f"Unknown node type: {type}")
+        elif type_name == "Project":
+            async with info.context.db() as session:
+                project = await session.scalar(
+                    select(models.Project).where(models.Project.id == node_id)
+                )
+            if project is None:
+                raise ValueError(f"Unknown project: {id}")
+            return Project(
+                id_attr=project.id,
+                name=project.name,
+                gradient_start_color=project.gradient_start_color,
+                gradient_end_color=project.gradient_end_color,
+            )
+        raise Exception(f"Unknown node type: {type_name}")
 
     @strawberry.field
     def clusters(
@@ -201,238 +244,39 @@ class Query:
             clustered_events=clustered_events,
         )
 
-    @strawberry.field
-    def streaming_last_updated_at(
-        self,
-        info: Info[Context, None],
-    ) -> Optional[datetime]:
-        last_updated_at: Optional[datetime] = None
-        if (traces := info.context.traces) is not None and (
-            traces_last_updated_at := traces.last_updated_at
-        ) is not None:
-            last_updated_at = (
-                traces_last_updated_at
-                if last_updated_at is None
-                else max(last_updated_at, traces_last_updated_at)
-            )
-        if (evals := info.context.evals) is not None and (
-            evals_last_updated_at := evals.last_updated_at
-        ) is not None:
-            last_updated_at = (
-                evals_last_updated_at
-                if last_updated_at is None
-                else max(last_updated_at, evals_last_updated_at)
-            )
-        return last_updated_at
-
-    @strawberry.field
-    def spans(
-        self,
-        info: Info[Context, None],
-        time_range: Optional[TimeRange] = UNSET,
-        trace_ids: Optional[List[ID]] = UNSET,
-        first: Optional[int] = 50,
-        last: Optional[int] = UNSET,
-        after: Optional[Cursor] = UNSET,
-        before: Optional[Cursor] = UNSET,
-        sort: Optional[SpanSort] = UNSET,
-        root_spans_only: Optional[bool] = UNSET,
-        filter_condition: Optional[str] = UNSET,
-    ) -> Connection[Span]:
-        args = ConnectionArgs(
-            first=first,
-            after=after if isinstance(after, Cursor) else None,
-            last=last,
-            before=before if isinstance(before, Cursor) else None,
-        )
-        if (traces := info.context.traces) is None:
-            return connection_from_list(data=[], args=args)
-        evals = info.context.evals
-        predicate = (
-            SpanFilter(
-                condition=filter_condition,
-                evals=evals,
-            )
-            if filter_condition
-            else None
-        )
-        if not trace_ids:
-            spans = traces.get_spans(
-                start_time=time_range.start if time_range else None,
-                stop_time=time_range.end if time_range else None,
-                root_spans_only=root_spans_only,
-            )
-        else:
-            spans = chain.from_iterable(map(traces.get_trace, map(TraceID, trace_ids)))
-        if predicate:
-            spans = filter(predicate, spans)
-        if sort:
-            spans = sort(spans, evals=evals)
-        data = list(map(to_gql_span, spans))
-        return connection_from_list(data=data, args=args)
-
-    @strawberry.field(
-        description="Names of all available evaluations for spans. "
-        "(The list contains no duplicates.)"
-    )  # type: ignore
-    def span_evaluation_names(
-        self,
-        info: Info[Context, None],
-    ) -> List[str]:
-        if (evals := info.context.evals) is None:
-            return []
-        return evals.get_span_evaluation_names()
-
-    @strawberry.field(
-        description="Names of available document evaluations.",
-    )  # type: ignore
-    def document_evaluation_names(
-        self,
-        info: Info[Context, None],
-        span_id: Optional[ID] = UNSET,
-    ) -> List[str]:
-        if (evals := info.context.evals) is None:
-            return []
-        return evals.get_document_evaluation_names(
-            None if span_id is UNSET else SpanID(span_id),
-        )
-
-    @strawberry.field
-    def span_evaluation_summary(
-        self,
-        info: Info[Context, None],
-        evaluation_name: str,
-        time_range: Optional[TimeRange] = UNSET,
-        filter_condition: Optional[str] = UNSET,
-    ) -> Optional[EvaluationSummary]:
-        if (evals := info.context.evals) is None:
-            return None
-        if (traces := info.context.traces) is None:
-            return None
-        predicate = (
-            SpanFilter(
-                condition=filter_condition,
-                evals=evals,
-            )
-            if filter_condition
-            else None
-        )
-        span_ids = evals.get_span_evaluation_span_ids(evaluation_name)
-        if not span_ids:
-            return None
-        spans = traces.get_spans(
-            start_time=time_range.start if time_range else None,
-            stop_time=time_range.end if time_range else None,
-            span_ids=span_ids,
-        )
-        if predicate:
-            spans = filter(predicate, spans)
-        evaluations = tuple(
-            evaluation
-            for span in spans
-            if (
-                evaluation := evals.get_span_evaluation(
-                    span.context.span_id,
-                    evaluation_name,
-                )
-            )
-            is not None
-        )
-        if not evaluations:
-            return None
-        labels = evals.get_span_evaluation_labels(evaluation_name)
-        return EvaluationSummary(evaluations, labels)
-
-    @strawberry.field
-    def document_evaluation_summary(
-        self,
-        info: Info[Context, None],
-        evaluation_name: str,
-        time_range: Optional[TimeRange] = UNSET,
-        filter_condition: Optional[str] = UNSET,
-    ) -> Optional[DocumentEvaluationSummary]:
-        if (evals := info.context.evals) is None:
-            return None
-        if (traces := info.context.traces) is None:
-            return None
-        predicate = (
-            SpanFilter(condition=filter_condition, evals=evals) if filter_condition else None
-        )
-        span_ids = evals.get_document_evaluation_span_ids(evaluation_name)
-        if not span_ids:
-            return None
-        spans = traces.get_spans(
-            start_time=time_range.start if time_range else None,
-            stop_time=time_range.end if time_range else None,
-            span_ids=span_ids,
-        )
-        if predicate:
-            spans = filter(predicate, spans)
-        metrics_collection = []
-        for span in spans:
-            span_id = span.context.span_id
-            num_documents = traces.get_num_documents(span_id)
-            if not num_documents:
-                continue
-            evaluation_scores = evals.get_document_evaluation_scores(
-                span_id=span_id,
-                evaluation_name=evaluation_name,
-                num_documents=num_documents,
-            )
-            metrics_collection.append(RetrievalMetrics(evaluation_scores))
-        if not metrics_collection:
-            return None
-        return DocumentEvaluationSummary(
-            evaluation_name=evaluation_name,
-            metrics_collection=metrics_collection,
-        )
-
-    @strawberry.field
-    def trace_dataset_info(
-        self,
-        info: Info[Context, None],
-    ) -> Optional[TraceDatasetInfo]:
-        if (traces := info.context.traces) is None:
-            return None
-        if not (span_count := traces.span_count):
-            return None
-        start_time, stop_time = cast(
-            Tuple[datetime, datetime],
-            traces.right_open_time_range,
-        )
-        latency_ms_p50, latency_ms_p99 = traces.root_span_latency_ms_quantiles(0.50, 0.99)
-        return TraceDatasetInfo(
-            start_time=start_time,
-            end_time=stop_time,
-            record_count=span_count,
-            token_count_total=traces.token_count_total,
-            latency_ms_p50=latency_ms_p50,
-            latency_ms_p99=latency_ms_p99,
-        )
-
-    @strawberry.field
-    def validate_span_filter_condition(
-        self, info: Info[Context, None], condition: str
-    ) -> ValidationResult:
-        evals = info.context.evals
-        valid_eval_names = evals.get_span_evaluation_names() if evals else ()
-        try:
-            SpanFilter(
-                condition=condition,
-                evals=evals,
-                valid_eval_names=valid_eval_names,
-            )
-            return ValidationResult(is_valid=True, error_message=None)
-        except SyntaxError as e:
-            return ValidationResult(
-                is_valid=False,
-                error_message=e.msg,
-            )
-
 
 @strawberry.type
 class Mutation(ExportEventsMutation):
-    ...
+    @strawberry.mutation
+    async def delete_project(self, info: Info[Context, None], id: GlobalID) -> Query:
+        node_id = from_global_id_with_expected_type(str(id), "Project")
+        async with info.context.db() as session:
+            project = await session.scalar(
+                select(models.Project)
+                .where(models.Project.id == node_id)
+                .options(load_only(models.Project.name))
+            )
+            if project is None:
+                raise ValueError(f"Unknown project: {id}")
+            if project.name == DEFAULT_PROJECT_NAME:
+                raise ValueError(f"Cannot delete the {DEFAULT_PROJECT_NAME} project")
+            await session.delete(project)
+        return Query()
+
+    @strawberry.mutation
+    async def clear_project(self, info: Info[Context, None], id: GlobalID) -> Query:
+        project_id = from_global_id_with_expected_type(str(id), "Project")
+        delete_statement = delete(models.Trace).where(models.Trace.project_rowid == project_id)
+        async with info.context.db() as session:
+            await session.execute(delete_statement)
+        return Query()
 
 
-schema = strawberry.Schema(query=Query, mutation=Mutation)
+# This is the schema for generating `schema.graphql`.
+# See https://strawberry.rocks/docs/guides/schema-export
+# It should be kept in sync with the server's runtime-initialized
+# instance. To do so, search for the usage of `strawberry.Schema(...)`.
+schema = strawberry.Schema(
+    query=Query,
+    mutation=Mutation,
+)

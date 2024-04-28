@@ -1,10 +1,14 @@
 import json
 import logging
 import os
+import shutil
+import warnings
 from abc import ABC, abstractmethod
 from collections import UserList
 from datetime import datetime
 from enum import Enum
+from importlib.util import find_spec
+from itertools import chain
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import (
@@ -24,15 +28,18 @@ import pandas as pd
 from phoenix.config import (
     ENV_NOTEBOOK_ENV,
     ENV_PHOENIX_COLLECTOR_ENDPOINT,
+    ENV_PHOENIX_HOST,
+    ENV_PHOENIX_PORT,
+    ensure_working_dir,
+    get_env_database_connection_str,
     get_env_grpc_port,
     get_env_host,
     get_env_port,
     get_exported_files,
+    get_working_dir,
 )
-from phoenix.core.evals import Evals
 from phoenix.core.model_schema_adapter import create_model_from_datasets
-from phoenix.core.traces import Traces
-from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
+from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
@@ -42,9 +49,7 @@ from phoenix.session.data_extractor import TraceDataExtractor
 from phoenix.session.evaluation import encode_evaluations
 from phoenix.trace import Evaluations
 from phoenix.trace.dsl.query import SpanQuery
-from phoenix.trace.otel import encode
 from phoenix.trace.trace_dataset import TraceDataset
-from phoenix.utilities import query_spans
 
 try:
     from IPython.display import IFrame  # type: ignore
@@ -59,6 +64,10 @@ if TYPE_CHECKING:
     _BaseList = UserList[pd.DataFrame]
 else:
     _BaseList = UserList
+
+# Temporary directory for the duration of the session
+global _session_working_dir
+_session_working_dir: Optional["TemporaryDirectory[str]"] = None
 
 
 class NotebookEnvironment(Enum):
@@ -91,7 +100,6 @@ class Session(TraceDataExtractor, ABC):
     """Session that maintains a 1-1 shared state with the Phoenix App."""
 
     trace_dataset: Optional[TraceDataset]
-    traces: Optional[Traces]
     notebook_env: NotebookEnvironment
     """The notebook environment that the session is running in."""
 
@@ -100,9 +108,10 @@ class Session(TraceDataExtractor, ABC):
 
     def __init__(
         self,
-        primary_dataset: Dataset,
-        reference_dataset: Optional[Dataset] = None,
-        corpus_dataset: Optional[Dataset] = None,
+        database_url: str,
+        primary_dataset: Inferences,
+        reference_dataset: Optional[Inferences] = None,
+        corpus_dataset: Optional[Inferences] = None,
         trace_dataset: Optional[TraceDataset] = None,
         default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
@@ -110,35 +119,12 @@ class Session(TraceDataExtractor, ABC):
         grpc_port: Optional[int] = None,
         notebook_env: Optional[NotebookEnvironment] = None,
     ):
+        self._database_url = database_url
         self.primary_dataset = primary_dataset
         self.reference_dataset = reference_dataset
         self.corpus_dataset = corpus_dataset
         self.trace_dataset = trace_dataset
         self.umap_parameters = get_umap_parameters(default_umap_parameters)
-        self.model = create_model_from_datasets(
-            primary_dataset,
-            reference_dataset,
-        )
-
-        self.corpus = (
-            create_model_from_datasets(
-                corpus_dataset,
-            )
-            if corpus_dataset is not None
-            else None
-        )
-
-        self.traces = Traces()
-        if trace_dataset:
-            for span in trace_dataset.to_spans():
-                self.traces.put(encode(span))
-
-        self.evals: Evals = Evals()
-        if trace_dataset:
-            for evaluations in trace_dataset.evaluations:
-                for pb_evaluation in encode_evaluations(evaluations):
-                    self.evals.put(pb_evaluation)
-
         self.host = host or get_env_host()
         self.port = port or get_env_port()
         self.grpc_port = grpc_port or get_env_grpc_port()
@@ -148,6 +134,76 @@ class Session(TraceDataExtractor, ABC):
         self.exported_data = ExportedData()
         self.notebook_env = notebook_env or _get_notebook_environment()
         self.root_path = _get_root_path(self.notebook_env, self.port)
+        host = "127.0.0.1" if self.host == "0.0.0.0" else self.host
+        self._client = Client(
+            endpoint=f"http://{host}:{self.port}", warn_if_server_not_running=False
+        )
+
+    def query_spans(
+        self,
+        *queries: SpanQuery,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+        root_spans_only: Optional[bool] = None,
+        project_name: Optional[str] = None,
+    ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
+        """
+        Queries the spans in the project based on the provided parameters.
+
+        Parameters
+        ----------
+            queries : *SpanQuery
+                Variable-length argument list of SpanQuery objects representing
+                the queries to be executed.
+
+            start_time : datetime, optional
+                 datetime representing the start time of the query.
+
+            stop_time : datetime, optional
+                datetime representing the stop time of the query.
+
+            root_spans_only : boolean, optional
+                whether to include only root spans in the results.
+
+            project_name : string, optional
+                name of the project to query. Defaults to the project name set
+                in the environment variable `PHOENIX_PROJECT_NAME` or 'default' if not set.
+
+        Returns:
+            results : DataFrame
+                DataFrame or list of DataFrames containing the query results.
+        """
+        return self._client.query_spans(
+            *queries,
+            start_time=start_time,
+            stop_time=stop_time,
+            root_spans_only=root_spans_only,
+            project_name=project_name,
+        )
+
+    def get_evaluations(
+        self,
+        project_name: Optional[str] = None,
+    ) -> List[Evaluations]:
+        """
+        Get the evaluations for a project.
+
+        Parameters
+        ----------
+            project_name :  str, optional
+                The name of the project. If not provided, the project name set
+                in the environment variable `PHOENIX_PROJECT_NAME` will be used.
+                Otherwise, 'default' will be used.
+
+        Returns
+        -------
+            evaluations : List[Evaluations]
+                A list of evaluations for the specified project.
+
+        """
+        return self._client.get_evaluations(
+            project_name=project_name,
+        )
 
     @abstractmethod
     def end(self) -> None:
@@ -188,6 +244,10 @@ class Session(TraceDataExtractor, ABC):
         """Returns the url for the phoenix app"""
         return _get_url(self.host, self.port, self.notebook_env)
 
+    @property
+    def database_url(self) -> str:
+        return self._database_url
+
 
 _session: Optional[Session] = None
 
@@ -195,9 +255,10 @@ _session: Optional[Session] = None
 class ProcessSession(Session):
     def __init__(
         self,
-        primary_dataset: Dataset,
-        reference_dataset: Optional[Dataset] = None,
-        corpus_dataset: Optional[Dataset] = None,
+        database_url: str,
+        primary_dataset: Inferences,
+        reference_dataset: Optional[Inferences] = None,
+        corpus_dataset: Optional[Inferences] = None,
         trace_dataset: Optional[TraceDataset] = None,
         default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
@@ -207,6 +268,7 @@ class ProcessSession(Session):
         notebook_env: Optional[NotebookEnvironment] = None,
     ) -> None:
         super().__init__(
+            database_url=database_url,
             primary_dataset=primary_dataset,
             reference_dataset=reference_dataset,
             corpus_dataset=corpus_dataset,
@@ -218,9 +280,9 @@ class ProcessSession(Session):
             notebook_env=notebook_env,
         )
         primary_dataset.to_disc()
-        if isinstance(reference_dataset, Dataset):
+        if isinstance(reference_dataset, Inferences):
             reference_dataset.to_disc()
-        if isinstance(corpus_dataset, Dataset):
+        if isinstance(corpus_dataset, Inferences):
             corpus_dataset.to_disc()
         if isinstance(trace_dataset, TraceDataset):
             trace_dataset.to_disc()
@@ -231,13 +293,14 @@ class ProcessSession(Session):
         )
         # Initialize an app service that keeps the server running
         self.app_service = AppService(
-            self.export_path,
-            self.host,
-            self.port,
-            self.grpc_port,
-            self.root_path,
-            self.primary_dataset.name,
-            umap_params_str,
+            database_url=database_url,
+            export_path=self.export_path,
+            host=self.host,
+            port=self.port,
+            grpc_port=self.grpc_port,
+            root_path=self.root_path,
+            primary_dataset_name=self.primary_dataset.name,
+            umap_params=umap_params_str,
             reference_dataset_name=(
                 self.reference_dataset.name if self.reference_dataset is not None else None
             ),
@@ -248,11 +311,6 @@ class ProcessSession(Session):
                 self.trace_dataset.name if self.trace_dataset is not None else None
             ),
         )
-        host = "127.0.0.1" if self.host == "0.0.0.0" else self.host
-        self._client = Client(
-            endpoint=f"http://{host}:{self.port}",
-            use_active_session_if_available=False,
-        )
 
     @property
     def active(self) -> bool:
@@ -262,30 +320,14 @@ class ProcessSession(Session):
         self.app_service.stop()
         self.temp_dir.cleanup()
 
-    def query_spans(
-        self,
-        *queries: SpanQuery,
-        start_time: Optional[datetime] = None,
-        stop_time: Optional[datetime] = None,
-        root_spans_only: Optional[bool] = None,
-    ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
-        return self._client.query_spans(
-            *queries,
-            start_time=start_time,
-            stop_time=stop_time,
-            root_spans_only=root_spans_only,
-        )
-
-    def get_evaluations(self) -> List[Evaluations]:
-        return self._client.get_evaluations()
-
 
 class ThreadSession(Session):
     def __init__(
         self,
-        primary_dataset: Dataset,
-        reference_dataset: Optional[Dataset] = None,
-        corpus_dataset: Optional[Dataset] = None,
+        database_url: str,
+        primary_dataset: Inferences,
+        reference_dataset: Optional[Inferences] = None,
+        corpus_dataset: Optional[Inferences] = None,
         trace_dataset: Optional[TraceDataset] = None,
         default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
@@ -294,6 +336,7 @@ class ThreadSession(Session):
         notebook_env: Optional[NotebookEnvironment] = None,
     ):
         super().__init__(
+            database_url=database_url,
             primary_dataset=primary_dataset,
             reference_dataset=reference_dataset,
             corpus_dataset=corpus_dataset,
@@ -303,14 +346,30 @@ class ThreadSession(Session):
             port=port,
             notebook_env=notebook_env,
         )
+        self.model = create_model_from_datasets(
+            primary_dataset,
+            reference_dataset,
+        )
+        self.corpus = (
+            create_model_from_datasets(
+                corpus_dataset,
+            )
+            if corpus_dataset is not None
+            else None
+        )
         # Initialize an app service that keeps the server running
         self.app = create_app(
+            database_url=database_url,
             export_path=self.export_path,
             model=self.model,
             corpus=self.corpus,
-            traces=self.traces,
-            evals=self.evals,
             umap_params=self.umap_parameters,
+            initial_spans=trace_dataset.to_spans() if trace_dataset else None,
+            initial_evaluations=(
+                chain.from_iterable(map(encode_evaluations, initial_evaluations))
+                if (trace_dataset and (initial_evaluations := trace_dataset.evaluations))
+                else None
+            ),
         )
         self.server = ThreadServer(
             app=self.app,
@@ -329,46 +388,35 @@ class ThreadSession(Session):
         self.server.close()
         self.temp_dir.cleanup()
 
-    def query_spans(
-        self,
-        *queries: SpanQuery,
-        start_time: Optional[datetime] = None,
-        stop_time: Optional[datetime] = None,
-        root_spans_only: Optional[bool] = None,
-    ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
-        if (traces := self.traces) is None:
-            return None
-        if not queries:
-            queries = (SpanQuery(),)
-        valid_eval_names = self.evals.get_span_evaluation_names() if self.evals else ()
-        queries = tuple(
-            SpanQuery.from_dict(
-                query.to_dict(),
-                evals=self.evals,
-                valid_eval_names=valid_eval_names,
-            )
-            for query in queries
-        )
-        results = query_spans(
-            traces,
-            *queries,
-            start_time=start_time,
-            stop_time=stop_time,
-            root_spans_only=root_spans_only,
-        )
-        if len(results) == 1:
-            df = results[0]
-            return None if df.shape == (0, 0) else df
-        return results
 
-    def get_evaluations(self) -> List[Evaluations]:
-        return self.evals.export_evaluations()
+def delete_all(prompt_before_delete: Optional[bool] = True) -> None:
+    """
+    Deletes the entire contents of the working directory. This will delete, traces, evaluations,
+    and any other data stored in the working directory.
+    """
+    global _session_working_dir
+    working_dir = get_working_dir()
+    directories_to_delete = []
+    if working_dir.exists():
+        directories_to_delete.append(working_dir)
+    if _session_working_dir is not None:
+        directories_to_delete.append(Path(_session_working_dir.name))
+
+    # Loop through directories to delete
+    for directory in directories_to_delete:
+        if prompt_before_delete:
+            input(
+                f"You have data at {directory}. Are you sure you want to delete?"
+                + " This cannot be undone. Press Enter to delete, Escape to cancel."
+            )
+        shutil.rmtree(directory)
+    _session_working_dir = None
 
 
 def launch_app(
-    primary: Optional[Dataset] = None,
-    reference: Optional[Dataset] = None,
-    corpus: Optional[Dataset] = None,
+    primary: Optional[Inferences] = None,
+    reference: Optional[Inferences] = None,
+    corpus: Optional[Inferences] = None,
     trace: Optional[TraceDataset] = None,
     default_umap_parameters: Optional[Mapping[str, Any]] = None,
     host: Optional[str] = None,
@@ -376,6 +424,7 @@ def launch_app(
     grpc_port: Optional[int] = None,
     run_in_thread: bool = True,
     notebook_environment: Optional[Union[NotebookEnvironment, str]] = None,
+    use_temp_dir: bool = True,
 ) -> Optional[Session]:
     """
     Launches the phoenix application and returns a session to interact with.
@@ -390,7 +439,7 @@ def launch_app(
     corpus : Dataset, optional
         The dataset containing corpus for LLM context retrieval.
     trace: TraceDataset, optional
-        **Experimental** The trace dataset containing the trace data.
+        The trace dataset containing the trace data.
     host: str, optional
         The host on which the server runs. It can also be set using environment
         variable `PHOENIX_HOST`, otherwise it defaults to `127.0.0.1`.
@@ -410,6 +459,10 @@ def launch_app(
         The environment the notebook is running in. This is either 'local', 'colab', or 'sagemaker'.
         If not provided, phoenix will try to infer the environment. This is only needed if
         there is a failure to infer the environment.
+    use_temp_dir: bool, optional, default=True
+        Whether to use a temporary directory to store the data. If set to False, the data will be
+        stored in the directory specified by PHOENIX_WORKING_DIR environment variable via SQLite.
+
 
     Returns
     -------
@@ -419,17 +472,21 @@ def launch_app(
     Examples
     --------
     >>> import phoenix as px
-    >>> # construct a dataset to analyze
-    >>> dataset = px.Dataset(...)
-    >>> session = px.launch_app(dataset)
+    >>> # construct an inference set to analyze
+    >>> inferences = px.Inferences(...)
+    >>> session = px.launch_app(inferences)
     """
     global _session
 
+    # First we must ensure that the working directory is setup
+    # NB: this is because the working directory can be deleted by the user
+    ensure_working_dir()
+
     # Stopgap solution to allow the app to run without a primary dataset
     if primary is None:
-        # Dummy dataset
-        # TODO: pass through the lack of a primary dataset to the app
-        primary = EMPTY_DATASET
+        # Dummy inferences
+        # TODO: pass through the lack of a primary inferences to the app
+        primary = EMPTY_INFERENCES
 
     if _session is not None and _session.active:
         logger.warning(
@@ -454,12 +511,42 @@ def launch_app(
     else:
         nb_env = notebook_environment
 
+    if port is not None:
+        warning_message = (
+            "❗️ The launch_app `port` parameter is deprecated and "
+            "will be removed in a future release. "
+            f"Use the `{ENV_PHOENIX_PORT}` environment variable instead."
+        )
+        print(warning_message)
+        warnings.warn(
+            warning_message,
+            DeprecationWarning,
+        )
+    if host is not None:
+        warning_message = (
+            "❗️ The launch_app `host` parameter is deprecated and "
+            "will be removed in a future release. "
+            f"Use the `{ENV_PHOENIX_HOST}` environment variable instead."
+        )
+        print(warning_message)
+        warnings.warn(
+            warning_message,
+            DeprecationWarning,
+        )
+
     host = host or get_env_host()
     port = port or get_env_port()
+    if use_temp_dir:
+        global _session_working_dir
+        _session_working_dir = _session_working_dir or TemporaryDirectory()
+        database_url = f"sqlite:///{_session_working_dir.name}/phoenix.db"
+    else:
+        database_url = get_env_database_connection_str()
     grpc_port = grpc_port or get_env_grpc_port()
 
     if run_in_thread:
         _session = ThreadSession(
+            database_url,
             primary,
             reference,
             corpus,
@@ -472,6 +559,7 @@ def launch_app(
         # TODO: catch exceptions from thread
     else:
         _session = ProcessSession(
+            database_url,
             primary,
             reference,
             corpus,
@@ -489,10 +577,12 @@ def launch_app(
             f"port {port} is not occupied by another process) or file an issue "
             f"with us at https://github.com/Arize-ai/phoenix"
         )
+        _session = None
         return None
 
     print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
-    print("📺 To view the Phoenix app in a notebook, run `px.active_session().view()`")
+    if not use_temp_dir:
+        print(f"💽 Your data is being persisted to {database_url}")
     print("📖 For more information on how to use Phoenix, check out https://docs.arize.com/phoenix")
     return _session
 
@@ -501,13 +591,20 @@ def active_session() -> Optional[Session]:
     """
     Returns the active session if one exists, otherwise returns None
     """
-    return _session
+    if _session and _session.active:
+        return _session
+    return None
 
 
-def close_app() -> None:
+def close_app(delete_data: bool = False) -> None:
     """
     Closes the phoenix application.
     The application server is shut down and will no longer be accessible.
+
+    Parameters
+    ----------
+    delete_data : bool, optional
+        If set to true, all stored phoenix data, including traces and evaluations. Default False.
     """
     global _session
     if _session is None:
@@ -516,6 +613,9 @@ def close_app() -> None:
     _session.end()
     _session = None
     logger.info("Session closed")
+    if delete_data:
+        logger.info("Deleting all data")
+        delete_all(prompt_before_delete=False)
 
 
 def _get_url(host: str, port: int, notebook_env: NotebookEnvironment) -> str:
@@ -551,9 +651,11 @@ def _is_colab() -> bool:
 
 def _is_sagemaker() -> bool:
     """Determines whether this is in a SageMaker notebook"""
+    if find_spec("sagemaker") is None:
+        return False
     try:
-        import sagemaker  # type: ignore # noqa: F401
-    except ImportError:
+        _get_sagemaker_notebook_base_url()
+    except Exception:
         return False
     try:
         from IPython.core.getipython import get_ipython

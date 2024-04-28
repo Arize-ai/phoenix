@@ -18,8 +18,7 @@ class Interceptor(ABC):
         return self if obj is None else getattr(obj, self._name)
 
     @abstractmethod
-    def __set__(self, obj: Any, value: Any) -> None:
-        ...
+    def __set__(self, obj: Any, value: Any) -> None: ...
 
 
 class GqlValueMediator(Interceptor):

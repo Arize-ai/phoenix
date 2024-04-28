@@ -1,218 +1,157 @@
 #!/usr/bin/env python3
-
-import itertools
+import gzip
 import json
-import random
-from datetime import timedelta
-from typing import Dict, List, Optional
-from uuid import uuid4
+from binascii import hexlify
+from random import choice, choices, randint, random
+from typing import Dict, List
+from urllib.parse import urljoin
 
 import numpy as np
+import phoenix.trace.v1 as pb
+import requests
 from faker import Faker
-from phoenix.trace.schemas import (
-    AttributeValue,
-    Span,
-    SpanContext,
-    SpanConversationAttributes,
-    SpanEvent,
-    SpanException,
-    SpanKind,
-    SpanStatusCode,
+from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
+from openinference.semconv.trace import (
+    DocumentAttributes,
+    EmbeddingAttributes,
+    MessageAttributes,
+    OpenInferenceMimeTypeValues,
+    OpenInferenceSpanKindValues,
+    SpanAttributes,
 )
-from phoenix.trace.semantic_conventions import (
-    DOCUMENT_CONTENT,
-    DOCUMENT_ID,
-    DOCUMENT_METADATA,
-    DOCUMENT_SCORE,
-    EMBEDDING_EMBEDDINGS,
-    EMBEDDING_MODEL_NAME,
-    EMBEDDING_TEXT,
-    EMBEDDING_VECTOR,
-    INPUT_VALUE,
-    LLM_INVOCATION_PARAMETERS,
-    LLM_TOKEN_COUNT_COMPLETION,
-    LLM_TOKEN_COUNT_PROMPT,
-    LLM_TOKEN_COUNT_TOTAL,
-    OUTPUT_VALUE,
-    RETRIEVAL_DOCUMENTS,
-    TOOL_DESCRIPTION,
-    TOOL_NAME,
-    TOOL_PARAMETERS,
-)
-from phoenix.trace.span_json_encoder import spans_to_jsonl
+from opentelemetry import trace as trace_api
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk import trace as trace_sdk
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.util import types
+
+url = "http://127.0.0.1:6004"
+traces_endpoint = urljoin(url, "/v1/traces")
+evals_endpoint = urljoin(url, "/v1/evaluations")
+
+tracer_provider = trace_sdk.TracerProvider()
+tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(traces_endpoint)))
 
 fake = Faker()
 
 
-def generate_trace(num_spans: int) -> List[Span]:
-    """
-    Generate a trace of n Spans with random data, where each span is the parent of the next one.
-
-    Parameters
-    ----------
-    num_spans : int
-        The number of spans to generate.
-
-    Returns
-    -------
-    list of Span
-        A list of n Spans with random data.
-    """
-    if num_spans <= 0:
-        return []
-
-    trace_id = uuid4()
-    conversation_id = uuid4()
-
-    spans: List[Span] = []
-    for i in range(num_spans):
-        parent_id = spans[-1].context.span_id if spans else None
-        start_time = (spans[-1].end_time if spans else fake.date_time_this_year()) + timedelta(
-            seconds=random.randint(1, 10)
-        )
-        end_time = start_time + timedelta(seconds=random.randint(1, 600))
-        span_id = uuid4()
-        span_kind = random.choice(list(SpanKind) + [None])
-        attributes: Dict[str, AttributeValue] = {}
-        if random.random() < 0.7:
-            attributes.update(fake.pydict(allowed_types=(float, int, str)))
-        if span_kind is SpanKind.LLM:
-            if random.random() < 0.7:
-                attributes[LLM_INVOCATION_PARAMETERS] = json.dumps(
-                    fake.pydict(allowed_types=(float, int, str))
-                )
-            if random.random() < 0.7:
-                token_count_total = random.randint(100, 10_000)
-                token_count_prompt = int(token_count_total * random.random())
-                token_count_completion = token_count_total - token_count_prompt
-                attributes.update(
-                    {
-                        LLM_TOKEN_COUNT_TOTAL: token_count_total,
-                        LLM_TOKEN_COUNT_PROMPT: token_count_prompt,
-                        LLM_TOKEN_COUNT_COMPLETION: token_count_completion,
-                    }
-                )
-        if span_kind is SpanKind.RETRIEVER:
-            documents = []
-            for _ in range(random.randint(0, 10)):
-                document = {DOCUMENT_ID: fake.pystr()}
-                if random.random() < 0.7:
-                    document[DOCUMENT_CONTENT] = fake.paragraph(nb_sentences=20)
-                if random.random() < 0.7:
-                    document[DOCUMENT_SCORE] = fake.pyfloat()
-                if random.random() < 0.7:
-                    document[DOCUMENT_METADATA] = fake.pydict(allowed_types=(float, int, str))
-                documents.append(document)
-            if documents:
-                attributes[RETRIEVAL_DOCUMENTS] = documents
-
-        if span_kind is SpanKind.EMBEDDING:
-            embeddings = []
-            for _ in range(random.randint(0, 10)):
-                embedding = {}
-                if random.random() < 0.7:
-                    embedding[EMBEDDING_MODEL_NAME] = fake.sentence()
-                if random.random() < 0.7:
-                    embedding[EMBEDDING_TEXT] = fake.paragraph()
-                if random.random() < 0.7:
-                    embedding[EMBEDDING_VECTOR] = list(np.random.random(2000))
-                embeddings.append(embedding)
-            if embeddings:
-                attributes[EMBEDDING_EMBEDDINGS] = embeddings
-        if span_kind is SpanKind.TOOL:
-            if random.random() < 0.7:
-                attributes[TOOL_NAME] = "-".join(fake.words())
-            if random.random() < 0.7:
-                attributes[TOOL_DESCRIPTION] = fake.paragraph()
-            if random.random() < 0.7:
-                attributes[TOOL_PARAMETERS] = fake.pydict(allowed_types=(float, int, str))
-        events = [
-            SpanEvent(
-                name=f"event_{j}",
-                attributes={"message": f"message_{j}"},
-                timestamp=start_time + timedelta(seconds=j),
-            )
-            for j in range(random.randint(1, 5))
+def _gen_spans(
+    tracer: trace_api.Tracer,
+    recurse_depth: int = 2,
+    recurse_width: int = 2,
+) -> List[trace_api.SpanContext]:
+    contexts = []
+    status_code = choice(
+        [
+            trace_api.StatusCode.OK,
+            trace_api.StatusCode.UNSET,
+            trace_api.StatusCode.ERROR,
         ]
-        if random.random() < 0.2:
-            status_code = SpanStatusCode.ERROR
-            status_message = "Error occurred"
-            events.append(
-                SpanException(
-                    message=fake.sentence(),
-                    timestamp=end_time,
+    )
+    with tracer.start_as_current_span(fake.city()) as span:
+        contexts.append(span.get_span_context())
+        span.set_attributes(_gen_attributes())
+        span.set_status(status_code)
+        if recurse_depth:
+            for _ in range(recurse_width):
+                contexts.extend(
+                    _gen_spans(
+                        tracer,
+                        randint(0, recurse_depth),
+                        randint(0, recurse_width),
+                    )
                 )
-            )
-        else:
-            status_code = random.choice([SpanStatusCode.UNSET, SpanStatusCode.OK, None])
-            status_message = "OK" if status_code == SpanStatusCode.OK else ""
-        span = Span(
-            name=f"span_{span_id}",
-            context=SpanContext(trace_id=trace_id, span_id=span_id),
-            span_kind=span_kind,
-            parent_id=parent_id,
-            start_time=start_time,
-            end_time=end_time,
-            status_code=status_code,
-            status_message=status_message,
-            attributes=attributes,
-            events=events,
-            conversation=SpanConversationAttributes(conversation_id=conversation_id),
+    return contexts
+
+
+def _gen_attributes() -> Dict[str, types.AttributeValue]:
+    attributes = {}
+
+    span_kind = choice(list(OpenInferenceSpanKindValues))
+    attributes[SpanAttributes.OPENINFERENCE_SPAN_KIND] = span_kind.value
+
+    attributes[SpanAttributes.INPUT_MIME_TYPE] = OpenInferenceMimeTypeValues.TEXT.value
+    attributes[SpanAttributes.INPUT_VALUE] = fake.paragraph(nb_sentences=15)
+
+    attributes[SpanAttributes.OUTPUT_MIME_TYPE] = OpenInferenceMimeTypeValues.JSON.value
+    attributes[SpanAttributes.OUTPUT_VALUE] = json.dumps(
+        fake.pydict(randint(0, 100), allowed_types=(float, int, str))
+    )
+
+    attributes[SpanAttributes.METADATA] = json.dumps(
+        fake.pydict(randint(0, 100), allowed_types=(float, int, str)),
+    )
+
+    if span_kind is OpenInferenceSpanKindValues.LLM:
+        attributes[SpanAttributes.LLM_TOKEN_COUNT_COMPLETION] = randint(0, 1000)
+        attributes[SpanAttributes.LLM_TOKEN_COUNT_PROMPT] = randint(0, 1000)
+        attributes[SpanAttributes.LLM_TOKEN_COUNT_TOTAL] = (
+            attributes[SpanAttributes.LLM_TOKEN_COUNT_COMPLETION]
+            + attributes[SpanAttributes.LLM_TOKEN_COUNT_PROMPT]
         )
-        spans.append(span)
-
-    for span in spans:
-        if random.random() < 0.2:
-            object.__setattr__(span, "end_time", None)
-        if random.random() < 0.5:
-            span.attributes[INPUT_VALUE] = fake.sentence()
-        if random.random() < 0.5:
-            span.attributes[OUTPUT_VALUE] = fake.sentence()
-
-    return spans
-
-
-def generate_traces(
-    num_traces: int, min_trace_length: Optional[int] = None, max_trace_length: Optional[int] = None
-) -> List[Span]:
-    """
-    Generate a flat list of Spans from i traces, where each trace contains a
-    random number of Spans in the range.
-
-    Parameters
-    ----------
-    i : int
-        The number of traces to generate.
-
-    Returns
-    -------
-    list of Span
-        A flat list of Spans .
-    """
-    min_trace_length = min_trace_length if min_trace_length else 3
-    max_trace_length = max_trace_length if max_trace_length else 8
-    traces = [
-        generate_trace(random.randint(min_trace_length, max_trace_length))
-        for _ in range(num_traces)
-    ]
-    return list(itertools.chain.from_iterable(traces))
-    return [
-        span
-        for _ in range(num_traces)
-        for span in (generate_trace(random.randint(min_trace_length, max_trace_length)))
-    ]
+        for i in range(10):
+            attributes[
+                f"{SpanAttributes.LLM_INPUT_MESSAGES}.{i}.{MessageAttributes.MESSAGE_CONTENT}"
+            ] = fake.paragraph(nb_sentences=15)
+            attributes[
+                f"{SpanAttributes.LLM_OUTPUT_MESSAGES}.{i}.{MessageAttributes.MESSAGE_CONTENT}"
+            ] = fake.paragraph(nb_sentences=15)
+    elif span_kind is OpenInferenceSpanKindValues.EMBEDDING:
+        for i in range(10):
+            attributes[
+                f"{SpanAttributes.EMBEDDING_EMBEDDINGS}.{i}.{EmbeddingAttributes.EMBEDDING_VECTOR}"
+            ] = np.random.rand(2000).tolist()
+    elif span_kind is OpenInferenceSpanKindValues.RETRIEVER:
+        for i in range(10):
+            attributes[
+                f"{SpanAttributes.RETRIEVAL_DOCUMENTS}.{i}.{DocumentAttributes.DOCUMENT_CONTENT}"
+            ] = fake.paragraph(nb_sentences=50)
+            attributes[
+                f"{SpanAttributes.RETRIEVAL_DOCUMENTS}.{i}.{DocumentAttributes.DOCUMENT_SCORE}"
+            ] = random() * 100
+            attributes[
+                f"{SpanAttributes.RETRIEVAL_DOCUMENTS}.{i}.{DocumentAttributes.DOCUMENT_METADATA}"
+            ] = json.dumps(
+                fake.pydict(randint(0, 20), allowed_types=(float, int, str)),
+            )
+    return attributes
 
 
-def main() -> None:
-    # generate traces
-    spans = generate_traces(num_traces=50, min_trace_length=3, max_trace_length=5)
-
-    # serialize each span to ndjson
-    jsonl_str = spans_to_jsonl(spans)
-
-    # print the jsonl to stdout
-    print(jsonl_str)
+def _gen_evals(
+    names: List[str],
+    contexts: List[trace_api.SpanContext],
+) -> None:
+    for context in contexts:
+        span_id = hexlify(context.span_id.to_bytes(8, "big")).decode()
+        for name in choices(names, k=randint(1, len(names))):
+            pb_evaluation = pb.Evaluation(
+                name=name,
+                subject_id=pb.Evaluation.SubjectId(span_id=span_id),
+                result=pb.Evaluation.Result(
+                    score=DoubleValue(value=random()),
+                    explanation=StringValue(value=fake.paragraph(nb_sentences=15)),
+                ),
+            )
+            requests.post(
+                evals_endpoint,
+                gzip.compress(pb_evaluation.SerializeToString()),
+                headers={
+                    "Content-Type": "application/x-protobuf",
+                    "Content-Encoding": "gzip",
+                },
+            )
 
 
 if __name__ == "__main__":
-    main()
+    tracer = tracer_provider.get_tracer(__name__)
+    eval_names = [fake.country() for _ in range(10)]
+    contexts = []
+    for _ in range(10):
+        contexts.extend(
+            _gen_spans(
+                tracer,
+                recurse_depth=randint(2, 5),
+                recurse_width=randint(2, 5),
+            )
+        )
+    _gen_evals(eval_names, contexts)

@@ -1,9 +1,9 @@
 [project]
 name = "arize-phoenix"
-description = "ML Observability in your notebook"
+description = "AI Observability and Evaluation"
 readme = "README.md"
-requires-python = ">=3.8, <3.12"
-license = "Elastic-2.0"
+requires-python = ">=3.8, <3.13"
+license = {text="Elastic-2.0"}
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
   "Observability",
@@ -19,33 +19,43 @@ classifiers = [
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
-  "scikit-learn<1.3.0",
+  "scikit-learn",
   "numpy",
   "pandas",
   "jinja2",
   "umap-learn",
-  "hdbscan>=0.8.33, <1.0.0",
+  "hdbscan>=0.8.33",
   "starlette",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.208.2",
+  "strawberry-graphql==0.227.2",  # need to pin version because we're monkey-patching
   "pyarrow",
-  "typing-extensions>=4.5, <5",
+  "typing-extensions>=4.5; python_version<'3.12'",
+  # A minimum version of typing-extensions==4.6.0 is needed to avoid this issue on Python 3.12: https://github.com/Azure/azure-sdk-for-python/issues/33442#issuecomment-1847886784
+  "typing-extensions>=4.6; python_version>='3.12'",
   "scipy",
   "wrapt",
   "sortedcontainers",
-  "protobuf>=3.20, <5.0",
+  "protobuf>=3.20, <6.0",
   "ddsketch",
   "tqdm",
   "requests",
   "opentelemetry-sdk",
-  "opentelemetry-proto",
+  "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
   "opentelemetry-exporter-otlp",
-  "openinference-instrumentation-langchain",
-  "openinference-instrumentation-llama-index",
-  "openinference-instrumentation-openai",
+  "opentelemetry-semantic-conventions",
+  "openinference-semantic-conventions>=0.1.5",
+  "openinference-instrumentation",
+  "openinference-instrumentation-langchain>=0.1.12",
+  "openinference-instrumentation-llama-index>=1.2.0",
+  "openinference-instrumentation-openai>=0.1.4",
+  "sqlalchemy[asyncio]>=2.0.4, <3",
+  "alembic>=1.3.0, <2",
+  "aiosqlite",
+  "sqlean.py>=3.45.1",
 ]
 dynamic = ["version"]
 
@@ -55,26 +65,48 @@ dev = [
   "hatch",
   "jupyter",
   "nbqa",
-  "ruff==0.1.5",
+  "ruff==0.3.0",
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "pytest==7.4.4",
   "pytest-asyncio",
   "pytest-cov",
   "pytest-lazy-fixture",
-  "strawberry-graphql[debug-server]==0.208.2",
+  "pytest-postgresql",
+  "asyncpg",
+  "psycopg[binary]",
+  "strawberry-graphql[debug-server,opentelemetry]==0.227.2",  # need to pin version because we're monkey-patching
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
-  "llama-index<0.10.0",
+  "llama-index>=0.10.3",
   "langchain>=0.0.334",
   "litellm>=1.0.3",
   "google-cloud-aiplatform>=1.3",
   "anthropic",
+  "prometheus_client",
+]
+evals = [
+  "arize-phoenix-evals>=0.3.0",
 ]
 experimental = [
   "tenacity",
 ]
 llama-index = [
-  "llama-index==0.9.45",  # always pin to a version that keeps our notebooks working
+  "llama-index==0.10.3",  # always pin to a version that keeps our notebooks working
+  "llama-index-callbacks-arize-phoenix>=0.1.2",
+  "openinference-instrumentation-llama-index>=1.2.0",
+]
+pg = [
+  "asyncpg",
+]
+container = [
+  "prometheus-client",
+  "opentelemetry-sdk",
+  "opentelemetry-proto>=1.12.0",
+  "opentelemetry-exporter-otlp",
+  "opentelemetry-semantic-conventions",
+  "opentelemetry-instrumentation-starlette",
+  "opentelemetry-instrumentation-sqlalchemy",
+  "strawberry-graphql[opentelemetry]==0.227.2",  # need to pin version because we're monkey-patching
 ]
 
 [project.urls]
@@ -91,13 +123,15 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/phoenix"]
-artifacts = ["src/phoenix/server/static"]
+exclude = ["src/phoenix/evals/"]
+artifacts = ["src/phoenix/server/static", "src/phoenix/db/migrations"]
 
 [tool.hatch.build]
 only-packages = true
 
 [tool.hatch.build.targets.sdist]
-artifacts = ["src/phoenix/server/static"]
+exclude = ["src/phoenix/evals/", "packages/"]
+artifacts = ["src/phoenix/server/static", "src/phoenix/db/migrations"]
 
 [tool.hatch.envs.default]
 dependencies = [
@@ -106,43 +140,51 @@ dependencies = [
   "pytest-asyncio",
   "pytest-cov",
   "pytest-lazy-fixture",
+  "pytest-postgresql",
+  "asyncpg",
+  "psycopg[binary]",
   "arize",
-  "langchain>=0.0.334",
   "litellm>=1.0.3",
-  "llama-index<0.10.0",
   "openai>=1.0.0",
   "tenacity",
-  "nltk==3.8.1",
-  "sentence-transformers==2.2.2",
-  "pydantic<2",  # for @root_validator in llama-index
   "requests",
   "protobuf==3.20",  # version minimum (for tests)
   "responses",
   "tiktoken",
-  "typing-extensions<4.6.0",  # for Colab
+  "typing-extensions==4.5.0; python_version<'3.12'",
+  "typing-extensions==4.6.0; python_version>='3.12'",
   "httpx", # For OpenAI testing
   "respx", # For OpenAI testing
   "nest-asyncio", # for executor testing
+  "astunparse; python_version<'3.9'",  # `ast.unparse(...)` is only available starting with Python 3.9
 ]
 
 [tool.hatch.envs.type]
 dependencies = [
-  "mypy==1.5.1",
-  "pydantic==v1.10.14",  # for mypy
-  "llama-index<0.10.0",
+  "mypy==1.9.0",
+  "tenacity",
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "types-psutil",
   "types-tqdm",
   "types-requests",
   "types-protobuf",
+  "types-setuptools",
   "openai>=1.0.0",
   "litellm>=1.0.3",
+  "prometheus_client",
+  "opentelemetry-sdk",
+  "opentelemetry-proto>=1.12.0",
+  "opentelemetry-exporter-otlp",
+  "opentelemetry-semantic-conventions",
+  "opentelemetry-instrumentation-starlette",
+  "opentelemetry-instrumentation-sqlalchemy",
+  "strawberry-graphql[opentelemetry]==0.227.2",  # need to pin version because we're monkey-patching
 ]
 
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
-  "ruff~=0.1.5",
+  "ruff==0.4.1",
 ]
 
 [tool.hatch.envs.notebooks]
@@ -162,7 +204,7 @@ tests = "pytest {args}"
 coverage = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/phoenix --cov=tests {args}"
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.8", "3.11"]
+python = ["3.8", "3.12"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -199,12 +241,12 @@ check = [
 
 [tool.hatch.envs.style.scripts]
 check = [
-  "ruff .",
   "ruff format --check --diff .",
+  "ruff check .",
 ]
 fix = [
   "ruff format .",
-  "ruff --fix .",
+  "ruff check --fix .",
 ]
 
 [tool.hatch.envs.notebooks.scripts]
@@ -235,7 +277,7 @@ check = [
 
 [tool.hatch.envs.gql]
 dependencies = [
-  "strawberry-graphql[cli]==0.208.2",
+  "strawberry-graphql[cli]==0.227.2",  # need to pin version because we're monkey-patching
   "requests",
 ]
 
@@ -276,11 +318,14 @@ disallow_untyped_defs = true
 disallow_incomplete_defs  = true
 strict = true
 exclude = [
+  "packages/",
+  "src/phoenix/evals/",
   "dist/",
   "scripts/data/",
   "sdist/",
   "tests/",
   "tutorials/",
+  "examples/manually-instrumented-chatbot/"
 ]
 
 [[tool.mypy.overrides]]
@@ -298,19 +343,31 @@ module = [
   "nest_asyncio",
   "opentelemetry.*",
   "pyarrow",
+  "sqlean",
 ]
 ignore_missing_imports = true
 
 [tool.ruff]
-exclude = [".git", "__pycache__", "docs/source/conf.py", "*_pb2.py*", "*.pyi"]
+exclude = [
+  "packages",
+  "src/phoenix/evals/",
+  "dist/",
+  ".git",
+  "__pycache__",
+  "*_pb2.py*",
+  "*.pyi",
+  "docs/",
+]
 extend-include = ["*.ipynb"]
-ignore-init-module-imports = true
 line-length = 100
-select = ["E", "F", "W", "I"]
 target-version = "py38"
 
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["E402", "E501"]
 
-[tool.ruff.isort]
+[tool.ruff.lint]
+ignore-init-module-imports = true
+select = ["E", "F", "W", "I"]
+
+[tool.ruff.lint.isort]
 force-single-line = false

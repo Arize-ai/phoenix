@@ -1,7 +1,6 @@
 import pandas as pd
-from phoenix.experimental.evals.functions import llm_classify
-from phoenix.experimental.evals.models.vertex import GeminiModel
-from phoenix.experimental.evals.templates.default_templates import (
+from phoenix.evals import GeminiModel, llm_classify
+from phoenix.evals.default_templates import (
     RAG_RELEVANCY_PROMPT_TEMPLATE,
 )
 

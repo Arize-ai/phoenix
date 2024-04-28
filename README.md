@@ -22,7 +22,7 @@
     <a target="_blank" href="https://pypi.org/project/arize-phoenix/">
         <img src="https://img.shields.io/pypi/pyversions/arize-phoenix">
     </a>
-    <a target="_blank" href="https://hub.docker.com/repository/docker/arizephoenix/phoenix/general">
+    <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix/tags">
         <img src="https://img.shields.io/docker/v/arizephoenix/phoenix?sort=semver&logo=docker&label=image&color=blue">
     </a>
 </p>
@@ -34,7 +34,7 @@ Phoenix provides MLOps and LLMOps insights at lightning speed with zero-config o
 -   **LLM Traces** - Trace through the execution of your LLM Application to understand the internals of your LLM Application and to troubleshoot problems related to things like retrieval and tool execution.
 -   **LLM Evals** - Leverage the power of large language models to evaluate your generative model or application's relevance, toxicity, and more.
 -   **Embedding Analysis** - Explore embedding point-clouds and identify clusters of high drift and performance degradation.
--   **RAG Analysis** - Visualize your generative application's search and retrieval process to solve improve your retrieval-augmented generation.
+-   **RAG Analysis** - Visualize your generative application's search and retrieval process to identify problems and improve your RAG pipeline.
 -   **Structured Data Analysis** - Statistically analyze your structured data by performing A/B analysis, temporal drift analysis, and more.
 
 **Table of Contents**
@@ -61,14 +61,11 @@ Phoenix provides MLOps and LLMOps insights at lightning speed with zero-config o
 Install Phoenix via `pip` or or `conda` as well as any of its subpackages.
 
 ```shell
-pip install arize-phoenix
+pip install arize-phoenix[evals]
 ```
 
-Some functionality such as LLM evals are under the `experimental` subpackage.
-
-```shell
-pip install arize-phoenix[experimental]
-```
+> [!NOTE]
+> The above will install Phoenix and its `evals` subpackage. To just install phoenix's evaluation package, you can run `pip install arize-phoenix-evals` instead.
 
 ## LLM Traces
 
@@ -86,39 +83,44 @@ To extract traces from your LlamaIndex application, you will have to add Phoenix
 
 ```shell
 # Install phoenix as well as llama_index and your LLM of choice
-pip install arize-phoenix llama-index openai
-
+pip install "arize-phoenix[evals]" "openai>=1" "llama-index>=0.10.3" "openinference-instrumentation-llama-index>=1.0.0" "llama-index-callbacks-arize-phoenix>=0.1.2" llama-index-llms-openai
 ```
 
 Launch Phoenix in a notebook and view the traces of your LlamaIndex application in the Phoenix UI.
 
 ```python
+import os
 import phoenix as px
+from llama_index.core import (
+    Settings,
+    VectorStoreIndex,
+    SimpleDirectoryReader,
+    set_global_handler,
+)
+from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.llms.openai import OpenAI
+
+os.environ["OPENAI_API_KEY"] = "YOUR_OPENAI_API_KEY"
 
 # To view traces in Phoenix, you will first have to start a Phoenix server. You can do this by running the following:
 session = px.launch_app()
 
 
-# Once you have started a Phoenix server, you can start your LlamaIndex application with the `OpenInferenceTraceCallback` as a callback. To do this, you will have to add the callback to the initialization of your LlamaIndex application:
+# Once you have started a Phoenix server, you can start your LlamaIndex application and configure it to send traces to Phoenix. To do this, you will have to add configure Phoenix as the global handler
 
-from phoenix.trace.llama_index import (
-    OpenInferenceTraceCallbackHandler,
-)
+set_global_handler("arize_phoenix")
 
-# Initialize the callback handler
-callback_handler = OpenInferenceTraceCallbackHandler()
 
 # LlamaIndex application initialization may vary
 # depending on your application
-service_context = ServiceContext.from_defaults(
-    llm_predictor=LLMPredictor(llm=ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)),
-    embed_model=OpenAIEmbedding(model="text-embedding-ada-002"),
-    callback_manager=CallbackManager(handlers=[callback_handler]),
-)
-index = load_index_from_storage(
-    storage_context,
-    service_context=service_context,
-)
+Settings.llm = OpenAI(model="gpt-4-turbo-preview")
+Settings.embed_model = OpenAIEmbedding(model="text-embedding-ada-002")
+
+
+# Load your data and create an index. Note you usually want to store your index in a persistent store like a database or the file system
+documents = SimpleDirectoryReader("YOUR_DATA_DIRECTORY").load_data()
+index = VectorStoreIndex.from_documents(documents)
+
 query_engine = index.as_query_engine()
 
 # Query your LlamaIndex application
@@ -153,7 +155,7 @@ session = px.launch_app()
 
 # Once you have started a Phoenix server, you can start your LangChain application with the OpenInferenceTracer as a callback. To do this, you will have to instrument your LangChain application with the tracer:
 
-from phoenix.trace.langchain import OpenInferenceTracer, LangChainInstrumentor
+from phoenix.trace.langchain import LangChainInstrumentor
 
 # By default, the traces will be exported to the locally running Phoenix server.
 LangChainInstrumentor().instrument()
@@ -194,8 +196,6 @@ session.url
 
 ## LLM Evals
 
-🚧 LLM Evals is still under construction under a sub-module `arize-phoenix[experimental]`
-
 [![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab&logo=googlecolab&labelColor=grey&color=blue&logoColor=orange&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_relevance_classifications.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub&logo=github&labelColor=grey&color=blue&logoColor=white&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_relevance_classifications.ipynb)
 
 Phoenix provides tooling to evaluate LLM applications, including tools to determine the relevance or irrelevance of documents retrieved by retrieval-augmented generation (RAG) application, whether or not the response is toxic, and much more.
@@ -210,12 +210,12 @@ Phoenix's approach to LLM evals is notable for the following reasons:
 Here is an example of running the RAG relevance eval on a dataset of Wikipedia questions and answers:
 
 ```shell
-# Install phoenix as well as the experimental subpackage
-pip install arize-phoenix[experimental] ipython matplotlib openai pycm scikit-learn
+# Install phoenix as well as the evals subpackage
+pip install 'arize-phoenix[evals]' ipython matplotlib openai pycm scikit-learn
 ```
 
 ```python
-from phoenix.experimental.evals import (
+from phoenix.evals import (
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
     OpenAIModel,
@@ -232,12 +232,12 @@ df = download_benchmark_dataset(
 df = df.sample(100)
 df = df.rename(
     columns={
-        "query_text": "query",
+        "query_text": "input",
         "document_text": "reference",
     },
 )
 model = OpenAIModel(
-    model_name="gpt-4",
+    model="gpt-4",
     temperature=0.0,
 )
 rails =list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values())
@@ -251,7 +251,7 @@ y_pred = df["eval_relevance"]
 precision, recall, f1, support = precision_recall_fscore_support(y_true, y_pred)
 ```
 
-To learn more about LLM Evals, see the [LLM Evals documentation](https://docs.arize.com/phoenix/concepts/llm-evals/).
+To learn more about LLM Evals, see the [Evals documentation](https://docs.arize.com/phoenix/concepts/llm-evals/).
 
 ## Embedding Analysis
 
@@ -293,11 +293,11 @@ train_schema = px.Schema(
 prod_schema = replace(train_schema, actual_label_column_name=None)
 
 # Define your production and training datasets.
-prod_ds = px.Dataset(prod_df, prod_schema)
-train_ds = px.Dataset(train_df, train_schema)
+prod_inf = px.Inferences(prod_df, prod_schema)
+train_inf = px.Inferences(train_df, train_schema)
 
 # Launch Phoenix.
-session = px.launch_app(prod_ds, train_ds)
+session = px.launch_app(prod_inf, train_inf)
 
 # View the Phoenix UI in the browser
 session.url
@@ -361,11 +361,11 @@ schema = px.Schema(
 )
 
 # Define your production and training datasets.
-prod_ds = px.Dataset(dataframe=prod_df, schema=schema, name="production")
-train_ds = px.Dataset(dataframe=train_df, schema=schema, name="training")
+prod_inf = px.Inferences(dataframe=prod_df, schema=schema, name="production")
+train_inf = px.Inferences(dataframe=train_df, schema=schema, name="training")
 
 # Launch Phoenix for analysis
-session = px.launch_app(primary=prod_ds, reference=train_ds)
+session = px.launch_app(primary=prod_inf, reference=train_inf)
 ```
 
 ## Deploying Phoenix

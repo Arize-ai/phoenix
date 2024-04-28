@@ -1,0 +1,16 @@
+{
+    "separate-pull-requests": true,
+    "sequential-calls": true,
+    "packages": {
+        ".": {
+            "package-name": "arize-phoenix",
+            "release-type": "python",
+            "exclude-paths": ["packages"]
+        },
+        "packages/phoenix-evals": {
+            "package-name": "arize-phoenix-evals",
+            "release-type": "python"
+        }
+    },
+    "bootstrap-sha": "71840f7b1d7650e6407a0e6856fab128d1b42a40"
+}

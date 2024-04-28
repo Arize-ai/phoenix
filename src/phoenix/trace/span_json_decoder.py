@@ -2,7 +2,10 @@ import json
 from datetime import datetime
 from typing import Any, Dict, Optional
 
+from openinference.semconv.trace import SpanAttributes
+
 from phoenix.trace.schemas import (
+    EXCEPTION_MESSAGE,
     MimeType,
     Span,
     SpanContext,
@@ -14,11 +17,9 @@ from phoenix.trace.schemas import (
     SpanStatusCode,
     TraceID,
 )
-from phoenix.trace.semantic_conventions import (
-    EXCEPTION_MESSAGE,
-    INPUT_MIME_TYPE,
-    OUTPUT_MIME_TYPE,
-)
+
+INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
+OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
 
 
 def json_to_attributes(obj: Optional[Dict[str, Any]]) -> Dict[str, Any]:

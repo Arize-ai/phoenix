@@ -485,6 +485,8 @@ type Mutation {
   Given a list of clusters, export the corresponding data subset in Parquet format. File name is optional, but if specified, should be without file extension. By default the exported file name is current timestamp.
   """
   exportClusters(clusters: [ClusterInput!]!, fileName: String): ExportedFile!
+  deleteProject(id: GlobalID!): Query!
+  clearProject(id: GlobalID!): Query!
 }
 
 """A node in the graph with a globally unique ID"""
@@ -534,6 +536,49 @@ type Point3D {
   z: Float!
 }
 
+type Project implements Node {
+  id: GlobalID!
+  name: String!
+  gradientStartColor: String!
+  gradientEndColor: String!
+  startTime: DateTime
+  endTime: DateTime
+  recordCount(timeRange: TimeRange): Int!
+  traceCount(timeRange: TimeRange): Int!
+  tokenCountTotal(timeRange: TimeRange): Int!
+  latencyMsQuantile(probability: Float!, timeRange: TimeRange): Float
+  trace(traceId: ID!): Trace
+  spans(timeRange: TimeRange, first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String): SpanConnection!
+
+  """
+  Names of all available evaluations for traces. (The list contains no duplicates.)
+  """
+  traceEvaluationNames: [String!]!
+
+  """
+  Names of all available evaluations for spans. (The list contains no duplicates.)
+  """
+  spanEvaluationNames: [String!]!
+
+  """Names of available document evaluations."""
+  documentEvaluationNames(spanId: ID): [String!]!
+  traceEvaluationSummary(evaluationName: String!, timeRange: TimeRange): EvaluationSummary
+  spanEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): EvaluationSummary
+  documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
+  streamingLastUpdatedAt: DateTime
+  validateSpanFilterCondition(condition: String!): ValidationResult!
+}
+
+type ProjectConnection {
+  pageInfo: PageInfo!
+  edges: [ProjectEdge!]!
+}
+
+type ProjectEdge {
+  node: Project!
+  cursor: String!
+}
+
 type PromptResponse {
   """The prompt submitted to the LLM"""
   prompt: String
@@ -543,6 +588,7 @@ type PromptResponse {
 }
 
 type Query {
+  projects(first: Int = 50, last: Int, after: String, before: String): ProjectConnection!
   functionality: Functionality!
   model: Model!
   node(id: GlobalID!): Node!
@@ -566,20 +612,6 @@ type Query {
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
-  streamingLastUpdatedAt: DateTime
-  spans(timeRange: TimeRange, traceIds: [ID!], first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String): SpanConnection!
-
-  """
-  Names of all available evaluations for spans. (The list contains no duplicates.)
-  """
-  spanEvaluationNames: [String!]!
-
-  """Names of available document evaluations."""
-  documentEvaluationNames(spanId: ID): [String!]!
-  spanEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): EvaluationSummary
-  documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
-  traceDatasetInfo: TraceDatasetInfo
-  validateSpanFilterCondition(condition: String!): ValidationResult!
 }
 
 type Retrieval {
@@ -612,6 +644,7 @@ enum SortDir {
 type Span {
   name: String!
   statusCode: SpanStatusCode!
+  statusMessage: String!
   startTime: DateTime!
   endTime: DateTime
   latencyMs: Float
@@ -623,6 +656,9 @@ type Span {
 
   """Span attributes as a JSON string"""
   attributes: String!
+
+  """Metadata as a JSON string"""
+  metadata: String
   numDocuments: Int
   tokenCountTotal: Int
   tokenCountPrompt: Int
@@ -767,24 +803,29 @@ type TimeSeriesDataPoint {
   value: Float
 }
 
-type TraceDatasetInfo {
-  """The start bookend of the data"""
-  startTime: DateTime!
+type Trace {
+  spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
 
-  """The end bookend of the data"""
-  endTime: DateTime!
+  """Evaluations associated with the trace"""
+  traceEvaluations: [TraceEvaluation!]!
+}
 
-  """The record count of the data"""
-  recordCount: Int!
+type TraceEvaluation implements Evaluation {
+  """Name of the evaluation, e.g. 'helpfulness' or 'relevance'."""
+  name: String!
 
-  """Count of total (prompt + completion) tokens in the trace data"""
-  tokenCountTotal: Int!
+  """Result of the evaluation in the form of a numeric score."""
+  score: Float
 
-  """Root span latency p50 quantile in milliseconds"""
-  latencyMsP50: Float
+  """
+  Result of the evaluation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  """
+  label: String
 
-  """Root span latency p99 quantile in milliseconds"""
-  latencyMsP99: Float
+  """
+  The evaluator's explanation for the evaluation result (i.e. score or label, or both) given to the subject.
+  """
+  explanation: String
 }
 
 type UMAPPoint {

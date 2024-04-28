@@ -25,8 +25,7 @@ class BinningMethod(ABC):
     missing values will be grouped into a bin of their own)"""
 
     @abstractmethod
-    def histogram(self, data: "pd.Series[Any]") -> Histogram:
-        ...
+    def histogram(self, data: "pd.Series[Any]") -> Histogram: ...
 
     @abstractmethod
     def segmented_summary(
@@ -34,8 +33,7 @@ class BinningMethod(ABC):
         group_by: Column,
         dataframe: pd.DataFrame,
         metrics: Iterable[Metric],
-    ) -> pd.DataFrame:
-        ...
+    ) -> pd.DataFrame: ...
 
 
 NumericBin: TypeAlias = "pd.Interval[float]"
@@ -296,8 +294,7 @@ class Normalizer(ABC):
     """A function that normalizes counts/frequencies to probabilities."""
 
     @abstractmethod
-    def __call__(self, counts: Histogram) -> Distribution:
-        ...
+    def __call__(self, counts: Histogram) -> Distribution: ...
 
 
 @dataclass(frozen=True)

@@ -8,13 +8,13 @@ description: >-
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/nodejs_deployment.png" alt=""><figcaption><p>You can trace your NodeJS application over OpenTelemetry</p></figcaption></figure>
 
-Phoenix is written and maintained in Python to make it natively runnable in Python notebooks. However it can be stood up as as a trace collector so that your LLM traces from your NodeJS application (e.x. LlamaIndex.TS, Langchain.js). The traces collected by the phoenix can them be downloaded from the Phoenix can them be downloaded to a Jupyter notebook and them be used to run evaluations (e.x. [LLM Evals,](../how-to/define-your-schema/llm-evaluations.md) Ragas)
+Phoenix is written and maintained in Python to make it natively runnable in Python notebooks. However it can be stood up as as a trace collector so that your LLM traces from your NodeJS application (e.x. LlamaIndex.TS, Langchain.js). The traces collected by the phoenix can them be downloaded from the Phoenix can them be downloaded to a Jupyter notebook and them be used to run evaluations (e.x. [LLM Evals,](../tracing/how-to-tracing/llm-evaluations.md) Ragas)
 
 
 
 ## Getting Started
 
-[Instrumentation](../telemetry/instrumentation.md) is the act of adding observability code to an app yourself.
+[Instrumentation](../tracing/how-to-tracing/instrumentation/) is the act of adding observability code to an app yourself.
 
 If you’re instrumenting an app, you need to use the OpenTelemetry SDK for your language. You’ll then use the SDK to initialize OpenTelemetry and the API to instrument your code. This will emit telemetry from your app, and any library you installed that also comes with instrumentation.
 
@@ -32,7 +32,7 @@ npm install @opentelemetry/api @opentelemetry/resources @opentelemetry/semantic-
 
 Install OpenInference instrumentation packages. Below is an example of adding instrumentation for OpenAI as well as the semantic conventions for OpenInference.
 
-<pre class="language-bash"><code class="lang-bash"><strong>npm install @arizeai/openinfernece-instrumentation-openai @arizeai/openinference-semantic-conventions
+<pre class="language-bash"><code class="lang-bash"><strong>npm install @arizeai/openinference-instrumentation-openai @arizeai/openinference-semantic-conventions
 </strong></code></pre>
 
 #### Initialize the SDK <a href="#initialize-the-sdk" id="initialize-the-sdk"></a>

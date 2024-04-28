@@ -2,7 +2,7 @@
 description: Observability for all model types (LLM, NLP, CV, Tabular)
 ---
 
-# Phoenix Inferences
+# Quickstart: Inferences
 
 ## Overview
 
@@ -84,7 +84,7 @@ For examples on how Schema are defined for other model types (NLP, tabular, LLM-
 Wrap your `train_df` and schema `train_schema`  into a Phoenix Dataset object:
 
 ```python
-train_ds = px.Dataset(dataframe=train_ds, schema=train_schema, name="training")
+train_ds = px.Dataset(dataframe=train_df, schema=train_schema, name="training")
 ```
 
 ### Step 5: Launch Phoenix!
@@ -253,7 +253,7 @@ Create your [free account](https://arize.com/join) and see the full suite of [Ar
 
 ## Where to go from here?
 
-* Read more about Embeddings Analysis [here](../../concepts/embeddings-analysis.md)
+* Read more about Embeddings Analysis [here](../../inferences/use-cases-inferences/embeddings-analysis.md)
 
 ***
 

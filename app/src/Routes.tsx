@@ -3,7 +3,8 @@ import { createRoutesFromElements, Route, RouterProvider } from "react-router";
 import { createBrowserRouter } from "react-router-dom";
 
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
-import { TracingHomePage } from "./pages/tracing";
+import { projectLoader, ProjectPage } from "./pages/project";
+import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
 import {
   dimensionLoader,
   DimensionPage,
@@ -14,6 +15,8 @@ import {
   Layout,
   ModelPage,
   ModelRoot,
+  ProjectsPage,
+  ProjectsRoot,
   TracePage,
   TracingRoot,
 } from "./pages";
@@ -53,14 +56,24 @@ const router = createBrowserRouter(
         </Route>
       </Route>
       <Route
-        path="/tracing"
-        handle={{ crumb: () => "tracing" }}
-        element={<TracingRoot />}
+        path="/projects"
+        handle={{ crumb: () => "projects" }}
+        element={<ProjectsRoot />}
       >
-        <Route index element={<TracingHomePage />} />
-        <Route element={<TracingHomePage />}>
-          <Route path="traces">
-            <Route path=":traceId" element={<TracePage />} />
+        <Route index element={<ProjectsPage />} />
+        <Route
+          path=":projectId"
+          element={<TracingRoot />}
+          loader={projectLoader}
+          handle={{
+            crumb: (data: projectLoaderQuery$data) => data.project.name,
+          }}
+        >
+          <Route index element={<ProjectPage />} />
+          <Route element={<ProjectPage />}>
+            <Route path="traces">
+              <Route path=":traceId" element={<TracePage />} />
+            </Route>
           </Route>
         </Route>
       </Route>

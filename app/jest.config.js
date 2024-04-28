@@ -4,8 +4,11 @@
 module.exports = {
   preset: "ts-jest",
   testEnvironment: "node",
+  transform: {
+    "^.+\\.[jt]sx?$": ["esbuild-jest"],
+  },
+  transformIgnorePatterns: [".*node_modules/.pnpm/(?!d3)@"],
   moduleNameMapper: {
-    "^d3-(.*)$": `<rootDir>/node_modules/d3-$1/dist/d3-$1`,
     "^@phoenix/(.*)$": "<rootDir>/src/$1",
   },
 };

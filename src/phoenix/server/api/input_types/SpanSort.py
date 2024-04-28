@@ -1,39 +1,58 @@
-from enum import Enum
-from functools import partial
-from typing import Any, Iterable, Iterator, Optional, Protocol
+from enum import Enum, auto
+from typing import Any, Optional, Protocol
 
-import pandas as pd
 import strawberry
+from openinference.semconv.trace import SpanAttributes
+from sqlalchemy import and_, desc, nulls_last
+from sqlalchemy.sql.expression import Select
 from strawberry import UNSET
-from typing_extensions import assert_never
 
 import phoenix.trace.v1 as pb
-from phoenix.core.traces import (
-    END_TIME,
-    START_TIME,
-)
+from phoenix.db import models
 from phoenix.server.api.types.SortDir import SortDir
-from phoenix.trace import semantic_conventions
-from phoenix.trace.schemas import ComputedAttributes, Span, SpanID
+from phoenix.trace.schemas import SpanID
+
+LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT.split(".")
+LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION.split(".")
+LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL.split(".")
 
 
 @strawberry.enum
 class SpanColumn(Enum):
-    startTime = START_TIME
-    endTime = END_TIME
-    latencyMs = ComputedAttributes.LATENCY_MS.value
-    tokenCountTotal = semantic_conventions.LLM_TOKEN_COUNT_TOTAL
-    tokenCountPrompt = semantic_conventions.LLM_TOKEN_COUNT_PROMPT
-    tokenCountCompletion = semantic_conventions.LLM_TOKEN_COUNT_COMPLETION
-    cumulativeTokenCountTotal = ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_TOTAL.value
-    cumulativeTokenCountPrompt = ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_PROMPT.value
-    cumulativeTokenCountCompletion = ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION.value
+    startTime = auto()
+    endTime = auto()
+    latencyMs = auto()
+    tokenCountTotal = auto()
+    tokenCountPrompt = auto()
+    tokenCountCompletion = auto()
+    cumulativeTokenCountTotal = auto()
+    cumulativeTokenCountPrompt = auto()
+    cumulativeTokenCountCompletion = auto()
 
 
 @strawberry.enum
 class EvalAttr(Enum):
     score = "score"
     label = "label"
+
+
+_SPAN_COLUMN_TO_ORM_EXPR_MAP = {
+    SpanColumn.startTime: models.Span.start_time,
+    SpanColumn.endTime: models.Span.end_time,
+    SpanColumn.latencyMs: models.Span.latency_ms,
+    SpanColumn.tokenCountTotal: models.Span.attributes[LLM_TOKEN_COUNT_TOTAL].as_float(),
+    SpanColumn.tokenCountPrompt: models.Span.attributes[LLM_TOKEN_COUNT_PROMPT].as_float(),
+    SpanColumn.tokenCountCompletion: models.Span.attributes[LLM_TOKEN_COUNT_COMPLETION].as_float(),
+    SpanColumn.cumulativeTokenCountTotal: models.Span.cumulative_llm_token_count_prompt
+    + models.Span.cumulative_llm_token_count_completion,
+    SpanColumn.cumulativeTokenCountPrompt: models.Span.cumulative_llm_token_count_prompt,
+    SpanColumn.cumulativeTokenCountCompletion: models.Span.cumulative_llm_token_count_completion,
+}
+
+_EVAL_ATTR_TO_ORM_EXPR_MAP = {
+    EvalAttr.score: models.SpanAnnotation.score,
+    EvalAttr.label: models.SpanAnnotation.label,
+}
 
 
 @strawberry.input
@@ -43,8 +62,7 @@ class EvalResultKey:
 
 
 class SupportsGetSpanEvaluation(Protocol):
-    def get_span_evaluation(self, span_id: SpanID, name: str) -> Optional[pb.Evaluation]:
-        ...
+    def get_span_evaluation(self, span_id: SpanID, name: str) -> Optional[pb.Evaluation]: ...
 
 
 @strawberry.input(
@@ -56,58 +74,22 @@ class SpanSort:
     eval_result_key: Optional[EvalResultKey] = UNSET
     dir: SortDir
 
-    def __call__(
-        self,
-        spans: Iterable[Span],
-        evals: Optional[SupportsGetSpanEvaluation] = None,
-    ) -> Iterator[Span]:
-        """
-        Sorts the spans by the given key (column or eval) and direction
-        """
-        if self.eval_result_key:
-            get_sort_key_value = partial(
-                _get_eval_result_value,
-                eval_name=self.eval_result_key.name,
-                eval_attr=self.eval_result_key.attr,
-                evals=evals,
-            )
-        else:
-            get_sort_key_value = partial(
-                _get_column_value,
-                span_column=self.col or SpanColumn.startTime,
-            )
-        yield from pd.Series(spans, dtype=object).sort_values(
-            key=lambda series: series.apply(get_sort_key_value),
-            ascending=self.dir.value == SortDir.asc.value,
-        )
-
-
-def _get_column_value(span: Span, span_column: SpanColumn) -> Any:
-    if span_column is SpanColumn.startTime:
-        return span.start_time
-    if span_column is SpanColumn.endTime:
-        return span.end_time
-    return span.attributes.get(span_column.value)
-
-
-def _get_eval_result_value(
-    span: Span,
-    eval_name: str,
-    eval_attr: EvalAttr,
-    evals: Optional[SupportsGetSpanEvaluation] = None,
-) -> Any:
-    """
-    Returns the evaluation result for the given span
-    """
-    if evals is None:
-        return None
-    span_id = span.context.span_id
-    evaluation = evals.get_span_evaluation(span_id, eval_name)
-    if evaluation is None:
-        return None
-    result = evaluation.result
-    if eval_attr is EvalAttr.score:
-        return result.score.value if result.HasField("score") else None
-    if eval_attr is EvalAttr.label:
-        return result.label.value if result.HasField("label") else None
-    assert_never(eval_attr)
+    def update_orm_expr(self, stmt: Select[Any]) -> Select[Any]:
+        if self.col and not self.eval_result_key:
+            expr = _SPAN_COLUMN_TO_ORM_EXPR_MAP[self.col]
+            if self.dir == SortDir.desc:
+                expr = desc(expr)
+            return stmt.order_by(nulls_last(expr))
+        if self.eval_result_key and not self.col:
+            eval_name = self.eval_result_key.name
+            expr = _EVAL_ATTR_TO_ORM_EXPR_MAP[self.eval_result_key.attr]
+            if self.dir == SortDir.desc:
+                expr = desc(expr)
+            return stmt.join(
+                models.SpanAnnotation,
+                onclause=and_(
+                    models.SpanAnnotation.span_rowid == models.Span.id,
+                    models.SpanAnnotation.name == eval_name,
+                ),
+            ).order_by(expr)
+        raise ValueError("Exactly one of `col` or `evalResultKey` must be specified on `SpanSort`.")

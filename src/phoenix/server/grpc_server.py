@@ -16,8 +16,7 @@ from opentelemetry.proto.trace.v1.trace_pb2 import Span
 
 
 class SupportsPutSpan(Protocol):
-    def put(self, span: Span) -> None:
-        ...
+    def put(self, span: Span) -> None: ...
 
 
 class Servicer(TraceServiceServicer):

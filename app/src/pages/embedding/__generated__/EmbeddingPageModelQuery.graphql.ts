@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4a8bd4197880c4cc52531fc9bde7c3a5>>
+ * @generated SignedSource<<c1c1ddc4e1064fa3fb7ae65dfe48eada>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type EmbeddingPageModelQuery$variables = {};
+export type EmbeddingPageModelQuery$variables = Record<PropertyKey, never>;
 export type EmbeddingPageModelQuery$data = {
   readonly model: {
     readonly " $fragmentSpreads": FragmentRefs<"MetricSelector_dimensions">;
