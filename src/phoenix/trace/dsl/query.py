@@ -532,6 +532,8 @@ class SpanQuery(_HasTmpSuffix):
             stmt = stmt.where(start_time <= models.Span.start_time)
         if stop_time:
             stmt = stmt.where(models.Span.start_time < stop_time)
+        if limit is not None:
+            stmt = stmt.limit(limit)
         if root_spans_only:
             parent = aliased(models.Span)
             stmt = stmt.outerjoin(
