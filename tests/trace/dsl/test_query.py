@@ -250,6 +250,12 @@ async def test_stop_time(session: AsyncSession, default_project: None, abc_proje
     )
 
 
+async def test_limit(session: AsyncSession, default_project: None, abc_project: None) -> None:
+    sq = SpanQuery()
+    actual = await session.run_sync(sq, project_name="abc", limit=2)
+    assert actual.index.tolist() == ["234", "345"]
+
+
 async def test_filter_for_none(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:
