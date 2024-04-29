@@ -40,10 +40,10 @@ dependencies = [
   "wrapt",
   "sortedcontainers",
   "protobuf>=3.20, <6.0",
+  "grpcio",
   "ddsketch",
   "tqdm",
   "requests",
-  "grpcio",
   "opentelemetry-sdk",
   "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
   "opentelemetry-exporter-otlp",
