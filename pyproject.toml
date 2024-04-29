@@ -40,6 +40,7 @@ dependencies = [
   "wrapt",
   "sortedcontainers",
   "protobuf>=3.20, <6.0",
+  "grpcio",
   "ddsketch",
   "tqdm",
   "requests",
@@ -106,6 +107,7 @@ container = [
   "opentelemetry-semantic-conventions",
   "opentelemetry-instrumentation-starlette",
   "opentelemetry-instrumentation-sqlalchemy",
+  "opentelemetry-instrumentation-grpc",
   "strawberry-graphql[opentelemetry]==0.227.2",  # need to pin version because we're monkey-patching
 ]
 
@@ -172,12 +174,14 @@ dependencies = [
   "openai>=1.0.0",
   "litellm>=1.0.3",
   "prometheus_client",
+  "grpcio",
   "opentelemetry-sdk",
   "opentelemetry-proto>=1.12.0",
   "opentelemetry-exporter-otlp",
   "opentelemetry-semantic-conventions",
   "opentelemetry-instrumentation-starlette",
   "opentelemetry-instrumentation-sqlalchemy",
+  "opentelemetry-instrumentation-grpc",
   "strawberry-graphql[opentelemetry]==0.227.2",  # need to pin version because we're monkey-patching
 ]
 
@@ -344,6 +348,7 @@ module = [
   "opentelemetry.*",
   "pyarrow",
   "sqlean",
+  "grpc.*",
 ]
 ignore_missing_imports = true
 

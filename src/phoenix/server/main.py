@@ -16,6 +16,7 @@ from phoenix.config import (
     EXPORT_DIR,
     get_env_database_connection_str,
     get_env_enable_prometheus,
+    get_env_grpc_port,
     get_env_host,
     get_env_port,
     get_pids_path,
@@ -67,7 +68,9 @@ _WELCOME_MESSAGE = """
 |
 |  🚀 Phoenix Server 🚀
 |  Phoenix UI: http://{host}:{port}
-|  Log traces: /v1/traces over HTTP
+|  Log traces:
+|    - gRPC: http://{host}:{grpc_port}
+|    - HTTP: http://{host}:{port}/v1/traces
 |  Storage: {storage}
 """
 
@@ -249,6 +252,7 @@ if __name__ == "__main__":
         "version": phoenix_version,
         "host": host,
         "port": port,
+        "grpc_port": get_env_grpc_port(),
         "storage": get_printable_db_url(db_connection_str),
     }
     print(_WELCOME_MESSAGE.format(**config))

@@ -1,6 +1,6 @@
 # This Dockerfile is provided for convenience if you wish to run Phoenix in a
 # container or sidecar. To build the image, run the following commmand:
-# 
+#
 # > docker build -t phoenix
 #
 # You can then run the image in the background with:
@@ -10,7 +10,7 @@
 # or in the foreground with:
 #
 # > docker run -it -p 6006:6006 phoenix
-# 
+#
 # How are you using Phoenix in production? Let us know!
 #
 # To get support or provide feedback, contact the team in the #phoenix-support
@@ -35,7 +35,7 @@ WORKDIR /phoenix
 COPY ./ /phoenix/
 COPY --from=frontend-builder /phoenix/src/phoenix/server/static/ /phoenix/src/phoenix/server/static/
 # Delete symbolic links used during development.
-RUN find src/ -xtype l -delete  
+RUN find src/ -xtype l -delete
 RUN pip install --target ./env ".[container, pg]"
 
 # The production image is distroless, meaning that it is a minimal image that
@@ -54,9 +54,12 @@ FROM gcr.io/distroless/python3-debian12
 WORKDIR /phoenix
 COPY --from=backend-builder /phoenix/env/ ./env
 ENV PYTHONPATH="/phoenix/env:$PYTHONPATH"
-# Export the Phoenix port.
+ENV PYTHONUNBUFFERED=1
+# Expose the Phoenix port.
 EXPOSE 6006
-# Export the Prometheus port.
+# Expose the Phoenix GRPC port.
+EXPOSE 4317
+# Expose the Prometheus port.
 EXPOSE 9090
 # Run the Phoenix server. Note that the ENTRYPOINT of the base image invokes
 # Python, so no explicit invocation of Python is needed here. See
