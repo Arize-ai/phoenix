@@ -23,8 +23,8 @@ async def query_spans_handler(request: Request) -> Response:
         in: query
         schema:
           type: string
+          default: default
         description: The project name to get evaluations from
-        default: default
     requestBody:
       required: true
       content:
@@ -114,9 +114,4 @@ async def query_spans_handler(request: Request) -> Response:
 
 
 async def get_spans_handler(request: Request) -> Response:
-    """
-    summary: Deprecated route for querying for spans, use the POST method instead
-    operationId: legacyQuerySpans
-    deprecated: true
-    """
     return await query_spans_handler(request)

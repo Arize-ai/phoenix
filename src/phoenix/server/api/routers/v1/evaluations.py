@@ -50,8 +50,8 @@ async def post_evaluations(request: Request) -> Response:
         in: query
         schema:
           type: string
+          default: default
         description: The project name to add the evaluation to
-        default: default
     requestBody:
       required: true
       content:
@@ -111,8 +111,8 @@ async def get_evaluations(request: Request) -> Response:
         in: query
         schema:
           type: string
+          default: default
         description: The project name to get evaluations from
-        default: default
     responses:
       200:
         description: Success
