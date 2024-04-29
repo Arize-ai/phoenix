@@ -65,8 +65,8 @@ Set up evaluators (in this casefor hallucinations and Q\&A correctness), run the
 ```python
 !pip install openai
 
-from phoenix.experimental.evals import OpenAIModel, HallucinationEvaluator, QAEvaluator
-from phoenix.experimental.evals import run_evals
+from phoenix.evals import OpenAIModel, HallucinationEvaluator, QAEvaluator
+from phoenix.evals import run_evals
 import nest_asyncio
 nest_asyncio.apply()  # This is needed for concurrency in notebook environments
 

@@ -36,7 +36,7 @@ question in the conversation, or doesn't contain information that would allow yo
 to answer the specific question please answer "incorrect".
 </code></pre>
 
-<pre class="language-python"><code class="lang-python"><strong>from phoenix.experimental.evals import (
+<pre class="language-python"><code class="lang-python"><strong>from phoenix.evals import (
 </strong><strong>    REF_LINK_EVAL_PROMPT_RAILS_MAP,
 </strong>    REF_LINK_EVAL_PROMPT_TEMPLATE_STR,
     OpenAIModel,

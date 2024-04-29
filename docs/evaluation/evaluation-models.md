@@ -20,9 +20,9 @@ There are direct model integrations in Phoenix and indirect model integrations t
 
 These integrations are native to the Phoenix Evals package and have better throughput, rate limit and error management.&#x20;
 
-[Vertex AI](../api/evaluation-models.md#phoenix.experimental.evals.vertexai)
+[Vertex AI](../api/evaluation-models.md#phoenix.evals.vertexai)
 
-[OpenAI](../api/evaluation-models.md#phoenix.experimental.evals.openaimodel)
+[OpenAI](../api/evaluation-models.md#phoenix.evals.openaimodel)
 
 [Azure OpenAI ](../api/evaluation-models.md#azure-openai)
 

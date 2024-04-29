@@ -59,7 +59,7 @@ idea of the human answer, please answer "incorrect".
 #### How to run Eval:
 
 ```python
-from phoenix.experimental.evals import (
+from phoenix.evals import (
     HUMAN_VS_AI_PROMPT_RAILS_MAP,
     HUMAN_VS_AI_PROMPT_TEMPLATE,
     OpenAIModel,
