@@ -50,11 +50,17 @@ async def query_spans_handler(request: Request) -> Response:
               start_time:
                 type: string
                 format: date-time
+                nullable: true
               stop_time:
                 type: string
                 format: date-time
+                nullable: true
+              limit:
+                type: integer
+                nullable: true
               root_spans_only:
                 type: boolean
+                nullable: true
     responses:
       200:
         description: Success
@@ -87,6 +93,7 @@ async def query_spans_handler(request: Request) -> Response:
                     project_name=project_name,
                     start_time=from_iso_format(payload.get("start_time")),
                     stop_time=from_iso_format(payload.get("stop_time")),
+                    limit=payload.get("limit"),
                     root_spans_only=payload.get("root_spans_only"),
                 )
             )

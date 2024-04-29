@@ -21,7 +21,7 @@ from phoenix.config import (
     get_env_port,
     get_env_project_name,
 )
-from phoenix.session.data_extractor import TraceDataExtractor
+from phoenix.session.data_extractor import DEFAULT_SPAN_LIMIT, TraceDataExtractor
 from phoenix.trace import Evaluations, TraceDataset
 from phoenix.trace.dsl import SpanQuery
 from phoenix.trace.otel import encode_span_to_otlp
@@ -65,6 +65,7 @@ class Client(TraceDataExtractor):
         *queries: SpanQuery,
         start_time: Optional[datetime] = None,
         stop_time: Optional[datetime] = None,
+        limit: Optional[int] = DEFAULT_SPAN_LIMIT,
         root_spans_only: Optional[bool] = None,
         project_name: Optional[str] = None,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
@@ -93,6 +94,7 @@ class Client(TraceDataExtractor):
                 "queries": [q.to_dict() for q in queries],
                 "start_time": _to_iso_format(start_time),
                 "stop_time": _to_iso_format(stop_time),
+                "limit": limit,
                 "root_spans_only": root_spans_only,
             },
         )
