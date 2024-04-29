@@ -522,7 +522,7 @@ class SpanQuery(_HasTmpSuffix):
                 project_name,
                 span_filter=self._filter,
                 start_time=start_time,
-                stop_time=stop_time,
+                end_time=end_time,
                 limit=limit,
                 root_spans_only=root_spans_only,
             )
