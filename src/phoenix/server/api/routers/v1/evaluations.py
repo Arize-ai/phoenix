@@ -96,7 +96,7 @@ async def post_evaluations(request: Request) -> Response:
             "Evaluation name must not be blank/empty",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
-    request.state.queue_evaluation_for_bulk_insert(evaluation)
+    await request.state.queue_evaluation_for_bulk_insert(evaluation)
     return Response()
 
 
@@ -195,7 +195,7 @@ async def _process_pyarrow(request: Request) -> Response:
 
 async def _add_evaluations(state: State, evaluations: Evaluations) -> None:
     for evaluation in encode_evaluations(evaluations):
-        state.queue_evaluation_for_bulk_insert(evaluation)
+        await state.queue_evaluation_for_bulk_insert(evaluation)
 
 
 def _read_sql_trace_evaluations_into_dataframe(

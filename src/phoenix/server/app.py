@@ -1,5 +1,6 @@
 import contextlib
 import logging
+import weakref
 from datetime import datetime
 from pathlib import Path
 from typing import (
@@ -63,8 +64,12 @@ from phoenix.server.api.dataloaders import (
 from phoenix.server.api.dataloaders.span_descendants import SpanDescendantsDataLoader
 from phoenix.server.api.routers.v1 import V1_ROUTES
 from phoenix.server.api.schema import schema
+from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.trace.schemas import Span
+
+if TYPE_CHECKING:
+    from opentelemetry.trace import TracerProvider
 
 logger = logging.getLogger(__name__)
 
@@ -205,11 +210,16 @@ def _db(engine: AsyncEngine) -> Callable[[], AsyncContextManager[AsyncSession]]:
 
 
 def _lifespan(
+    *,
     bulk_inserter: BulkInserter,
+    tracer_provider: Optional["TracerProvider"] = None,
 ) -> StatefulLifespan[Starlette]:
     @contextlib.asynccontextmanager
     async def lifespan(_: Starlette) -> AsyncIterator[Dict[str, Any]]:
-        async with bulk_inserter as (queue_span, queue_evaluation):
+        async with bulk_inserter as (queue_span, queue_evaluation), GrpcServer(
+            queue_span,
+            tracer_provider=tracer_provider,
+        ):
             yield {
                 "queue_span_for_bulk_insert": queue_span,
                 "queue_evaluation_for_bulk_insert": queue_evaluation,
@@ -281,6 +291,7 @@ def create_app(
             engine=engine.sync_engine,
             tracer_provider=tracer_provider,
         )
+        weakref.finalize(engine, SQLAlchemyInstrumentor().uninstrument)
         if TYPE_CHECKING:
             # Type-check the class before monkey-patching its private attribute.
             assert OpenTelemetryExtension._tracer
@@ -315,7 +326,10 @@ def create_app(
     else:
         prometheus_middlewares = []
     app = Starlette(
-        lifespan=_lifespan(bulk_inserter),
+        lifespan=_lifespan(
+            bulk_inserter=bulk_inserter,
+            tracer_provider=tracer_provider,
+        ),
         middleware=[
             Middleware(HeadersMiddleware),
             *prometheus_middlewares,
