@@ -68,6 +68,8 @@ class Client(TraceDataExtractor):
         limit: Optional[int] = DEFAULT_SPAN_LIMIT,
         root_spans_only: Optional[bool] = None,
         project_name: Optional[str] = None,
+        # Deprecated
+        stop_time: Optional[datetime] = None,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
         """
         Queries spans from the Phoenix server or active session based on specified criteria.
@@ -87,6 +89,12 @@ class Client(TraceDataExtractor):
         project_name = project_name or get_env_project_name()
         if not queries:
             queries = (SpanQuery(),)
+        if stop_time is not None:
+            # Deprecated. Raise a warning
+            logger.warning(
+                "stop_time is deprecated. Use end_time instead.",
+            )
+            end_time = end_time or stop_time
         response = self._session.post(
             url=urljoin(self._base_url, "/v1/spans"),
             params={"project-name": project_name},
