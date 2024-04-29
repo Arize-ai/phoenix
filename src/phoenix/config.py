@@ -169,7 +169,7 @@ def get_env_port() -> int:
     if port.isnumeric():
         return int(port)
     raise ValueError(
-        f"Invalid value for environment variable {ENV_PHOENIX_GRPC_PORT}: "
+        f"Invalid value for environment variable {ENV_PHOENIX_PORT}: "
         f"{port}. Value must be an integer."
     )
 
