@@ -164,18 +164,24 @@ def get_exported_files(directory: Path) -> List[Path]:
 
 
 def get_env_port() -> int:
-    return (
-        int(port)
-        if isinstance(port := os.getenv(ENV_PHOENIX_PORT), str) and port.isnumeric()
-        else PORT
+    if not (port := os.getenv(ENV_PHOENIX_PORT)):
+        return PORT
+    if port.isnumeric():
+        return int(port)
+    raise ValueError(
+        f"Invalid value for environment variable {ENV_PHOENIX_GRPC_PORT}: "
+        f"{port}. Value must be an integer."
     )
 
 
 def get_env_grpc_port() -> int:
-    return (
-        int(port)
-        if isinstance(port := os.getenv(ENV_PHOENIX_GRPC_PORT), str) and port.isnumeric()
-        else GRPC_PORT
+    if not (port := os.getenv(ENV_PHOENIX_GRPC_PORT)):
+        return GRPC_PORT
+    if port.isnumeric():
+        return int(port)
+    raise ValueError(
+        f"Invalid value for environment variable {ENV_PHOENIX_GRPC_PORT}: "
+        f"{port}. Value must be an integer."
     )
 
 
