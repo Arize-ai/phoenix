@@ -140,10 +140,12 @@ class Session(TraceDataExtractor, ABC):
         self,
         *queries: SpanQuery,
         start_time: Optional[datetime] = None,
-        stop_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
         limit: Optional[int] = DEFAULT_SPAN_LIMIT,
         root_spans_only: Optional[bool] = None,
         project_name: Optional[str] = None,
+        # Deprecated fields
+        stop_time: Optional[datetime] = None,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
         """
         Queries the spans in the project based on the provided parameters.
@@ -157,8 +159,8 @@ class Session(TraceDataExtractor, ABC):
             start_time : datetime, optional
                  datetime representing the start time of the query.
 
-            stop_time : datetime, optional
-                datetime representing the stop time of the query.
+            end_time : datetime, optional
+                datetime representing the end time of the query.
 
             root_spans_only : boolean, optional
                 whether to include only root spans in the results.
@@ -171,10 +173,17 @@ class Session(TraceDataExtractor, ABC):
             results : DataFrame
                 DataFrame or list of DataFrames containing the query results.
         """
+        if stop_time is not None:
+            warnings.warn(
+                "The `stop_time` parameter is deprecated and will be removed in a future release. "
+                "Please use `end_time` instead.",
+                DeprecationWarning,
+            )
+            end_time = stop_time
         return self._client.query_spans(
             *queries,
             start_time=start_time,
-            stop_time=stop_time,
+            end_time=end_time,
             limit=limit,
             root_spans_only=root_spans_only,
             project_name=project_name,

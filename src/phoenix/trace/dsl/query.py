@@ -1,3 +1,4 @@
+import warnings
 from collections import defaultdict
 from dataclasses import dataclass, field, replace
 from datetime import datetime
@@ -500,19 +501,28 @@ class SpanQuery(_HasTmpSuffix):
         session: Session,
         project_name: Optional[str] = None,
         start_time: Optional[datetime] = None,
-        stop_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
         limit: Optional[int] = DEFAULT_SPAN_LIMIT,
         root_spans_only: Optional[bool] = None,
+        # Deprecated
+        stop_time: Optional[datetime] = None,
     ) -> pd.DataFrame:
         if not project_name:
             project_name = DEFAULT_PROJECT_NAME
+        if stop_time:
+            # Deprecated. Raise a warning
+            warnings.warn(
+                "stop_time is deprecated. Use end_time instead.",
+                DeprecationWarning,
+            )
+            end_time = end_time or stop_time
         if not (self._select or self._explode or self._concat):
             return _get_spans_dataframe(
                 session,
                 project_name,
                 span_filter=self._filter,
                 start_time=start_time,
-                stop_time=stop_time,
+                end_time=end_time,
                 limit=limit,
                 root_spans_only=root_spans_only,
             )
@@ -530,8 +540,8 @@ class SpanQuery(_HasTmpSuffix):
         )
         if start_time:
             stmt = stmt.where(start_time <= models.Span.start_time)
-        if stop_time:
-            stmt = stmt.where(models.Span.start_time < stop_time)
+        if end_time:
+            stmt = stmt.where(models.Span.start_time < end_time)
         if limit is not None:
             stmt = stmt.limit(limit)
         if root_spans_only:
@@ -672,13 +682,22 @@ def _get_spans_dataframe(
     *,
     span_filter: Optional[SpanFilter] = None,
     start_time: Optional[datetime] = None,
-    stop_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
     limit: Optional[int] = DEFAULT_SPAN_LIMIT,
     root_spans_only: Optional[bool] = None,
+    # Deprecated
+    stop_time: Optional[datetime] = None,
 ) -> pd.DataFrame:
     # use legacy labels for backward-compatibility
     span_id_label = "context.span_id"
     trace_id_label = "context.trace_id"
+    if stop_time:
+        # Deprecated. Raise a warning
+        warnings.warn(
+            "stop_time is deprecated. Use end_time instead.",
+            DeprecationWarning,
+        )
+        end_time = end_time or stop_time
     stmt: Select[Any] = (
         select(
             models.Span.name,
@@ -701,8 +720,8 @@ def _get_spans_dataframe(
         stmt = span_filter(stmt)
     if start_time:
         stmt = stmt.where(start_time <= models.Span.start_time)
-    if stop_time:
-        stmt = stmt.where(models.Span.start_time < stop_time)
+    if end_time:
+        stmt = stmt.where(models.Span.start_time < end_time)
     if limit is not None:
         stmt = stmt.limit(limit)
     if root_spans_only:

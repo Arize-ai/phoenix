@@ -64,10 +64,12 @@ class Client(TraceDataExtractor):
         self,
         *queries: SpanQuery,
         start_time: Optional[datetime] = None,
-        stop_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
         limit: Optional[int] = DEFAULT_SPAN_LIMIT,
         root_spans_only: Optional[bool] = None,
         project_name: Optional[str] = None,
+        # Deprecated
+        stop_time: Optional[datetime] = None,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
         """
         Queries spans from the Phoenix server or active session based on specified criteria.
@@ -75,7 +77,7 @@ class Client(TraceDataExtractor):
         Args:
             queries (SpanQuery): One or more SpanQuery objects defining the query criteria.
             start_time (datetime, optional): The start time for the query range. Default None.
-            stop_time (datetime, optional): The stop time for the query range. Default None.
+            end_time (datetime, optional): The end time for the query range. Default None.
             root_spans_only (bool, optional): If True, only root spans are returned. Default None.
             project_name (str, optional): The project name to query spans for. This can be set
                 using environment variables. If not provided, falls back to the default project.
@@ -87,13 +89,19 @@ class Client(TraceDataExtractor):
         project_name = project_name or get_env_project_name()
         if not queries:
             queries = (SpanQuery(),)
+        if stop_time is not None:
+            # Deprecated. Raise a warning
+            logger.warning(
+                "stop_time is deprecated. Use end_time instead.",
+            )
+            end_time = end_time or stop_time
         response = self._session.post(
             url=urljoin(self._base_url, "/v1/spans"),
             params={"project-name": project_name},
             json={
                 "queries": [q.to_dict() for q in queries],
                 "start_time": _to_iso_format(start_time),
-                "stop_time": _to_iso_format(stop_time),
+                "end_time": _to_iso_format(end_time),
                 "limit": limit,
                 "root_spans_only": root_spans_only,
             },
