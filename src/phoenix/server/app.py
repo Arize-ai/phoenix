@@ -1,6 +1,5 @@
 import contextlib
 import logging
-import weakref
 from datetime import datetime
 from pathlib import Path
 from typing import (
@@ -11,6 +10,7 @@ from typing import (
     Callable,
     Dict,
     Iterable,
+    List,
     NamedTuple,
     Optional,
     Tuple,
@@ -213,6 +213,7 @@ def _lifespan(
     *,
     bulk_inserter: BulkInserter,
     tracer_provider: Optional["TracerProvider"] = None,
+    clean_ups: Iterable[Callable[[], None]] = (),
 ) -> StatefulLifespan[Starlette]:
     @contextlib.asynccontextmanager
     async def lifespan(_: Starlette) -> AsyncIterator[Dict[str, Any]]:
@@ -224,6 +225,8 @@ def _lifespan(
                 "queue_span_for_bulk_insert": queue_span,
                 "queue_evaluation_for_bulk_insert": queue_evaluation,
             }
+        for clean_up in clean_ups:
+            clean_up()
 
     return lifespan
 
@@ -248,6 +251,7 @@ def create_app(
     initial_spans: Optional[Iterable[Union[Span, Tuple[Span, str]]]] = None,
     initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
 ) -> Starlette:
+    clean_ups: List[Callable[[], None]] = []  # To be called at app shutdown.
     initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
         ()
         if initial_spans is None
@@ -291,7 +295,7 @@ def create_app(
             engine=engine.sync_engine,
             tracer_provider=tracer_provider,
         )
-        weakref.finalize(engine, SQLAlchemyInstrumentor().uninstrument)
+        clean_ups.append(SQLAlchemyInstrumentor().uninstrument)
         if TYPE_CHECKING:
             # Type-check the class before monkey-patching its private attribute.
             assert OpenTelemetryExtension._tracer
@@ -329,6 +333,7 @@ def create_app(
         lifespan=_lifespan(
             bulk_inserter=bulk_inserter,
             tracer_provider=tracer_provider,
+            clean_ups=clean_ups,
         ),
         middleware=[
             Middleware(HeadersMiddleware),
@@ -373,5 +378,7 @@ def create_app(
     if tracer_provider:
         from opentelemetry.instrumentation.starlette import StarletteInstrumentor
 
+        StarletteInstrumentor().instrument(tracer_provider=tracer_provider)
         StarletteInstrumentor.instrument_app(app, tracer_provider=tracer_provider)
+        clean_ups.append(StarletteInstrumentor().uninstrument)
     return app
