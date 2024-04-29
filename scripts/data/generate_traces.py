@@ -291,7 +291,6 @@ def _gen_evals(
     doc_pyarrow_thread.start()
     protos_thread.start()
     while (item := queue.get()) is not END_OF_QUEUE:
-        sleep(random())
         context, num_docs = item
         span_id = hexlify(context.span_id.to_bytes(8, "big")).decode()
         for i in range(num_docs):
