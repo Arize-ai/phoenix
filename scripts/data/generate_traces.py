@@ -123,14 +123,19 @@ def _gen_spans(
             return
         for _ in range(recurse_width):
             _gen_spans(
-                eval_queue,
-                tracer,
-                randint(0, recurse_depth),
-                randint(0, recurse_width),
+                eval_queue=eval_queue,
+                tracer=tracer,
+                recurse_depth=randint(0, recurse_depth),
+                recurse_width=randint(0, recurse_width),
             )
     if GENERATE_EVALS:
-        sleep(random())
-        eval_queue.put((span.get_span_context(), num_docs))
+        Thread(
+            target=lambda: (
+                sleep(random()),
+                eval_queue.put((span.get_span_context(), num_docs)),
+            ),
+            daemon=True,
+        ).start()
 
 
 def _gen_attributes(
@@ -415,8 +420,8 @@ if __name__ == "__main__":
         for _ in range(NUM_TRACES):
             executor.submit(
                 _gen_spans,
-                eval_queue,
-                choice(tracers),
+                eval_queue=eval_queue,
+                tracer=choice(tracers),
                 recurse_depth=randint(2, 5),
                 recurse_width=randint(2, 5),
             )
