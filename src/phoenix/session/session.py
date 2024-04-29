@@ -44,7 +44,7 @@ from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
 from phoenix.services import AppService
 from phoenix.session.client import Client
-from phoenix.session.data_extractor import TraceDataExtractor
+from phoenix.session.data_extractor import DEFAULT_SPAN_LIMIT, TraceDataExtractor
 from phoenix.session.evaluation import encode_evaluations
 from phoenix.trace import Evaluations
 from phoenix.trace.dsl.query import SpanQuery
@@ -141,6 +141,7 @@ class Session(TraceDataExtractor, ABC):
         *queries: SpanQuery,
         start_time: Optional[datetime] = None,
         stop_time: Optional[datetime] = None,
+        limit: Optional[int] = DEFAULT_SPAN_LIMIT,
         root_spans_only: Optional[bool] = None,
         project_name: Optional[str] = None,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
@@ -174,6 +175,7 @@ class Session(TraceDataExtractor, ABC):
             *queries,
             start_time=start_time,
             stop_time=stop_time,
+            limit=limit,
             root_spans_only=root_spans_only,
             project_name=project_name,
         )

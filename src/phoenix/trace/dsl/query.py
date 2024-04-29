@@ -38,6 +38,8 @@ from phoenix.trace.dsl import SpanFilter
 from phoenix.trace.dsl.filter import Projector
 from phoenix.trace.schemas import ATTRIBUTE_PREFIX
 
+DEFAULT_SPAN_LIMIT = 1000
+
 # supported SQL dialects
 _SQLITE: Literal["sqlite"] = "sqlite"
 _POSTGRESQL: Literal["postgresql"] = "postgresql"
@@ -499,6 +501,7 @@ class SpanQuery(_HasTmpSuffix):
         project_name: Optional[str] = None,
         start_time: Optional[datetime] = None,
         stop_time: Optional[datetime] = None,
+        limit: Optional[int] = DEFAULT_SPAN_LIMIT,
         root_spans_only: Optional[bool] = None,
     ) -> pd.DataFrame:
         if not project_name:
@@ -507,10 +510,11 @@ class SpanQuery(_HasTmpSuffix):
             return _get_spans_dataframe(
                 session,
                 project_name,
-                self._filter,
-                start_time,
-                stop_time,
-                root_spans_only,
+                span_filter=self._filter,
+                start_time=start_time,
+                stop_time=stop_time,
+                limit=limit,
+                root_spans_only=root_spans_only,
             )
         assert session.bind is not None
         dialect = cast(Literal["sqlite", "postgresql"], session.bind.dialect.name)
@@ -528,6 +532,8 @@ class SpanQuery(_HasTmpSuffix):
             stmt = stmt.where(start_time <= models.Span.start_time)
         if stop_time:
             stmt = stmt.where(models.Span.start_time < stop_time)
+        if limit is not None:
+            stmt = stmt.limit(limit)
         if root_spans_only:
             parent = aliased(models.Span)
             stmt = stmt.outerjoin(
@@ -662,9 +668,12 @@ class SpanQuery(_HasTmpSuffix):
 def _get_spans_dataframe(
     session: Session,
     project_name: str,
+    /,
+    *,
     span_filter: Optional[SpanFilter] = None,
     start_time: Optional[datetime] = None,
     stop_time: Optional[datetime] = None,
+    limit: Optional[int] = DEFAULT_SPAN_LIMIT,
     root_spans_only: Optional[bool] = None,
 ) -> pd.DataFrame:
     # use legacy labels for backward-compatibility
@@ -694,6 +703,8 @@ def _get_spans_dataframe(
         stmt = stmt.where(start_time <= models.Span.start_time)
     if stop_time:
         stmt = stmt.where(models.Span.start_time < stop_time)
+    if limit is not None:
+        stmt = stmt.limit(limit)
     if root_spans_only:
         parent = aliased(models.Span)
         stmt = stmt.outerjoin(
