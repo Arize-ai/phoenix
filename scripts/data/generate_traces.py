@@ -44,12 +44,22 @@ from opentelemetry.util import types
 from phoenix.trace import DocumentEvaluations, Evaluations, SpanEvaluations
 from typing_extensions import TypeAlias
 
-NUM_TRACES = 1000
-
 url = "http://127.0.0.1:6006"
 grpc_endpoint = "http://127.0.0.1:4317"
 traces_endpoint = urljoin(url, "/v1/traces")
 evals_endpoint = urljoin(url, "/v1/evaluations")
+
+NUM_TRACES = 1000
+GENERATE_EVALS = True
+
+MAX_NUM_EMBEDDINGS = 20
+MAX_NUM_RETRIEVAL_DOCS = 20
+MAX_NUM_RERANKER_INPUT_DOCS = 20
+MAX_NUM_RERANKER_OUTPUT_DOCS = 20
+MAX_NUM_INPUT_MESSAGES = 20
+MAX_NUM_OUTPUT_MESSAGES = 20
+
+MAX_NUM_SENTENCES = 100
 
 fake = Faker()
 
@@ -79,7 +89,7 @@ def _get_tracers(project_names: List[str]) -> Iterator[trace_api.Tracer]:
 
 
 def _gen_spans(
-    queue: "SimpleQueue[Tuple[trace_api.SpanContext, SpanKind]]",
+    eval_queue: "SimpleQueue[Tuple[trace_api.SpanContext, SpanKind]]",
     tracer: trace_api.Tracer,
     recurse_depth: int,
     recurse_width: int,
@@ -99,28 +109,28 @@ def _gen_spans(
             else "".join(fake.emoji() for _ in range(5))
         )
         num_docs = 0
-        if span_kind in (
-            OpenInferenceSpanKindValues.RETRIEVER.value,
-            OpenInferenceSpanKindValues.RERANKER.value,
-        ):
-            num_docs = randint(1, 50)
+        if span_kind == OpenInferenceSpanKindValues.RETRIEVER.value:
+            num_docs = randint(1, MAX_NUM_RETRIEVAL_DOCS + 1)
+        elif span_kind == OpenInferenceSpanKindValues.RERANKER.value:
+            num_docs = randint(1, MAX_NUM_RERANKER_OUTPUT_DOCS + 1)
         span.set_attributes(dict(_gen_attributes(span_kind, num_docs)))
         span.set_status(status)
         if status_code is trace_api.StatusCode.ERROR:
-            exc = Exception(fake.paragraph(nb_sentences=randint(1, 100)))
+            exc = Exception(fake.paragraph(nb_sentences=randint(1, MAX_NUM_SENTENCES + 1)))
             span.record_exception(exc)
         sleep(random())
         if not recurse_depth:
             return
         for _ in range(recurse_width):
             _gen_spans(
-                queue,
+                eval_queue,
                 tracer,
                 randint(0, recurse_depth),
                 randint(0, recurse_width),
             )
-    sleep(random())
-    queue.put((span.get_span_context(), num_docs))
+    if GENERATE_EVALS:
+        sleep(random())
+        eval_queue.put((span.get_span_context(), num_docs))
 
 
 def _gen_attributes(
@@ -129,7 +139,7 @@ def _gen_attributes(
 ) -> Iterator[Tuple[str, types.AttributeValue]]:
     yield SpanAttributes.OPENINFERENCE_SPAN_KIND, span_kind
     yield SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.TEXT.value
-    yield SpanAttributes.INPUT_VALUE, fake.paragraph(nb_sentences=randint(1, 100))
+    yield SpanAttributes.INPUT_VALUE, fake.paragraph(nb_sentences=randint(1, MAX_NUM_SENTENCES + 1))
     yield SpanAttributes.OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value
     yield (
         SpanAttributes.OUTPUT_VALUE,
@@ -140,10 +150,13 @@ def _gen_attributes(
         json.dumps(fake.pydict(randint(0, 10), allowed_types=(float, int, str))),
     )
     if span_kind == OpenInferenceSpanKindValues.LLM.value:
-        yield from _gen_llm(randint(1, 50), randint(1, 50))
+        yield from _gen_llm(
+            randint(1, MAX_NUM_INPUT_MESSAGES + 1),
+            randint(1, MAX_NUM_OUTPUT_MESSAGES + 1),
+        )
     elif span_kind == OpenInferenceSpanKindValues.EMBEDDING.value:
         yield SpanAttributes.EMBEDDING_MODEL_NAME, fake.color_name()
-        yield from _gen_embeddings(randint(1, 50))
+        yield from _gen_embeddings(randint(1, MAX_NUM_EMBEDDINGS + 1))
     elif span_kind == OpenInferenceSpanKindValues.RETRIEVER.value:
         yield from _gen_documents(
             randint(1, num_docs),
@@ -153,7 +166,7 @@ def _gen_attributes(
         yield RerankerAttributes.RERANKER_QUERY, fake.sentence(randint(1, 10))
         yield RerankerAttributes.RERANKER_MODEL_NAME, fake.color_name()
         yield from _gen_documents(
-            randint(1, 50),
+            randint(1, MAX_NUM_RERANKER_INPUT_DOCS + 1),
             RerankerAttributes.RERANKER_INPUT_DOCUMENTS,
         )
         yield from _gen_documents(
@@ -203,7 +216,7 @@ def _gen_messages(
             continue
         yield (
             f"{prefix}.{i}.{MessageAttributes.MESSAGE_CONTENT}",
-            fake.paragraph(nb_sentences=randint(1, 100)),
+            fake.paragraph(nb_sentences=randint(1, MAX_NUM_SENTENCES + 1)),
         )
 
 
@@ -216,7 +229,7 @@ def _gen_embeddings(n: int = 10) -> Iterator[Tuple[str, types.AttributeValue]]:
         )
         yield (
             f"{prefix}.{i}.{EmbeddingAttributes.EMBEDDING_TEXT}",
-            fake.paragraph(nb_sentences=randint(1, 100)),
+            fake.paragraph(nb_sentences=randint(1, MAX_NUM_SENTENCES + 1)),
         )
 
 
@@ -227,7 +240,7 @@ def _gen_documents(
     for i in range(n):
         yield (
             f"{prefix}.{i}.{DocumentAttributes.DOCUMENT_CONTENT}",
-            fake.paragraph(nb_sentences=randint(1, 100)),
+            fake.paragraph(nb_sentences=randint(1, MAX_NUM_SENTENCES + 1)),
         )
         if random() < 0.8:
             yield (
@@ -242,12 +255,7 @@ def _gen_documents(
         if random() < 0.4:
             yield (
                 f"{prefix}.{i}.{DocumentAttributes.DOCUMENT_METADATA}",
-                json.dumps(
-                    fake.pydict(
-                        randint(0, 10),
-                        allowed_types=(float, int, str),
-                    ),
-                ),
+                json.dumps(fake.pydict(randint(0, 10), allowed_types=(float, int, str))),
             )
 
 
@@ -382,7 +390,7 @@ def _send_eval_protos(
 
 
 if __name__ == "__main__":
-    queue: "SimpleQueue[Optional[Tuple[trace_api.SpanContext, SpanKind]]]" = SimpleQueue()
+    eval_queue: "SimpleQueue[Optional[Tuple[trace_api.SpanContext, SpanKind]]]" = SimpleQueue()
     span_eval_name_and_labels = {
         fake.color_name(): set(fake.safe_color_name() for _ in range(randint(2, 10)))
         for _ in range(5)
@@ -394,7 +402,7 @@ if __name__ == "__main__":
     evals_thread = Thread(
         target=_gen_evals,
         args=(
-            queue,
+            eval_queue,
             span_eval_name_and_labels,
             doc_eval_name_and_labels,
         ),
@@ -407,10 +415,10 @@ if __name__ == "__main__":
         for _ in range(NUM_TRACES):
             executor.submit(
                 _gen_spans,
-                queue,
+                eval_queue,
                 choice(tracers),
                 recurse_depth=randint(2, 5),
                 recurse_width=randint(2, 5),
             )
-    queue.put(END_OF_QUEUE)
+    eval_queue.put(END_OF_QUEUE)
     evals_thread.join()
