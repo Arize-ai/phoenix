@@ -119,7 +119,6 @@ if __name__ == "__main__":
     parser.add_argument("--export_path")
     parser.add_argument("--host", type=str, required=False)
     parser.add_argument("--port", type=int, required=False)
-    parser.add_argument("--grpc-port", type=int, required=False)
     parser.add_argument("--read-only", type=bool, default=False)
     parser.add_argument("--no-internet", action="store_true")
     parser.add_argument("--umap_params", type=str, required=False, default=DEFAULT_UMAP_PARAMS_STR)
