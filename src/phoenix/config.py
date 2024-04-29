@@ -106,7 +106,9 @@ SERVER_DIR = PHOENIX_DIR / "server"
 HOST = "0.0.0.0"
 # The port the server will run on after launch_app is called
 PORT = 6006
-# The port the gRPC server will run on after launch_app is called
+# The port the gRPC server will run on after launch_app is called.
+# The default network port for OTLP/gRPC is 4317.
+# See https://opentelemetry.io/docs/specs/otlp/#otlpgrpc-default-port
 GRPC_PORT = 4317
 # The prefix of datasets that are auto-assigned a name
 GENERATED_DATASET_NAME_PREFIX = "phoenix_dataset_"
