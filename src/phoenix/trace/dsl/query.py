@@ -540,8 +540,8 @@ class SpanQuery(_HasTmpSuffix):
         )
         if start_time:
             stmt = stmt.where(start_time <= models.Span.start_time)
-        if stop_time:
-            stmt = stmt.where(models.Span.start_time < stop_time)
+        if end_time:
+            stmt = stmt.where(models.Span.start_time < end_time)
         if limit is not None:
             stmt = stmt.limit(limit)
         if root_spans_only:
