@@ -102,18 +102,18 @@ def get_storage_dir() -> Path:
 PHOENIX_DIR = Path(__file__).resolve().parent
 # Server config
 SERVER_DIR = PHOENIX_DIR / "server"
-# The host the server will run on after launch_app is called
 HOST = "0.0.0.0"
-# The port the server will run on after launch_app is called
+"""The host the server will run on after launch_app is called."""
 PORT = 6006
-# The port the gRPC server will run on after launch_app is called.
-# The default network port for OTLP/gRPC is 4317.
-# See https://opentelemetry.io/docs/specs/otlp/#otlpgrpc-default-port
+"""The port the server will run on after launch_app is called."""
 GRPC_PORT = 4317
-# The prefix of datasets that are auto-assigned a name
+"""The port the gRPC server will run on after launch_app is called.
+The default network port for OTLP/gRPC is 4317.
+See https://opentelemetry.io/docs/specs/otlp/#otlpgrpc-default-port"""
 GENERATED_DATASET_NAME_PREFIX = "phoenix_dataset_"
-# The work directory for saving, loading, and exporting datasets
+"""The prefix of datasets that are auto-assigned a name."""
 WORKING_DIR = get_working_dir()
+"""The work directory for saving, loading, and exporting datasets."""
 
 ROOT_DIR = WORKING_DIR
 EXPORT_DIR = ROOT_DIR / "exports"
