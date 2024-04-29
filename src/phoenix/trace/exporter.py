@@ -8,12 +8,12 @@ from typing import Any, Optional
 from urllib.parse import urljoin
 
 import requests
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from requests import Session
 from typing_extensions import TypeAlias, assert_never
 
 import phoenix.trace.v1 as pb
-from phoenix.config import get_env_collector_endpoint, get_env_grpc_port, get_env_host, get_env_port
+from phoenix.config import get_env_collector_endpoint, get_env_host, get_env_port
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -33,12 +33,11 @@ class _OpenInferenceExporter(OTLPSpanExporter):
         host = get_env_host()
         if host == "0.0.0.0":
             host = "127.0.0.1"
-        endpoint = get_env_collector_endpoint()
-        if endpoint:
-            _warn_if_phoenix_is_not_running(endpoint)
-        else:
-            endpoint = f"http://{host}:{get_env_grpc_port()}"
-            _warn_if_phoenix_is_not_running(f"http://{host}:{get_env_port()}")
+        endpoint = urljoin(
+            get_env_collector_endpoint() or f"http://{host}:{get_env_port()}",
+            "/v1/traces",
+        )
+        _warn_if_phoenix_is_not_running(endpoint)
         super().__init__(endpoint)
 
 
