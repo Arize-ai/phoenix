@@ -250,6 +250,28 @@ async def test_stop_time(session: AsyncSession, default_project: None, abc_proje
     )
 
 
+async def test_limit(session: AsyncSession, default_project: None, abc_project: None) -> None:
+    sq = SpanQuery()
+    actual = await session.run_sync(sq, project_name="abc", limit=2)
+    assert actual.index.tolist() == ["234", "345"]
+
+
+async def test_limit_with_select_statement(
+    session: AsyncSession, default_project: None, abc_project: None
+) -> None:
+    sq = SpanQuery().select("context.span_id")
+    expected = pd.DataFrame(
+        {
+            "context.span_id": ["234", "345"],
+        }
+    ).set_index("context.span_id")
+    actual = await session.run_sync(sq, project_name="abc", limit=2)
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+
+
 async def test_filter_for_none(
     session: AsyncSession, default_project: None, abc_project: None
 ) -> None:

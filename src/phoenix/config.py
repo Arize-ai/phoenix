@@ -9,6 +9,7 @@ logger = getLogger(__name__)
 
 # Phoenix environment variables
 ENV_PHOENIX_PORT = "PHOENIX_PORT"
+ENV_PHOENIX_GRPC_PORT = "PHOENIX_GRPC_PORT"
 ENV_PHOENIX_HOST = "PHOENIX_HOST"
 ENV_NOTEBOOK_ENV = "PHOENIX_NOTEBOOK_ENV"
 ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
@@ -101,14 +102,18 @@ def get_storage_dir() -> Path:
 PHOENIX_DIR = Path(__file__).resolve().parent
 # Server config
 SERVER_DIR = PHOENIX_DIR / "server"
-# The host the server will run on after launch_app is called
 HOST = "0.0.0.0"
-# The port the server will run on after launch_app is called
+"""The host the server will run on after launch_app is called."""
 PORT = 6006
-# The prefix of datasets that are auto-assigned a name
+"""The port the server will run on after launch_app is called."""
+GRPC_PORT = 4317
+"""The port the gRPC server will run on after launch_app is called.
+The default network port for OTLP/gRPC is 4317.
+See https://opentelemetry.io/docs/specs/otlp/#otlpgrpc-default-port"""
 GENERATED_DATASET_NAME_PREFIX = "phoenix_dataset_"
-# The work directory for saving, loading, and exporting datasets
+"""The prefix of datasets that are auto-assigned a name."""
 WORKING_DIR = get_working_dir()
+"""The work directory for saving, loading, and exporting datasets."""
 
 ROOT_DIR = WORKING_DIR
 EXPORT_DIR = ROOT_DIR / "exports"
@@ -161,10 +166,24 @@ def get_exported_files(directory: Path) -> List[Path]:
 
 
 def get_env_port() -> int:
-    return (
-        int(port)
-        if isinstance(port := os.getenv(ENV_PHOENIX_PORT), str) and port.isnumeric()
-        else PORT
+    if not (port := os.getenv(ENV_PHOENIX_PORT)):
+        return PORT
+    if port.isnumeric():
+        return int(port)
+    raise ValueError(
+        f"Invalid value for environment variable {ENV_PHOENIX_PORT}: "
+        f"{port}. Value must be an integer."
+    )
+
+
+def get_env_grpc_port() -> int:
+    if not (port := os.getenv(ENV_PHOENIX_GRPC_PORT)):
+        return GRPC_PORT
+    if port.isnumeric():
+        return int(port)
+    raise ValueError(
+        f"Invalid value for environment variable {ENV_PHOENIX_GRPC_PORT}: "
+        f"{port}. Value must be an integer."
     )
 
 

@@ -7,6 +7,7 @@ from time import time
 from typing import (
     Any,
     AsyncContextManager,
+    Awaitable,
     Callable,
     Iterable,
     List,
@@ -70,7 +71,7 @@ class BulkInserter:
 
     async def __aenter__(
         self,
-    ) -> Tuple[Callable[[Span, str], None], Callable[[pb.Evaluation], None]]:
+    ) -> Tuple[Callable[[Span, str], Awaitable[None]], Callable[[pb.Evaluation], Awaitable[None]]]:
         self._running = True
         self._task = asyncio.create_task(self._bulk_insert())
         return self._queue_span, self._queue_evaluation
@@ -78,10 +79,10 @@ class BulkInserter:
     async def __aexit__(self, *args: Any) -> None:
         self._running = False
 
-    def _queue_span(self, span: Span, project_name: str) -> None:
+    async def _queue_span(self, span: Span, project_name: str) -> None:
         self._spans.append((span, project_name))
 
-    def _queue_evaluation(self, evaluation: pb.Evaluation) -> None:
+    async def _queue_evaluation(self, evaluation: pb.Evaluation) -> None:
         self._evaluations.append(evaluation)
 
     async def _bulk_insert(self) -> None:

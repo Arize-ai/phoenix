@@ -10,6 +10,7 @@ from typing import (
     Callable,
     Dict,
     Iterable,
+    List,
     NamedTuple,
     Optional,
     Tuple,
@@ -63,8 +64,12 @@ from phoenix.server.api.dataloaders import (
 from phoenix.server.api.dataloaders.span_descendants import SpanDescendantsDataLoader
 from phoenix.server.api.routers.v1 import V1_ROUTES
 from phoenix.server.api.schema import schema
+from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.trace.schemas import Span
+
+if TYPE_CHECKING:
+    from opentelemetry.trace import TracerProvider
 
 logger = logging.getLogger(__name__)
 
@@ -205,15 +210,23 @@ def _db(engine: AsyncEngine) -> Callable[[], AsyncContextManager[AsyncSession]]:
 
 
 def _lifespan(
+    *,
     bulk_inserter: BulkInserter,
+    tracer_provider: Optional["TracerProvider"] = None,
+    clean_ups: Iterable[Callable[[], None]] = (),
 ) -> StatefulLifespan[Starlette]:
     @contextlib.asynccontextmanager
     async def lifespan(_: Starlette) -> AsyncIterator[Dict[str, Any]]:
-        async with bulk_inserter as (queue_span, queue_evaluation):
+        async with bulk_inserter as (queue_span, queue_evaluation), GrpcServer(
+            queue_span,
+            tracer_provider=tracer_provider,
+        ):
             yield {
                 "queue_span_for_bulk_insert": queue_span,
                 "queue_evaluation_for_bulk_insert": queue_evaluation,
             }
+        for clean_up in clean_ups:
+            clean_up()
 
     return lifespan
 
@@ -238,6 +251,7 @@ def create_app(
     initial_spans: Optional[Iterable[Union[Span, Tuple[Span, str]]]] = None,
     initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
 ) -> Starlette:
+    clean_ups: List[Callable[[], None]] = []  # To be called at app shutdown.
     initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
         ()
         if initial_spans is None
@@ -281,6 +295,7 @@ def create_app(
             engine=engine.sync_engine,
             tracer_provider=tracer_provider,
         )
+        clean_ups.append(SQLAlchemyInstrumentor().uninstrument)
         if TYPE_CHECKING:
             # Type-check the class before monkey-patching its private attribute.
             assert OpenTelemetryExtension._tracer
@@ -315,7 +330,11 @@ def create_app(
     else:
         prometheus_middlewares = []
     app = Starlette(
-        lifespan=_lifespan(bulk_inserter),
+        lifespan=_lifespan(
+            bulk_inserter=bulk_inserter,
+            tracer_provider=tracer_provider,
+            clean_ups=clean_ups,
+        ),
         middleware=[
             Middleware(HeadersMiddleware),
             *prometheus_middlewares,
@@ -359,5 +378,7 @@ def create_app(
     if tracer_provider:
         from opentelemetry.instrumentation.starlette import StarletteInstrumentor
 
+        StarletteInstrumentor().instrument(tracer_provider=tracer_provider)
         StarletteInstrumentor.instrument_app(app, tracer_provider=tracer_provider)
+        clean_ups.append(StarletteInstrumentor().uninstrument)
     return app
