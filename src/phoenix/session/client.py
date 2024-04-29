@@ -64,7 +64,7 @@ class Client(TraceDataExtractor):
         self,
         *queries: SpanQuery,
         start_time: Optional[datetime] = None,
-        stop_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
         limit: Optional[int] = DEFAULT_SPAN_LIMIT,
         root_spans_only: Optional[bool] = None,
         project_name: Optional[str] = None,
@@ -75,7 +75,7 @@ class Client(TraceDataExtractor):
         Args:
             queries (SpanQuery): One or more SpanQuery objects defining the query criteria.
             start_time (datetime, optional): The start time for the query range. Default None.
-            stop_time (datetime, optional): The stop time for the query range. Default None.
+            end_time (datetime, optional): The end time for the query range. Default None.
             root_spans_only (bool, optional): If True, only root spans are returned. Default None.
             project_name (str, optional): The project name to query spans for. This can be set
                 using environment variables. If not provided, falls back to the default project.
@@ -93,7 +93,7 @@ class Client(TraceDataExtractor):
             json={
                 "queries": [q.to_dict() for q in queries],
                 "start_time": _to_iso_format(start_time),
-                "stop_time": _to_iso_format(stop_time),
+                "end_time": _to_iso_format(end_time),
                 "limit": limit,
                 "root_spans_only": root_spans_only,
             },

@@ -52,8 +52,7 @@ async def query_spans_handler(request: Request) -> Response:
               start_time:
                 type: string
                 format: date-time
-                nullable: true
-              stop_time:
+              end_time:
                 type: string
                 format: date-time
                 nullable: true
@@ -80,6 +79,7 @@ async def query_spans_handler(request: Request) -> Response:
         or request.headers.get("project-name")
         or DEFAULT_PROJECT_NAME
     )
+    end_time = payload.get("end_time") or payload.get("stop_time")
     try:
         span_queries = [SpanQuery.from_dict(query) for query in queries]
     except Exception as e:
@@ -95,7 +95,7 @@ async def query_spans_handler(request: Request) -> Response:
                     query,
                     project_name=project_name,
                     start_time=from_iso_format(payload.get("start_time")),
-                    stop_time=from_iso_format(payload.get("stop_time")),
+                    end_time=from_iso_format(end_time),
                     limit=payload.get("limit", DEFAULT_SPAN_LIMIT),
                     root_spans_only=payload.get("root_spans_only"),
                 )

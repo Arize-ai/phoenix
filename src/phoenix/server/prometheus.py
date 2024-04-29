@@ -51,8 +51,8 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
         except BaseException as e:
             EXCEPTIONS.labels(method=method, path=path, exception_type=type(e).__name__).inc()
             raise
-        stop_time = time.perf_counter()
-        REQUESTS_PROCESSING_TIME.labels(method=method, path=path).observe(stop_time - start_time)
+        end_time = time.perf_counter()
+        REQUESTS_PROCESSING_TIME.labels(method=method, path=path).observe(end_time - start_time)
         return response
 
 

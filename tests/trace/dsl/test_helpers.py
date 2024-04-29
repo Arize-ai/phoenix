@@ -60,7 +60,7 @@ class _Mock:
         self,
         *span_queries: SpanQuery,
         start_time: Optional[datetime] = None,
-        stop_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
         project_name: Optional[str] = None,
     ) -> List[pd.DataFrame]:
         ans = [
@@ -68,7 +68,7 @@ class _Mock:
                 self.session.run_sync(
                     sq,
                     start_time=start_time,
-                    stop_time=stop_time,
+                    end_time=end_time,
                     project_name=project_name,
                 )
             )

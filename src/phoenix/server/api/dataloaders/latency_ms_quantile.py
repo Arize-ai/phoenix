@@ -69,21 +69,21 @@ class LatencyMsQuantileDataLoader(DataLoader[Key, Optional[QuantileValue]]):
 
 
 def _get_filter_condition(segment: Segment) -> OrmExpression:
-    id_, (start_time, stop_time) = segment
-    if start_time and stop_time:
+    id_, (start_time, end_time) = segment
+    if start_time and end_time:
         return and_(
             models.Project.id == id_,
             start_time <= models.Trace.start_time,
-            models.Trace.start_time < stop_time,
+            models.Trace.start_time < end_time,
         )
     if start_time:
         return and_(
             models.Project.id == id_,
             start_time <= models.Trace.start_time,
         )
-    if stop_time:
+    if end_time:
         return and_(
             models.Project.id == id_,
-            models.Trace.start_time < stop_time,
+            models.Trace.start_time < end_time,
         )
     return models.Project.id == id_

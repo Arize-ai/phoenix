@@ -229,7 +229,7 @@ async def test_start_time(session: AsyncSession, default_project: None, abc_proj
     )
 
 
-async def test_stop_time(session: AsyncSession, default_project: None, abc_project: None) -> None:
+async def test_end_time(session: AsyncSession, default_project: None, abc_project: None) -> None:
     sq = SpanQuery().select("name")
     expected = pd.DataFrame(
         {
@@ -240,7 +240,7 @@ async def test_stop_time(session: AsyncSession, default_project: None, abc_proje
     actual = await session.run_sync(
         sq,
         project_name="abc",
-        stop_time=datetime.fromisoformat(
+        end_time=datetime.fromisoformat(
             "2021-01-01T00:00:01.000+00:00",
         ),
     )
