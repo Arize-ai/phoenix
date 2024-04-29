@@ -8,6 +8,8 @@ from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.server.api.routers.utils import df_to_bytes, from_iso_format
 from phoenix.trace.dsl import SpanQuery
 
+DEFAULT_SPAN_LIMIT = 1000
+
 
 # TODO: Add property details to SpanQuery schema
 async def query_spans_handler(request: Request) -> Response:
@@ -58,6 +60,7 @@ async def query_spans_handler(request: Request) -> Response:
               limit:
                 type: integer
                 nullable: true
+                default: 1000
               root_spans_only:
                 type: boolean
                 nullable: true
@@ -93,7 +96,7 @@ async def query_spans_handler(request: Request) -> Response:
                     project_name=project_name,
                     start_time=from_iso_format(payload.get("start_time")),
                     stop_time=from_iso_format(payload.get("stop_time")),
-                    limit=payload.get("limit"),
+                    limit=payload.get("limit", DEFAULT_SPAN_LIMIT),
                     root_spans_only=payload.get("root_spans_only"),
                 )
             )
