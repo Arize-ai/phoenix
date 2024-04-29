@@ -44,11 +44,13 @@ class Client(TraceDataExtractor):
             endpoint (str, optional): Phoenix server endpoint, e.g. http://localhost:6006. If not
                 provided, the endpoint will be inferred from the environment variables.
         """
-        if "use_active_session_if_available" in kwargs:
+        if kwargs.pop("use_active_session_if_available", None) is not None:
             print(
                 "`use_active_session_if_available` is deprecated "
                 "and will be removed in the future."
             )
+        if kwargs:
+            raise TypeError(f"Unexpected keyword arguments: {', '.join(kwargs)}")
         host = get_env_host()
         if host == "0.0.0.0":
             host = "127.0.0.1"
@@ -171,7 +173,7 @@ class Client(TraceDataExtractor):
                 f"with `import phoenix as px; px.launch_app()`"
             )
 
-    def log_evaluations(self, *evals: Evaluations, project_name: Optional[str] = None) -> None:
+    def log_evaluations(self, *evals: Evaluations, **kwargs: Any) -> None:
         """
         Logs evaluation data to the Phoenix server.
 
@@ -184,18 +186,19 @@ class Client(TraceDataExtractor):
         Returns:
             None
         """
-        project_name = project_name or get_env_project_name()
+        if kwargs.pop("project_name", None) is not None:
+            print("Keyword argument `project_name` is no longer necessary and is ignored.")
+        if kwargs:
+            raise TypeError(f"Unexpected keyword arguments: {', '.join(kwargs)}")
         for evaluation in evals:
             table = evaluation.to_pyarrow_table()
             sink = pa.BufferOutputStream()
             headers = {"content-type": "application/x-pandas-arrow"}
-            params = {"project-name": project_name}
             with pa.ipc.new_stream(sink, table.schema) as writer:
                 writer.write_table(table)
             self._session.post(
                 urljoin(self._base_url, "/v1/evaluations"),
                 data=cast(bytes, sink.getvalue().to_pybytes()),
-                params=params,
                 headers=headers,
             ).raise_for_status()
 

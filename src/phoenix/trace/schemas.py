@@ -47,9 +47,9 @@ class SpanKind(Enum):
 
     @classmethod
     def _missing_(cls, v: Any) -> Optional["SpanKind"]:
-        if v and isinstance(v, str) and not v.isupper():
+        if v and isinstance(v, str) and v.isascii() and not v.isupper():
             return cls(v.upper())
-        return None if v else cls.UNKNOWN
+        return cls.UNKNOWN
 
 
 TraceID = str
