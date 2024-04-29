@@ -82,7 +82,7 @@ This example shows how to run Q\&A and Hallucnation Evals with OpenAI (many othe
 
 ```python
 from phoenix.trace import SpanEvaluations, DocumentEvaluations
-from phoenix.experimental.evals import (
+from phoenix.evals import (
   HALLUCINATION_PROMPT_RAILS_MAP,
   HALLUCINATION_PROMPT_TEMPLATE,
   QA_PROMPT_RAILS_MAP,
@@ -138,7 +138,7 @@ The snipit of code above links the Evals back to the spans they were generated a
 
 ```python
 
-from phoenix.experimental.evals import (
+from phoenix.evals import (
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     OpenAIModel,
