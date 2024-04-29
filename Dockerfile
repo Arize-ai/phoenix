@@ -55,11 +55,11 @@ WORKDIR /phoenix
 COPY --from=backend-builder /phoenix/env/ ./env
 ENV PYTHONPATH="/phoenix/env:$PYTHONPATH"
 ENV PYTHONUNBUFFERED=1
-# Export the Phoenix port.
+# Expose the Phoenix port.
 EXPOSE 6006
-# Export the Phoenix GRPC port.
+# Expose the Phoenix GRPC port.
 EXPOSE 4317
-# Export the Prometheus port.
+# Expose the Prometheus port.
 EXPOSE 9090
 # Run the Phoenix server. Note that the ENTRYPOINT of the base image invokes
 # Python, so no explicit invocation of Python is needed here. See
