@@ -1,6 +1,5 @@
 from collections import defaultdict
 from datetime import datetime
-from itertools import groupby
 from typing import (
     Any,
     AsyncContextManager,
@@ -13,6 +12,7 @@ from typing import (
 )
 
 import numpy as np
+from aioitertools.itertools import groupby
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.dataloader import DataLoader
@@ -67,11 +67,12 @@ class DocumentEvaluationSummaryDataLoader(DataLoader[Key, Result]):
             async with self._db() as session:
                 dialect = cast(SUPPORTED_DIALECTS, session.bind.dialect.name)
                 stmt = _get_stmt(dialect, segment, *params.keys())
-                if not (data := await session.execute(stmt)):
-                    continue
-                for eval_name, group in groupby(data, lambda d: d.name):
+                data = await session.stream(stmt)
+                async for eval_name, group in groupby(data, lambda d: d.name):
                     metrics_collection = []
-                    for (_, num_docs), subgroup in groupby(group, lambda g: (g.id, g.num_docs)):
+                    async for (_, num_docs), subgroup in groupby(
+                        group, lambda g: (g.id, g.num_docs)
+                    ):
                         scores = [np.nan] * num_docs
                         for row in subgroup:
                             scores[row.document_position] = row.score

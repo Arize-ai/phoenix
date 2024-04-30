@@ -140,9 +140,8 @@ async def _get_results_sqlite(
                 stmt = span_filter(stmt)
         else:
             assert_never(kind)
-        if not (data := await session.execute(stmt)):
-            return
-        for project_rowid, quantile_value in data:
+        data = await session.stream(stmt)
+        async for project_rowid, quantile_value in data:
             for position in params[(project_rowid, probability)]:
                 yield position, quantile_value
 
@@ -200,9 +199,8 @@ async def _get_results_postgresql(
             stmt = span_filter(stmt)
     else:
         assert_never(kind)
-    if not (data := await session.execute(stmt)):
-        return
-    for project_rowid, probabilities, quantile_values in data:
+    data = await session.stream(stmt)
+    async for project_rowid, probabilities, quantile_values in data:
         for probability, quantile_value in zip(probabilities, quantile_values):
             for position in params[(project_rowid, probability)]:
                 yield position, quantile_value

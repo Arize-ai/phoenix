@@ -1,6 +1,5 @@
 from collections import defaultdict
 from datetime import datetime
-from itertools import groupby
 from typing import (
     Any,
     AsyncContextManager,
@@ -15,6 +14,7 @@ from typing import (
 )
 
 import pandas as pd
+from aioitertools.itertools import groupby
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.dataloader import DataLoader
@@ -67,12 +67,11 @@ class EvaluationSummaryDataLoader(DataLoader[Key, Result]):
         for segment, params in arguments.items():
             stmt = _get_stmt(segment, *params.keys())
             async with self._db() as session:
-                if not (data := await session.execute(stmt)):
-                    continue
-            for eval_name, group in groupby(data, lambda row: row.name):
-                summary = EvaluationSummary(pd.DataFrame(group))
-                for position in params[eval_name]:
-                    results[position] = summary
+                data = await session.stream(stmt)
+                async for eval_name, group in groupby(data, lambda row: row.name):
+                    summary = EvaluationSummary(pd.DataFrame(group))
+                    for position in params[eval_name]:
+                        results[position] = summary
         return results
 
 

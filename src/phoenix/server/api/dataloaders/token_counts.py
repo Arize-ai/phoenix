@@ -64,9 +64,8 @@ class TokenCountDataLoader(DataLoader[Key, Result]):
         async with self._db() as session:
             for segment, params in arguments.items():
                 stmt = _get_stmt(segment, *params.keys())
-                if not (data := await session.execute(stmt)):
-                    continue
-                for project_rowid, prompt, completion, total in data:
+                data = await session.stream(stmt)
+                async for project_rowid, prompt, completion, total in data:
                     for position in params[(project_rowid, "prompt")]:
                         results[position] = prompt
                     for position in params[(project_rowid, "completion")]:

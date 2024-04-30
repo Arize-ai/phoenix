@@ -12,7 +12,6 @@ from phoenix.server.api.dataloaders.record_counts import RecordCountDataLoader
 from phoenix.server.api.dataloaders.span_descendants import SpanDescendantsDataLoader
 from phoenix.server.api.dataloaders.span_evaluations import SpanEvaluationsDataLoader
 from phoenix.server.api.dataloaders.token_counts import TokenCountDataLoader
-from phoenix.server.api.dataloaders.trace_counts import TraceCountDataLoader
 from phoenix.server.api.dataloaders.trace_evaluations import TraceEvaluationsDataLoader
 
 __all__ = [
@@ -26,6 +25,5 @@ __all__ = [
     "SpanDescendantsDataLoader",
     "SpanEvaluationsDataLoader",
     "TokenCountDataLoader",
-    "TraceCountDataLoader",
     "TraceEvaluationsDataLoader",
 ]

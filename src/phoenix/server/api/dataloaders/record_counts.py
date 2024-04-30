@@ -62,9 +62,8 @@ class RecordCountDataLoader(DataLoader[Key, Result]):
         async with self._db() as session:
             for segment, params in arguments.items():
                 stmt = _get_stmt(segment, *params.keys())
-                if not (data := await session.execute(stmt)):
-                    continue
-                for project_rowid, span_count in data:
+                data = await session.stream(stmt)
+                async for project_rowid, span_count in data:
                     for position in params[project_rowid]:
                         results[position] = span_count
         return results

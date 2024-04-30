@@ -1,4 +1,3 @@
-from itertools import groupby
 from random import randint
 from typing import (
     AsyncContextManager,
@@ -7,6 +6,7 @@ from typing import (
     List,
 )
 
+from aioitertools.itertools import groupby
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import contains_eager
@@ -56,11 +56,9 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
             .options(contains_eager(models.Span.trace))
             .order_by(descendant_ids.c[root_id_label])
         )
-        async with self._db() as session:
-            data = await session.execute(stmt)
-        if not data:
-            return [[] for _ in keys]
         results: Dict[SpanId, Result] = {key: [] for key in keys}
-        for root_id, group in groupby(data, key=lambda d: d[0]):
-            results[root_id].extend(span for _, span in group)
+        async with self._db() as session:
+            data = await session.stream(stmt)
+            async for root_id, group in groupby(data, key=lambda d: d[0]):
+                results[root_id].extend(span for _, span in group)
         return [results[key].copy() for key in keys]
