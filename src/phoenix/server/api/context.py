@@ -16,11 +16,10 @@ from phoenix.server.api.dataloaders import (
     EvaluationSummaryDataLoader,
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
-    SpanCountDataLoader,
+    RecordCountDataLoader,
     SpanDescendantsDataLoader,
     SpanEvaluationsDataLoader,
     TokenCountDataLoader,
-    TraceCountDataLoader,
     TraceEvaluationsDataLoader,
 )
 
@@ -33,11 +32,10 @@ class DataLoaders:
     evaluation_summaries: EvaluationSummaryDataLoader
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
-    span_counts: SpanCountDataLoader
+    record_counts: RecordCountDataLoader
     span_descendants: SpanDescendantsDataLoader
     span_evaluations: SpanEvaluationsDataLoader
     token_counts: TokenCountDataLoader
-    trace_counts: TraceCountDataLoader
     trace_evaluations: TraceEvaluationsDataLoader
 
 

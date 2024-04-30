@@ -8,7 +8,7 @@ from phoenix.server.api.dataloaders.document_retrieval_metrics import (
 from phoenix.server.api.dataloaders.evaluation_summaries import EvaluationSummaryDataLoader
 from phoenix.server.api.dataloaders.latency_ms_quantile import LatencyMsQuantileDataLoader
 from phoenix.server.api.dataloaders.min_start_or_max_end_times import MinStartOrMaxEndTimeDataLoader
-from phoenix.server.api.dataloaders.span_counts import SpanCountDataLoader
+from phoenix.server.api.dataloaders.record_counts import RecordCountDataLoader
 from phoenix.server.api.dataloaders.span_descendants import SpanDescendantsDataLoader
 from phoenix.server.api.dataloaders.span_evaluations import SpanEvaluationsDataLoader
 from phoenix.server.api.dataloaders.token_counts import TokenCountDataLoader
@@ -22,7 +22,7 @@ __all__ = [
     "EvaluationSummaryDataLoader",
     "LatencyMsQuantileDataLoader",
     "MinStartOrMaxEndTimeDataLoader",
-    "SpanCountDataLoader",
+    "RecordCountDataLoader",
     "SpanDescendantsDataLoader",
     "SpanEvaluationsDataLoader",
     "TokenCountDataLoader",

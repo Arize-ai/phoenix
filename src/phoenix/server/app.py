@@ -64,10 +64,9 @@ from phoenix.server.api.dataloaders import (
     SpanDescendantsDataLoader,
     SpanEvaluationsDataLoader,
     TokenCountDataLoader,
-    TraceCountDataLoader,
     TraceEvaluationsDataLoader,
 )
-from phoenix.server.api.dataloaders.span_counts import SpanCountDataLoader
+from phoenix.server.api.dataloaders.record_counts import RecordCountDataLoader
 from phoenix.server.api.routers.v1 import V1_ROUTES
 from phoenix.server.api.schema import schema
 from phoenix.server.grpc_server import GrpcServer
@@ -181,11 +180,10 @@ class GraphQLWithContext(GraphQL):  # type: ignore
                 evaluation_summaries=EvaluationSummaryDataLoader(self.db),
                 latency_ms_quantile=LatencyMsQuantileDataLoader(self.db),
                 min_start_or_max_end_times=MinStartOrMaxEndTimeDataLoader(self.db),
-                span_counts=SpanCountDataLoader(self.db),
+                record_counts=RecordCountDataLoader(self.db),
                 span_descendants=SpanDescendantsDataLoader(self.db),
                 span_evaluations=SpanEvaluationsDataLoader(self.db),
                 token_counts=TokenCountDataLoader(self.db),
-                trace_counts=TraceCountDataLoader(self.db),
                 trace_evaluations=TraceEvaluationsDataLoader(self.db),
             ),
         )

@@ -17,13 +17,13 @@ from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
 
+Kind: TypeAlias = Literal["start", "end"]
 ProjectRowId: TypeAlias = int
-StartOrEnd: TypeAlias = Literal["start", "end"]
 
 Segment: TypeAlias = ProjectRowId
-Param: TypeAlias = StartOrEnd
+Param: TypeAlias = Kind
 
-Key: TypeAlias = Tuple[ProjectRowId, StartOrEnd]
+Key: TypeAlias = Tuple[ProjectRowId, Kind]
 Result: TypeAlias = Optional[datetime]
 ResultPosition: TypeAlias = int
 DEFAULT_VALUE = None
@@ -56,13 +56,13 @@ class MinStartOrMaxEndTimeDataLoader(DataLoader[Key, Result]):
         async with self._db() as session:
             data = await session.stream(stmt)
             async for project_rowid, min_start, max_end in data:
-                for start_or_end, positions in arguments[project_rowid].items():
-                    if start_or_end == "start":
+                for kind, positions in arguments[project_rowid].items():
+                    if kind == "start":
                         for position in positions:
                             results[position] = min_start
-                    elif start_or_end == "end":
+                    elif kind == "end":
                         for position in positions:
                             results[position] = max_end
                     else:
-                        assert_never(start_or_end)
+                        assert_never(kind)
         return results

@@ -63,8 +63,8 @@ class Project(Node):
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
     ) -> int:
-        return await info.context.data_loaders.span_counts.load(
-            (self.id_attr, time_range, filter_condition),
+        return await info.context.data_loaders.record_counts.load(
+            ("span", self.id_attr, time_range, filter_condition),
         )
 
     @strawberry.field
@@ -73,8 +73,8 @@ class Project(Node):
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
     ) -> int:
-        return await info.context.data_loaders.trace_counts.load(
-            (self.id_attr, time_range),
+        return await info.context.data_loaders.record_counts.load(
+            ("trace", self.id_attr, time_range, None),
         )
 
     @strawberry.field
