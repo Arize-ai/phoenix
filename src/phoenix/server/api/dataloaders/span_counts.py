@@ -20,8 +20,8 @@ from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.trace.dsl import SpanFilter
 
 ProjectRowId: TypeAlias = int
-FilterCondition: TypeAlias = Optional[str]
 TimeInterval: TypeAlias = Tuple[Optional[datetime], Optional[datetime]]
+FilterCondition: TypeAlias = Optional[str]
 SpanCount: TypeAlias = int
 
 Segment: TypeAlias = Tuple[TimeInterval, FilterCondition]
