@@ -201,8 +201,7 @@ async def _insert_evaluation(session: AsyncSession, evaluation: pb.Evaluation) -
         span_id = evaluation.subject_id.document_retrieval_id.span_id
         dialect = cast(SUPPORTED_DIALECTS, session.bind.dialect.name)
         stmt = select(models.Span.id, num_docs_col(dialect)).where(models.Span.span_id == span_id)
-        row = (await session.execute(stmt)).first()
-        if not row:
+        if not (row := (await session.execute(stmt)).first()):
             raise InsertEvaluationError(
                 f"Cannot insert a document evaluation for a missing span: {span_id=}"
             )

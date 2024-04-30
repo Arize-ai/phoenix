@@ -89,6 +89,28 @@ class Project(Node):
         )
 
     @strawberry.field
+    async def token_count_prompt(
+        self,
+        info: Info[Context, None],
+        time_range: Optional[TimeRange] = UNSET,
+        filter_condition: Optional[str] = UNSET,
+    ) -> int:
+        return await info.context.data_loaders.token_counts.load(
+            ("prompt", self.id_attr, time_range, filter_condition),
+        )
+
+    @strawberry.field
+    async def token_count_completion(
+        self,
+        info: Info[Context, None],
+        time_range: Optional[TimeRange] = UNSET,
+        filter_condition: Optional[str] = UNSET,
+    ) -> int:
+        return await info.context.data_loaders.token_counts.load(
+            ("completion", self.id_attr, time_range, filter_condition),
+        )
+
+    @strawberry.field
     async def latency_ms_quantile(
         self,
         info: Info[Context, None],
