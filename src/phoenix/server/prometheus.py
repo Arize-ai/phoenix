@@ -58,7 +58,7 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
 
 def start_prometheus() -> None:
     Thread(target=gather_system_data, daemon=True).start()
-    start_http_server(9090)
+    start_http_server(9090, addr="::")
 
 
 def gather_system_data() -> None:
