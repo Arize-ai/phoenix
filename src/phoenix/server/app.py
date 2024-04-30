@@ -65,6 +65,7 @@ from phoenix.server.api.dataloaders.span_descendants import SpanDescendantsDataL
 from phoenix.server.api.routers.v1 import V1_ROUTES
 from phoenix.server.api.schema import schema
 from phoenix.server.grpc_server import GrpcServer
+from phoenix.server.openapi.docs import get_swagger_ui_html
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.trace.schemas import Span
 
@@ -239,6 +240,10 @@ async def openapi_schema(request: Request) -> Response:
     return schemas.OpenAPIResponse(request=request)
 
 
+async def api_docs(request: Request) -> Response:
+    return get_swagger_ui_html(openapi_url="/schema", title="arize-phoenix API")
+
+
 def create_app(
     database_url: str,
     export_path: Path,
@@ -352,6 +357,10 @@ def create_app(
                     (Download,),
                     {"path": export_path},
                 ),
+            ),
+            Route(
+                "/docs",
+                api_docs,
             ),
             Route(
                 "/graphql",
