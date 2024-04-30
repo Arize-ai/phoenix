@@ -215,9 +215,7 @@ if __name__ == "__main__":
     )
     read_only = args.read_only
     logger.info(f"Server umap params: {umap_params}")
-    if enable_prometheus := (
-        get_env_enable_prometheus() or args.enable_prometheus
-    ):
+    if enable_prometheus := (get_env_enable_prometheus() or args.enable_prometheus):
         if args.enable_prometheus:
             warnings.warn(
                 "The --enable-prometheus command line argument is being deprecated "
