@@ -11,7 +11,6 @@ from typing import (
     Callable,
     Iterable,
     List,
-    Literal,
     Optional,
     Tuple,
     cast,
@@ -32,10 +31,6 @@ from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.schemas import Span, SpanStatusCode
 
 logger = logging.getLogger(__name__)
-
-# Supported dialects
-_SQLITE: Literal["sqlite"] = "sqlite"
-_POSTGRESQL: Literal["postgresql"] = "postgresql"
 
 
 class InsertEvaluationError(PhoenixException):

@@ -11,12 +11,9 @@ import sqlean
 from sqlalchemy import URL, event, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
+from phoenix.db.helpers import POSTGRESQL, SQLITE
 from phoenix.db.migrate import migrate_in_thread
 from phoenix.db.models import init_models
-
-# supported backends
-_SQLITE = "sqlite"
-_POSTGRESQL = "postgresql"
 
 sqlean.extensions.enable("text", "stats")
 
@@ -43,11 +40,11 @@ def get_async_db_url(connection_str: str) -> URL:
     if not url.database:
         raise ValueError("Failed to parse database from connection string")
     backend = url.get_backend_name()
-    if backend == _SQLITE:
+    if backend == SQLITE:
         if url.database.startswith(":memory:"):
             url = url.set(query={"cache": "shared"})
         return url.set(drivername="sqlite+aiosqlite")
-    if backend == _POSTGRESQL:
+    if backend == POSTGRESQL:
         url = url.set(drivername="postgresql+asyncpg")
         # For some reason username and password cannot be parsed from the typical slot
         # So we need to parse them out manually
@@ -69,9 +66,9 @@ def create_engine(connection_str: str, echo: bool = False) -> AsyncEngine:
     if not url.database:
         raise ValueError("Failed to parse database from connection string")
     backend = url.get_backend_name()
-    if backend == _SQLITE:
+    if backend == SQLITE:
         return aio_sqlite_engine(url=url, echo=echo)
-    if backend == _POSTGRESQL:
+    if backend == POSTGRESQL:
         return aio_postgresql_engine(url=url, echo=echo)
     raise ValueError(f"Unsupported backend: {backend}")
 
