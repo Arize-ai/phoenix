@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 from enum import Enum
 from sqlite3 import Connection
-from typing import Any
+from typing import Any, cast
 
 import aiosqlite
 import numpy as np
@@ -11,7 +11,7 @@ import sqlean
 from sqlalchemy import URL, event, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
-from phoenix.db.helpers import POSTGRESQL, SQLITE
+from phoenix.db.helpers import POSTGRESQL, SQLITE, SUPPORTED_DIALECTS
 from phoenix.db.migrate import migrate_in_thread
 from phoenix.db.models import init_models
 
@@ -39,7 +39,7 @@ def get_async_db_url(connection_str: str) -> URL:
     url = make_url(connection_str)
     if not url.database:
         raise ValueError("Failed to parse database from connection string")
-    backend = url.get_backend_name()
+    backend = cast(SUPPORTED_DIALECTS, url.get_backend_name())
     if backend == SQLITE:
         if url.database.startswith(":memory:"):
             url = url.set(query={"cache": "shared"})
@@ -65,7 +65,7 @@ def create_engine(connection_str: str, echo: bool = False) -> AsyncEngine:
     url = make_url(connection_str)
     if not url.database:
         raise ValueError("Failed to parse database from connection string")
-    backend = url.get_backend_name()
+    backend = cast(SUPPORTED_DIALECTS, url.get_backend_name())
     if backend == SQLITE:
         return aio_sqlite_engine(url=url, echo=echo)
     if backend == POSTGRESQL:
