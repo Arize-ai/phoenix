@@ -16,9 +16,7 @@ from typing import (
     cast,
 )
 
-from openinference.semconv.trace import (
-    SpanAttributes,
-)
+from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import func, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import assert_never
