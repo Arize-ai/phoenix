@@ -24,15 +24,17 @@ from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalM
 RowId: TypeAlias = int
 NumDocs: TypeAlias = int
 EvalName: TypeAlias = Optional[str]
+
 Key: TypeAlias = Tuple[RowId, EvalName, NumDocs]
+Result: TypeAlias = List[DocumentRetrievalMetrics]
 
 
-class DocumentRetrievalMetricsDataLoader(DataLoader[Key, List[DocumentRetrievalMetrics]]):
+class DocumentRetrievalMetricsDataLoader(DataLoader[Key, Result]):
     def __init__(self, db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[List[DocumentRetrievalMetrics]]:
+    async def _load_fn(self, keys: List[Key]) -> List[Result]:
         mda = models.DocumentAnnotation
         stmt = (
             select(
@@ -61,7 +63,7 @@ class DocumentRetrievalMetricsDataLoader(DataLoader[Key, List[DocumentRetrievalM
             data = await session.execute(stmt)
         if not data:
             return [[] for _ in keys]
-        results: Dict[Key, List[DocumentRetrievalMetrics]] = {key: [] for key in keys}
+        results: Dict[Key, Result] = {key: [] for key in keys}
         requested_num_docs: DefaultDict[Tuple[RowId, EvalName], Set[NumDocs]] = defaultdict(set)
         for row_id, eval_name, num_docs in results.keys():
             requested_num_docs[(row_id, eval_name)].add(num_docs)

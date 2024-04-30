@@ -56,12 +56,18 @@ from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
     DocumentEvaluationsDataLoader,
+    DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
+    EvaluationSummaryDataLoader,
     LatencyMsQuantileDataLoader,
+    MinStartOrMaxEndTimeDataLoader,
+    SpanDescendantsDataLoader,
     SpanEvaluationsDataLoader,
+    TokenCountDataLoader,
+    TraceCountDataLoader,
     TraceEvaluationsDataLoader,
 )
-from phoenix.server.api.dataloaders.span_descendants import SpanDescendantsDataLoader
+from phoenix.server.api.dataloaders.span_counts import SpanCountDataLoader
 from phoenix.server.api.routers.v1 import V1_ROUTES
 from phoenix.server.api.schema import schema
 from phoenix.server.grpc_server import GrpcServer
@@ -169,12 +175,18 @@ class GraphQLWithContext(GraphQL):  # type: ignore
             export_path=self.export_path,
             streaming_last_updated_at=self.streaming_last_updated_at,
             data_loaders=DataLoaders(
-                latency_ms_quantile=LatencyMsQuantileDataLoader(self.db),
-                span_evaluations=SpanEvaluationsDataLoader(self.db),
+                document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(self.db),
                 document_evaluations=DocumentEvaluationsDataLoader(self.db),
-                trace_evaluations=TraceEvaluationsDataLoader(self.db),
                 document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(self.db),
+                evaluation_summaries=EvaluationSummaryDataLoader(self.db),
+                latency_ms_quantile=LatencyMsQuantileDataLoader(self.db),
+                min_start_or_max_end_times=MinStartOrMaxEndTimeDataLoader(self.db),
+                span_counts=SpanCountDataLoader(self.db),
                 span_descendants=SpanDescendantsDataLoader(self.db),
+                span_evaluations=SpanEvaluationsDataLoader(self.db),
+                token_counts=TokenCountDataLoader(self.db),
+                trace_counts=TraceCountDataLoader(self.db),
+                trace_evaluations=TraceEvaluationsDataLoader(self.db),
             ),
         )
 

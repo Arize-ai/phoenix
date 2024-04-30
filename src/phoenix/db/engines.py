@@ -18,7 +18,7 @@ from phoenix.db.models import init_models
 _SQLITE = "sqlite"
 _POSTGRESQL = "postgresql"
 
-sqlean.extensions.enable("text")
+sqlean.extensions.enable("text", "stats")
 
 
 def set_sqlite_pragma(connection: Connection, _: Any) -> None:

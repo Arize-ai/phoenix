@@ -15,15 +15,16 @@ from phoenix.db import models
 from phoenix.server.api.types.Evaluation import DocumentEvaluation
 
 Key: TypeAlias = int
+Result: TypeAlias = List[DocumentEvaluation]
 
 
-class DocumentEvaluationsDataLoader(DataLoader[Key, List[DocumentEvaluation]]):
+class DocumentEvaluationsDataLoader(DataLoader[Key, Result]):
     def __init__(self, db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[List[DocumentEvaluation]]:
-        document_evaluations_by_id: DefaultDict[Key, List[DocumentEvaluation]] = defaultdict(list)
+    async def _load_fn(self, keys: List[Key]) -> List[Result]:
+        document_evaluations_by_id: DefaultDict[Key, Result] = defaultdict(list)
         async with self._db() as session:
             for document_evaluation in await session.scalars(
                 select(models.DocumentAnnotation).where(

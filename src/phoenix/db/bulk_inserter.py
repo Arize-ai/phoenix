@@ -11,23 +11,31 @@ from typing import (
     Callable,
     Iterable,
     List,
+    Literal,
     Optional,
     Tuple,
     cast,
 )
 
-from openinference.semconv.trace import SpanAttributes
+from openinference.semconv.trace import (
+    SpanAttributes,
+)
 from sqlalchemy import func, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import assert_never
 
 import phoenix.trace.v1 as pb
 from phoenix.db import models
+from phoenix.db.helpers import SUPPORTED_DIALECTS, num_docs_col
 from phoenix.exceptions import PhoenixException
 from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.schemas import Span, SpanStatusCode
 
 logger = logging.getLogger(__name__)
+
+# Supported dialects
+_SQLITE: Literal["sqlite"] = "sqlite"
+_POSTGRESQL: Literal["postgresql"] = "postgresql"
 
 
 class InsertEvaluationError(PhoenixException):
@@ -198,19 +206,24 @@ async def _insert_evaluation(session: AsyncSession, evaluation: pb.Evaluation) -
         )
     elif evaluation_kind == "document_retrieval_id":
         span_id = evaluation.subject_id.document_retrieval_id.span_id
-        if not (
-            span_rowid := await session.scalar(
-                select(models.Span.id).where(models.Span.span_id == span_id)
-            )
-        ):
+        dialect = cast(SUPPORTED_DIALECTS, session.bind.dialect.name)
+        stmt = select(models.Span.id, num_docs_col(dialect)).where(models.Span.span_id == span_id)
+        row = (await session.execute(stmt)).first()
+        if not row:
             raise InsertEvaluationError(
                 f"Cannot insert a document evaluation for a missing span: {span_id=}"
+            )
+        document_position = evaluation.subject_id.document_retrieval_id.document_position
+        if row.num_docs is None or row.num_docs <= document_position:
+            raise InsertEvaluationError(
+                f"Cannot insert a document evaluation for a non-existent "
+                f"document position: {span_id=}, {document_position=}"
             )
         await session.scalar(
             insert(models.DocumentAnnotation)
             .values(
-                span_rowid=span_rowid,
-                document_position=evaluation.subject_id.document_retrieval_id.document_position,
+                span_rowid=row.id,
+                document_position=document_position,
                 name=evaluation_name,
                 label=label,
                 score=score,
