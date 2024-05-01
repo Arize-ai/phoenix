@@ -1,18 +1,15 @@
 from datetime import datetime
-from typing import List, Optional, cast
+from typing import List, Optional
 
-import numpy as np
 import strawberry
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import ScalarResult, and_, distinct, func, select
-from sqlalchemy.orm import contains_eager, selectinload
-from sqlalchemy.sql.functions import coalesce
+from sqlalchemy import and_, distinct, select
+from sqlalchemy.orm import contains_eager
 from strawberry import ID, UNSET
 from strawberry.types import Info
 
 from phoenix.datetime_utils import right_open_time_range
 from phoenix.db import models
-from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.SpanSort import SpanSort
 from phoenix.server.api.input_types.TimeRange import TimeRange
@@ -42,11 +39,9 @@ class Project(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[datetime]:
-        stmt = select(func.min(models.Trace.start_time)).where(
-            models.Trace.project_rowid == self.id_attr
+        start_time = await info.context.data_loaders.min_start_or_max_end_times.load(
+            (self.id_attr, "start"),
         )
-        async with info.context.db() as session:
-            start_time = await session.scalar(stmt)
         start_time, _ = right_open_time_range(start_time, None)
         return start_time
 
@@ -55,11 +50,9 @@ class Project(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[datetime]:
-        stmt = select(func.max(models.Trace.end_time)).where(
-            models.Trace.project_rowid == self.id_attr
+        end_time = await info.context.data_loaders.min_start_or_max_end_times.load(
+            (self.id_attr, "end"),
         )
-        async with info.context.db() as session:
-            end_time = await session.scalar(stmt)
         _, end_time = right_open_time_range(None, end_time)
         return end_time
 
@@ -68,21 +61,11 @@ class Project(Node):
         self,
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
+        filter_condition: Optional[str] = UNSET,
     ) -> int:
-        stmt = (
-            select(func.count(models.Span.id))
-            .join(models.Trace)
-            .where(models.Trace.project_rowid == self.id_attr)
+        return await info.context.data_loaders.record_counts.load(
+            ("span", self.id_attr, time_range, filter_condition),
         )
-        if time_range:
-            stmt = stmt.where(
-                and_(
-                    time_range.start <= models.Span.start_time,
-                    models.Span.start_time < time_range.end,
-                )
-            )
-        async with info.context.db() as session:
-            return (await session.scalar(stmt)) or 0
 
     @strawberry.field
     async def trace_count(
@@ -90,39 +73,42 @@ class Project(Node):
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
     ) -> int:
-        stmt = select(func.count(models.Trace.id)).where(models.Trace.project_rowid == self.id_attr)
-        if time_range:
-            stmt = stmt.where(
-                and_(
-                    time_range.start <= models.Trace.start_time,
-                    models.Trace.start_time < time_range.end,
-                )
-            )
-        async with info.context.db() as session:
-            return (await session.scalar(stmt)) or 0
+        return await info.context.data_loaders.record_counts.load(
+            ("trace", self.id_attr, time_range, None),
+        )
 
     @strawberry.field
     async def token_count_total(
         self,
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
+        filter_condition: Optional[str] = UNSET,
     ) -> int:
-        prompt = models.Span.attributes[LLM_TOKEN_COUNT_PROMPT].as_float()
-        completion = models.Span.attributes[LLM_TOKEN_COUNT_COMPLETION].as_float()
-        stmt = (
-            select(coalesce(func.sum(prompt), 0) + coalesce(func.sum(completion), 0))
-            .join(models.Trace)
-            .where(models.Trace.project_rowid == self.id_attr)
+        return await info.context.data_loaders.token_counts.load(
+            ("total", self.id_attr, time_range, filter_condition),
         )
-        if time_range:
-            stmt = stmt.where(
-                and_(
-                    time_range.start <= models.Span.start_time,
-                    models.Span.start_time < time_range.end,
-                )
-            )
-        async with info.context.db() as session:
-            return (await session.scalar(stmt)) or 0
+
+    @strawberry.field
+    async def token_count_prompt(
+        self,
+        info: Info[Context, None],
+        time_range: Optional[TimeRange] = UNSET,
+        filter_condition: Optional[str] = UNSET,
+    ) -> int:
+        return await info.context.data_loaders.token_counts.load(
+            ("prompt", self.id_attr, time_range, filter_condition),
+        )
+
+    @strawberry.field
+    async def token_count_completion(
+        self,
+        info: Info[Context, None],
+        time_range: Optional[TimeRange] = UNSET,
+        filter_condition: Optional[str] = UNSET,
+    ) -> int:
+        return await info.context.data_loaders.token_counts.load(
+            ("completion", self.id_attr, time_range, filter_condition),
+        )
 
     @strawberry.field
     async def latency_ms_quantile(
@@ -132,7 +118,19 @@ class Project(Node):
         time_range: Optional[TimeRange] = UNSET,
     ) -> Optional[float]:
         return await info.context.data_loaders.latency_ms_quantile.load(
-            (self.id_attr, time_range, probability)
+            ("trace", self.id_attr, time_range, None, probability),
+        )
+
+    @strawberry.field
+    async def span_latency_ms_quantile(
+        self,
+        info: Info[Context, None],
+        probability: float,
+        time_range: Optional[TimeRange] = UNSET,
+        filter_condition: Optional[str] = UNSET,
+    ) -> Optional[float]:
+        return await info.context.data_loaders.latency_ms_quantile.load(
+            ("span", self.id_attr, time_range, filter_condition, probability),
         )
 
     @strawberry.field
@@ -263,37 +261,9 @@ class Project(Node):
         evaluation_name: str,
         time_range: Optional[TimeRange] = UNSET,
     ) -> Optional[EvaluationSummary]:
-        base_query = (
-            select(models.TraceAnnotation)
-            .join(models.Trace)
-            .where(models.Trace.project_rowid == self.id_attr)
-            .where(models.TraceAnnotation.annotator_kind == "LLM")
-            .where(models.TraceAnnotation.name == evaluation_name)
+        return await info.context.data_loaders.evaluation_summaries.load(
+            ("trace", self.id_attr, time_range, None, evaluation_name),
         )
-        unfiltered = base_query
-        filtered = base_query
-        if time_range:
-            filtered = filtered.where(
-                and_(
-                    time_range.start <= models.Span.start_time,
-                    models.Span.start_time < time_range.end,
-                )
-            )
-
-        # todo: implement filter condition
-        async with info.context.db() as session:
-            evaluations = list(await session.scalars(filtered))
-            if not evaluations:
-                return None
-            labels = cast(
-                ScalarResult[str],
-                await session.scalars(
-                    unfiltered.with_only_columns(distinct(models.TraceAnnotation.label)).where(
-                        models.TraceAnnotation.label.is_not(None)
-                    )
-                ),
-            )
-        return EvaluationSummary(evaluations, list(labels))
 
     @strawberry.field
     async def span_evaluation_summary(
@@ -303,38 +273,9 @@ class Project(Node):
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
     ) -> Optional[EvaluationSummary]:
-        base_query = (
-            select(models.SpanAnnotation)
-            .join(models.Span)
-            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-            .where(models.Trace.project_rowid == self.id_attr)
-            .where(models.SpanAnnotation.annotator_kind == "LLM")
-            .where(models.SpanAnnotation.name == evaluation_name)
+        return await info.context.data_loaders.evaluation_summaries.load(
+            ("span", self.id_attr, time_range, filter_condition, evaluation_name),
         )
-        unfiltered = base_query
-        filtered = base_query
-        if time_range:
-            filtered = filtered.where(
-                and_(
-                    time_range.start <= models.Span.start_time,
-                    models.Span.start_time < time_range.end,
-                )
-            )
-
-        # todo: implement filter condition
-        async with info.context.db() as session:
-            evaluations = list(await session.scalars(filtered))
-            if not evaluations:
-                return None
-            labels = cast(
-                ScalarResult[str],
-                await session.scalars(
-                    unfiltered.with_only_columns(distinct(models.SpanAnnotation.label)).where(
-                        models.SpanAnnotation.label.is_not(None)
-                    )
-                ),
-            )
-        return EvaluationSummary(evaluations, list(labels))
 
     @strawberry.field
     async def document_evaluation_summary(
@@ -344,42 +285,8 @@ class Project(Node):
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
     ) -> Optional[DocumentEvaluationSummary]:
-        stmt = (
-            select(models.Span)
-            .join(models.Trace)
-            .where(
-                models.Trace.project_rowid == self.id_attr,
-            )
-            .options(selectinload(models.Span.document_annotations))
-            .options(contains_eager(models.Span.trace))
-        )
-        if time_range:
-            stmt = stmt.where(
-                and_(
-                    time_range.start <= models.Span.start_time,
-                    models.Span.start_time < time_range.end,
-                )
-            )
-        # todo: add filter_condition
-        async with info.context.db() as session:
-            sql_spans = await session.scalars(stmt)
-        metrics_collection = []
-        for sql_span in sql_spans:
-            span = to_gql_span(sql_span)
-            if not (num_documents := span.num_documents):
-                continue
-            evaluation_scores: List[float] = [np.nan] * num_documents
-            for annotation in sql_span.document_annotations:
-                if (score := annotation.score) is not None and (
-                    document_position := annotation.document_position
-                ) < num_documents:
-                    evaluation_scores[document_position] = score
-            metrics_collection.append(RetrievalMetrics(evaluation_scores))
-        if not metrics_collection:
-            return None
-        return DocumentEvaluationSummary(
-            evaluation_name=evaluation_name,
-            metrics_collection=metrics_collection,
+        return await info.context.data_loaders.document_evaluation_summaries.load(
+            (self.id_attr, time_range, filter_condition, evaluation_name),
         )
 
     @strawberry.field

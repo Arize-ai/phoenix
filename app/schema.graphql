@@ -543,10 +543,13 @@ type Project implements Node {
   gradientEndColor: String!
   startTime: DateTime
   endTime: DateTime
-  recordCount(timeRange: TimeRange): Int!
+  recordCount(timeRange: TimeRange, filterCondition: String): Int!
   traceCount(timeRange: TimeRange): Int!
-  tokenCountTotal(timeRange: TimeRange): Int!
+  tokenCountTotal(timeRange: TimeRange, filterCondition: String): Int!
+  tokenCountPrompt(timeRange: TimeRange, filterCondition: String): Int!
+  tokenCountCompletion(timeRange: TimeRange, filterCondition: String): Int!
   latencyMsQuantile(probability: Float!, timeRange: TimeRange): Float
+  spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String): Float
   trace(traceId: ID!): Trace
   spans(timeRange: TimeRange, first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String): SpanConnection!
 

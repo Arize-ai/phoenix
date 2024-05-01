@@ -247,7 +247,8 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     start_time, end_time = list(element.clauses)
     return compiler.process(
-        (func.extract("EPOCH", end_time) - func.extract("EPOCH", start_time)) * 1000, **kw
+        func.round((func.extract("EPOCH", end_time) - func.extract("EPOCH", start_time)) * 1000, 1),
+        **kw,
     )
 
 
@@ -259,7 +260,7 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
         # FIXME: We don't know why sqlite returns a slightly different value.
         # postgresql is correct because it matches the value computed by Python.
         # unixepoch() gives the same results.
-        (func.julianday(end_time) - func.julianday(start_time)) * 86_400_000,
+        func.round((func.julianday(end_time) - func.julianday(start_time)) * 86_400_000, 1),
         **kw,
     )
 

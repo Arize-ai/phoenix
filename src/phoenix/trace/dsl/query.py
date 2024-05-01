@@ -12,7 +12,6 @@ from typing import (
     Dict,
     Iterable,
     List,
-    Literal,
     Mapping,
     Optional,
     Sequence,
@@ -24,9 +23,11 @@ from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import JSON, Column, Label, Select, SQLColumnExpression, and_, func, select
 from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.orm import Session, aliased
+from typing_extensions import assert_never
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.trace.attributes import (
     JSON_STRING_ATTRIBUTES,
     SEMANTIC_CONVENTIONS,
@@ -40,10 +41,6 @@ from phoenix.trace.dsl.filter import Projector
 from phoenix.trace.schemas import ATTRIBUTE_PREFIX
 
 DEFAULT_SPAN_LIMIT = 1000
-
-# supported SQL dialects
-_SQLITE: Literal["sqlite"] = "sqlite"
-_POSTGRESQL: Literal["postgresql"] = "postgresql"
 
 RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
 
@@ -151,10 +148,10 @@ class Explosion(_HasTmpSuffix, Projection):
     def update_sql(
         self,
         stmt: Select[Any],
-        dialect: Literal["sqlite", "postgresql"],
+        dialect: SupportedSQLDialect,
     ) -> Select[Any]:
         array = self()
-        if dialect == _SQLITE:
+        if dialect is SupportedSQLDialect.SQLITE:
             # Because sqlite doesn't support `WITH ORDINALITY`, the order of
             # the returned (table) values is not guaranteed. So we resort to
             # post hoc processing using pandas.
@@ -164,7 +161,7 @@ class Explosion(_HasTmpSuffix, Projection):
                 array.label(self._array_tmp_col_label),
             )
             return stmt
-        elif dialect == _POSTGRESQL:
+        elif dialect is SupportedSQLDialect.POSTGRESQL:
             element = (
                 func.jsonb_array_elements(array)
                 .table_valued(
@@ -190,12 +187,13 @@ class Explosion(_HasTmpSuffix, Projection):
                 .add_columns(position_label, *columns)
             )
             return stmt
-        raise NotImplementedError(f"Unsupported dialect: {dialect}")
+        else:
+            assert_never(dialect)
 
     def update_df(
         self,
         df: pd.DataFrame,
-        dialect: Literal["sqlite", "postgresql"],
+        dialect: SupportedSQLDialect,
     ) -> pd.DataFrame:
         df = df.rename(self._remove_tmp_suffix, axis=1)
         if df.empty:
@@ -210,10 +208,10 @@ class Explosion(_HasTmpSuffix, Projection):
             )
             df = pd.DataFrame(columns=columns).set_index(self.index_keys)
             return df
-        if dialect != _SQLITE and self.kwargs:
+        if dialect != SupportedSQLDialect.SQLITE and self.kwargs:
             df = df.set_index(self.index_keys)
             return df
-        if dialect == _SQLITE:
+        if dialect is SupportedSQLDialect.SQLITE:
             # Because sqlite doesn't support `WITH ORDINALITY`, the order of
             # the returned (table) values is not guaranteed. So we resort to
             # post hoc processing using pandas.
@@ -241,17 +239,21 @@ class Explosion(_HasTmpSuffix, Projection):
                 return res
 
             records = df.loc[:, self._array_tmp_col_label].dropna().map(_extract_values).explode()
-        else:
+        elif dialect is SupportedSQLDialect.POSTGRESQL:
             records = df.loc[:, self._array_tmp_col_label].dropna().map(flatten).map(dict)
+        else:
+            assert_never(dialect)
         df = df.drop(self._array_tmp_col_label, axis=1)
         if records.empty:
             df = df.set_index(self.index_keys[0])
             return df
         df_explode = pd.DataFrame.from_records(records.to_list(), index=records.index)
-        if dialect == _SQLITE:
+        if dialect is SupportedSQLDialect.SQLITE:
             df = _outer_join(df, df_explode)
-        else:
+        elif dialect is SupportedSQLDialect.POSTGRESQL:
             df = pd.concat([df, df_explode], axis=1)
+        else:
+            assert_never(dialect)
         df = df.set_index(self.index_keys)
         return df
 
@@ -301,10 +303,10 @@ class Concatenation(_HasTmpSuffix, Projection):
     def update_sql(
         self,
         stmt: Select[Any],
-        dialect: Literal["sqlite", "postgresql"],
+        dialect: SupportedSQLDialect,
     ) -> Select[Any]:
         array = self()
-        if dialect == _SQLITE:
+        if dialect is SupportedSQLDialect.SQLITE:
             # Because SQLite doesn't support `WITH ORDINALITY`, the order of
             # the returned table-values is not guaranteed. So we resort to
             # post hoc processing using pandas.
@@ -314,7 +316,7 @@ class Concatenation(_HasTmpSuffix, Projection):
                 array.label(self._array_tmp_col_label),
             )
             return stmt
-        if dialect == _POSTGRESQL:
+        elif dialect is SupportedSQLDialect.POSTGRESQL:
             element = (
                 (
                     func.jsonb_array_elements(array)
@@ -355,12 +357,13 @@ class Concatenation(_HasTmpSuffix, Projection):
                 .group_by(*stmt.columns.keys())
             )
             return stmt
-        raise NotImplementedError(f"Unsupported dialect: {dialect}")
+        else:
+            assert_never(dialect)
 
     def update_df(
         self,
         df: pd.DataFrame,
-        dialect: Literal["sqlite", "postgresql"],
+        dialect: SupportedSQLDialect,
     ) -> pd.DataFrame:
         df = df.rename(self._remove_tmp_suffix, axis=1)
         if df.empty:
@@ -373,7 +376,7 @@ class Concatenation(_HasTmpSuffix, Projection):
                 )
             )
             return pd.DataFrame(columns=columns, index=df.index)
-        if dialect == _SQLITE:
+        if dialect is SupportedSQLDialect.SQLITE:
             # Because SQLite doesn't support `WITH ORDINALITY`, the order of
             # the returned table-values is not guaranteed. So we resort to
             # post hoc processing using pandas.
@@ -394,6 +397,10 @@ class Concatenation(_HasTmpSuffix, Projection):
             records = df.loc[:, self._array_tmp_col_label].map(_concat_values)
             df_concat = pd.DataFrame.from_records(records.to_list(), index=records.index)
             return df.drop(self._array_tmp_col_label, axis=1).join(df_concat, how="outer")
+        elif dialect is SupportedSQLDialect.POSTGRESQL:
+            pass
+        else:
+            assert_never(dialect)
         return df
 
     def to_dict(self) -> Dict[str, Any]:
@@ -527,8 +534,7 @@ class SpanQuery(_HasTmpSuffix):
                 root_spans_only=root_spans_only,
             )
         assert session.bind is not None
-        dialect = cast(Literal["sqlite", "postgresql"], session.bind.dialect.name)
-        assert dialect in ("sqlite", "postgresql")
+        dialect = SupportedSQLDialect(session.bind.dialect.name)
         row_id = models.Span.id.label(self._pk_tmp_col_label)
         stmt: Select[Any] = (
             # We do not allow `group_by` anything other than `row_id` because otherwise

@@ -1,31 +1,42 @@
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import AsyncContextManager, Callable, List, Optional, Tuple, Union
+from typing import AsyncContextManager, Callable, Optional, Union
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.websockets import WebSocket
-from strawberry.dataloader import DataLoader
 
 from phoenix.core.model_schema import Model
-from phoenix.db import models
-from phoenix.server.api.input_types.TimeRange import TimeRange
-from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
-from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluation, TraceEvaluation
+from phoenix.server.api.dataloaders import (
+    DocumentEvaluationsDataLoader,
+    DocumentEvaluationSummaryDataLoader,
+    DocumentRetrievalMetricsDataLoader,
+    EvaluationSummaryDataLoader,
+    LatencyMsQuantileDataLoader,
+    MinStartOrMaxEndTimeDataLoader,
+    RecordCountDataLoader,
+    SpanDescendantsDataLoader,
+    SpanEvaluationsDataLoader,
+    TokenCountDataLoader,
+    TraceEvaluationsDataLoader,
+)
 
 
 @dataclass
 class DataLoaders:
-    latency_ms_quantile: DataLoader[Tuple[int, Optional[TimeRange], float], Optional[float]]
-    span_evaluations: DataLoader[int, List[SpanEvaluation]]
-    document_evaluations: DataLoader[int, List[DocumentEvaluation]]
-    trace_evaluations: DataLoader[int, List[TraceEvaluation]]
-    document_retrieval_metrics: DataLoader[
-        Tuple[int, Optional[str], int], List[DocumentRetrievalMetrics]
-    ]
-    span_descendants: DataLoader[str, List[models.Span]]
+    document_evaluation_summaries: DocumentEvaluationSummaryDataLoader
+    document_evaluations: DocumentEvaluationsDataLoader
+    document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
+    evaluation_summaries: EvaluationSummaryDataLoader
+    latency_ms_quantile: LatencyMsQuantileDataLoader
+    min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
+    record_counts: RecordCountDataLoader
+    span_descendants: SpanDescendantsDataLoader
+    span_evaluations: SpanEvaluationsDataLoader
+    token_counts: TokenCountDataLoader
+    trace_evaluations: TraceEvaluationsDataLoader
 
 
 @dataclass
