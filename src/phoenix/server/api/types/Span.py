@@ -253,19 +253,17 @@ def _hide_embedding_vectors(attributes: Mapping[str, Any]) -> Mapping[str, Any]:
     ):
         embeddings = embeddings.copy()
         for i, embedding in enumerate(embeddings):
-            if (
+            if not (
                 isinstance(embedding, dict)
                 and isinstance(emb := embedding.get("embedding"), dict)
                 and isinstance(vector := emb.get("vector"), list)
             ):
-                embeddings[i] = {
-                    **embedding,
-                    "embedding": {**emb, "vector": f"<{len(vector)} dimensional vector>"},
-                }
-        return {
-            **attributes,
-            "embedding": {**em, "embeddings": embeddings},
-        }
+                continue
+            embeddings[i] = {
+                **embedding,
+                "embedding": {**emb, "vector": f"<{len(vector)} dimensional vector>"},
+            }
+        return {**attributes, "embedding": {**em, "embeddings": embeddings}}
     return attributes
 
 
