@@ -18,7 +18,7 @@ from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedDialect, num_docs_col
+from phoenix.db.helpers import SupportedSQLDialect, num_docs_col
 from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
@@ -70,7 +70,7 @@ class DocumentEvaluationSummaryDataLoader(DataLoader[Key, Result]):
             arguments[segment][param].append(position)
         for segment, params in arguments.items():
             async with self._db() as session:
-                dialect = SupportedDialect(session.bind.dialect.name)
+                dialect = SupportedSQLDialect(session.bind.dialect.name)
                 stmt = _get_stmt(dialect, segment, *params.keys())
                 data = await session.stream(stmt)
                 async for eval_name, group in groupby(data, lambda d: d.name):
@@ -92,7 +92,7 @@ class DocumentEvaluationSummaryDataLoader(DataLoader[Key, Result]):
 
 
 def _get_stmt(
-    dialect: SupportedDialect,
+    dialect: SupportedSQLDialect,
     segment: Segment,
     *eval_names: Param,
 ) -> Select[Any]:

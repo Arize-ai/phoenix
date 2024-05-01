@@ -23,7 +23,7 @@ from typing_extensions import assert_never
 
 import phoenix.trace.v1 as pb
 from phoenix.db import models
-from phoenix.db.helpers import SupportedDialect, num_docs_col
+from phoenix.db.helpers import SupportedSQLDialect, num_docs_col
 from phoenix.exceptions import PhoenixException
 from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.schemas import Span, SpanStatusCode
@@ -199,7 +199,7 @@ async def _insert_evaluation(session: AsyncSession, evaluation: pb.Evaluation) -
         )
     elif evaluation_kind == "document_retrieval_id":
         span_id = evaluation.subject_id.document_retrieval_id.span_id
-        dialect = SupportedDialect(session.bind.dialect.name)
+        dialect = SupportedSQLDialect(session.bind.dialect.name)
         stmt = select(models.Span.id, num_docs_col(dialect)).where(models.Span.span_id == span_id)
         if not (row := (await session.execute(stmt)).first()):
             raise InsertEvaluationError(

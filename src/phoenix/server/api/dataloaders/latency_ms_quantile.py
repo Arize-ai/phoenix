@@ -32,7 +32,7 @@ from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedDialect
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.trace.dsl import SpanFilter
 
@@ -85,7 +85,7 @@ class LatencyMsQuantileDataLoader(DataLoader[Key, Result]):
             segment, param = _cache_key_fn(key)
             arguments[segment][param].append(position)
         async with self._db() as session:
-            dialect = SupportedDialect(session.bind.dialect.name)
+            dialect = SupportedSQLDialect(session.bind.dialect.name)
             for segment, params in arguments.items():
                 async for position, quantile_value in _get_results(
                     dialect, session, segment, params
@@ -95,7 +95,7 @@ class LatencyMsQuantileDataLoader(DataLoader[Key, Result]):
 
 
 async def _get_results(
-    dialect: SupportedDialect,
+    dialect: SupportedSQLDialect,
     session: AsyncSession,
     segment: Segment,
     params: Mapping[Param, List[ResultPosition]],
@@ -118,9 +118,9 @@ async def _get_results(
         stmt = stmt.where(start_time <= time_column)
     if end_time:
         stmt = stmt.where(time_column < end_time)
-    if dialect is SupportedDialect.POSTGRESQL:
+    if dialect is SupportedSQLDialect.POSTGRESQL:
         results = _get_results_postgresql(session, stmt, latency_column, params)
-    elif dialect is SupportedDialect.SQLITE:
+    elif dialect is SupportedSQLDialect.SQLITE:
         results = _get_results_sqlite(session, stmt, latency_column, params)
     else:
         assert_never(dialect)

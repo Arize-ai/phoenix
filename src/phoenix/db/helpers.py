@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Any
 
 from openinference.semconv.trace import (
     OpenInferenceSpanKindValues,
@@ -11,15 +12,21 @@ from typing_extensions import assert_never
 from phoenix.db import models
 
 
-class SupportedDialect(Enum):
+class SupportedSQLDialect(Enum):
     SQLITE = "sqlite"
     POSTGRESQL = "postgresql"
 
+    @classmethod
+    def _missing_(cls, value: Any) -> "SupportedSQLDialect":
+        if isinstance(value, str) and value and value.isascii():
+            return cls(value.lower())
+        raise ValueError(f"`{value}` is not a supported SQL backend/dialect.")
 
-def num_docs_col(dialect: SupportedDialect) -> SQLColumnExpression[Integer]:
-    if dialect is SupportedDialect.POSTGRESQL:
+
+def num_docs_col(dialect: SupportedSQLDialect) -> SQLColumnExpression[Integer]:
+    if dialect is SupportedSQLDialect.POSTGRESQL:
         array_length = func.jsonb_array_length
-    elif dialect is SupportedDialect.SQLITE:
+    elif dialect is SupportedSQLDialect.SQLITE:
         array_length = func.json_array_length
     else:
         assert_never(dialect)

@@ -10,8 +10,9 @@ import numpy as np
 import sqlean
 from sqlalchemy import URL, event, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from typing_extensions import assert_never
 
-from phoenix.db.helpers import SupportedDialect
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.migrate import migrate_in_thread
 from phoenix.db.models import init_models
 
@@ -39,10 +40,10 @@ def get_async_db_url(connection_str: str) -> URL:
     url = make_url(connection_str)
     if not url.database:
         raise ValueError("Failed to parse database from connection string")
-    backend = SupportedDialect(url.get_backend_name())
-    if backend is SupportedDialect.SQLITE:
+    backend = SupportedSQLDialect(url.get_backend_name())
+    if backend is SupportedSQLDialect.SQLITE:
         return url.set(drivername="sqlite+aiosqlite")
-    if backend is SupportedDialect.POSTGRESQL:
+    elif backend is SupportedSQLDialect.POSTGRESQL:
         url = url.set(drivername="postgresql+asyncpg")
         # For some reason username and password cannot be parsed from the typical slot
         # So we need to parse them out manually
@@ -53,7 +54,8 @@ def get_async_db_url(connection_str: str) -> URL:
                 username=None,
             )
         return url
-    raise ValueError(f"Unsupported backend: {backend}")
+    else:
+        assert_never(backend)
 
 
 def create_engine(
@@ -67,13 +69,14 @@ def create_engine(
     url = make_url(connection_str)
     if not url.database:
         raise ValueError("Failed to parse database from connection string")
-    backend = SupportedDialect(url.get_backend_name())
+    backend = SupportedSQLDialect(url.get_backend_name())
     url = get_async_db_url(url.render_as_string(hide_password=False))
-    if backend is SupportedDialect.SQLITE:
+    if backend is SupportedSQLDialect.SQLITE:
         return aio_sqlite_engine(url=url, migrate=migrate, echo=echo)
-    if backend is SupportedDialect.POSTGRESQL:
+    elif backend is SupportedSQLDialect.POSTGRESQL:
         return aio_postgresql_engine(url=url, migrate=migrate, echo=echo)
-    raise ValueError(f"Unsupported backend: {backend}")
+    else:
+        assert_never(backend)
 
 
 def aio_sqlite_engine(
