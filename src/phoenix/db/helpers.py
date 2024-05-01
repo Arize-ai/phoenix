@@ -15,9 +15,6 @@ SQLITE: Literal["sqlite"] = "sqlite"
 POSTGRESQL: Literal["postgresql"] = "postgresql"
 SUPPORTED_DIALECTS = Literal["sqlite", "postgresql"]
 
-RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS.split(".")
-RERANKER_OUTPUT_DOCUMENTS = RerankerAttributes.RERANKER_OUTPUT_DOCUMENTS.split(".")
-
 
 def num_docs_col(dialect: SUPPORTED_DIALECTS) -> SQLColumnExpression[Integer]:
     if dialect == POSTGRESQL:
@@ -26,9 +23,9 @@ def num_docs_col(dialect: SUPPORTED_DIALECTS) -> SQLColumnExpression[Integer]:
         array_length = func.json_array_length
     else:
         assert_never(dialect)
-    retrieval_docs = models.Span.attributes[RETRIEVAL_DOCUMENTS]
+    retrieval_docs = models.Span.attributes[_RETRIEVAL_DOCUMENTS]
     num_retrieval_docs = array_length(retrieval_docs)
-    reranker_docs = models.Span.attributes[RERANKER_OUTPUT_DOCUMENTS]
+    reranker_docs = models.Span.attributes[_RERANKER_OUTPUT_DOCUMENTS]
     num_reranker_docs = array_length(reranker_docs)
     return case(
         (
@@ -37,3 +34,7 @@ def num_docs_col(dialect: SUPPORTED_DIALECTS) -> SQLColumnExpression[Integer]:
         ),
         else_=num_retrieval_docs,
     ).label("num_docs")
+
+
+_RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS.split(".")
+_RERANKER_OUTPUT_DOCUMENTS = RerankerAttributes.RERANKER_OUTPUT_DOCUMENTS.split(".")
