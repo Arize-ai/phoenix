@@ -203,9 +203,7 @@ def to_gql_span(span: models.Span) -> Span:
             trace_id=cast(ID, span.trace.trace_id),
             span_id=cast(ID, span.span_id),
         ),
-        attributes=json.dumps(span.attributes, cls=_JSONEncoder),
-        # TODO(persistence): hide the embedding vectors as a string instead,
-        # e.g. f"<{len(vector)} dimensional vector>"
+        attributes=json.dumps(_hide_embedding_vectors(span.attributes), cls=_JSONEncoder),
         metadata=_convert_metadata_to_string(get_attribute_value(span.attributes, METADATA)),
         num_documents=num_documents,
         token_count_total=cast(
@@ -247,6 +245,29 @@ def to_gql_span(span: models.Span) -> Span:
             else None
         ),
     )
+
+
+def _hide_embedding_vectors(attributes: Mapping[str, Any]) -> Mapping[str, Any]:
+    if not (
+        isinstance(em := attributes.get("embedding"), dict)
+        and isinstance(embeddings := em.get("embeddings"), list)
+        and embeddings
+    ):
+        return attributes
+    embeddings = embeddings.copy()
+    for i, embedding in enumerate(embeddings):
+        if not (
+            isinstance(embedding, dict)
+            and isinstance(emb := embedding.get("embedding"), dict)
+            and isinstance(vector := emb.get("vector"), list)
+            and vector
+        ):
+            continue
+        embeddings[i] = {
+            **embedding,
+            "embedding": {**emb, "vector": f"<{len(vector)} dimensional vector>"},
+        }
+    return {**attributes, "embedding": {**em, "embeddings": embeddings}}
 
 
 class _JSONEncoder(json.JSONEncoder):
