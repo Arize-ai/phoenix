@@ -4,7 +4,9 @@ from typing import Generic, List, Optional, TypeVar
 
 import strawberry
 from strawberry import UNSET
+from typing_extensions import TypeAlias
 
+ID: TypeAlias = int
 GenericType = TypeVar("GenericType")
 
 
@@ -54,6 +56,21 @@ class Edge(Generic[GenericType]):
 
 # The hashing prefix for a connection cursor
 CURSOR_PREFIX = "connection:"
+
+
+def id_to_cursor(id: ID) -> Cursor:
+    """
+    Creates a cursor string from an ID.
+    """
+    return base64.b64encode(f"{CURSOR_PREFIX}{id}".encode("utf-8")).decode()
+
+
+def cursor_to_id(cursor: Cursor) -> ID:
+    """
+    Extracts the ID from the cursor string.
+    """
+    _, id = base64.b64decode(cursor).decode().split(":")
+    return int(id)
 
 
 def offset_to_cursor(offset: int) -> Cursor:
