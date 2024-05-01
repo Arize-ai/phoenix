@@ -1,4 +1,4 @@
-from typing import Literal
+from enum import Enum
 
 from openinference.semconv.trace import (
     OpenInferenceSpanKindValues,
@@ -10,16 +10,16 @@ from typing_extensions import assert_never
 
 from phoenix.db import models
 
-# Supported dialects
-SQLITE: Literal["sqlite"] = "sqlite"
-POSTGRESQL: Literal["postgresql"] = "postgresql"
-SUPPORTED_DIALECTS = Literal["sqlite", "postgresql"]
+
+class SupportedDialect(Enum):
+    SQLITE = "sqlite"
+    POSTGRESQL = "postgresql"
 
 
-def num_docs_col(dialect: SUPPORTED_DIALECTS) -> SQLColumnExpression[Integer]:
-    if dialect == POSTGRESQL:
+def num_docs_col(dialect: SupportedDialect) -> SQLColumnExpression[Integer]:
+    if dialect is SupportedDialect.POSTGRESQL:
         array_length = func.jsonb_array_length
-    elif dialect == SQLITE:
+    elif dialect is SupportedDialect.SQLITE:
         array_length = func.json_array_length
     else:
         assert_never(dialect)
