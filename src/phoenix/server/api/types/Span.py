@@ -248,25 +248,23 @@ def to_gql_span(span: models.Span) -> Span:
 
 
 def _hide_embedding_vectors(attributes: Mapping[str, Any]) -> Mapping[str, Any]:
-    eg_es = EMBEDDING_EMBEDDINGS.split(".")
-    emb_vec = EMBEDDING_VECTOR.split(".")
-    if isinstance(eg := attributes.get(eg_es[0]), dict) and isinstance(
-        es := eg.get(eg_es[1]), list
+    if isinstance(em := attributes.get("embedding"), dict) and isinstance(
+        embeddings := em.get("embeddings"), list
     ):
-        embeddings = es.copy()
+        embeddings = embeddings.copy()
         for i, embedding in enumerate(embeddings):
             if (
                 isinstance(embedding, dict)
-                and isinstance(emb := embedding.get(emb_vec[0]), dict)
-                and isinstance(vec := emb.get(emb_vec[1]), list)
+                and isinstance(emb := embedding.get("embedding"), dict)
+                and isinstance(vector := emb.get("vector"), list)
             ):
                 embeddings[i] = {
                     **embedding,
-                    emb_vec[0]: {**emb, emb_vec[1]: f"<{len(vec)} dimensional vector>"},
+                    "embedding": {**emb, "vector": f"<{len(vector)} dimensional vector>"},
                 }
         return {
             **attributes,
-            eg_es[0]: {**eg, eg_es[1]: embeddings},
+            "embedding": {**em, "embeddings": embeddings},
         }
     return attributes
 
