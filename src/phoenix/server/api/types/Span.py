@@ -248,23 +248,26 @@ def to_gql_span(span: models.Span) -> Span:
 
 
 def _hide_embedding_vectors(attributes: Mapping[str, Any]) -> Mapping[str, Any]:
-    if isinstance(em := attributes.get("embedding"), dict) and isinstance(
-        embeddings := em.get("embeddings"), list
+    if not (
+        isinstance(em := attributes.get("embedding"), dict)
+        and isinstance(embeddings := em.get("embeddings"), list)
+        and embeddings
     ):
-        embeddings = embeddings.copy()
-        for i, embedding in enumerate(embeddings):
-            if not (
-                isinstance(embedding, dict)
-                and isinstance(emb := embedding.get("embedding"), dict)
-                and isinstance(vector := emb.get("vector"), list)
-            ):
-                continue
-            embeddings[i] = {
-                **embedding,
-                "embedding": {**emb, "vector": f"<{len(vector)} dimensional vector>"},
-            }
-        return {**attributes, "embedding": {**em, "embeddings": embeddings}}
-    return attributes
+        return attributes
+    embeddings = embeddings.copy()
+    for i, embedding in enumerate(embeddings):
+        if not (
+            isinstance(embedding, dict)
+            and isinstance(emb := embedding.get("embedding"), dict)
+            and isinstance(vector := emb.get("vector"), list)
+            and vector
+        ):
+            continue
+        embeddings[i] = {
+            **embedding,
+            "embedding": {**emb, "vector": f"<{len(vector)} dimensional vector>"},
+        }
+    return {**attributes, "embedding": {**em, "embeddings": embeddings}}
 
 
 class _JSONEncoder(json.JSONEncoder):
