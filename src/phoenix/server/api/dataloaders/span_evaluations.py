@@ -6,7 +6,7 @@ from typing import (
     List,
 )
 
-from sqlalchemy import and_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
@@ -25,15 +25,12 @@ class SpanEvaluationsDataLoader(DataLoader[Key, Result]):
 
     async def _load_fn(self, keys: List[Key]) -> List[Result]:
         span_evaluations_by_id: DefaultDict[Key, Result] = defaultdict(list)
+        msa = models.SpanAnnotation
         async with self._db() as session:
-            for span_evaluation in await session.scalars(
-                select(models.SpanAnnotation).where(
-                    and_(
-                        models.SpanAnnotation.span_rowid.in_(keys),
-                        models.SpanAnnotation.annotator_kind == "LLM",
-                    )
-                )
-            ):
+            data = await session.stream_scalars(
+                select(msa).where(msa.span_rowid.in_(keys)).where(msa.annotator_kind == "LLM")
+            )
+            async for span_evaluation in data:
                 span_evaluations_by_id[span_evaluation.span_rowid].append(
                     SpanEvaluation.from_sql_span_annotation(span_evaluation)
                 )

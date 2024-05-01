@@ -61,12 +61,12 @@ from phoenix.server.api.dataloaders import (
     EvaluationSummaryDataLoader,
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
+    RecordCountDataLoader,
     SpanDescendantsDataLoader,
     SpanEvaluationsDataLoader,
     TokenCountDataLoader,
     TraceEvaluationsDataLoader,
 )
-from phoenix.server.api.dataloaders.record_counts import RecordCountDataLoader
 from phoenix.server.api.routers.v1 import V1_ROUTES
 from phoenix.server.api.schema import schema
 from phoenix.server.grpc_server import GrpcServer

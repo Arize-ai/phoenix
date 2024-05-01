@@ -1,12 +1,18 @@
-from typing import AsyncGenerator
+import contextlib
+from typing import AsyncContextManager, AsyncGenerator, AsyncIterator, Callable
 
 import pytest
-import sqlean
 from phoenix.db import models
+from phoenix.db.engines import aio_sqlite_engine
 from psycopg import Connection
 from pytest_postgresql import factories
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import make_url
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 
 def pytest_addoption(parser):
@@ -23,7 +29,10 @@ def pytest_collection_modifyitems(config, items):
     if not config.getoption("--run-postgres"):
         for item in items:
             if "session" in item.fixturenames:
-                if "postgres" in item.callspec.params.values():
+                if "postgres_session" in item.callspec.params.values():
+                    item.add_marker(skip_postgres)
+            elif "db" in item.fixturenames:
+                if "postgres_db" in item.callspec.params.values():
                     item.add_marker(skip_postgres)
 
 
@@ -37,7 +46,7 @@ def openai_api_key(monkeypatch: pytest.MonkeyPatch) -> str:
 phoenix_postgresql = factories.postgresql("postgresql_proc")
 
 
-def create_async_postgres_engine(psycopg_connection: Connection) -> sessionmaker:
+def create_async_postgres_engine(psycopg_connection: Connection) -> AsyncEngine:
     connection = psycopg_connection.cursor().connection
     user = connection.info.user
     password = connection.info.password
@@ -48,12 +57,8 @@ def create_async_postgres_engine(psycopg_connection: Connection) -> sessionmaker
     return create_async_engine(async_database_url)
 
 
-def create_async_sqlite_engine() -> sessionmaker:
-    return create_async_engine("sqlite+aiosqlite:///:memory:", module=sqlean)
-
-
 @pytest.fixture
-async def postgres_engine(phoenix_postgresql: Connection) -> AsyncGenerator[sessionmaker, None]:
+async def postgres_engine(phoenix_postgresql: Connection) -> AsyncGenerator[AsyncEngine, None]:
     engine = create_async_postgres_engine(phoenix_postgresql)
     async with engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
@@ -62,30 +67,62 @@ async def postgres_engine(phoenix_postgresql: Connection) -> AsyncGenerator[sess
 
 
 @pytest.fixture
-async def sqlite_engine() -> AsyncGenerator[sessionmaker, None]:
-    engine = create_async_sqlite_engine()
+async def sqlite_engine() -> AsyncEngine:
+    engine = aio_sqlite_engine(make_url("sqlite+aiosqlite://"), migrate=False, shared_cache=False)
     async with engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
-    yield engine
-    await engine.dispose()
+    return engine
 
 
-@pytest.fixture(params=["sqlite", "postgres"])
+@pytest.fixture(params=["sqlite_session", "postgres_session"])
 def session(request) -> AsyncSession:
     return request.getfixturevalue(request.param)
 
 
+@pytest.fixture(params=["sqlite_db", "postgres_db"])
+def db(request) -> async_sessionmaker:
+    return request.getfixturevalue(request.param)
+
+
 @pytest.fixture
-async def sqlite(sqlite_engine: sessionmaker) -> AsyncGenerator[AsyncSession, None]:
-    async_session = sessionmaker(sqlite_engine, expire_on_commit=False, class_=AsyncSession)
-    async with async_session() as session:
+async def sqlite_db(sqlite_engine: AsyncEngine) -> Callable[[], AsyncContextManager[AsyncSession]]:
+    Session = async_sessionmaker(sqlite_engine, expire_on_commit=False)
+
+    @contextlib.asynccontextmanager
+    async def factory() -> AsyncIterator[AsyncSession]:
+        async with Session.begin() as session:
+            yield session
+
+    return factory
+
+
+@pytest.fixture
+async def postgres_db(
+    postgres_engine: AsyncEngine,
+) -> Callable[[], AsyncContextManager[AsyncSession]]:
+    Session = async_sessionmaker(postgres_engine, expire_on_commit=False)
+
+    @contextlib.asynccontextmanager
+    async def factory() -> AsyncIterator[AsyncSession]:
+        async with Session.begin() as session:
+            yield session
+
+    return factory
+
+
+@pytest.fixture
+async def sqlite_session(
+    sqlite_db: Callable[[], AsyncContextManager[AsyncSession]],
+) -> AsyncGenerator[AsyncSession, None]:
+    async with sqlite_db() as session:
         yield session
 
 
 @pytest.fixture
-async def postgres(postgres_engine: sessionmaker) -> AsyncGenerator[AsyncSession, None]:
-    async_session = sessionmaker(postgres_engine, expire_on_commit=False, class_=AsyncSession)
-    async with async_session() as session:
+async def postgres_session(
+    postgres_db: Callable[[], AsyncContextManager[AsyncSession]],
+) -> AsyncGenerator[AsyncSession, None]:
+    async with postgres_db() as session:
         yield session
 
 

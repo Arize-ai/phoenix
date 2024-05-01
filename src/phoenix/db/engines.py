@@ -41,8 +41,6 @@ def get_async_db_url(connection_str: str) -> URL:
         raise ValueError("Failed to parse database from connection string")
     backend = cast(SUPPORTED_DIALECTS, url.get_backend_name())
     if backend == SQLITE:
-        if url.database.startswith(":memory:"):
-            url = url.set(query={"cache": "shared"})
         return url.set(drivername="sqlite+aiosqlite")
     if backend == POSTGRESQL:
         url = url.set(drivername="postgresql+asyncpg")
@@ -58,7 +56,11 @@ def get_async_db_url(connection_str: str) -> URL:
     raise ValueError(f"Unsupported backend: {backend}")
 
 
-def create_engine(connection_str: str, echo: bool = False) -> AsyncEngine:
+def create_engine(
+    connection_str: str,
+    migrate: bool = True,
+    echo: bool = False,
+) -> AsyncEngine:
     """
     Factory to create a SQLAlchemy engine from a URL string.
     """
@@ -66,19 +68,26 @@ def create_engine(connection_str: str, echo: bool = False) -> AsyncEngine:
     if not url.database:
         raise ValueError("Failed to parse database from connection string")
     backend = cast(SUPPORTED_DIALECTS, url.get_backend_name())
+    url = get_async_db_url(url.render_as_string(hide_password=False))
     if backend == SQLITE:
-        return aio_sqlite_engine(url=url, echo=echo)
+        return aio_sqlite_engine(url=url, migrate=migrate, echo=echo)
     if backend == POSTGRESQL:
-        return aio_postgresql_engine(url=url, echo=echo)
+        return aio_postgresql_engine(url=url, migrate=migrate, echo=echo)
     raise ValueError(f"Unsupported backend: {backend}")
 
 
 def aio_sqlite_engine(
     url: URL,
+    migrate: bool = True,
     echo: bool = False,
+    shared_cache: bool = True,
 ) -> AsyncEngine:
-    async_url = get_async_db_url(url.render_as_string())
-    database = async_url.render_as_string().partition("///")[-1]  # includes query
+    database = url.database or ":memory:"
+    if database.startswith("file:"):
+        database = database[5:]
+    if database.startswith(":memory:") and shared_cache:
+        url = url.set(query={**url.query, "cache": "shared"}, database=":memory:")
+    database = url.render_as_string().partition("///")[-1]
 
     def async_creator() -> aiosqlite.Connection:
         conn = aiosqlite.Connection(
@@ -89,12 +98,14 @@ def aio_sqlite_engine(
         return conn
 
     engine = create_async_engine(
-        url=async_url,
+        url=url,
         echo=echo,
         json_serializer=_dumps,
         async_creator=async_creator,
     )
     event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
+    if not migrate:
+        return engine
     if database.startswith(":memory:"):
         try:
             asyncio.get_running_loop()
@@ -109,13 +120,14 @@ def aio_sqlite_engine(
 
 def aio_postgresql_engine(
     url: URL,
+    migrate: bool = True,
     echo: bool = False,
 ) -> AsyncEngine:
-    # Swap out the engine
-    async_url = get_async_db_url(url.render_as_string(hide_password=False))
-    engine = create_async_engine(url=async_url, echo=echo, json_serializer=_dumps)
+    engine = create_async_engine(url=url, echo=echo, json_serializer=_dumps)
     # TODO(persistence): figure out the postgres pragma
     # event.listen(engine.sync_engine, "connect", set_pragma)
+    if not migrate:
+        return engine
     migrate_in_thread(engine.url)
     return engine
 

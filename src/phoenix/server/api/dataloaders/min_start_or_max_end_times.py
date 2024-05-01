@@ -12,7 +12,7 @@ from typing import (
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from strawberry.dataloader import DataLoader
+from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
@@ -26,12 +26,19 @@ Param: TypeAlias = Kind
 Key: TypeAlias = Tuple[ProjectRowId, Kind]
 Result: TypeAlias = Optional[datetime]
 ResultPosition: TypeAlias = int
-DEFAULT_VALUE = None
+DEFAULT_VALUE: Result = None
 
 
 class MinStartOrMaxEndTimeDataLoader(DataLoader[Key, Result]):
-    def __init__(self, db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
-        super().__init__(load_fn=self._load_fn)
+    def __init__(
+        self,
+        db: Callable[[], AsyncContextManager[AsyncSession]],
+        cache_map: Optional[AbstractCache[Key, Result]] = None,
+    ) -> None:
+        super().__init__(
+            load_fn=self._load_fn,
+            cache_map=cache_map,
+        )
         self._db = db
 
     async def _load_fn(self, keys: List[Key]) -> List[Result]:

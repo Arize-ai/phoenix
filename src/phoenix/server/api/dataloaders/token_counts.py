@@ -15,7 +15,7 @@ from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.functions import coalesce
-from strawberry.dataloader import DataLoader
+from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
@@ -34,23 +34,29 @@ Param: TypeAlias = Tuple[ProjectRowId, Kind]
 Key: TypeAlias = Tuple[Kind, ProjectRowId, Optional[TimeRange], FilterCondition]
 Result: TypeAlias = TokenCount
 ResultPosition: TypeAlias = int
-DEFAULT_VALUE = 0
+DEFAULT_VALUE: Result = 0
+
+
+def _cache_key_fn(key: Key) -> Tuple[Segment, Param]:
+    kind, project_rowid, time_range, filter_condition = key
+    interval = (
+        (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
+    )
+    return (interval, filter_condition), (project_rowid, kind)
 
 
 class TokenCountDataLoader(DataLoader[Key, Result]):
-    def __init__(self, db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
-        super().__init__(load_fn=self._load_fn, cache_key_fn=self._cache_key_fn)
-        self._db = db
-
-    @staticmethod
-    def _cache_key_fn(key: Key) -> Tuple[Segment, Param]:
-        kind, project_rowid, time_range, filter_condition = key
-        interval = (
-            (time_range.start, time_range.end)
-            if isinstance(time_range, TimeRange)
-            else (None, None)
+    def __init__(
+        self,
+        db: Callable[[], AsyncContextManager[AsyncSession]],
+        cache_map: Optional[AbstractCache[Key, Result]] = None,
+    ) -> None:
+        super().__init__(
+            load_fn=self._load_fn,
+            cache_key_fn=_cache_key_fn,
+            cache_map=cache_map,
         )
-        return (interval, filter_condition), (project_rowid, kind)
+        self._db = db
 
     async def _load_fn(self, keys: List[Key]) -> List[Result]:
         results: List[Result] = [DEFAULT_VALUE] * len(keys)
@@ -59,7 +65,7 @@ class TokenCountDataLoader(DataLoader[Key, Result]):
             DefaultDict[Param, List[ResultPosition]],
         ] = defaultdict(lambda: defaultdict(list))
         for position, key in enumerate(keys):
-            segment, param = self._cache_key_fn(key)
+            segment, param = _cache_key_fn(key)
             arguments[segment][param].append(position)
         async with self._db() as session:
             for segment, params in arguments.items():
@@ -80,10 +86,10 @@ def _get_stmt(
     *params: Param,
 ) -> Select[Any]:
     (start_time, end_time), filter_condition = segment
-    pid = models.Trace.project_rowid
-    prompt = func.sum(models.Span.attributes[LLM_TOKEN_COUNT_PROMPT].as_float())
-    completion = func.sum(models.Span.attributes[LLM_TOKEN_COUNT_COMPLETION].as_float())
+    prompt = func.sum(models.Span.attributes[_LLM_TOKEN_COUNT_PROMPT].as_float())
+    completion = func.sum(models.Span.attributes[_LLM_TOKEN_COUNT_COMPLETION].as_float())
     total = coalesce(prompt, 0) + coalesce(completion, 0)
+    pid = models.Trace.project_rowid
     stmt: Select[Any] = (
         select(
             pid,
@@ -91,20 +97,19 @@ def _get_stmt(
             completion.label("completion"),
             total.label("total"),
         )
-        .join(models.Span)
+        .join_from(models.Trace, models.Span)
         .group_by(pid)
     )
     if start_time:
-        stmt = stmt.where(models.Span.start_time >= start_time)
+        stmt = stmt.where(start_time <= models.Span.start_time)
     if end_time:
-        stmt = stmt.where(models.Span.end_time < end_time)
+        stmt = stmt.where(models.Span.start_time < end_time)
     if filter_condition:
-        span_filter = SpanFilter(condition=filter_condition)
-        stmt = span_filter(stmt)
-    rowids = list(set(rowid for (rowid, _) in params))
-    stmt = stmt.where(pid.in_(rowids))
+        sf = SpanFilter(filter_condition)
+        stmt = sf(stmt)
+    stmt = stmt.where(pid.in_([rowid for rowid, _ in params]))
     return stmt
 
 
-LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT.split(".")
-LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION.split(".")
+_LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT.split(".")
+_LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION.split(".")

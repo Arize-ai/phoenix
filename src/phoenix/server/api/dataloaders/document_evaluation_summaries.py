@@ -15,7 +15,7 @@ import numpy as np
 from aioitertools.itertools import groupby
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from strawberry.dataloader import DataLoader
+from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
@@ -36,23 +36,29 @@ Param: TypeAlias = EvalName
 Key: TypeAlias = Tuple[ProjectRowId, Optional[TimeRange], FilterCondition, EvalName]
 Result: TypeAlias = Optional[DocumentEvaluationSummary]
 ResultPosition: TypeAlias = int
-DEFAULT_VALUE = None
+DEFAULT_VALUE: Result = None
+
+
+def _cache_key_fn(key: Key) -> Tuple[Segment, Param]:
+    project_rowid, time_range, filter_condition, eval_name = key
+    interval = (
+        (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
+    )
+    return (project_rowid, interval, filter_condition), eval_name
 
 
 class DocumentEvaluationSummaryDataLoader(DataLoader[Key, Result]):
-    def __init__(self, db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
-        super().__init__(load_fn=self._load_fn, cache_key_fn=self._cache_key_fn)
-        self._db = db
-
-    @staticmethod
-    def _cache_key_fn(key: Key) -> Tuple[Segment, Param]:
-        project_rowid, time_range, filter_condition, eval_name = key
-        interval = (
-            (time_range.start, time_range.end)
-            if isinstance(time_range, TimeRange)
-            else (None, None)
+    def __init__(
+        self,
+        db: Callable[[], AsyncContextManager[AsyncSession]],
+        cache_map: Optional[AbstractCache[Key, Result]] = None,
+    ) -> None:
+        super().__init__(
+            load_fn=self._load_fn,
+            cache_key_fn=_cache_key_fn,
+            cache_map=cache_map,
         )
-        return (project_rowid, interval, filter_condition), eval_name
+        self._db = db
 
     async def _load_fn(self, keys: List[Key]) -> List[Result]:
         results: List[Result] = [DEFAULT_VALUE] * len(keys)
@@ -61,7 +67,7 @@ class DocumentEvaluationSummaryDataLoader(DataLoader[Key, Result]):
             DefaultDict[Param, List[ResultPosition]],
         ] = defaultdict(lambda: defaultdict(list))
         for position, key in enumerate(keys):
-            segment, param = self._cache_key_fn(key)
+            segment, param = _cache_key_fn(key)
             arguments[segment][param].append(position)
         for segment, params in arguments.items():
             async with self._db() as session:

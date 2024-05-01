@@ -9,15 +9,13 @@ from typing import (
     Literal,
     Optional,
     Tuple,
-    Type,
-    Union,
 )
 
 import pandas as pd
 from aioitertools.itertools import groupby
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from strawberry.dataloader import DataLoader
+from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
@@ -37,23 +35,29 @@ Param: TypeAlias = EvalName
 Key: TypeAlias = Tuple[Kind, ProjectRowId, Optional[TimeRange], FilterCondition, EvalName]
 Result: TypeAlias = Optional[EvaluationSummary]
 ResultPosition: TypeAlias = int
-DEFAULT_VALUE = None
+DEFAULT_VALUE: Result = None
+
+
+def _cache_key_fn(key: Key) -> Tuple[Segment, Param]:
+    kind, project_rowid, time_range, filter_condition, eval_name = key
+    interval = (
+        (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
+    )
+    return (kind, project_rowid, interval, filter_condition), eval_name
 
 
 class EvaluationSummaryDataLoader(DataLoader[Key, Result]):
-    def __init__(self, db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
-        super().__init__(load_fn=self._load_fn, cache_key_fn=self._cache_key_fn)
-        self._db = db
-
-    @staticmethod
-    def _cache_key_fn(key: Key) -> Tuple[Segment, Param]:
-        kind, project_rowid, time_range, filter_condition, eval_name = key
-        interval = (
-            (time_range.start, time_range.end)
-            if isinstance(time_range, TimeRange)
-            else (None, None)
+    def __init__(
+        self,
+        db: Callable[[], AsyncContextManager[AsyncSession]],
+        cache_map: Optional[AbstractCache[Key, Result]] = None,
+    ) -> None:
+        super().__init__(
+            load_fn=self._load_fn,
+            cache_key_fn=_cache_key_fn,
+            cache_map=cache_map,
         )
-        return (kind, project_rowid, interval, filter_condition), eval_name
+        self._db = db
 
     async def _load_fn(self, keys: List[Key]) -> List[Result]:
         results: List[Result] = [DEFAULT_VALUE] * len(keys)
@@ -62,7 +66,7 @@ class EvaluationSummaryDataLoader(DataLoader[Key, Result]):
             DefaultDict[Param, List[ResultPosition]],
         ] = defaultdict(lambda: defaultdict(list))
         for position, key in enumerate(keys):
-            segment, param = self._cache_key_fn(key)
+            segment, param = _cache_key_fn(key)
             arguments[segment][param].append(position)
         for segment, params in arguments.items():
             stmt = _get_stmt(segment, *params.keys())
@@ -80,39 +84,40 @@ def _get_stmt(
     *eval_names: Param,
 ) -> Select[Any]:
     kind, project_rowid, (start_time, end_time), filter_condition = segment
-    pid = models.Trace.project_rowid
     stmt = select()
-    table: Union[Type[models.Span], Type[models.Trace]]
-    anno: Union[Type[models.SpanAnnotation], Type[models.TraceAnnotation]]
     if kind == "span":
-        table = models.Span
-        anno = models.SpanAnnotation
-        stmt = stmt.join_from(table, anno).join(models.Trace)
+        msa = models.SpanAnnotation
+        name_column, label_column, score_column = msa.name, msa.label, msa.score
+        annotator_kind_column = msa.annotator_kind
+        time_column = models.Span.start_time
+        stmt = stmt.join(models.Span).join_from(models.Span, models.Trace)
         if filter_condition:
-            span_filter = SpanFilter(condition=filter_condition)
-            stmt = span_filter(stmt)
+            sf = SpanFilter(filter_condition)
+            stmt = sf(stmt)
     elif kind == "trace":
-        table = models.Trace
-        anno = models.TraceAnnotation
-        stmt = stmt.join_from(table, anno)
+        mta = models.TraceAnnotation
+        name_column, label_column, score_column = mta.name, mta.label, mta.score
+        annotator_kind_column = mta.annotator_kind
+        time_column = models.Trace.start_time
+        stmt = stmt.join(models.Trace)
     else:
         assert_never(kind)
-    if start_time:
-        stmt = stmt.where(start_time <= table.start_time)  # type: ignore
-    if end_time:
-        stmt = stmt.where(table.start_time < end_time)  # type: ignore
-    stmt = stmt.where(pid == project_rowid)
-    stmt = stmt.where(anno.annotator_kind == "LLM")  # type: ignore
-    stmt = stmt.where(or_(anno.score.is_not(None), anno.label.is_not(None)))  # type: ignore
-    stmt = stmt.where(anno.name.in_(eval_names))  # type: ignore
     stmt = stmt.add_columns(
-        anno.name,  # type: ignore
-        anno.label,  # type: ignore
-        func.count(anno.id).label("record_count"),  # type: ignore
-        func.count(anno.label).label("label_count"),  # type: ignore
-        func.count(anno.score).label("score_count"),  # type: ignore
-        func.sum(anno.score).label("score_sum"),
+        name_column,
+        label_column,
+        func.count().label("record_count"),
+        func.count(label_column).label("label_count"),
+        func.count(score_column).label("score_count"),
+        func.sum(score_column).label("score_sum"),
     )
-    stmt = stmt.group_by(anno.name, anno.label)  # type: ignore
-    stmt = stmt.order_by(anno.name, anno.label)  # type: ignore
+    stmt = stmt.group_by(name_column, label_column)
+    stmt = stmt.order_by(name_column, label_column)
+    stmt = stmt.where(models.Trace.project_rowid == project_rowid)
+    stmt = stmt.where(annotator_kind_column == "LLM")
+    stmt = stmt.where(or_(score_column.is_not(None), label_column.is_not(None)))
+    stmt = stmt.where(name_column.in_(eval_names))
+    if start_time:
+        stmt = stmt.where(start_time <= time_column)
+    if end_time:
+        stmt = stmt.where(time_column < end_time)
     return stmt
