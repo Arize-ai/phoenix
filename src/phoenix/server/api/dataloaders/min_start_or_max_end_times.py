@@ -10,12 +10,14 @@ from typing import (
     Tuple,
 )
 
+from cachetools import LFUCache
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
+from phoenix.server.api.dataloaders.cache import TwoTierCache
 
 Kind: TypeAlias = Literal["start", "end"]
 ProjectRowId: TypeAlias = int
@@ -27,6 +29,16 @@ Key: TypeAlias = Tuple[ProjectRowId, Kind]
 Result: TypeAlias = Optional[datetime]
 ResultPosition: TypeAlias = int
 DEFAULT_VALUE: Result = None
+
+_Section = ProjectRowId
+_SubKey = Kind
+
+
+class MinStartOrMaxEndTimeCache(
+    TwoTierCache[Key, Result, _Section, _SubKey],
+    main_cache_factory=lambda: LFUCache(maxsize=16),
+    sub_cache_factory=lambda: LFUCache(maxsize=2),
+): ...
 
 
 class MinStartOrMaxEndTimeDataLoader(DataLoader[Key, Result]):

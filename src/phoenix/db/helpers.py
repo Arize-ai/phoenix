@@ -17,10 +17,10 @@ class SupportedSQLDialect(Enum):
     POSTGRESQL = "postgresql"
 
     @classmethod
-    def _missing_(cls, value: Any) -> "SupportedSQLDialect":
-        if isinstance(value, str) and value and value.isascii():
-            return cls(value.lower())
-        raise ValueError(f"`{value}` is not a supported SQL backend/dialect.")
+    def _missing_(cls, v: Any) -> "SupportedSQLDialect":
+        if isinstance(v, str) and v and v.isascii() and not v.islower():
+            return cls(v.lower())
+        raise ValueError(f"`{v}` is not a supported SQL backend/dialect.")
 
 
 def num_docs_col(dialect: SupportedSQLDialect) -> SQLColumnExpression[Integer]:
