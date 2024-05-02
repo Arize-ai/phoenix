@@ -27,6 +27,8 @@ from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.trace.dsl import SpanFilter
 
+SPANS_LIMIT = 1000
+
 
 @strawberry.type
 class Project(Node):
@@ -194,6 +196,8 @@ class Project(Node):
             stmt = span_filter(stmt)
         if sort:
             stmt = sort.update_orm_expr(stmt)
+        # todo: remove this after adding pagination https://github.com/Arize-ai/phoenix/issues/3003
+        stmt = stmt.limit(SPANS_LIMIT)
         async with info.context.db() as session:
             spans = await session.scalars(stmt)
         data = [to_gql_span(span) for span in spans]
