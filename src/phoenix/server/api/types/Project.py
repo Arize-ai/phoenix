@@ -198,8 +198,9 @@ class Project(Node):
             stmt = sort.update_orm_expr(stmt)
         else:
             stmt = stmt.order_by(desc(models.Span.id))
-        # todo: remove this after adding pagination https://github.com/Arize-ai/phoenix/issues/3003
-        stmt = stmt.limit(SPANS_LIMIT)
+        stmt = stmt.limit(
+            SPANS_LIMIT
+        )  # todo: remove this after adding pagination https://github.com/Arize-ai/phoenix/issues/3003
         async with info.context.db() as session:
             spans = await session.scalars(stmt)
         data = [to_gql_span(span) for span in spans]
