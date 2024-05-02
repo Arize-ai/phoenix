@@ -16,7 +16,6 @@ from typing_extensions import TypeAlias, TypeGuard, assert_never
 
 import phoenix.trace.v1 as pb
 from phoenix.db import models
-from phoenix.trace.schemas import SpanID
 
 _VALID_EVAL_ATTRIBUTES: typing.Tuple[str, ...] = tuple(
     field.name for field in pb.Evaluation.Result.DESCRIPTOR.fields
@@ -110,7 +109,6 @@ _FLOAT_NAMES: typing.Mapping[str, sqlalchemy.SQLColumnExpression[typing.Any]] = 
         "cumulative_llm_token_count_total": models.Span.cumulative_llm_token_count_total,
     }
 )
-# TODO(persistence): find a better home (and a better name) for _NAMES
 _NAMES: typing.Mapping[str, sqlalchemy.SQLColumnExpression[typing.Any]] = MappingProxyType(
     {
         **_STRING_NAMES,
@@ -129,11 +127,6 @@ _BACKWARD_COMPATIBILITY_REPLACEMENTS: typing.Mapping[str, str] = MappingProxyTyp
         "cumulative_token_count.total": "cumulative_llm_token_count_total",
     }
 )
-
-
-# TODO(persistence): remove this protocol
-class SupportsGetSpanEvaluation(typing.Protocol):
-    def get_span_evaluation(self, span_id: SpanID, name: str) -> typing.Optional[pb.Evaluation]: ...
 
 
 @dataclass(frozen=True)
@@ -440,7 +433,6 @@ class _ProjectionTranslator(ast.NodeTransformer):
         raise SyntaxError(f"invalid expression: {ast.get_source_segment(self._source, node)}")
 
 
-# TODO(persistence): support `evals['name'].score` et. al.
 class _FilterTranslator(_ProjectionTranslator):
     def visit_Compare(self, node: ast.Compare) -> typing.Any:
         if len(node.comparators) > 1:

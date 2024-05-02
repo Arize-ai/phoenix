@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import List, Optional
 
 import strawberry
-from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import and_, distinct, select
 from sqlalchemy.orm import contains_eager
 from strawberry import ID, UNSET
@@ -195,8 +194,8 @@ class Project(Node):
         if sort:
             stmt = sort.update_orm_expr(stmt)
         async with info.context.db() as session:
-            spans = await session.scalars(stmt)
-        data = [to_gql_span(span) for span in spans]
+            spans = await session.stream_scalars(stmt)
+            data = [to_gql_span(span) async for span in spans]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field(
@@ -311,7 +310,3 @@ class Project(Node):
                 is_valid=False,
                 error_message=e.msg,
             )
-
-
-LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT.split(".")
-LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION.split(".")
