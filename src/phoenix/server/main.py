@@ -189,6 +189,7 @@ if __name__ == "__main__":
 
     # If the host is "::", the convention is to bind to all interfaces. However, uvicorn
     # does not support this directly unless the host is set to None.
+    display_host = host
     if ":" in host:
         # format IPv6 hosts in brackets
         display_host = f"[{host}]"
