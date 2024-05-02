@@ -13,6 +13,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2_grpc import (
 from typing_extensions import TypeAlias
 
 from phoenix.config import get_env_grpc_port
+from phoenix.server.prometheus import GRPC_EXCEPTIONS, GRPC_PROCESSING_TIME, GRPC_TOTAL_REQUESTS
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.trace.schemas import Span
 from phoenix.utilities.project import get_project_name
@@ -31,18 +32,24 @@ class Servicer(TraceServiceServicer):
         super().__init__()
         self._callback = callback
 
+    @GRPC_PROCESSING_TIME.time()
     async def Export(
         self,
         request: ExportTraceServiceRequest,
         context: RpcContext,
     ) -> ExportTraceServiceResponse:
-        for resource_spans in request.resource_spans:
-            project_name = get_project_name(resource_spans.resource.attributes)
-            for scope_span in resource_spans.scope_spans:
-                for otlp_span in scope_span.spans:
-                    span = decode_otlp_span(otlp_span)
-                    await self._callback(span, project_name)
-        return ExportTraceServiceResponse()
+        GRPC_TOTAL_REQUESTS.inc()
+        try:
+            for resource_spans in request.resource_spans:
+                project_name = get_project_name(resource_spans.resource.attributes)
+                for scope_span in resource_spans.scope_spans:
+                    for otlp_span in scope_span.spans:
+                        span = decode_otlp_span(otlp_span)
+                        await self._callback(span, project_name)
+            return ExportTraceServiceResponse()
+        except Exception as e:
+            GRPC_EXCEPTIONS.inc()
+            raise e
 
 
 class GrpcServer:
