@@ -34,6 +34,10 @@ CPU_METRIC = Gauge(
     labelnames=["core"],
 )
 
+GRPC_PROCESSING_TIME = Histogram("grpc_processing_time_seconds", "Time spent processing request")
+GRPC_TOTAL_REQUESTS = Counter("grpc_requests_total", "Total number of gRPC requests")
+GRPC_EXCEPTIONS = Counter("grpc_exceptions_total", "Total number of failed gRPC requests")
+
 
 class PrometheusMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
