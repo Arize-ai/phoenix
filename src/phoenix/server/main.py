@@ -189,7 +189,10 @@ if __name__ == "__main__":
 
     # If the host is "::", the convention is to bind to all interfaces. However, uvicorn
     # does not support this directly unless the host is set to None.
-    if host == "::" or host.lower() == "none":
+    if ":" in host:
+        # format IPv6 hosts in brackets
+        display_host = f"[{host}]"
+    if host == "::":
         host = None
 
     port = args.port or get_env_port()
@@ -254,7 +257,7 @@ if __name__ == "__main__":
     phoenix_version = pkg_resources.get_distribution("arize-phoenix").version
     config = {
         "version": phoenix_version,
-        "host": host,
+        "host": display_host,
         "port": port,
         "grpc_port": get_env_grpc_port(),
         "storage": get_printable_db_url(db_connection_str),

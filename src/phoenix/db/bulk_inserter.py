@@ -25,6 +25,7 @@ import phoenix.trace.v1 as pb
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, num_docs_col
 from phoenix.exceptions import PhoenixException
+from phoenix.server.prometheus import BULK_LOADER_EXCEPTIONS, BULK_LOADER_INSERTION_TIME
 from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.schemas import Span, SpanStatusCode
 
@@ -143,196 +144,209 @@ class BulkInserter:
         self._last_inserted_at = datetime.now(timezone.utc)
 
 
+@BULK_LOADER_INSERTION_TIME.time()
 async def _insert_evaluation(session: AsyncSession, evaluation: pb.Evaluation) -> None:
-    evaluation_name = evaluation.name
-    result = evaluation.result
-    label = result.label.value if result.HasField("label") else None
-    score = result.score.value if result.HasField("score") else None
-    explanation = result.explanation.value if result.HasField("explanation") else None
-    if (evaluation_kind := evaluation.subject_id.WhichOneof("kind")) is None:
-        raise InsertEvaluationError("Cannot insert an evaluation that has no evaluation kind")
-    elif evaluation_kind == "trace_id":
-        trace_id = evaluation.subject_id.trace_id
-        if not (
-            trace_rowid := await session.scalar(
-                select(models.Trace.id).where(models.Trace.trace_id == trace_id)
-            )
-        ):
-            raise InsertEvaluationError(
-                f"Cannot insert a trace evaluation for a missing trace: {trace_id=}"
-            )
-        await session.scalar(
-            insert(models.TraceAnnotation)
-            .values(
-                trace_rowid=trace_rowid,
-                name=evaluation_name,
-                label=label,
-                score=score,
-                explanation=explanation,
-                metadata_={},
-                annotator_kind="LLM",
-            )
-            .returning(models.TraceAnnotation.id)
-        )
-    elif evaluation_kind == "span_id":
-        span_id = evaluation.subject_id.span_id
-        if not (
-            span_rowid := await session.scalar(
-                select(models.Span.id).where(models.Span.span_id == span_id)
-            )
-        ):
-            raise InsertEvaluationError(
-                f"Cannot insert a span evaluation for a missing span: {span_id=}"
-            )
-        await session.scalar(
-            insert(models.SpanAnnotation)
-            .values(
-                span_rowid=span_rowid,
-                name=evaluation_name,
-                label=label,
-                score=score,
-                explanation=explanation,
-                metadata_={},
-                annotator_kind="LLM",
-            )
-            .returning(models.SpanAnnotation.id)
-        )
-    elif evaluation_kind == "document_retrieval_id":
-        span_id = evaluation.subject_id.document_retrieval_id.span_id
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
-        stmt = select(models.Span.id, num_docs_col(dialect)).where(models.Span.span_id == span_id)
-        if not (row := (await session.execute(stmt)).first()):
-            raise InsertEvaluationError(
-                f"Cannot insert a document evaluation for a missing span: {span_id=}"
-            )
-        document_position = evaluation.subject_id.document_retrieval_id.document_position
-        if row.num_docs is None or row.num_docs <= document_position:
-            raise InsertEvaluationError(
-                f"Cannot insert a document evaluation for a non-existent "
-                f"document position: {span_id=}, {document_position=}"
-            )
-        await session.scalar(
-            insert(models.DocumentAnnotation)
-            .values(
-                span_rowid=row.id,
-                document_position=document_position,
-                name=evaluation_name,
-                label=label,
-                score=score,
-                explanation=explanation,
-                metadata_={},
-                annotator_kind="LLM",
-            )
-            .returning(models.DocumentAnnotation.id)
-        )
-    else:
-        assert_never(evaluation_kind)
-
-
-async def _insert_span(session: AsyncSession, span: Span, project_name: str) -> None:
-    if await session.scalar(select(1).where(models.Span.span_id == span.context.span_id)):
-        # Span already exists
-        return
-    if not (
-        project_rowid := await session.scalar(
-            select(models.Project.id).where(models.Project.name == project_name)
-        )
-    ):
-        project_rowid = await session.scalar(
-            insert(models.Project).values(name=project_name).returning(models.Project.id)
-        )
-    if trace := await session.scalar(
-        select(models.Trace).where(models.Trace.trace_id == span.context.trace_id)
-    ):
-        trace_rowid = trace.id
-        # TODO(persistence): Figure out how to reliably retrieve timezone-aware
-        # datetime from the (sqlite) database, because all datetime in our
-        # programs should be timezone-aware.
-        if span.start_time < trace.start_time or trace.end_time < span.end_time:
-            trace_start_time = min(trace.start_time, span.start_time)
-            trace_end_time = max(trace.end_time, span.end_time)
-            await session.execute(
-                update(models.Trace)
-                .where(models.Trace.id == trace_rowid)
-                .values(
-                    start_time=trace_start_time,
-                    end_time=trace_end_time,
+    try:
+        evaluation_name = evaluation.name
+        result = evaluation.result
+        label = result.label.value if result.HasField("label") else None
+        score = result.score.value if result.HasField("score") else None
+        explanation = result.explanation.value if result.HasField("explanation") else None
+        if (evaluation_kind := evaluation.subject_id.WhichOneof("kind")) is None:
+            raise InsertEvaluationError("Cannot insert an evaluation that has no evaluation kind")
+        elif evaluation_kind == "trace_id":
+            trace_id = evaluation.subject_id.trace_id
+            if not (
+                trace_rowid := await session.scalar(
+                    select(models.Trace.id).where(models.Trace.trace_id == trace_id)
                 )
-            )
-    else:
-        trace_rowid = cast(
-            int,
+            ):
+                raise InsertEvaluationError(
+                    f"Cannot insert a trace evaluation for a missing trace: {trace_id=}"
+                )
             await session.scalar(
-                insert(models.Trace)
+                insert(models.TraceAnnotation)
                 .values(
-                    project_rowid=project_rowid,
-                    trace_id=span.context.trace_id,
-                    start_time=span.start_time,
-                    end_time=span.end_time,
+                    trace_rowid=trace_rowid,
+                    name=evaluation_name,
+                    label=label,
+                    score=score,
+                    explanation=explanation,
+                    metadata_={},
+                    annotator_kind="LLM",
                 )
-                .returning(models.Trace.id)
-            ),
+                .returning(models.TraceAnnotation.id)
+            )
+        elif evaluation_kind == "span_id":
+            span_id = evaluation.subject_id.span_id
+            if not (
+                span_rowid := await session.scalar(
+                    select(models.Span.id).where(models.Span.span_id == span_id)
+                )
+            ):
+                raise InsertEvaluationError(
+                    f"Cannot insert a span evaluation for a missing span: {span_id=}"
+                )
+            await session.scalar(
+                insert(models.SpanAnnotation)
+                .values(
+                    span_rowid=span_rowid,
+                    name=evaluation_name,
+                    label=label,
+                    score=score,
+                    explanation=explanation,
+                    metadata_={},
+                    annotator_kind="LLM",
+                )
+                .returning(models.SpanAnnotation.id)
+            )
+        elif evaluation_kind == "document_retrieval_id":
+            span_id = evaluation.subject_id.document_retrieval_id.span_id
+            dialect = SupportedSQLDialect(session.bind.dialect.name)
+            stmt = select(models.Span.id, num_docs_col(dialect)).where(
+                models.Span.span_id == span_id
+            )
+            if not (row := (await session.execute(stmt)).first()):
+                raise InsertEvaluationError(
+                    f"Cannot insert a document evaluation for a missing span: {span_id=}"
+                )
+            document_position = evaluation.subject_id.document_retrieval_id.document_position
+            if row.num_docs is None or row.num_docs <= document_position:
+                raise InsertEvaluationError(
+                    f"Cannot insert a document evaluation for a non-existent "
+                    f"document position: {span_id=}, {document_position=}"
+                )
+            await session.scalar(
+                insert(models.DocumentAnnotation)
+                .values(
+                    span_rowid=row.id,
+                    document_position=document_position,
+                    name=evaluation_name,
+                    label=label,
+                    score=score,
+                    explanation=explanation,
+                    metadata_={},
+                    annotator_kind="LLM",
+                )
+                .returning(models.DocumentAnnotation.id)
+            )
+        else:
+            assert_never(evaluation_kind)
+    except Exception as e:
+        BULK_LOADER_EXCEPTIONS.inc()
+        raise e
+
+
+@BULK_LOADER_INSERTION_TIME.time()
+async def _insert_span(session: AsyncSession, span: Span, project_name: str) -> None:
+    try:
+        if await session.scalar(select(1).where(models.Span.span_id == span.context.span_id)):
+            # Span already exists
+            return
+        if not (
+            project_rowid := await session.scalar(
+                select(models.Project.id).where(models.Project.name == project_name)
+            )
+        ):
+            project_rowid = await session.scalar(
+                insert(models.Project).values(name=project_name).returning(models.Project.id)
+            )
+        if trace := await session.scalar(
+            select(models.Trace).where(models.Trace.trace_id == span.context.trace_id)
+        ):
+            trace_rowid = trace.id
+            # TODO(persistence): Figure out how to reliably retrieve timezone-aware
+            # datetime from the (sqlite) database, because all datetime in our
+            # programs should be timezone-aware.
+            if span.start_time < trace.start_time or trace.end_time < span.end_time:
+                trace_start_time = min(trace.start_time, span.start_time)
+                trace_end_time = max(trace.end_time, span.end_time)
+                await session.execute(
+                    update(models.Trace)
+                    .where(models.Trace.id == trace_rowid)
+                    .values(
+                        start_time=trace_start_time,
+                        end_time=trace_end_time,
+                    )
+                )
+        else:
+            trace_rowid = cast(
+                int,
+                await session.scalar(
+                    insert(models.Trace)
+                    .values(
+                        project_rowid=project_rowid,
+                        trace_id=span.context.trace_id,
+                        start_time=span.start_time,
+                        end_time=span.end_time,
+                    )
+                    .returning(models.Trace.id)
+                ),
+            )
+        cumulative_error_count = int(span.status_code is SpanStatusCode.ERROR)
+        cumulative_llm_token_count_prompt = cast(
+            int, get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_PROMPT) or 0
         )
-    cumulative_error_count = int(span.status_code is SpanStatusCode.ERROR)
-    cumulative_llm_token_count_prompt = cast(
-        int, get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_PROMPT) or 0
-    )
-    cumulative_llm_token_count_completion = cast(
-        int, get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_COMPLETION) or 0
-    )
-    if accumulation := (
+        cumulative_llm_token_count_completion = cast(
+            int,
+            get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_COMPLETION) or 0,
+        )
+        if accumulation := (
+            await session.execute(
+                select(
+                    func.sum(models.Span.cumulative_error_count),
+                    func.sum(models.Span.cumulative_llm_token_count_prompt),
+                    func.sum(models.Span.cumulative_llm_token_count_completion),
+                ).where(models.Span.parent_id == span.context.span_id)
+            )
+        ).first():
+            cumulative_error_count += cast(int, accumulation[0] or 0)
+            cumulative_llm_token_count_prompt += cast(int, accumulation[1] or 0)
+            cumulative_llm_token_count_completion += cast(int, accumulation[2] or 0)
+        session.add(
+            models.Span(
+                span_id=span.context.span_id,
+                trace_rowid=trace_rowid,
+                parent_id=span.parent_id,
+                span_kind=span.span_kind.value,
+                name=span.name,
+                start_time=span.start_time,
+                end_time=span.end_time,
+                attributes=span.attributes,
+                events=[asdict(event) for event in span.events],
+                status_code=span.status_code.value,
+                status_message=span.status_message,
+                cumulative_error_count=cumulative_error_count,
+                cumulative_llm_token_count_prompt=cumulative_llm_token_count_prompt,
+                cumulative_llm_token_count_completion=cumulative_llm_token_count_completion,
+            )
+        )
+        # Propagate cumulative values to ancestors. This is usually a no-op, since
+        # the parent usually arrives after the child. But in the event that a
+        # child arrives after its parent, we need to make sure that all the
+        # ancestors' cumulative values are updated.
+        ancestors = (
+            select(models.Span.id, models.Span.parent_id)
+            .where(models.Span.span_id == span.parent_id)
+            .cte(recursive=True)
+        )
+        child = ancestors.alias()
+        ancestors = ancestors.union_all(
+            select(models.Span.id, models.Span.parent_id).join(
+                child, models.Span.span_id == child.c.parent_id
+            )
+        )
         await session.execute(
-            select(
-                func.sum(models.Span.cumulative_error_count),
-                func.sum(models.Span.cumulative_llm_token_count_prompt),
-                func.sum(models.Span.cumulative_llm_token_count_completion),
-            ).where(models.Span.parent_id == span.context.span_id)
+            update(models.Span)
+            .where(models.Span.id.in_(select(ancestors.c.id)))
+            .values(
+                cumulative_error_count=models.Span.cumulative_error_count + cumulative_error_count,
+                cumulative_llm_token_count_prompt=models.Span.cumulative_llm_token_count_prompt
+                + cumulative_llm_token_count_prompt,
+                cumulative_llm_token_count_completion=models.Span.cumulative_llm_token_count_completion
+                + cumulative_llm_token_count_completion,
+            )
         )
-    ).first():
-        cumulative_error_count += cast(int, accumulation[0] or 0)
-        cumulative_llm_token_count_prompt += cast(int, accumulation[1] or 0)
-        cumulative_llm_token_count_completion += cast(int, accumulation[2] or 0)
-    session.add(
-        models.Span(
-            span_id=span.context.span_id,
-            trace_rowid=trace_rowid,
-            parent_id=span.parent_id,
-            span_kind=span.span_kind.value,
-            name=span.name,
-            start_time=span.start_time,
-            end_time=span.end_time,
-            attributes=span.attributes,
-            events=[asdict(event) for event in span.events],
-            status_code=span.status_code.value,
-            status_message=span.status_message,
-            cumulative_error_count=cumulative_error_count,
-            cumulative_llm_token_count_prompt=cumulative_llm_token_count_prompt,
-            cumulative_llm_token_count_completion=cumulative_llm_token_count_completion,
-        )
-    )
-    # Propagate cumulative values to ancestors. This is usually a no-op, since
-    # the parent usually arrives after the child. But in the event that a
-    # child arrives after its parent, we need to make sure that all the
-    # ancestors' cumulative values are updated.
-    ancestors = (
-        select(models.Span.id, models.Span.parent_id)
-        .where(models.Span.span_id == span.parent_id)
-        .cte(recursive=True)
-    )
-    child = ancestors.alias()
-    ancestors = ancestors.union_all(
-        select(models.Span.id, models.Span.parent_id).join(
-            child, models.Span.span_id == child.c.parent_id
-        )
-    )
-    await session.execute(
-        update(models.Span)
-        .where(models.Span.id.in_(select(ancestors.c.id)))
-        .values(
-            cumulative_error_count=models.Span.cumulative_error_count + cumulative_error_count,
-            cumulative_llm_token_count_prompt=models.Span.cumulative_llm_token_count_prompt
-            + cumulative_llm_token_count_prompt,
-            cumulative_llm_token_count_completion=models.Span.cumulative_llm_token_count_completion
-            + cumulative_llm_token_count_completion,
-        )
-    )
+    except Exception as e:
+        BULK_LOADER_EXCEPTIONS.inc()
+        raise e
