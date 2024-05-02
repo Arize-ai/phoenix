@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List, Optional
 
 import strawberry
-from sqlalchemy import and_, distinct, select
+from sqlalchemy import and_, desc, distinct, select
 from sqlalchemy.orm import contains_eager
 from strawberry import ID, UNSET
 from strawberry.types import Info
@@ -25,6 +25,8 @@ from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.trace.dsl import SpanFilter
+
+SPANS_LIMIT = 1000
 
 
 @strawberry.type
@@ -193,6 +195,11 @@ class Project(Node):
             stmt = span_filter(stmt)
         if sort:
             stmt = sort.update_orm_expr(stmt)
+        else:
+            stmt = stmt.order_by(desc(models.Span.id))
+        stmt = stmt.limit(
+            SPANS_LIMIT
+        )  # todo: remove this after adding pagination https://github.com/Arize-ai/phoenix/issues/3003
         async with info.context.db() as session:
             spans = await session.stream_scalars(stmt)
             data = [to_gql_span(span) async for span in spans]
