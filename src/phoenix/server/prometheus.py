@@ -33,6 +33,15 @@ CPU_METRIC = Gauge(
     documentation="CPU usage percent",
     labelnames=["core"],
 )
+BULK_LOADER_INSERTION_TIME = Histogram(
+    name="bulk_loader_insertion_time_seconds",
+    documentation="Histogram of database insertion time (seconds)",
+)
+
+BULK_LOADER_EXCEPTIONS = Counter(
+    name="bulk_loader_exceptions_total",
+    documentation="Total count of bulk loader exceptions",
+)
 
 
 class PrometheusMiddleware(BaseHTTPMiddleware):
