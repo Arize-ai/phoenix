@@ -109,6 +109,7 @@ container = [
   "opentelemetry-instrumentation-starlette",
   "opentelemetry-instrumentation-sqlalchemy",
   "opentelemetry-instrumentation-grpc",
+  "py-grpc-prometheus",
   "strawberry-graphql[opentelemetry]==0.227.2",  # need to pin version because we're monkey-patching
 ]
 
@@ -183,6 +184,7 @@ dependencies = [
   "opentelemetry-instrumentation-starlette",
   "opentelemetry-instrumentation-sqlalchemy",
   "opentelemetry-instrumentation-grpc",
+  "py-grpc-prometheus",
   "strawberry-graphql[opentelemetry]==0.227.2",  # need to pin version because we're monkey-patching
 ]
 
@@ -350,6 +352,7 @@ module = [
   "pyarrow",
   "sqlean",
   "grpc.*",
+  "py_grpc_prometheus.*",
 ]
 ignore_missing_imports = true
 

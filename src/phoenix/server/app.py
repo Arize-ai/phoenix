@@ -224,6 +224,7 @@ def _lifespan(
     *,
     bulk_inserter: BulkInserter,
     tracer_provider: Optional["TracerProvider"] = None,
+    enable_prometheus: bool = False,
     clean_ups: Iterable[Callable[[], None]] = (),
 ) -> StatefulLifespan[Starlette]:
     @contextlib.asynccontextmanager
@@ -231,6 +232,7 @@ def _lifespan(
         async with bulk_inserter as (queue_span, queue_evaluation), GrpcServer(
             queue_span,
             tracer_provider=tracer_provider,
+            enable_prometheus=enable_prometheus,
         ):
             yield {
                 "queue_span_for_bulk_insert": queue_span,
@@ -348,6 +350,7 @@ def create_app(
         lifespan=_lifespan(
             bulk_inserter=bulk_inserter,
             tracer_provider=tracer_provider,
+            enable_prometheus=enable_prometheus,
             clean_ups=clean_ups,
         ),
         middleware=[
