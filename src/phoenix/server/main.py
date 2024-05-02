@@ -186,6 +186,12 @@ if __name__ == "__main__":
         simulate_streaming = args.simulate_streaming
 
     host = args.host or get_env_host()
+
+    # If the host is "::", the convention is to bind to all interfaces. However, uvicorn
+    # does not support this directly unless the host is set to None.
+    if host == "::" or host.lower() == "none":
+        host = None
+
     port = args.port or get_env_port()
 
     model = create_model_from_datasets(
