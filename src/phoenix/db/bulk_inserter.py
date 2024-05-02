@@ -42,8 +42,8 @@ class BulkInserter:
         *,
         initial_batch_of_spans: Optional[Iterable[Tuple[Span, str]]] = None,
         initial_batch_of_evaluations: Optional[Iterable[pb.Evaluation]] = None,
-        run_interval_in_seconds: float = 0.5,
-        max_num_per_transaction: int = 100,
+        run_interval_in_seconds: float = 2,
+        max_num_per_transaction: int = 1000,
     ) -> None:
         """
         :param db: A function to initiate a new database session.
