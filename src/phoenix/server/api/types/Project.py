@@ -3,7 +3,7 @@ from typing import List, Optional
 
 import strawberry
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import and_, distinct, select
+from sqlalchemy import and_, desc, distinct, select
 from sqlalchemy.orm import contains_eager
 from strawberry import ID, UNSET
 from strawberry.types import Info
@@ -196,6 +196,8 @@ class Project(Node):
             stmt = span_filter(stmt)
         if sort:
             stmt = sort.update_orm_expr(stmt)
+        else:
+            stmt = stmt.order_by(desc(models.Span.id))
         # todo: remove this after adding pagination https://github.com/Arize-ai/phoenix/issues/3003
         stmt = stmt.limit(SPANS_LIMIT)
         async with info.context.db() as session:
