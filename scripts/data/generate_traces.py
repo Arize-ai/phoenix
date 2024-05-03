@@ -164,7 +164,7 @@ def _gen_attributes(
         yield from _gen_embeddings(randint(1, MAX_NUM_EMBEDDINGS + 1))
     elif span_kind == OpenInferenceSpanKindValues.RETRIEVER.value:
         yield from _gen_documents(
-            randint(1, num_docs),
+            num_docs,
             SpanAttributes.RETRIEVAL_DOCUMENTS,
         )
     elif span_kind == OpenInferenceSpanKindValues.RERANKER.value:
@@ -175,7 +175,7 @@ def _gen_attributes(
             RerankerAttributes.RERANKER_INPUT_DOCUMENTS,
         )
         yield from _gen_documents(
-            randint(1, num_docs),
+            num_docs,
             RerankerAttributes.RERANKER_OUTPUT_DOCUMENTS,
         )
     elif span_kind == OpenInferenceSpanKindValues.TOOL.value:
