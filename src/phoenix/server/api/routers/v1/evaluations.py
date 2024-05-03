@@ -6,7 +6,7 @@ import pandas as pd
 import pyarrow as pa
 from google.protobuf.message import DecodeError
 from pandas import DataFrame
-from sqlalchemy import and_, select
+from sqlalchemy import select
 from sqlalchemy.engine import Connectable
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -148,7 +148,7 @@ async def get_evaluations(request: Request) -> Response:
     ):
         return Response(status_code=HTTP_404_NOT_FOUND)
 
-    evals = chain[Evaluations](
+    evals = chain(
         map(
             lambda args: TraceEvaluations(*args),
             _groupby_eval_name(trace_evals_dataframe),
@@ -212,14 +212,10 @@ def _read_sql_trace_evaluations_into_dataframe(
     """
     return pd.read_sql(
         select(models.TraceAnnotation, models.Trace.trace_id)
-        .join(models.Trace)
-        .join(models.Project)
-        .where(
-            and_(
-                models.Project.name == project_name,
-                models.TraceAnnotation.annotator_kind == "LLM",
-            )
-        ),
+        .join_from(models.TraceAnnotation, models.Trace)
+        .join_from(models.Trace, models.Project)
+        .where(models.Project.name == project_name)
+        .where(models.TraceAnnotation.annotator_kind == "LLM"),
         connectable,
         index_col="trace_id",
     )
@@ -239,15 +235,11 @@ def _read_sql_span_evaluations_into_dataframe(
     """
     return pd.read_sql_query(
         select(models.SpanAnnotation, models.Span.span_id)
-        .join(models.Span)
-        .join(models.Trace)
-        .join(models.Project)
-        .where(
-            and_(
-                models.Project.name == project_name,
-                models.SpanAnnotation.annotator_kind == "LLM",
-            )
-        ),
+        .join_from(models.SpanAnnotation, models.Span)
+        .join_from(models.Span, models.Trace)
+        .join_from(models.Trace, models.Project)
+        .where(models.Project.name == project_name)
+        .where(models.SpanAnnotation.annotator_kind == "LLM"),
         connectable,
         index_col="span_id",
     )
@@ -266,23 +258,14 @@ def _read_sql_document_evaluations_into_dataframe(
     https://stackoverflow.com/questions/70848256/how-can-i-use-pandas-read-sql-on-an-async-connection
     """
     return pd.read_sql(
-        select(
-            models.DocumentAnnotation,
-            models.DocumentAnnotation.document_position.label("document_position"),
-            models.Span.span_id,
-        )
-        .join(models.Span)
-        .join(models.Trace)
-        .join(models.Project)
-        .where(
-            and_(
-                models.Project.name == project_name,
-                models.SpanAnnotation.annotator_kind == "LLM",
-            )
-        ),
+        select(models.DocumentAnnotation, models.Span.span_id)
+        .join_from(models.DocumentAnnotation, models.Span)
+        .join_from(models.Span, models.Trace)
+        .join_from(models.Trace, models.Project)
+        .where(models.Project.name == project_name)
+        .where(models.DocumentAnnotation.annotator_kind == "LLM"),
         connectable,
-        index_col=["span_id", "document_position"],
-    )
+    ).set_index(["span_id", "document_position"])
 
 
 def _groupby_eval_name(
