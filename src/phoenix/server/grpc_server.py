@@ -60,9 +60,11 @@ class GrpcServer:
     async def __aenter__(self) -> None:
         interceptors = []
         if self._enable_prometheus:
-            from py_grpc_prometheus.prometheus_server_interceptor import PromServerInterceptor
-
-            interceptors.append(PromServerInterceptor())
+            ...
+            # TODO: convert to async interceptor
+            # from py_grpc_prometheus.prometheus_server_interceptor import PromServerInterceptor
+            #
+            # interceptors.append(PromServerInterceptor())
         if self._tracer_provider is not None:
             from opentelemetry.instrumentation.grpc import GrpcAioInstrumentorServer
 
