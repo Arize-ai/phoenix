@@ -1,7 +1,7 @@
 from typing import List, Optional
 
 import strawberry
-from sqlalchemy import select
+from sqlalchemy import desc, select
 from sqlalchemy.orm import contains_eager
 from strawberry import UNSET
 from strawberry.types import Info
@@ -37,14 +37,17 @@ class Trace:
             last=last,
             before=before if isinstance(before, Cursor) else None,
         )
+        stmt = select(models.Span)
+        stmt = stmt.join(models.Trace)
+        stmt = stmt.where(models.Trace.id == self.trace_rowid)
+        stmt = stmt.options(contains_eager(models.Span.trace))
+        # Sort descending because the root span tends to show up later
+        # in the ingestion process.
+        stmt = stmt.order_by(desc(models.Span.id))
+        stmt = stmt.limit(first)
         async with info.context.db() as session:
-            spans = await session.scalars(
-                select(models.Span)
-                .join(models.Trace)
-                .where(models.Trace.id == self.trace_rowid)
-                .options(contains_eager(models.Span.trace))
-            )
-        data = [to_gql_span(span) for span in spans]
+            spans = await session.stream_scalars(stmt)
+            data = [to_gql_span(span) async for span in spans]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field(description="Evaluations associated with the trace")  # type: ignore
