@@ -37,7 +37,14 @@ BULK_LOADER_INSERTION_TIME = Histogram(
     name="bulk_loader_insertion_time_seconds",
     documentation="Histogram of database insertion time (seconds)",
 )
-
+BULK_LOADER_SPAN_INSERTIONS = Counter(
+    name="bulk_loader_span_insertions_total",
+    documentation="Total count of bulk loader span insertions",
+)
+BULK_LOADER_EVALUATION_INSERTIONS = Counter(
+    name="bulk_loader_evaluation_insertions_total",
+    documentation="Total count of bulk loader evaluation insertions",
+)
 BULK_LOADER_EXCEPTIONS = Counter(
     name="bulk_loader_exceptions_total",
     documentation="Total count of bulk loader exceptions",

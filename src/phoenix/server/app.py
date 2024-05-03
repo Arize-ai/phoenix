@@ -51,10 +51,12 @@ from phoenix.config import (
 from phoenix.core.model_schema import Model
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import create_engine
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.exceptions import PhoenixMigrationError
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
+    CacheForDataLoaders,
     DocumentEvaluationsDataLoader,
     DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
@@ -153,12 +155,14 @@ class GraphQLWithContext(GraphQL):  # type: ignore
         graphiql: bool = False,
         corpus: Optional[Model] = None,
         streaming_last_updated_at: Callable[[], Optional[datetime]] = lambda: None,
+        cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
     ) -> None:
         self.db = db
         self.model = model
         self.corpus = corpus
         self.export_path = export_path
         self.streaming_last_updated_at = streaming_last_updated_at
+        self.cache_for_dataloaders = cache_for_dataloaders
         super().__init__(schema, graphiql=graphiql)
 
     async def get_context(
@@ -175,16 +179,46 @@ class GraphQLWithContext(GraphQL):  # type: ignore
             export_path=self.export_path,
             streaming_last_updated_at=self.streaming_last_updated_at,
             data_loaders=DataLoaders(
-                document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(self.db),
+                document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
+                    self.db,
+                    cache_map=self.cache_for_dataloaders.document_evaluation_summary
+                    if self.cache_for_dataloaders
+                    else None,
+                ),
                 document_evaluations=DocumentEvaluationsDataLoader(self.db),
                 document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(self.db),
-                evaluation_summaries=EvaluationSummaryDataLoader(self.db),
-                latency_ms_quantile=LatencyMsQuantileDataLoader(self.db),
-                min_start_or_max_end_times=MinStartOrMaxEndTimeDataLoader(self.db),
-                record_counts=RecordCountDataLoader(self.db),
+                evaluation_summaries=EvaluationSummaryDataLoader(
+                    self.db,
+                    cache_map=self.cache_for_dataloaders.evaluation_summary
+                    if self.cache_for_dataloaders
+                    else None,
+                ),
+                latency_ms_quantile=LatencyMsQuantileDataLoader(
+                    self.db,
+                    cache_map=self.cache_for_dataloaders.latency_ms_quantile
+                    if self.cache_for_dataloaders
+                    else None,
+                ),
+                min_start_or_max_end_times=MinStartOrMaxEndTimeDataLoader(
+                    self.db,
+                    cache_map=self.cache_for_dataloaders.min_start_or_max_end_time
+                    if self.cache_for_dataloaders
+                    else None,
+                ),
+                record_counts=RecordCountDataLoader(
+                    self.db,
+                    cache_map=self.cache_for_dataloaders.record_count
+                    if self.cache_for_dataloaders
+                    else None,
+                ),
                 span_descendants=SpanDescendantsDataLoader(self.db),
                 span_evaluations=SpanEvaluationsDataLoader(self.db),
-                token_counts=TokenCountDataLoader(self.db),
+                token_counts=TokenCountDataLoader(
+                    self.db,
+                    cache_map=self.cache_for_dataloaders.token_count
+                    if self.cache_for_dataloaders
+                    else None,
+                ),
                 trace_evaluations=TraceEvaluationsDataLoader(self.db),
             ),
         )
@@ -294,10 +328,16 @@ def create_app(
             ""
         )
         raise PhoenixMigrationError(msg) from e
+    cache_for_dataloaders = (
+        CacheForDataLoaders()
+        if SupportedSQLDialect(engine.dialect.name) is SupportedSQLDialect.SQLITE
+        else None
+    )
     db = _db(engine)
     bulk_inserter = BulkInserter(
         db,
         enable_prometheus=enable_prometheus,
+        cache_for_dataloaders=cache_for_dataloaders,
         initial_batch_of_spans=initial_batch_of_spans,
         initial_batch_of_evaluations=initial_batch_of_evaluations,
     )
@@ -340,6 +380,7 @@ def create_app(
         export_path=export_path,
         graphiql=True,
         streaming_last_updated_at=lambda: bulk_inserter.last_inserted_at,
+        cache_for_dataloaders=cache_for_dataloaders,
     )
     if enable_prometheus:
         from phoenix.server.prometheus import PrometheusMiddleware

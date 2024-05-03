@@ -57,6 +57,7 @@ dependencies = [
   "aiosqlite",
   "aioitertools",
   "sqlean.py>=3.45.1",
+  "cachetools",
 ]
 dynamic = ["version"]
 
@@ -172,6 +173,7 @@ dependencies = [
   "types-requests",
   "types-protobuf",
   "types-setuptools",
+  "types-cachetools",
   "openai>=1.0.0",
   "litellm>=1.0.3",
   "prometheus_client",

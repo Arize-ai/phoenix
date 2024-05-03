@@ -11,12 +11,14 @@ from typing import (
     Tuple,
 )
 
+from cachetools import LFUCache
 from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
+from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.trace.dsl import SpanFilter
 
@@ -41,6 +43,20 @@ def _cache_key_fn(key: Key) -> Tuple[Segment, Param]:
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
     )
     return (kind, interval, filter_condition), project_rowid
+
+
+_Section: TypeAlias = ProjectRowId
+_SubKey: TypeAlias = Tuple[TimeInterval, FilterCondition, Kind]
+
+
+class RecordCountCache(
+    TwoTierCache[Key, Result, _Section, _SubKey],
+    main_cache_factory=lambda: LFUCache(maxsize=64),
+    sub_cache_factory=lambda: LFUCache(maxsize=2 * 2 * 2),
+):
+    def _cache_keys(self, key: Key) -> Tuple[_Section, _SubKey]:
+        (kind, interval, filter_condition), project_rowid = _cache_key_fn(key)
+        return project_rowid, (interval, filter_condition, kind)
 
 
 class RecordCountDataLoader(DataLoader[Key, Result]):
