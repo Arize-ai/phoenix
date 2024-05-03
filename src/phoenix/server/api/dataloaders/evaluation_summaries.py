@@ -13,12 +13,14 @@ from typing import (
 
 import pandas as pd
 from aioitertools.itertools import groupby
+from cachetools import LFUCache
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
+from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.EvaluationSummary import EvaluationSummary
 from phoenix.trace.dsl import SpanFilter
@@ -44,6 +46,20 @@ def _cache_key_fn(key: Key) -> Tuple[Segment, Param]:
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
     )
     return (kind, project_rowid, interval, filter_condition), eval_name
+
+
+_Section: TypeAlias = Tuple[ProjectRowId, EvalName, Kind]
+_SubKey: TypeAlias = Tuple[TimeInterval, FilterCondition]
+
+
+class EvaluationSummaryCache(
+    TwoTierCache[Key, Result, _Section, _SubKey],
+    main_cache_factory=lambda: LFUCache(maxsize=64 * 16 * 2),
+    sub_cache_factory=lambda: LFUCache(maxsize=2 * 2),
+):
+    def _cache_keys(self, key: Key) -> Tuple[_Section, _SubKey]:
+        (kind, project_rowid, interval, filter_condition), eval_name = _cache_key_fn(key)
+        return (project_rowid, eval_name, kind), (interval, filter_condition)
 
 
 class EvaluationSummaryDataLoader(DataLoader[Key, Result]):

@@ -14,6 +14,7 @@ from typing import (
     cast,
 )
 
+from cachetools import LFUCache
 from sqlalchemy import (
     ARRAY,
     Float,
@@ -33,6 +34,7 @@ from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.trace.dsl import SpanFilter
 
@@ -60,6 +62,20 @@ def _cache_key_fn(key: Key) -> Tuple[Segment, Param]:
         (time_range.start, time_range.end) if isinstance(time_range, TimeRange) else (None, None)
     )
     return (kind, interval, filter_condition), (project_rowid, probability)
+
+
+_Section: TypeAlias = ProjectRowId
+_SubKey: TypeAlias = Tuple[TimeInterval, FilterCondition, Kind, Probability]
+
+
+class LatencyMsQuantileCache(
+    TwoTierCache[Key, Result, _Section, _SubKey],
+    main_cache_factory=lambda: LFUCache(maxsize=64),
+    sub_cache_factory=lambda: LFUCache(maxsize=2 * 2 * 2 * 16),
+):
+    def _cache_keys(self, key: Key) -> Tuple[_Section, _SubKey]:
+        (kind, interval, filter_condition), (project_rowid, probability) = _cache_key_fn(key)
+        return project_rowid, (interval, filter_condition, kind, probability)
 
 
 class LatencyMsQuantileDataLoader(DataLoader[Key, Result]):

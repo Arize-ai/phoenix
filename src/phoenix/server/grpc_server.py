@@ -1,7 +1,7 @@
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Optional
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, List, Optional
 
 import grpc
-from grpc.aio import RpcContext, Server
+from grpc.aio import RpcContext, Server, ServerInterceptor
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
     ExportTraceServiceResponse,
@@ -50,17 +50,29 @@ class GrpcServer:
         self,
         callback: Callable[[Span, ProjectName], Awaitable[None]],
         tracer_provider: Optional["TracerProvider"] = None,
+        enable_prometheus: bool = False,
     ) -> None:
         self._callback = callback
         self._server: Optional[Server] = None
         self._tracer_provider = tracer_provider
+        self._enable_prometheus = enable_prometheus
 
     async def __aenter__(self) -> None:
+        interceptors: List[ServerInterceptor] = []
+        if self._enable_prometheus:
+            ...
+            # TODO: convert to async interceptor
+            # from py_grpc_prometheus.prometheus_server_interceptor import PromServerInterceptor
+            #
+            # interceptors.append(PromServerInterceptor())
         if self._tracer_provider is not None:
             from opentelemetry.instrumentation.grpc import GrpcAioInstrumentorServer
 
             GrpcAioInstrumentorServer().instrument(tracer_provider=self._tracer_provider)  # type: ignore
-        server = grpc.aio.server(options=(("grpc.so_reuseport", 0),))
+        server = grpc.aio.server(
+            options=(("grpc.so_reuseport", 0),),
+            interceptors=interceptors,
+        )
         server.add_insecure_port(f"[::]:{get_env_grpc_port()}")
         add_TraceServiceServicer_to_server(Servicer(self._callback), server)  # type: ignore
         await server.start()

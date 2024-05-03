@@ -185,7 +185,17 @@ if __name__ == "__main__":
         trace_dataset_name = args.trace_fixture
         simulate_streaming = args.simulate_streaming
 
-    host = args.host or get_env_host()
+    host: Optional[str] = args.host or get_env_host()
+    display_host = host or "localhost"
+    # If the host is "::", the convention is to bind to all interfaces. However, uvicorn
+    # does not support this directly unless the host is set to None.
+    if host and ":" in host:
+        # format IPv6 hosts in brackets
+        display_host = f"[{host}]"
+    if host == "::":
+        # TODO(dustin): why is this necessary? it's not type compliant
+        host = None
+
     port = args.port or get_env_port()
 
     model = create_model_from_datasets(
@@ -241,14 +251,14 @@ if __name__ == "__main__":
         initial_spans=fixture_spans,
         initial_evaluations=fixture_evals,
     )
-    server = Server(config=Config(app, host=host, port=port))
+    server = Server(config=Config(app, host=host, port=port))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
 
     # Print information about the server
     phoenix_version = pkg_resources.get_distribution("arize-phoenix").version
     config = {
         "version": phoenix_version,
-        "host": host,
+        "host": display_host,
         "port": port,
         "grpc_port": get_env_grpc_port(),
         "storage": get_printable_db_url(db_connection_str),
