@@ -41,7 +41,6 @@ dependencies = [
   "sortedcontainers",
   "protobuf>=3.20, <6.0",
   "grpcio",
-  "ddsketch",
   "tqdm",
   "requests",
   "opentelemetry-sdk",
