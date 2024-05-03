@@ -6,6 +6,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
 from starlette.background import BackgroundTask
+from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
 from starlette.responses import Response
@@ -58,12 +59,12 @@ async def post_traces(request: Request) -> Response:
         )
     body = await request.body()
     if content_encoding == "gzip":
-        body = gzip.decompress(body)
+        body = await run_in_threadpool(gzip.decompress, body)
     elif content_encoding == "deflate":
-        body = zlib.decompress(body)
+        body = await run_in_threadpool(zlib.decompress, body)
     req = ExportTraceServiceRequest()
     try:
-        req.ParseFromString(body)
+        await run_in_threadpool(req.ParseFromString, body)
     except DecodeError:
         return Response(
             content="Request body is invalid ExportTraceServiceRequest",
@@ -77,5 +78,5 @@ async def _add_spans(req: ExportTraceServiceRequest, state: State) -> None:
         project_name = get_project_name(resource_spans.resource.attributes)
         for scope_span in resource_spans.scope_spans:
             for otlp_span in scope_span.spans:
-                span = decode_otlp_span(otlp_span)
+                span = await run_in_threadpool(decode_otlp_span, otlp_span)
                 await state.queue_span_for_bulk_insert(span, project_name)
