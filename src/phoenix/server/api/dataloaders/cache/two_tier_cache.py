@@ -1,6 +1,15 @@
-from abc import ABC
+"""
+The primary intent of a two-tier system is to make cache invalidation more efficient,
+because the cache keys are typically tuples such as (project_id, time_interval, ...),
+but we need to invalidate subsets of keys, e.g. all those associated with a
+specific project, very frequently (i.e. essentially at each span insertion). In a
+single-tier system we would need to check all the keys to see if they are in the
+subset that we want to invalidate.
+"""
+
+from abc import ABC, abstractmethod
 from asyncio import Future
-from typing import Any, Callable, Generic, Optional, Tuple, TypeVar, cast
+from typing import Any, Callable, Generic, Optional, Tuple, TypeVar
 
 from cachetools import Cache, LFUCache
 from strawberry.dataloader import AbstractCache
@@ -34,13 +43,20 @@ class TwoTierCache(
         **kwargs: Any,
     ) -> None:
         super().__init_subclass__(**kwargs)
+        # There are three different places we can have thees factories defined: 1. at each runtime
+        # instantiation of the cache, 2. at each subclass definition of the cache, and 3. only
+        # here at the super-class. 1 is superfluous because we're not going to have more than one
+        # instance of the cache, much less two instances of the cache with different factories.
+        # 3 is too restrictive because each subclass might want to dictate its own eviction policy.
+        # So we go with 2, with the added benefit that the factories can be located in proximity
+        # to the cache subclass's corresponding DataLoder class.
         if main_cache_factory:
             cls._main_cache_factory = staticmethod(main_cache_factory)
         if sub_cache_factory:
             cls._sub_cache_factory = staticmethod(sub_cache_factory)
 
-    def _cache_keys(self, key: _Key) -> Tuple[_Section, _SubKey]:
-        return cast(Tuple[_Section, _SubKey], key)
+    @abstractmethod
+    def _cache_keys(self, key: _Key) -> Tuple[_Section, _SubKey]: ...
 
     def invalidate(self, section: _Section) -> None:
         if sub_cache := self._cache.get(section):
