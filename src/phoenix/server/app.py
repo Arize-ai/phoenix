@@ -71,10 +71,14 @@ from phoenix.server.api.routers.v1 import V1_ROUTES
 from phoenix.server.api.schema import schema
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.openapi.docs import get_swagger_ui_html
-from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
+from phoenix.server.telemetry import (
+    initialize_opentelemetry_meter_provider,
+    initialize_opentelemetry_tracer_provider,
+)
 from phoenix.trace.schemas import Span
 
 if TYPE_CHECKING:
+    from opentelemetry.metrics import MeterProvider
     from opentelemetry.trace import TracerProvider
 
 logger = logging.getLogger(__name__)
@@ -300,7 +304,8 @@ def create_app(
         initial_batch_of_spans=initial_batch_of_spans,
         initial_batch_of_evaluations=initial_batch_of_evaluations,
     )
-    tracer_provider = None
+    tracer_provider: Optional["TracerProvider"] = None
+    meter_provider: Optional["MeterProvider"] = None
     strawberry_extensions = schema.get_extensions()
     if server_instrumentation_is_enabled():
         from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
@@ -308,9 +313,11 @@ def create_app(
         from strawberry.extensions.tracing import OpenTelemetryExtension
 
         tracer_provider = initialize_opentelemetry_tracer_provider()
+        meter_provider = initialize_opentelemetry_meter_provider()
         SQLAlchemyInstrumentor().instrument(
             engine=engine.sync_engine,
             tracer_provider=tracer_provider,
+            meter_provider=meter_provider,
         )
         clean_ups.append(SQLAlchemyInstrumentor().uninstrument)
         if TYPE_CHECKING:
@@ -397,10 +404,13 @@ def create_app(
     )
     app.state.read_only = read_only
     app.state.db = db
-    if tracer_provider:
+    if tracer_provider or meter_provider:
         from opentelemetry.instrumentation.starlette import StarletteInstrumentor
 
-        StarletteInstrumentor().instrument(tracer_provider=tracer_provider)
-        StarletteInstrumentor.instrument_app(app, tracer_provider=tracer_provider)
-        clean_ups.append(StarletteInstrumentor().uninstrument)
+        StarletteInstrumentor.instrument_app(
+            app,
+            tracer_provider=tracer_provider,
+            meter_provider=meter_provider,
+        )
+        clean_ups.append(lambda: StarletteInstrumentor().uninstrument_app(app))
     return app
