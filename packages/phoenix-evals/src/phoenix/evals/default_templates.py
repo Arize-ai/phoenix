@@ -50,10 +50,10 @@ EXPLANATION:"""
 HALLUCINATION_PROMPT_RAILS_MAP = OrderedDict({True: "hallucinated", False: "factual"})
 HALLUCINATION_PROMPT_BASE_TEMPLATE = """
 In this task, you will be presented with a query, a reference text and an answer. The answer is
-generated to the question based on the reference text. The answer may contain false information, you
+generated to the question based on the reference text. The answer may contain false information. You
 must use the reference text to determine if the answer to the question contains false information,
-if the answer is a hallucination of facts. Your objective is to determine whether the reference text
-contains factual information and is not a hallucination. A 'hallucination' in this context refers to
+if the answer is a hallucination of facts. Your objective is to determine whether the answer text
+contains factual information and is not a hallucination. A 'hallucination' refers to
 an answer that is not based on the reference text or assumes information that is not available in
 the reference text. Your response should be a single word: either "factual" or "hallucinated", and
 it should not include any other text or characters. "hallucinated" indicates that the answer
@@ -76,10 +76,10 @@ your response.
 """
 HALLUCINATION_PROMPT_TEMPLATE_WITH_EXPLANATION = """
 In this task, you will be presented with a query, a reference text and an answer. The answer is
-generated to the question based on the reference text. The answer may contain false information, you
+generated to the question based on the reference text. The answer may contain false information. You
 must use the reference text to determine if the answer to the question contains false information,
-if the answer is a hallucination of facts. Your objective is to determine whether the reference text
-contains factual information and is not a hallucination. A 'hallucination' in this context refers to
+if the answer is a hallucination of facts. Your objective is to determine whether the answer text
+contains factual information and is not a hallucination. A 'hallucination' refers to
 an answer that is not based on the reference text or assumes information that is not available in
 the reference text.
 
