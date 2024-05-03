@@ -1,7 +1,7 @@
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Optional
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, List, Optional
 
 import grpc
-from grpc.aio import RpcContext, Server
+from grpc.aio import RpcContext, Server, ServerInterceptor
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
     ExportTraceServiceResponse,
@@ -58,7 +58,7 @@ class GrpcServer:
         self._enable_prometheus = enable_prometheus
 
     async def __aenter__(self) -> None:
-        interceptors = []
+        interceptors: List[ServerInterceptor] = []
         if self._enable_prometheus:
             ...
             # TODO: convert to async interceptor
