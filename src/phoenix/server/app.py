@@ -336,6 +336,7 @@ def create_app(
     db = _db(engine)
     bulk_inserter = BulkInserter(
         db,
+        enable_prometheus=enable_prometheus,
         cache_for_dataloaders=cache_for_dataloaders,
         initial_batch_of_spans=initial_batch_of_spans,
         initial_batch_of_evaluations=initial_batch_of_evaluations,

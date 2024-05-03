@@ -2,7 +2,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 from itertools import islice
-from time import time
+from time import perf_counter, time
 from typing import (
     Any,
     AsyncContextManager,
@@ -39,6 +39,7 @@ class BulkInserter:
         initial_batch_of_evaluations: Optional[Iterable[pb.Evaluation]] = None,
         run_interval_in_seconds: float = 2,
         max_num_per_transaction: int = 1000,
+        enable_prometheus: bool = False,
     ) -> None:
         """
         :param db: A function to initiate a new database session.
@@ -61,6 +62,7 @@ class BulkInserter:
         self._task: Optional[asyncio.Task[None]] = None
         self._last_inserted_at: Optional[datetime] = None
         self._cache_for_dataloaders = cache_for_dataloaders
+        self._enable_prometheus = enable_prometheus
 
     @property
     def last_inserted_at(self) -> Optional[datetime]:
@@ -111,6 +113,7 @@ class BulkInserter:
     async def _insert_spans(self, spans: List[Tuple[Span, str]]) -> None:
         for i in range(0, len(spans), self._max_num_per_transaction):
             try:
+                start = perf_counter()
                 async with self._db() as session:
                     for span, project_name in islice(spans, i, i + self._max_num_per_transaction):
                         result: Optional[SpanInsertionResult] = None
@@ -118,6 +121,10 @@ class BulkInserter:
                             async with session.begin_nested():
                                 result = await insert_span(session, span, project_name)
                         except Exception:
+                            if self._enable_prometheus:
+                                from phoenix.server.prometheus import BULK_LOADER_EXCEPTIONS
+
+                                BULK_LOADER_EXCEPTIONS.inc()
                             logger.exception(
                                 f"Failed to insert span with span_id={span.context.span_id}"
                             )
@@ -125,13 +132,22 @@ class BulkInserter:
                             cache := self._cache_for_dataloaders
                         ) is not None and result is not None:
                             cache.invalidate(result)
+                if self._enable_prometheus:
+                    from phoenix.server.prometheus import BULK_LOADER_INSERTION_TIME
+
+                    BULK_LOADER_INSERTION_TIME.observe(perf_counter() - start)
             except Exception:
+                if self._enable_prometheus:
+                    from phoenix.server.prometheus import BULK_LOADER_EXCEPTIONS
+
+                    BULK_LOADER_EXCEPTIONS.inc()
                 logger.exception("Failed to insert spans")
         self._last_inserted_at = datetime.now(timezone.utc)
 
     async def _insert_evaluations(self, evaluations: List[pb.Evaluation]) -> None:
         for i in range(0, len(evaluations), self._max_num_per_transaction):
             try:
+                start = perf_counter()
                 async with self._db() as session:
                     for evaluation in islice(evaluations, i, i + self._max_num_per_transaction):
                         result: Optional[EvaluationInsertionResult] = None
@@ -139,11 +155,23 @@ class BulkInserter:
                             async with session.begin_nested():
                                 result = await insert_evaluation(session, evaluation)
                         except InsertEvaluationError as error:
+                            if self._enable_prometheus:
+                                from phoenix.server.prometheus import BULK_LOADER_EXCEPTIONS
+
+                                BULK_LOADER_EXCEPTIONS.inc()
                             logger.exception(f"Failed to insert evaluation: {str(error)}")
                         if (
                             cache := self._cache_for_dataloaders
                         ) is not None and result is not None:
                             cache.invalidate(result)
+                if self._enable_prometheus:
+                    from phoenix.server.prometheus import BULK_LOADER_INSERTION_TIME
+
+                    BULK_LOADER_INSERTION_TIME.observe(perf_counter() - start)
             except Exception:
+                if self._enable_prometheus:
+                    from phoenix.server.prometheus import BULK_LOADER_EXCEPTIONS
+
+                    BULK_LOADER_EXCEPTIONS.inc()
                 logger.exception("Failed to insert evaluations")
         self._last_inserted_at = datetime.now(timezone.utc)
