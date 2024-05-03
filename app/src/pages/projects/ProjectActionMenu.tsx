@@ -91,7 +91,13 @@ export function ProjectActionMenu({
           borderTopWidth="thin"
         >
           <Flex direction="row" justifyContent="end">
-            <Button variant="danger" onClick={handleDelete}>
+            <Button
+              variant="danger"
+              onClick={() => {
+                handleDelete();
+                setConfirmDialog(null);
+              }}
+            >
               Delete Project
             </Button>
           </Flex>
