@@ -28,7 +28,6 @@ dependencies = [
   "jinja2",
   "umap-learn",
   "hdbscan>=0.8.33",
-  "prometheus_client",
   "starlette",
   "uvicorn",
   "psutil",
