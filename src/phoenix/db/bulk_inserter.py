@@ -8,13 +8,16 @@ from typing import (
     AsyncContextManager,
     Awaitable,
     Callable,
+    Dict,
     Iterable,
     List,
     Optional,
+    Set,
     Tuple,
 )
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing_extensions import TypeAlias
 
 import phoenix.trace.v1 as pb
 from phoenix.db.insertion.evaluation import (
@@ -27,6 +30,8 @@ from phoenix.server.api.dataloaders import CacheForDataLoaders
 from phoenix.trace.schemas import Span
 
 logger = logging.getLogger(__name__)
+
+ProjectRowId: TypeAlias = int
 
 
 class BulkInserter:
@@ -60,13 +65,14 @@ class BulkInserter:
             [] if initial_batch_of_evaluations is None else list(initial_batch_of_evaluations)
         )
         self._task: Optional[asyncio.Task[None]] = None
-        self._last_inserted_at: Optional[datetime] = None
+        self._last_inserted_at: Dict[ProjectRowId, datetime] = {}
         self._cache_for_dataloaders = cache_for_dataloaders
         self._enable_prometheus = enable_prometheus
 
-    @property
-    def last_inserted_at(self) -> Optional[datetime]:
-        return self._last_inserted_at
+    def last_inserted_at(self, project_rowid: Optional[ProjectRowId] = None) -> Optional[datetime]:
+        if isinstance(project_rowid, ProjectRowId):
+            return self._last_inserted_at.get(project_rowid)
+        return max(self._last_inserted_at.values(), default=None)
 
     async def __aenter__(
         self,
@@ -87,6 +93,7 @@ class BulkInserter:
     async def _bulk_insert(self) -> None:
         spans_buffer, evaluations_buffer = None, None
         next_run_at = time() + self._run_interval_seconds
+        updated_project_rowids = set()
         while self._spans or self._evaluations or self._running:
             await asyncio.sleep(next_run_at - time())
             next_run_at = time() + self._run_interval_seconds
@@ -104,13 +111,20 @@ class BulkInserter:
             # Spans should be inserted before the evaluations, since an evaluation
             # insertion will fail if the span it references doesn't exist.
             if spans_buffer:
-                await self._insert_spans(spans_buffer)
+                project_rowids = await self._insert_spans(spans_buffer)
+                updated_project_rowids.update(project_rowids)
                 spans_buffer = None
             if evaluations_buffer:
-                await self._insert_evaluations(evaluations_buffer)
+                project_rowids = await self._insert_evaluations(evaluations_buffer)
+                updated_project_rowids.update(project_rowids)
                 evaluations_buffer = None
+            if updated_project_rowids:
+                for project_rowid in updated_project_rowids:
+                    self._last_inserted_at[project_rowid] = datetime.now(timezone.utc)
+                updated_project_rowids.clear()
 
-    async def _insert_spans(self, spans: List[Tuple[Span, str]]) -> None:
+    async def _insert_spans(self, spans: List[Tuple[Span, str]]) -> Set[ProjectRowId]:
+        updated_project_rowids = set()
         for i in range(0, len(spans), self._max_num_per_transaction):
             try:
                 start = perf_counter()
@@ -132,10 +146,11 @@ class BulkInserter:
                             logger.exception(
                                 f"Failed to insert span with span_id={span.context.span_id}"
                             )
-                        if (
-                            cache := self._cache_for_dataloaders
-                        ) is not None and result is not None:
-                            cache.invalidate(result)
+                        if result is not None:
+                            project_rowid, *_ = result
+                            updated_project_rowids.add(project_rowid)
+                            if (cache := self._cache_for_dataloaders) is not None:
+                                cache.invalidate(result)
                 if self._enable_prometheus:
                     from phoenix.server.prometheus import BULK_LOADER_INSERTION_TIME
 
@@ -146,9 +161,10 @@ class BulkInserter:
 
                     BULK_LOADER_EXCEPTIONS.inc()
                 logger.exception("Failed to insert spans")
-        self._last_inserted_at = datetime.now(timezone.utc)
+        return updated_project_rowids
 
-    async def _insert_evaluations(self, evaluations: List[pb.Evaluation]) -> None:
+    async def _insert_evaluations(self, evaluations: List[pb.Evaluation]) -> Set[ProjectRowId]:
+        updated_project_rowids = set()
         for i in range(0, len(evaluations), self._max_num_per_transaction):
             try:
                 start = perf_counter()
@@ -168,10 +184,11 @@ class BulkInserter:
 
                                 BULK_LOADER_EXCEPTIONS.inc()
                             logger.exception(f"Failed to insert evaluation: {str(error)}")
-                        if (
-                            cache := self._cache_for_dataloaders
-                        ) is not None and result is not None:
-                            cache.invalidate(result)
+                        if result is not None:
+                            project_rowid, *_ = result
+                            updated_project_rowids.add(project_rowid)
+                            if (cache := self._cache_for_dataloaders) is not None:
+                                cache.invalidate(result)
                 if self._enable_prometheus:
                     from phoenix.server.prometheus import BULK_LOADER_INSERTION_TIME
 
@@ -182,4 +199,4 @@ class BulkInserter:
 
                     BULK_LOADER_EXCEPTIONS.inc()
                 logger.exception("Failed to insert evaluations")
-        self._last_inserted_at = datetime.now(timezone.utc)
+        return updated_project_rowids
