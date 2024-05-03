@@ -1,4 +1,5 @@
 from datetime import datetime
+from itertools import islice
 from typing import List, Optional
 
 import strawberry
@@ -190,16 +191,25 @@ class Project(Node):
             span_rowid = cursor_to_id(after)
             stmt = stmt.where(models.Span.id > span_rowid)
         if first:
-            stmt = stmt.limit(first)
+            stmt = stmt.limit(
+                first + 1  # overfetch by one to determine whether there's a next page
+            )
         if sort:
             stmt = sort.update_orm_expr(stmt)
         async with info.context.db() as session:
             spans = await session.scalars(stmt)
-        data = [(span.id, to_gql_span(span)) for span in spans]
+
+        data = [(span.id, to_gql_span(span)) for span in islice(spans, first)]
+        has_next_page = True
+        try:
+            next(spans)
+        except StopIteration:
+            has_next_page = False
+
         return connections(
             data,
             has_previous_page=False,
-            has_next_page=True,  # todo: overfetch to determine whether we have a next page
+            has_next_page=has_next_page,
         )
 
     @strawberry.field(
