@@ -14,24 +14,24 @@ class InsertEvaluationError(PhoenixException):
     pass
 
 
-class _EvaluationInsertionResult(NamedTuple):
+class EvaluationInsertionResult(NamedTuple):
     project_rowid: int
     evaluation_name: str
 
 
-class SpanEvaluationInsertionResult(_EvaluationInsertionResult): ...
+class SpanEvaluationInsertionResult(EvaluationInsertionResult): ...
 
 
-class TraceEvaluationInsertionResult(_EvaluationInsertionResult): ...
+class TraceEvaluationInsertionResult(EvaluationInsertionResult): ...
 
 
-class DocumentEvaluationInsertionResult(_EvaluationInsertionResult): ...
+class DocumentEvaluationInsertionResult(EvaluationInsertionResult): ...
 
 
 async def insert_evaluation(
     session: AsyncSession,
     evaluation: pb.Evaluation,
-) -> Optional[_EvaluationInsertionResult]:
+) -> Optional[EvaluationInsertionResult]:
     evaluation_name = evaluation.name
     result = evaluation.result
     label = result.label.value if result.HasField("label") else None
@@ -133,7 +133,7 @@ async def _insert_document_evaluation(
     label: Optional[str],
     score: Optional[float],
     explanation: Optional[str],
-) -> _EvaluationInsertionResult:
+) -> EvaluationInsertionResult:
     dialect = SupportedSQLDialect(session.bind.dialect.name)
     stmt = (
         select(

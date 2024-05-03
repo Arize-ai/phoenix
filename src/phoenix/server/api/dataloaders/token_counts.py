@@ -53,7 +53,7 @@ _SubKey: TypeAlias = Tuple[TimeInterval, FilterCondition, Kind]
 
 class TokenCountCache(
     TwoTierCache[Key, Result, _Section, _SubKey],
-    main_cache_factory=lambda: LFUCache(maxsize=16),
+    main_cache_factory=lambda: LFUCache(maxsize=64),
     sub_cache_factory=lambda: LFUCache(maxsize=2 * 2 * 3),
 ):
     def _cache_keys(self, key: Key) -> Tuple[_Section, _SubKey]:

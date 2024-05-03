@@ -54,7 +54,7 @@ _SubKey: TypeAlias = Tuple[TimeInterval, FilterCondition]
 
 class EvaluationSummaryCache(
     TwoTierCache[Key, Result, _Section, _SubKey],
-    main_cache_factory=lambda: LFUCache(maxsize=16 * 16 * 2),
+    main_cache_factory=lambda: LFUCache(maxsize=64 * 16 * 2),
     sub_cache_factory=lambda: LFUCache(maxsize=2 * 2),
 ):
     def _cache_keys(self, key: Key) -> Tuple[_Section, _SubKey]:

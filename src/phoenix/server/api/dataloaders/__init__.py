@@ -62,7 +62,7 @@ class CacheForDataLoaders:
 
     @singledispatchmethod
     def invalidate(self, result: SpanInsertionResult) -> None:
-        (project_rowid,) = result
+        project_rowid, *_ = result
         self.latency_ms_quantile.invalidate(project_rowid)
         self.token_count.invalidate(project_rowid)
         self.record_count.invalidate(project_rowid)

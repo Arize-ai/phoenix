@@ -17,8 +17,12 @@ from typing import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import phoenix.trace.v1 as pb
-from phoenix.db.insertion.evaluation import InsertEvaluationError, insert_evaluation
-from phoenix.db.insertion.span import insert_span
+from phoenix.db.insertion.evaluation import (
+    EvaluationInsertionResult,
+    InsertEvaluationError,
+    insert_evaluation,
+)
+from phoenix.db.insertion.span import SpanInsertionResult, insert_span
 from phoenix.server.api.dataloaders import CacheForDataLoaders
 from phoenix.trace.schemas import Span
 
@@ -109,6 +113,7 @@ class BulkInserter:
             try:
                 async with self._db() as session:
                     for span, project_name in islice(spans, i, i + self._max_num_per_transaction):
+                        result: Optional[SpanInsertionResult] = None
                         try:
                             async with session.begin_nested():
                                 result = await insert_span(session, span, project_name)
@@ -116,7 +121,6 @@ class BulkInserter:
                             logger.exception(
                                 f"Failed to insert span with span_id={span.context.span_id}"
                             )
-                            result = None
                         if (
                             cache := self._cache_for_dataloaders
                         ) is not None and result is not None:
@@ -130,12 +134,12 @@ class BulkInserter:
             try:
                 async with self._db() as session:
                     for evaluation in islice(evaluations, i, i + self._max_num_per_transaction):
+                        result: Optional[EvaluationInsertionResult] = None
                         try:
                             async with session.begin_nested():
                                 result = await insert_evaluation(session, evaluation)
                         except InsertEvaluationError as error:
                             logger.exception(f"Failed to insert evaluation: {str(error)}")
-                            result = None
                         if (
                             cache := self._cache_for_dataloaders
                         ) is not None and result is not None:
