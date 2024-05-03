@@ -1,6 +1,6 @@
 import base64
 from dataclasses import dataclass
-from typing import Generic, List, Optional, TypeVar
+from typing import Generic, List, Optional, Tuple, TypeVar
 
 import strawberry
 from strawberry import UNSET
@@ -185,5 +185,25 @@ def connection_from_list_slice(
             end_cursor=last_edge.cursor if last_edge else None,
             has_previous_page=start_offset > lower_bound if isinstance(args.last, int) else False,
             has_next_page=end_offset < upper_bound if isinstance(args.first, int) else False,
+        ),
+    )
+
+
+def connections(
+    data: List[Tuple[ID, GenericType]],
+    has_previous_page: bool,
+    has_next_page: bool,
+) -> Connection[GenericType]:
+    edges = [Edge(node=node, cursor=id_to_cursor(id)) for id, node in data]
+    has_edges = len(edges) > 0
+    first_edge = edges[0] if has_edges else None
+    last_edge = edges[-1] if has_edges else None
+    return Connection(
+        edges=edges,
+        page_info=PageInfo(
+            start_cursor=first_edge.cursor if first_edge else None,
+            end_cursor=last_edge.cursor if last_edge else None,
+            has_previous_page=has_previous_page,
+            has_next_page=has_next_page,
         ),
     )

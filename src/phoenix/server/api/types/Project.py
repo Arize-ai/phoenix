@@ -18,9 +18,9 @@ from phoenix.server.api.types.EvaluationSummary import EvaluationSummary
 from phoenix.server.api.types.node import Node
 from phoenix.server.api.types.pagination import (
     Connection,
-    ConnectionArgs,
     Cursor,
-    connection_from_list,
+    connections,
+    cursor_to_id,
 )
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.Trace import Trace
@@ -162,12 +162,6 @@ class Project(Node):
         root_spans_only: Optional[bool] = UNSET,
         filter_condition: Optional[str] = UNSET,
     ) -> Connection[Span]:
-        args = ConnectionArgs(
-            first=first,
-            after=after if isinstance(after, Cursor) else None,
-            last=last,
-            before=before if isinstance(before, Cursor) else None,
-        )
         stmt = (
             select(models.Span)
             .join(models.Trace)
@@ -192,12 +186,21 @@ class Project(Node):
         if filter_condition:
             span_filter = SpanFilter(condition=filter_condition)
             stmt = span_filter(stmt)
+        if after:
+            span_rowid = cursor_to_id(after)
+            stmt = stmt.where(models.Span.id > span_rowid)
+        if first:
+            stmt = stmt.limit(first)
         if sort:
             stmt = sort.update_orm_expr(stmt)
         async with info.context.db() as session:
             spans = await session.scalars(stmt)
-        data = [to_gql_span(span) for span in spans]
-        return connection_from_list(data=data, args=args)
+        data = [(span.id, to_gql_span(span)) for span in spans]
+        return connections(
+            data,
+            has_previous_page=False,
+            has_next_page=True,  # todo: overfetch to determine whether we have a next page
+        )
 
     @strawberry.field(
         description="Names of all available evaluations for traces. "
