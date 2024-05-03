@@ -1,6 +1,5 @@
 import os
 import tempfile
-from enum import Enum
 from logging import getLogger
 from pathlib import Path
 from typing import List, Optional
@@ -90,13 +89,6 @@ def get_working_dir() -> Path:
         return Path(working_dir_str)
     # Fall back to ~/.phoenix if PHOENIX_WORKING_DIR is not set
     return Path.home().resolve() / ".phoenix"
-
-
-def get_storage_dir() -> Path:
-    """
-    Get the directory for storing traces.
-    """
-    return get_working_dir() / "storage"
 
 
 PHOENIX_DIR = Path(__file__).resolve().parent
@@ -218,10 +210,6 @@ def get_env_enable_prometheus() -> bool:
         f"Invalid value for environment variable {ENV_PHOENIX_ENABLE_PROMETHEUS}: "
         f"{enable_promotheus}. Value values are 'TRUE' and 'FALSE' (case-insensitive)."
     )
-
-
-class SpanStorageType(Enum):
-    TEXT_FILES = "text-files"
 
 
 DEFAULT_PROJECT_NAME = "default"
