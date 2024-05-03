@@ -116,6 +116,10 @@ class BulkInserter:
                 start = perf_counter()
                 async with self._db() as session:
                     for span, project_name in islice(spans, i, i + self._max_num_per_transaction):
+                        if self._enable_prometheus:
+                            from phoenix.server.prometheus import BULK_LOADER_SPAN_INSERTIONS
+
+                            BULK_LOADER_SPAN_INSERTIONS.inc()
                         result: Optional[SpanInsertionResult] = None
                         try:
                             async with session.begin_nested():
@@ -150,6 +154,10 @@ class BulkInserter:
                 start = perf_counter()
                 async with self._db() as session:
                     for evaluation in islice(evaluations, i, i + self._max_num_per_transaction):
+                        if self._enable_prometheus:
+                            from phoenix.server.prometheus import BULK_LOADER_EVALUATION_INSERTIONS
+
+                            BULK_LOADER_EVALUATION_INSERTIONS.inc()
                         result: Optional[EvaluationInsertionResult] = None
                         try:
                             async with session.begin_nested():
