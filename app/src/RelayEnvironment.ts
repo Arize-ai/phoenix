@@ -9,7 +9,10 @@ import {
 function getSanitizedPath(path: string): string {
   return path.endsWith("/") ? path.slice(0, -1) : path;
 }
-const graphQLPath = getSanitizedPath(window.Config.basename) + "/graphql";
+const graphQLPath =
+  `${window.location.protocol}//${window.location.host}${getSanitizedPath(window.Config.basename)}` +
+  "/graphql";
+
 /**
  * Relay requires developers to configure a "fetch" function that tells Relay how to load
  * the results of GraphQL queries from your server (or other data source). See more at
