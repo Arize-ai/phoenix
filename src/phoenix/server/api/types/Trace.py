@@ -37,14 +37,16 @@ class Trace:
             last=last,
             before=before if isinstance(before, Cursor) else None,
         )
-        stmt = select(models.Span)
-        stmt = stmt.join(models.Trace)
-        stmt = stmt.where(models.Trace.id == self.trace_rowid)
-        stmt = stmt.options(contains_eager(models.Span.trace))
-        # Sort descending because the root span tends to show up later
-        # in the ingestion process.
-        stmt = stmt.order_by(desc(models.Span.id))
-        stmt = stmt.limit(first)
+        stmt = (
+            select(models.Span)
+            .join(models.Trace)
+            .where(models.Trace.id == self.trace_rowid)
+            .options(contains_eager(models.Span.trace))
+            # Sort descending because the root span tends to show up later
+            # in the ingestion process.
+            .order_by(desc(models.Span.id))
+            .limit(first)
+        )
         async with info.context.db() as session:
             spans = await session.stream_scalars(stmt)
             data = [to_gql_span(span) async for span in spans]
