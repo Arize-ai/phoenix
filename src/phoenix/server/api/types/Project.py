@@ -3,7 +3,7 @@ from typing import List, Optional
 
 import strawberry
 from aioitertools.itertools import islice
-from sqlalchemy import and_, desc, distinct, select
+from sqlalchemy import and_, distinct, select
 from sqlalchemy.orm import contains_eager
 from strawberry import ID, UNSET
 from strawberry.types import Info
@@ -198,7 +198,9 @@ class Project(Node):
         if sort:
             stmt = sort.update_orm_expr(stmt)
         else:
-            stmt = stmt.order_by(desc(models.Span.id))
+            stmt = stmt.order_by(
+                models.Span.id
+            )  # todo: i changed this to conform to the previous behavior of the api
         stmt = stmt.limit(
             SPANS_LIMIT
         )  # todo: remove this after adding pagination https://github.com/Arize-ai/phoenix/issues/3003
