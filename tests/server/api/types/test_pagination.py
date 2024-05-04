@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import phoenix.core.model_schema as ms
 from phoenix.core.model_schema import FEATURE
 from phoenix.server.api.types.Dimension import Dimension
@@ -108,15 +110,47 @@ class TestTupleIdentifier:
         assert deserialized.rowid == 10
         assert deserialized.sortable_field is None
 
-    def test_to_and_from_cursor_with_rowid_and_float_sortable_field_deserializes_original(
+    def test_to_and_from_cursor_with_rowid_and_float_deserializes_original(
         self,
     ) -> None:
         original = TupleIdentifier(
-            rowid=10, sortable_field=SortableField(type=SortableFieldType.float, value=11.5)
+            rowid=10, sortable_field=SortableField(type=SortableFieldType.FLOAT, value=11.5)
         )
         cursor = original.to_cursor()
         deserialized = TupleIdentifier.from_cursor(cursor)
         assert deserialized.rowid == 10
         assert (sortable_field := deserialized.sortable_field) is not None
-        assert sortable_field.type == SortableFieldType.float
+        assert sortable_field.type == SortableFieldType.FLOAT
         assert abs(sortable_field.value - 11.5) < 1e-8
+
+    def test_to_and_from_cursor_with_rowid_and_tz_naive_datetime_deserializes_original(
+        self,
+    ) -> None:
+        timestamp = datetime.fromisoformat("2021-01-01T00:00:00")
+        original = TupleIdentifier(
+            rowid=10,
+            sortable_field=SortableField(type=SortableFieldType.DATETIME, value=timestamp),
+        )
+        cursor = original.to_cursor()
+        deserialized = TupleIdentifier.from_cursor(cursor)
+        assert deserialized.rowid == 10
+        assert (sortable_field := deserialized.sortable_field) is not None
+        assert sortable_field.type == SortableFieldType.DATETIME
+        assert sortable_field.value == timestamp
+        assert sortable_field.value.tzinfo is None
+
+    def test_to_and_from_cursor_with_rowid_and_tz_aware_datetime_deserializes_original(
+        self,
+    ) -> None:
+        timestamp = datetime.fromisoformat("2021-01-01T00:00:00+00:00")
+        original = TupleIdentifier(
+            rowid=10,
+            sortable_field=SortableField(type=SortableFieldType.DATETIME, value=timestamp),
+        )
+        cursor = original.to_cursor()
+        deserialized = TupleIdentifier.from_cursor(cursor)
+        assert deserialized.rowid == 10
+        assert (sortable_field := deserialized.sortable_field) is not None
+        assert sortable_field.type == SortableFieldType.DATETIME
+        assert sortable_field.value == timestamp
+        assert sortable_field.value.tzinfo is not None

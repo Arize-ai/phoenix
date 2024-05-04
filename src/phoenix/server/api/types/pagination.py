@@ -1,7 +1,8 @@
 import base64
 from dataclasses import dataclass
-from enum import Enum
-from typing import ClassVar, Generic, List, Optional, Tuple, TypeVar
+from datetime import datetime
+from enum import Enum, auto
+from typing import ClassVar, Generic, List, Optional, Tuple, TypeVar, Union, assert_never
 
 import strawberry
 from strawberry import UNSET
@@ -9,6 +10,7 @@ from typing_extensions import TypeAlias
 
 ID: TypeAlias = int
 GenericType = TypeVar("GenericType")
+SortableFieldValue: TypeAlias = Union[float, datetime]
 
 
 @strawberry.type
@@ -59,22 +61,34 @@ CURSOR_PREFIX = "connection:"
 
 
 class SortableFieldType(Enum):
-    float = "float"
+    FLOAT = auto()
+    DATETIME = auto()
 
 
 @dataclass
 class SortableField:
     type: SortableFieldType
-    value: float
+    value: SortableFieldValue
 
     def stringify_value(self) -> str:
-        return str(self.value)
+        if isinstance(self.value, float):
+            return str(self.value)
+        if isinstance(self.value, datetime):
+            return self.value.isoformat()
+        assert_never(self.type)
 
     @classmethod
     def from_stringified_value(
         cls, type: SortableFieldType, stringified_value: str
     ) -> "SortableField":
-        return cls(type=type, value=float(stringified_value))
+        value: SortableFieldValue
+        if type == SortableFieldType.FLOAT:
+            value = float(stringified_value)
+        elif type == SortableFieldType.DATETIME:
+            value = datetime.fromisoformat(stringified_value)
+        else:
+            assert_never(type)
+        return cls(type=type, value=value)
 
 
 @dataclass
@@ -87,7 +101,7 @@ class TupleIdentifier:
     def to_cursor(self) -> Cursor:
         cursor_components = [str(self.rowid)]
         if (sortable_field := self.sortable_field) is not None:
-            cursor_components.extend([sortable_field.type.value, sortable_field.stringify_value()])
+            cursor_components.extend([sortable_field.type.name, sortable_field.stringify_value()])
         return base64.b64encode(self._DELIMITER.join(cursor_components).encode()).decode()
 
     @classmethod
@@ -99,7 +113,7 @@ class TupleIdentifier:
             rowid_string = decoded[:first_delimiter_index]
             second_delimiter_index = decoded.index(cls._DELIMITER, first_delimiter_index + 1)
             sortable_field = SortableField.from_stringified_value(
-                type=SortableFieldType(decoded[first_delimiter_index + 1 : second_delimiter_index]),
+                type=SortableFieldType[decoded[first_delimiter_index + 1 : second_delimiter_index]],
                 stringified_value=decoded[second_delimiter_index + 1 :],
             )
         return cls(rowid=int(rowid_string), sortable_field=sortable_field)
