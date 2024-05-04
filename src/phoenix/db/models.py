@@ -30,6 +30,8 @@ from sqlalchemy.orm import (
 )
 from sqlalchemy.sql import expression
 
+from phoenix.datetime_utils import normalize_datetime
+
 
 class JSONB(JSON):
     # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
@@ -56,40 +58,15 @@ JSON_ = (
 
 
 class UtcTimeStamp(TypeDecorator[datetime]):
-    """TODO(persistence): Figure out how to reliably store and retrieve
-    timezone-aware datetime objects from the (sqlite) database. Below is a
-    workaround to guarantee that the timestamps we fetch from the database is
-    always timezone-aware, in order to prevent comparisons of timezone-naive
-    datetime with timezone-aware datetime, because objects in the rest of our
-    programs are always timezone-aware.
-    """
-
     # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
     impl = TIMESTAMP(timezone=True)
-    _LOCAL_TIMEZONE = datetime.now(timezone.utc).astimezone().tzinfo
 
-    def process_bind_param(
-        self,
-        value: Optional[datetime],
-        dialect: Dialect,
-    ) -> Optional[datetime]:
-        if not value:
-            return None
-        if value.tzinfo is None:
-            value = value.astimezone(self._LOCAL_TIMEZONE)
-        return value.astimezone(timezone.utc)
+    def process_bind_param(self, value: Optional[datetime], _: Dialect) -> Optional[datetime]:
+        return normalize_datetime(value)
 
-    def process_result_value(
-        self,
-        value: Optional[Any],
-        dialect: Dialect,
-    ) -> Optional[datetime]:
-        if not isinstance(value, datetime):
-            return None
-        if value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
-        return value.astimezone(timezone.utc)
+    def process_result_value(self, value: Optional[Any], _: Dialect) -> Optional[datetime]:
+        return normalize_datetime(value, timezone.utc)
 
 
 class Base(DeclarativeBase):
