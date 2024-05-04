@@ -119,4 +119,4 @@ class TestTupleIdentifier:
         assert deserialized.rowid == 10
         assert (sortable_field := deserialized.sortable_field) is not None
         assert sortable_field.type == SortableFieldType.float
-        assert abs(sortable_field.value - 11.5) < 1e-6
+        assert abs(sortable_field.value - 11.5) < 1e-8

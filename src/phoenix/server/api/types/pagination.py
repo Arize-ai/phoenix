@@ -67,6 +67,15 @@ class SortableField:
     type: SortableFieldType
     value: float
 
+    def stringify_value(self) -> str:
+        return str(self.value)
+
+    @classmethod
+    def from_stringified_value(
+        cls, type: SortableFieldType, stringified_value: str
+    ) -> "SortableField":
+        return cls(type=type, value=float(stringified_value))
+
 
 @dataclass
 class TupleIdentifier:
@@ -78,7 +87,7 @@ class TupleIdentifier:
     def to_cursor(self) -> Cursor:
         cursor_components = [str(self.rowid)]
         if (sortable_field := self.sortable_field) is not None:
-            cursor_components.extend([sortable_field.type.value, str(sortable_field.value)])
+            cursor_components.extend([sortable_field.type.value, sortable_field.stringify_value()])
         return base64.b64encode(self._DELIMITER.join(cursor_components).encode()).decode()
 
     @classmethod
@@ -89,9 +98,9 @@ class TupleIdentifier:
         if (first_delimiter_index := decoded.find(cls._DELIMITER)) > -1:
             rowid_string = decoded[:first_delimiter_index]
             second_delimiter_index = decoded.index(cls._DELIMITER, first_delimiter_index + 1)
-            sortable_field = SortableField(
+            sortable_field = SortableField.from_stringified_value(
                 type=SortableFieldType(decoded[first_delimiter_index + 1 : second_delimiter_index]),
-                value=float(decoded[second_delimiter_index + 1 :]),
+                stringified_value=decoded[second_delimiter_index + 1 :],
             )
         return cls(rowid=int(rowid_string), sortable_field=sortable_field)
 
