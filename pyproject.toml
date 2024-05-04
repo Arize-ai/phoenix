@@ -111,6 +111,7 @@ container = [
   "opentelemetry-instrumentation-grpc",
   "py-grpc-prometheus",
   "strawberry-graphql[opentelemetry]==0.227.2",  # need to pin version because we're monkey-patching
+  "uvloop; platform_system != 'Windows'",
 ]
 
 [project.urls]
