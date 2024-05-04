@@ -8,7 +8,6 @@ from typing import (
     AsyncContextManager,
     Awaitable,
     Callable,
-    Dict,
     Iterable,
     List,
     Optional,
@@ -16,6 +15,7 @@ from typing import (
     Tuple,
 )
 
+from cachetools import LRUCache
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import TypeAlias
 
@@ -65,7 +65,7 @@ class BulkInserter:
             [] if initial_batch_of_evaluations is None else list(initial_batch_of_evaluations)
         )
         self._task: Optional[asyncio.Task[None]] = None
-        self._last_inserted_at: Dict[ProjectRowId, datetime] = {}
+        self._last_inserted_at: LRUCache[ProjectRowId, datetime] = LRUCache(maxsize=100)
         self._cache_for_dataloaders = cache_for_dataloaders
         self._enable_prometheus = enable_prometheus
 
