@@ -1,6 +1,7 @@
 import base64
 from dataclasses import dataclass
-from typing import Generic, List, Optional, Tuple, TypeVar
+from enum import Enum
+from typing import ClassVar, Generic, List, Optional, Tuple, TypeVar
 
 import strawberry
 from strawberry import UNSET
@@ -55,6 +56,44 @@ class Edge(Generic[GenericType]):
 
 # The hashing prefix for a connection cursor
 CURSOR_PREFIX = "connection:"
+
+
+class SortableFieldType(Enum):
+    float = "float"
+
+
+@dataclass
+class SortableField:
+    type: SortableFieldType
+    value: float
+
+
+@dataclass
+class TupleIdentifier:
+    rowid: int
+    sortable_field: Optional[SortableField] = None
+
+    _DELIMITER: ClassVar[str] = ":"
+
+    def to_cursor(self) -> Cursor:
+        cursor_components = [str(self.rowid)]
+        if (sortable_field := self.sortable_field) is not None:
+            cursor_components.extend([sortable_field.type.value, str(sortable_field.value)])
+        return base64.b64encode(self._DELIMITER.join(cursor_components).encode()).decode()
+
+    @classmethod
+    def from_cursor(cls, cursor: Cursor) -> "TupleIdentifier":
+        decoded = base64.b64decode(cursor).decode()
+        rowid_string = decoded
+        sortable_field = None
+        if (first_delimiter_index := decoded.find(cls._DELIMITER)) > -1:
+            rowid_string = decoded[:first_delimiter_index]
+            second_delimiter_index = decoded.index(cls._DELIMITER, first_delimiter_index + 1)
+            sortable_field = SortableField(
+                type=SortableFieldType(decoded[first_delimiter_index + 1 : second_delimiter_index]),
+                value=float(decoded[second_delimiter_index + 1 :]),
+            )
+        return cls(rowid=int(rowid_string), sortable_field=sortable_field)
 
 
 def id_to_cursor(id: ID) -> Cursor:
