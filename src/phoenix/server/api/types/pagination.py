@@ -2,11 +2,11 @@ import base64
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, auto
-from typing import ClassVar, Generic, List, Optional, Tuple, TypeVar, Union, assert_never
+from typing import ClassVar, Generic, List, Optional, Tuple, TypeVar, Union
 
 import strawberry
 from strawberry import UNSET
-from typing_extensions import TypeAlias
+from typing_extensions import TypeAlias, assert_never
 
 ID: TypeAlias = int
 GenericType = TypeVar("GenericType")
