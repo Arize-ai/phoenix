@@ -92,7 +92,7 @@ class SortableField:
 
 
 @dataclass
-class TupleIdentifier:
+class NodeIdentifier:
     rowid: int
     sortable_field: Optional[SortableField] = None
 
@@ -105,7 +105,7 @@ class TupleIdentifier:
         return base64.b64encode(self._DELIMITER.join(cursor_components).encode()).decode()
 
     @classmethod
-    def from_cursor(cls, cursor: Cursor) -> "TupleIdentifier":
+    def from_cursor(cls, cursor: Cursor) -> "NodeIdentifier":
         decoded = base64.b64decode(cursor).decode()
         rowid_string = decoded
         sortable_field = None
@@ -237,7 +237,7 @@ def connection_from_list_slice(
 
 
 def connections(
-    data: List[Tuple[TupleIdentifier, GenericType]],
+    data: List[Tuple[NodeIdentifier, GenericType]],
     has_previous_page: bool,
     has_next_page: bool,
 ) -> Connection[GenericType]:

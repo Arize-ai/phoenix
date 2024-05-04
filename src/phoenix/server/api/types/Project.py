@@ -19,7 +19,7 @@ from phoenix.server.api.types.node import Node
 from phoenix.server.api.types.pagination import (
     Connection,
     Cursor,
-    TupleIdentifier,
+    NodeIdentifier,
     connections,
 )
 from phoenix.server.api.types.Span import Span, to_gql_span
@@ -189,7 +189,7 @@ class Project(Node):
             span_filter = SpanFilter(condition=filter_condition)
             stmt = span_filter(stmt)
         if after:
-            span_rowid = TupleIdentifier.from_cursor(after).rowid
+            span_rowid = NodeIdentifier.from_cursor(after).rowid
             stmt = stmt.where(models.Span.id < span_rowid)
         if first:
             stmt = stmt.limit(
@@ -204,7 +204,7 @@ class Project(Node):
         async with info.context.db() as session:
             spans = await session.stream_scalars(stmt)
             data = [
-                (TupleIdentifier(rowid=span.id), to_gql_span(span))
+                (NodeIdentifier(rowid=span.id), to_gql_span(span))
                 async for span in islice(spans, first)
             ]
         has_next_page = True

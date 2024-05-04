@@ -5,9 +5,9 @@ from phoenix.core.model_schema import FEATURE
 from phoenix.server.api.types.Dimension import Dimension
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
+    NodeIdentifier,
     SortableField,
     SortableFieldType,
-    TupleIdentifier,
     connection_from_list,
 )
 
@@ -102,22 +102,22 @@ def test_connection_from_empty_list():
     assert connection.page_info.has_next_page is False
 
 
-class TestTupleIdentifier:
+class TestNodeIdentifier:
     def test_to_and_from_cursor_with_rowid_deserializes_original(self) -> None:
-        original = TupleIdentifier(rowid=10)
+        original = NodeIdentifier(rowid=10)
         cursor = original.to_cursor()
-        deserialized = TupleIdentifier.from_cursor(cursor)
+        deserialized = NodeIdentifier.from_cursor(cursor)
         assert deserialized.rowid == 10
         assert deserialized.sortable_field is None
 
     def test_to_and_from_cursor_with_rowid_and_float_deserializes_original(
         self,
     ) -> None:
-        original = TupleIdentifier(
+        original = NodeIdentifier(
             rowid=10, sortable_field=SortableField(type=SortableFieldType.FLOAT, value=11.5)
         )
         cursor = original.to_cursor()
-        deserialized = TupleIdentifier.from_cursor(cursor)
+        deserialized = NodeIdentifier.from_cursor(cursor)
         assert deserialized.rowid == 10
         assert (sortable_field := deserialized.sortable_field) is not None
         assert sortable_field.type == SortableFieldType.FLOAT
@@ -127,12 +127,12 @@ class TestTupleIdentifier:
         self,
     ) -> None:
         timestamp = datetime.fromisoformat("2021-01-01T00:00:00")
-        original = TupleIdentifier(
+        original = NodeIdentifier(
             rowid=10,
             sortable_field=SortableField(type=SortableFieldType.DATETIME, value=timestamp),
         )
         cursor = original.to_cursor()
-        deserialized = TupleIdentifier.from_cursor(cursor)
+        deserialized = NodeIdentifier.from_cursor(cursor)
         assert deserialized.rowid == 10
         assert (sortable_field := deserialized.sortable_field) is not None
         assert sortable_field.type == SortableFieldType.DATETIME
@@ -143,12 +143,12 @@ class TestTupleIdentifier:
         self,
     ) -> None:
         timestamp = datetime.fromisoformat("2021-01-01T00:00:00+00:00")
-        original = TupleIdentifier(
+        original = NodeIdentifier(
             rowid=10,
             sortable_field=SortableField(type=SortableFieldType.DATETIME, value=timestamp),
         )
         cursor = original.to_cursor()
-        deserialized = TupleIdentifier.from_cursor(cursor)
+        deserialized = NodeIdentifier.from_cursor(cursor)
         assert deserialized.rowid == 10
         assert (sortable_field := deserialized.sortable_field) is not None
         assert sortable_field.type == SortableFieldType.DATETIME
