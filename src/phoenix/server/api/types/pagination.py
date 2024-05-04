@@ -119,21 +119,6 @@ class TupleIdentifier:
         return cls(rowid=int(rowid_string), sortable_field=sortable_field)
 
 
-def id_to_cursor(id: ID) -> Cursor:
-    """
-    Creates a cursor string from an ID.
-    """
-    return base64.b64encode(f"{CURSOR_PREFIX}{id}".encode("utf-8")).decode()
-
-
-def cursor_to_id(cursor: Cursor) -> ID:
-    """
-    Extracts the ID from the cursor string.
-    """
-    _, id = base64.b64decode(cursor).decode().split(":")
-    return int(id)
-
-
 def offset_to_cursor(offset: int) -> Cursor:
     """
     Creates the cursor string from an offset.
@@ -252,11 +237,13 @@ def connection_from_list_slice(
 
 
 def connections(
-    data: List[Tuple[ID, GenericType]],
+    data: List[Tuple[TupleIdentifier, GenericType]],
     has_previous_page: bool,
     has_next_page: bool,
 ) -> Connection[GenericType]:
-    edges = [Edge(node=node, cursor=id_to_cursor(id)) for id, node in data]
+    edges = [
+        Edge(node=node, cursor=tuple_identifier.to_cursor()) for tuple_identifier, node in data
+    ]
     has_edges = len(edges) > 0
     first_edge = edges[0] if has_edges else None
     last_edge = edges[-1] if has_edges else None

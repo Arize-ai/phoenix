@@ -19,8 +19,8 @@ from phoenix.server.api.types.node import Node
 from phoenix.server.api.types.pagination import (
     Connection,
     Cursor,
+    TupleIdentifier,
     connections,
-    cursor_to_id,
 )
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.Trace import Trace
@@ -189,7 +189,7 @@ class Project(Node):
             span_filter = SpanFilter(condition=filter_condition)
             stmt = span_filter(stmt)
         if after:
-            span_rowid = cursor_to_id(after)
+            span_rowid = TupleIdentifier.from_cursor(after).rowid
             stmt = stmt.where(models.Span.id < span_rowid)
         if first:
             stmt = stmt.limit(
@@ -203,7 +203,10 @@ class Project(Node):
         )  # todo: remove this after adding pagination https://github.com/Arize-ai/phoenix/issues/3003
         async with info.context.db() as session:
             spans = await session.stream_scalars(stmt)
-            data = [(span.id, to_gql_span(span)) async for span in islice(spans, first)]
+            data = [
+                (TupleIdentifier(rowid=span.id), to_gql_span(span))
+                async for span in islice(spans, first)
+            ]
         has_next_page = True
         try:
             await spans.__anext__()
