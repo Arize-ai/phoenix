@@ -71,7 +71,7 @@ class SortableField:
     value: SortableFieldValue
 
     def stringify_value(self) -> str:
-        if isinstance(self.value, float):
+        if isinstance(self.value, (int, float)):
             return str(self.value)
         if isinstance(self.value, datetime):
             return self.value.isoformat()
