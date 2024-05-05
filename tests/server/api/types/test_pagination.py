@@ -126,7 +126,7 @@ class TestNodeIdentifier:
     def test_to_and_from_cursor_with_rowid_and_tz_naive_datetime_deserializes_original(
         self,
     ) -> None:
-        timestamp = datetime.fromisoformat("2021-01-01T00:00:00")
+        timestamp = datetime.fromisoformat("2024-05-05T04:25:29.911245")
         original = NodeIdentifier(
             rowid=10,
             sortable_field=SortableField(type=SortableFieldType.DATETIME, value=timestamp),
@@ -142,7 +142,7 @@ class TestNodeIdentifier:
     def test_to_and_from_cursor_with_rowid_and_tz_aware_datetime_deserializes_original(
         self,
     ) -> None:
-        timestamp = datetime.fromisoformat("2021-01-01T00:00:00+00:00")
+        timestamp = datetime.fromisoformat("2024-05-05T04:25:29.911245+00:00")
         original = NodeIdentifier(
             rowid=10,
             sortable_field=SortableField(type=SortableFieldType.DATETIME, value=timestamp),
