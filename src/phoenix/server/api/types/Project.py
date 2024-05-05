@@ -221,7 +221,7 @@ class Project(Node):
             async for span in islice(spans, first):
                 sf = (
                     SortableField(type=SortableFieldType.DATETIME, value=span.start_time)
-                    if sortable_field is not None
+                    if sort
                     else None
                 )
                 node_identifier = NodeIdentifier(
