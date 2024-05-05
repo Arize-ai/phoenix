@@ -22,6 +22,8 @@ from phoenix.server.api.types.pagination import (
     Connection,
     Cursor,
     NodeIdentifier,
+    SortableField,
+    SortableFieldType,
     connections,
 )
 from phoenix.server.api.types.SortDir import SortDir
@@ -191,9 +193,11 @@ class Project(Node):
         if filter_condition:
             span_filter = SpanFilter(condition=filter_condition)
             stmt = span_filter(stmt)
+        sortable_field: Optional[SortableField] = None
         if after:
             node_identifier = NodeIdentifier.from_cursor(after)
-            if (sortable_field := node_identifier.sortable_field) is not None:
+            if node_identifier.sortable_field is not None:
+                sortable_field = node_identifier.sortable_field
                 assert sort is not None  # todo: refactor this into a validation check
                 compare = operator.lt if sort.dir is SortDir.desc else operator.gt
                 stmt = stmt.where(
@@ -211,12 +215,21 @@ class Project(Node):
         if sort:
             stmt = sort.update_orm_expr(stmt)
         stmt = stmt.order_by(desc(models.Span.id))
+        data = []
         async with info.context.db() as session:
             spans = await session.stream_scalars(stmt)
-            data = [
-                (NodeIdentifier(rowid=span.id), to_gql_span(span))
-                async for span in islice(spans, first)
-            ]
+            async for span in islice(spans, first):
+                sf = (
+                    SortableField(type=SortableFieldType.DATETIME, value=span.start_time)
+                    if sortable_field is not None
+                    else None
+                )
+                node_identifier = NodeIdentifier(
+                    rowid=span.id,
+                    sortable_field=sf,
+                )
+                data.append((node_identifier, to_gql_span(span)))
+        # todo: does this need to be inside the async with block?
         has_next_page = True
         try:
             await spans.__anext__()
