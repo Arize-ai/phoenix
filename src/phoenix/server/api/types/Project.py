@@ -5,6 +5,7 @@ import strawberry
 from aioitertools.itertools import islice
 from sqlalchemy import and_, desc, distinct, select
 from sqlalchemy.orm import contains_eager
+from sqlalchemy.sql.expression import tuple_
 from strawberry import ID, UNSET
 from strawberry.types import Info
 
@@ -189,8 +190,14 @@ class Project(Node):
             span_filter = SpanFilter(condition=filter_condition)
             stmt = span_filter(stmt)
         if after:
-            span_rowid = NodeIdentifier.from_cursor(after).rowid
-            stmt = stmt.where(models.Span.id < span_rowid)
+            node_identifier = NodeIdentifier.from_cursor(after)
+            if (sortable_field := node_identifier.sortable_field) is not None:
+                stmt = stmt.where(
+                    tuple_(models.Span.start_time, models.Span.id)
+                    < (sortable_field.value, node_identifier.rowid)
+                )
+            else:
+                stmt = stmt.where(models.Span.id < node_identifier.rowid)
         if first:
             stmt = stmt.limit(
                 first + 1  # overfetch by one to determine whether there's a next page
@@ -198,9 +205,6 @@ class Project(Node):
         if sort:
             stmt = sort.update_orm_expr(stmt)
         stmt = stmt.order_by(desc(models.Span.id))
-        stmt = stmt.limit(
-            SPANS_LIMIT
-        )  # todo: remove this after adding pagination https://github.com/Arize-ai/phoenix/issues/3003
         async with info.context.db() as session:
             spans = await session.stream_scalars(stmt)
             data = [
