@@ -110,6 +110,20 @@ class TestNodeIdentifier:
         assert deserialized.rowid == 10
         assert deserialized.sortable_field is None
 
+    def test_to_and_from_cursor_with_rowid_and_int_deserializes_original(
+        self,
+    ) -> None:
+        original = NodeIdentifier(
+            rowid=10, sortable_field=SortableField(type=SortableFieldType.INT, value=11)
+        )
+        cursor = original.to_cursor()
+        deserialized = NodeIdentifier.from_cursor(cursor)
+        assert deserialized.rowid == 10
+        assert (sortable_field := deserialized.sortable_field) is not None
+        assert sortable_field.type == SortableFieldType.INT
+        assert isinstance((value := sortable_field.value), int)
+        assert value == 11
+
     def test_to_and_from_cursor_with_rowid_and_float_deserializes_original(
         self,
     ) -> None:
@@ -123,7 +137,7 @@ class TestNodeIdentifier:
         assert sortable_field.type == SortableFieldType.FLOAT
         assert abs(sortable_field.value - 11.5) < 1e-8
 
-    def test_to_and_from_cursor_with_rowid_and_int_deserializes_original_as_float(
+    def test_to_and_from_cursor_with_rowid_and_float_passed_as_int_deserializes_original_as_float(
         self,
     ) -> None:
         original = NodeIdentifier(
