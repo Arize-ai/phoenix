@@ -312,8 +312,8 @@ class SpanAnnotation(Base):
         index=True,
     )
     name: Mapped[str]
-    label: Mapped[Optional[str]]
-    score: Mapped[Optional[float]]
+    label: Mapped[Optional[str]] = mapped_column(String, index=True)
+    score: Mapped[Optional[float]] = mapped_column(Float, index=True)
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[str] = mapped_column(
@@ -340,8 +340,8 @@ class TraceAnnotation(Base):
         index=True,
     )
     name: Mapped[str]
-    label: Mapped[Optional[str]]
-    score: Mapped[Optional[float]]
+    label: Mapped[Optional[str]] = mapped_column(String, index=True)
+    score: Mapped[Optional[float]] = mapped_column(Float, index=True)
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[str] = mapped_column(
@@ -369,8 +369,8 @@ class DocumentAnnotation(Base):
     )
     document_position: Mapped[int]
     name: Mapped[str]
-    label: Mapped[Optional[str]]
-    score: Mapped[Optional[float]]
+    label: Mapped[Optional[str]] = mapped_column(String, index=True)
+    score: Mapped[Optional[float]] = mapped_column(Float, index=True)
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[str] = mapped_column(

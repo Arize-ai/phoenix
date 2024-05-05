@@ -1,4 +1,4 @@
-import { addDays, subDays } from "date-fns";
+import { addDays, startOfHour, subDays } from "date-fns";
 
 import { assertUnreachable } from "@phoenix/typeUtils";
 
@@ -9,21 +9,22 @@ export function getTimeRangeFromLastNTimeRangeKey(
 ): TimeRange {
   const now = Date.now();
   // Artificially set the end time to far in the future so that it is ostensibly is "current"
-  const end = addDays(now, 365);
+  // We round down to facilitate caching.
+  const end = startOfHour(addDays(now, 365));
   switch (key) {
     case "1d":
       return {
-        start: subDays(now, 1),
+        start: startOfHour(subDays(now, 1)),
         end,
       };
     case "7d":
       return {
-        start: subDays(now, 7),
+        start: startOfHour(subDays(now, 7)),
         end,
       };
     case "30d":
       return {
-        start: subDays(now, 30),
+        start: startOfHour(subDays(now, 30)),
         end,
       };
     case "all":
