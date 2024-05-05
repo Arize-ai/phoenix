@@ -29,6 +29,10 @@ class SpanColumn(Enum):
     cumulativeTokenCountPrompt = auto()
     cumulativeTokenCountCompletion = auto()
 
+    @property
+    def orm_expression(self) -> Any:
+        return _SPAN_COLUMN_TO_ORM_EXPR_MAP[self]
+
 
 @strawberry.enum
 class EvalAttr(Enum):
@@ -76,7 +80,7 @@ class SpanSort:
 
     def update_orm_expr(self, stmt: Select[Any]) -> Select[Any]:
         if self.col and not self.eval_result_key:
-            expr = _SPAN_COLUMN_TO_ORM_EXPR_MAP[self.col]
+            expr = self.col.orm_expression
             if self.dir == SortDir.desc:
                 expr = desc(expr)
             return stmt.order_by(nulls_last(expr))
