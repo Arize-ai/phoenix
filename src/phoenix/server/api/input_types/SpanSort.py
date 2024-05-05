@@ -33,7 +33,28 @@ class SpanColumn(Enum):
 
     @property
     def orm_expression(self) -> Any:
-        return _SPAN_COLUMN_TO_ORM_EXPR_MAP[self]
+        if self is SpanColumn.startTime:
+            return models.Span.start_time
+        if self is SpanColumn.endTime:
+            return models.Span.end_time
+        if self is SpanColumn.latencyMs:
+            return models.Span.latency_ms
+        if self is SpanColumn.tokenCountTotal:
+            return models.Span.attributes[LLM_TOKEN_COUNT_TOTAL].as_float()
+        if self is SpanColumn.tokenCountPrompt:
+            return models.Span.attributes[LLM_TOKEN_COUNT_PROMPT].as_float()
+        if self is SpanColumn.tokenCountCompletion:
+            return models.Span.attributes[LLM_TOKEN_COUNT_COMPLETION].as_float()
+        if self is SpanColumn.cumulativeTokenCountTotal:
+            return (
+                models.Span.cumulative_llm_token_count_prompt
+                + models.Span.cumulative_llm_token_count_completion
+            )
+        if self is SpanColumn.cumulativeTokenCountPrompt:
+            return models.Span.cumulative_llm_token_count_prompt
+        if self is SpanColumn.cumulativeTokenCountCompletion:
+            return models.Span.cumulative_llm_token_count_completion
+        assert_never(self)
 
     @property
     def data_type(self) -> SortableFieldType:
@@ -57,19 +78,6 @@ class EvalAttr(Enum):
     score = "score"
     label = "label"
 
-
-_SPAN_COLUMN_TO_ORM_EXPR_MAP = {
-    SpanColumn.startTime: models.Span.start_time,
-    SpanColumn.endTime: models.Span.end_time,
-    SpanColumn.latencyMs: models.Span.latency_ms,
-    SpanColumn.tokenCountTotal: models.Span.attributes[LLM_TOKEN_COUNT_TOTAL].as_float(),
-    SpanColumn.tokenCountPrompt: models.Span.attributes[LLM_TOKEN_COUNT_PROMPT].as_float(),
-    SpanColumn.tokenCountCompletion: models.Span.attributes[LLM_TOKEN_COUNT_COMPLETION].as_float(),
-    SpanColumn.cumulativeTokenCountTotal: models.Span.cumulative_llm_token_count_prompt
-    + models.Span.cumulative_llm_token_count_completion,
-    SpanColumn.cumulativeTokenCountPrompt: models.Span.cumulative_llm_token_count_prompt,
-    SpanColumn.cumulativeTokenCountCompletion: models.Span.cumulative_llm_token_count_completion,
-}
 
 _EVAL_ATTR_TO_ORM_EXPR_MAP = {
     EvalAttr.score: models.SpanAnnotation.score,
