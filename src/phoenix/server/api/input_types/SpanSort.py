@@ -6,9 +6,11 @@ from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import and_, desc, nulls_last
 from sqlalchemy.sql.expression import Select
 from strawberry import UNSET
+from typing_extensions import assert_never
 
 import phoenix.trace.v1 as pb
 from phoenix.db import models
+from phoenix.server.api.types.pagination import SortableFieldType
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.trace.schemas import SpanID
 
@@ -32,6 +34,22 @@ class SpanColumn(Enum):
     @property
     def orm_expression(self) -> Any:
         return _SPAN_COLUMN_TO_ORM_EXPR_MAP[self]
+
+    @property
+    def data_type(self) -> SortableFieldType:
+        if self is SpanColumn.startTime or self is SpanColumn.endTime:
+            return SortableFieldType.DATETIME
+        if (
+            self is SpanColumn.latencyMs
+            or self is SpanColumn.tokenCountTotal
+            or self is SpanColumn.tokenCountPrompt
+            or self is SpanColumn.tokenCountCompletion
+            or self is SpanColumn.cumulativeTokenCountTotal
+            or self is SpanColumn.cumulativeTokenCountPrompt
+            or self is SpanColumn.cumulativeTokenCountCompletion
+        ):
+            return SortableFieldType.FLOAT
+        assert_never(self)
 
 
 @strawberry.enum

@@ -23,7 +23,6 @@ from phoenix.server.api.types.pagination import (
     Cursor,
     NodeIdentifier,
     SortableField,
-    SortableFieldType,
     connections,
 )
 from phoenix.server.api.types.SortDir import SortDir
@@ -200,12 +199,13 @@ class Project(Node):
                 sortable_field = node_identifier.sortable_field
                 assert sort is not None  # todo: refactor this into a validation check
                 compare = operator.lt if sort.dir is SortDir.desc else operator.gt
-                stmt = stmt.where(
-                    compare(
-                        tuple_(models.Span.start_time, models.Span.id),
-                        (sortable_field.value, node_identifier.rowid),
+                if sort_column := sort.col:
+                    stmt = stmt.where(
+                        compare(
+                            tuple_(sort_column.orm_expression, models.Span.id),
+                            (sortable_field.value, node_identifier.rowid),
+                        )
                     )
-                )
             else:
                 stmt = stmt.where(models.Span.id < node_identifier.rowid)
         if first:
@@ -220,8 +220,13 @@ class Project(Node):
             spans = await session.stream_scalars(stmt)
             async for span in islice(spans, first):
                 sf = (
-                    SortableField(type=SortableFieldType.DATETIME, value=span.start_time)
-                    if sort
+                    SortableField(
+                        type=sort_col.data_type,
+                        value=getattr(
+                            span, sort_col.orm_expression.key
+                        ),  # todo: find a cleaner way to get this value
+                    )
+                    if sort and (sort_col := sort.col)
                     else None
                 )
                 node_identifier = NodeIdentifier(
