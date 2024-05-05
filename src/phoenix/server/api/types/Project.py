@@ -1,3 +1,4 @@
+import operator
 from datetime import datetime
 from typing import List, Optional
 
@@ -23,6 +24,7 @@ from phoenix.server.api.types.pagination import (
     NodeIdentifier,
     connections,
 )
+from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
@@ -192,9 +194,13 @@ class Project(Node):
         if after:
             node_identifier = NodeIdentifier.from_cursor(after)
             if (sortable_field := node_identifier.sortable_field) is not None:
+                assert sort is not None  # todo: refactor this into a validation check
+                compare = operator.lt if sort.dir is SortDir.desc else operator.gt
                 stmt = stmt.where(
-                    tuple_(models.Span.start_time, models.Span.id)
-                    < (sortable_field.value, node_identifier.rowid)
+                    compare(
+                        tuple_(models.Span.start_time, models.Span.id),
+                        (sortable_field.value, node_identifier.rowid),
+                    )
                 )
             else:
                 stmt = stmt.where(models.Span.id < node_identifier.rowid)
