@@ -13,7 +13,7 @@ from strawberry.types import Info
 from phoenix.datetime_utils import right_open_time_range
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.input_types.SpanSort import SpanSort
+from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortResult
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
 from phoenix.server.api.types.EvaluationSummary import EvaluationSummary
@@ -193,16 +193,20 @@ class Project(Node):
             span_filter = SpanFilter(condition=filter_condition)
             stmt = span_filter(stmt)
         sortable_field: Optional[SortableField] = None
+        sort_result: Optional[SpanSortResult] = None
+        if sort:
+            sort_result = sort.update_orm_expr(stmt)
+            stmt = sort_result.stmt
         if after:
             node_identifier = NodeIdentifier.from_cursor(after)
             if node_identifier.sortable_field is not None:
                 sortable_field = node_identifier.sortable_field
                 assert sort is not None  # todo: refactor this into a validation check
                 compare = operator.lt if sort.dir is SortDir.desc else operator.gt
-                if sort_column := sort.col:
+                if sort_result:
                     stmt = stmt.where(
                         compare(
-                            tuple_(sort_column.orm_expression, models.Span.id),
+                            tuple_(sort_result.orm_expression, models.Span.id),
                             (sortable_field.value, node_identifier.rowid),
                         )
                     )
@@ -212,34 +216,32 @@ class Project(Node):
             stmt = stmt.limit(
                 first + 1  # overfetch by one to determine whether there's a next page
             )
-        if sort:
-            sort_result = sort.update_orm_expr(stmt)
-            stmt = sort_result.stmt
         stmt = stmt.order_by(desc(models.Span.id))
         data = []
         async with info.context.db() as session:
-            spans = await session.stream_scalars(stmt)
-            async for span in islice(spans, first):
-                sf = (
-                    SortableField(
-                        type=sort_col.data_type,
-                        value=getattr(
-                            span, sort_col.orm_expression.name
-                        ),  # todo: find a cleaner way to get this value
-                    )
-                    if sort and (sort_col := sort.col)
-                    else None
-                )
+            rows = await session.execute(stmt)
+            async for row in islice(rows, first):
+                span = row[0]
+                eval_value = row[1] if len(row) > 1 else None
                 node_identifier = NodeIdentifier(
                     rowid=span.id,
-                    sortable_field=sf,
+                    sortable_field=(
+                        SortableField(
+                            type=sort_result.data_type,
+                            value=eval_value
+                            if eval_value is not None
+                            else getattr(span, sort_result.orm_key),
+                        )
+                        if sort_result
+                        else None
+                    ),
                 )
                 data.append((node_identifier, to_gql_span(span)))
         # todo: does this need to be inside the async with block?
         has_next_page = True
         try:
-            await spans.__anext__()
-        except StopAsyncIteration:
+            next(rows)
+        except StopIteration:
             has_next_page = False
 
         return connections(

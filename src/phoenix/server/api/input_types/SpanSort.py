@@ -1,10 +1,11 @@
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Any, Optional, Protocol
+from typing import Any, Optional, Protocol, cast
 
 import strawberry
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import and_, desc, nulls_last
+from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.expression import Select
 from strawberry import UNSET
 from typing_extensions import assert_never
@@ -31,6 +32,10 @@ class SpanColumn(Enum):
     cumulativeTokenCountTotal = auto()
     cumulativeTokenCountPrompt = auto()
     cumulativeTokenCountCompletion = auto()
+
+    @property
+    def orm_key(self) -> str:
+        return cast(str, self.orm_expression.name)
 
     @property
     def orm_expression(self) -> Any:
@@ -82,11 +87,28 @@ class EvalAttr(Enum):
     score = "score"
     label = "label"
 
+    @property
+    def orm_key(self) -> str:
+        return f"span_annotations_{self.value}"
 
-_EVAL_ATTR_TO_ORM_EXPR_MAP = {
-    EvalAttr.score: models.SpanAnnotation.score,
-    EvalAttr.label: models.SpanAnnotation.label,
-}
+    @property
+    def orm_expression(self) -> Any:
+        expr: InstrumentedAttribute[Any]
+        if self is EvalAttr.score:
+            expr = models.SpanAnnotation.score
+        elif self is EvalAttr.label:
+            expr = models.SpanAnnotation.label
+        else:
+            assert_never(self)
+        return expr.label(self.orm_key)
+
+    @property
+    def data_type(self) -> SortableFieldType:
+        if self is EvalAttr.label:
+            return SortableFieldType.STRING
+        if self is EvalAttr.score:
+            return SortableFieldType.FLOAT
+        assert_never(self)
 
 
 @strawberry.input
@@ -102,7 +124,9 @@ class SupportsGetSpanEvaluation(Protocol):
 @dataclass(frozen=True)
 class SpanSortResult:
     stmt: Select[Any]
-    eval_alias: Optional[str] = None
+    orm_key: str
+    orm_expression: Any
+    data_type: SortableFieldType
 
 
 @strawberry.input(
@@ -115,23 +139,34 @@ class SpanSort:
     dir: SortDir
 
     def update_orm_expr(self, stmt: Select[Any]) -> SpanSortResult:
-        if self.col and not self.eval_result_key:
-            expr = self.col.orm_expression
-            if self.dir == SortDir.desc:
-                expr = desc(expr)
-            return SpanSortResult(stmt=stmt.order_by(nulls_last(expr)))
-        if self.eval_result_key and not self.col:
-            eval_name = self.eval_result_key.name
-            expr = _EVAL_ATTR_TO_ORM_EXPR_MAP[self.eval_result_key.attr]
+        if (col := self.col) and not self.eval_result_key:
+            expr = col.orm_expression
             if self.dir == SortDir.desc:
                 expr = desc(expr)
             return SpanSortResult(
-                stmt=stmt.join(
-                    models.SpanAnnotation,
-                    onclause=and_(
-                        models.SpanAnnotation.span_rowid == models.Span.id,
-                        models.SpanAnnotation.name == eval_name,
-                    ),
-                ).order_by(expr)
+                stmt=stmt.order_by(nulls_last(expr)),
+                orm_key=col.orm_key,
+                orm_expression=col.orm_expression,
+                data_type=col.data_type,
+            )
+        if (eval_result_key := self.eval_result_key) and not col:
+            eval_name = eval_result_key.name
+            eval_attr = eval_result_key.attr
+            expr = eval_result_key.attr.orm_expression
+            stmt = stmt.add_columns(expr)
+            if self.dir == SortDir.desc:
+                expr = desc(expr)
+            stmt = stmt.join(
+                models.SpanAnnotation,
+                onclause=and_(
+                    models.SpanAnnotation.span_rowid == models.Span.id,
+                    models.SpanAnnotation.name == eval_name,
+                ),
+            ).order_by(expr)
+            return SpanSortResult(
+                stmt=stmt,
+                orm_key=eval_attr.orm_key,
+                orm_expression=eval_result_key.attr.orm_expression,
+                data_type=eval_attr.data_type,
             )
         raise ValueError("Exactly one of `col` or `evalResultKey` must be specified on `SpanSort`.")
