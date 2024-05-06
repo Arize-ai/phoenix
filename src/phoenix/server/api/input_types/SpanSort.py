@@ -58,18 +58,21 @@ class SpanColumn(Enum):
 
     @property
     def data_type(self) -> SortableFieldType:
-        if self is SpanColumn.startTime or self is SpanColumn.endTime:
-            return SortableFieldType.DATETIME
+        if (
+            self is SpanColumn.cumulativeTokenCountTotal
+            or self is SpanColumn.cumulativeTokenCountPrompt
+            or self is SpanColumn.cumulativeTokenCountCompletion
+        ):
+            return SortableFieldType.INT
         if (
             self is SpanColumn.latencyMs
             or self is SpanColumn.tokenCountTotal
             or self is SpanColumn.tokenCountPrompt
             or self is SpanColumn.tokenCountCompletion
-            or self is SpanColumn.cumulativeTokenCountTotal
-            or self is SpanColumn.cumulativeTokenCountPrompt
-            or self is SpanColumn.cumulativeTokenCountCompletion
         ):
             return SortableFieldType.FLOAT
+        if self is SpanColumn.startTime or self is SpanColumn.endTime:
+            return SortableFieldType.DATETIME
         assert_never(self)
 
 
