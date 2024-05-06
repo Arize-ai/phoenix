@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from itertools import islice
 from time import perf_counter, time
@@ -34,6 +35,11 @@ logger = logging.getLogger(__name__)
 ProjectRowId: TypeAlias = int
 
 
+@dataclass(frozen=True)
+class TransactionResult:
+    updated_project_rowids: Set[ProjectRowId] = field(default_factory=set)
+
+
 class BulkInserter:
     def __init__(
         self,
@@ -65,14 +71,14 @@ class BulkInserter:
             [] if initial_batch_of_evaluations is None else list(initial_batch_of_evaluations)
         )
         self._task: Optional[asyncio.Task[None]] = None
-        self._last_inserted_at: LRUCache[ProjectRowId, datetime] = LRUCache(maxsize=100)
+        self._last_updated_at_by_project: LRUCache[ProjectRowId, datetime] = LRUCache(maxsize=100)
         self._cache_for_dataloaders = cache_for_dataloaders
         self._enable_prometheus = enable_prometheus
 
-    def last_inserted_at(self, project_rowid: Optional[ProjectRowId] = None) -> Optional[datetime]:
+    def last_updated_at(self, project_rowid: Optional[ProjectRowId] = None) -> Optional[datetime]:
         if isinstance(project_rowid, ProjectRowId):
-            return self._last_inserted_at.get(project_rowid)
-        return max(self._last_inserted_at.values(), default=None)
+            return self._last_updated_at_by_project.get(project_rowid)
+        return max(self._last_updated_at_by_project.values(), default=None)
 
     async def __aenter__(
         self,
@@ -93,10 +99,11 @@ class BulkInserter:
     async def _bulk_insert(self) -> None:
         spans_buffer, evaluations_buffer = None, None
         next_run_at = time() + self._run_interval_seconds
-        updated_project_rowids = set()
         while self._spans or self._evaluations or self._running:
             await asyncio.sleep(next_run_at - time())
             next_run_at = time() + self._run_interval_seconds
+            if not (self._spans or self._evaluations):
+                continue
             # It's important to grab the buffers at the same time so there's
             # no race condition, since an eval insertion will fail if the span
             # it references doesn't exist. Grabbing the eval buffer later may
@@ -110,21 +117,20 @@ class BulkInserter:
                 self._evaluations = []
             # Spans should be inserted before the evaluations, since an evaluation
             # insertion will fail if the span it references doesn't exist.
+            transaction_result = TransactionResult()
             if spans_buffer:
-                project_rowids = await self._insert_spans(spans_buffer)
-                updated_project_rowids.update(project_rowids)
+                result = await self._insert_spans(spans_buffer)
+                transaction_result.updated_project_rowids.update(result.updated_project_rowids)
                 spans_buffer = None
             if evaluations_buffer:
-                project_rowids = await self._insert_evaluations(evaluations_buffer)
-                updated_project_rowids.update(project_rowids)
+                result = await self._insert_evaluations(evaluations_buffer)
+                transaction_result.updated_project_rowids.update(result.updated_project_rowids)
                 evaluations_buffer = None
-            if updated_project_rowids:
-                for project_rowid in updated_project_rowids:
-                    self._last_inserted_at[project_rowid] = datetime.now(timezone.utc)
-                updated_project_rowids.clear()
+            for project_rowid in transaction_result.updated_project_rowids:
+                self._last_updated_at_by_project[project_rowid] = datetime.now(timezone.utc)
 
-    async def _insert_spans(self, spans: List[Tuple[Span, str]]) -> Set[ProjectRowId]:
-        updated_project_rowids = set()
+    async def _insert_spans(self, spans: List[Tuple[Span, str]]) -> TransactionResult:
+        transaction_result = TransactionResult()
         for i in range(0, len(spans), self._max_num_per_transaction):
             try:
                 start = perf_counter()
@@ -147,8 +153,7 @@ class BulkInserter:
                                 f"Failed to insert span with span_id={span.context.span_id}"
                             )
                         if result is not None:
-                            project_rowid, *_ = result
-                            updated_project_rowids.add(project_rowid)
+                            transaction_result.updated_project_rowids.add(result.project_rowid)
                             if (cache := self._cache_for_dataloaders) is not None:
                                 cache.invalidate(result)
                 if self._enable_prometheus:
@@ -161,10 +166,10 @@ class BulkInserter:
 
                     BULK_LOADER_EXCEPTIONS.inc()
                 logger.exception("Failed to insert spans")
-        return updated_project_rowids
+        return transaction_result
 
-    async def _insert_evaluations(self, evaluations: List[pb.Evaluation]) -> Set[ProjectRowId]:
-        updated_project_rowids = set()
+    async def _insert_evaluations(self, evaluations: List[pb.Evaluation]) -> TransactionResult:
+        transaction_result = TransactionResult()
         for i in range(0, len(evaluations), self._max_num_per_transaction):
             try:
                 start = perf_counter()
@@ -185,8 +190,7 @@ class BulkInserter:
                                 BULK_LOADER_EXCEPTIONS.inc()
                             logger.exception(f"Failed to insert evaluation: {str(error)}")
                         if result is not None:
-                            project_rowid, *_ = result
-                            updated_project_rowids.add(project_rowid)
+                            transaction_result.updated_project_rowids.add(result.project_rowid)
                             if (cache := self._cache_for_dataloaders) is not None:
                                 cache.invalidate(result)
                 if self._enable_prometheus:
@@ -199,4 +203,4 @@ class BulkInserter:
 
                     BULK_LOADER_EXCEPTIONS.inc()
                 logger.exception("Failed to insert evaluations")
-        return updated_project_rowids
+        return transaction_result

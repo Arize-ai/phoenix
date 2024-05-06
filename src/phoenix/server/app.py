@@ -383,7 +383,7 @@ def create_app(
         corpus=corpus,
         export_path=export_path,
         graphiql=True,
-        streaming_last_updated_at=bulk_inserter.last_inserted_at,
+        streaming_last_updated_at=bulk_inserter.last_updated_at,
         cache_for_dataloaders=cache_for_dataloaders,
     )
     if enable_prometheus:
