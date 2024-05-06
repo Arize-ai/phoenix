@@ -761,6 +761,9 @@ type SpanEvent {
 type SpanIOValue {
   mimeType: MimeType!
   value: String!
+
+  """Truncate value up to `chars` characters, appending '...' if truncated."""
+  truncatedValue(chars: Int! = 100): String!
 }
 
 enum SpanKind {

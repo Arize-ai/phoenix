@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c169f46993fce2002c3236c00702e8fd>>
+ * @generated SignedSource<<6d59c2a06cc578894102874c2eb1f1e3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -139,34 +139,14 @@ v6 = {
 },
 v7 = [
   {
-    "alias": null,
+    "alias": "value",
     "args": null,
     "kind": "ScalarField",
-    "name": "value",
+    "name": "truncatedValue",
     "storageKey": null
   }
 ],
 v8 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "SpanIOValue",
-  "kind": "LinkedField",
-  "name": "input",
-  "plural": false,
-  "selections": (v7/*: any*/),
-  "storageKey": null
-},
-v9 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "SpanIOValue",
-  "kind": "LinkedField",
-  "name": "output",
-  "plural": false,
-  "selections": (v7/*: any*/),
-  "storageKey": null
-},
-v10 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanContext",
@@ -191,7 +171,7 @@ v10 = {
   ],
   "storageKey": null
 },
-v11 = {
+v9 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanEvaluation",
@@ -217,7 +197,7 @@ v11 = {
   ],
   "storageKey": null
 },
-v12 = {
+v10 = {
   "alias": null,
   "args": null,
   "concreteType": "DocumentRetrievalMetrics",
@@ -255,7 +235,16 @@ v12 = {
     }
   ],
   "storageKey": null
-};
+},
+v11 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "value",
+    "storageKey": null
+  }
+];
 return {
   "argumentDefinitions": [
     {
@@ -401,11 +390,29 @@ return {
                   "storageKey": null
                 },
                 (v6/*: any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "SpanIOValue",
+                  "kind": "LinkedField",
+                  "name": "input",
+                  "plural": false,
+                  "selections": (v7/*: any*/),
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "SpanIOValue",
+                  "kind": "LinkedField",
+                  "name": "output",
+                  "plural": false,
+                  "selections": (v7/*: any*/),
+                  "storageKey": null
+                },
                 (v8/*: any*/),
                 (v9/*: any*/),
                 (v10/*: any*/),
-                (v11/*: any*/),
-                (v12/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -441,11 +448,29 @@ return {
                       "name": "tokenCountCompletion",
                       "storageKey": null
                     },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "SpanIOValue",
+                      "kind": "LinkedField",
+                      "name": "input",
+                      "plural": false,
+                      "selections": (v11/*: any*/),
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "SpanIOValue",
+                      "kind": "LinkedField",
+                      "name": "output",
+                      "plural": false,
+                      "selections": (v11/*: any*/),
+                      "storageKey": null
+                    },
                     (v8/*: any*/),
                     (v9/*: any*/),
-                    (v10/*: any*/),
-                    (v11/*: any*/),
-                    (v12/*: any*/)
+                    (v10/*: any*/)
                   ],
                   "storageKey": null
                 }
@@ -521,6 +546,6 @@ return {
 };
 })();
 
-(node as any).hash = "14afe3462661af191be17a155b27e068";
+(node as any).hash = "567d631d2187a62101bff2abba20d240";
 
 export default node;

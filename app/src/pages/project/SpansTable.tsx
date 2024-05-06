@@ -99,12 +99,10 @@ export function SpansTable(props: SpansTableProps) {
                   traceId
                 }
                 input {
-                  value
-                  mimeType
+                  value: truncatedValue
                 }
                 output {
-                  value
-                  mimeType
+                  value: truncatedValue
                 }
                 spanEvaluations {
                   name
