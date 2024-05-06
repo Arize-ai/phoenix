@@ -21,6 +21,7 @@ from phoenix.config import (
     get_env_port,
     get_env_project_name,
 )
+from phoenix.datetime_utils import normalize_datetime
 from phoenix.session.data_extractor import DEFAULT_SPAN_LIMIT, TraceDataExtractor
 from phoenix.trace import Evaluations, TraceDataset
 from phoenix.trace.dsl import SpanQuery
@@ -102,8 +103,8 @@ class Client(TraceDataExtractor):
             params={"project-name": project_name},
             json={
                 "queries": [q.to_dict() for q in queries],
-                "start_time": _to_iso_format(start_time),
-                "end_time": _to_iso_format(end_time),
+                "start_time": _to_iso_format(normalize_datetime(start_time)),
+                "end_time": _to_iso_format(normalize_datetime(end_time)),
                 "limit": limit,
                 "root_spans_only": root_spans_only,
             },

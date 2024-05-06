@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, tzinfo
 from typing import Any, Optional, Tuple, cast
 
 import pandas as pd
@@ -10,6 +10,23 @@ from pandas.core.dtypes.common import (
     is_numeric_dtype,
     is_object_dtype,
 )
+
+_LOCAL_TIMEZONE = datetime.now(timezone.utc).astimezone().tzinfo
+
+
+def normalize_datetime(
+    dt: Optional[datetime],
+    tz: Optional[tzinfo] = None,
+) -> Optional[datetime]:
+    """
+    If the input datetime is timezone-naive, it is localized as local timezone
+    unless tzinfo is specified.
+    """
+    if not isinstance(dt, datetime):
+        return None
+    if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+        dt = dt.replace(tzinfo=tz if tz else _LOCAL_TIMEZONE)
+    return dt.astimezone(timezone.utc)
 
 
 def normalize_timestamps(

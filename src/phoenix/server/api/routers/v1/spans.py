@@ -1,3 +1,4 @@
+from datetime import timezone
 from typing import AsyncIterator
 
 from starlette.requests import Request
@@ -5,6 +6,7 @@ from starlette.responses import Response, StreamingResponse
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
 
 from phoenix.config import DEFAULT_PROJECT_NAME
+from phoenix.datetime_utils import normalize_datetime
 from phoenix.server.api.routers.utils import df_to_bytes, from_iso_format
 from phoenix.trace.dsl import SpanQuery
 
@@ -94,8 +96,14 @@ async def query_spans_handler(request: Request) -> Response:
                 await session.run_sync(
                     query,
                     project_name=project_name,
-                    start_time=from_iso_format(payload.get("start_time")),
-                    end_time=from_iso_format(end_time),
+                    start_time=normalize_datetime(
+                        from_iso_format(payload.get("start_time")),
+                        timezone.utc,
+                    ),
+                    end_time=normalize_datetime(
+                        from_iso_format(end_time),
+                        timezone.utc,
+                    ),
                     limit=payload.get("limit", DEFAULT_SPAN_LIMIT),
                     root_spans_only=payload.get("root_spans_only"),
                 )
