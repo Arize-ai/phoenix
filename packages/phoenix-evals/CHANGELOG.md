@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.8.0...arize-phoenix-evals-v0.8.1) (2024-05-03)
+
+
+### Bug Fixes
+
+* **evals:** incorrect wording in hallucinations ([#3085](https://github.com/Arize-ai/phoenix/issues/3085)) ([7aa0292](https://github.com/Arize-ai/phoenix/commit/7aa029239c2c36b677070e270f7127f6bf6cff5e))
+
 ## [0.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.7.0...arize-phoenix-evals-v0.8.0) (2024-04-22)
 
 
