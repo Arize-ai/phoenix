@@ -211,7 +211,7 @@ class Span(Base):
             sqlite_on_conflict="IGNORE",
         ),
         Index('ix_latency', text("(end_time - start_time)")),
-        Index('ix_total_tokens', text(
+        Index('ix_cumulative_llm_token_count_total', text(
             "(cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)"
             ),
         )
