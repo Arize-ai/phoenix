@@ -10,7 +10,7 @@ from typing_extensions import TypeAlias, assert_never
 
 ID: TypeAlias = int
 GenericType = TypeVar("GenericType")
-SortableFieldValue: TypeAlias = Union[int, float, datetime]
+SortableFieldValue: TypeAlias = Union[str, int, float, datetime]
 
 
 @strawberry.type
@@ -61,6 +61,7 @@ CURSOR_PREFIX = "connection:"
 
 
 class SortableFieldType(Enum):
+    STRING = auto()
     INT = auto()
     FLOAT = auto()
     DATETIME = auto()
@@ -72,6 +73,8 @@ class SortableField:
     value: SortableFieldValue
 
     def stringify_value(self) -> str:
+        if isinstance(self.value, str):
+            return self.value
         if isinstance(self.value, (int, float)):
             return str(self.value)
         if isinstance(self.value, datetime):
@@ -83,7 +86,9 @@ class SortableField:
         cls, type: SortableFieldType, stringified_value: str
     ) -> "SortableField":
         value: SortableFieldValue
-        if type is SortableFieldType.INT:
+        if type is SortableFieldType.STRING:
+            value = stringified_value
+        elif type is SortableFieldType.INT:
             value = int(stringified_value)
         elif type is SortableFieldType.FLOAT:
             value = float(stringified_value)

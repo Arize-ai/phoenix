@@ -110,6 +110,19 @@ class TestNodeIdentifier:
         assert deserialized.rowid == 10
         assert deserialized.sortable_field is None
 
+    def test_to_and_from_cursor_with_rowid_and_string_deserializes_original(
+        self,
+    ) -> None:
+        original = NodeIdentifier(
+            rowid=10, sortable_field=SortableField(type=SortableFieldType.STRING, value="abc")
+        )
+        cursor = original.to_cursor()
+        deserialized = NodeIdentifier.from_cursor(cursor)
+        assert deserialized.rowid == 10
+        assert (sortable_field := deserialized.sortable_field) is not None
+        assert sortable_field.type == SortableFieldType.STRING
+        assert sortable_field.value == "abc"
+
     def test_to_and_from_cursor_with_rowid_and_int_deserializes_original(
         self,
     ) -> None:
