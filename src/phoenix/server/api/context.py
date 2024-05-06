@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.websockets import WebSocket
+from typing_extensions import TypeAlias
 
 from phoenix.core.model_schema import Model
 from phoenix.server.api.dataloaders import (
@@ -39,6 +40,9 @@ class DataLoaders:
     trace_evaluations: TraceEvaluationsDataLoader
 
 
+ProjectRowId: TypeAlias = int
+
+
 @dataclass
 class Context:
     request: Union[Request, WebSocket]
@@ -48,4 +52,4 @@ class Context:
     model: Model
     export_path: Path
     corpus: Optional[Model] = None
-    streaming_last_updated_at: Callable[[], Optional[datetime]] = lambda: None
+    streaming_last_updated_at: Callable[[ProjectRowId], Optional[datetime]] = lambda _: None

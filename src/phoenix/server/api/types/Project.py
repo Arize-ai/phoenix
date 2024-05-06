@@ -296,7 +296,7 @@ class Project(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[datetime]:
-        return info.context.streaming_last_updated_at()
+        return info.context.streaming_last_updated_at(self.id_attr)
 
     @strawberry.field
     async def validate_span_filter_condition(self, condition: str) -> ValidationResult:
