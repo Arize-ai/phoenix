@@ -210,11 +210,11 @@ class Span(Base):
             "span_id",
             sqlite_on_conflict="IGNORE",
         ),
-        Index('ix_latency', text("(end_time - start_time)")),
-        Index('ix_cumulative_llm_token_count_total', text(
-            "(cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)"
-            ),
-        )
+        Index("ix_latency", text("(end_time - start_time)")),
+        Index(
+            "ix_cumulative_llm_token_count_total",
+            text("(cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)"),
+        ),
     )
 
 
