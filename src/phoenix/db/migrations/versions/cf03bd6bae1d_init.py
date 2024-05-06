@@ -126,7 +126,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_latency", "spans", [sa.text("(end_time - start_time)")], unique=False)
     op.create_index(
-        "ix_total_tokens",
+        "ix_cumulative_llm_token_count_total",
         "spans",
         [sa.text("(cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)")],
         unique=False,
