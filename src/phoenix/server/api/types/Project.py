@@ -214,7 +214,8 @@ class Project(Node):
                 first + 1  # overfetch by one to determine whether there's a next page
             )
         if sort:
-            stmt = sort.update_orm_expr(stmt)
+            sort_result = sort.update_orm_expr(stmt)
+            stmt = sort_result.stmt
         stmt = stmt.order_by(desc(models.Span.id))
         data = []
         async with info.context.db() as session:
