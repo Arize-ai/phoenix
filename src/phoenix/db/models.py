@@ -213,7 +213,8 @@ class Span(Base):
         Index('ix_latency', text("(end_time - start_time)")),
         Index('ix_total_tokens', text(
             "(cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)"
-        ),
+            ),
+        )
     )
 
 
