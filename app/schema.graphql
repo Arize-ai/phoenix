@@ -643,7 +643,8 @@ enum SortDir {
   desc
 }
 
-type Span {
+type Span implements Node {
+  id: GlobalID!
   name: String!
   statusCode: SpanStatusCode!
   statusMessage: String!
@@ -760,6 +761,9 @@ type SpanEvent {
 type SpanIOValue {
   mimeType: MimeType!
   value: String!
+
+  """Truncate value up to `chars` characters, appending '...' if truncated."""
+  truncatedValue(chars: Int! = 100): String!
 }
 
 enum SpanKind {
@@ -805,7 +809,8 @@ type TimeSeriesDataPoint {
   value: Float
 }
 
-type Trace {
+type Trace implements Node {
+  id: GlobalID!
   spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
 
   """Evaluations associated with the trace"""

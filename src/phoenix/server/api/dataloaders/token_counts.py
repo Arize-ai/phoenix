@@ -11,7 +11,7 @@ from typing import (
     Tuple,
 )
 
-from cachetools import LFUCache
+from cachetools import LFUCache, TTLCache
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -53,7 +53,10 @@ _SubKey: TypeAlias = Tuple[TimeInterval, FilterCondition, Kind]
 
 class TokenCountCache(
     TwoTierCache[Key, Result, _Section, _SubKey],
-    main_cache_factory=lambda: LFUCache(maxsize=64),
+    # TTL=3600 (1-hour) because time intervals are always moving forward, but
+    # interval endpoints are rounded down to the hour by the UI, so anything
+    # older than an hour most likely won't be a cache-hit anyway.
+    main_cache_factory=lambda: TTLCache(maxsize=64, ttl=3600),
     sub_cache_factory=lambda: LFUCache(maxsize=2 * 2 * 3),
 ):
     def _cache_keys(self, key: Key) -> Tuple[_Section, _SubKey]:

@@ -128,10 +128,10 @@ export function TracesTable(props: TracesTableProps) {
                 cumulativeTokenCountCompletion
                 parentId
                 input {
-                  value
+                  value: truncatedValue
                 }
                 output {
-                  value
+                  value: truncatedValue
                 }
                 context {
                   spanId

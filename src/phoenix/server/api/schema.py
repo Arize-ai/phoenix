@@ -5,7 +5,7 @@ import numpy as np
 import numpy.typing as npt
 import strawberry
 from sqlalchemy import delete, select
-from sqlalchemy.orm import load_only
+from sqlalchemy.orm import contains_eager, load_only
 from strawberry import ID, UNSET
 from strawberry.types import Info
 from typing_extensions import Annotated
@@ -46,6 +46,8 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.Project import Project
+from phoenix.server.api.types.Span import to_gql_span
+from phoenix.server.api.types.Trace import Trace
 
 
 @strawberry.type
@@ -102,10 +104,14 @@ class Query:
             embedding_dimension = info.context.model.embedding_dimensions[node_id]
             return to_gql_embedding_dimension(node_id, embedding_dimension)
         elif type_name == "Project":
+            project_stmt = select(
+                models.Project.id,
+                models.Project.name,
+                models.Project.gradient_start_color,
+                models.Project.gradient_end_color,
+            ).where(models.Project.id == node_id)
             async with info.context.db() as session:
-                project = await session.scalar(
-                    select(models.Project).where(models.Project.id == node_id)
-                )
+                project = (await session.execute(project_stmt)).first()
             if project is None:
                 raise ValueError(f"Unknown project: {id}")
             return Project(
@@ -114,6 +120,25 @@ class Query:
                 gradient_start_color=project.gradient_start_color,
                 gradient_end_color=project.gradient_end_color,
             )
+        elif type_name == "Trace":
+            trace_stmt = select(models.Trace.id).where(models.Trace.id == node_id)
+            async with info.context.db() as session:
+                id_attr = await session.scalar(trace_stmt)
+            if id_attr is None:
+                raise ValueError(f"Unknown trace: {id}")
+            return Trace(id_attr=id_attr)
+        elif type_name == "Span":
+            span_stmt = (
+                select(models.Span)
+                .join(models.Trace)
+                .options(contains_eager(models.Span.trace))
+                .where(models.Span.id == node_id)
+            )
+            async with info.context.db() as session:
+                span = await session.scalar(span_stmt)
+            if span is None:
+                raise ValueError(f"Unknown span: {id}")
+            return to_gql_span(span)
         raise Exception(f"Unknown node type: {type_name}")
 
     @strawberry.field
