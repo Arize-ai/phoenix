@@ -644,7 +644,8 @@ enum SortDir {
   desc
 }
 
-type Span {
+type Span implements Node {
+  id: GlobalID!
   name: String!
   statusCode: SpanStatusCode!
   statusMessage: String!
@@ -809,7 +810,8 @@ type TimeSeriesDataPoint {
   value: Float
 }
 
-type Trace {
+type Trace implements Node {
+  id: GlobalID!
   spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
 
   """Evaluations associated with the trace"""
