@@ -264,11 +264,13 @@ def _lifespan(
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
     clean_ups: Iterable[Callable[[], None]] = (),
+    read_only: bool = False,
 ) -> StatefulLifespan[Starlette]:
     @contextlib.asynccontextmanager
     async def lifespan(_: Starlette) -> AsyncIterator[Dict[str, Any]]:
         async with bulk_inserter as (queue_span, queue_evaluation), GrpcServer(
             queue_span,
+            disabled=read_only,
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,
         ):
@@ -394,6 +396,7 @@ def create_app(
         prometheus_middlewares = []
     app = Starlette(
         lifespan=_lifespan(
+            read_only=read_only,
             bulk_inserter=bulk_inserter,
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,
