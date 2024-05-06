@@ -223,7 +223,7 @@ class Project(Node):
                     SortableField(
                         type=sort_col.data_type,
                         value=getattr(
-                            span, sort_col.orm_expression.key
+                            span, sort_col.orm_expression.name
                         ),  # todo: find a cleaner way to get this value
                     )
                     if sort and (sort_col := sort.col)
