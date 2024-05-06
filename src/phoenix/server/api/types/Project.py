@@ -136,19 +136,15 @@ class Project(Node):
 
     @strawberry.field
     async def trace(self, trace_id: ID, info: Info[Context, None]) -> Optional[Trace]:
+        stmt = (
+            select(models.Trace.id)
+            .where(models.Trace.trace_id == str(trace_id))
+            .where(models.Trace.project_rowid == self.id_attr)
+        )
         async with info.context.db() as session:
-            if (
-                trace_rowid := await session.scalar(
-                    select(models.Trace.id).where(
-                        and_(
-                            models.Trace.trace_id == str(trace_id),
-                            models.Trace.project_rowid == self.id_attr,
-                        )
-                    )
-                )
-            ) is None:
+            if (id_attr := await session.scalar(stmt)) is None:
                 return None
-        return Trace(trace_rowid=trace_rowid)
+        return Trace(id_attr=id_attr)
 
     @strawberry.field
     async def spans(
