@@ -106,7 +106,7 @@ def upgrade() -> None:
         sa.Column("parent_id", sa.String, nullable=True, index=True),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("span_kind", sa.String, nullable=False),
-        sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=False),
+        sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=False, index=True),
         sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column("attributes", JSON_, nullable=False),
         sa.Column("events", JSON_, nullable=False),
@@ -123,6 +123,13 @@ def upgrade() -> None:
         sa.Column("cumulative_error_count", sa.Integer, nullable=False),
         sa.Column("cumulative_llm_token_count_prompt", sa.Integer, nullable=False),
         sa.Column("cumulative_llm_token_count_completion", sa.Integer, nullable=False),
+    )
+    op.create_index("ix_latency", "spans", [sa.text("(end_time - start_time)")], unique=False)
+    op.create_index(
+        "ix_cumulative_llm_token_count_total",
+        "spans",
+        [sa.text("(cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)")],
+        unique=False,
     )
 
     op.create_table(

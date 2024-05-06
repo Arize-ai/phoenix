@@ -9,6 +9,7 @@ from sqlalchemy import (
     Dialect,
     Float,
     ForeignKey,
+    Index,
     MetaData,
     String,
     TypeDecorator,
@@ -172,7 +173,7 @@ class Span(Base):
     parent_id: Mapped[Optional[str]] = mapped_column(index=True)
     name: Mapped[str]
     span_kind: Mapped[str]
-    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
+    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     attributes: Mapped[Dict[str, Any]]
     events: Mapped[List[Dict[str, Any]]]
@@ -208,6 +209,11 @@ class Span(Base):
         UniqueConstraint(
             "span_id",
             sqlite_on_conflict="IGNORE",
+        ),
+        Index("ix_latency", text("(end_time - start_time)")),
+        Index(
+            "ix_cumulative_llm_token_count_total",
+            text("(cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)"),
         ),
     )
 
