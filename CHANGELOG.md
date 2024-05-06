@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.25.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v3.24.0...arize-phoenix-v3.25.0) (2024-05-06)
+
+
+### Features
+
+* add bedrock claude tracing tutorial ([#2919](https://github.com/Arize-ai/phoenix/issues/2919)) ([b8b5240](https://github.com/Arize-ai/phoenix/commit/b8b524045fd7531a82f02a82bc5c0659c263621e))
+
+
+### Bug Fixes
+
+* **evals:** incorrect wording in hallucinations ([#3085](https://github.com/Arize-ai/phoenix/issues/3085)) ([7aa0292](https://github.com/Arize-ai/phoenix/commit/7aa029239c2c36b677070e270f7127f6bf6cff5e))
+* run docker as nonroot user ([#3100](https://github.com/Arize-ai/phoenix/issues/3100)) ([c640678](https://github.com/Arize-ai/phoenix/commit/c6406782f91e5ebb7e930002f4c983a01bcffef9))
+
+
+### Documentation
+
+* **development:** make it explicit that you need to run pnpm build ([#3035](https://github.com/Arize-ai/phoenix/issues/3035)) ([672cbed](https://github.com/Arize-ai/phoenix/commit/672cbedcea9746ee5ea1d6b61032931110a9b121))
+
 ## [3.24.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v3.23.0...arize-phoenix-v3.24.0) (2024-04-22)
 
 
