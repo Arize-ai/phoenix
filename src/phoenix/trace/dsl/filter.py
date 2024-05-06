@@ -130,6 +130,12 @@ _BACKWARD_COMPATIBILITY_REPLACEMENTS: typing.Mapping[str, str] = MappingProxyTyp
 
 
 @dataclass(frozen=True)
+class SpanFilterResult:
+    stmt: Select[typing.Any]
+    aliased_annotation_relations: typing.Tuple[AliasedAnnotationRelation, ...]
+
+
+@dataclass(frozen=True)
 class SpanFilter:
     condition: str = ""
     valid_eval_names: typing.Optional[typing.Sequence[str]] = None
@@ -171,6 +177,12 @@ class SpanFilter:
         object.__setattr__(self, "compiled", compiled)
         object.__setattr__(self, "_aliased_annotation_relations", aliased_annotation_relations)
         object.__setattr__(self, "_aliased_annotation_attributes", aliased_annotation_attributes)
+
+    def result(self, select: Select[typing.Any]) -> SpanFilterResult:
+        stmt = self(select)
+        return SpanFilterResult(
+            stmt=stmt, aliased_annotation_relations=self._aliased_annotation_relations
+        )
 
     def __call__(self, select: Select[typing.Any]) -> Select[typing.Any]:
         if not self.condition:
