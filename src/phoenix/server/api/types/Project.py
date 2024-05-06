@@ -191,8 +191,7 @@ class Project(Node):
             ).where(parent.c.span_id.is_(None))
         if filter_condition:
             span_filter = SpanFilter(condition=filter_condition)
-            filter_result = span_filter.result(stmt)
-            stmt = filter_result.stmt
+            stmt = span_filter(stmt)
         sortable_field: Optional[SortableField] = None
         if after:
             node_identifier = NodeIdentifier.from_cursor(after)
