@@ -13,7 +13,7 @@ from typing import (
 
 import pandas as pd
 from aioitertools.itertools import groupby
-from cachetools import LFUCache
+from cachetools import LFUCache, TTLCache
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.dataloader import AbstractCache, DataLoader
@@ -54,7 +54,10 @@ _SubKey: TypeAlias = Tuple[TimeInterval, FilterCondition]
 
 class EvaluationSummaryCache(
     TwoTierCache[Key, Result, _Section, _SubKey],
-    main_cache_factory=lambda: LFUCache(maxsize=64 * 16 * 2),
+    # TTL=3600 (1-hour) because time intervals are always moving forward, but
+    # interval endpoints are rounded down to the hour by the UI, so anything
+    # older than an hour most likely won't be a cache-hit anyway.
+    main_cache_factory=lambda: TTLCache(maxsize=64 * 32 * 2, ttl=3600),
     sub_cache_factory=lambda: LFUCache(maxsize=2 * 2),
 ):
     def _cache_keys(self, key: Key) -> Tuple[_Section, _SubKey]:
