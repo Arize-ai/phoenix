@@ -13,7 +13,6 @@ from sqlalchemy import (
     MetaData,
     String,
     TypeDecorator,
-    UniqueConstraint,
     func,
     insert,
     text,
@@ -114,12 +113,7 @@ class Project(Base):
         passive_deletes=True,
         uselist=True,
     )
-    __table_args__ = (
-        UniqueConstraint(
-            "name",
-            sqlite_on_conflict="IGNORE",
-        ),
-    )
+    __table_args__ = (Index(None, "name", unique=True),)
 
 
 class Trace(Base):
@@ -154,12 +148,7 @@ class Trace(Base):
         cascade="all, delete-orphan",
         uselist=True,
     )
-    __table_args__ = (
-        UniqueConstraint(
-            "trace_id",
-            sqlite_on_conflict="IGNORE",
-        ),
-    )
+    __table_args__ = (Index(None, "trace_id", unique=True),)
 
 
 class Span(Base):
@@ -206,10 +195,7 @@ class Span(Base):
     document_annotations: Mapped[List["DocumentAnnotation"]] = relationship(back_populates="span")
 
     __table_args__ = (
-        UniqueConstraint(
-            "span_id",
-            sqlite_on_conflict="IGNORE",
-        ),
+        Index(None, "span_id", unique=True),
         Index("ix_latency", text("(end_time - start_time)")),
         Index(
             "ix_cumulative_llm_token_count_total",
@@ -306,13 +292,7 @@ class SpanAnnotation(Base):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    __table_args__ = (
-        UniqueConstraint(
-            "span_rowid",
-            "name",
-            sqlite_on_conflict="REPLACE",
-        ),
-    )
+    __table_args__ = (Index(None, "name", "span_rowid", unique=True),)
 
 
 class TraceAnnotation(Base):
@@ -334,13 +314,7 @@ class TraceAnnotation(Base):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    __table_args__ = (
-        UniqueConstraint(
-            "trace_rowid",
-            "name",
-            sqlite_on_conflict="REPLACE",
-        ),
-    )
+    __table_args__ = (Index(None, "name", "trace_rowid", unique=True),)
 
 
 class DocumentAnnotation(Base):
@@ -365,11 +339,4 @@ class DocumentAnnotation(Base):
     )
     span: Mapped["Span"] = relationship(back_populates="document_annotations")
 
-    __table_args__ = (
-        UniqueConstraint(
-            "span_rowid",
-            "document_position",
-            "name",
-            sqlite_on_conflict="REPLACE",
-        ),
-    )
+    __table_args__ = (Index(None, "name", "span_rowid", "document_position", unique=True),)
