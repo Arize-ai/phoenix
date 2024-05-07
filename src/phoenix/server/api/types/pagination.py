@@ -10,7 +10,7 @@ from typing_extensions import TypeAlias, assert_never
 
 ID: TypeAlias = int
 GenericType = TypeVar("GenericType")
-SortColumnValue: TypeAlias = Union[str, int, float, datetime]
+CursorSortColumnValue: TypeAlias = Union[str, int, float, datetime]
 
 
 @strawberry.type
@@ -60,7 +60,7 @@ class Edge(Generic[GenericType]):
 CURSOR_PREFIX = "connection:"
 
 
-class SortColumnDataType(Enum):
+class CursorSortColumnDataType(Enum):
     STRING = auto()
     INT = auto()
     FLOAT = auto()
@@ -68,9 +68,9 @@ class SortColumnDataType(Enum):
 
 
 @dataclass
-class SortColumn:
-    type: SortColumnDataType
-    value: SortColumnValue
+class CursorSortColumn:
+    type: CursorSortColumnDataType
+    value: CursorSortColumnValue
 
     def __str__(self) -> str:
         if isinstance(self.value, str):
@@ -82,15 +82,17 @@ class SortColumn:
         assert_never(self.type)
 
     @classmethod
-    def from_string(cls, type: SortColumnDataType, stringified_value: str) -> "SortColumn":
-        value: SortColumnValue
-        if type is SortColumnDataType.STRING:
+    def from_string(
+        cls, type: CursorSortColumnDataType, stringified_value: str
+    ) -> "CursorSortColumn":
+        value: CursorSortColumnValue
+        if type is CursorSortColumnDataType.STRING:
             value = stringified_value
-        elif type is SortColumnDataType.INT:
+        elif type is CursorSortColumnDataType.INT:
             value = int(stringified_value)
-        elif type is SortColumnDataType.FLOAT:
+        elif type is CursorSortColumnDataType.FLOAT:
             value = float(stringified_value)
-        elif type is SortColumnDataType.DATETIME:
+        elif type is CursorSortColumnDataType.DATETIME:
             value = datetime.fromisoformat(stringified_value)
         else:
             assert_never(type)
@@ -100,7 +102,7 @@ class SortColumn:
 @dataclass
 class Cursor:
     rowid: int
-    sort_column: Optional[SortColumn] = None
+    sort_column: Optional[CursorSortColumn] = None
 
     _DELIMITER: ClassVar[str] = ":"
 
@@ -118,8 +120,8 @@ class Cursor:
         if (first_delimiter_index := decoded.find(cls._DELIMITER)) > -1:
             rowid_string = decoded[:first_delimiter_index]
             second_delimiter_index = decoded.index(cls._DELIMITER, first_delimiter_index + 1)
-            sort_column = SortColumn.from_string(
-                type=SortColumnDataType[
+            sort_column = CursorSortColumn.from_string(
+                type=CursorSortColumnDataType[
                     decoded[first_delimiter_index + 1 : second_delimiter_index]
                 ],
                 stringified_value=decoded[second_delimiter_index + 1 :],

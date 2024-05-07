@@ -12,7 +12,7 @@ from typing_extensions import assert_never
 
 import phoenix.trace.v1 as pb
 from phoenix.db import models
-from phoenix.server.api.types.pagination import SortColumnDataType
+from phoenix.server.api.types.pagination import CursorSortColumnDataType
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.trace.schemas import SpanID
 
@@ -63,22 +63,22 @@ class SpanColumn(Enum):
         assert_never(self)
 
     @property
-    def data_type(self) -> SortColumnDataType:
+    def data_type(self) -> CursorSortColumnDataType:
         if (
             self is SpanColumn.cumulativeTokenCountTotal
             or self is SpanColumn.cumulativeTokenCountPrompt
             or self is SpanColumn.cumulativeTokenCountCompletion
         ):
-            return SortColumnDataType.INT
+            return CursorSortColumnDataType.INT
         if (
             self is SpanColumn.latencyMs
             or self is SpanColumn.tokenCountTotal
             or self is SpanColumn.tokenCountPrompt
             or self is SpanColumn.tokenCountCompletion
         ):
-            return SortColumnDataType.FLOAT
+            return CursorSortColumnDataType.FLOAT
         if self is SpanColumn.startTime or self is SpanColumn.endTime:
-            return SortColumnDataType.DATETIME
+            return CursorSortColumnDataType.DATETIME
         assert_never(self)
 
 
@@ -103,11 +103,11 @@ class EvalAttr(Enum):
         return expr.label(self.column_name)
 
     @property
-    def data_type(self) -> SortColumnDataType:
+    def data_type(self) -> CursorSortColumnDataType:
         if self is EvalAttr.label:
-            return SortColumnDataType.STRING
+            return CursorSortColumnDataType.STRING
         if self is EvalAttr.score:
-            return SortColumnDataType.FLOAT
+            return CursorSortColumnDataType.FLOAT
         assert_never(self)
 
 
@@ -126,7 +126,7 @@ class SpanSortConfig:
     stmt: Select[Any]
     column_name: str
     orm_expression: Any
-    data_type: SortColumnDataType
+    data_type: CursorSortColumnDataType
 
 
 @strawberry.input(

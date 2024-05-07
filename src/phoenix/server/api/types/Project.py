@@ -21,8 +21,8 @@ from phoenix.server.api.types.node import Node
 from phoenix.server.api.types.pagination import (
     Connection,
     Cursor,
+    CursorSortColumn,
     CursorString,
-    SortColumn,
     connections,
 )
 from phoenix.server.api.types.SortDir import SortDir
@@ -188,7 +188,7 @@ class Project(Node):
         if filter_condition:
             span_filter = SpanFilter(condition=filter_condition)
             stmt = span_filter(stmt)
-        sort_column: Optional[SortColumn] = None
+        sort_column: Optional[CursorSortColumn] = None
         sort_config: Optional[SpanSortConfig] = None
         if sort:
             sort_config = sort.update_orm_expr(stmt)
@@ -222,7 +222,7 @@ class Project(Node):
                 cursor = Cursor(
                     rowid=span.id,
                     sort_column=(
-                        SortColumn(
+                        CursorSortColumn(
                             type=sort_config.data_type,
                             value=eval_value
                             if eval_value is not None
@@ -233,7 +233,6 @@ class Project(Node):
                     ),
                 )
                 data.append((cursor, to_gql_span(span)))
-        # todo: does this need to be inside the async with block?
         has_next_page = True
         try:
             next(span_records)
