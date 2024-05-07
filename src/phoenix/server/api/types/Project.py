@@ -300,7 +300,7 @@ class Project(Node):
 
     @strawberry.field
     async def validate_span_filter_condition(self, condition: str) -> ValidationResult:
-        # TODO(persistence): this query is too expensive to run on every validation
+        # This query is too expensive to run on every validation
         # valid_eval_names = await self.span_evaluation_names()
         try:
             SpanFilter(

@@ -35,9 +35,6 @@ async def insert_span(
         select(models.Trace).where(models.Trace.trace_id == span.context.trace_id)
     ):
         trace_rowid = trace.id
-        # TODO(persistence): Figure out how to reliably retrieve timezone-aware
-        # datetime from the (sqlite) database, because all datetime in our
-        # programs should be timezone-aware.
         if span.start_time < trace.start_time or trace.end_time < span.end_time:
             trace_start_time = min(trace.start_time, span.start_time)
             trace_end_time = max(trace.end_time, span.end_time)
