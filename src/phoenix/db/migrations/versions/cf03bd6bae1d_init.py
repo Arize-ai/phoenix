@@ -49,7 +49,7 @@ def upgrade() -> None:
     projects_table = op.create_table(
         "projects",
         sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("name", sa.String, nullable=False, unique=True),
+        sa.Column("name", sa.String, nullable=False),
         sa.Column("description", sa.String, nullable=True),
         sa.Column(
             "gradient_start_color",
@@ -77,6 +77,12 @@ def upgrade() -> None:
             onupdate=sa.func.now(),
         ),
     )
+    op.create_index(
+        None,
+        "projects",
+        ["name"],
+        unique=True,
+    )
     op.create_table(
         "traces",
         sa.Column("id", sa.Integer, primary_key=True),
@@ -87,11 +93,16 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
-        sa.Column("trace_id", sa.String, nullable=False, unique=True),
+        sa.Column("trace_id", sa.String, nullable=False),
         sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=False, index=True),
         sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=False),
     )
-
+    op.create_index(
+        None,
+        "traces",
+        ["trace_id"],
+        unique=True,
+    )
     op.create_table(
         "spans",
         sa.Column("id", sa.Integer, primary_key=True),
@@ -102,7 +113,7 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
-        sa.Column("span_id", sa.String, nullable=False, unique=True),
+        sa.Column("span_id", sa.String, nullable=False),
         sa.Column("parent_id", sa.String, nullable=True, index=True),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("span_kind", sa.String, nullable=False),
@@ -124,14 +135,22 @@ def upgrade() -> None:
         sa.Column("cumulative_llm_token_count_prompt", sa.Integer, nullable=False),
         sa.Column("cumulative_llm_token_count_completion", sa.Integer, nullable=False),
     )
-    op.create_index("ix_latency", "spans", [sa.text("(end_time - start_time)")], unique=False)
+    op.create_index(
+        None,
+        "spans",
+        ["span_id"],
+        unique=True,
+    )
+    op.create_index(
+        "ix_latency",
+        "spans",
+        [sa.text("(end_time - start_time)")],
+    )
     op.create_index(
         "ix_cumulative_llm_token_count_total",
         "spans",
         [sa.text("(cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)")],
-        unique=False,
     )
-
     op.create_table(
         "span_annotations",
         sa.Column("id", sa.Integer, primary_key=True),
@@ -169,13 +188,13 @@ def upgrade() -> None:
             server_default=sa.func.now(),
             onupdate=sa.func.now(),
         ),
-        sa.UniqueConstraint(
-            "span_rowid",
-            "name",
-            sqlite_on_conflict="REPLACE",
-        ),
     )
-
+    op.create_index(
+        None,
+        "span_annotations",
+        ["name", "span_rowid"],
+        unique=True,
+    )
     op.create_table(
         "trace_annotations",
         sa.Column("id", sa.Integer, primary_key=True),
@@ -213,13 +232,13 @@ def upgrade() -> None:
             server_default=sa.func.now(),
             onupdate=sa.func.now(),
         ),
-        sa.UniqueConstraint(
-            "trace_rowid",
-            "name",
-            sqlite_on_conflict="REPLACE",
-        ),
     )
-
+    op.create_index(
+        None,
+        "trace_annotations",
+        ["name", "trace_rowid"],
+        unique=True,
+    )
     op.create_table(
         "document_annotations",
         sa.Column("id", sa.Integer, primary_key=True),
@@ -258,14 +277,13 @@ def upgrade() -> None:
             server_default=sa.func.now(),
             onupdate=sa.func.now(),
         ),
-        sa.UniqueConstraint(
-            "span_rowid",
-            "document_position",
-            "name",
-            sqlite_on_conflict="REPLACE",
-        ),
     )
-
+    op.create_index(
+        None,
+        "document_annotations",
+        ["name", "span_rowid", "document_position"],
+        unique=True,
+    )
     op.bulk_insert(
         projects_table,
         [

@@ -2,6 +2,7 @@ from typing import NamedTuple, Optional
 
 from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.functions import count
 from typing_extensions import assert_never
 
 from phoenix.db import models
@@ -73,9 +74,17 @@ async def _insert_trace_evaluation(
     ).where(models.Trace.trace_id == trace_id)
     if not (row := (await session.execute(stmt)).first()):
         raise InsertEvaluationError(
-            f"Cannot insert a trace evaluation for a missing trace: {trace_id=}"
+            f"Cannot insert a trace evaluation for a missing trace: {evaluation_name=}, {trace_id=}"
         )
     project_rowid, trace_rowid = row
+    if await session.scalar(
+        select(count())
+        .where(models.TraceAnnotation.name == evaluation_name)
+        .where(models.TraceAnnotation.trace_rowid == trace_rowid)
+    ):
+        raise InsertEvaluationError(
+            f"Cannot insert duplicate trace evaluation for: {evaluation_name=}, {trace_id=}"
+        )
     await session.execute(
         insert(models.TraceAnnotation).values(
             trace_rowid=trace_rowid,
@@ -108,9 +117,17 @@ async def _insert_span_evaluation(
     )
     if not (row := (await session.execute(stmt)).first()):
         raise InsertEvaluationError(
-            f"Cannot insert a span evaluation for a missing span: {span_id=}"
+            f"Cannot insert a span evaluation for a missing span: {evaluation_name=}, {span_id=}"
         )
     project_rowid, span_rowid = row
+    if await session.scalar(
+        select(count())
+        .where(models.SpanAnnotation.name == evaluation_name)
+        .where(models.SpanAnnotation.span_rowid == span_rowid)
+    ):
+        raise InsertEvaluationError(
+            f"Cannot insert duplicate span evaluation for: {evaluation_name=}, {span_id=}"
+        )
     await session.execute(
         insert(models.SpanAnnotation).values(
             span_rowid=span_rowid,
@@ -146,13 +163,24 @@ async def _insert_document_evaluation(
     )
     if not (row := (await session.execute(stmt)).first()):
         raise InsertEvaluationError(
-            f"Cannot insert a document evaluation for a missing span: {span_id=}"
+            f"Cannot insert a document evaluation for a missing span: "
+            f"{evaluation_name=}, {span_id=}, {document_position=}"
         )
     project_rowid, span_rowid, num_docs = row
     if num_docs is None or num_docs <= document_position:
         raise InsertEvaluationError(
             f"Cannot insert a document evaluation for a non-existent "
-            f"document position: {span_id=}, {document_position=}"
+            f"document position: {evaluation_name=}, {span_id=}, {document_position=}"
+        )
+    if await session.scalar(
+        select(count())
+        .where(models.DocumentAnnotation.name == evaluation_name)
+        .where(models.DocumentAnnotation.span_rowid == span_rowid)
+        .where(models.DocumentAnnotation.document_position == document_position)
+    ):
+        raise InsertEvaluationError(
+            f"Cannot insert duplicate document evaluation for: "
+            f"{evaluation_name=}, {span_id=}, {document_position=}"
         )
     await session.execute(
         insert(models.DocumentAnnotation).values(
