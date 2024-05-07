@@ -225,6 +225,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
                 ),
                 trace_evaluations=TraceEvaluationsDataLoader(self.db),
             ),
+            cache_for_dataloaders=self.cache_for_dataloaders,
         )
 
 

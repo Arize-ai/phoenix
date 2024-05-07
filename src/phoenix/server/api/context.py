@@ -11,6 +11,7 @@ from typing_extensions import TypeAlias
 
 from phoenix.core.model_schema import Model
 from phoenix.server.api.dataloaders import (
+    CacheForDataLoaders,
     DocumentEvaluationsDataLoader,
     DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
@@ -49,6 +50,7 @@ class Context:
     response: Optional[Response]
     db: Callable[[], AsyncContextManager[AsyncSession]]
     data_loaders: DataLoaders
+    cache_for_dataloaders: Optional[CacheForDataLoaders]
     model: Model
     export_path: Path
     corpus: Optional[Model] = None
