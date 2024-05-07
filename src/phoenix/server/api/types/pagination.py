@@ -155,14 +155,14 @@ class Cursor:
 
     _DELIMITER: ClassVar[str] = ":"
 
-    def __str__(self) -> CursorString:
+    def __str__(self) -> str:
         cursor_parts = [str(self.rowid)]
         if (sort_column := self.sort_column) is not None:
             cursor_parts.extend([sort_column.type.name, str(sort_column)])
         return base64.b64encode(self._DELIMITER.join(cursor_parts).encode()).decode()
 
     @classmethod
-    def from_string(cls, cursor: CursorString) -> "Cursor":
+    def from_string(cls, cursor: str) -> "Cursor":
         decoded = base64.b64decode(cursor).decode()
         rowid_string = decoded
         sort_column = None
