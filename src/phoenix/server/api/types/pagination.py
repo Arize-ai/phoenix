@@ -82,18 +82,16 @@ class CursorSortColumn:
         assert_never(self.type)
 
     @classmethod
-    def from_string(
-        cls, type: CursorSortColumnDataType, stringified_value: str
-    ) -> "CursorSortColumn":
+    def from_string(cls, type: CursorSortColumnDataType, cursor_string: str) -> "CursorSortColumn":
         value: CursorSortColumnValue
         if type is CursorSortColumnDataType.STRING:
-            value = stringified_value
+            value = cursor_string
         elif type is CursorSortColumnDataType.INT:
-            value = int(stringified_value)
+            value = int(cursor_string)
         elif type is CursorSortColumnDataType.FLOAT:
-            value = float(stringified_value)
+            value = float(cursor_string)
         elif type is CursorSortColumnDataType.DATETIME:
-            value = datetime.fromisoformat(stringified_value)
+            value = datetime.fromisoformat(cursor_string)
         else:
             assert_never(type)
         return cls(type=type, value=value)
@@ -175,7 +173,7 @@ class Cursor:
                 type=CursorSortColumnDataType[
                     decoded[first_delimiter_index + 1 : second_delimiter_index]
                 ],
-                stringified_value=decoded[second_delimiter_index + 1 :],
+                cursor_string=decoded[second_delimiter_index + 1 :],
             )
         return cls(rowid=int(rowid_string), sort_column=sort_column)
 
