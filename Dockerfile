@@ -32,7 +32,11 @@ RUN pnpm run build
 # The second stage builds the backend.
 FROM python:3.11-bullseye as backend-builder
 WORKDIR /phoenix
-COPY ./ /phoenix/
+COPY ./src /phoenix/src
+COPY ./pyproject.toml /phoenix/
+COPY ./LICENSE /phoenix/
+COPY ./IP_NOTICE /phoenix/
+COPY ./README.md /phoenix/
 COPY --from=frontend-builder /phoenix/src/phoenix/server/static/ /phoenix/src/phoenix/server/static/
 # Delete symbolic links used during development.
 RUN find src/ -xtype l -delete
@@ -49,15 +53,15 @@ RUN pip install --target ./env ".[container, pg]"
 #
 # https://github.com/GoogleContainerTools/distroless?tab=readme-ov-file#debug-images
 #
-# Append :debug to the following line to build the debug image.
-FROM gcr.io/distroless/python3-debian12
+# Use the debug tag in the following line to build the debug image.
+FROM gcr.io/distroless/python3-debian12:nonroot
 WORKDIR /phoenix
 COPY --from=backend-builder /phoenix/env/ ./env
 ENV PYTHONPATH="/phoenix/env:$PYTHONPATH"
 ENV PYTHONUNBUFFERED=1
 # Expose the Phoenix port.
 EXPOSE 6006
-# Expose the Phoenix GRPC port.
+# Expose the Phoenix gRPC port.
 EXPOSE 4317
 # Expose the Prometheus port.
 EXPOSE 9090

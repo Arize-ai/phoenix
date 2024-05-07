@@ -40,6 +40,7 @@ from starlette.types import Scope, StatefulLifespan
 from starlette.websockets import WebSocket
 from strawberry.asgi import GraphQL
 from strawberry.schema import BaseSchema
+from typing_extensions import TypeAlias
 
 import phoenix
 import phoenix.trace.v1 as pb
@@ -145,6 +146,9 @@ class HeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+ProjectRowId: TypeAlias = int
+
+
 class GraphQLWithContext(GraphQL):  # type: ignore
     def __init__(
         self,
@@ -154,7 +158,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
         export_path: Path,
         graphiql: bool = False,
         corpus: Optional[Model] = None,
-        streaming_last_updated_at: Callable[[], Optional[datetime]] = lambda: None,
+        streaming_last_updated_at: Callable[[ProjectRowId], Optional[datetime]] = lambda _: None,
         cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
     ) -> None:
         self.db = db
@@ -260,11 +264,13 @@ def _lifespan(
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
     clean_ups: Iterable[Callable[[], None]] = (),
+    read_only: bool = False,
 ) -> StatefulLifespan[Starlette]:
     @contextlib.asynccontextmanager
     async def lifespan(_: Starlette) -> AsyncIterator[Dict[str, Any]]:
         async with bulk_inserter as (queue_span, queue_evaluation), GrpcServer(
             queue_span,
+            disabled=read_only,
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,
         ):
@@ -379,7 +385,7 @@ def create_app(
         corpus=corpus,
         export_path=export_path,
         graphiql=True,
-        streaming_last_updated_at=lambda: bulk_inserter.last_inserted_at,
+        streaming_last_updated_at=bulk_inserter.last_updated_at,
         cache_for_dataloaders=cache_for_dataloaders,
     )
     if enable_prometheus:
@@ -390,6 +396,7 @@ def create_app(
         prometheus_middlewares = []
     app = Starlette(
         lifespan=_lifespan(
+            read_only=read_only,
             bulk_inserter=bulk_inserter,
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,
