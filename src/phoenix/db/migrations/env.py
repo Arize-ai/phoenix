@@ -48,6 +48,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        transaction_per_migration=True,
     )
 
     with context.begin_transaction():
@@ -90,20 +91,27 @@ def run_migrations_online() -> None:
         run_migrations(connectable)
 
 
-async def run_async_migrations(engine: AsyncEngine) -> None:
-    async with engine.connect() as connection:
+async def run_async_migrations(connectable: AsyncEngine) -> None:
+    async with connectable.connect() as connection:
         await connection.run_sync(run_migrations)
-    await engine.dispose()
 
 
 def run_migrations(connection: Connection) -> None:
-    context.configure(
-        connection=connection,
-        target_metadata=target_metadata,
-        compare_type=True,
-    )
-    with context.begin_transaction():
+    transaction = connection.begin()
+    try:
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+            transactional_ddl=True,
+            transaction_per_migration=True,
+        )
         context.run_migrations()
+    except Exception:
+        transaction.rollback()
+        raise
+    finally:
+        connection.close()
 
 
 if context.is_offline_mode():
