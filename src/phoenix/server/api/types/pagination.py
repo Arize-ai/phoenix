@@ -43,7 +43,7 @@ class PageInfo:
 
 
 # A type alias for the connection cursor implementation
-Cursor = str
+CursorString = str
 
 
 @strawberry.type
@@ -100,20 +100,20 @@ class SortableField:
 
 
 @dataclass
-class NodeIdentifier:
+class Cursor:
     rowid: int
     sortable_field: Optional[SortableField] = None
 
     _DELIMITER: ClassVar[str] = ":"
 
-    def to_cursor(self) -> Cursor:
+    def __str__(self) -> CursorString:
         cursor_components = [str(self.rowid)]
         if (sortable_field := self.sortable_field) is not None:
             cursor_components.extend([sortable_field.type.name, sortable_field.stringify_value()])
         return base64.b64encode(self._DELIMITER.join(cursor_components).encode()).decode()
 
     @classmethod
-    def from_cursor(cls, cursor: Cursor) -> "NodeIdentifier":
+    def from_string(cls, cursor: CursorString) -> "Cursor":
         decoded = base64.b64decode(cursor).decode()
         rowid_string = decoded
         sortable_field = None
@@ -127,14 +127,14 @@ class NodeIdentifier:
         return cls(rowid=int(rowid_string), sortable_field=sortable_field)
 
 
-def offset_to_cursor(offset: int) -> Cursor:
+def offset_to_cursor(offset: int) -> CursorString:
     """
     Creates the cursor string from an offset.
     """
     return base64.b64encode(f"{CURSOR_PREFIX}{offset}".encode("utf-8")).decode()
 
 
-def cursor_to_offset(cursor: Cursor) -> int:
+def cursor_to_offset(cursor: CursorString) -> int:
     """
     Extracts the offset from the cursor string.
     """
@@ -142,13 +142,13 @@ def cursor_to_offset(cursor: Cursor) -> int:
     return int(offset)
 
 
-def get_offset_with_default(cursor: Optional[Cursor], default_offset: int) -> int:
+def get_offset_with_default(cursor: Optional[CursorString], default_offset: int) -> int:
     """
     Given an optional cursor and a default offset, returns the offset
     to use; if the cursor contains a valid offset, that will be used,
     otherwise it will be the default.
     """
-    if not isinstance(cursor, Cursor):
+    if not isinstance(cursor, CursorString):
         return default_offset
     offset = cursor_to_offset(cursor)
     return offset if isinstance(offset, int) else default_offset
@@ -161,9 +161,9 @@ class ConnectionArgs:
     """
 
     first: Optional[int] = UNSET
-    after: Optional[Cursor] = UNSET
+    after: Optional[CursorString] = UNSET
     last: Optional[int] = UNSET
-    before: Optional[Cursor] = UNSET
+    before: Optional[CursorString] = UNSET
 
 
 def connection_from_list(
@@ -245,13 +245,11 @@ def connection_from_list_slice(
 
 
 def connections(
-    data: List[Tuple[NodeIdentifier, GenericType]],
+    data: List[Tuple[Cursor, GenericType]],
     has_previous_page: bool,
     has_next_page: bool,
 ) -> Connection[GenericType]:
-    edges = [
-        Edge(node=node, cursor=tuple_identifier.to_cursor()) for tuple_identifier, node in data
-    ]
+    edges = [Edge(node=node, cursor=str(cursor)) for cursor, node in data]
     has_edges = len(edges) > 0
     first_edge = edges[0] if has_edges else None
     last_edge = edges[-1] if has_edges else None

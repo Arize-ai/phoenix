@@ -19,7 +19,7 @@ from .DatasetRole import AncillaryDatasetRole, DatasetRole
 from .Dimension import Dimension, to_gql_dimension
 from .EmbeddingDimension import EmbeddingDimension, to_gql_embedding_dimension
 from .ExportedFile import ExportedFile
-from .pagination import Connection, ConnectionArgs, Cursor, connection_from_list
+from .pagination import Connection, ConnectionArgs, CursorString, connection_from_list
 from .TimeSeries import (
     PerformanceTimeSeries,
     ensure_timeseries_parameters,
@@ -35,8 +35,8 @@ class Model:
         info: Info[Context, None],
         first: Optional[int] = 50,
         last: Optional[int] = UNSET,
-        after: Optional[Cursor] = UNSET,
-        before: Optional[Cursor] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
         include: Optional[DimensionFilter] = UNSET,
         exclude: Optional[DimensionFilter] = UNSET,
     ) -> Connection[Dimension]:
@@ -50,9 +50,9 @@ class Model:
             ],
             args=ConnectionArgs(
                 first=first,
-                after=after if isinstance(after, Cursor) else None,
+                after=after if isinstance(after, CursorString) else None,
                 last=last,
-                before=before if isinstance(before, Cursor) else None,
+                before=before if isinstance(before, CursorString) else None,
             ),
         )
 
@@ -105,8 +105,8 @@ class Model:
         info: Info[Context, None],
         first: Optional[int] = 50,
         last: Optional[int] = UNSET,
-        after: Optional[Cursor] = UNSET,
-        before: Optional[Cursor] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
     ) -> Connection[EmbeddingDimension]:
         """
         A non-trivial implementation should efficiently fetch only
@@ -123,9 +123,9 @@ class Model:
             ],
             args=ConnectionArgs(
                 first=first,
-                after=after if isinstance(after, Cursor) else None,
+                after=after if isinstance(after, CursorString) else None,
                 last=last,
-                before=before if isinstance(before, Cursor) else None,
+                before=before if isinstance(before, CursorString) else None,
             ),
         )
 

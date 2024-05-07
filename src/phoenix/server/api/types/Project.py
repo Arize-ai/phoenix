@@ -21,7 +21,7 @@ from phoenix.server.api.types.node import Node
 from phoenix.server.api.types.pagination import (
     Connection,
     Cursor,
-    NodeIdentifier,
+    CursorString,
     SortableField,
     connections,
 )
@@ -158,8 +158,8 @@ class Project(Node):
         time_range: Optional[TimeRange] = UNSET,
         first: Optional[int] = 50,
         last: Optional[int] = UNSET,
-        after: Optional[Cursor] = UNSET,
-        before: Optional[Cursor] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
         sort: Optional[SpanSort] = UNSET,
         root_spans_only: Optional[bool] = UNSET,
         filter_condition: Optional[str] = UNSET,
@@ -194,7 +194,7 @@ class Project(Node):
             sort_result = sort.update_orm_expr(stmt)
             stmt = sort_result.stmt
         if after:
-            node_identifier = NodeIdentifier.from_cursor(after)
+            node_identifier = Cursor.from_string(after)
             if node_identifier.sortable_field is not None:
                 sortable_field = node_identifier.sortable_field
                 assert sort is not None  # todo: refactor this into a validation check
@@ -219,7 +219,7 @@ class Project(Node):
             async for row in islice(rows, first):
                 span = row[0]
                 eval_value = row[1] if len(row) > 1 else None
-                node_identifier = NodeIdentifier(
+                node_identifier = Cursor(
                     rowid=span.id,
                     sortable_field=(
                         SortableField(

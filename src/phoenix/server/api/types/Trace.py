@@ -13,7 +13,7 @@ from phoenix.server.api.types.node import Node
 from phoenix.server.api.types.pagination import (
     Connection,
     ConnectionArgs,
-    Cursor,
+    CursorString,
     connection_from_list,
 )
 from phoenix.server.api.types.Span import Span, to_gql_span
@@ -27,14 +27,14 @@ class Trace(Node):
         info: Info[Context, None],
         first: Optional[int] = 50,
         last: Optional[int] = UNSET,
-        after: Optional[Cursor] = UNSET,
-        before: Optional[Cursor] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
     ) -> Connection[Span]:
         args = ConnectionArgs(
             first=first,
-            after=after if isinstance(after, Cursor) else None,
+            after=after if isinstance(after, CursorString) else None,
             last=last,
-            before=before if isinstance(before, Cursor) else None,
+            before=before if isinstance(before, CursorString) else None,
         )
         stmt = (
             select(models.Span)
