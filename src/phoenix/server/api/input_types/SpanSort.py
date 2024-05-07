@@ -34,7 +34,7 @@ class SpanColumn(Enum):
     cumulativeTokenCountCompletion = auto()
 
     @property
-    def orm_key(self) -> str:
+    def column_name(self) -> str:
         return cast(str, self.orm_expression.name)
 
     @property
@@ -88,7 +88,7 @@ class EvalAttr(Enum):
     label = "label"
 
     @property
-    def orm_key(self) -> str:
+    def column_name(self) -> str:
         return f"span_annotations_{self.value}"
 
     @property
@@ -100,7 +100,7 @@ class EvalAttr(Enum):
             expr = models.SpanAnnotation.label
         else:
             assert_never(self)
-        return expr.label(self.orm_key)
+        return expr.label(self.column_name)
 
     @property
     def data_type(self) -> SortColumnDataType:
@@ -122,9 +122,9 @@ class SupportsGetSpanEvaluation(Protocol):
 
 
 @dataclass(frozen=True)
-class SpanSortResult:
+class SpanSortConfig:
     stmt: Select[Any]
-    orm_key: str
+    column_name: str
     orm_expression: Any
     data_type: SortColumnDataType
 
@@ -138,14 +138,14 @@ class SpanSort:
     eval_result_key: Optional[EvalResultKey] = UNSET
     dir: SortDir
 
-    def update_orm_expr(self, stmt: Select[Any]) -> SpanSortResult:
+    def update_orm_expr(self, stmt: Select[Any]) -> SpanSortConfig:
         if (col := self.col) and not self.eval_result_key:
             expr = col.orm_expression
             if self.dir == SortDir.desc:
                 expr = desc(expr)
-            return SpanSortResult(
+            return SpanSortConfig(
                 stmt=stmt.order_by(nulls_last(expr)),
-                orm_key=col.orm_key,
+                column_name=col.column_name,
                 orm_expression=col.orm_expression,
                 data_type=col.data_type,
             )
@@ -163,9 +163,9 @@ class SpanSort:
                     models.SpanAnnotation.name == eval_name,
                 ),
             ).order_by(expr)
-            return SpanSortResult(
+            return SpanSortConfig(
                 stmt=stmt,
-                orm_key=eval_attr.orm_key,
+                column_name=eval_attr.column_name,
                 orm_expression=eval_result_key.attr.orm_expression,
                 data_type=eval_attr.data_type,
             )

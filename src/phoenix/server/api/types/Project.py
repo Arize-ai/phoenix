@@ -13,7 +13,7 @@ from strawberry.types import Info
 from phoenix.datetime_utils import right_open_time_range
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortResult
+from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortConfig
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
 from phoenix.server.api.types.EvaluationSummary import EvaluationSummary
@@ -189,20 +189,20 @@ class Project(Node):
             span_filter = SpanFilter(condition=filter_condition)
             stmt = span_filter(stmt)
         sort_column: Optional[SortColumn] = None
-        sort_result: Optional[SpanSortResult] = None
+        sort_config: Optional[SpanSortConfig] = None
         if sort:
-            sort_result = sort.update_orm_expr(stmt)
-            stmt = sort_result.stmt
+            sort_config = sort.update_orm_expr(stmt)
+            stmt = sort_config.stmt
         if after:
             cursor = Cursor.from_string(after)
             if cursor.sort_column is not None:
                 sort_column = cursor.sort_column
                 assert sort is not None  # todo: refactor this into a validation check
                 compare = operator.lt if sort.dir is SortDir.desc else operator.gt
-                if sort_result:
+                if sort_config:
                     stmt = stmt.where(
                         compare(
-                            tuple_(sort_result.orm_expression, models.Span.id),
+                            tuple_(sort_config.orm_expression, models.Span.id),
                             (sort_column.value, cursor.rowid),
                         )
                     )
@@ -215,20 +215,20 @@ class Project(Node):
         stmt = stmt.order_by(desc(models.Span.id))
         data = []
         async with info.context.db() as session:
-            rows = await session.execute(stmt)
-            async for row in islice(rows, first):
-                span = row[0]
-                eval_value = row[1] if len(row) > 1 else None
+            span_records = await session.execute(stmt)
+            async for span_record in islice(span_records, first):
+                span = span_record[0]
+                eval_value = span_record[1] if len(span_record) > 1 else None
                 cursor = Cursor(
                     rowid=span.id,
                     sort_column=(
                         SortColumn(
-                            type=sort_result.data_type,
+                            type=sort_config.data_type,
                             value=eval_value
                             if eval_value is not None
-                            else getattr(span, sort_result.orm_key),
+                            else getattr(span, sort_config.column_name),
                         )
-                        if sort_result
+                        if sort_config
                         else None
                     ),
                 )
@@ -236,7 +236,7 @@ class Project(Node):
         # todo: does this need to be inside the async with block?
         has_next_page = True
         try:
-            next(rows)
+            next(span_records)
         except StopIteration:
             has_next_page = False
 
