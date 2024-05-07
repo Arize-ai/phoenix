@@ -194,20 +194,20 @@ class Project(Node):
             sort_result = sort.update_orm_expr(stmt)
             stmt = sort_result.stmt
         if after:
-            node_identifier = Cursor.from_string(after)
-            if node_identifier.sort_column is not None:
-                sort_column = node_identifier.sort_column
+            cursor = Cursor.from_string(after)
+            if cursor.sort_column is not None:
+                sort_column = cursor.sort_column
                 assert sort is not None  # todo: refactor this into a validation check
                 compare = operator.lt if sort.dir is SortDir.desc else operator.gt
                 if sort_result:
                     stmt = stmt.where(
                         compare(
                             tuple_(sort_result.orm_expression, models.Span.id),
-                            (sort_column.value, node_identifier.rowid),
+                            (sort_column.value, cursor.rowid),
                         )
                     )
             else:
-                stmt = stmt.where(models.Span.id < node_identifier.rowid)
+                stmt = stmt.where(models.Span.id < cursor.rowid)
         if first:
             stmt = stmt.limit(
                 first + 1  # overfetch by one to determine whether there's a next page
@@ -219,7 +219,7 @@ class Project(Node):
             async for row in islice(rows, first):
                 span = row[0]
                 eval_value = row[1] if len(row) > 1 else None
-                node_identifier = Cursor(
+                cursor = Cursor(
                     rowid=span.id,
                     sort_column=(
                         SortColumn(
@@ -232,7 +232,7 @@ class Project(Node):
                         else None
                     ),
                 )
-                data.append((node_identifier, to_gql_span(span)))
+                data.append((cursor, to_gql_span(span)))
         # todo: does this need to be inside the async with block?
         has_next_page = True
         try:
