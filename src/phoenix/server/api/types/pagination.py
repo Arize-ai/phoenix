@@ -101,6 +101,57 @@ class CursorSortColumn:
 
 @dataclass
 class Cursor:
+    """
+    Serializes and deserializes cursor strings for ID-based pagination.
+
+    In the simplest case, a cursor encodes the rowid of a record. In the case
+    that a sort has been applied, the cursor additionally encodes the data type
+    and value of the column indexed for sorting so that the sort position can be
+    efficiently found. The encoding ensures that the cursor string is opaque to
+    the client and discourages the client from making use of the encoded
+    content.
+
+    Examples:
+        # encodes "10"
+        Cursor(rowid=10)
+
+        # encodes "11:STRING:abc"
+        Cursor(
+            rowid=11,
+            sort_column=CursorSortColumn(
+                type=CursorSortColumnDataType.STRING,
+                value="abc"
+            )
+        )
+
+        # encodes "10:INT:5"
+        Cursor(
+            rowid=10,
+            sort_column=CursorSortColumn(
+                type=CursorSortColumnDataType.INT,
+                value=5
+            )
+        )
+
+        # encodes "17:FLOAT:5.7"
+        Cursor(
+            rowid=17,
+            sort_column=CursorSortColumn(
+                type=CursorSortColumnDataType.FLOAT,
+                value=5.7
+            )
+        )
+
+        # encodes "20:DATETIME:2024-05-05T04:25:29.911245+00:00"
+        Cursor(
+            rowid=20,
+            sort_column=CursorSortColumn(
+                type=CursorSortColumnDataType.DATETIME,
+                value=datetime.fromisoformat("2024-05-05T04:25:29.911245+00:00")
+            )
+        )
+    """
+
     rowid: int
     sort_column: Optional[CursorSortColumn] = None
 
