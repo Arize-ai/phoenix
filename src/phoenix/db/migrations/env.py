@@ -103,6 +103,7 @@ def run_migrations(connection: Connection) -> None:
             connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
+            transactional_ddl=True,
             transaction_per_migration=True,
         )
         context.run_migrations()
