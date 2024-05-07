@@ -197,13 +197,12 @@ class Project(Node):
             if sort_config and cursor.sort_column:
                 sort_column = cursor.sort_column
                 compare = operator.lt if sort_config.dir is SortDir.desc else operator.gt
-                if sort_config:
-                    stmt = stmt.where(
-                        compare(
-                            tuple_(sort_config.orm_expression, models.Span.id),
-                            (sort_column.value, cursor.rowid),
-                        )
+                stmt = stmt.where(
+                    compare(
+                        tuple_(sort_config.orm_expression, models.Span.id),
+                        (sort_column.value, cursor.rowid),
                     )
+                )
             else:
                 stmt = stmt.where(models.Span.id < cursor.rowid)
         if first:
