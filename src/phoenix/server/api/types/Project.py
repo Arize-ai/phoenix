@@ -188,7 +188,6 @@ class Project(Node):
         if filter_condition:
             span_filter = SpanFilter(condition=filter_condition)
             stmt = span_filter(stmt)
-        sort_column: Optional[CursorSortColumn] = None
         sort_config: Optional[SpanSortConfig] = None
         if sort:
             sort_config = sort.update_orm_expr(stmt)
