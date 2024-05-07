@@ -195,10 +195,9 @@ class Project(Node):
             stmt = sort_config.stmt
         if after:
             cursor = Cursor.from_string(after)
-            if cursor.sort_column is not None:
+            if sort_config and cursor.sort_column:
                 sort_column = cursor.sort_column
-                assert sort is not None  # todo: refactor this into a validation check
-                compare = operator.lt if sort.dir is SortDir.desc else operator.gt
+                compare = operator.lt if sort_config.dir is SortDir.desc else operator.gt
                 if sort_config:
                     stmt = stmt.where(
                         compare(
@@ -223,7 +222,7 @@ class Project(Node):
                     rowid=span.id,
                     sort_column=(
                         CursorSortColumn(
-                            type=sort_config.data_type,
+                            type=sort_config.column_data_type,
                             value=eval_value
                             if eval_value is not None
                             else getattr(span, sort_config.column_name),

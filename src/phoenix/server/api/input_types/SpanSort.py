@@ -127,9 +127,10 @@ class SupportsGetSpanEvaluation(Protocol):
 @dataclass(frozen=True)
 class SpanSortConfig:
     stmt: Select[Any]
-    column_name: str
     orm_expression: Any
-    data_type: CursorSortColumnDataType
+    dir: SortDir
+    column_name: str
+    column_data_type: CursorSortColumnDataType
 
 
 @strawberry.input(
@@ -148,9 +149,10 @@ class SpanSort:
                 expr = desc(expr)
             return SpanSortConfig(
                 stmt=stmt.order_by(nulls_last(expr)),
-                column_name=col.column_name,
                 orm_expression=col.orm_expression,
-                data_type=col.data_type,
+                dir=self.dir,
+                column_name=col.column_name,
+                column_data_type=col.data_type,
             )
         if (eval_result_key := self.eval_result_key) and not col:
             eval_name = eval_result_key.name
@@ -168,8 +170,9 @@ class SpanSort:
             ).order_by(expr)
             return SpanSortConfig(
                 stmt=stmt,
-                column_name=eval_attr.column_name,
                 orm_expression=eval_result_key.attr.orm_expression,
-                data_type=eval_attr.data_type,
+                dir=self.dir,
+                column_name=eval_attr.column_name,
+                column_data_type=eval_attr.data_type,
             )
         raise ValueError("Exactly one of `col` or `evalResultKey` must be specified on `SpanSort`.")
