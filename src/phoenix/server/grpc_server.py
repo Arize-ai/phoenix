@@ -51,13 +51,17 @@ class GrpcServer:
         callback: Callable[[Span, ProjectName], Awaitable[None]],
         tracer_provider: Optional["TracerProvider"] = None,
         enable_prometheus: bool = False,
+        disabled: bool = False,
     ) -> None:
         self._callback = callback
         self._server: Optional[Server] = None
         self._tracer_provider = tracer_provider
         self._enable_prometheus = enable_prometheus
+        self._disabled = disabled
 
     async def __aenter__(self) -> None:
+        if self._disabled:
+            return
         interceptors: List[ServerInterceptor] = []
         if self._enable_prometheus:
             ...
