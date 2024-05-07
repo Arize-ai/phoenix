@@ -11,6 +11,8 @@ SELECT COUNT(ArtistId) \nFROM artists \nWHERE LENGTH(Name) > 10
 
 The goal of the SQL generation Evaluation is to determine if the SQL generated is correct based on the question asked.&#x20;
 
+{% embed url="https://colab.research.google.com/drive/1e_gxetWuIsve0LWP__qjosHT0D_RGelA?usp=sharing" %}
+
 ```python
 
 SQL Evaluation Prompt:
