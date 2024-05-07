@@ -1,8 +1,7 @@
 from typing import NamedTuple, Optional
 
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql.functions import count
 from typing_extensions import assert_never
 
 from phoenix.db import models
@@ -77,25 +76,37 @@ async def _insert_trace_evaluation(
             f"Cannot insert a trace evaluation for a missing trace: {evaluation_name=}, {trace_id=}"
         )
     project_rowid, trace_rowid = row
-    if await session.scalar(
-        select(count())
-        .where(models.TraceAnnotation.name == evaluation_name)
-        .where(models.TraceAnnotation.trace_rowid == trace_rowid)
+    mta = models.TraceAnnotation
+    if anno := await session.scalar(
+        select(mta).where(mta.name == evaluation_name).where(mta.trace_rowid == trace_rowid)
     ):
-        raise InsertEvaluationError(
-            f"Cannot insert duplicate trace evaluation for: {evaluation_name=}, {trace_id=}"
+        if (
+            score is not None
+            and score != anno.score
+            or label is not None
+            and label != anno.label
+            or explanation is not None
+            and explanation != anno.explanation
+        ):
+            await session.execute(
+                update(mta).values(
+                    label=label if label is not None else anno.label,
+                    score=score if score is not None else anno.score,
+                    explanation=explanation if explanation is not None else anno.explanation,
+                )
+            )
+    else:
+        await session.execute(
+            insert(mta).values(
+                trace_rowid=trace_rowid,
+                name=evaluation_name,
+                label=label,
+                score=score,
+                explanation=explanation,
+                metadata_={},
+                annotator_kind="LLM",
+            )
         )
-    await session.execute(
-        insert(models.TraceAnnotation).values(
-            trace_rowid=trace_rowid,
-            name=evaluation_name,
-            label=label,
-            score=score,
-            explanation=explanation,
-            metadata_={},
-            annotator_kind="LLM",
-        )
-    )
     return TraceEvaluationInsertionResult(project_rowid, evaluation_name)
 
 
@@ -120,25 +131,37 @@ async def _insert_span_evaluation(
             f"Cannot insert a span evaluation for a missing span: {evaluation_name=}, {span_id=}"
         )
     project_rowid, span_rowid = row
-    if await session.scalar(
-        select(count())
-        .where(models.SpanAnnotation.name == evaluation_name)
-        .where(models.SpanAnnotation.span_rowid == span_rowid)
+    msa = models.SpanAnnotation
+    if anno := await session.scalar(
+        select(msa).where(msa.name == evaluation_name).where(msa.span_rowid == span_rowid)
     ):
-        raise InsertEvaluationError(
-            f"Cannot insert duplicate span evaluation for: {evaluation_name=}, {span_id=}"
+        if (
+            score is not None
+            and score != anno.score
+            or label is not None
+            and label != anno.label
+            or explanation is not None
+            and explanation != anno.explanation
+        ):
+            await session.execute(
+                update(msa).values(
+                    label=label if label is not None else anno.label,
+                    score=score if score is not None else anno.score,
+                    explanation=explanation if explanation is not None else anno.explanation,
+                )
+            )
+    else:
+        await session.execute(
+            insert(msa).values(
+                span_rowid=span_rowid,
+                name=evaluation_name,
+                label=label,
+                score=score,
+                explanation=explanation,
+                metadata_={},
+                annotator_kind="LLM",
+            )
         )
-    await session.execute(
-        insert(models.SpanAnnotation).values(
-            span_rowid=span_rowid,
-            name=evaluation_name,
-            label=label,
-            score=score,
-            explanation=explanation,
-            metadata_={},
-            annotator_kind="LLM",
-        )
-    )
     return SpanEvaluationInsertionResult(project_rowid, evaluation_name)
 
 
@@ -172,26 +195,39 @@ async def _insert_document_evaluation(
             f"Cannot insert a document evaluation for a non-existent "
             f"document position: {evaluation_name=}, {span_id=}, {document_position=}"
         )
-    if await session.scalar(
-        select(count())
-        .where(models.DocumentAnnotation.name == evaluation_name)
-        .where(models.DocumentAnnotation.span_rowid == span_rowid)
-        .where(models.DocumentAnnotation.document_position == document_position)
+    mda = models.DocumentAnnotation
+    if anno := await session.scalar(
+        select(mda)
+        .where(mda.name == evaluation_name)
+        .where(mda.span_rowid == span_rowid)
+        .where(mda.document_position == document_position)
     ):
-        raise InsertEvaluationError(
-            f"Cannot insert duplicate document evaluation for: "
-            f"{evaluation_name=}, {span_id=}, {document_position=}"
+        if (
+            score is not None
+            and score != anno.score
+            or label is not None
+            and label != anno.label
+            or explanation is not None
+            and explanation != anno.explanation
+        ):
+            await session.execute(
+                update(mda).values(
+                    label=label if label is not None else anno.label,
+                    score=score if score is not None else anno.score,
+                    explanation=explanation if explanation is not None else anno.explanation,
+                )
+            )
+    else:
+        await session.execute(
+            insert(mda).values(
+                span_rowid=span_rowid,
+                document_position=document_position,
+                name=evaluation_name,
+                label=label,
+                score=score,
+                explanation=explanation,
+                metadata_={},
+                annotator_kind="LLM",
+            )
         )
-    await session.execute(
-        insert(models.DocumentAnnotation).values(
-            span_rowid=span_rowid,
-            document_position=document_position,
-            name=evaluation_name,
-            label=label,
-            score=score,
-            explanation=explanation,
-            metadata_={},
-            annotator_kind="LLM",
-        )
-    )
     return DocumentEvaluationInsertionResult(project_rowid, evaluation_name)
