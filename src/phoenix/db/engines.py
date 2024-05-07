@@ -127,8 +127,6 @@ def aio_postgresql_engine(
     echo: bool = False,
 ) -> AsyncEngine:
     engine = create_async_engine(url=url, echo=echo, json_serializer=_dumps)
-    # TODO(persistence): figure out the postgres pragma
-    # event.listen(engine.sync_engine, "connect", set_pragma)
     if not migrate:
         return engine
     migrate_in_thread(engine.url)

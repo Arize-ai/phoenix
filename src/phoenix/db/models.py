@@ -240,10 +240,11 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     start_time, end_time = list(element.clauses)
     return compiler.process(
-        # FIXME: We don't know why sqlite returns a slightly different value.
+        # We don't know why sqlite returns a slightly different value.
         # postgresql is correct because it matches the value computed by Python.
-        # unixepoch() gives the same results.
-        func.round((func.julianday(end_time) - func.julianday(start_time)) * 86_400_000, 1),
+        func.round(
+            (func.unixepoch(end_time, "subsec") - func.unixepoch(start_time, "subsec")) * 1000, 1
+        ),
         **kw,
     )
 
