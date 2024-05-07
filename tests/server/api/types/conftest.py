@@ -46,6 +46,7 @@ def context_factory() -> Callable[[Inferences, Optional[Inferences]], Context]:
             export_path=Path(TemporaryDirectory().name),
             db=None,  # TODO(persistence): add mock for db
             data_loaders=None,  # TODO(persistence): add mock for data_loaders
+            cache_for_dataloaders=None,
         )
 
     return create_context

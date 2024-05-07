@@ -295,9 +295,8 @@ class Mutation(ExportEventsMutation):
         delete_statement = delete(models.Trace).where(models.Trace.project_rowid == project_id)
         async with info.context.db() as session:
             await session.execute(delete_statement)
-            info.context.cache_for_dataloaders.invalidate(
-                ClearProjectSpansResult(project_rowid=project_id)
-            )
+            if cache := info.context.cache_for_dataloaders:
+                cache.invalidate(ClearProjectSpansResult(project_rowid=project_id))
         return Query()
 
 
