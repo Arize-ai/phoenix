@@ -12,6 +12,7 @@ from typing_extensions import Annotated
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
+from phoenix.db.insertion.span import ClearProjectSpansResult
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.context import Context
 from phoenix.server.api.helpers import ensure_list
@@ -294,6 +295,9 @@ class Mutation(ExportEventsMutation):
         delete_statement = delete(models.Trace).where(models.Trace.project_rowid == project_id)
         async with info.context.db() as session:
             await session.execute(delete_statement)
+            info.context.cache_for_dataloaders.invalidate(
+                ClearProjectSpansResult(project_rowid=project_id)
+            )
         return Query()
 
 

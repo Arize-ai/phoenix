@@ -14,6 +14,10 @@ class SpanInsertionResult(NamedTuple):
     project_rowid: int
 
 
+class ClearProjectSpansResult(NamedTuple):
+    project_rowid: int
+
+
 async def insert_span(
     session: AsyncSession,
     span: Span,
