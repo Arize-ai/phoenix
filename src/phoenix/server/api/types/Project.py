@@ -22,7 +22,7 @@ from phoenix.server.api.types.pagination import (
     Connection,
     Cursor,
     CursorString,
-    SortableField,
+    SortColumn,
     connections,
 )
 from phoenix.server.api.types.SortDir import SortDir
@@ -188,22 +188,22 @@ class Project(Node):
         if filter_condition:
             span_filter = SpanFilter(condition=filter_condition)
             stmt = span_filter(stmt)
-        sortable_field: Optional[SortableField] = None
+        sort_column: Optional[SortColumn] = None
         sort_result: Optional[SpanSortResult] = None
         if sort:
             sort_result = sort.update_orm_expr(stmt)
             stmt = sort_result.stmt
         if after:
             node_identifier = Cursor.from_string(after)
-            if node_identifier.sortable_field is not None:
-                sortable_field = node_identifier.sortable_field
+            if node_identifier.sort_column is not None:
+                sort_column = node_identifier.sort_column
                 assert sort is not None  # todo: refactor this into a validation check
                 compare = operator.lt if sort.dir is SortDir.desc else operator.gt
                 if sort_result:
                     stmt = stmt.where(
                         compare(
                             tuple_(sort_result.orm_expression, models.Span.id),
-                            (sortable_field.value, node_identifier.rowid),
+                            (sort_column.value, node_identifier.rowid),
                         )
                     )
             else:
@@ -221,8 +221,8 @@ class Project(Node):
                 eval_value = row[1] if len(row) > 1 else None
                 node_identifier = Cursor(
                     rowid=span.id,
-                    sortable_field=(
-                        SortableField(
+                    sort_column=(
+                        SortColumn(
                             type=sort_result.data_type,
                             value=eval_value
                             if eval_value is not None

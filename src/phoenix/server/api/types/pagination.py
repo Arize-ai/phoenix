@@ -10,7 +10,7 @@ from typing_extensions import TypeAlias, assert_never
 
 ID: TypeAlias = int
 GenericType = TypeVar("GenericType")
-SortableFieldValue: TypeAlias = Union[str, int, float, datetime]
+SortColumnValue: TypeAlias = Union[str, int, float, datetime]
 
 
 @strawberry.type
@@ -60,7 +60,7 @@ class Edge(Generic[GenericType]):
 CURSOR_PREFIX = "connection:"
 
 
-class SortableFieldType(Enum):
+class SortColumnDataType(Enum):
     STRING = auto()
     INT = auto()
     FLOAT = auto()
@@ -68,11 +68,11 @@ class SortableFieldType(Enum):
 
 
 @dataclass
-class SortableField:
-    type: SortableFieldType
-    value: SortableFieldValue
+class SortColumn:
+    type: SortColumnDataType
+    value: SortColumnValue
 
-    def stringify_value(self) -> str:
+    def __str__(self) -> str:
         if isinstance(self.value, str):
             return self.value
         if isinstance(self.value, (int, float)):
@@ -82,17 +82,15 @@ class SortableField:
         assert_never(self.type)
 
     @classmethod
-    def from_stringified_value(
-        cls, type: SortableFieldType, stringified_value: str
-    ) -> "SortableField":
-        value: SortableFieldValue
-        if type is SortableFieldType.STRING:
+    def from_string(cls, type: SortColumnDataType, stringified_value: str) -> "SortColumn":
+        value: SortColumnValue
+        if type is SortColumnDataType.STRING:
             value = stringified_value
-        elif type is SortableFieldType.INT:
+        elif type is SortColumnDataType.INT:
             value = int(stringified_value)
-        elif type is SortableFieldType.FLOAT:
+        elif type is SortColumnDataType.FLOAT:
             value = float(stringified_value)
-        elif type is SortableFieldType.DATETIME:
+        elif type is SortColumnDataType.DATETIME:
             value = datetime.fromisoformat(stringified_value)
         else:
             assert_never(type)
@@ -102,29 +100,31 @@ class SortableField:
 @dataclass
 class Cursor:
     rowid: int
-    sortable_field: Optional[SortableField] = None
+    sort_column: Optional[SortColumn] = None
 
     _DELIMITER: ClassVar[str] = ":"
 
     def __str__(self) -> CursorString:
-        cursor_components = [str(self.rowid)]
-        if (sortable_field := self.sortable_field) is not None:
-            cursor_components.extend([sortable_field.type.name, sortable_field.stringify_value()])
-        return base64.b64encode(self._DELIMITER.join(cursor_components).encode()).decode()
+        cursor_parts = [str(self.rowid)]
+        if (sort_column := self.sort_column) is not None:
+            cursor_parts.extend([sort_column.type.name, str(sort_column)])
+        return base64.b64encode(self._DELIMITER.join(cursor_parts).encode()).decode()
 
     @classmethod
     def from_string(cls, cursor: CursorString) -> "Cursor":
         decoded = base64.b64decode(cursor).decode()
         rowid_string = decoded
-        sortable_field = None
+        sort_column = None
         if (first_delimiter_index := decoded.find(cls._DELIMITER)) > -1:
             rowid_string = decoded[:first_delimiter_index]
             second_delimiter_index = decoded.index(cls._DELIMITER, first_delimiter_index + 1)
-            sortable_field = SortableField.from_stringified_value(
-                type=SortableFieldType[decoded[first_delimiter_index + 1 : second_delimiter_index]],
+            sort_column = SortColumn.from_string(
+                type=SortColumnDataType[
+                    decoded[first_delimiter_index + 1 : second_delimiter_index]
+                ],
                 stringified_value=decoded[second_delimiter_index + 1 :],
             )
-        return cls(rowid=int(rowid_string), sortable_field=sortable_field)
+        return cls(rowid=int(rowid_string), sort_column=sort_column)
 
 
 def offset_to_cursor(offset: int) -> CursorString:

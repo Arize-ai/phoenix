@@ -12,7 +12,7 @@ from typing_extensions import assert_never
 
 import phoenix.trace.v1 as pb
 from phoenix.db import models
-from phoenix.server.api.types.pagination import SortableFieldType
+from phoenix.server.api.types.pagination import SortColumnDataType
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.trace.schemas import SpanID
 
@@ -63,22 +63,22 @@ class SpanColumn(Enum):
         assert_never(self)
 
     @property
-    def data_type(self) -> SortableFieldType:
+    def data_type(self) -> SortColumnDataType:
         if (
             self is SpanColumn.cumulativeTokenCountTotal
             or self is SpanColumn.cumulativeTokenCountPrompt
             or self is SpanColumn.cumulativeTokenCountCompletion
         ):
-            return SortableFieldType.INT
+            return SortColumnDataType.INT
         if (
             self is SpanColumn.latencyMs
             or self is SpanColumn.tokenCountTotal
             or self is SpanColumn.tokenCountPrompt
             or self is SpanColumn.tokenCountCompletion
         ):
-            return SortableFieldType.FLOAT
+            return SortColumnDataType.FLOAT
         if self is SpanColumn.startTime or self is SpanColumn.endTime:
-            return SortableFieldType.DATETIME
+            return SortColumnDataType.DATETIME
         assert_never(self)
 
 
@@ -103,11 +103,11 @@ class EvalAttr(Enum):
         return expr.label(self.orm_key)
 
     @property
-    def data_type(self) -> SortableFieldType:
+    def data_type(self) -> SortColumnDataType:
         if self is EvalAttr.label:
-            return SortableFieldType.STRING
+            return SortColumnDataType.STRING
         if self is EvalAttr.score:
-            return SortableFieldType.FLOAT
+            return SortColumnDataType.FLOAT
         assert_never(self)
 
 
@@ -126,7 +126,7 @@ class SpanSortResult:
     stmt: Select[Any]
     orm_key: str
     orm_expression: Any
-    data_type: SortableFieldType
+    data_type: SortColumnDataType
 
 
 @strawberry.input(
