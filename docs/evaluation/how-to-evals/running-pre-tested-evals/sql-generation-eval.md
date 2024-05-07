@@ -40,6 +40,23 @@ You must take into account the response as additional information to determine t
 correctness.
 ```
 
+Example Code:
+
+```python
+rails = list(SQL_GEN_EVAL_PROMPT_RAILS_MAP.values())
+model = OpenAIModel(
+    model_name="gpt-4",
+    temperature=0.0,
+)
+relevance_classifications = llm_classify(
+    dataframe=df,
+    template=SQL_GEN_EVAL_PROMPT_TEMPLATE,
+    model=model,
+    rails=rails,
+    provide_explanation=True
+)
+```
+
 Model Results:
 
 <figure><img src="../../../.gitbook/assets/gpt-4-sql-eval.png" alt=""><figcaption></figcaption></figure>
