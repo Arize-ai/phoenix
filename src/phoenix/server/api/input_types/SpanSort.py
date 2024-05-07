@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Any, Optional, Protocol, cast
+from typing import Any, Optional, Protocol
 
 import strawberry
 from openinference.semconv.trace import SpanAttributes
@@ -35,7 +35,10 @@ class SpanColumn(Enum):
 
     @property
     def column_name(self) -> str:
-        return cast(str, self.orm_expression.name)
+        for attribute_name in ("name", "key"):
+            if attribute_value := getattr(self.orm_expression, attribute_name, None):
+                return str(attribute_value)
+        raise ValueError(f"Could not determine column name for {self}")
 
     @property
     def orm_expression(self) -> Any:
