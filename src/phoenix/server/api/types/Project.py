@@ -230,11 +230,11 @@ class Project(Node):
                     ),
                 )
                 data.append((cursor, to_gql_span(span)))
-        has_next_page = True
-        try:
-            next(span_records)
-        except StopIteration:
-            has_next_page = False
+            has_next_page = True
+            try:
+                next(span_records)
+            except StopIteration:
+                has_next_page = False
 
         return connections(
             data,
