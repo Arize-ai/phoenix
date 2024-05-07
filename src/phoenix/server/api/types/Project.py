@@ -1,6 +1,6 @@
 import operator
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import strawberry
 from aioitertools.itertools import islice
@@ -189,9 +189,12 @@ class Project(Node):
             span_filter = SpanFilter(condition=filter_condition)
             stmt = span_filter(stmt)
         sort_config: Optional[SpanSortConfig] = None
+        cursor_rowid_column: Any = models.Span.id
         if sort:
             sort_config = sort.update_orm_expr(stmt)
             stmt = sort_config.stmt
+            if sort_config.dir is SortDir.desc:
+                cursor_rowid_column = desc(cursor_rowid_column)
         if after:
             cursor = Cursor.from_string(after)
             if sort_config and cursor.sort_column:
@@ -204,12 +207,12 @@ class Project(Node):
                     )
                 )
             else:
-                stmt = stmt.where(models.Span.id < cursor.rowid)
+                stmt = stmt.where(models.Span.id > cursor.rowid)
         if first:
             stmt = stmt.limit(
                 first + 1  # overfetch by one to determine whether there's a next page
             )
-        stmt = stmt.order_by(desc(models.Span.id))
+        stmt = stmt.order_by(cursor_rowid_column)
         data = []
         async with info.context.db() as session:
             span_records = await session.execute(stmt)
