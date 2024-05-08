@@ -107,6 +107,7 @@ def run_migrations(connection: Connection) -> None:
             transaction_per_migration=True,
         )
         context.run_migrations()
+        transaction.commit()
     except Exception:
         transaction.rollback()
         raise
