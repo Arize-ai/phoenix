@@ -1,26 +1,31 @@
+import operator
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import strawberry
+from aioitertools.itertools import islice
 from sqlalchemy import and_, desc, distinct, select
 from sqlalchemy.orm import contains_eager
+from sqlalchemy.sql.expression import tuple_
 from strawberry import ID, UNSET
 from strawberry.types import Info
 
 from phoenix.datetime_utils import right_open_time_range
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.input_types.SpanSort import SpanSort
+from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortConfig
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
 from phoenix.server.api.types.EvaluationSummary import EvaluationSummary
 from phoenix.server.api.types.node import Node
 from phoenix.server.api.types.pagination import (
     Connection,
-    ConnectionArgs,
     Cursor,
-    connection_from_list,
+    CursorSortColumn,
+    CursorString,
+    connections,
 )
+from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
@@ -153,18 +158,12 @@ class Project(Node):
         time_range: Optional[TimeRange] = UNSET,
         first: Optional[int] = 50,
         last: Optional[int] = UNSET,
-        after: Optional[Cursor] = UNSET,
-        before: Optional[Cursor] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
         sort: Optional[SpanSort] = UNSET,
         root_spans_only: Optional[bool] = UNSET,
         filter_condition: Optional[str] = UNSET,
     ) -> Connection[Span]:
-        args = ConnectionArgs(
-            first=first,
-            after=after if isinstance(after, Cursor) else None,
-            last=last,
-            before=before if isinstance(before, Cursor) else None,
-        )
         stmt = (
             select(models.Span)
             .join(models.Trace)
@@ -189,17 +188,60 @@ class Project(Node):
         if filter_condition:
             span_filter = SpanFilter(condition=filter_condition)
             stmt = span_filter(stmt)
+        sort_config: Optional[SpanSortConfig] = None
+        cursor_rowid_column: Any = models.Span.id
         if sort:
-            stmt = sort.update_orm_expr(stmt)
-        else:
-            stmt = stmt.order_by(desc(models.Span.id))
-        stmt = stmt.limit(
-            SPANS_LIMIT
-        )  # todo: remove this after adding pagination https://github.com/Arize-ai/phoenix/issues/3003
+            sort_config = sort.update_orm_expr(stmt)
+            stmt = sort_config.stmt
+            if sort_config.dir is SortDir.desc:
+                cursor_rowid_column = desc(cursor_rowid_column)
+        if after:
+            cursor = Cursor.from_string(after)
+            if sort_config and cursor.sort_column:
+                sort_column = cursor.sort_column
+                compare = operator.lt if sort_config.dir is SortDir.desc else operator.gt
+                stmt = stmt.where(
+                    compare(
+                        tuple_(sort_config.orm_expression, models.Span.id),
+                        (sort_column.value, cursor.rowid),
+                    )
+                )
+            else:
+                stmt = stmt.where(models.Span.id > cursor.rowid)
+        if first:
+            stmt = stmt.limit(
+                first + 1  # overfetch by one to determine whether there's a next page
+            )
+        stmt = stmt.order_by(cursor_rowid_column)
+        data = []
         async with info.context.db() as session:
-            spans = await session.stream_scalars(stmt)
-            data = [to_gql_span(span) async for span in spans]
-        return connection_from_list(data=data, args=args)
+            span_records = await session.execute(stmt)
+            async for span_record in islice(span_records, first):
+                span = span_record[0]
+                sort_column_value = span_record[1] if len(span_record) > 1 else None
+                cursor = Cursor(
+                    rowid=span.id,
+                    sort_column=(
+                        CursorSortColumn(
+                            type=sort_config.column_data_type,
+                            value=sort_column_value,
+                        )
+                        if sort_config
+                        else None
+                    ),
+                )
+                data.append((cursor, to_gql_span(span)))
+            has_next_page = True
+            try:
+                next(span_records)
+            except StopIteration:
+                has_next_page = False
+
+        return connections(
+            data,
+            has_previous_page=False,
+            has_next_page=has_next_page,
+        )
 
     @strawberry.field(
         description="Names of all available evaluations for traces. "

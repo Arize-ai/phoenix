@@ -1,6 +1,6 @@
 import ast
 import sys
-from typing import Any, List, Optional
+from typing import List, Optional
 from unittest.mock import patch
 
 import phoenix.trace.dsl.filter
@@ -97,7 +97,7 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[List[str]])
             "llm.token_count.total - llm.token_count.prompt > 1000",
             "attributes[['llm', 'token_count', 'total']].as_float() - attributes[['llm', 'token_count', 'prompt']].as_float() > 1000"  # noqa E501
             if sys.version_info >= (3, 9)
-            else "(attributes[['llm', 'token_count', 'total']].as_float() - attributes[['llm', 'token_count', 'prompt']].as_float()) > 1000",  # noqa E501
+            else "((attributes[['llm', 'token_count', 'total']].as_float() - attributes[['llm', 'token_count', 'prompt']].as_float()) > 1000)",  # noqa E501
         ),
         (
             "first.value in (1,) and second.value in ('2',) and '3' in third.value",
@@ -113,19 +113,19 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[List[str]])
             "first.value + 1 < second.value",
             "attributes[['first', 'value']].as_float() + 1 < attributes[['second', 'value']].as_float()"  # noqa E501
             if sys.version_info >= (3, 9)
-            else "(attributes[['first', 'value']].as_float() + 1) < attributes[['second', 'value']].as_float()",  # noqa E501
+            else "((attributes[['first', 'value']].as_float() + 1) < attributes[['second', 'value']].as_float())",  # noqa E501
         ),
         (
             "first.value * second.value > third.value",
             "attributes[['first', 'value']].as_float() * attributes[['second', 'value']].as_float() > attributes[['third', 'value']].as_float()"  # noqa E501
             if sys.version_info >= (3, 9)
-            else "(attributes[['first', 'value']].as_float() * attributes[['second', 'value']].as_float()) > attributes[['third', 'value']].as_float()",  # noqa E501
+            else "((attributes[['first', 'value']].as_float() * attributes[['second', 'value']].as_float()) > attributes[['third', 'value']].as_float())",  # noqa E501
         ),
         (
             "first.value + second.value > third.value",
             "cast(attributes[['first', 'value']].as_string() + attributes[['second', 'value']].as_string(), String) > attributes[['third', 'value']].as_string()"  # noqa E501
             if sys.version_info >= (3, 9)
-            else "cast((attributes[['first', 'value']].as_string() + attributes[['second', 'value']].as_string()), String) > attributes[['third', 'value']].as_string()",  # noqa E501
+            else "(cast((attributes[['first', 'value']].as_string() + attributes[['second', 'value']].as_string()), String) > attributes[['third', 'value']].as_string())",  # noqa E501
         ),
         (
             "my.value == '1.0' or float(my.value) < 2.0",
@@ -156,7 +156,7 @@ async def test_filter_translated(
         return_value=0,
     ):
         f = SpanFilter(expression)
-    assert _unparse(f.translated) == expected
+    assert unparse(f.translated).strip() == expected
     # next line is only to test that the syntax is accepted
     await session.execute(f(select(models.Span.id)))
 
@@ -230,12 +230,3 @@ def test_apply_eval_aliasing(filter_condition: str, expected: str) -> None:
     with patch.object(phoenix.trace.dsl.filter, "randint", return_value=0):
         aliased, _ = _apply_eval_aliasing(filter_condition)
     assert aliased == expected
-
-
-def _unparse(exp: Any) -> str:
-    # `unparse` for python 3.8 outputs differently,
-    # otherwise this function is unnecessary.
-    s = unparse(exp).strip()
-    if s[0] == "(" and s[-1] == ")":
-        return s[1:-1]
-    return s
