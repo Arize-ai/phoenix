@@ -77,8 +77,9 @@ async def query_spans_handler(request: Request) -> Response:
     queries = payload.pop("queries", [])
     project_name = (
         request.query_params.get("project-name")
-        # read from headers for backwards compatibility
+        # read from headers/payload for backward-compatibility
         or request.headers.get("project-name")
+        or payload.get("project_name")
         or DEFAULT_PROJECT_NAME
     )
     end_time = payload.get("end_time") or payload.get("stop_time")
