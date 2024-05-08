@@ -10,11 +10,11 @@ from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.schemas import Span, SpanStatusCode
 
 
-class SpanInsertionResult(NamedTuple):
+class SpanInsertionEvent(NamedTuple):
     project_rowid: int
 
 
-class ClearProjectSpansResult(NamedTuple):
+class ClearProjectSpansEvent(NamedTuple):
     project_rowid: int
 
 
@@ -22,7 +22,7 @@ async def insert_span(
     session: AsyncSession,
     span: Span,
     project_name: str,
-) -> Optional[SpanInsertionResult]:
+) -> Optional[SpanInsertionEvent]:
     if await session.scalar(select(1).where(models.Span.span_id == span.context.span_id)):
         # Span already exists
         return None
@@ -127,4 +127,4 @@ async def insert_span(
             + cumulative_llm_token_count_completion,
         )
     )
-    return SpanInsertionResult(project_rowid)
+    return SpanInsertionEvent(project_rowid)

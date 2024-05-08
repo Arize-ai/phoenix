@@ -26,7 +26,7 @@ from phoenix.db.insertion.evaluation import (
     InsertEvaluationError,
     insert_evaluation,
 )
-from phoenix.db.insertion.span import SpanInsertionResult, insert_span
+from phoenix.db.insertion.span import SpanInsertionEvent, insert_span
 from phoenix.server.api.dataloaders import CacheForDataLoaders
 from phoenix.trace.schemas import Span
 
@@ -140,7 +140,7 @@ class BulkInserter:
                             from phoenix.server.prometheus import BULK_LOADER_SPAN_INSERTIONS
 
                             BULK_LOADER_SPAN_INSERTIONS.inc()
-                        result: Optional[SpanInsertionResult] = None
+                        result: Optional[SpanInsertionEvent] = None
                         try:
                             async with session.begin_nested():
                                 result = await insert_span(session, span, project_name)
