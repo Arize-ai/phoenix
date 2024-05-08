@@ -36,10 +36,12 @@ def insert_stmt(
             return stmt_postgresql.on_conflict_do_nothing(constraint=constraint)
         if on_conflict is OnConflict.DO_UPDATE:
             return stmt_postgresql.on_conflict_do_update(constraint=constraint, set_=set_)
+        assert_never(on_conflict)
     if dialect is SupportedSQLDialect.SQLITE:
         stmt_sqlite = insert_sqlite(table).values(values)
         if on_conflict is OnConflict.DO_NOTHING or not set_:
             return stmt_sqlite.on_conflict_do_nothing(column_names)
         if on_conflict is OnConflict.DO_UPDATE:
             return stmt_sqlite.on_conflict_do_update(column_names, set_=set_)
+        assert_never(on_conflict)
     assert_never(dialect)
