@@ -107,6 +107,7 @@ class AppService(Service):
 
     def __init__(
         self,
+        database_url: str,
         export_path: Path,
         host: str,
         port: int,
@@ -117,6 +118,7 @@ class AppService(Service):
         corpus_dataset_name: Optional[str],
         trace_dataset_name: Optional[str],
     ):
+        self.database_url = database_url
         self.export_path = export_path
         self.host = host
         self.port = port
@@ -133,6 +135,8 @@ class AppService(Service):
         command = [
             sys.executable,
             "main.py",
+            "--database-url",
+            self.database_url,
             "--export_path",
             str(self.export_path),
             "--host",

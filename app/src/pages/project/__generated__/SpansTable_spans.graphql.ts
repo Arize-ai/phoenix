@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0b2861c5a2cc6e2f649c1564ee5f256d>>
+ * @generated SignedSource<<92417fd62f18f55233ff6dcadb92e2a0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,6 @@
 // @ts-nocheck
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
-export type MimeType = "json" | "text";
 export type SpanKind = "agent" | "chain" | "embedding" | "llm" | "reranker" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
@@ -29,14 +28,12 @@ export type SpansTable_spans$data = {
           readonly precision: number | null;
         }>;
         readonly input: {
-          readonly mimeType: MimeType;
           readonly value: string;
         } | null;
         readonly latencyMs: number | null;
         readonly metadata: string | null;
         readonly name: string;
         readonly output: {
-          readonly mimeType: MimeType;
           readonly value: string;
         } | null;
         readonly spanEvaluations: ReadonlyArray<{
@@ -74,17 +71,10 @@ v1 = {
 },
 v2 = [
   {
-    "alias": null,
+    "alias": "value",
     "args": null,
     "kind": "ScalarField",
-    "name": "value",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "mimeType",
+    "name": "truncatedValue",
     "storageKey": null
   }
 ];
@@ -112,6 +102,10 @@ return {
       },
       "kind": "LocalArgument",
       "name": "sort"
+    },
+    {
+      "kind": "RootArgument",
+      "name": "timeRange"
     }
   ],
   "kind": "Fragment",
@@ -162,6 +156,11 @@ return {
           "kind": "Variable",
           "name": "sort",
           "variableName": "sort"
+        },
+        {
+          "kind": "Variable",
+          "name": "timeRange",
+          "variableName": "timeRange"
         }
       ],
       "concreteType": "SpanConnection",
@@ -424,6 +423,6 @@ return {
 };
 })();
 
-(node as any).hash = "1fe874dea544c69e592c2772fd84f698";
+(node as any).hash = "ba5d821b72675bc6ea380d9f0f36e8b7";
 
 export default node;

@@ -31,25 +31,32 @@ dependencies = [
   "starlette",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.208.2",
+  "strawberry-graphql==0.227.2",  # need to pin version because we're monkey-patching
   "pyarrow",
   "typing-extensions>=4.5; python_version<'3.12'",
   # A minimum version of typing-extensions==4.6.0 is needed to avoid this issue on Python 3.12: https://github.com/Azure/azure-sdk-for-python/issues/33442#issuecomment-1847886784
   "typing-extensions>=4.6; python_version>='3.12'",
   "scipy",
   "wrapt",
-  "sortedcontainers",
   "protobuf>=3.20, <6.0",
+  "grpcio",
   "tqdm",
   "requests",
   "opentelemetry-sdk",
   "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
   "opentelemetry-exporter-otlp",
+  "opentelemetry-semantic-conventions",
   "openinference-semantic-conventions>=0.1.5",
   "openinference-instrumentation",
   "openinference-instrumentation-langchain>=0.1.12",
   "openinference-instrumentation-llama-index>=1.2.0",
   "openinference-instrumentation-openai>=0.1.4",
+  "sqlalchemy[asyncio]>=2.0.4, <3",
+  "alembic>=1.3.0, <2",
+  "aiosqlite",
+  "aioitertools",
+  "sqlean.py>=3.45.1",
+  "cachetools",
 ]
 dynamic = ["version"]
 
@@ -65,7 +72,10 @@ dev = [
   "pytest-asyncio",
   "pytest-cov",
   "pytest-lazy-fixture",
-  "strawberry-graphql[debug-server]==0.208.2",
+  "pytest-postgresql",
+  "asyncpg",
+  "psycopg[binary]",
+  "strawberry-graphql[debug-server,opentelemetry]==0.227.2",  # need to pin version because we're monkey-patching
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
   "llama-index>=0.10.3",
@@ -86,8 +96,21 @@ llama-index = [
   "llama-index-callbacks-arize-phoenix>=0.1.2",
   "openinference-instrumentation-llama-index>=1.2.0",
 ]
+pg = [
+  "asyncpg",
+]
 container = [
   "prometheus-client",
+  "opentelemetry-sdk",
+  "opentelemetry-proto>=1.12.0",
+  "opentelemetry-exporter-otlp",
+  "opentelemetry-semantic-conventions",
+  "opentelemetry-instrumentation-starlette",
+  "opentelemetry-instrumentation-sqlalchemy",
+  "opentelemetry-instrumentation-grpc",
+  "py-grpc-prometheus",
+  "strawberry-graphql[opentelemetry]==0.227.2",  # need to pin version because we're monkey-patching
+  "uvloop; platform_system != 'Windows'",
 ]
 
 [project.urls]
@@ -105,14 +128,14 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/phoenix"]
 exclude = ["src/phoenix/evals/"]
-artifacts = ["src/phoenix/server/static"]
+artifacts = ["src/phoenix/server/static", "src/phoenix/db/migrations"]
 
 [tool.hatch.build]
 only-packages = true
 
 [tool.hatch.build.targets.sdist]
 exclude = ["src/phoenix/evals/", "packages/"]
-artifacts = ["src/phoenix/server/static"]
+artifacts = ["src/phoenix/server/static", "src/phoenix/db/migrations"]
 
 [tool.hatch.envs.default]
 dependencies = [
@@ -121,6 +144,9 @@ dependencies = [
   "pytest-asyncio",
   "pytest-cov",
   "pytest-lazy-fixture",
+  "pytest-postgresql",
+  "asyncpg",
+  "psycopg[binary]",
   "arize",
   "litellm>=1.0.3",
   "openai>=1.0.0",
@@ -134,7 +160,7 @@ dependencies = [
   "httpx", # For OpenAI testing
   "respx", # For OpenAI testing
   "nest-asyncio", # for executor testing
-  "pyfakefs", # for experimental storage implementations
+  "astunparse; python_version<'3.9'",  # `ast.unparse(...)` is only available starting with Python 3.9
 ]
 
 [tool.hatch.envs.type]
@@ -147,9 +173,20 @@ dependencies = [
   "types-requests",
   "types-protobuf",
   "types-setuptools",
+  "types-cachetools",
   "openai>=1.0.0",
   "litellm>=1.0.3",
   "prometheus_client",
+  "grpcio",
+  "opentelemetry-sdk",
+  "opentelemetry-proto>=1.12.0",
+  "opentelemetry-exporter-otlp",
+  "opentelemetry-semantic-conventions",
+  "opentelemetry-instrumentation-starlette",
+  "opentelemetry-instrumentation-sqlalchemy",
+  "opentelemetry-instrumentation-grpc",
+  "py-grpc-prometheus",
+  "strawberry-graphql[opentelemetry]==0.227.2",  # need to pin version because we're monkey-patching
 ]
 
 [tool.hatch.envs.style]
@@ -248,7 +285,7 @@ check = [
 
 [tool.hatch.envs.gql]
 dependencies = [
-  "strawberry-graphql[cli]==0.208.2",
+  "strawberry-graphql[cli]==0.227.2",  # need to pin version because we're monkey-patching
   "requests",
 ]
 
@@ -308,12 +345,14 @@ module = [
   "sklearn.*",
   "arize.*",
   "wrapt",
-  "sortedcontainers",
   "langchain.*",
   "litellm",
   "nest_asyncio",
   "opentelemetry.*",
   "pyarrow",
+  "sqlean",
+  "grpc.*",
+  "py_grpc_prometheus.*",
 ]
 ignore_missing_imports = true
 

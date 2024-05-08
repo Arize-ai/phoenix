@@ -1,11 +1,15 @@
-from dataclasses import dataclass, field
-from typing import Iterable, Iterator, List, NamedTuple, Optional, Tuple, cast
+from binascii import hexlify
+from dataclasses import dataclass, field, replace
+from datetime import datetime, timezone
+from random import getrandbits
+from typing import Dict, Iterable, Iterator, List, NamedTuple, Optional, Tuple, cast
 from urllib import request
 
 import pandas as pd
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
 
 import phoenix.trace.v1 as pb
+from phoenix.trace.schemas import Span
 from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.trace.utils import json_lines_to_df
 
@@ -105,7 +109,7 @@ TRACES_FIXTURES: List[TracesFixture] = [
 NAME_TO_TRACES_FIXTURE = {fixture.name: fixture for fixture in TRACES_FIXTURES}
 
 
-def _get_trace_fixture_by_name(fixture_name: str) -> TracesFixture:
+def get_trace_fixture_by_name(fixture_name: str) -> TracesFixture:
     """
     Returns the fixture whose name matches the input name.
 
@@ -120,7 +124,7 @@ def _get_trace_fixture_by_name(fixture_name: str) -> TracesFixture:
     return NAME_TO_TRACES_FIXTURE[fixture_name]
 
 
-def _download_traces_fixture(
+def download_traces_fixture(
     fixture: TracesFixture,
     host: Optional[str] = "https://storage.googleapis.com/",
     bucket: Optional[str] = "arize-assets",
@@ -138,12 +142,12 @@ def load_example_traces(use_case: str) -> TraceDataset:
     """
     Loads a trace dataframe by name.
     """
-    fixture = _get_trace_fixture_by_name(use_case)
-    return TraceDataset(json_lines_to_df(_download_traces_fixture(fixture)))
+    fixture = get_trace_fixture_by_name(use_case)
+    return TraceDataset(json_lines_to_df(download_traces_fixture(fixture)))
 
 
 def get_evals_from_fixture(use_case: str) -> Iterator[pb.Evaluation]:
-    fixture = _get_trace_fixture_by_name(use_case)
+    fixture = get_trace_fixture_by_name(use_case)
     for eval_fixture in fixture.evaluation_fixtures:
         yield from _read_eval_fixture(eval_fixture)
 
@@ -195,3 +199,61 @@ def _url(
     prefix: Optional[str] = "phoenix/traces/",
 ) -> str:
     return f"{host}{bucket}/{prefix}{file_name}"
+
+
+def reset_fixture_span_ids_and_timestamps(
+    spans: Iterable[Span],
+    evals: Iterable[pb.Evaluation] = (),
+) -> Tuple[List[Span], List[pb.Evaluation]]:
+    old_spans, old_evals = list(spans), list(evals)
+    new_trace_ids: Dict[str, str] = {}
+    new_span_ids: Dict[str, str] = {}
+    for old_span in old_spans:
+        new_trace_ids[old_span.context.trace_id] = _new_trace_id()
+        new_span_ids[old_span.context.span_id] = _new_span_id()
+        if old_span.parent_id:
+            new_span_ids[old_span.parent_id] = _new_span_id()
+    for old_eval in old_evals:
+        subject_id = old_eval.subject_id
+        if trace_id := subject_id.trace_id:
+            new_trace_ids[trace_id] = _new_trace_id()
+        elif span_id := subject_id.span_id:
+            new_span_ids[span_id] = _new_span_id()
+        elif span_id := subject_id.document_retrieval_id.span_id:
+            new_span_ids[span_id] = _new_span_id()
+    max_end_time = max(old_span.end_time for old_span in old_spans)
+    time_diff = datetime.now(timezone.utc) - max_end_time
+    new_spans: List[Span] = []
+    new_evals: List[pb.Evaluation] = []
+    for old_span in old_spans:
+        new_trace_id = new_trace_ids[old_span.context.trace_id]
+        new_span_id = new_span_ids[old_span.context.span_id]
+        new_parent_id = new_span_ids[old_span.parent_id] if old_span.parent_id else None
+        new_span = replace(
+            old_span,
+            context=replace(old_span.context, trace_id=new_trace_id, span_id=new_span_id),
+            parent_id=new_parent_id,
+            start_time=old_span.start_time + time_diff,
+            end_time=old_span.end_time + time_diff,
+        )
+        new_spans.append(new_span)
+    for old_eval in old_evals:
+        new_eval = pb.Evaluation()
+        new_eval.CopyFrom(old_eval)
+        subject_id = new_eval.subject_id
+        if trace_id := subject_id.trace_id:
+            subject_id.trace_id = new_trace_ids[trace_id]
+        elif span_id := subject_id.span_id:
+            subject_id.span_id = new_span_ids[span_id]
+        elif span_id := subject_id.document_retrieval_id.span_id:
+            subject_id.document_retrieval_id.span_id = new_span_ids[span_id]
+        new_evals.append(new_eval)
+    return new_spans, new_evals
+
+
+def _new_trace_id() -> str:
+    return hexlify(getrandbits(128).to_bytes(16, "big")).decode()
+
+
+def _new_span_id() -> str:
+    return hexlify(getrandbits(64).to_bytes(8, "big")).decode()

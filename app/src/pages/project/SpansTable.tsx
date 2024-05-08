@@ -81,6 +81,7 @@ export function SpansTable(props: SpansTableProps) {
             after: $after
             sort: $sort
             filterCondition: $filterCondition
+            timeRange: $timeRange
           ) @connection(key: "SpansTable_spans") {
             edges {
               span: node {
@@ -98,12 +99,10 @@ export function SpansTable(props: SpansTableProps) {
                   traceId
                 }
                 input {
-                  value
-                  mimeType
+                  value: truncatedValue
                 }
                 output {
-                  value
-                  mimeType
+                  value: truncatedValue
                 }
                 spanEvaluations {
                   name
@@ -347,6 +346,7 @@ export function SpansTable(props: SpansTableProps) {
       sorting,
       columnVisibility,
     },
+    manualSorting: true,
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),

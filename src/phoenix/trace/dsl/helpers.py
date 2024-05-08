@@ -1,3 +1,4 @@
+import warnings
 from datetime import datetime
 from typing import List, Optional, Protocol, Union, cast
 
@@ -28,7 +29,7 @@ class CanQuerySpans(Protocol):
         self,
         *query: SpanQuery,
         start_time: Optional[datetime] = None,
-        stop_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
         project_name: Optional[str] = None,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]: ...
 
@@ -36,10 +37,19 @@ class CanQuerySpans(Protocol):
 def get_retrieved_documents(
     obj: CanQuerySpans,
     start_time: Optional[datetime] = None,
-    stop_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
     project_name: Optional[str] = None,
+    # Deprecated
+    stop_time: Optional[datetime] = None,
 ) -> pd.DataFrame:
     project_name = project_name or get_env_project_name()
+    if stop_time is not None:
+        # Deprecated. Raise a warning
+        warnings.warn(
+            "stop_time is deprecated. Use end_time instead.",
+            DeprecationWarning,
+        )
+        end_time = end_time or stop_time
     return cast(
         pd.DataFrame,
         obj.query_spans(
@@ -52,7 +62,7 @@ def get_retrieved_documents(
                 document_score=DOCUMENT_SCORE,
             ),
             start_time=start_time,
-            stop_time=stop_time,
+            end_time=end_time,
             project_name=project_name,
         ),
     )
@@ -61,10 +71,19 @@ def get_retrieved_documents(
 def get_qa_with_reference(
     obj: CanQuerySpans,
     start_time: Optional[datetime] = None,
-    stop_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
     project_name: Optional[str] = None,
+    # Deprecated
+    stop_time: Optional[datetime] = None,
 ) -> pd.DataFrame:
     project_name = project_name or get_env_project_name()
+    if stop_time:
+        # Deprecated. Raise a warning
+        warnings.warn(
+            "stop_time is deprecated. Use end_time instead.",
+            DeprecationWarning,
+        )
+        end_time = end_time or stop_time
     return pd.concat(
         cast(
             List[pd.DataFrame],
@@ -78,7 +97,7 @@ def get_qa_with_reference(
                     reference=DOCUMENT_CONTENT,
                 ),
                 start_time=start_time,
-                stop_time=stop_time,
+                end_time=end_time,
                 project_name=project_name,
             ),
         ),

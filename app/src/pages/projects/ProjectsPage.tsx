@@ -1,4 +1,4 @@
-import React, { startTransition, useCallback, useMemo } from "react";
+import React, { startTransition, Suspense, useCallback, useMemo } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { formatDistance } from "date-fns";
 import { css } from "@emotion/react";
@@ -11,7 +11,11 @@ import {
   View,
 } from "@arizeai/components";
 
-import { Link } from "@phoenix/components";
+import { Link, Loading } from "@phoenix/components";
+import {
+  ConnectedLastNTimeRangePicker,
+  useLastNTimeRange,
+} from "@phoenix/components/datetime";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { useInterval } from "@phoenix/hooks/useInterval";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -24,17 +28,37 @@ import { ProjectsPageProjectsQuery } from "./__generated__/ProjectsPageProjectsQ
 import { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
 import { ProjectActionMenu } from "./ProjectActionMenu";
 
-const REFRESH_INTERVAL_MS = 3000;
+const REFRESH_INTERVAL_MS = 10000;
 
 export function ProjectsPage() {
+  const { timeRange } = useLastNTimeRange();
+
+  return (
+    <Suspense fallback={<Loading />}>
+      <ProjectsPageContent timeRange={timeRange} />
+    </Suspense>
+  );
+}
+
+export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
   const [notify, holder] = useNotification();
+  // Convert the time range to a variable that can be used in the query
+  const timeRangeVariable = useMemo(() => {
+    return {
+      start: timeRange.start.toISOString(),
+      end: timeRange.end.toISOString(),
+    };
+  }, [timeRange]);
+
   const data = useLazyLoadQuery<ProjectsPageQuery>(
     graphql`
-      query ProjectsPageQuery {
+      query ProjectsPageQuery($timeRange: TimeRange!) {
         ...ProjectsPageProjectsFragment
       }
     `,
-    {}
+    {
+      timeRange: timeRangeVariable,
+    }
   );
   const [projectsData, refetch] = useRefetchableFragment<
     ProjectsPageProjectsQuery,
@@ -48,10 +72,15 @@ export function ProjectsPage() {
             project: node {
               id
               name
-              traceCount
+              gradientStartColor
+              gradientEndColor
+              traceCount(timeRange: $timeRange)
               endTime
-              latencyMsP50
-              tokenCountTotal
+              latencyMsP50: latencyMsQuantile(
+                probability: 0.5
+                timeRange: $timeRange
+              )
+              tokenCountTotal(timeRange: $timeRange)
             }
           }
         }
@@ -81,8 +110,35 @@ export function ProjectsPage() {
     [notify, refetch]
   );
 
+  const onClear = useCallback(
+    (projectName: string) => {
+      startTransition(() => {
+        refetch({}, { fetchPolicy: "store-and-network" });
+        notify({
+          variant: "success",
+          title: "Project Cleared",
+          message: `Project ${projectName} has been cleared of traces.`,
+        });
+      });
+    },
+    [notify, refetch]
+  );
+
   return (
     <Flex direction="column" flex="1 1 auto">
+      <View
+        paddingStart="size-200"
+        paddingEnd="size-200"
+        paddingTop="size-100"
+        paddingBottom="size-100"
+        width="100%"
+        borderBottomColor="grey-200"
+        borderBottomWidth="thin"
+      >
+        <Flex direction="row" justifyContent="end">
+          <ConnectedLastNTimeRangePicker />
+        </Flex>
+      </View>
       <View padding="size-200" width="100%">
         <ul
           css={css`
@@ -102,8 +158,8 @@ export function ProjectsPage() {
               >
                 <ProjectItem
                   project={project}
-                  canDelete={project.name !== "default"} // the default project cannot be deleted
                   onProjectDelete={() => onDelete(project.name)}
+                  onProjectClear={() => onClear(project.name)}
                 />
               </Link>
             </li>
@@ -115,7 +171,13 @@ export function ProjectsPage() {
   );
 }
 
-function ProjectIcon() {
+function ProjectIcon({
+  gradientStartColor,
+  gradientEndColor,
+}: {
+  gradientStartColor: string;
+  gradientEndColor: string;
+}) {
   return (
     <div
       css={css`
@@ -124,8 +186,8 @@ function ProjectIcon() {
         height: 32px;
         background: linear-gradient(
           136.27deg,
-          rgb(91, 219, 255) 14.03%,
-          rgb(28, 118, 252) 84.38%
+          ${gradientStartColor} 14.03%,
+          ${gradientEndColor} 84.38%
         );
         flex-shrink: 0;
       `}
@@ -134,15 +196,22 @@ function ProjectIcon() {
 }
 type ProjectItemProps = {
   project: ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"];
-  canDelete: boolean;
   onProjectDelete: () => void;
+  onProjectClear: () => void;
 };
 function ProjectItem({
   project,
-  canDelete,
   onProjectDelete,
+  onProjectClear,
 }: ProjectItemProps) {
-  const { endTime, traceCount, tokenCountTotal, latencyMsP50 } = project;
+  const {
+    endTime,
+    traceCount,
+    tokenCountTotal,
+    latencyMsP50,
+    gradientStartColor,
+    gradientEndColor,
+  } = project;
   const lastUpdatedText = useMemo(() => {
     if (endTime) {
       return `Last updated  ${formatDistance(new Date(endTime), new Date(), { addSuffix: true })}`;
@@ -169,7 +238,10 @@ function ProjectItem({
     >
       <Flex direction="row" justifyContent="space-between" alignItems="start">
         <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
-          <ProjectIcon />
+          <ProjectIcon
+            gradientStartColor={gradientStartColor}
+            gradientEndColor={gradientEndColor}
+          />
           <Flex direction="column" minWidth={0}>
             <Heading
               level={2}
@@ -186,14 +258,14 @@ function ProjectItem({
             </Text>
           </Flex>
         </Flex>
-        {canDelete && (
-          <ProjectActionMenu
-            projectId={project.id}
-            projectName={project.name}
-            onProjectDelete={onProjectDelete}
-          />
-        )}
+        <ProjectActionMenu
+          projectId={project.id}
+          projectName={project.name}
+          onProjectDelete={onProjectDelete}
+          onProjectClear={onProjectClear}
+        />
       </Flex>
+
       <Flex direction="row" justifyContent="space-between">
         <Flex direction="column" flex="none">
           <Text elementType="h3" textSize="medium" color="text-700">

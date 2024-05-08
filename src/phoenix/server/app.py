@@ -1,7 +1,29 @@
+import contextlib
 import logging
+from datetime import datetime
 from pathlib import Path
-from typing import Any, NamedTuple, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    AsyncContextManager,
+    AsyncIterator,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    NamedTuple,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 
+import strawberry
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+)
 from starlette.applications import Starlette
 from starlette.datastructures import QueryParams
 from starlette.endpoints import HTTPEndpoint
@@ -11,28 +33,60 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import FileResponse, PlainTextResponse, Response
 from starlette.routing import Mount, Route
+from starlette.schemas import SchemaGenerator
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
-from starlette.types import Scope
+from starlette.types import Scope, StatefulLifespan
 from starlette.websockets import WebSocket
 from strawberry.asgi import GraphQL
 from strawberry.schema import BaseSchema
+from typing_extensions import TypeAlias
 
 import phoenix
-from phoenix.config import SERVER_DIR
+import phoenix.trace.v1 as pb
+from phoenix.config import (
+    DEFAULT_PROJECT_NAME,
+    SERVER_DIR,
+    server_instrumentation_is_enabled,
+)
 from phoenix.core.model_schema import Model
-from phoenix.core.traces import Traces
+from phoenix.db.bulk_inserter import BulkInserter
+from phoenix.db.engines import create_engine
+from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.exceptions import PhoenixMigrationError
 from phoenix.pointcloud.umap_parameters import UMAPParameters
-from phoenix.server.api.context import Context
-from phoenix.server.api.routers.evaluation_handler import EvaluationHandler
-from phoenix.server.api.routers.span_handler import SpanHandler
-from phoenix.server.api.routers.trace_handler import TraceHandler
+from phoenix.server.api.context import Context, DataLoaders
+from phoenix.server.api.dataloaders import (
+    CacheForDataLoaders,
+    DocumentEvaluationsDataLoader,
+    DocumentEvaluationSummaryDataLoader,
+    DocumentRetrievalMetricsDataLoader,
+    EvaluationSummaryDataLoader,
+    LatencyMsQuantileDataLoader,
+    MinStartOrMaxEndTimeDataLoader,
+    RecordCountDataLoader,
+    SpanDescendantsDataLoader,
+    SpanEvaluationsDataLoader,
+    TokenCountDataLoader,
+    TraceEvaluationsDataLoader,
+)
+from phoenix.server.api.routers.v1 import V1_ROUTES
 from phoenix.server.api.schema import schema
-from phoenix.storage.span_store import SpanStore
+from phoenix.server.grpc_server import GrpcServer
+from phoenix.server.openapi.docs import get_swagger_ui_html
+from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
+from phoenix.trace.schemas import Span
+
+if TYPE_CHECKING:
+    from opentelemetry.trace import TracerProvider
 
 logger = logging.getLogger(__name__)
 
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
+
+schemas = SchemaGenerator(
+    {"openapi": "3.0.0", "info": {"title": "ArizePhoenix API", "version": "1.0"}}
+)
 
 
 class AppConfig(NamedTuple):
@@ -92,20 +146,27 @@ class HeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+ProjectRowId: TypeAlias = int
+
+
 class GraphQLWithContext(GraphQL):  # type: ignore
     def __init__(
         self,
         schema: BaseSchema,
+        db: Callable[[], AsyncContextManager[AsyncSession]],
         model: Model,
         export_path: Path,
         graphiql: bool = False,
         corpus: Optional[Model] = None,
-        traces: Optional[Traces] = None,
+        streaming_last_updated_at: Callable[[ProjectRowId], Optional[datetime]] = lambda _: None,
+        cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
     ) -> None:
+        self.db = db
         self.model = model
         self.corpus = corpus
-        self.traces = traces
         self.export_path = export_path
+        self.streaming_last_updated_at = streaming_last_updated_at
+        self.cache_for_dataloaders = cache_for_dataloaders
         super().__init__(schema, graphiql=graphiql)
 
     async def get_context(
@@ -116,10 +177,55 @@ class GraphQLWithContext(GraphQL):  # type: ignore
         return Context(
             request=request,
             response=response,
+            db=self.db,
             model=self.model,
             corpus=self.corpus,
-            traces=self.traces,
             export_path=self.export_path,
+            streaming_last_updated_at=self.streaming_last_updated_at,
+            data_loaders=DataLoaders(
+                document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
+                    self.db,
+                    cache_map=self.cache_for_dataloaders.document_evaluation_summary
+                    if self.cache_for_dataloaders
+                    else None,
+                ),
+                document_evaluations=DocumentEvaluationsDataLoader(self.db),
+                document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(self.db),
+                evaluation_summaries=EvaluationSummaryDataLoader(
+                    self.db,
+                    cache_map=self.cache_for_dataloaders.evaluation_summary
+                    if self.cache_for_dataloaders
+                    else None,
+                ),
+                latency_ms_quantile=LatencyMsQuantileDataLoader(
+                    self.db,
+                    cache_map=self.cache_for_dataloaders.latency_ms_quantile
+                    if self.cache_for_dataloaders
+                    else None,
+                ),
+                min_start_or_max_end_times=MinStartOrMaxEndTimeDataLoader(
+                    self.db,
+                    cache_map=self.cache_for_dataloaders.min_start_or_max_end_time
+                    if self.cache_for_dataloaders
+                    else None,
+                ),
+                record_counts=RecordCountDataLoader(
+                    self.db,
+                    cache_map=self.cache_for_dataloaders.record_count
+                    if self.cache_for_dataloaders
+                    else None,
+                ),
+                span_descendants=SpanDescendantsDataLoader(self.db),
+                span_evaluations=SpanEvaluationsDataLoader(self.db),
+                token_counts=TokenCountDataLoader(
+                    self.db,
+                    cache_map=self.cache_for_dataloaders.token_count
+                    if self.cache_for_dataloaders
+                    else None,
+                ),
+                trace_evaluations=TraceEvaluationsDataLoader(self.db),
+            ),
+            cache_for_dataloaders=self.cache_for_dataloaders,
         )
 
 
@@ -142,28 +248,146 @@ async def version(_: Request) -> PlainTextResponse:
     return PlainTextResponse(f"{phoenix.__version__}")
 
 
+def _db(engine: AsyncEngine) -> Callable[[], AsyncContextManager[AsyncSession]]:
+    Session = async_sessionmaker(engine, expire_on_commit=False)
+
+    @contextlib.asynccontextmanager
+    async def factory() -> AsyncIterator[AsyncSession]:
+        async with Session.begin() as session:
+            yield session
+
+    return factory
+
+
+def _lifespan(
+    *,
+    bulk_inserter: BulkInserter,
+    tracer_provider: Optional["TracerProvider"] = None,
+    enable_prometheus: bool = False,
+    clean_ups: Iterable[Callable[[], None]] = (),
+    read_only: bool = False,
+) -> StatefulLifespan[Starlette]:
+    @contextlib.asynccontextmanager
+    async def lifespan(_: Starlette) -> AsyncIterator[Dict[str, Any]]:
+        async with bulk_inserter as (queue_span, queue_evaluation), GrpcServer(
+            queue_span,
+            disabled=read_only,
+            tracer_provider=tracer_provider,
+            enable_prometheus=enable_prometheus,
+        ):
+            yield {
+                "queue_span_for_bulk_insert": queue_span,
+                "queue_evaluation_for_bulk_insert": queue_evaluation,
+            }
+        for clean_up in clean_ups:
+            clean_up()
+
+    return lifespan
+
+
 async def check_healthz(_: Request) -> PlainTextResponse:
     return PlainTextResponse("OK")
 
 
+async def openapi_schema(request: Request) -> Response:
+    return schemas.OpenAPIResponse(request=request)
+
+
+async def api_docs(request: Request) -> Response:
+    return get_swagger_ui_html(openapi_url="/schema", title="arize-phoenix API")
+
+
 def create_app(
+    database_url: str,
     export_path: Path,
     model: Model,
     umap_params: UMAPParameters,
     corpus: Optional[Model] = None,
-    traces: Optional[Traces] = None,
-    span_store: Optional[SpanStore] = None,
     debug: bool = False,
     read_only: bool = False,
     enable_prometheus: bool = False,
+    initial_spans: Optional[Iterable[Union[Span, Tuple[Span, str]]]] = None,
+    initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
 ) -> Starlette:
+    clean_ups: List[Callable[[], None]] = []  # To be called at app shutdown.
+    initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
+        ()
+        if initial_spans is None
+        else (
+            ((item, DEFAULT_PROJECT_NAME) if isinstance(item, Span) else item)
+            for item in initial_spans
+        )
+    )
+    initial_batch_of_evaluations = () if initial_evaluations is None else initial_evaluations
+    try:
+        engine = create_engine(database_url)
+    except PhoenixMigrationError as e:
+        msg = (
+            "\n\n⚠️⚠️ Phoenix failed to migrate the database to the latest version. ⚠️⚠️\n\n"
+            "The database may be in a dirty state. To resolve this, the Alembic CLI can be used\n"
+            "from the `src/phoenix/db` directory inside the Phoenix project root. From here,\n"
+            "revert any partial migrations and run `alembic stamp` to reset the migration state,\n"
+            "then try starting Phoenix again.\n\n"
+            "If issues persist, please reach out for support in the Arize community Slack:\n"
+            "https://arize-ai.slack.com\n\n"
+            "You can also refer to the Alembic documentation for more information:\n"
+            "https://alembic.sqlalchemy.org/en/latest/tutorial.html\n\n"
+            ""
+        )
+        raise PhoenixMigrationError(msg) from e
+    cache_for_dataloaders = (
+        CacheForDataLoaders()
+        if SupportedSQLDialect(engine.dialect.name) is SupportedSQLDialect.SQLITE
+        else None
+    )
+    db = _db(engine)
+    bulk_inserter = BulkInserter(
+        db,
+        enable_prometheus=enable_prometheus,
+        cache_for_dataloaders=cache_for_dataloaders,
+        initial_batch_of_spans=initial_batch_of_spans,
+        initial_batch_of_evaluations=initial_batch_of_evaluations,
+    )
+    tracer_provider = None
+    strawberry_extensions = schema.get_extensions()
+    if server_instrumentation_is_enabled():
+        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+        from opentelemetry.trace import TracerProvider
+        from strawberry.extensions.tracing import OpenTelemetryExtension
+
+        tracer_provider = initialize_opentelemetry_tracer_provider()
+        SQLAlchemyInstrumentor().instrument(
+            engine=engine.sync_engine,
+            tracer_provider=tracer_provider,
+        )
+        clean_ups.append(SQLAlchemyInstrumentor().uninstrument)
+        if TYPE_CHECKING:
+            # Type-check the class before monkey-patching its private attribute.
+            assert OpenTelemetryExtension._tracer
+
+        class _OpenTelemetryExtension(OpenTelemetryExtension):
+            def __init__(self, *args: Any, **kwargs: Any) -> None:
+                super().__init__(*args, **kwargs)
+                # Monkey-patch its private tracer to eliminate usage of the global
+                # TracerProvider, which in a notebook setting could be the one
+                # used by OpenInference.
+                self._tracer = cast(TracerProvider, tracer_provider).get_tracer("strawberry")
+
+        strawberry_extensions.append(_OpenTelemetryExtension)
     graphql = GraphQLWithContext(
-        schema=schema,
+        db=db,
+        schema=strawberry.Schema(
+            query=schema.query,
+            mutation=schema.mutation,
+            subscription=schema.subscription,
+            extensions=strawberry_extensions,
+        ),
         model=model,
         corpus=corpus,
-        traces=traces,
         export_path=export_path,
         graphiql=True,
+        streaming_last_updated_at=bulk_inserter.last_updated_at,
+        cache_for_dataloaders=cache_for_dataloaders,
     )
     if enable_prometheus:
         from phoenix.server.prometheus import PrometheusMiddleware
@@ -171,31 +395,22 @@ def create_app(
         prometheus_middlewares = [Middleware(PrometheusMiddleware)]
     else:
         prometheus_middlewares = []
-    return Starlette(
+    app = Starlette(
+        lifespan=_lifespan(
+            read_only=read_only,
+            bulk_inserter=bulk_inserter,
+            tracer_provider=tracer_provider,
+            enable_prometheus=enable_prometheus,
+            clean_ups=clean_ups,
+        ),
         middleware=[
             Middleware(HeadersMiddleware),
             *prometheus_middlewares,
         ],
         debug=debug,
-        routes=(
-            []
-            if traces is None or read_only
-            else [
-                Route(
-                    "/v1/spans",
-                    type("SpanEndpoint", (SpanHandler,), {"traces": traces}),
-                ),
-                Route(
-                    "/v1/traces",
-                    type("TraceEndpoint", (TraceHandler,), {"traces": traces, "store": span_store}),
-                ),
-                Route(
-                    "/v1/evaluations",
-                    type("EvaluationEndpoint", (EvaluationHandler,), {"traces": traces}),
-                ),
-            ]
-        )
+        routes=V1_ROUTES
         + [
+            Route("/schema", endpoint=openapi_schema, include_in_schema=False),
             Route("/arize_phoenix_version", version),
             Route("/healthz", check_healthz),
             Route(
@@ -205,6 +420,10 @@ def create_app(
                     (Download,),
                     {"path": export_path},
                 ),
+            ),
+            Route(
+                "/docs",
+                api_docs,
             ),
             Route(
                 "/graphql",
@@ -226,3 +445,12 @@ def create_app(
             ),
         ],
     )
+    app.state.read_only = read_only
+    app.state.db = db
+    if tracer_provider:
+        from opentelemetry.instrumentation.starlette import StarletteInstrumentor
+
+        StarletteInstrumentor().instrument(tracer_provider=tracer_provider)
+        StarletteInstrumentor.instrument_app(app, tracer_provider=tracer_provider)
+        clean_ups.append(StarletteInstrumentor().uninstrument)
+    return app

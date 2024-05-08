@@ -8,8 +8,8 @@ import phoenix.trace.schemas as trace_schemas
 
 @strawberry.enum
 class MimeType(Enum):
-    text = trace_schemas.MimeType.TEXT
-    json = trace_schemas.MimeType.JSON
+    text = trace_schemas.MimeType.TEXT.value
+    json = trace_schemas.MimeType.JSON.value
 
     @classmethod
     def _missing_(cls, v: Any) -> Optional["MimeType"]:

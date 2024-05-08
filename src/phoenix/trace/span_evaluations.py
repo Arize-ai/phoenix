@@ -12,6 +12,7 @@ from pandas.api.types import is_integer_dtype, is_numeric_dtype, is_string_dtype
 from pyarrow import RecordBatchStreamReader, Schema, Table, parquet
 
 from phoenix.config import TRACE_DATASET_DIR
+from phoenix.exceptions import PhoenixEvaluationNameIsMissing
 from phoenix.trace.errors import InvalidParquetMetadataError
 
 EVAL_NAME_COLUMN_PREFIX = "eval."
@@ -335,8 +336,10 @@ def _parse_schema_metadata(schema: Schema) -> Tuple[UUID, str, Type[Evaluations]
         arize_metadata = json.loads(metadata[b"arize"])
         eval_classes = {subclass.__name__: subclass for subclass in Evaluations.__subclasses__()}
         eval_id = UUID(arize_metadata["eval_id"])
-        if not isinstance((eval_name := arize_metadata["eval_name"]), str):
-            raise ValueError('Arize metadata must contain a string value for key "eval_name"')
+        if not isinstance((eval_name := arize_metadata["eval_name"]), str) or not eval_name.strip():
+            raise PhoenixEvaluationNameIsMissing(
+                'Arize metadata must contain a non-empty string value for key "eval_name"'
+            )
         evaluations_cls = eval_classes[arize_metadata["eval_type"]]
         return eval_id, eval_name, evaluations_cls
     except Exception as err:

@@ -14,7 +14,7 @@ import cohere
 import numpy as np
 import pandas as pd
 import phoenix as px
-import phoenix.experimental.evals.templates.default_templates as templates
+import phoenix.evals.default_templates as templates
 import requests
 import tiktoken
 from bs4 import BeautifulSoup
@@ -34,17 +34,15 @@ from llama_index.core.query_engine import MultiStepQueryEngine, TransformQueryEn
 from llama_index.legacy import (
     LLMPredictor,
 )
-from llama_index.legacy.postprocessor.cohere_rerank import CohereRerank
 from llama_index.legacy.readers.web import BeautifulSoupWebReader
 from llama_index.llms.openai import OpenAI
+from llama_index.postprocessor.cohere_rerank import CohereRerank
 from openinference.semconv.trace import DocumentAttributes, SpanAttributes
 from phoenix.evals import (
     OpenAIModel,
     llm_classify,
 )
 from phoenix.evals.models import BaseModel, set_verbosity
-
-# from phoenix.experimental.evals.templates import NOT_PARSABLE
 from plotresults import (
     plot_latency_graphs,
     plot_mean_average_precision_graphs,
@@ -332,6 +330,7 @@ def run_experiments(
                     logger.info(f"K : {k}")
 
                     time_start = time.time()
+                    # return engine, query
                     response = engine.query(query)
                     time_end = time.time()
                     response_latency = time_end - time_start
@@ -414,7 +413,9 @@ def df_evals(
         lambda chunks: concatenate_and_truncate_chunks(chunks=chunks, model=model, token_buffer=700)
     )
 
-    df = df.rename(columns={"query": "question", "response": "sampled_answer"})
+    df = df.rename(
+        columns={"query": "input", "response": "output", "retrieved_context_list": "reference"}
+    )
     # Q&A Eval: Did the LLM get the answer right? Checking the LLM
     Q_and_A_classifications = llm_classify(
         dataframe=df,
@@ -426,7 +427,7 @@ def df_evals(
     # Retreival Eval: Did I have the relevant data to even answer the question?
     # Checking retrieval system
 
-    df = df.rename(columns={"question": "query", "retrieved_context_list": "reference"})
+    df = df.rename(columns={"question": "input", "retrieved_context_list": "reference"})
     # query_column_name needs to also adjust the template to uncomment the
     # 2 fields in the function call below and delete the line above
     df[formatted_evals_column] = run_relevance_eval(
@@ -434,14 +435,14 @@ def df_evals(
         model=model,
         template=templates.RAG_RELEVANCY_PROMPT_TEMPLATE,
         rails=list(templates.RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
-        query_column_name="query",
-        # document_column_name="retrieved_context_list",
+        query_column_name="input",
+        document_column_name="reference",
     )
 
     # We want 0, 1 values for the metrics
-    value_map = {"relevant": 1, "irrelevant": 0, "UNPARSABLE": 0}
+    value_map = {"relevant": 1, "unrelated": 0, "UNPARSABLE": 0}
     df[formatted_evals_column] = df[formatted_evals_column].apply(
-        lambda values: [value_map.get(value) for value in values]
+        lambda values: [value_map.get(value, 0) for value in values]
     )
     return df
 
@@ -617,10 +618,10 @@ def run_relevance_eval(
     model,
     template,
     rails,
-    system_instruction,
     query_column_name,
     document_column_name,
-    verbose,
+    verbose=False,
+    system_instruction=None,
 ):
     """
     Given a pandas dataframe containing queries and retrieved documents, classifies the relevance of

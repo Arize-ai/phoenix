@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<03812852687a08d6acc62d5ee9ac312e>>
+ * @generated SignedSource<<e1fe1405bf2c86d28af66c567db7164b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,9 +10,14 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type TimeRange = {
+  end: string;
+  start: string;
+};
 export type DocumentEvaluationSummaryQuery$variables = {
   evaluationName: string;
   id: string;
+  timeRange: TimeRange;
 };
 export type DocumentEvaluationSummaryQuery$data = {
   readonly project: {
@@ -35,6 +40,11 @@ var v0 = [
     "defaultValue": null,
     "kind": "LocalArgument",
     "name": "id"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "timeRange"
   }
 ],
 v1 = [
@@ -49,6 +59,11 @@ v2 = [
     "kind": "Variable",
     "name": "evaluationName",
     "variableName": "evaluationName"
+  },
+  {
+    "kind": "Variable",
+    "name": "timeRange",
+    "variableName": "timeRange"
   }
 ];
 return {
@@ -162,16 +177,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "cb9a115c548038fe9e6d8f82ee295bc6",
+    "cacheID": "3ebd1cf66ef8f31c995ec6aae6505e94",
     "id": null,
     "metadata": {},
     "name": "DocumentEvaluationSummaryQuery",
     "operationKind": "query",
-    "text": "query DocumentEvaluationSummaryQuery(\n  $evaluationName: String!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ...DocumentEvaluationSummaryValueFragment_qsFcK\n    __isNode: __typename\n    id\n  }\n}\n\nfragment DocumentEvaluationSummaryValueFragment_qsFcK on Project {\n  documentEvaluationSummary(evaluationName: $evaluationName) {\n    averageNdcg\n    averagePrecision\n    meanReciprocalRank\n    hitRate\n  }\n  id\n}\n"
+    "text": "query DocumentEvaluationSummaryQuery(\n  $evaluationName: String!\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...DocumentEvaluationSummaryValueFragment_1dJL9N\n    __isNode: __typename\n    id\n  }\n}\n\nfragment DocumentEvaluationSummaryValueFragment_1dJL9N on Project {\n  documentEvaluationSummary(evaluationName: $evaluationName, timeRange: $timeRange) {\n    averageNdcg\n    averagePrecision\n    meanReciprocalRank\n    hitRate\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e640f629267b8990db5f218c0f04fdca";
+(node as any).hash = "4d50474ffa9b9e4a68d07f6e0777c144";
 
 export default node;

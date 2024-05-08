@@ -29,10 +29,16 @@ export function ProjectPageHeader(props: {
     graphql`
       fragment ProjectPageHeader_stats on Project
       @refetchable(queryName: "ProjectPageHeaderQuery") {
-        traceCount
-        tokenCountTotal
-        latencyMsP50
-        latencyMsP99
+        traceCount(timeRange: $timeRange)
+        tokenCountTotal(timeRange: $timeRange)
+        latencyMsP50: latencyMsQuantile(
+          probability: 0.50
+          timeRange: $timeRange
+        )
+        latencyMsP99: latencyMsQuantile(
+          probability: 0.99
+          timeRange: $timeRange
+        )
         spanEvaluationNames
         documentEvaluationNames
       }

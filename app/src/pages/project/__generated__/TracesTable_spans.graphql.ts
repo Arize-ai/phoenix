@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<95617f92540c861c4d8cc55a7b6132df>>
+ * @generated SignedSource<<6d59c2a06cc578894102874c2eb1f1e3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,11 +21,17 @@ export type TracesTable_spans$data = {
           readonly spanId: string;
           readonly traceId: string;
         };
+        readonly cumulativeTokenCountCompletion: number | null;
+        readonly cumulativeTokenCountPrompt: number | null;
+        readonly cumulativeTokenCountTotal: number | null;
         readonly descendants: ReadonlyArray<{
           readonly context: {
             readonly spanId: string;
             readonly traceId: string;
           };
+          readonly cumulativeTokenCountCompletion: number | null;
+          readonly cumulativeTokenCountPrompt: number | null;
+          readonly cumulativeTokenCountTotal: number | null;
           readonly documentRetrievalMetrics: ReadonlyArray<{
             readonly evaluationName: string;
             readonly hit: number | null;
@@ -49,9 +55,6 @@ export type TracesTable_spans$data = {
           readonly spanKind: SpanKind;
           readonly startTime: string;
           readonly statusCode: SpanStatusCode;
-          readonly tokenCountCompletion: number | null;
-          readonly tokenCountPrompt: number | null;
-          readonly tokenCountTotal: number | null;
         }>;
         readonly documentRetrievalMetrics: ReadonlyArray<{
           readonly evaluationName: string;
@@ -77,9 +80,6 @@ export type TracesTable_spans$data = {
         readonly spanKind: SpanKind;
         readonly startTime: string;
         readonly statusCode: SpanStatusCode;
-        readonly tokenCountCompletion: number | null;
-        readonly tokenCountPrompt: number | null;
-        readonly tokenCountTotal: number | null;
       };
     }>;
   };
@@ -139,34 +139,14 @@ v6 = {
 },
 v7 = [
   {
-    "alias": null,
+    "alias": "value",
     "args": null,
     "kind": "ScalarField",
-    "name": "value",
+    "name": "truncatedValue",
     "storageKey": null
   }
 ],
 v8 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "SpanIOValue",
-  "kind": "LinkedField",
-  "name": "input",
-  "plural": false,
-  "selections": (v7/*: any*/),
-  "storageKey": null
-},
-v9 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "SpanIOValue",
-  "kind": "LinkedField",
-  "name": "output",
-  "plural": false,
-  "selections": (v7/*: any*/),
-  "storageKey": null
-},
-v10 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanContext",
@@ -191,7 +171,7 @@ v10 = {
   ],
   "storageKey": null
 },
-v11 = {
+v9 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanEvaluation",
@@ -217,7 +197,7 @@ v11 = {
   ],
   "storageKey": null
 },
-v12 = {
+v10 = {
   "alias": null,
   "args": null,
   "concreteType": "DocumentRetrievalMetrics",
@@ -255,7 +235,16 @@ v12 = {
     }
   ],
   "storageKey": null
-};
+},
+v11 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "value",
+    "storageKey": null
+  }
+];
 return {
   "argumentDefinitions": [
     {
@@ -280,6 +269,10 @@ return {
       },
       "kind": "LocalArgument",
       "name": "sort"
+    },
+    {
+      "kind": "RootArgument",
+      "name": "timeRange"
     }
   ],
   "kind": "Fragment",
@@ -335,6 +328,11 @@ return {
           "kind": "Variable",
           "name": "sort",
           "variableName": "sort"
+        },
+        {
+          "kind": "Variable",
+          "name": "timeRange",
+          "variableName": "timeRange"
         }
       ],
       "concreteType": "SpanConnection",
@@ -371,32 +369,50 @@ return {
                 (v4/*: any*/),
                 (v5/*: any*/),
                 {
-                  "alias": "tokenCountTotal",
+                  "alias": null,
                   "args": null,
                   "kind": "ScalarField",
                   "name": "cumulativeTokenCountTotal",
                   "storageKey": null
                 },
                 {
-                  "alias": "tokenCountPrompt",
+                  "alias": null,
                   "args": null,
                   "kind": "ScalarField",
                   "name": "cumulativeTokenCountPrompt",
                   "storageKey": null
                 },
                 {
-                  "alias": "tokenCountCompletion",
+                  "alias": null,
                   "args": null,
                   "kind": "ScalarField",
                   "name": "cumulativeTokenCountCompletion",
                   "storageKey": null
                 },
                 (v6/*: any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "SpanIOValue",
+                  "kind": "LinkedField",
+                  "name": "input",
+                  "plural": false,
+                  "selections": (v7/*: any*/),
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "SpanIOValue",
+                  "kind": "LinkedField",
+                  "name": "output",
+                  "plural": false,
+                  "selections": (v7/*: any*/),
+                  "storageKey": null
+                },
                 (v8/*: any*/),
                 (v9/*: any*/),
                 (v10/*: any*/),
-                (v11/*: any*/),
-                (v12/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -412,31 +428,49 @@ return {
                     (v5/*: any*/),
                     (v6/*: any*/),
                     {
-                      "alias": null,
+                      "alias": "cumulativeTokenCountTotal",
                       "args": null,
                       "kind": "ScalarField",
                       "name": "tokenCountTotal",
                       "storageKey": null
                     },
                     {
-                      "alias": null,
+                      "alias": "cumulativeTokenCountPrompt",
                       "args": null,
                       "kind": "ScalarField",
                       "name": "tokenCountPrompt",
                       "storageKey": null
                     },
                     {
-                      "alias": null,
+                      "alias": "cumulativeTokenCountCompletion",
                       "args": null,
                       "kind": "ScalarField",
                       "name": "tokenCountCompletion",
                       "storageKey": null
                     },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "SpanIOValue",
+                      "kind": "LinkedField",
+                      "name": "input",
+                      "plural": false,
+                      "selections": (v11/*: any*/),
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "SpanIOValue",
+                      "kind": "LinkedField",
+                      "name": "output",
+                      "plural": false,
+                      "selections": (v11/*: any*/),
+                      "storageKey": null
+                    },
                     (v8/*: any*/),
                     (v9/*: any*/),
-                    (v10/*: any*/),
-                    (v11/*: any*/),
-                    (v12/*: any*/)
+                    (v10/*: any*/)
                   ],
                   "storageKey": null
                 }
@@ -512,6 +546,6 @@ return {
 };
 })();
 
-(node as any).hash = "834fc464dace944d3249ad311c7502f7";
+(node as any).hash = "567d631d2187a62101bff2abba20d240";
 
 export default node;

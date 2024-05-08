@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5e5050afba9dd8829f06272a77edb108>>
+ * @generated SignedSource<<45efd276517ef15041df0c26c87f5604>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -32,6 +32,11 @@ const node: ReaderFragment = {
       "defaultValue": null,
       "kind": "LocalArgument",
       "name": "evaluationName"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "timeRange"
     }
   ],
   "kind": "Fragment",
@@ -57,6 +62,11 @@ const node: ReaderFragment = {
           "kind": "Variable",
           "name": "evaluationName",
           "variableName": "evaluationName"
+        },
+        {
+          "kind": "Variable",
+          "name": "timeRange",
+          "variableName": "timeRange"
         }
       ],
       "concreteType": "EvaluationSummary",
@@ -111,6 +121,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "7a04af8ec5267dc13f778d7ee088691a";
+(node as any).hash = "ba0ee13567d5484ec0697c50e1a77bfa";
 
 export default node;

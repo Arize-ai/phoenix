@@ -486,7 +486,7 @@ type Mutation {
   """
   exportClusters(clusters: [ClusterInput!]!, fileName: String): ExportedFile!
   deleteProject(id: GlobalID!): Query!
-  archiveProject(id: GlobalID!): Query!
+  clearProject(id: GlobalID!): Query!
 }
 
 """A node in the graph with a globally unique ID"""
@@ -508,7 +508,6 @@ type PageInfo {
   hasPreviousPage: Boolean!
   startCursor: String
   endCursor: String
-  totalCount: Int!
 }
 
 enum PerformanceMetric {
@@ -539,15 +538,19 @@ type Point3D {
 type Project implements Node {
   id: GlobalID!
   name: String!
+  gradientStartColor: String!
+  gradientEndColor: String!
   startTime: DateTime
   endTime: DateTime
-  recordCount(timeRange: TimeRange): Int!
+  recordCount(timeRange: TimeRange, filterCondition: String): Int!
   traceCount(timeRange: TimeRange): Int!
-  tokenCountTotal: Int!
-  latencyMsP50: Float
-  latencyMsP99: Float
+  tokenCountTotal(timeRange: TimeRange, filterCondition: String): Int!
+  tokenCountPrompt(timeRange: TimeRange, filterCondition: String): Int!
+  tokenCountCompletion(timeRange: TimeRange, filterCondition: String): Int!
+  latencyMsQuantile(probability: Float!, timeRange: TimeRange): Float
+  spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String): Float
   trace(traceId: ID!): Trace
-  spans(timeRange: TimeRange, traceIds: [ID!], first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String): SpanConnection!
+  spans(timeRange: TimeRange, first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String): SpanConnection!
 
   """
   Names of all available evaluations for traces. (The list contains no duplicates.)
@@ -640,7 +643,8 @@ enum SortDir {
   desc
 }
 
-type Span {
+type Span implements Node {
+  id: GlobalID!
   name: String!
   statusCode: SpanStatusCode!
   statusMessage: String!
@@ -757,6 +761,9 @@ type SpanEvent {
 type SpanIOValue {
   mimeType: MimeType!
   value: String!
+
+  """Truncate value up to `chars` characters, appending '...' if truncated."""
+  truncatedValue(chars: Int! = 100): String!
 }
 
 enum SpanKind {
@@ -802,8 +809,8 @@ type TimeSeriesDataPoint {
   value: Float
 }
 
-type Trace {
-  traceId: ID!
+type Trace implements Node {
+  id: GlobalID!
   spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
 
   """Evaluations associated with the trace"""
