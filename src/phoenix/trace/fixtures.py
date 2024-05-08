@@ -222,8 +222,7 @@ def reset_fixture_span_ids_and_timestamps(
         elif span_id := subject_id.document_retrieval_id.span_id:
             new_span_ids[span_id] = _new_span_id()
     max_end_time = max(old_span.end_time for old_span in old_spans)
-    now = datetime.now(timezone.utc).replace(microsecond=0, second=0, minute=0)
-    time_diff = now - max_end_time
+    time_diff = datetime.now(timezone.utc) - max_end_time
     new_spans: List[Span] = []
     new_evals: List[pb.Evaluation] = []
     for old_span in old_spans:
