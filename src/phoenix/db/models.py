@@ -117,7 +117,6 @@ class Project(Base):
     __table_args__ = (
         UniqueConstraint(
             "name",
-            sqlite_on_conflict="IGNORE",
         ),
     )
 
@@ -157,7 +156,6 @@ class Trace(Base):
     __table_args__ = (
         UniqueConstraint(
             "trace_id",
-            sqlite_on_conflict="IGNORE",
         ),
     )
 
@@ -309,9 +307,8 @@ class SpanAnnotation(Base):
     )
     __table_args__ = (
         UniqueConstraint(
-            "span_rowid",
             "name",
-            sqlite_on_conflict="REPLACE",
+            "span_rowid",
         ),
     )
 
@@ -337,9 +334,8 @@ class TraceAnnotation(Base):
     )
     __table_args__ = (
         UniqueConstraint(
-            "trace_rowid",
             "name",
-            sqlite_on_conflict="REPLACE",
+            "trace_rowid",
         ),
     )
 
@@ -368,9 +364,8 @@ class DocumentAnnotation(Base):
 
     __table_args__ = (
         UniqueConstraint(
+            "name",
             "span_rowid",
             "document_position",
-            "name",
-            sqlite_on_conflict="REPLACE",
         ),
     )

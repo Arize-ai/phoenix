@@ -170,9 +170,8 @@ def upgrade() -> None:
             onupdate=sa.func.now(),
         ),
         sa.UniqueConstraint(
-            "span_rowid",
             "name",
-            sqlite_on_conflict="REPLACE",
+            "span_rowid",
         ),
     )
 
@@ -214,9 +213,8 @@ def upgrade() -> None:
             onupdate=sa.func.now(),
         ),
         sa.UniqueConstraint(
-            "trace_rowid",
             "name",
-            sqlite_on_conflict="REPLACE",
+            "trace_rowid",
         ),
     )
 
@@ -259,10 +257,9 @@ def upgrade() -> None:
             onupdate=sa.func.now(),
         ),
         sa.UniqueConstraint(
+            "name",
             "span_rowid",
             "document_position",
-            "name",
-            sqlite_on_conflict="REPLACE",
         ),
     )
 

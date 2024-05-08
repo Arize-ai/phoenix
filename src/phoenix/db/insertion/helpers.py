@@ -1,0 +1,39 @@
+from enum import Enum, auto
+from typing import Any, Mapping, Optional
+
+from sqlalchemy import Insert, insert
+from sqlalchemy.dialects.postgresql import insert as insert_postgresql
+from sqlalchemy.dialects.sqlite import insert as insert_sqlite
+from typing_extensions import assert_never
+
+from phoenix.db.helpers import SupportedSQLDialect
+
+
+class OnConflict(Enum):
+    DO_NOTHING = auto()
+    DO_UPDATE = auto()
+
+
+def insert_stmt(
+    dialect: SupportedSQLDialect,
+    table: Any,
+    values: Mapping[str, Any],
+    constraint: Optional[str] = None,
+    on_conflict: OnConflict = OnConflict.DO_NOTHING,
+    set_: Optional[Mapping[str, Any]] = None,
+) -> Insert:
+    if constraint is None:
+        return insert(table).values(values)
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        stmt_postgresql = insert_postgresql(table).values(values)
+        if on_conflict is OnConflict.DO_NOTHING or not set_:
+            return stmt_postgresql.on_conflict_do_nothing(constraint=constraint)
+        if on_conflict is OnConflict.DO_UPDATE:
+            return stmt_postgresql.on_conflict_do_update(constraint=constraint, set_=set_)
+    if dialect is SupportedSQLDialect.SQLITE:
+        stmt_sqlite = insert_sqlite(table).values(values)
+        if on_conflict is OnConflict.DO_NOTHING or not set_:
+            return stmt_sqlite.on_conflict_do_nothing()
+        if on_conflict is OnConflict.DO_UPDATE:
+            return stmt_sqlite.on_conflict_do_update(set_=set_)
+    assert_never(dialect)
