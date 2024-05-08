@@ -20,13 +20,13 @@ class EvaluationInsertionResult(NamedTuple):
     evaluation_name: str
 
 
-class SpanEvaluationInsertionResult(EvaluationInsertionResult): ...
+class SpanEvaluationInsertionEvent(EvaluationInsertionResult): ...
 
 
-class TraceEvaluationInsertionResult(EvaluationInsertionResult): ...
+class TraceEvaluationInsertionEvent(EvaluationInsertionResult): ...
 
 
-class DocumentEvaluationInsertionResult(EvaluationInsertionResult): ...
+class DocumentEvaluationInsertionEvent(EvaluationInsertionResult): ...
 
 
 async def insert_evaluation(
@@ -67,7 +67,7 @@ async def _insert_trace_evaluation(
     label: Optional[str],
     score: Optional[float],
     explanation: Optional[str],
-) -> TraceEvaluationInsertionResult:
+) -> TraceEvaluationInsertionEvent:
     stmt = select(
         models.Trace.project_rowid,
         models.Trace.id,
@@ -101,7 +101,7 @@ async def _insert_trace_evaluation(
             set_=set_,
         )
     )
-    return TraceEvaluationInsertionResult(project_rowid, evaluation_name)
+    return TraceEvaluationInsertionEvent(project_rowid, evaluation_name)
 
 
 async def _insert_span_evaluation(
@@ -111,7 +111,7 @@ async def _insert_span_evaluation(
     label: Optional[str],
     score: Optional[float],
     explanation: Optional[str],
-) -> SpanEvaluationInsertionResult:
+) -> SpanEvaluationInsertionEvent:
     stmt = (
         select(
             models.Trace.project_rowid,
@@ -149,7 +149,7 @@ async def _insert_span_evaluation(
             set_=set_,
         )
     )
-    return SpanEvaluationInsertionResult(project_rowid, evaluation_name)
+    return SpanEvaluationInsertionEvent(project_rowid, evaluation_name)
 
 
 async def _insert_document_evaluation(
@@ -206,4 +206,4 @@ async def _insert_document_evaluation(
             set_=set_,
         )
     )
-    return DocumentEvaluationInsertionResult(project_rowid, evaluation_name)
+    return DocumentEvaluationInsertionEvent(project_rowid, evaluation_name)

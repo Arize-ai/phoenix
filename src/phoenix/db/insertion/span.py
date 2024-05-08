@@ -12,11 +12,11 @@ from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.schemas import Span, SpanStatusCode
 
 
-class SpanInsertionResult(NamedTuple):
+class SpanInsertionEvent(NamedTuple):
     project_rowid: int
 
 
-class ClearProjectSpansResult(NamedTuple):
+class ClearProjectSpansEvent(NamedTuple):
     project_rowid: int
 
 
@@ -24,7 +24,7 @@ async def insert_span(
     session: AsyncSession,
     span: Span,
     project_name: str,
-) -> Optional[SpanInsertionResult]:
+) -> Optional[SpanInsertionEvent]:
     dialect = SupportedSQLDialect(session.bind.dialect.name)
     project_rowid = await session.scalar(
         insert_stmt(
@@ -139,4 +139,4 @@ async def insert_span(
             + cumulative_llm_token_count_completion,
         )
     )
-    return SpanInsertionResult(project_rowid)
+    return SpanInsertionEvent(project_rowid)

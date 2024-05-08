@@ -51,13 +51,17 @@ _SubKey: TypeAlias = Tuple[TimeInterval, FilterCondition, Kind]
 
 class RecordCountCache(
     TwoTierCache[Key, Result, _Section, _SubKey],
-    # TTL=3600 (1-hour) because time intervals are always moving forward, but
-    # interval endpoints are rounded down to the hour by the UI, so anything
-    # older than an hour most likely won't be a cache-hit anyway.
-    main_cache_factory=lambda: TTLCache(maxsize=64, ttl=3600),
-    sub_cache_factory=lambda: LFUCache(maxsize=2 * 2 * 2),
 ):
-    def _cache_keys(self, key: Key) -> Tuple[_Section, _SubKey]:
+    def __init__(self) -> None:
+        super().__init__(
+            # TTL=3600 (1-hour) because time intervals are always moving forward, but
+            # interval endpoints are rounded down to the hour by the UI, so anything
+            # older than an hour most likely won't be a cache-hit anyway.
+            main_cache=TTLCache(maxsize=64, ttl=3600),
+            sub_cache_factory=lambda: LFUCache(maxsize=2 * 2 * 2),
+        )
+
+    def _cache_key(self, key: Key) -> Tuple[_Section, _SubKey]:
         (kind, interval, filter_condition), project_rowid = _cache_key_fn(key)
         return project_rowid, (interval, filter_condition, kind)
 
