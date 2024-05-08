@@ -661,11 +661,13 @@ class SpanQuery(_HasTmpSuffix):
             **(
                 {"_explode": Explosion.from_dict(cast(Mapping[str, Any], explode))}  # type: ignore
                 if (explode := obj.get("explode"))
+                and explode.get("key")  # check `key` for backward-compatible truthiness
                 else {}
             ),
             **(
                 {"_concat": Concatenation.from_dict(cast(Mapping[str, Any], concat))}  # type: ignore
                 if (concat := obj.get("concat"))
+                and concat.get("key")  # check `key` for backward-compatible truthiness
                 else {}
             ),
             **(
