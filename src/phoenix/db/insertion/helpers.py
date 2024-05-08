@@ -1,5 +1,5 @@
 from enum import Enum, auto
-from typing import Any, Mapping, Optional
+from typing import Any, Mapping, Optional, Sequence
 
 from sqlalchemy import Insert, insert
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
@@ -19,10 +19,16 @@ def insert_stmt(
     table: Any,
     values: Mapping[str, Any],
     constraint: Optional[str] = None,
+    column_names: Sequence[str] = (),
     on_conflict: OnConflict = OnConflict.DO_NOTHING,
     set_: Optional[Mapping[str, Any]] = None,
 ) -> Insert:
-    if constraint is None:
+    if (
+        dialect is SupportedSQLDialect.POSTGRESQL
+        and constraint is None
+        or dialect is SupportedSQLDialect.SQLITE
+        and not column_names
+    ):
         return insert(table).values(values)
     if dialect is SupportedSQLDialect.POSTGRESQL:
         stmt_postgresql = insert_postgresql(table).values(values)
@@ -33,7 +39,7 @@ def insert_stmt(
     if dialect is SupportedSQLDialect.SQLITE:
         stmt_sqlite = insert_sqlite(table).values(values)
         if on_conflict is OnConflict.DO_NOTHING or not set_:
-            return stmt_sqlite.on_conflict_do_nothing()
+            return stmt_sqlite.on_conflict_do_nothing(column_names)
         if on_conflict is OnConflict.DO_UPDATE:
-            return stmt_sqlite.on_conflict_do_update(set_=set_)
+            return stmt_sqlite.on_conflict_do_update(column_names, set_=set_)
     assert_never(dialect)

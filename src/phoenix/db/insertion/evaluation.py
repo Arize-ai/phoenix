@@ -96,6 +96,7 @@ async def _insert_trace_evaluation(
             table=models.TraceAnnotation,
             values=values,
             constraint="uq_trace_annotations_name_trace_rowid",
+            column_names=("name", "trace_rowid"),
             on_conflict=OnConflict.DO_UPDATE,
             set_=set_,
         )
@@ -143,6 +144,7 @@ async def _insert_span_evaluation(
             table=models.SpanAnnotation,
             values=values,
             constraint="uq_span_annotations_name_span_rowid",
+            column_names=("name", "span_rowid"),
             on_conflict=OnConflict.DO_UPDATE,
             set_=set_,
         )
@@ -199,6 +201,7 @@ async def _insert_document_evaluation(
             table=models.DocumentAnnotation,
             values=values,
             constraint="uq_document_annotations_name_span_rowid_document_position",
+            column_names=("name", "span_rowid", "document_position"),
             on_conflict=OnConflict.DO_UPDATE,
             set_=set_,
         )
