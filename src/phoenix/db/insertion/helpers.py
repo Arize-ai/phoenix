@@ -23,6 +23,10 @@ def insert_stmt(
     on_conflict: OnConflict = OnConflict.DO_NOTHING,
     set_: Optional[Mapping[str, Any]] = None,
 ) -> Insert:
+    if bool(constraint) != bool(column_names):
+        raise ValueError(
+            "Both `constraint` and `column_names` must be provided or omitted at the same time."
+        )
     if (
         dialect is SupportedSQLDialect.POSTGRESQL
         and constraint is None
