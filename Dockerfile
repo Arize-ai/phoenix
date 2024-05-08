@@ -54,7 +54,7 @@ RUN pip install --target ./env ".[container, pg]"
 # https://github.com/GoogleContainerTools/distroless?tab=readme-ov-file#debug-images
 #
 # Use the debug tag in the following line to build the debug image.
-FROM gcr.io/distroless/python3-debian12:nonroot
+FROM gcr.io/distroless/python3-debian12
 WORKDIR /phoenix
 COPY --from=backend-builder /phoenix/env/ ./env
 ENV PYTHONPATH="/phoenix/env:$PYTHONPATH"
