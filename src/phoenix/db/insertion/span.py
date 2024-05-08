@@ -30,7 +30,7 @@ async def insert_span(
         insert_stmt(
             dialect=dialect,
             table=models.Project,
-            constraint="uq_project_name",
+            constraint="uq_projects_name",
             column_names=("name",),
             values=dict(name=project_name),
             on_conflict=OnConflict.DO_UPDATE,
@@ -90,7 +90,7 @@ async def insert_span(
         insert_stmt(
             dialect=dialect,
             table=models.Span,
-            constraint="uq_span_span_id",
+            constraint="uq_spans_span_id",
             column_names=("span_id",),
             values=dict(
                 span_id=span.context.span_id,
