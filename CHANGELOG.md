@@ -1,5 +1,21 @@
 # Changelog
 
+## [3.26.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v3.25.0...arize-phoenix-v3.26.0) (2024-05-08)
+
+
+### Features
+
+* support pagination on spans resolver ([#3046](https://github.com/Arize-ai/phoenix/issues/3046)) ([2113c5c](https://github.com/Arize-ai/phoenix/commit/2113c5c525113a64a1d03d50261e511e69dd6374))
+
+
+### Bug Fixes
+
+* backward compatible truthiness for query from dict parsing ([#3124](https://github.com/Arize-ai/phoenix/issues/3124)) ([b425f9d](https://github.com/Arize-ai/phoenix/commit/b425f9db7e6697b89f58ce77a15789d071522fec))
+* check payload for legacy project_name ([#3125](https://github.com/Arize-ai/phoenix/issues/3125)) ([d7eae60](https://github.com/Arize-ai/phoenix/commit/d7eae6017a4f4cb29ecc718a5c3353dfa402e650))
+* commit insert into alembic_version ([#3115](https://github.com/Arize-ai/phoenix/issues/3115)) ([93a144f](https://github.com/Arize-ai/phoenix/commit/93a144f6b7b81cf5358196a02752c1e4961e999c))
+* disable grpc when readonly ([#3105](https://github.com/Arize-ai/phoenix/issues/3105)) ([71ceba9](https://github.com/Arize-ai/phoenix/commit/71ceba90904f4b98e86f6500de4a06aa9397a786))
+* Invalidate cache on project reset ([#3113](https://github.com/Arize-ai/phoenix/issues/3113)) ([2944ae5](https://github.com/Arize-ai/phoenix/commit/2944ae586f05dd6a1e4425987137c098e14e60fb))
+
 ## [3.25.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v3.24.0...arize-phoenix-v3.25.0) (2024-05-06)
 
 
