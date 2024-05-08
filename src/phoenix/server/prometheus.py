@@ -5,7 +5,7 @@ import psutil
 from prometheus_client import (
     Counter,
     Gauge,
-    Histogram,
+    Summary,
     start_http_server,
 )
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -13,9 +13,9 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Match
 
-REQUESTS_PROCESSING_TIME = Histogram(
+REQUESTS_PROCESSING_TIME = Summary(
     name="starlette_requests_processing_time_seconds",
-    documentation="Histogram of requests processing time by method and path (in seconds)",
+    documentation="Summary of requests processing time by method and path (in seconds)",
     labelnames=["method", "path"],
 )
 EXCEPTIONS = Counter(
@@ -33,7 +33,7 @@ CPU_METRIC = Gauge(
     documentation="CPU usage percent",
     labelnames=["core"],
 )
-BULK_LOADER_INSERTION_TIME = Histogram(
+BULK_LOADER_INSERTION_TIME = Summary(
     name="bulk_loader_insertion_time_seconds",
     documentation="Histogram of database insertion time (seconds)",
 )
