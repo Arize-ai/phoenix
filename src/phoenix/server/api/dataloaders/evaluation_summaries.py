@@ -54,13 +54,22 @@ _SubKey: TypeAlias = Tuple[TimeInterval, FilterCondition]
 
 class EvaluationSummaryCache(
     TwoTierCache[Key, Result, _Section, _SubKey],
-    # TTL=3600 (1-hour) because time intervals are always moving forward, but
-    # interval endpoints are rounded down to the hour by the UI, so anything
-    # older than an hour most likely won't be a cache-hit anyway.
-    main_cache_factory=lambda: TTLCache(maxsize=64 * 32 * 2, ttl=3600),
-    sub_cache_factory=lambda: LFUCache(maxsize=2 * 2),
 ):
-    def _cache_keys(self, key: Key) -> Tuple[_Section, _SubKey]:
+    def __init__(self) -> None:
+        super().__init__(
+            # TTL=3600 (1-hour) because time intervals are always moving forward, but
+            # interval endpoints are rounded down to the hour by the UI, so anything
+            # older than an hour most likely won't be a cache-hit anyway.
+            main_cache=TTLCache(maxsize=64 * 32 * 2, ttl=3600),
+            sub_cache_factory=lambda: LFUCache(maxsize=2 * 2),
+        )
+
+    def invalidate_project(self, project_rowid: ProjectRowId) -> None:
+        for section in self._cache.keys():
+            if section[0] == project_rowid:
+                del self._cache[section]
+
+    def _cache_key(self, key: Key) -> Tuple[_Section, _SubKey]:
         (kind, project_rowid, interval, filter_condition), eval_name = _cache_key_fn(key)
         return (project_rowid, eval_name, kind), (interval, filter_condition)
 

@@ -36,10 +36,14 @@ _SubKey = Kind
 
 class MinStartOrMaxEndTimeCache(
     TwoTierCache[Key, Result, _Section, _SubKey],
-    main_cache_factory=lambda: LFUCache(maxsize=64),
-    sub_cache_factory=lambda: LFUCache(maxsize=2),
 ):
-    def _cache_keys(self, key: Key) -> Tuple[_Section, _SubKey]:
+    def __init__(self) -> None:
+        super().__init__(
+            main_cache=LFUCache(maxsize=64),
+            sub_cache_factory=lambda: LFUCache(maxsize=2),
+        )
+
+    def _cache_key(self, key: Key) -> Tuple[_Section, _SubKey]:
         return key
 
 
