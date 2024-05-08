@@ -218,15 +218,13 @@ class Project(Node):
             span_records = await session.execute(stmt)
             async for span_record in islice(span_records, first):
                 span = span_record[0]
-                eval_value = span_record[1] if len(span_record) > 1 else None
+                sort_column_value = span_record[1] if len(span_record) > 1 else None
                 cursor = Cursor(
                     rowid=span.id,
                     sort_column=(
                         CursorSortColumn(
                             type=sort_config.column_data_type,
-                            value=eval_value
-                            if eval_value is not None
-                            else getattr(span, sort_config.column_name),
+                            value=sort_column_value,
                         )
                         if sort_config
                         else None

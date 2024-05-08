@@ -35,35 +35,35 @@ class SpanColumn(Enum):
 
     @property
     def column_name(self) -> str:
-        for attribute_name in ("name", "key"):
-            if attribute_value := getattr(self.orm_expression, attribute_name, None):
-                return str(attribute_value)
-        raise ValueError(f"Could not determine column name for {self}")
+        return "f{self.name}_span_sort_column"
 
     @property
     def orm_expression(self) -> Any:
+        expr: Any
         if self is SpanColumn.startTime:
-            return models.Span.start_time
-        if self is SpanColumn.endTime:
-            return models.Span.end_time
-        if self is SpanColumn.latencyMs:
-            return models.Span.latency_ms
-        if self is SpanColumn.tokenCountTotal:
-            return models.Span.attributes[LLM_TOKEN_COUNT_TOTAL].as_float()
-        if self is SpanColumn.tokenCountPrompt:
-            return models.Span.attributes[LLM_TOKEN_COUNT_PROMPT].as_float()
-        if self is SpanColumn.tokenCountCompletion:
-            return models.Span.attributes[LLM_TOKEN_COUNT_COMPLETION].as_float()
-        if self is SpanColumn.cumulativeTokenCountTotal:
-            return (
+            expr = models.Span.start_time
+        elif self is SpanColumn.endTime:
+            expr = models.Span.end_time
+        elif self is SpanColumn.latencyMs:
+            expr = models.Span.latency_ms
+        elif self is SpanColumn.tokenCountTotal:
+            expr = models.Span.attributes[LLM_TOKEN_COUNT_TOTAL].as_float()
+        elif self is SpanColumn.tokenCountPrompt:
+            expr = models.Span.attributes[LLM_TOKEN_COUNT_PROMPT].as_float()
+        elif self is SpanColumn.tokenCountCompletion:
+            expr = models.Span.attributes[LLM_TOKEN_COUNT_COMPLETION].as_float()
+        elif self is SpanColumn.cumulativeTokenCountTotal:
+            expr = (
                 models.Span.cumulative_llm_token_count_prompt
                 + models.Span.cumulative_llm_token_count_completion
             )
-        if self is SpanColumn.cumulativeTokenCountPrompt:
-            return models.Span.cumulative_llm_token_count_prompt
-        if self is SpanColumn.cumulativeTokenCountCompletion:
-            return models.Span.cumulative_llm_token_count_completion
-        assert_never(self)
+        elif self is SpanColumn.cumulativeTokenCountPrompt:
+            expr = models.Span.cumulative_llm_token_count_prompt
+        elif self is SpanColumn.cumulativeTokenCountCompletion:
+            expr = models.Span.cumulative_llm_token_count_completion
+        else:
+            assert_never(self)
+        return expr.label(self.column_name)
 
     @property
     def data_type(self) -> CursorSortColumnDataType:
@@ -92,7 +92,7 @@ class EvalAttr(Enum):
 
     @property
     def column_name(self) -> str:
-        return f"span_annotations_{self.value}"
+        return f"{self.value}_eval_sort_column"
 
     @property
     def orm_expression(self) -> Any:
@@ -145,6 +145,7 @@ class SpanSort:
     def update_orm_expr(self, stmt: Select[Any]) -> SpanSortConfig:
         if (col := self.col) and not self.eval_result_key:
             expr = col.orm_expression
+            stmt = stmt.add_columns(expr)
             if self.dir == SortDir.desc:
                 expr = desc(expr)
             return SpanSortConfig(
