@@ -78,30 +78,26 @@ async def _insert_trace_evaluation(
         )
     project_rowid, trace_rowid = row
     dialect = SupportedSQLDialect(session.bind.dialect.name)
+    values = dict(
+        trace_rowid=trace_rowid,
+        name=evaluation_name,
+        label=label,
+        score=score,
+        explanation=explanation,
+        metadata_={},  # `metadata_` must match ORM
+        annotator_kind="LLM",
+    )
+    set_ = dict(values)
+    set_.pop("metadata_")
+    set_["metadata"] = values["metadata_"]  # `metadata` must match database
     await session.execute(
         insert_stmt(
             dialect=dialect,
             table=models.TraceAnnotation,
-            values=dict(
-                trace_rowid=trace_rowid,
-                name=evaluation_name,
-                label=label,
-                score=score,
-                explanation=explanation,
-                metadata_={},  # `metadata_` must match ORM
-                annotator_kind="LLM",
-            ),
+            values=values,
             constraint="uq_trace_annotations_name_trace_rowid",
             on_conflict=OnConflict.DO_UPDATE,
-            set_=dict(
-                trace_rowid=trace_rowid,
-                name=evaluation_name,
-                label=label,
-                score=score,
-                explanation=explanation,
-                metadata={},  # `metadata` must match database
-                annotator_kind="LLM",
-            ),
+            set_=set_,
         )
     )
     return TraceEvaluationInsertionResult(project_rowid, evaluation_name)
@@ -129,30 +125,26 @@ async def _insert_span_evaluation(
         )
     project_rowid, span_rowid = row
     dialect = SupportedSQLDialect(session.bind.dialect.name)
+    values = dict(
+        span_rowid=span_rowid,
+        name=evaluation_name,
+        label=label,
+        score=score,
+        explanation=explanation,
+        metadata_={},  # `metadata_` must match ORM
+        annotator_kind="LLM",
+    )
+    set_ = dict(values)
+    set_.pop("metadata_")
+    set_["metadata"] = values["metadata_"]  # `metadata` must match database
     await session.execute(
         insert_stmt(
             dialect=dialect,
             table=models.SpanAnnotation,
-            values=dict(
-                span_rowid=span_rowid,
-                name=evaluation_name,
-                label=label,
-                score=score,
-                explanation=explanation,
-                metadata_={},  # `metadata_` must match ORM
-                annotator_kind="LLM",
-            ),
+            values=values,
             constraint="uq_span_annotations_name_span_rowid",
             on_conflict=OnConflict.DO_UPDATE,
-            set_=dict(
-                span_rowid=span_rowid,
-                name=evaluation_name,
-                label=label,
-                score=score,
-                explanation=explanation,
-                metadata={},  # `metadata` must match database
-                annotator_kind="LLM",
-            ),
+            set_=set_,
         )
     )
     return SpanEvaluationInsertionResult(project_rowid, evaluation_name)
@@ -188,32 +180,27 @@ async def _insert_document_evaluation(
             f"document position: {evaluation_name=}, {span_id=}, {document_position=}"
         )
     dialect = SupportedSQLDialect(session.bind.dialect.name)
+    values = dict(
+        span_rowid=span_rowid,
+        document_position=document_position,
+        name=evaluation_name,
+        label=label,
+        score=score,
+        explanation=explanation,
+        metadata_={},  # `metadata_` must match ORM
+        annotator_kind="LLM",
+    )
+    set_ = dict(values)
+    set_.pop("metadata_")
+    set_["metadata"] = values["metadata_"]  # `metadata` must match database
     await session.execute(
         insert_stmt(
             dialect=dialect,
             table=models.DocumentAnnotation,
-            values=dict(
-                span_rowid=span_rowid,
-                document_position=document_position,
-                name=evaluation_name,
-                label=label,
-                score=score,
-                explanation=explanation,
-                metadata_={},  # `metadata_` must match ORM
-                annotator_kind="LLM",
-            ),
+            values=values,
             constraint="uq_document_annotations_name_span_rowid_document_position",
             on_conflict=OnConflict.DO_UPDATE,
-            set_=dict(
-                span_rowid=span_rowid,
-                document_position=document_position,
-                name=evaluation_name,
-                label=label,
-                score=score,
-                explanation=explanation,
-                metadata={},  # `metadata` must match database
-                annotator_kind="LLM",
-            ),
+            set_=set_,
         )
     )
     return DocumentEvaluationInsertionResult(project_rowid, evaluation_name)
