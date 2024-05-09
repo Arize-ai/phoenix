@@ -30,11 +30,8 @@ def insert_stmt(
         raise ValueError(
             "Both `constraint` and `column_names` must be provided or omitted at the same time."
         )
-    if (
-        dialect is SupportedSQLDialect.POSTGRESQL
-        and constraint is None
-        or dialect is SupportedSQLDialect.SQLITE
-        and not column_names
+    if (dialect is SupportedSQLDialect.POSTGRESQL and constraint is None) or (
+        dialect is SupportedSQLDialect.SQLITE and not column_names
     ):
         return insert(table).values(values)
     if dialect is SupportedSQLDialect.POSTGRESQL:
