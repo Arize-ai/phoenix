@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.0.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.0.0...arize-phoenix-v4.0.1) (2024-05-09)
+
+
+### Bug Fixes
+
+* coerce `input.value` to string at ingestion ([#3147](https://github.com/Arize-ai/phoenix/issues/3147)) ([3742ea7](https://github.com/Arize-ai/phoenix/commit/3742ea7a479b2ad46b4787444ccef2daa1a6b6d7))
+
+
+### Documentation
+
+* update kustomize k8s manifests ([#3148](https://github.com/Arize-ai/phoenix/issues/3148)) ([ba166af](https://github.com/Arize-ai/phoenix/commit/ba166af8a0ebdd96c8b0671f5a8ddfb36bcedbd8))
+
 ## [4.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v3.25.0...arize-phoenix-v4.0.0) (2024-05-09)
 
 ⚠ BREAKING CHANGES
