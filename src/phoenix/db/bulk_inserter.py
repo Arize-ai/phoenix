@@ -63,7 +63,10 @@ class BulkInserter:
         self._db = db
         self._running = False
         self._run_interval_seconds = run_interval_in_seconds
-        self._last_insertion_time = time() - self._run_interval_in_seconds
+
+        # tracks time between insertions to improve responsiveness for small batches
+        self._last_insertion_time = time() - self._run_interval_seconds
+
         self._max_num_per_transaction = max_num_per_transaction
         self._spans: List[Tuple[Span, str]] = (
             [] if initial_batch_of_spans is None else list(initial_batch_of_spans)
