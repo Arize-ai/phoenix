@@ -17,7 +17,11 @@ from typing import (
 
 import numpy as np
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
-from openinference.semconv.trace import DocumentAttributes, SpanAttributes
+from openinference.semconv.trace import (
+    DocumentAttributes,
+    OpenInferenceMimeTypeValues,
+    SpanAttributes,
+)
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
 from opentelemetry.util.types import Attributes, AttributeValue
 from typing_extensions import TypeAlias, assert_never
@@ -69,6 +73,12 @@ def decode_otlp_span(otlp_span: otlp.Span) -> Span:
 
     status_code, status_message = _decode_status(otlp_span.status)
     events = [_decode_event(event) for event in otlp_span.events]
+
+    if (input_value := get_attribute_value(attributes, INPUT_VALUE)) and not isinstance(
+        input_value, str
+    ):
+        attributes["input"]["value"] = json.dumps(input_value)
+        attributes["input"]["mime_type"] = OpenInferenceMimeTypeValues.JSON.value
 
     return Span(
         name=otlp_span.name,
