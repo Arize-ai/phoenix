@@ -13,5 +13,3 @@ description: How to get started with Phoenix
 ## [How to configure phoenix](configuration.md)
 
 * [Customize phoenix using environment variables](configuration.md#environment-variables)
-
-## [Launching Phoenix with Docker Compose](broken-reference)
