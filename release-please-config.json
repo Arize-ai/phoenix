@@ -11,7 +11,5 @@
             "package-name": "arize-phoenix-evals",
             "release-type": "python"
         }
-    },
-    "bootstrap-sha": "afd368d6ba318a2fd8788158efab8f1207b01671",
-    "release-search-depth": 0
+    }
 }
