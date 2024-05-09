@@ -1,51 +1,51 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: phoenix
+    name: phoenix
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: phoenix
-  template:
-    metadata:
-      annotations:
-        prometheus.io/path: /metrics
-        prometheus.io/port: "9090"
-        prometheus.io/scrape: "true"
-      labels:
-        app: phoenix
-    spec:
-      containers:
-        - args:
-            - -m
-            - phoenix.server.main
-            - serve
-          command:
-            - python
-          env:
-            - name: PHOENIX_WORKING_DIR
-              value: /mnt/data
-            - name: PHOENIX_PORT
-              value: "6006"
-          image: arizephoenix/phoenix:sql-13
-          name: phoenix
-          ports:
-            - containerPort: 6006
-            - containerPort: 9090
-            - containerPort: 4317
-          volumeMounts:
-            - mountPath: /mnt/data
+    replicas: 1
+    selector:
+        matchLabels:
+            app: phoenix
+    template:
+        metadata:
+            annotations:
+                prometheus.io/path: /metrics
+                prometheus.io/port: "9090"
+                prometheus.io/scrape: "true"
+            labels:
+                app: phoenix
+        spec:
+            containers:
+                - args:
+                      - -m
+                      - phoenix.server.main
+                      - serve
+                  command:
+                      - python
+                  env:
+                      - name: PHOENIX_WORKING_DIR
+                        value: /mnt/data
+                      - name: PHOENIX_PORT
+                        value: "6006"
+                  image: arizephoenix/phoenix:version-4.0.0
+                  name: phoenix
+                  ports:
+                      - containerPort: 6006
+                      - containerPort: 9090
+                      - containerPort: 4317
+                  volumeMounts:
+                      - mountPath: /mnt/data
+                        name: phoenix
+                  readinessProbe:
+                      httpGet:
+                          port: 6006 # readiness probe on root of application port to guarantee app is really serving before becoming ready in kubernetes
+    volumeClaimTemplates:
+        - metadata:
               name: phoenix
-          readinessProbe:
-            httpGet:
-              port: 6006 # readiness probe on root of application port to guarantee app is really serving before becoming ready in kubernetes
-  volumeClaimTemplates:
-    - metadata:
-        name: phoenix
-      spec:
-        accessModes:
-          - ReadWriteOnce
-        resources:
-          requests:
-            storage: 8Gi
+          spec:
+              accessModes:
+                  - ReadWriteOnce
+              resources:
+                  requests:
+                      storage: 8Gi
