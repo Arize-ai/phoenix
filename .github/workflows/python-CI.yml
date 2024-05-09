@@ -2,7 +2,7 @@ name: Python CI
 
 on:
     push:
-        branches: [main, sql]
+        branches: [main]
     pull_request:
         paths:
             - "src/**"
@@ -119,18 +119,18 @@ jobs:
             - name: Install PostgreSQL (Ubuntu)
               if: runner.os == 'Linux'
               run: |
-                sudo apt-get -yqq install postgresql
+                  sudo apt-get -yqq install postgresql
             - name: Run tests (Ubuntu)
               if: runner.os == 'Linux'
               run: |
-                hatch run test:tests --run-postgres
+                  hatch run test:tests --run-postgres
 
             - name: Run tests (macOS)
               if: runner.os == 'macOS'
               run: |
-                hatch run test:tests
+                  hatch run test:tests
 
             - name: Run tests (Windows)
               if: runner.os == 'Windows'
               run: |
-                hatch run test:tests
+                  hatch run test:tests
