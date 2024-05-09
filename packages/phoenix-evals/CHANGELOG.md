@@ -1,12 +1,5 @@
 # Changelog
 
-## [4.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.8.1...arize-phoenix-evals-v4.0.0) (2024-05-09)
-
-
-### Miscellaneous Chores
-
-* release 4.0.0 ([#3130](https://github.com/Arize-ai/phoenix/issues/3130)) ([f5ae248](https://github.com/Arize-ai/phoenix/commit/f5ae248425a48e8aed265788d3aa0b6cb88b84c5))
-
 ## [0.8.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.8.0...arize-phoenix-evals-v0.8.1) (2024-05-03)
 
 
