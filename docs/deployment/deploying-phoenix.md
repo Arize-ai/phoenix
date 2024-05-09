@@ -2,7 +2,7 @@
 description: How to use phoenix outside of the notebook environment.
 ---
 
-# Deployment
+# Quickstart: Deployment
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/deployment.png" alt=""><figcaption><p>The phoenix server can be run as a collector of spans over OTLP</p></figcaption></figure>
 
@@ -14,7 +14,7 @@ In order to run Phoenix tracing in production, you will have to follow these fol
 
 1. [**Setup a Server**](deploying-phoenix.md#setup-a-server)**:** your LLM application to run on a server
 2. [**Instrument**](deploying-phoenix.md#instrument): Add [OpenInference](https://github.com/Arize-ai/openinference) Instrumentation to your server&#x20;
-3. [**Observe**](deploying-phoenix.md#observe): Run the Phoenix server as a side-car or a standalone instance and point your tracing instrumentation to the phoenix server
+3. [**Observe**](deploying-phoenix.md#observe): Run the Phoenix server as or a standalone instance and point your tracing instrumentation to the phoenix server
 
 {% hint style="info" %}
 Looking for a working application? Jump to our [Python and Javascript examples.](../notebooks.md#application-examples)
@@ -174,17 +174,19 @@ docker pull arizephoenix/phoenix
 Pick an image you would like to run or simply run the latest:
 
 {% hint style="danger" %}
-Note, you should pin the phoenix version for production to the version of phoenix you plan on using. E.x. arizephoenix/phoenix:2.7.0
+Note, you should pin the phoenix version for production to the version of phoenix you plan on using. E.x. arizephoenix/phoenix:4.0.0
 {% endhint %}
 
 ```
-docker run -p 6006:6006 -i -t arizephoenix/phoenix:latest
+docker run -p 6006:6006 4317:4317 -i -t arizephoenix/phoenix:latest
 ```
+
+See [#ports](../setup/configuration.md#ports "mention")for details on the ports for the container.
 {% endtab %}
 
 {% tab title="Command Line" %}
 ```sh
-python3 -m phoenix.server.main --port 6006 serve
+python3 -m phoenix.server.main serve
 ```
 {% endtab %}
 {% endtabs %}
@@ -198,7 +200,8 @@ services:
   phoenix:
     image: arizephoenix/phoenix:latest
     ports:
-      - "6006:6006"
+      - "6006:6006"  # UI and OTLP HTTP collector
+      - "4317:4317"  # OTLP gRPC collector
   backend:
     build:
       context: ./backend

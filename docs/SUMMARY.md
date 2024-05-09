@@ -6,7 +6,11 @@
 * [Setup](setup/README.md)
   * [Environments](environments.md)
   * [Configuration](setup/configuration.md)
-* [Deployment](reference/deploying-phoenix.md)
+* [Deployment](deployment/README.md)
+  * [Quickstart: Deployment](deployment/deploying-phoenix.md)
+  * [Persistence](deployment/persistence.md)
+  * [Kubernetes](deployment/kubernetes.md)
+  * [Docker](deployment/docker.md)
 
 ## 🔭 Tracing
 

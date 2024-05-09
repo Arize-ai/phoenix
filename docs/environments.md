@@ -20,6 +20,10 @@ session = px.launch_app()
 
 This will start a local Phoenix server. You can initialize the phoenix server with various types of datasets (traces, inferences). Check out the [API for details](how-to/manage-the-app.md)
 
+{% hint style="info" %}
+When running phoenix in the notebook, by default it does not persist your data.&#x20;
+{% endhint %}
+
 ### Container
 
 {% hint style="info" %}
@@ -54,7 +58,7 @@ os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://123.456.789:6006"
 {% endtab %}
 {% endtabs %}
 
-Note that the above is only necessary if your application is running in a Jupyter notebook. If you are trying to deploy your application and have phoenix collect traces via a container, please consult the [deployment guide.](reference/deploying-phoenix.md)
+Note that the above is only necessary if your application is running in a Jupyter notebook. If you are trying to deploy your application and have phoenix collect traces via a container, please consult the [deployment guide.](deployment/deploying-phoenix.md)
 
 ### Terminal
 
