@@ -2,7 +2,7 @@ name: Python CI
 
 on:
     push:
-        branches: [main, sql]
+        branches: [main]
     pull_request:
         paths:
             - "src/**"
