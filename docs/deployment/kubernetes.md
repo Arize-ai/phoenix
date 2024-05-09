@@ -2,10 +2,6 @@
 
 Phoenix can be deployed on Kubernetes with either SQLite backed by a persistent disc or with PostgreSQL.
 
-{% hint style="info" %}
-Note that the following commands will deploy the latest
-{% endhint %}
-
 ## Prerequisites[​](https://docs.smith.langchain.com/self\_hosting/kubernetes#prerequisites)
 
 You must have a working Kubernetes cluster accessible via `kubectl`.
