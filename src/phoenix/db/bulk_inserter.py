@@ -63,6 +63,10 @@ class BulkInserter:
         self._db = db
         self._running = False
         self._run_interval_seconds = run_interval_in_seconds
+
+        # tracks time between insertions to improve responsiveness for small batches
+        self._last_insertion_time = time() - self._run_interval_seconds
+
         self._max_num_per_transaction = max_num_per_transaction
         self._spans: List[Tuple[Span, str]] = (
             [] if initial_batch_of_spans is None else list(initial_batch_of_spans)
@@ -98,10 +102,10 @@ class BulkInserter:
 
     async def _bulk_insert(self) -> None:
         spans_buffer, evaluations_buffer = None, None
-        next_run_at = time() + self._run_interval_seconds
+        # start first insert immediately if the inserter has not run recently
         while self._spans or self._evaluations or self._running:
-            await asyncio.sleep(next_run_at - time())
-            next_run_at = time() + self._run_interval_seconds
+            next_run_at = self._last_insertion_time + self._run_interval_seconds
+            await asyncio.sleep(max(next_run_at - time(), 0))
             if not (self._spans or self._evaluations):
                 continue
             # It's important to grab the buffers at the same time so there's
@@ -128,6 +132,7 @@ class BulkInserter:
                 evaluations_buffer = None
             for project_rowid in transaction_result.updated_project_rowids:
                 self._last_updated_at_by_project[project_rowid] = datetime.now(timezone.utc)
+            self._last_insertion_time = time()
 
     async def _insert_spans(self, spans: List[Tuple[Span, str]]) -> TransactionResult:
         transaction_result = TransactionResult()
