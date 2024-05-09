@@ -99,7 +99,7 @@ class BulkInserter:
 
     async def _bulk_insert(self) -> None:
         spans_buffer, evaluations_buffer = None, None
-        # start first insert immediately
+        # start first insert immediately if the inserter has not run recently
         while self._spans or self._evaluations or self._running:
             next_run_at = self._last_insertion_time + self._run_interval_seconds
             await asyncio.sleep(max(next_run_at - time(), 0))
