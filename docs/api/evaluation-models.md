@@ -62,9 +62,7 @@ model("Hello there, this is a test if you are working?")
 
 #### Azure OpenAI
 
-The code snippet below shows how to initialize `OpenAIModel` for Azure. Refer to the Azure [docs](https://microsoftlearning.github.io/mslearn-openai/Instructions/Labs/02-natural-language-azure-openai.html) on how to obtain these value from your Azure deployment.
-
-Here is an example of how to initialize `OpenAIModel` for Azure:
+The code snippet below shows how to initialize `OpenAIModel` for Azure:
 
 ```python
 model = OpenAIModel(
