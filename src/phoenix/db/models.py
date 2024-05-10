@@ -404,3 +404,32 @@ class DatasetExample(Base):
     )
     span_rowid: Mapped[Optional[int]]
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+
+class DatasetExampleRevisions(Base):
+    __tablename__ = "dataset_example_revisions"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    dataset_example_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_examples.id", ondelete="CASCADE"),
+        index=True,
+    )
+    dataset_version_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_versions.id", ondelete="CASCADE"),
+        index=True,
+    )
+    input: Mapped[Dict[str, Any]]
+    output: Mapped[Dict[str, Any]]
+    metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    revision_kind: Mapped[str] = mapped_column(
+        CheckConstraint(
+            "revision_kind IN ('CREATE', 'PATCH', 'DELETE')", name="valid_revision_kind"
+        ),
+    )
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint(
+            "dataset_example_id",
+            "dataset_version_id",
+        ),
+    )
