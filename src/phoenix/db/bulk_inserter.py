@@ -63,9 +63,6 @@ class BulkInserter:
         self._db = db
         self._running = False
 
-        # tracks time between insertions to improve responsiveness for small batches
-        self._last_insertion_time = time() - self._run_interval_seconds
-
         self._max_num_per_transaction = max_num_per_transaction
         self._spans: List[Tuple[Span, str]] = (
             [] if initial_batch_of_spans is None else list(initial_batch_of_spans)
@@ -129,7 +126,7 @@ class BulkInserter:
                 evaluations_buffer = None
             for project_rowid in transaction_result.updated_project_rowids:
                 self._last_updated_at_by_project[project_rowid] = datetime.now(timezone.utc)
-            await asyncio.sleep(.1)
+            await asyncio.sleep(0.1)
 
     async def _insert_spans(self, spans: List[Tuple[Span, str]]) -> TransactionResult:
         transaction_result = TransactionResult()
