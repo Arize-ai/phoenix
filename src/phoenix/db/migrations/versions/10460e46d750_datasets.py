@@ -10,6 +10,7 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
+from phoenix.db.migrations.types import JSON_
 
 # revision identifiers, used by Alembic.
 revision: str = "10460e46d750"
@@ -24,6 +25,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("name", sa.String, nullable=False, unique=True),
         sa.Column("description", sa.String, nullable=True),
+        sa.Column("metadata", JSON_, nullable=False),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -38,7 +40,27 @@ def upgrade() -> None:
             onupdate=sa.func.now(),
         ),
     )
+    op.create_table(
+        "dataset_versions",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column(
+            "dataset_rowid",
+            sa.Integer,
+            sa.ForeignKey("datasets.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column("description", sa.String, nullable=True),
+        sa.Column("metadata", JSON_, nullable=False),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+    )
 
 
 def downgrade() -> None:
     op.drop_table("datasets")
+    op.drop_table("dataset_versions")
