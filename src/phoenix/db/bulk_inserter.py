@@ -3,7 +3,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from itertools import islice
-from time import perf_counter, time
+from time import perf_counter
 from typing import (
     Any,
     AsyncContextManager,
