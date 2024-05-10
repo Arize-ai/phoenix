@@ -59,8 +59,31 @@ def upgrade() -> None:
             server_default=sa.func.now(),
         ),
     )
+    op.create_table(
+        "dataset_examples",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column(
+            "dataset_rowid",
+            sa.Integer,
+            sa.ForeignKey("datasets.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "span_rowid",
+            sa.Integer,
+            nullable=True,
+        ),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+    )
 
 
 def downgrade() -> None:
     op.drop_table("datasets")
     op.drop_table("dataset_versions")
+    op.drop_table("dataset_examples")

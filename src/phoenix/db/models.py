@@ -393,3 +393,14 @@ class DatasetVersion(Base):
     description: Mapped[Optional[str]]
     metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+
+class DatasetExample(Base):
+    __tablename__ = "dataset_examples"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    dataset_rowid: Mapped[int] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"),
+        index=True,
+    )
+    span_rowid: Mapped[Optional[int]]
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
