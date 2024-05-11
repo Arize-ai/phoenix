@@ -32,10 +32,12 @@ A client for making HTTP requests to the Phoenix server for extracting/downloadi
 
 ### Methods
 
-_**get\_spans\_dataframe**_ -> Optional\[pandas.DataFrame]
+## _**get\_spans\_dataframe**_&#x20;
+
+\-> Optional\[pandas.DataFrame]
 
 ```python
-px.Client(endpoint="http://127.0.0.1:6006").get_spans_dataframe()
+phoenix.Client(endpoint="http://127.0.0.1:6006").get_spans_dataframe()
 ```
 
 Returns spans in a pandas.dataframe. Filters can be applied. See [LLM Traces](../concepts/llm-traces.md) for more about tracing your LLM application.\
@@ -50,8 +52,11 @@ Returns spans in a pandas.dataframe. Filters can be applied. See [LLM Traces](..
 
 
 
-_**query\_spans**_ -> Optional\[Union\[pandas.DataFrame, List\[pandas.DataFrame]]\
-\
+## _**query\_spans**_&#x20;
+
+\-> Optional\[Union\[pandas.DataFrame, List\[pandas.DataFrame]]\
+
+
 Extract values from spans in a pandas.dataframe. See [extract-data-from-spans.md](../tracing/how-to-tracing/extract-data-from-spans.md "mention")for more details.\
 \
 **Parameters**
@@ -64,7 +69,9 @@ Extract values from spans in a pandas.dataframe. See [extract-data-from-spans.md
 
 
 
-_**get\_evaluations**_ -> List\[Evaluations]
+## _**get\_evaluations**_&#x20;
+
+\-> List\[Evaluations]
 
 ```python
 px.Client(endpoint="http://127.0.0.1:6006").get_evaluations()
@@ -78,7 +85,9 @@ Extract evaluations if any. Otherwise returns empty List. See [llm-evaluations.m
 
 
 
-_**get\_trace\_dataset**_ -> Optional\[TraceDataset]
+## _**get\_trace\_dataset**_&#x20;
+
+\-> Optional\[TraceDataset]
 
 ```python
 px.Client(endpoint="http://127.0.0.1:6006").get_trace_dataset()
@@ -92,7 +101,9 @@ Returns the trace dataset containing spans and evaluations.\
 
 
 
-_**log\_evaluations**_ -> None\
+## _**log\_evaluations**_&#x20;
+
+\-> None\
 \
 Send evaluations to Phoenix. See [#logging-multiple-evaluation-dataframes](../tracing/how-to-tracing/llm-evaluations.md#logging-multiple-evaluation-dataframes "mention")for usage.\
 
