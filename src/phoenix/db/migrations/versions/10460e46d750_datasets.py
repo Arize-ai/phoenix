@@ -44,7 +44,7 @@ def upgrade() -> None:
         "dataset_versions",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column(
-            "dataset_rowid",
+            "dataset_id",
             sa.Integer,
             sa.ForeignKey("datasets.id", ondelete="CASCADE"),
             nullable=False,
@@ -63,7 +63,7 @@ def upgrade() -> None:
         "dataset_examples",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column(
-            "dataset_rowid",
+            "dataset_id",
             sa.Integer,
             sa.ForeignKey("datasets.id", ondelete="CASCADE"),
             nullable=False,

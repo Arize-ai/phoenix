@@ -386,7 +386,7 @@ class Dataset(Base):
 class DatasetVersion(Base):
     __tablename__ = "dataset_versions"
     id: Mapped[int] = mapped_column(primary_key=True)
-    dataset_rowid: Mapped[int] = mapped_column(
+    dataset_id: Mapped[int] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"),
         index=True,
     )
@@ -398,7 +398,7 @@ class DatasetVersion(Base):
 class DatasetExample(Base):
     __tablename__ = "dataset_examples"
     id: Mapped[int] = mapped_column(primary_key=True)
-    dataset_rowid: Mapped[int] = mapped_column(
+    dataset_id: Mapped[int] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"),
         index=True,
     )
