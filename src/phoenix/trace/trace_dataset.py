@@ -168,7 +168,6 @@ class TraceDataset:
                     {key: key[len(ATTRIBUTE_PREFIX) :] for key in attribute_keys},
                 )
                 .dropna()
-                .to_dict()
                 .items()
             )
             is_context = row.index.str.startswith(CONTEXT_PREFIX)
