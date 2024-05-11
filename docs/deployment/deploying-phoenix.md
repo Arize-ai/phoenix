@@ -178,7 +178,7 @@ Note, you should pin the phoenix version for production to the version of phoeni
 {% endhint %}
 
 ```
-docker run -p 6006:6006 4317:4317 -i -t arizephoenix/phoenix:latest
+docker run -p 6006:6006 -p 4317:4317 -i -t arizephoenix/phoenix:latest
 ```
 
 See [#ports](../setup/configuration.md#ports "mention")for details on the ports for the container.
