@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.0.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.0.1...arize-phoenix-v4.0.2) (2024-05-11)
+
+
+### Bug Fixes
+
+* Bulk inserter begins first insert immediately ([#3151](https://github.com/Arize-ai/phoenix/issues/3151)) ([7e17cb2](https://github.com/Arize-ai/phoenix/commit/7e17cb2fd091ad83885fc127083c20945ade530e))
+* unflatten attributes when loading spans from `trace_dataset` ([#3170](https://github.com/Arize-ai/phoenix/issues/3170)) ([a165023](https://github.com/Arize-ai/phoenix/commit/a165023144542a80642a5624797aba61745c9582))
+
 ## [4.0.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.0.0...arize-phoenix-v4.0.1) (2024-05-09)
 
 
