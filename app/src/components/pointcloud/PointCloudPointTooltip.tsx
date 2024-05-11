@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { css } from "@emotion/react";
 
 import { useDatasets, usePointCloudContext } from "@phoenix/contexts";
-import { getDatasetRoleFromEventId } from "@phoenix/utils/pointCloudUtils";
+import { getInferencesRoleFromEventId } from "@phoenix/utils/pointCloudUtils";
 
 import { EventItem } from "./EventItem";
 
@@ -42,8 +42,8 @@ export const PointCloudPointTooltip = () => {
   if (baseEvent == null || eventDetails == null) return null;
   const group = eventIdToGroup[hoveredEventId];
   const color = pointGroupColors[eventIdToGroup[hoveredEventId]];
-  const datasetRole = getDatasetRoleFromEventId(hoveredEventId);
-  const datasetName = getDatasetNameByRole(datasetRole);
+  const inferencesRole = getInferencesRoleFromEventId(hoveredEventId);
+  const inferencesName = getDatasetNameByRole(inferencesRole);
   return (
     <Html
       position={baseEvent.position}
@@ -85,7 +85,7 @@ export const PointCloudPointTooltip = () => {
           actualLabel={baseEvent.eventMetadata.actualLabel}
           promptAndResponse={eventDetails.promptAndResponse}
           documentText={eventDetails.documentText}
-          datasetName={datasetName}
+          inferencesName={inferencesName}
           group={group}
           color={color}
           size={"medium"}

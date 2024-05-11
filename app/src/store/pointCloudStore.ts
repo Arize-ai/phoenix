@@ -78,7 +78,7 @@ export type UMAPParameters = {
    */
   nNeighbors: number;
   /**
-   * The number of samples to use for the UMAP projection. The sample number is per dataset.
+   * The number of samples to use for the UMAP projection. The sample number is per inferences.
    */
   nSamples: number;
 };
@@ -102,9 +102,9 @@ export enum ClusterColorMode {
 }
 
 /**
- * The visibility of the two datasets in the point cloud.
+ * The visibility of the two inferencess in the point cloud.
  */
-type DatasetVisibility = {
+type InferencesVisibility = {
   primary: boolean;
   reference: boolean;
   corpus: boolean;
@@ -161,8 +161,8 @@ interface ClusterComputedFields {
 interface ClusterBase {
   readonly driftRatio: number | null;
   /**
-   * The ratio of the primary dataset to the corpus
-   * Used for troubleshooting retrieval of data from a corpus dataset
+   * The ratio of the primary inferences to the corpus
+   * Used for troubleshooting retrieval of data from a corpus inferences
    */
   readonly primaryToCorpusRatio: number | null;
   readonly eventIds: readonly string[];
@@ -195,7 +195,7 @@ export type ClusterSort = {
 };
 
 export type EventData =
-  pointCloudStore_eventsQuery$data["model"]["primaryDataset"]["events"][number];
+  pointCloudStore_eventsQuery$data["model"]["primaryInferences"]["events"][number];
 
 /**
  * A mapping from a point ID to its data
@@ -320,10 +320,10 @@ export interface PointCloudProps {
    */
   coloringStrategy: ColoringStrategy;
   /**
-   * The visibility of the two datasets in the point cloud.
+   * The visibility of the two inferencess in the point cloud.
    * @default { primary: true, reference: true }
    */
-  datasetVisibility: DatasetVisibility;
+  inferencesVisibility: InferencesVisibility;
   /**
    * The visibility of the point groups in the point cloud.
    */
@@ -432,10 +432,10 @@ export interface PointCloudState extends PointCloudProps {
    */
   setColoringStrategy: (strategy: ColoringStrategy) => void;
   /**
-   * Sets the dataset visibility to the given value.
-   * @param {DatasetVisibility} visibility
+   * Sets the inferences visibility to the given value.
+   * @param {InferencesVisibility} visibility
    */
-  setDatasetVisibility: (visibility: DatasetVisibility) => void;
+  setInferencesVisibility: (visibility: InferencesVisibility) => void;
   /**
    * Sets the point group visibility for the entire point cloud
    * @param {Record<string, PointGroupVisibility>} visibility
@@ -506,12 +506,12 @@ const getDefaultColorScheme = () => {
 };
 
 /**
- * The default point cloud properties in the case that there are two datasets.
+ * The default point cloud properties in the case that there are two inferencess.
  */
 export function getDefaultDriftPointCloudProps(): Partial<PointCloudProps> {
   const defaultColorScheme = getDefaultColorScheme();
   return {
-    coloringStrategy: ColoringStrategy.dataset,
+    coloringStrategy: ColoringStrategy.inferences,
     pointGroupVisibility: {
       [DatasetGroup.primary]: true,
       [DatasetGroup.reference]: true,
@@ -529,12 +529,12 @@ export function getDefaultDriftPointCloudProps(): Partial<PointCloudProps> {
 }
 
 /**
- * The default point cloud properties in the case that there are two datasets.
+ * The default point cloud properties in the case that there are two inferencess.
  */
 export function getDefaultRetrievalTroubleshootingPointCloudProps(): Partial<PointCloudProps> {
   const defaultColorScheme = getDefaultColorScheme();
   return {
-    coloringStrategy: ColoringStrategy.dataset,
+    coloringStrategy: ColoringStrategy.inferences,
     pointGroupVisibility: {
       [DatasetGroup.primary]: true,
       [DatasetGroup.corpus]: true,
@@ -552,7 +552,7 @@ export function getDefaultRetrievalTroubleshootingPointCloudProps(): Partial<Poi
   };
 }
 /**
- * The default point cloud properties in the case that there is only one dataset.
+ * The default point cloud properties in the case that there is only one inferences.
  */
 export function getDefaultSingleDatasetPointCloudProps(): Partial<PointCloudProps> {
   return {
@@ -579,7 +579,7 @@ export function getDefaultSingleDatasetPointCloudProps(): Partial<PointCloudProp
 export type PointCloudStore = ReturnType<typeof createPointCloudStore>;
 
 export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
-  // The default props irrespective of the number of datasets
+  // The default props irrespective of the number of inferencess
   const defaultProps: PointCloudProps = {
     loading: false,
     errorMessage: null,
@@ -595,8 +595,8 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     canvasMode: CanvasMode.move,
     pointSizeScale: 1,
     clusterColorMode: ClusterColorMode.default,
-    coloringStrategy: ColoringStrategy.dataset,
-    datasetVisibility: { primary: true, reference: true, corpus: true },
+    coloringStrategy: ColoringStrategy.inferences,
+    inferencesVisibility: { primary: true, reference: true, corpus: true },
     pointGroupVisibility: {
       [DatasetGroup.primary]: true,
       [DatasetGroup.reference]: true,
@@ -759,7 +759,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
             }),
           });
           break;
-        case ColoringStrategy.dataset: {
+        case ColoringStrategy.inferences: {
           // Clear out the point groups as there are no groups
           set({
             pointGroupVisibility: {
@@ -810,9 +810,9 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
           assertUnreachable(strategy);
       }
     },
-    datasetVisibility: { primary: true, reference: true, corpus: true },
-    setDatasetVisibility: (visibility) =>
-      set({ datasetVisibility: visibility }),
+    inferencesVisibility: { primary: true, reference: true, corpus: true },
+    setInferencesVisibility: (visibility) =>
+      set({ inferencesVisibility: visibility }),
     setPointGroupVisibility: (visibility) =>
       set({ pointGroupVisibility: visibility }),
     selectionDisplay: SelectionDisplay.gallery,
@@ -1021,7 +1021,7 @@ function getEventIdToGroup(
   const eventIdToGroup: Record<string, string> = {};
   const eventIds = points.map((point) => point.eventId);
   switch (coloringStrategy) {
-    case ColoringStrategy.dataset: {
+    case ColoringStrategy.inferences: {
       const { primaryEventIds, referenceEventIds, corpusEventIds } =
         splitEventIdsByDataset(eventIds);
       primaryEventIds.forEach((eventId) => {
@@ -1228,7 +1228,7 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
         $corpusEventIds: [ID!]!
       ) {
         model {
-          primaryDataset {
+          primaryInferences {
             events(eventIds: $primaryEventIds) {
               id
               dimensions {
@@ -1249,11 +1249,11 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
                 prompt
                 response
               }
-              # TODO: delineate between corpus events and dataset events
+              # TODO: delineate between corpus events and inferences events
               documentText
             }
           }
-          referenceDataset {
+          referenceInferences {
             events(eventIds: $referenceEventIds) {
               id
               dimensions {
@@ -1278,7 +1278,7 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
               documentText
             }
           }
-          corpusDataset {
+          corpusInferences {
             events(eventIds: $corpusEventIds) {
               id
               dimensions {
@@ -1312,9 +1312,9 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
     }
   ).toPromise();
   // Construct a map of point id to the event data
-  const primaryEvents = data?.model?.primaryDataset?.events ?? [];
-  const referenceEvents = data?.model?.referenceDataset?.events ?? [];
-  const corpusEvents = data?.model?.corpusDataset?.events ?? [];
+  const primaryEvents = data?.model?.primaryInferences?.events ?? [];
+  const referenceEvents = data?.model?.referenceInferences?.events ?? [];
+  const corpusEvents = data?.model?.corpusInferences?.events ?? [];
   const allEvents = [...primaryEvents, ...referenceEvents, ...corpusEvents];
   return allEvents.reduce((acc, event) => {
     acc[event.id] = event;

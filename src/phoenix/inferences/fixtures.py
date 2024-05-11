@@ -9,7 +9,7 @@ from urllib.parse import quote, urljoin
 
 from pandas import read_parquet
 
-from phoenix.config import DATASET_DIR
+from phoenix.config import INFERENCES_DIR
 from phoenix.inferences.inferences import Inferences
 from phoenix.inferences.schema import (
     EmbeddingColumnNames,
@@ -20,7 +20,7 @@ from phoenix.inferences.schema import (
 logger = logging.getLogger(__name__)
 
 
-class DatasetRole(Enum):
+class InferencesRole(Enum):
     PRIMARY = auto()
     REFERENCE = auto()
     CORPUS = auto()
@@ -39,11 +39,11 @@ class Fixture:
     corpus_file_name: Optional[str] = None
     corpus_schema: Optional[Schema] = None
 
-    def paths(self) -> Iterator[Tuple[DatasetRole, Path]]:
+    def paths(self) -> Iterator[Tuple[InferencesRole, Path]]:
         return (
             (role, Path(self.prefix) / name)
             for role, name in zip(
-                DatasetRole,
+                InferencesRole,
                 (
                     self.primary_file_name,
                     self.reference_file_name,
@@ -413,41 +413,41 @@ FIXTURES: Tuple[Fixture, ...] = (
 NAME_TO_FIXTURE = {fixture.name: fixture for fixture in FIXTURES}
 
 
-def get_datasets(
+def get_inferences(
     fixture_name: str,
     no_internet: bool = False,
 ) -> Tuple[Inferences, Optional[Inferences], Optional[Inferences]]:
     """
-    Downloads primary and reference datasets for a fixture if they are not found
+    Downloads primary and reference inferences for a fixture if they are not found
     locally.
     """
     fixture = _get_fixture_by_name(fixture_name=fixture_name)
     if no_internet:
-        paths = {role: DATASET_DIR / path for role, path in fixture.paths()}
+        paths = {role: INFERENCES_DIR / path for role, path in fixture.paths()}
     else:
-        paths = dict(_download(fixture, DATASET_DIR))
-    primary_dataset = Inferences(
-        read_parquet(paths[DatasetRole.PRIMARY]),
+        paths = dict(_download(fixture, INFERENCES_DIR))
+    primary_inferences = Inferences(
+        read_parquet(paths[InferencesRole.PRIMARY]),
         fixture.primary_schema,
         "production",
     )
-    reference_dataset = None
+    reference_inferences = None
     if fixture.reference_file_name is not None:
-        reference_dataset = Inferences(
-            read_parquet(paths[DatasetRole.REFERENCE]),
+        reference_inferences = Inferences(
+            read_parquet(paths[InferencesRole.REFERENCE]),
             fixture.reference_schema
             if fixture.reference_schema is not None
             else fixture.primary_schema,
             "training",
         )
-    corpus_dataset = None
+    corpus_inferences = None
     if fixture.corpus_file_name is not None:
-        corpus_dataset = Inferences(
-            read_parquet(paths[DatasetRole.CORPUS]),
+        corpus_inferences = Inferences(
+            read_parquet(paths[InferencesRole.CORPUS]),
             fixture.corpus_schema,
             "knowledge_base",
         )
-    return primary_dataset, reference_dataset, corpus_dataset
+    return primary_inferences, reference_inferences, corpus_inferences
 
 
 def _get_fixture_by_name(fixture_name: str) -> Fixture:
@@ -496,14 +496,14 @@ def load_example(use_case: str) -> ExampleInferences:
 
     """
     fixture = _get_fixture_by_name(use_case)
-    primary_dataset, reference_dataset, corpus_dataset = get_datasets(use_case)
+    primary_inferences, reference_inferences, corpus_inferences = get_inferences(use_case)
     print(f"📥 Loaded {use_case} example datasets.")
     print("ℹ️ About this use-case:")
     print(fixture.description)
     return ExampleInferences(
-        primary=primary_dataset,
-        reference=reference_dataset,
-        corpus=corpus_dataset,
+        primary=primary_inferences,
+        reference=reference_inferences,
+        corpus=corpus_inferences,
     )
 
 
@@ -544,7 +544,7 @@ class GCSAssets(NamedTuple):
         )
 
 
-def _download(fixture: Fixture, location: Path) -> Iterator[Tuple[DatasetRole, Path]]:
+def _download(fixture: Fixture, location: Path) -> Iterator[Tuple[InferencesRole, Path]]:
     for role, path in fixture.paths():
         yield role, GCSAssets().metadata(path).save_artifact(location)
 
@@ -556,5 +556,5 @@ if __name__ == "__main__":
     for fixture in FIXTURES:
         start_time = time.time()
         print(f"getting {fixture.name}", end="...")
-        dict(_download(fixture, DATASET_DIR))
+        dict(_download(fixture, INFERENCES_DIR))
         print(f"done ({time.time() - start_time:.2f}s)")

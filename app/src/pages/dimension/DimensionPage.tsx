@@ -28,8 +28,8 @@ export function DimensionPage() {
   const { dimensionId } = useParams();
   const { timeRange } = useTimeRange();
   const loaderData = useLoaderData() as dimensionLoaderQuery$data;
-  const { referenceDataset } = useDatasets();
-  const hasReference = referenceDataset !== null;
+  const { referenceInferences } = useDatasets();
+  const hasReference = referenceInferences !== null;
   const showDrift = hasReference;
   // Only show cardinality if if the shape is non-continuous
   const showCardinality = loaderData.dimension.shape !== "continuous";

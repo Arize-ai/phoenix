@@ -32,7 +32,7 @@ export function PointSelectionTable({
   data: ModelEvent[];
   onPointSelected: (pointId: string) => void;
 }) {
-  const { primaryDataset, referenceDataset } = useDatasets();
+  const { primaryInferences, referenceInferences } = useDatasets();
   const metric = usePointCloudContext((state) => state.metric);
   const [sorting, setSorting] = useState<SortingState>([]);
   const { columns, tableData } = useMemo<{
@@ -71,8 +71,8 @@ export function PointSelectionTable({
 
     // Columns that are only visible if certain data is available
     const dataDrivenColumns: ColumnDef<TableDataItem>[] = [];
-    if (referenceDataset) {
-      // Only need to show the dataset if there are two
+    if (referenceInferences) {
+      // Only need to show the inferences if there are two
       dataDrivenColumns.push({
         header: "Dataset",
         accessorKey: "id",
@@ -81,8 +81,8 @@ export function PointSelectionTable({
           return (
             <EventDatasetCell
               id={getValue() as string}
-              primaryDatasetName={primaryDataset.name}
-              referenceDatasetName={referenceDataset?.name ?? "reference"}
+              primaryInferencesName={primaryInferences.name}
+              referenceInferencesName={referenceInferences?.name ?? "reference"}
             />
           );
         },
@@ -178,7 +178,7 @@ export function PointSelectionTable({
       },
     ];
     return { columns, tableData };
-  }, [data, onPointSelected, primaryDataset, referenceDataset, metric]);
+  }, [data, onPointSelected, primaryInferences, referenceInferences, metric]);
 
   const table = useReactTable<TableDataItem>({
     columns,
@@ -268,12 +268,12 @@ export function PointSelectionTable({
 
 function EventDatasetCell({
   id,
-  primaryDatasetName,
-  referenceDatasetName,
+  primaryInferencesName,
+  referenceInferencesName,
 }: {
   id: string;
-  primaryDatasetName: string;
-  referenceDatasetName: string;
+  primaryInferencesName: string;
+  referenceInferencesName: string;
 }) {
   const isPrimary = id.includes("PRIMARY");
   const DEFAULT_COLOR_SCHEME = useDefaultColorScheme();
@@ -283,7 +283,7 @@ function EventDatasetCell({
         shape={Shape.circle}
         color={DEFAULT_COLOR_SCHEME[isPrimary ? 0 : 1]}
       />
-      {isPrimary ? primaryDatasetName : referenceDatasetName}
+      {isPrimary ? primaryInferencesName : referenceInferencesName}
     </Flex>
   );
 }

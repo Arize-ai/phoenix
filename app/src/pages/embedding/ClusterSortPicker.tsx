@@ -21,8 +21,8 @@ function getSortKey(sort: ClusterSort): string {
   return `${sort.column}:${sort.dir}`;
 }
 export function ClusterSortPicker() {
-  const { referenceDataset } = useDatasets();
-  const hasReferenceDataset = !!referenceDataset;
+  const { referenceInferences } = useDatasets();
+  const hasReferenceDataset = !!referenceInferences;
   const sort = usePointCloudContext((state) => state.clusterSort);
   const setSort = usePointCloudContext((state) => state.setClusterSort);
   const [isOpen, setIsOpen] = useState<boolean>(false);

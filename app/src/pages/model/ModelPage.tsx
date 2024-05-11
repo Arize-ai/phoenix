@@ -12,8 +12,8 @@ import {
 } from "@arizeai/components";
 
 import {
-  PrimaryDatasetTimeRange,
-  ReferenceDatasetTimeRange,
+  PrimaryInferencesTimeRange,
+  ReferenceInferencesTimeRange,
   Toolbar,
 } from "@phoenix/components/filter";
 import {
@@ -27,7 +27,7 @@ import { ModelPageQuery } from "./__generated__/ModelPageQuery.graphql";
 type ModelPageProps = Readonly<object>;
 
 export function ModelPage(_props: ModelPageProps) {
-  const { referenceDataset } = useDatasets();
+  const { referenceInferences } = useDatasets();
   const { timeRange } = useTimeRange();
   const data = useLazyLoadQuery<ModelPageQuery>(
     graphql`
@@ -46,13 +46,13 @@ export function ModelPage(_props: ModelPageProps) {
   return (
     <main>
       <Toolbar>
-        <PrimaryDatasetTimeRange />
-        {referenceDataset ? (
-          <ReferenceDatasetTimeRange
-            datasetRole="reference"
+        <PrimaryInferencesTimeRange />
+        {referenceInferences ? (
+          <ReferenceInferencesTimeRange
+            inferencesRole="reference"
             timeRange={{
-              start: new Date(referenceDataset.startTime),
-              end: new Date(referenceDataset.endTime),
+              start: new Date(referenceInferences.startTime),
+              end: new Date(referenceInferences.endTime),
             }}
           />
         ) : null}

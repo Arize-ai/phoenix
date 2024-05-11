@@ -92,13 +92,13 @@ function TooltipContent({
 export function DimensionDriftBreakdownSegmentBarChart(props: {
   dimensionId: string;
 }) {
-  const { primaryDataset, referenceDataset } = useDatasets();
-  const primaryName = primaryDataset.name;
-  const referenceName = referenceDataset?.name || "reference";
+  const { primaryInferences, referenceInferences } = useDatasets();
+  const primaryName = primaryInferences.name;
+  const referenceName = referenceInferences?.name || "reference";
   const { selectedTimestamp } = useTimeSlice();
   const endTime = useMemo(
-    () => selectedTimestamp ?? new Date(primaryDataset.endTime),
-    [selectedTimestamp, primaryDataset.endTime]
+    () => selectedTimestamp ?? new Date(primaryInferences.endTime),
+    [selectedTimestamp, primaryInferences.endTime]
   );
   const timeRange = useMemo(() => {
     return {

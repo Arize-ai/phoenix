@@ -53,26 +53,6 @@ type DataQualityTimeSeries implements TimeSeries {
   data: [TimeSeriesDataPoint!]!
 }
 
-type Dataset {
-  """The start bookend of the data"""
-  startTime: DateTime!
-
-  """The end bookend of the data"""
-  endTime: DateTime!
-
-  """The record count of the data"""
-  recordCount: Int!
-
-  """Returns a human friendly name for the dataset."""
-  name: String!
-  events(eventIds: [ID!]!, dimensions: [DimensionInput!]): [Event!]!
-}
-
-enum DatasetRole {
-  primary
-  reference
-}
-
 type DatasetValues {
   primaryValue: Float
   referenceValue: Float
@@ -102,8 +82,8 @@ type Dimension implements Node {
     metric: DataQualityMetric!
     timeRange: TimeRange
 
-    """The dataset (primary or reference) to query"""
-    datasetRole: DatasetRole = primary
+    """The inferences (primary or reference) to query"""
+    inferencesRole: InferencesRole = primary
   ): Float
 
   """
@@ -119,8 +99,8 @@ type Dimension implements Node {
     timeRange: TimeRange!
     granularity: Granularity!
 
-    """The dataset (primary or reference) to query"""
-    datasetRole: DatasetRole = primary
+    """The inferences (primary or reference) to query"""
+    inferencesRole: InferencesRole = primary
   ): DataQualityTimeSeries!
 
   """
@@ -129,7 +109,7 @@ type Dimension implements Node {
   driftTimeSeries(metric: ScalarDriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
 
   """
-  Returns the segments across both datasets and returns the counts per segment
+  The segments across both inference sets and returns the counts per segment
   """
   segmentsComparison(primaryTimeRange: TimeRange): Segments!
 }
@@ -271,7 +251,7 @@ type EmbeddingDimension implements Node {
     granularity: Granularity!
 
     """The dataset (primary or reference) to query"""
-    datasetRole: DatasetRole = primary
+    inferencesRole: InferencesRole = primary
   ): DataQualityTimeSeries!
 
   """
@@ -416,6 +396,26 @@ input Granularity {
   samplingIntervalMinutes: Int!
 }
 
+type Inferences {
+  """The start bookend of the data"""
+  startTime: DateTime!
+
+  """The end bookend of the data"""
+  endTime: DateTime!
+
+  """The record count of the data"""
+  recordCount: Int!
+
+  """Returns a human friendly name for the inferences."""
+  name: String!
+  events(eventIds: [ID!]!, dimensions: [DimensionInput!]): [Event!]!
+}
+
+enum InferencesRole {
+  primary
+  reference
+}
+
 input InputCoordinate2D {
   x: Float!
   y: Float!
@@ -447,9 +447,9 @@ type MissingValueBin {
 
 type Model {
   dimensions(first: Int = 50, last: Int, after: String, before: String, include: DimensionFilter, exclude: DimensionFilter): DimensionConnection!
-  primaryDataset: Dataset!
-  referenceDataset: Dataset
-  corpusDataset: Dataset
+  primaryInferences: Inferences!
+  referenceInferences: Inferences
+  corpusInferences: Inferences
   embeddingDimensions(first: Int = 50, last: Int, after: String, before: String): EmbeddingDimensionConnection!
 
   """Returns exported file names sorted by descending modification time."""
@@ -459,7 +459,7 @@ type Model {
     timeRange: TimeRange
 
     """The dataset (primary or reference) to query"""
-    datasetRole: DatasetRole = primary
+    inferencesRole: InferencesRole = primary
   ): Float
 
   """
@@ -471,7 +471,7 @@ type Model {
     granularity: Granularity!
 
     """The dataset (primary or reference) to query"""
-    datasetRole: DatasetRole = primary
+    inferencesRole: InferencesRole = primary
   ): PerformanceTimeSeries!
 }
 

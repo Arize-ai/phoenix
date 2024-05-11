@@ -1,16 +1,16 @@
-import { DatasetRole } from "@phoenix/types";
+import { InferencesRole } from "@phoenix/types";
 
-export function getDatasetRoleFromEventId(eventId: string): DatasetRole {
+export function getInferencesRoleFromEventId(eventId: string): InferencesRole {
   if (eventId.includes("PRIMARY")) {
-    return DatasetRole.primary;
+    return InferencesRole.primary;
   } else if (eventId.includes("CORPUS")) {
-    return DatasetRole.corpus;
+    return InferencesRole.corpus;
   } else {
-    return DatasetRole.reference;
+    return InferencesRole.reference;
   }
 }
 /**
- * A function to split event ids by dataset
+ * A function to split event ids by inferences
  * @param eventIds
  * @returns
  */
@@ -23,10 +23,10 @@ export function splitEventIdsByDataset(eventIds: string[]): {
   const referenceEventIds: string[] = [];
   const corpusEventIds: string[] = [];
   eventIds.forEach((id) => {
-    const datasetRole = getDatasetRoleFromEventId(id);
-    if (datasetRole == DatasetRole.primary) {
+    const inferencesRole = getInferencesRoleFromEventId(id);
+    if (inferencesRole == InferencesRole.primary) {
       primaryEventIds.push(id);
-    } else if (datasetRole == DatasetRole.corpus) {
+    } else if (inferencesRole == InferencesRole.corpus) {
       corpusEventIds.push(id);
     } else {
       referenceEventIds.push(id);

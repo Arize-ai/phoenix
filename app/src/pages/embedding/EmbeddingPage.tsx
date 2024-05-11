@@ -30,8 +30,8 @@ import { ThreeDimensionalPoint } from "@arizeai/point-cloud";
 
 import { Loading, LoadingMask } from "@phoenix/components";
 import {
-  PrimaryDatasetTimeRange,
-  ReferenceDatasetTimeRange,
+  PrimaryInferencesTimeRange,
+  ReferenceInferencesTimeRange,
   Toolbar,
 } from "@phoenix/components/filter";
 import {
@@ -219,17 +219,17 @@ const EmbeddingPageUMAPQuery = graphql`
 `;
 
 export function EmbeddingPage() {
-  const { referenceDataset, corpusDataset } = useDatasets();
+  const { referenceInferences, corpusInferences } = useDatasets();
   const { timeRange } = useTimeRange();
-  // Initialize the store based on whether or not there is a reference dataset
+  // Initialize the store based on whether or not there is a reference inferences
   const defaultPointCloudProps = useMemo<Partial<PointCloudProps>>(() => {
     let defaultPointCloudProps: Partial<PointCloudProps> = {};
-    if (corpusDataset != null) {
-      // If there is a corpus dataset, then initialize the page with the retrieval troubleshooting settings
+    if (corpusInferences != null) {
+      // If there is a corpus inferencescesces, then initialize the page with the retrieval troubleshooting settings
       // TODO - this does make a bit of a leap of assumptions but is a short term solution in order to get the page working as intended
       defaultPointCloudProps =
         getDefaultRetrievalTroubleshootingPointCloudProps();
-    } else if (referenceDataset != null) {
+    } else if (referenceInferences != null) {
       defaultPointCloudProps = getDefaultDriftPointCloudProps();
     } else {
       defaultPointCloudProps = getDefaultSingleDatasetPointCloudProps();
@@ -243,7 +243,7 @@ export function EmbeddingPage() {
       },
     };
     return defaultPointCloudProps;
-  }, [corpusDataset, referenceDataset]);
+  }, [corpusInferences, referenceInferences]);
   return (
     <TimeSliceContextProvider initialTimestamp={timeRange.end}>
       <PointCloudProvider {...defaultPointCloudProps}>
@@ -255,7 +255,7 @@ export function EmbeddingPage() {
 
 function EmbeddingMain() {
   const embeddingDimensionId = useEmbeddingDimensionId();
-  const { primaryDataset, referenceDataset } = useDatasets();
+  const { primaryInferences, referenceInferences } = useDatasets();
   const umapParameters = usePointCloudContext((state) => state.umapParameters);
   const getHDSCANParameters = usePointCloudContext(
     (state) => state.getHDSCANParameters
@@ -268,8 +268,8 @@ function EmbeddingMain() {
     useQueryLoader<UMAPQueryType>(EmbeddingPageUMAPQuery);
   const { selectedTimestamp } = useTimeSlice();
   const endTime = useMemo(
-    () => selectedTimestamp ?? new Date(primaryDataset.endTime),
-    [selectedTimestamp, primaryDataset.endTime]
+    () => selectedTimestamp ?? new Date(primaryInferences.endTime),
+    [selectedTimestamp, primaryInferences.endTime]
   );
   const timeRange = useMemo(() => {
     return {
@@ -358,13 +358,13 @@ function EmbeddingMain() {
           </Flex>
         }
       >
-        <PrimaryDatasetTimeRange />
-        {referenceDataset ? (
-          <ReferenceDatasetTimeRange
-            datasetRole="reference"
+        <PrimaryInferencesTimeRange />
+        {referenceInferences ? (
+          <ReferenceInferencesTimeRange
+            inferencesRole="reference"
             timeRange={{
-              start: new Date(referenceDataset.startTime),
-              end: new Date(referenceDataset.endTime),
+              start: new Date(referenceInferences.startTime),
+              end: new Date(referenceInferences.endTime),
             }}
           />
         ) : null}
@@ -633,7 +633,7 @@ function PointSelectionPanelContentWrap(props: { children: ReactNode }) {
  */
 const CLUSTERING_CONFIG_TAB_INDEX = 1;
 const ClustersPanelContents = React.memo(function ClustersPanelContents() {
-  const { referenceDataset } = useDatasets();
+  const { referenceInferences } = useDatasets();
   const clusters = usePointCloudContext((state) => state.clusters);
   const selectedClusterId = usePointCloudContext(
     (state) => state.selectedClusterId
@@ -652,9 +652,9 @@ const ClustersPanelContents = React.memo(function ClustersPanelContents() {
     (state) => state.setClusterColorMode
   );
   // Hide the reference metric if the following conditions are met:
-  // 1. There is no reference dataset
+  // 1. There is no reference inferences
   // 3. The metric is drift
-  const hideReference = referenceDataset == null || metric.type === "drift";
+  const hideReference = referenceInferences == null || metric.type === "drift";
   const onTabChange = useCallback(
     (index: number) => {
       if (index === CLUSTERING_CONFIG_TAB_INDEX) {
