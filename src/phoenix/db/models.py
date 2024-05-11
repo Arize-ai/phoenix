@@ -376,3 +376,67 @@ class DocumentAnnotation(Base):
             "document_position",
         ),
     )
+
+
+class Dataset(Base):
+    __tablename__ = "datasets"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(unique=True)
+    description: Mapped[Optional[str]]
+    metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+
+class DatasetVersion(Base):
+    __tablename__ = "dataset_versions"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    dataset_id: Mapped[int] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"),
+        index=True,
+    )
+    description: Mapped[Optional[str]]
+    metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+
+class DatasetExample(Base):
+    __tablename__ = "dataset_examples"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    dataset_id: Mapped[int] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"),
+        index=True,
+    )
+    span_rowid: Mapped[Optional[int]]
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+
+class DatasetExampleRevisions(Base):
+    __tablename__ = "dataset_example_revisions"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    dataset_example_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_examples.id", ondelete="CASCADE"),
+        index=True,
+    )
+    dataset_version_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_versions.id", ondelete="CASCADE"),
+        index=True,
+    )
+    input: Mapped[Dict[str, Any]]
+    output: Mapped[Dict[str, Any]]
+    metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    revision_kind: Mapped[str] = mapped_column(
+        CheckConstraint(
+            "revision_kind IN ('CREATE', 'PATCH', 'DELETE')", name="valid_revision_kind"
+        ),
+    )
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint(
+            "dataset_example_id",
+            "dataset_version_id",
+        ),
+    )
