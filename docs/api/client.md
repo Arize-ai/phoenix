@@ -35,7 +35,7 @@ A client for making HTTP requests to the Phoenix server for extracting/downloadi
 _**get\_spans\_dataframe**_ -> Optional\[pandas.DataFrame]
 
 ```python
-px.Client(endpoint="http://127.0.0.1:6006").get_spans_dataframe(project_name="test_project")
+px.Client(endpoint="http://127.0.0.1:6006").get_spans_dataframe()
 ```
 
 Returns spans in a pandas.dataframe. Filters can be applied. See [LLM Traces](../concepts/llm-traces.md) for more about tracing your LLM application.\
