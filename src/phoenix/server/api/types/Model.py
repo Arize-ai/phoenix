@@ -33,7 +33,7 @@ class Model:
     def dimensions(
         self,
         info: Info[Context, None],
-        first: Optional[int] = 50,
+        first: Optional[int] = UNSET,
         last: Optional[int] = UNSET,
         after: Optional[str] = UNSET,
         before: Optional[str] = UNSET,
@@ -95,7 +95,7 @@ class Model:
     def embedding_dimensions(
         self,
         info: Info[Context, None],
-        first: Optional[int] = 50,
+        first: Optional[int] = UNSET,
         last: Optional[int] = UNSET,
         after: Optional[str] = UNSET,
         before: Optional[str] = UNSET,
