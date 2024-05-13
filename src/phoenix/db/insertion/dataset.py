@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from itertools import chain
-from random import choice, randint
 from typing import Any, FrozenSet, Iterable, Iterator, Mapping, Optional, Sequence
 
 from sqlalchemy import insert, select
@@ -11,11 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.db.insertion.helpers import (
-    ADJECTIVES,
-    BIRD_SPECIES,
-    DataModificationEvent,
-)
+from phoenix.db.insertion.helpers import DataModificationEvent
 
 logger = logging.getLogger(__name__)
 
@@ -130,20 +125,15 @@ class DatasetTableAction(Enum):
 
 async def add_dataset_examples(
     session: AsyncSession,
+    name: str,
     examples: Iterable[Mapping[str, Any]],
     input_keys: Sequence[str],
     output_keys: Sequence[str],
     metadata_keys: Sequence[str] = (),
-    name: Optional[str] = None,
     description: Optional[str] = None,
     metadata: Optional[Mapping[str, Any]] = None,
     action: DatasetTableAction = DatasetTableAction.CREATE,
 ) -> Optional[DatasetCreationEvent]:
-    if not name:
-        if action is DatasetTableAction.CREATE:
-            name = await _get_unique_name(session)
-        else:
-            raise ValueError(f"Dataset name must not be empty for action={action.value}")
     keys = DatasetKeys(frozenset(input_keys), frozenset(output_keys), frozenset(metadata_keys))
     created_at = datetime.now(timezone.utc)
     dataset_id: Optional[DatasetId] = None
@@ -205,16 +195,6 @@ async def add_dataset_examples(
             raise
         assert dataset_example_revision is not None
     return DatasetCreationEvent(dataset_id=dataset_id)
-
-
-async def _get_unique_name(session: AsyncSession) -> str:
-    name = f"{choice(ADJECTIVES)}-{choice(BIRD_SPECIES)}"
-    k = len(name)
-    while await session.scalar(
-        select(1).select_from(models.Dataset).where(models.Dataset.name == name)
-    ):
-        name = f"{name[:k]}-{randint(0,10**6-1):06d}"
-    return name
 
 
 @dataclass(frozen=True)

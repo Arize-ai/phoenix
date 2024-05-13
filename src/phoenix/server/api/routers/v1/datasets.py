@@ -50,6 +50,7 @@ async def post_datasets_upload(request: Request) -> Response:
           schema:
             type: object
             required:
+              - name
               - inputKeys
               - outputKeys
               - file
@@ -164,10 +165,10 @@ async def post_datasets_upload(request: Request) -> Response:
 async def _add_dataset_examples(
     enqueue: Callable[[DataModification], Awaitable[None]],
     get_examples: Callable[[], Iterator[Mapping[str, Any]]],
+    name: str,
     input_keys: Sequence[str],
     output_keys: Sequence[str],
     metadata_keys: Sequence[str] = (),
-    name: Optional[str] = None,
     description: Optional[str] = None,
     action: DatasetTableAction = DatasetTableAction.CREATE,
 ) -> None:
@@ -185,7 +186,7 @@ async def _add_dataset_examples(
     )
 
 
-Name: TypeAlias = Optional[str]
+Name: TypeAlias = str
 Description: TypeAlias = Optional[str]
 InputKeys: TypeAlias = FrozenSet[str]
 OutputKeys: TypeAlias = FrozenSet[str]
@@ -268,9 +269,9 @@ async def _parse_form_data(
     UploadFile,
 ]:
     name = cast(Optional[str], form.get("name"))
+    if not name:
+        raise ValueError("Dataset name must not be empty")
     action = DatasetTableAction(cast(Optional[str], form.get("action")) or "create")
-    if action is DatasetTableAction.APPEND and not name:
-        raise ValueError(f"Dataset name must not be empty for action={action.value}")
     file = form["file"]
     if not isinstance(file, UploadFile):
         raise ValueError("Malformed file in form data.")
