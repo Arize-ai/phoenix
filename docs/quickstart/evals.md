@@ -11,7 +11,7 @@ This quickstart guide will show you through the basics of evaluating data from y
 {% tabs %}
 {% tab title="Using pip" %}
 ```python
-pip install arize-phoenix[evals]
+pip install "arize-phoenix[evals]"
 ```
 {% endtab %}
 
