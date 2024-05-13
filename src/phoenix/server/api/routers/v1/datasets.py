@@ -156,7 +156,7 @@ class FileContentType(Enum):
     def _missing_(cls, v: Any) -> "FileContentType":
         if isinstance(v, str) and v and v.isascii() and not v.islower():
             return cls(v.lower())
-        raise ValueError(f"Unknown file content type: {v}")
+        raise ValueError(f"Invalid file content type: {v}")
 
 
 class FileContentEncoding(Enum):
@@ -170,7 +170,7 @@ class FileContentEncoding(Enum):
             return cls("none")
         if isinstance(v, str) and v and v.isascii() and not v.islower():
             return cls(v.lower())
-        raise ValueError(f"Unknown file content encoding: {v}")
+        raise ValueError(f"Invalid file content encoding: {v}")
 
 
 Name: TypeAlias = str

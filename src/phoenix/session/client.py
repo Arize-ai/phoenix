@@ -30,7 +30,7 @@ from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
 from opentelemetry.proto.resource.v1.resource_pb2 import Resource
 from opentelemetry.proto.trace.v1.trace_pb2 import ResourceSpans, ScopeSpans
 from pyarrow import ArrowInvalid, Table
-from typing_extensions import TypeAlias
+from typing_extensions import TypeAlias, assert_never
 
 from phoenix.config import (
     get_env_collector_endpoint,
@@ -281,7 +281,7 @@ class Client(TraceDataExtractor):
         Upload table as dataset to the Phoenix server.
 
         Args:
-            table (str | Path | pd.DataFrame): Location of the CSV text file, or
+            table (str | Path | pd.DataFrame): Location of a CSV text file, or
                 pandas DataFrame.
             input_keys (Iterable[str]): List of column names used as input keys.
                 input_keys, output_keys, metadata_keys must be disjoint, and must
@@ -304,11 +304,17 @@ class Client(TraceDataExtractor):
             raise ValueError(f"Unknown action: {action}")
         if action == "append" and not name:
             raise ValueError(f"Dataset name must not be empty for {action=}")
-        keys = DatasetKeys(frozenset(input_keys), frozenset(output_keys), frozenset(metadata_keys))
+        keys = DatasetKeys(
+            frozenset(input_keys),
+            frozenset(output_keys),
+            frozenset(metadata_keys),
+        )
         if isinstance(table, pd.DataFrame):
-            file = _make_pyarrow(table, keys)
+            file = _prepare_pyarrow(table, keys)
+        elif isinstance(table, (str, Path)):
+            file = _prepare_csv(Path(table), keys)
         else:
-            file = _make_csv(Path(table), keys)
+            assert_never(table)
         response = httpx.post(
             url=urljoin(self._base_url, "/v1/datasets/upload"),
             data={
@@ -330,13 +336,13 @@ FileType: TypeAlias = str
 FileHeaders: TypeAlias = Dict[str, str]
 
 
-def _make_csv(
+def _prepare_csv(
     path: Path,
     keys: DatasetKeys,
 ) -> Tuple[FileName, FilePointer, FileType, FileHeaders]:
     path = path.resolve()
     if not path.is_file():
-        raise ValueError(f"File does not exist: {path}")
+        raise FileNotFoundError(f"File does not exist: {path}")
     with open(path, "r") as f:
         for row in csv.reader(f):
             column_headers = row
@@ -354,7 +360,7 @@ def _make_csv(
         return path.name, file, "text/csv", {"Content-Encoding": "gzip"}
 
 
-def _make_pyarrow(
+def _prepare_pyarrow(
     df: pd.DataFrame,
     keys: DatasetKeys,
 ) -> Tuple[FileName, FilePointer, FileType, FileHeaders]:
