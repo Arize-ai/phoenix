@@ -3,7 +3,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from itertools import islice
-from time import perf_counter, time
+from time import perf_counter
 from typing import (
     Any,
     AsyncContextManager,
@@ -48,25 +48,20 @@ class BulkInserter:
         cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
         initial_batch_of_spans: Optional[Iterable[Tuple[Span, str]]] = None,
         initial_batch_of_evaluations: Optional[Iterable[pb.Evaluation]] = None,
-        run_interval_in_seconds: float = 2,
+        sleep: float = 0.1,
         max_num_per_transaction: int = 1000,
         enable_prometheus: bool = False,
     ) -> None:
         """
         :param db: A function to initiate a new database session.
         :param initial_batch_of_spans: Initial batch of spans to insert.
-        :param run_interval_in_seconds: The time interval between the starts of each
-        bulk insert. If there's nothing to insert, the inserter goes back to sleep.
+        :param sleep: The time to sleep between bulk insertions
         :param max_num_per_transaction: The maximum number of items to insert in a single
         transaction. Multiple transactions will be used if there are more items in the batch.
         """
         self._db = db
         self._running = False
-        self._run_interval_seconds = run_interval_in_seconds
-
-        # tracks time between insertions to improve responsiveness for small batches
-        self._last_insertion_time = time() - self._run_interval_seconds
-
+        self._sleep = sleep
         self._max_num_per_transaction = max_num_per_transaction
         self._spans: List[Tuple[Span, str]] = (
             [] if initial_batch_of_spans is None else list(initial_batch_of_spans)
@@ -104,9 +99,8 @@ class BulkInserter:
         spans_buffer, evaluations_buffer = None, None
         # start first insert immediately if the inserter has not run recently
         while self._spans or self._evaluations or self._running:
-            next_run_at = self._last_insertion_time + self._run_interval_seconds
-            await asyncio.sleep(max(next_run_at - time(), 0))
             if not (self._spans or self._evaluations):
+                await asyncio.sleep(self._sleep)
                 continue
             # It's important to grab the buffers at the same time so there's
             # no race condition, since an eval insertion will fail if the span
@@ -132,7 +126,7 @@ class BulkInserter:
                 evaluations_buffer = None
             for project_rowid in transaction_result.updated_project_rowids:
                 self._last_updated_at_by_project[project_rowid] = datetime.now(timezone.utc)
-            self._last_insertion_time = time()
+            await asyncio.sleep(self._sleep)
 
     async def _insert_spans(self, spans: List[Tuple[Span, str]]) -> TransactionResult:
         transaction_result = TransactionResult()
