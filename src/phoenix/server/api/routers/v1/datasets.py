@@ -5,7 +5,7 @@ import logging
 import zlib
 from collections import Counter
 from functools import partial
-from typing import Awaitable, Callable, List, Optional, Set, Tuple, cast
+from typing import Awaitable, Callable, FrozenSet, List, Optional, Set, Tuple, cast
 
 import pyarrow as pa
 from sqlalchemy import select
@@ -244,9 +244,9 @@ async def post_datasets_upload_pyarrow(request: Request) -> Response:
 
 Name: TypeAlias = Optional[str]
 Description: TypeAlias = Optional[str]
-InputKeys: TypeAlias = Set[str]
-OutputKeys: TypeAlias = Set[str]
-MetadataKeys: TypeAlias = Set[str]
+InputKeys: TypeAlias = FrozenSet[str]
+OutputKeys: TypeAlias = FrozenSet[str]
+MetadataKeys: TypeAlias = FrozenSet[str]
 DatasetId: TypeAlias = int
 
 
@@ -316,9 +316,9 @@ async def _parse_form(
     file = form["file"]
     assert isinstance(file, UploadFile)
     description = cast(Optional[str], form.get("description")) or file.filename
-    input_keys = set(cast(List[str], form.getlist("input_keys[]")))
-    output_keys = set(cast(List[str], form.getlist("output_keys[]")))
-    metadata_keys = set(cast(List[str], form.getlist("metadata_keys[]")))
+    input_keys = frozenset(cast(List[str], form.getlist("input_keys[]")))
+    output_keys = frozenset(cast(List[str], form.getlist("output_keys[]")))
+    metadata_keys = frozenset(cast(List[str], form.getlist("metadata_keys[]")))
     if overlap := input_keys.intersection(output_keys):
         raise ValueError(f"input_keys, output_keys have overlap: {overlap}")
     if overlap := input_keys.intersection(metadata_keys):
