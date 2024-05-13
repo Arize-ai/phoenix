@@ -101,6 +101,7 @@ class BulkInserter:
         while self._spans or self._evaluations or self._running:
             if not (self._spans or self._evaluations):
                 await asyncio.sleep(self._sleep)
+                continue
             # It's important to grab the buffers at the same time so there's
             # no race condition, since an eval insertion will fail if the span
             # it references doesn't exist. Grabbing the eval buffer later may
