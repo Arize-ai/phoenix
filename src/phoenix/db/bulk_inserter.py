@@ -107,6 +107,7 @@ class BulkInserter:
             next_run_at = self._last_insertion_time + self._run_interval_seconds
             await asyncio.sleep(max(next_run_at - time(), 0))
             if not (self._spans or self._evaluations):
+                self._last_insertion_time = time()
                 continue
             # It's important to grab the buffers at the same time so there's
             # no race condition, since an eval insertion will fail if the span
