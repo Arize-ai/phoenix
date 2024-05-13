@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.0.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.0.2...arize-phoenix-v4.0.3) (2024-05-13)
+
+
+### Bug Fixes
+
+* Always wait a small amount of time between inserts ([#3168](https://github.com/Arize-ai/phoenix/issues/3168)) ([6e18e3c](https://github.com/Arize-ai/phoenix/commit/6e18e3c5fc75d96cfb937ebb1ea5b66e369c3ffd))
+
 ## [4.0.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.0.1...arize-phoenix-v4.0.2) (2024-05-11)
 
 
