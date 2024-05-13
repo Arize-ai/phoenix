@@ -115,8 +115,12 @@ type Dimension implements Node {
   segmentsComparison(primaryTimeRange: TimeRange): Segments!
 }
 
+"""A connection to a list of items."""
 type DimensionConnection {
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
   edges: [DimensionEdge!]!
 }
 
@@ -125,9 +129,13 @@ enum DimensionDataType {
   numeric
 }
 
+"""An edge in a connection."""
 type DimensionEdge {
-  node: Dimension!
+  """A cursor for use in pagination"""
   cursor: String!
+
+  """The item at the end of the edge"""
+  node: Dimension!
 }
 
 input DimensionFilter {
@@ -292,14 +300,22 @@ type EmbeddingDimension implements Node {
   ): UMAPPoints!
 }
 
+"""A connection to a list of items."""
 type EmbeddingDimensionConnection {
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
   edges: [EmbeddingDimensionEdge!]!
 }
 
+"""An edge in a connection."""
 type EmbeddingDimensionEdge {
-  node: EmbeddingDimension!
+  """A cursor for use in pagination"""
   cursor: String!
+
+  """The item at the end of the edge"""
+  node: EmbeddingDimension!
 }
 
 type EmbeddingMetadata {
@@ -583,14 +599,22 @@ type Project implements Node {
   validateSpanFilterCondition(condition: String!): ValidationResult!
 }
 
+"""A connection to a list of items."""
 type ProjectConnection {
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
   edges: [ProjectEdge!]!
 }
 
+"""An edge in a connection."""
 type ProjectEdge {
-  node: Project!
+  """A cursor for use in pagination"""
   cursor: String!
+
+  """The item at the end of the edge"""
+  node: Project!
 }
 
 type PromptResponse {
@@ -732,8 +756,12 @@ enum SpanColumn {
   cumulativeTokenCountCompletion
 }
 
+"""A connection to a list of items."""
 type SpanConnection {
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
   edges: [SpanEdge!]!
 }
 
@@ -742,9 +770,13 @@ type SpanContext {
   spanId: ID!
 }
 
+"""An edge in a connection."""
 type SpanEdge {
-  node: Span!
+  """A cursor for use in pagination"""
   cursor: String!
+
+  """The item at the end of the edge"""
+  node: Span!
 }
 
 type SpanEvaluation implements Evaluation {

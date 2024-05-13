@@ -2,6 +2,7 @@ import asyncio
 from typing import List, Optional
 
 import strawberry
+from strawberry.relay import Connection
 from strawberry.types import Info
 from strawberry.unset import UNSET
 from typing_extensions import Annotated
@@ -19,7 +20,7 @@ from .EmbeddingDimension import EmbeddingDimension, to_gql_embedding_dimension
 from .ExportedFile import ExportedFile
 from .Inferences import Inferences
 from .InferencesRole import AncillaryInferencesRole, InferencesRole
-from .pagination import Connection, ConnectionArgs, CursorString, connection_from_list
+from .pagination import ConnectionArgs, CursorString, connection_from_list
 from .TimeSeries import (
     PerformanceTimeSeries,
     ensure_timeseries_parameters,

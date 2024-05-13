@@ -12,7 +12,7 @@ from sqlalchemy import and_, desc, distinct, select
 from sqlalchemy.orm import contains_eager
 from sqlalchemy.sql.expression import tuple_
 from strawberry import ID, UNSET
-from strawberry.relay import Node, NodeID
+from strawberry.relay import Connection, Node, NodeID
 from strawberry.types import Info
 
 from phoenix.datetime_utils import right_open_time_range
@@ -23,7 +23,6 @@ from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
 from phoenix.server.api.types.EvaluationSummary import EvaluationSummary
 from phoenix.server.api.types.pagination import (
-    Connection,
     Cursor,
     CursorSortColumn,
     CursorString,

@@ -7,7 +7,7 @@ import strawberry
 from sqlalchemy import delete, select
 from sqlalchemy.orm import contains_eager, load_only
 from strawberry import ID, UNSET
-from strawberry.relay import Node
+from strawberry.relay import Connection, Node
 from strawberry.relay.types import GlobalID
 from strawberry.types import Info
 from typing_extensions import Annotated
@@ -38,7 +38,6 @@ from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, Inf
 from phoenix.server.api.types.Model import Model
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
-    Connection,
     ConnectionArgs,
     CursorString,
     connection_from_list,

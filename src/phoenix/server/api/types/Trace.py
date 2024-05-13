@@ -4,14 +4,13 @@ import strawberry
 from sqlalchemy import desc, select
 from sqlalchemy.orm import contains_eager
 from strawberry import UNSET
-from strawberry.relay import Node, NodeID
+from strawberry.relay import Connection, Node, NodeID
 from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.Evaluation import TraceEvaluation
 from phoenix.server.api.types.pagination import (
-    Connection,
     ConnectionArgs,
     CursorString,
     connection_from_list,
