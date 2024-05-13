@@ -37,9 +37,11 @@ from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
     download_traces_fixture,
+    get_dataset_fixtures,
     get_evals_from_fixture,
     get_trace_fixture_by_name,
     reset_fixture_span_ids_and_timestamps,
+    send_dataset_fixtures,
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
@@ -197,6 +199,7 @@ if __name__ == "__main__":
         host = None
 
     port = args.port or get_env_port()
+    read_only = args.read_only
 
     model = create_model_from_datasets(
         primary_dataset,
@@ -217,13 +220,18 @@ if __name__ == "__main__":
             ),
             get_evals_from_fixture(trace_dataset_name),
         )
+        dataset_fixtures = list(get_dataset_fixtures(trace_dataset_name))
+        if not read_only:
+            Thread(
+                target=send_dataset_fixtures, args=(f"http://{host}:{port}", dataset_fixtures)
+            ).start()
     umap_params_list = args.umap_params.split(",")
     umap_params = UMAPParameters(
         min_dist=float(umap_params_list[0]),
         n_neighbors=int(umap_params_list[1]),
         n_samples=int(umap_params_list[2]),
     )
-    read_only = args.read_only
+
     logger.info(f"Server umap params: {umap_params}")
     if enable_prometheus := (get_env_enable_prometheus() or args.enable_prometheus):
         if args.enable_prometheus:

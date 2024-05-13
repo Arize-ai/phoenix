@@ -1,9 +1,22 @@
+import csv
 import gzip
 import logging
+import shutil
 import weakref
+from collections import Counter
 from datetime import datetime
 from io import BytesIO
-from typing import Any, List, Optional, Union, cast
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+from typing import (
+    Any,
+    Iterable,
+    List,
+    Literal,
+    Optional,
+    Union,
+    cast,
+)
 from urllib.parse import urljoin
 
 import pandas as pd
@@ -12,8 +25,9 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import ExportTrace
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
 from opentelemetry.proto.resource.v1.resource_pb2 import Resource
 from opentelemetry.proto.trace.v1.trace_pb2 import ResourceSpans, ScopeSpans
-from pyarrow import ArrowInvalid
+from pyarrow import ArrowInvalid, Table
 from requests import Session
+from requests_toolbelt import MultipartEncoder
 
 from phoenix.config import (
     get_env_collector_endpoint,
@@ -22,6 +36,7 @@ from phoenix.config import (
     get_env_project_name,
 )
 from phoenix.datetime_utils import normalize_datetime
+from phoenix.db.insertion.dataset import DatasetKeys
 from phoenix.session.data_extractor import DEFAULT_SPAN_LIMIT, TraceDataExtractor
 from phoenix.trace import Evaluations, TraceDataset
 from phoenix.trace.dsl import SpanQuery
@@ -248,6 +263,142 @@ class Client(TraceDataExtractor):
                     "content-encoding": "gzip",
                 },
             ).raise_for_status()
+
+    def upload_dataset_csv(
+        self,
+        file: Union[str, Path],
+        input_keys: Iterable[str] = (),
+        output_keys: Iterable[str] = (),
+        metadata_keys: Iterable[str] = (),
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        action: Literal["create", "append"] = "create",
+    ) -> None:
+        """
+        Upload CSV file as dataset to the Phoenix server.
+
+        Args:
+            file (str | Path): Location of the csv file.
+            input_keys (Iterable[str]): List of column names used as input keys.
+                input_keys, output_keys, metadata_keys must be disjoint, and must
+                exist in CSV column headers.
+            output_keys (Iterable[str]): List of column names used as output keys.
+                input_keys, output_keys, metadata_keys must be disjoint, and must
+                exist in CSV column headers.
+            metadata_keys (Iterable[str]): List of column names used as metadata keys.
+                input_keys, output_keys, metadata_keys must be disjoint, and must
+                exist in CSV column headers.
+            name: (Optional[str]): Name of the dataset. Required if action=append.
+            description: (Optional[str]): Description of the dataset.
+            action: (Literal["create", "append"): Create new dataset or append to an
+                existing dataset. If action=append, dataset name is required.
+
+        Returns:
+            None
+        """
+        if action not in ("create", "append"):
+            raise ValueError(f"Unknown action: {action}")
+        if action == "append" and not name:
+            raise ValueError(f"Dataset name must not be empty for {action=}")
+        keys = DatasetKeys(frozenset(input_keys), frozenset(output_keys), frozenset(metadata_keys))
+        path = Path(file).resolve()
+        if not path.is_file():
+            raise ValueError(f"File does not exist: {path}")
+        with open(path, "r") as f:
+            for row in csv.reader(f):
+                column_headers = row
+                break
+        (header, freq), *_ = Counter(column_headers).most_common(1)
+        if freq > 1:
+            raise ValueError(f"Duplicated column header in CSV file: {header}")
+        keys.check_differences(frozenset(column_headers))
+        with NamedTemporaryFile() as tmp:
+            with gzip.open(tmp.name, "wb") as f_out:
+                with open(path, "rb") as f_in:
+                    shutil.copyfileobj(f_in, f_out)
+                f_out.flush()
+            data = MultipartEncoder(
+                fields=(
+                    ("action", action),
+                    ("name", name),
+                    ("description", description),
+                    ("file", (path.name, open(tmp.name, "rb"), "application/gzip")),
+                    *(("input_keys[]", key) for key in keys.input),
+                    *(("output_keys[]", key) for key in keys.output),
+                    *(("metadata_keys[]", key) for key in keys.metadata),
+                )
+            )
+            response = self._session.post(
+                url=urljoin(self._base_url, "/v1/datasets/upload/csv"),
+                headers={"Content-Type": data.content_type},
+                data=data,
+            )
+            response.raise_for_status()
+
+    def upload_dataset_pandas(
+        self,
+        df: pd.DataFrame,
+        input_keys: Iterable[str] = (),
+        output_keys: Iterable[str] = (),
+        metadata_keys: Iterable[str] = (),
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        action: Literal["create", "append"] = "create",
+    ) -> None:
+        """
+        Upload pandas dataframe as dataset to the Phoenix server.
+
+        Args:
+            df (pandas.DataFrame): pandas DataFrame.
+            input_keys (Iterable[str]): List of column names used as input keys.
+                input_keys, output_keys, metadata_keys must be disjoint, and must
+                exist in dataframe column headers.
+            output_keys (Iterable[str]): List of column names used as output keys.
+                input_keys, output_keys, metadata_keys must be disjoint, and must
+                exist in dataframe column headers.
+            metadata_keys (Iterable[str]): List of column names used as metadata keys.
+                input_keys, output_keys, metadata_keys must be disjoint, and must
+                exist in dataframe column headers.
+            name: (Optional[str]): Name of the dataset. Required if action=append.
+            description: (Optional[str]): Description of the dataset.
+            action: (Literal["create", "append"): Create new dataset or append to an
+                existing dataset. If action=append, dataset name is required.
+
+        Returns:
+            None
+        """
+        if action not in ("create", "append"):
+            raise ValueError(f"Unknown action: {action}")
+        if action == "append" and not name:
+            raise ValueError(f"Dataset name must not be empty for {action=}")
+        keys = DatasetKeys(frozenset(input_keys), frozenset(output_keys), frozenset(metadata_keys))
+        (header, freq), *_ = Counter(df.columns).most_common(1)
+        if freq > 1:
+            raise ValueError(f"Duplicated column header in file: {header}")
+        keys.check_differences(frozenset(df.columns))
+        table = Table.from_pandas(df.loc[:, list(keys)])
+        sink = pa.BufferOutputStream()
+        options = pa.ipc.IpcWriteOptions(compression="lz4")
+        with pa.ipc.new_stream(sink, table.schema, options=options) as writer:
+            writer.write_table(table)
+        file = BytesIO(sink.getvalue().to_pybytes())
+        data = MultipartEncoder(
+            fields=(
+                ("action", action),
+                ("name", name),
+                ("description", description),
+                ("file", ("", file, "application/x-pandas-pyarrow")),
+                *(("input_keys[]", key) for key in keys.input),
+                *(("output_keys[]", key) for key in keys.output),
+                *(("metadata_keys[]", key) for key in keys.metadata),
+            )
+        )
+        response = self._session.post(
+            url=urljoin(self._base_url, "/v1/datasets/upload/pyarrow"),
+            headers={"Content-Type": data.content_type},
+            data=data,
+        )
+        response.raise_for_status()
 
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:

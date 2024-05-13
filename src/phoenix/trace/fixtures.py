@@ -1,14 +1,20 @@
+import shutil
 from binascii import hexlify
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
+from io import StringIO
 from random import getrandbits
-from typing import Dict, Iterable, Iterator, List, NamedTuple, Optional, Tuple, cast
+from tempfile import NamedTemporaryFile
+from time import sleep
+from typing import Dict, Iterable, Iterator, List, NamedTuple, Optional, Sequence, Tuple, cast
 from urllib import request
 
 import pandas as pd
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
+from requests import HTTPError
 
 import phoenix.trace.v1 as pb
+from phoenix import Client
 from phoenix.trace.schemas import Span
 from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.trace.utils import json_lines_to_df
@@ -33,11 +39,43 @@ class DocumentEvaluationFixture(EvaluationFixture):
 
 
 @dataclass(frozen=True)
+class DatasetFixture:
+    file_name: str
+    input_keys: Sequence[str]
+    output_keys: Sequence[str]
+    metadata_keys: Sequence[str] = ()
+    name: Optional[str] = field(default=None)
+    description: Optional[str] = field(default=None)
+    _df: Optional[pd.DataFrame] = field(default=None, init=False)
+    _csv: Optional[str] = field(default=None, init=False)
+
+    def load(self) -> "DatasetFixture":
+        if self._df is None:
+            df = pd.read_csv(_url(self.file_name))
+            object.__setattr__(self, "_df", df)
+        return self
+
+    @property
+    def dataframe(self) -> pd.DataFrame:
+        self.load()
+        return cast(pd.DataFrame, self._df).copy(deep=False)
+
+    @property
+    def csv(self) -> StringIO:
+        if self._csv is None:
+            with StringIO() as buffer:
+                self.dataframe.to_csv(buffer, index=False)
+                object.__setattr__(self, "_csv", buffer.getvalue())
+        return StringIO(self._csv)
+
+
+@dataclass(frozen=True)
 class TracesFixture:
     name: str
     description: str
     file_name: str
     evaluation_fixtures: Iterable[EvaluationFixture] = ()
+    dataset_fixtures: Iterable[DatasetFixture] = ()
 
 
 llama_index_rag_fixture = TracesFixture(
@@ -56,6 +94,36 @@ llama_index_rag_fixture = TracesFixture(
         DocumentEvaluationFixture(
             evaluation_name="Relevance",
             file_name="llama_index_rag_v8.retrieved_documents_eval.parquet",
+        ),
+    ),
+    dataset_fixtures=(
+        DatasetFixture(
+            file_name="hybridial_samples.csv.gz",
+            input_keys=("messages", "ctxs"),
+            output_keys=("answers",),
+            name="ChatRAG-Bench: Hybrid Dialogue (samples)",
+            description="https://huggingface.co/datasets/nvidia/ChatRAG-Bench/viewer/hybridial",
+        ),
+        DatasetFixture(
+            file_name="sqa_samples.csv.gz",
+            input_keys=("messages", "ctxs"),
+            output_keys=("answers",),
+            name="ChatRAG-Bench: SQA (samples)",
+            description="https://huggingface.co/datasets/nvidia/ChatRAG-Bench/viewer/sqa",
+        ),
+        DatasetFixture(
+            file_name="doqa_cooking_samples.csv.gz",
+            input_keys=("messages", "ctxs"),
+            output_keys=("answers",),
+            name="ChatRAG-Bench: DoQA Cooking (samples)",
+            description="https://huggingface.co/datasets/nvidia/ChatRAG-Bench/viewer/doqa_cooking",
+        ),
+        DatasetFixture(
+            file_name="synthetic_convqa_samples.csv.gz",
+            input_keys=("messages", "document"),
+            output_keys=("answers",),
+            name="ChatQA-Train: Synthetic ConvQA (samples)",
+            description="https://huggingface.co/datasets/nvidia/ChatQA-Training-Data/viewer/synthetic_convqa",
         ),
     ),
 )
@@ -146,6 +214,50 @@ def load_example_traces(use_case: str) -> TraceDataset:
     return TraceDataset(json_lines_to_df(download_traces_fixture(fixture)))
 
 
+def get_dataset_fixtures(
+    use_case: str,
+) -> Iterable[DatasetFixture]:
+    return (fixture.load() for fixture in get_trace_fixture_by_name(use_case).dataset_fixtures)
+
+
+def send_dataset_fixtures(
+    endpoint: str,
+    fixtures: Iterable[DatasetFixture],
+) -> None:
+    sleep(5)  # wait for server to start
+    client = Client(endpoint=endpoint)
+    for i, fixture in enumerate(fixtures):
+        try:
+            if i % 2:
+                client.upload_dataset_pandas(
+                    fixture.dataframe,
+                    input_keys=fixture.input_keys,
+                    output_keys=fixture.output_keys,
+                    metadata_keys=fixture.metadata_keys,
+                    name=fixture.name,
+                    description=fixture.description,
+                )
+            else:
+                with NamedTemporaryFile() as tf:
+                    with open(tf.name, "w") as f:
+                        shutil.copyfileobj(fixture.csv, f)
+                        f.flush()
+                    client.upload_dataset_csv(
+                        tf.name,
+                        input_keys=fixture.input_keys,
+                        output_keys=fixture.output_keys,
+                        metadata_keys=fixture.metadata_keys,
+                        name=fixture.name,
+                        description=fixture.description,
+                    )
+        except HTTPError as e:
+            print(e.response.content.decode())
+            pass
+        else:
+            name, dataframe = fixture.name, fixture.dataframe
+            print(f"Dataset sent: {name=}, {len(dataframe)=}")
+
+
 def get_evals_from_fixture(use_case: str) -> Iterator[pb.Evaluation]:
     fixture = get_trace_fixture_by_name(use_case)
     for eval_fixture in fixture.evaluation_fixtures:
@@ -195,8 +307,8 @@ def _read_eval_fixture(eval_fixture: EvaluationFixture) -> Iterator[pb.Evaluatio
 def _url(
     file_name: str,
     host: Optional[str] = "https://storage.googleapis.com/",
-    bucket: Optional[str] = "arize-assets",
-    prefix: Optional[str] = "phoenix/traces/",
+    bucket: Optional[str] = "arize-phoenix-assets",
+    prefix: Optional[str] = "traces/",
 ) -> str:
     return f"{host}{bucket}/{prefix}{file_name}"
 
