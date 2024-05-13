@@ -49,25 +49,25 @@ class BulkInserter:
         db: Callable[[], AsyncContextManager[AsyncSession]],
         *,
         cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
-        initial_batch_of_jobs: Iterable[DataModification] = (),
+        initial_batch_of_operations: Iterable[DataModification] = (),
         initial_batch_of_spans: Optional[Iterable[Tuple[Span, str]]] = None,
         initial_batch_of_evaluations: Optional[Iterable[pb.Evaluation]] = None,
         sleep: float = 0.1,
-        max_num_per_transaction: int = 1000,
+        max_ops_per_transaction: int = 1000,
         enable_prometheus: bool = False,
     ) -> None:
         """
         :param db: A function to initiate a new database session.
         :param initial_batch_of_spans: Initial batch of spans to insert.
         :param sleep: The time to sleep between bulk insertions
-        :param max_num_per_transaction: The maximum number of items to insert in a single
-        transaction. Multiple transactions will be used if there are more items in the batch.
+        :param max_ops_per_transaction: The maximum number of operations to dequeue from
+        the operations queue for each transaction.
         """
         self._db = db
         self._running = False
         self._sleep = sleep
-        self._max_num_per_transaction = max_num_per_transaction
-        self._jobs: Optional[Queue[DataModification]] = None
+        self._max_ops_per_transaction = max_ops_per_transaction
+        self._operations: Optional[Queue[DataModification]] = None
         self._spans: List[Tuple[Span, str]] = (
             [] if initial_batch_of_spans is None else list(initial_batch_of_spans)
         )
@@ -92,7 +92,7 @@ class BulkInserter:
         Callable[[DataModification], Awaitable[None]],
     ]:
         self._running = True
-        self._jobs = Queue()
+        self._operations = Queue()
         self._task = asyncio.create_task(self._bulk_insert())
         return (
             self._queue_span,
@@ -101,11 +101,11 @@ class BulkInserter:
         )
 
     async def __aexit__(self, *args: Any) -> None:
-        self._jobs = None
+        self._operations = None
         self._running = False
 
     async def _enqueue_for_transaction(self, job: DataModification) -> None:
-        await cast("Queue[DataModification]", self._jobs).put(job)
+        await cast("Queue[DataModification]", self._operations).put(job)
 
     async def _queue_span(self, span: Span, project_name: str) -> None:
         self._spans.append((span, project_name))
@@ -116,21 +116,21 @@ class BulkInserter:
     async def _process_events(self, events: Iterable[Optional[DataModificationEvent]]) -> None: ...
 
     async def _bulk_insert(self) -> None:
-        assert isinstance(self._jobs, Queue)
+        assert isinstance(self._operations, Queue)
         spans_buffer, evaluations_buffer = None, None
         # start first insert immediately if the inserter has not run recently
-        while not self._jobs.empty() or self._spans or self._evaluations or self._running:
-            if not (self._spans or self._evaluations):
+        while self._running or not self._operations.empty() or self._spans or self._evaluations:
+            if self._operations.empty() and not (self._spans or self._evaluations):
                 await asyncio.sleep(self._sleep)
                 continue
-            num, events = self._max_num_per_transaction, []
+            ops_remaining, events = self._max_ops_per_transaction, []
             async with self._db() as session:
-                while num and not self._jobs.empty():
-                    num -= 1
-                    job = await self._jobs.get()
+                while ops_remaining and not self._operations.empty():
+                    ops_remaining -= 1
+                    op = await self._operations.get()
                     try:
                         async with session.begin_nested():
-                            events.append(await job(session))
+                            events.append(await op(session))
                     except Exception as e:
                         if self._enable_prometheus:
                             from phoenix.server.prometheus import BULK_LOADER_EXCEPTIONS
@@ -166,11 +166,11 @@ class BulkInserter:
 
     async def _insert_spans(self, spans: List[Tuple[Span, str]]) -> TransactionResult:
         transaction_result = TransactionResult()
-        for i in range(0, len(spans), self._max_num_per_transaction):
+        for i in range(0, len(spans), self._max_ops_per_transaction):
             try:
                 start = perf_counter()
                 async with self._db() as session:
-                    for span, project_name in islice(spans, i, i + self._max_num_per_transaction):
+                    for span, project_name in islice(spans, i, i + self._max_ops_per_transaction):
                         if self._enable_prometheus:
                             from phoenix.server.prometheus import BULK_LOADER_SPAN_INSERTIONS
 
@@ -205,11 +205,11 @@ class BulkInserter:
 
     async def _insert_evaluations(self, evaluations: List[pb.Evaluation]) -> TransactionResult:
         transaction_result = TransactionResult()
-        for i in range(0, len(evaluations), self._max_num_per_transaction):
+        for i in range(0, len(evaluations), self._max_ops_per_transaction):
             try:
                 start = perf_counter()
                 async with self._db() as session:
-                    for evaluation in islice(evaluations, i, i + self._max_num_per_transaction):
+                    for evaluation in islice(evaluations, i, i + self._max_ops_per_transaction):
                         if self._enable_prometheus:
                             from phoenix.server.prometheus import BULK_LOADER_EVALUATION_INSERTIONS
 

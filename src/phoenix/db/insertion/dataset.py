@@ -112,12 +112,12 @@ async def insert_dataset_example_revision(
     )
 
 
-class DatasetTableAction(Enum):
+class DatasetAction(Enum):
     CREATE = "create"
     APPEND = "append"
 
     @classmethod
-    def _missing_(cls, v: Any) -> Optional["DatasetTableAction"]:
+    def _missing_(cls, v: Any) -> Optional["DatasetAction"]:
         if isinstance(v, str) and v and v.isascii() and not v.islower():
             return cls(v.lower())
         return None
@@ -132,16 +132,16 @@ async def add_dataset_examples(
     metadata_keys: Sequence[str] = (),
     description: Optional[str] = None,
     metadata: Optional[Mapping[str, Any]] = None,
-    action: DatasetTableAction = DatasetTableAction.CREATE,
+    action: DatasetAction = DatasetAction.CREATE,
 ) -> Optional[DatasetCreationEvent]:
     keys = DatasetKeys(frozenset(input_keys), frozenset(output_keys), frozenset(metadata_keys))
     created_at = datetime.now(timezone.utc)
     dataset_id: Optional[DatasetId] = None
-    if action is DatasetTableAction.APPEND and name:
+    if action is DatasetAction.APPEND and name:
         dataset_id = await session.scalar(
             select(models.Dataset.id).where(models.Dataset.name == name)
         )
-    if action is DatasetTableAction.CREATE or dataset_id is None:
+    if action is DatasetAction.CREATE or dataset_id is None:
         try:
             dataset_id = await insert_dataset(
                 session=session,
