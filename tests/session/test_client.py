@@ -4,10 +4,11 @@ from typing import cast
 from urllib.parse import urljoin
 from uuid import uuid4
 
+import httpx
 import pandas as pd
 import pyarrow as pa
 import pytest
-import responses
+from httpx import Response
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
@@ -16,93 +17,111 @@ from phoenix.session.client import Client
 from phoenix.trace import SpanEvaluations
 from phoenix.trace.dsl import SpanQuery
 from phoenix.trace.trace_dataset import TraceDataset
+from respx import MockRouter
 
 
-@responses.activate
-def test_get_spans_dataframe(client: Client, endpoint: str, dataframe: pd.DataFrame):
+def test_get_spans_dataframe(
+    client: Client,
+    endpoint: str,
+    dataframe: pd.DataFrame,
+    respx_mock: MockRouter,
+):
     url = urljoin(endpoint, "v1/spans")
 
-    responses.post(url, body=_df_to_bytes(dataframe))
+    respx_mock.post(url).mock(Response(200, content=_df_to_bytes(dataframe)))
     df = client.get_spans_dataframe()
     assert_frame_equal(df, dataframe)
 
-    responses.post(url, status=404)
+    respx_mock.post(url).mock(Response(404))
     assert client.get_spans_dataframe() is None
 
 
-@responses.activate
-def test_query_spans(client: Client, endpoint: str, dataframe: pd.DataFrame):
+def test_query_spans(
+    client: Client,
+    endpoint: str,
+    dataframe: pd.DataFrame,
+    respx_mock: MockRouter,
+):
     df0, df1 = dataframe.iloc[:1, :], dataframe.iloc[1:, :]
     url = urljoin(endpoint, "v1/spans")
 
-    responses.post(url, body=b"".join([_df_to_bytes(df0), _df_to_bytes(df1)]))
+    respx_mock.post(url).mock(
+        Response(200, content=b"".join([_df_to_bytes(df0), _df_to_bytes(df1)]))
+    )
     query = SpanQuery()
     dfs = client.query_spans(query, query)
     assert len(dfs) == 2
     assert_frame_equal(dfs[0], df0)
     assert_frame_equal(dfs[1], df1)
 
-    responses.post(url, status=404)
+    respx_mock.post(url).mock(Response(404))
     assert client.query_spans(query) is None
 
-    responses.post(url, body=_df_to_bytes(df0))
+    respx_mock.post(url).mock(Response(200, content=_df_to_bytes(df0)))
     assert_frame_equal(client.query_spans(query), df0)
 
-    responses.post(url, body=_df_to_bytes(df1))
+    respx_mock.post(url).mock(Response(200, content=_df_to_bytes(df1)))
     assert_frame_equal(client.query_spans(), df1)
 
 
-@responses.activate
-def test_get_evaluations(client: Client, endpoint: str, evaluations: SpanEvaluations):
+def test_get_evaluations(
+    client: Client,
+    endpoint: str,
+    evaluations: SpanEvaluations,
+    respx_mock: MockRouter,
+):
     url = urljoin(endpoint, "v1/evaluations")
 
     table = evaluations.to_pyarrow_table()
-    responses.get(url, body=_table_to_bytes(table))
+    respx_mock.get(url).mock(Response(200, content=_table_to_bytes(table)))
     results = client.get_evaluations()
     assert len(results) == 1
     assert isinstance(results[0], SpanEvaluations)
     assert results[0].eval_name == evaluations.eval_name
     assert_frame_equal(results[0].dataframe, evaluations.dataframe)
 
-    responses.get(url, status=404)
+    respx_mock.get(url).mock(Response(404))
     assert client.get_evaluations() == []
 
 
-@responses.activate
-def test_log_traces_sends_oltp_spans(client: Client, endpoint: str, trace_ds: TraceDataset):
+def test_log_traces_sends_oltp_spans(
+    client: Client,
+    endpoint: str,
+    trace_ds: TraceDataset,
+    respx_mock: MockRouter,
+):
     span_counter = 0
 
     def request_callback(request):
         assert request.headers["content-type"] == "application/x-protobuf"
         assert request.headers["content-encoding"] == "gzip"
-        body = gzip.decompress(request.body)
+        content = gzip.decompress(request.content)
         req = ExportTraceServiceRequest()
-        req.ParseFromString(body)
+        req.ParseFromString(content)
         nonlocal span_counter
         span_counter += 1
-        return 200, {}, ""
+        return httpx.Response(200)
 
     url = urljoin(endpoint, "v1/traces")
-    responses.add_callback(
-        responses.POST,
-        url,
-        callback=request_callback,
-        content_type="application/json",
-    )
+    respx_mock.post(url).mock(side_effect=request_callback)
     client.log_traces(trace_dataset=trace_ds)
     assert span_counter == len(trace_ds.dataframe)
 
 
-@responses.activate
-def test_log_traces_to_project(client: Client, endpoint: str, trace_ds: TraceDataset):
+def test_log_traces_to_project(
+    client: Client,
+    endpoint: str,
+    trace_ds: TraceDataset,
+    respx_mock: MockRouter,
+):
     span_counter = 0
 
-    def request_callback(request):
+    def request_callback(request: httpx.Request) -> httpx.Response:
         assert request.headers["content-type"] == "application/x-protobuf"
         assert request.headers["content-encoding"] == "gzip"
-        body = gzip.decompress(request.body)
+        content = gzip.decompress(request.content)
         req = ExportTraceServiceRequest()
-        req.ParseFromString(body)
+        req.ParseFromString(content)
         resource_spans = req.resource_spans
         assert len(resource_spans) == 1
         resource = resource_spans[0].resource
@@ -110,15 +129,10 @@ def test_log_traces_to_project(client: Client, endpoint: str, trace_ds: TraceDat
         assert resource.attributes[0].value.string_value == "special-project"
         nonlocal span_counter
         span_counter += 1
-        return 200, {}, ""
+        return httpx.Response(200)
 
     url = urljoin(endpoint, "v1/traces")
-    responses.add_callback(
-        responses.POST,
-        url,
-        callback=request_callback,
-        content_type="application/json",
-    )
+    respx_mock.post(url).mock(side_effect=request_callback)
     client.log_traces(trace_dataset=trace_ds, project_name="special-project")
     assert span_counter == len(trace_ds.dataframe)
 

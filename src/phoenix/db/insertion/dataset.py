@@ -128,9 +128,9 @@ class DatasetTableAction(Enum):
         return None
 
 
-async def add_table(
+async def add_dataset_examples(
     session: AsyncSession,
-    table: Iterable[Mapping[str, Any]],
+    examples: Iterable[Mapping[str, Any]],
     input_keys: Sequence[str],
     output_keys: Sequence[str],
     metadata_keys: Sequence[str] = (),
@@ -176,7 +176,7 @@ async def add_table(
         logger.exception(f"Fail to insert dataset version for {dataset_id=}")
         raise
     assert dataset_version_id is not None
-    for row in table:
+    for row in examples:
         try:
             dataset_example_id = await insert_dataset_example(
                 session=session,

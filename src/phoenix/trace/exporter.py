@@ -7,9 +7,8 @@ from types import MethodType
 from typing import Any, Optional
 from urllib.parse import urljoin
 
-import requests
+import httpx
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from requests import Session
 from typing_extensions import TypeAlias, assert_never
 
 import phoenix.trace.v1 as pb
@@ -74,9 +73,9 @@ class HttpExporter:
             or f"http://{'127.0.0.1' if self._host == '0.0.0.0' else self._host}:{self._port}"
         )
         _warn_if_phoenix_is_not_running(self._base_url)
-        self._session = Session()
-        weakref.finalize(self, self._session.close)
-        self._session.headers.update(
+        self._client = httpx.Client()
+        weakref.finalize(self, self._client.close)
+        self._client.headers.update(
             {
                 "content-type": "application/x-protobuf",
                 "content-encoding": "gzip",
@@ -109,9 +108,9 @@ class HttpExporter:
 
     def _send(self, message: Message) -> None:
         serialized = message.SerializeToString()
-        data = gzip.compress(serialized)
+        content = gzip.compress(serialized)
         try:
-            self._session.post(self._url(message), data=data).raise_for_status()
+            self._client.post(self._url(message), content=content).raise_for_status()
         except Exception as e:
             logger.exception(e)
 
@@ -124,7 +123,7 @@ class HttpExporter:
 
 def _warn_if_phoenix_is_not_running(endpoint: str) -> None:
     try:
-        requests.get(urljoin(endpoint, "/arize_phoenix_version")).raise_for_status()
+        httpx.get(urljoin(endpoint, "/arize_phoenix_version")).raise_for_status()
     except Exception:
         logger.warning(
             f"Arize Phoenix is not running on {endpoint}. Launch Phoenix "

@@ -22,6 +22,7 @@ from typing import (
 )
 from urllib.parse import urljoin
 
+import httpx
 import pandas as pd
 import pyarrow as pa
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import ExportTraceServiceRequest
@@ -29,8 +30,6 @@ from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
 from opentelemetry.proto.resource.v1.resource_pb2 import Resource
 from opentelemetry.proto.trace.v1.trace_pb2 import ResourceSpans, ScopeSpans
 from pyarrow import ArrowInvalid, Table
-from requests import Session
-from requests_toolbelt import MultipartEncoder
 from typing_extensions import TypeAlias
 
 from phoenix.config import (
@@ -77,8 +76,8 @@ class Client(TraceDataExtractor):
         self._base_url = (
             endpoint or get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
         )
-        self._session = Session()
-        weakref.finalize(self, self._session.close)
+        self._client = httpx.Client()
+        weakref.finalize(self, self._client.close)
         if warn_if_server_not_running:
             self._warn_if_phoenix_is_not_running()
 
@@ -117,7 +116,7 @@ class Client(TraceDataExtractor):
                 "stop_time is deprecated. Use end_time instead.",
             )
             end_time = end_time or stop_time
-        response = self._session.post(
+        response = self._client.post(
             url=urljoin(self._base_url, "/v1/spans"),
             params={"project-name": project_name},
             json={
@@ -164,8 +163,8 @@ class Client(TraceDataExtractor):
                 empty list if no evaluations are found.
         """
         project_name = project_name or get_env_project_name()
-        response = self._session.get(
-            urljoin(self._base_url, "/v1/evaluations"),
+        response = self._client.get(
+            url=urljoin(self._base_url, "/v1/evaluations"),
             params={"project-name": project_name},
         )
         if response.status_code == 404:
@@ -186,7 +185,7 @@ class Client(TraceDataExtractor):
 
     def _warn_if_phoenix_is_not_running(self) -> None:
         try:
-            self._session.get(urljoin(self._base_url, "/arize_phoenix_version")).raise_for_status()
+            self._client.get(urljoin(self._base_url, "/arize_phoenix_version")).raise_for_status()
         except Exception:
             logger.warning(
                 f"Arize Phoenix is not running on {self._base_url}. Launch Phoenix "
@@ -216,9 +215,9 @@ class Client(TraceDataExtractor):
             headers = {"content-type": "application/x-pandas-arrow"}
             with pa.ipc.new_stream(sink, table.schema) as writer:
                 writer.write_table(table)
-            self._session.post(
-                urljoin(self._base_url, "/v1/evaluations"),
-                data=cast(bytes, sink.getvalue().to_pybytes()),
+            self._client.post(
+                url=urljoin(self._base_url, "/v1/evaluations"),
+                content=cast(bytes, sink.getvalue().to_pybytes()),
                 headers=headers,
             ).raise_for_status()
 
@@ -258,10 +257,10 @@ class Client(TraceDataExtractor):
         ]
         for otlp_span in otlp_spans:
             serialized = otlp_span.SerializeToString()
-            data = gzip.compress(serialized)
-            self._session.post(
-                urljoin(self._base_url, "/v1/traces"),
-                data=data,
+            content = gzip.compress(serialized)
+            self._client.post(
+                url=urljoin(self._base_url, "/v1/traces"),
+                content=content,
                 headers={
                     "content-type": "application/x-protobuf",
                     "content-encoding": "gzip",
@@ -310,21 +309,17 @@ class Client(TraceDataExtractor):
             file = _make_pyarrow(table, keys)
         else:
             file = _make_csv(Path(table), keys)
-        data = MultipartEncoder(
-            fields=(
-                ("action", action),
-                ("name", name),
-                ("description", description),
-                ("file", file),
-                *(("input_keys[]", key) for key in keys.input),
-                *(("output_keys[]", key) for key in keys.output),
-                *(("metadata_keys[]", key) for key in keys.metadata),
-            )
-        )
-        response = self._session.post(
+        response = httpx.post(
             url=urljoin(self._base_url, "/v1/datasets/upload"),
-            headers={"Content-Type": data.content_type},
-            data=data,
+            data={
+                "action": action,
+                "name": name,
+                "description": description,
+                "input_keys[]": sorted(keys.input),
+                "output_keys[]": sorted(keys.output),
+                "metadata_keys[]": sorted(keys.metadata),
+            },
+            files={"file": file},
         )
         response.raise_for_status()
 
@@ -373,7 +368,7 @@ def _make_pyarrow(
     with pa.ipc.new_stream(sink, table.schema, options=options) as writer:
         writer.write_table(table)
     file = BytesIO(sink.getvalue().to_pybytes())
-    return "", file, "application/x-pandas-pyarrow", {}
+    return "pandas", file, "application/x-pandas-pyarrow", {}
 
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:

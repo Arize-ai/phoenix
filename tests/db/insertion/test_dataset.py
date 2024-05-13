@@ -1,7 +1,7 @@
 from typing import AsyncContextManager, Callable
 
 from phoenix.db import models
-from phoenix.db.insertion.dataset import add_table
+from phoenix.db.insertion.dataset import add_dataset_examples
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,9 +10,9 @@ async def test_create_dataset(
     db: Callable[[], AsyncContextManager[AsyncSession]],
 ) -> None:
     async with db() as session:
-        await add_table(
+        await add_dataset_examples(
             session=session,
-            table=[
+            examples=[
                 {"x": 1, "y": 2, "z": 3, "zz": 4},
                 {"x": 11, "y": 22, "z": 33, "zz": 44},
             ],

@@ -32,7 +32,7 @@ from starlette.status import HTTP_403_FORBIDDEN, HTTP_422_UNPROCESSABLE_ENTITY
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.db.insertion.dataset import DatasetTableAction, add_table
+from phoenix.db.insertion.dataset import DatasetTableAction, add_dataset_examples
 from phoenix.db.insertion.helpers import DataModification
 
 logger = logging.getLogger(__name__)
@@ -98,7 +98,7 @@ async def post_datasets_upload(request: Request) -> Response:
                 output_keys,
                 metadata_keys,
                 file,
-            ) = await _parse_form(form)
+            ) = await _parse_form_data(form)
         except ValueError as e:
             return Response(
                 content=str(e),
@@ -115,7 +115,7 @@ async def post_datasets_upload(request: Request) -> Response:
         content_type = file.content_type
         if content_type == "text/csv":
             try:
-                get_rows, column_headers = await _process_csv(
+                get_examples, column_headers = await _process_csv(
                     content,
                     file.headers.get("content-encoding"),
                 )
@@ -126,7 +126,7 @@ async def post_datasets_upload(request: Request) -> Response:
                 )
         elif content_type == "application/x-pandas-pyarrow":
             try:
-                get_rows, column_headers = await _process_pyarrow(
+                get_examples, column_headers = await _process_pyarrow(
                     content,
                 )
             except ValueError as e:
@@ -148,9 +148,9 @@ async def post_datasets_upload(request: Request) -> Response:
         )
     return Response(
         background=BackgroundTask(
-            _add_table,
+            _add_dataset_examples,
             request.state.enqueue_for_transaction,
-            get_rows=get_rows,
+            get_examples=get_examples,
             action=action,
             name=name,
             description=description,
@@ -161,9 +161,9 @@ async def post_datasets_upload(request: Request) -> Response:
     )
 
 
-async def _add_table(
+async def _add_dataset_examples(
     enqueue: Callable[[DataModification], Awaitable[None]],
-    get_rows: Callable[[], Iterator[Mapping[str, Any]]],
+    get_examples: Callable[[], Iterator[Mapping[str, Any]]],
     input_keys: Sequence[str],
     output_keys: Sequence[str],
     metadata_keys: Sequence[str] = (),
@@ -173,8 +173,8 @@ async def _add_table(
 ) -> None:
     await enqueue(
         partial(
-            add_table,
-            table=await run_in_threadpool(get_rows),
+            add_dataset_examples,
+            examples=await run_in_threadpool(get_examples),
             action=action,
             name=name,
             description=description,
@@ -256,7 +256,7 @@ def _check_keys_exist(
             raise ValueError(f"{desc} keys not found in column headers: {diff}")
 
 
-async def _parse_form(
+async def _parse_form_data(
     form: FormData,
 ) -> Tuple[
     DatasetTableAction,
@@ -272,7 +272,8 @@ async def _parse_form(
     if action is DatasetTableAction.APPEND and not name:
         raise ValueError(f"Dataset name must not be empty for action={action.value}")
     file = form["file"]
-    assert isinstance(file, UploadFile)
+    if not isinstance(file, UploadFile):
+        raise ValueError("Malformed file in form data.")
     description = cast(Optional[str], form.get("description")) or file.filename
     input_keys = frozenset(cast(List[str], form.getlist("input_keys[]")))
     output_keys = frozenset(cast(List[str], form.getlist("output_keys[]")))

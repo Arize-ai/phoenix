@@ -11,7 +11,7 @@ from urllib import request
 
 import pandas as pd
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
-from requests import HTTPError
+from httpx import HTTPStatusError
 
 import phoenix.trace.v1 as pb
 from phoenix import Client
@@ -46,8 +46,8 @@ class DatasetFixture:
     metadata_keys: Sequence[str] = ()
     name: Optional[str] = field(default=None)
     description: Optional[str] = field(default=None)
-    _df: Optional[pd.DataFrame] = field(default=None, init=False)
-    _csv: Optional[str] = field(default=None, init=False)
+    _df: Optional[pd.DataFrame] = field(default=None, init=False, repr=False)
+    _csv: Optional[str] = field(default=None, init=False, repr=False)
 
     def load(self) -> "DatasetFixture":
         if self._df is None:
@@ -250,7 +250,7 @@ def send_dataset_fixtures(
                         name=fixture.name,
                         description=fixture.description,
                     )
-        except HTTPError as e:
+        except HTTPStatusError as e:
             print(e.response.content.decode())
             pass
         else:
