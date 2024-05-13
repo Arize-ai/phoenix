@@ -7,7 +7,7 @@ import strawberry
 from sqlalchemy import delete, select
 from sqlalchemy.orm import contains_eager, load_only
 from strawberry import ID, UNSET
-from strawberry.relay import Connection, Node
+from strawberry.relay import ListConnection, Node, connection
 from strawberry.relay.types import GlobalID
 from strawberry.types import Info
 from typing_extensions import Annotated
@@ -37,11 +37,6 @@ from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
 from phoenix.server.api.types.Model import Model
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.pagination import (
-    ConnectionArgs,
-    CursorString,
-    connection_from_list,
-)
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.Span import to_gql_span
 from phoenix.server.api.types.Trace import Trace
@@ -49,24 +44,18 @@ from phoenix.server.api.types.Trace import Trace
 
 @strawberry.type
 class Query:
-    @strawberry.field
+    @connection(ListConnection[Project])  # type: ignore
     async def projects(
         self,
         info: Info[Context, None],
         first: Optional[int] = 50,
         last: Optional[int] = UNSET,
-        after: Optional[CursorString] = UNSET,
-        before: Optional[CursorString] = UNSET,
-    ) -> Connection[Project]:
-        args = ConnectionArgs(
-            first=first,
-            after=after if isinstance(after, CursorString) else None,
-            last=last,
-            before=before if isinstance(before, CursorString) else None,
-        )
+        after: Optional[str] = UNSET,
+        before: Optional[str] = UNSET,
+    ) -> List[Project]:
         async with info.context.db() as session:
             projects = await session.scalars(select(models.Project))
-        data = [
+        return [
             Project(
                 id_attr=project.id,
                 name=project.name,
@@ -75,7 +64,6 @@ class Query:
             )
             for project in projects
         ]
-        return connection_from_list(data=data, args=args)
 
     @strawberry.field
     async def functionality(self, info: Info[Context, None]) -> "Functionality":
