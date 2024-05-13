@@ -8,6 +8,5 @@ V1_ROUTES = [
     Route("/v1/traces", traces.post_traces, methods=["POST"]),
     Route("/v1/spans", spans.query_spans_handler, methods=["POST"]),
     Route("/v1/spans", spans.get_spans_handler, methods=["GET"]),
-    Route("/v1/datasets/upload/csv", datasets.post_datasets_upload_csv, methods=["POST"]),
-    Route("/v1/datasets/upload/pyarrow", datasets.post_datasets_upload_pyarrow, methods=["POST"]),
+    Route("/v1/datasets/upload", datasets.post_datasets_upload, methods=["POST"]),
 ]

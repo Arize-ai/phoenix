@@ -117,12 +117,12 @@ async def insert_dataset_example_revision(
     )
 
 
-class TableAction(Enum):
+class DatasetTableAction(Enum):
     CREATE = "create"
     APPEND = "append"
 
     @classmethod
-    def _missing_(cls, v: Any) -> Optional["TableAction"]:
+    def _missing_(cls, v: Any) -> Optional["DatasetTableAction"]:
         if isinstance(v, str) and v and v.isascii() and not v.islower():
             return cls(v.lower())
         return None
@@ -137,21 +137,21 @@ async def add_table(
     name: Optional[str] = None,
     description: Optional[str] = None,
     metadata: Optional[Mapping[str, Any]] = None,
-    action: TableAction = TableAction.CREATE,
+    action: DatasetTableAction = DatasetTableAction.CREATE,
 ) -> Optional[DatasetCreationEvent]:
     if not name:
-        if action is TableAction.CREATE:
+        if action is DatasetTableAction.CREATE:
             name = await _get_unique_name(session)
         else:
             raise ValueError(f"Dataset name must not be empty for action={action.value}")
     keys = DatasetKeys(frozenset(input_keys), frozenset(output_keys), frozenset(metadata_keys))
     created_at = datetime.now(timezone.utc)
     dataset_id: Optional[DatasetId] = None
-    if action is TableAction.APPEND and name:
+    if action is DatasetTableAction.APPEND and name:
         dataset_id = await session.scalar(
             select(models.Dataset.id).where(models.Dataset.name == name)
         )
-    if action is TableAction.CREATE or dataset_id is None:
+    if action is DatasetTableAction.CREATE or dataset_id is None:
         try:
             dataset_id = await insert_dataset(
                 session=session,
