@@ -1,6 +1,10 @@
 import operator
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import (
+    Any,
+    List,
+    Optional,
+)
 
 import strawberry
 from aioitertools.itertools import islice
@@ -8,6 +12,7 @@ from sqlalchemy import and_, desc, distinct, select
 from sqlalchemy.orm import contains_eager
 from sqlalchemy.sql.expression import tuple_
 from strawberry import ID, UNSET
+from strawberry.relay import Node, NodeID
 from strawberry.types import Info
 
 from phoenix.datetime_utils import right_open_time_range
@@ -17,7 +22,6 @@ from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortConfig
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
 from phoenix.server.api.types.EvaluationSummary import EvaluationSummary
-from phoenix.server.api.types.node import Node
 from phoenix.server.api.types.pagination import (
     Connection,
     Cursor,
@@ -36,6 +40,7 @@ SPANS_LIMIT = 1000
 
 @strawberry.type
 class Project(Node):
+    id_attr: NodeID[int]
     name: str
     gradient_start_color: str
     gradient_end_color: str

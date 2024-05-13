@@ -7,6 +7,8 @@ import strawberry
 from sqlalchemy import delete, select
 from sqlalchemy.orm import contains_eager, load_only
 from strawberry import ID, UNSET
+from strawberry.relay import Node
+from strawberry.relay.types import GlobalID
 from strawberry.types import Info
 from typing_extensions import Annotated
 
@@ -34,12 +36,7 @@ from phoenix.server.api.types.ExportEventsMutation import ExportEventsMutation
 from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
 from phoenix.server.api.types.Model import Model
-from phoenix.server.api.types.node import (
-    GlobalID,
-    Node,
-    from_global_id,
-    from_global_id_with_expected_type,
-)
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     Connection,
     ConnectionArgs,
@@ -97,7 +94,8 @@ class Query:
 
     @strawberry.field
     async def node(self, id: GlobalID, info: Info[Context, None]) -> Node:
-        type_name, node_id = from_global_id(str(id))
+        type_name = id.type_name
+        node_id = int(id.node_id)
         if type_name == "Dimension":
             dimension = info.context.model.scalar_dimensions[node_id]
             return to_gql_dimension(node_id, dimension)

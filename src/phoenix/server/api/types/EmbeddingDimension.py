@@ -8,6 +8,8 @@ import numpy.typing as npt
 import pandas as pd
 import strawberry
 from strawberry import UNSET
+from strawberry.relay import Node, NodeID
+from strawberry.relay.types import GlobalID
 from strawberry.scalars import ID
 from strawberry.types import Info
 from typing_extensions import Annotated
@@ -39,7 +41,6 @@ from .DataQualityMetric import DataQualityMetric
 from .EmbeddingMetadata import EmbeddingMetadata
 from .Event import create_event_id, unpack_event_id
 from .EventMetadata import EventMetadata
-from .node import GlobalID, Node
 from .Retrieval import Retrieval
 from .TimeSeries import (
     DataQualityTimeSeries,
@@ -70,6 +71,7 @@ CORPUS = "CORPUS"
 class EmbeddingDimension(Node):
     """A embedding dimension of a model. Represents unstructured data"""
 
+    id_attr: NodeID[int]
     name: str
     dimension: strawberry.Private[ms.EmbeddingDimension]
 
@@ -437,7 +439,7 @@ class EmbeddingDimension(Node):
                 continue
             points[inferences_role].append(
                 UMAPPoint(
-                    id=GlobalID(f"{type(self).__name__}:{str(inferences_role)}", row_id),
+                    id=GlobalID(f"{type(self).__name__}:{str(inferences_role)}", str(row_id)),
                     event_id=event_id,
                     coordinates=to_gql_coordinates(vector),
                     event_metadata=EventMetadata(

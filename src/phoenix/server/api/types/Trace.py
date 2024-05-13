@@ -4,12 +4,12 @@ import strawberry
 from sqlalchemy import desc, select
 from sqlalchemy.orm import contains_eager
 from strawberry import UNSET
+from strawberry.relay import Node, NodeID
 from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.Evaluation import TraceEvaluation
-from phoenix.server.api.types.node import Node
 from phoenix.server.api.types.pagination import (
     Connection,
     ConnectionArgs,
@@ -21,6 +21,8 @@ from phoenix.server.api.types.Span import Span, to_gql_span
 
 @strawberry.type
 class Trace(Node):
+    id_attr: NodeID[int]
+
     @strawberry.field
     async def spans(
         self,
