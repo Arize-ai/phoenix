@@ -99,10 +99,10 @@ class AppService(Service):
 
     working_dir = SERVER_DIR
 
-    # Internal references to the name / directory of the dataset(s)
-    __primary_dataset_name: str
-    __reference_dataset_name: Optional[str]
-    __corpus_dataset_name: Optional[str]
+    # Internal references to the name / directory of the inferences(s)
+    __primary_inferences_name: str
+    __reference_inferences_name: Optional[str]
+    __corpus_inferences_name: Optional[str]
     __trace_dataset_name: Optional[str]
 
     def __init__(
@@ -112,10 +112,10 @@ class AppService(Service):
         host: str,
         port: int,
         root_path: str,
-        primary_dataset_name: str,
+        primary_inferences_name: str,
         umap_params: str,
-        reference_dataset_name: Optional[str],
-        corpus_dataset_name: Optional[str],
+        reference_inferences_name: Optional[str],
+        corpus_inferences_name: Optional[str],
         trace_dataset_name: Optional[str],
     ):
         self.database_url = database_url
@@ -123,10 +123,10 @@ class AppService(Service):
         self.host = host
         self.port = port
         self.root_path = root_path  # TODO(mikeldking): Add support for root_path
-        self.__primary_dataset_name = primary_dataset_name
+        self.__primary_inferences_name = primary_inferences_name
         self.__umap_params = umap_params
-        self.__reference_dataset_name = reference_dataset_name
-        self.__corpus_dataset_name = corpus_dataset_name
+        self.__reference_inferences_name = reference_inferences_name
+        self.__corpus_inferences_name = corpus_inferences_name
         self.__trace_dataset_name = trace_dataset_name
         super().__init__()
 
@@ -147,12 +147,12 @@ class AppService(Service):
             self.__umap_params,
             "datasets",
             "--primary",
-            str(self.__primary_dataset_name),
+            str(self.__primary_inferences_name),
         ]
-        if self.__reference_dataset_name is not None:
-            command.extend(["--reference", str(self.__reference_dataset_name)])
-        if self.__corpus_dataset_name is not None:
-            command.extend(["--corpus", str(self.__corpus_dataset_name)])
+        if self.__reference_inferences_name is not None:
+            command.extend(["--reference", str(self.__reference_inferences_name)])
+        if self.__corpus_inferences_name is not None:
+            command.extend(["--corpus", str(self.__corpus_inferences_name)])
         if self.__trace_dataset_name is not None:
             command.extend(["--trace", str(self.__trace_dataset_name)])
         logger.info(f"command: {' '.join(command)}")
