@@ -28,7 +28,7 @@ from phoenix.db.insertion.evaluation import (
     InsertEvaluationError,
     insert_evaluation,
 )
-from phoenix.db.insertion.helpers import DataModification, DataModificationEvent
+from phoenix.db.insertion.helpers import DataManipulation, DataManipulationEvent
 from phoenix.db.insertion.span import SpanInsertionEvent, insert_span
 from phoenix.server.api.dataloaders import CacheForDataLoaders
 from phoenix.trace.schemas import Span
@@ -49,7 +49,7 @@ class BulkInserter:
         db: Callable[[], AsyncContextManager[AsyncSession]],
         *,
         cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
-        initial_batch_of_operations: Iterable[DataModification] = (),
+        initial_batch_of_operations: Iterable[DataManipulation] = (),
         initial_batch_of_spans: Optional[Iterable[Tuple[Span, str]]] = None,
         initial_batch_of_evaluations: Optional[Iterable[pb.Evaluation]] = None,
         sleep: float = 0.1,
@@ -70,7 +70,7 @@ class BulkInserter:
         self._running = False
         self._sleep = sleep
         self._max_ops_per_transaction = max_ops_per_transaction
-        self._operations: Optional[Queue[DataModification]] = None
+        self._operations: Optional[Queue[DataManipulation]] = None
         self._max_queue_size = max_queue_size
         self._spans: List[Tuple[Span, str]] = (
             [] if initial_batch_of_spans is None else list(initial_batch_of_spans)
@@ -93,7 +93,7 @@ class BulkInserter:
     ) -> Tuple[
         Callable[[Span, str], Awaitable[None]],
         Callable[[pb.Evaluation], Awaitable[None]],
-        Callable[[DataModification], None],
+        Callable[[DataManipulation], None],
     ]:
         self._running = True
         self._operations = Queue(maxsize=self._max_queue_size)
@@ -108,8 +108,8 @@ class BulkInserter:
         self._operations = None
         self._running = False
 
-    def _enqueue_operation(self, operation: DataModification) -> None:
-        cast("Queue[DataModification]", self._operations).put_nowait(operation)
+    def _enqueue_operation(self, operation: DataManipulation) -> None:
+        cast("Queue[DataManipulation]", self._operations).put_nowait(operation)
 
     async def _queue_span(self, span: Span, project_name: str) -> None:
         self._spans.append((span, project_name))
@@ -117,7 +117,7 @@ class BulkInserter:
     async def _queue_evaluation(self, evaluation: pb.Evaluation) -> None:
         self._evaluations.append(evaluation)
 
-    async def _process_events(self, events: Iterable[Optional[DataModificationEvent]]) -> None: ...
+    async def _process_events(self, events: Iterable[Optional[DataManipulationEvent]]) -> None: ...
 
     async def _bulk_insert(self) -> None:
         assert isinstance(self._operations, Queue)

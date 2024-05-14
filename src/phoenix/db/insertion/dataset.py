@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.db.insertion.helpers import DataModificationEvent
+from phoenix.db.insertion.helpers import DataManipulationEvent
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ Examples: TypeAlias = Iterable[Mapping[str, Any]]
 
 
 @dataclass(frozen=True)
-class DatasetCreationEvent(DataModificationEvent):
+class DatasetCreationEvent(DataManipulationEvent):
     dataset_id: DatasetId
 
 

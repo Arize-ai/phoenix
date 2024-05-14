@@ -11,13 +11,13 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.db.helpers import SupportedSQLDialect
 
 
-class DataModificationEvent(ABC):
+class DataManipulationEvent(ABC):
     """
-    Execution of DML (Data Modification Language) statements.
+    Execution of DML (Data Manipulation Language) statements.
     """
 
 
-DataModification: TypeAlias = Callable[[AsyncSession], Awaitable[Optional[DataModificationEvent]]]
+DataManipulation: TypeAlias = Callable[[AsyncSession], Awaitable[Optional[DataManipulationEvent]]]
 
 
 class OnConflict(Enum):
