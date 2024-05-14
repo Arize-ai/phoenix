@@ -13,10 +13,10 @@ import {
 } from "@arizeai/components";
 
 import {
-  MAX_DATASET_SAMPLE_SIZE,
+  MAX_INFERENCES_SAMPLE_SIZE,
   MAX_MIN_DIST,
   MAX_N_NEIGHBORS,
-  MIN_DATASET_SAMPLE_SIZE,
+  MIN_INFERENCES_SAMPLE_SIZE,
   MIN_MIN_DIST,
   MIN_N_NEIGHBORS,
 } from "@phoenix/constants/pointCloudConstants";
@@ -206,12 +206,12 @@ export function PointCloudParameterSettings() {
           rules={{
             required: "n samples is required",
             max: {
-              value: MAX_DATASET_SAMPLE_SIZE,
-              message: `must be below ${MAX_DATASET_SAMPLE_SIZE}`,
+              value: MAX_INFERENCES_SAMPLE_SIZE,
+              message: `must be below ${MAX_INFERENCES_SAMPLE_SIZE}`,
             },
             min: {
-              value: MIN_DATASET_SAMPLE_SIZE,
-              message: `must be above ${MIN_DATASET_SAMPLE_SIZE}`,
+              value: MIN_INFERENCES_SAMPLE_SIZE,
+              message: `must be above ${MIN_INFERENCES_SAMPLE_SIZE}`,
             },
           }}
           render={({

@@ -74,7 +74,7 @@ export function PointSelectionTable({
     if (referenceInferences) {
       // Only need to show the inferences if there are two
       dataDrivenColumns.push({
-        header: "Dataset",
+        header: "Inference Set",
         accessorKey: "id",
         size: 50,
         cell: ({ getValue }) => {

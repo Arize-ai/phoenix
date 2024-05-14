@@ -12,7 +12,7 @@ import {
   DEFAULT_CLUSTER_MIN_SAMPLES,
   DEFAULT_CLUSTER_SELECTION_EPSILON,
   DEFAULT_DARK_COLOR_SCHEME,
-  DEFAULT_DATASET_SAMPLE_SIZE,
+  DEFAULT_INFERENCES_SAMPLE_SIZE,
   DEFAULT_LIGHT_COLOR_SCHEME,
   DEFAULT_MIN_CLUSTER_SIZE,
   DEFAULT_MIN_DIST,
@@ -26,7 +26,7 @@ import { getCurrentTheme } from "@phoenix/contexts";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import { Dimension } from "@phoenix/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
-import { splitEventIdsByDataset } from "@phoenix/utils/pointCloudUtils";
+import { splitEventIdsByInferenceSet } from "@phoenix/utils/pointCloudUtils";
 
 import { pointCloudStore_clusterMetricsQuery } from "./__generated__/pointCloudStore_clusterMetricsQuery.graphql";
 import { pointCloudStore_clustersQuery } from "./__generated__/pointCloudStore_clustersQuery.graphql";
@@ -554,7 +554,7 @@ export function getDefaultRetrievalTroubleshootingPointCloudProps(): Partial<Poi
 /**
  * The default point cloud properties in the case that there is only one inferences.
  */
-export function getDefaultSingleDatasetPointCloudProps(): Partial<PointCloudProps> {
+export function getDefaultSingleInferenceSetPointCloudProps(): Partial<PointCloudProps> {
   return {
     coloringStrategy: ColoringStrategy.correctness,
     pointGroupVisibility: {
@@ -616,7 +616,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     umapParameters: {
       minDist: DEFAULT_MIN_DIST,
       nNeighbors: DEFAULT_N_NEIGHBORS,
-      nSamples: DEFAULT_DATASET_SAMPLE_SIZE,
+      nSamples: DEFAULT_INFERENCES_SAMPLE_SIZE,
     },
     hdbscanParameters: {
       minClusterSize: DEFAULT_MIN_CLUSTER_SIZE,
@@ -1023,7 +1023,7 @@ function getEventIdToGroup(
   switch (coloringStrategy) {
     case ColoringStrategy.inferences: {
       const { primaryEventIds, referenceEventIds, corpusEventIds } =
-        splitEventIdsByDataset(eventIds);
+        splitEventIdsByInferenceSet(eventIds);
       primaryEventIds.forEach((eventId) => {
         eventIdToGroup[eventId] = InferencesGroup.primary;
       });
@@ -1218,7 +1218,7 @@ type GetEventIdToGroupParams = {
 
 async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
   const { primaryEventIds, referenceEventIds, corpusEventIds } =
-    splitEventIdsByDataset([...eventIds]);
+    splitEventIdsByInferenceSet([...eventIds]);
   const data = await fetchQuery<pointCloudStore_eventsQuery>(
     RelayEnvironment,
     graphql`

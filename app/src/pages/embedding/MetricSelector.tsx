@@ -150,8 +150,8 @@ export function MetricSelector({
     model
   );
   const { referenceInferences, corpusInferences } = useInferences();
-  const hasReferenceDataset = !!referenceInferences;
-  const hasCorpusDataset = !!corpusInferences;
+  const hasReferenceInferences = !!referenceInferences;
+  const hasCorpusInferences = !!corpusInferences;
   const metric = usePointCloudContext((state) => state.metric);
   const loading = usePointCloudContext((state) => state.loading);
   const setMetric = usePointCloudContext((state) => state.setMetric);
@@ -180,7 +180,7 @@ export function MetricSelector({
       placeholder="Select a metric..."
       isDisabled={loading}
     >
-      {hasReferenceDataset ? (
+      {hasReferenceInferences ? (
         <Section title="Drift">
           <Item
             key={getMetricKey({
@@ -194,7 +194,7 @@ export function MetricSelector({
       ) : (
         (null as unknown as CollectionElement<unknown>)
       )}
-      {hasCorpusDataset ? (
+      {hasCorpusInferences ? (
         <Section title="Retrieval">
           <Item
             key={getMetricKey({

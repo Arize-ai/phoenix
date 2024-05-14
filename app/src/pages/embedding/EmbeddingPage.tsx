@@ -61,7 +61,7 @@ import {
   ClusterColorMode,
   getDefaultDriftPointCloudProps,
   getDefaultRetrievalTroubleshootingPointCloudProps,
-  getDefaultSingleDatasetPointCloudProps,
+  getDefaultSingleInferenceSetPointCloudProps,
   MetricDefinition,
   PointCloudProps,
 } from "@phoenix/store";
@@ -232,7 +232,7 @@ export function EmbeddingPage() {
     } else if (referenceInferences != null) {
       defaultPointCloudProps = getDefaultDriftPointCloudProps();
     } else {
-      defaultPointCloudProps = getDefaultSingleDatasetPointCloudProps();
+      defaultPointCloudProps = getDefaultSingleInferenceSetPointCloudProps();
     }
 
     // Apply the UMAP parameters from the server-sent config

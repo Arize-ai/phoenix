@@ -22,13 +22,13 @@ function getSortKey(sort: ClusterSort): string {
 }
 export function ClusterSortPicker() {
   const { referenceInferences } = useInferences();
-  const hasReferenceDataset = !!referenceInferences;
+  const hasReferenceInferences = !!referenceInferences;
   const sort = usePointCloudContext((state) => state.clusterSort);
   const setSort = usePointCloudContext((state) => state.setClusterSort);
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const items = useMemo<Item[]>(() => {
     const dynamicItems: Item[] = [];
-    if (hasReferenceDataset) {
+    if (hasReferenceInferences) {
       dynamicItems.push({
         label: "Most drift",
         value: getSortKey({
@@ -68,7 +68,7 @@ export function ClusterSortPicker() {
         }),
       },
     ];
-  }, [hasReferenceDataset]);
+  }, [hasReferenceInferences]);
   const selectedSortKey = getSortKey(sort);
   return (
     <div

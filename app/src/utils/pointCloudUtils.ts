@@ -14,7 +14,7 @@ export function getInferencesRoleFromEventId(eventId: string): InferencesRole {
  * @param eventIds
  * @returns
  */
-export function splitEventIdsByDataset(eventIds: string[]): {
+export function splitEventIdsByInferenceSet(eventIds: string[]): {
   primaryEventIds: string[];
   referenceEventIds: string[];
   corpusEventIds: string[];

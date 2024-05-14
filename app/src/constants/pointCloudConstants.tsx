@@ -12,9 +12,9 @@ export const MAX_MIN_DIST = 0.99;
 /**
  * The default sample size for a single inferences for UMAP, if a primary and reference inferences are requested, the entire cloud will be twice this number
  */
-export const DEFAULT_DATASET_SAMPLE_SIZE = 500;
-export const MIN_DATASET_SAMPLE_SIZE = 300;
-export const MAX_DATASET_SAMPLE_SIZE = 100000;
+export const DEFAULT_INFERENCES_SAMPLE_SIZE = 500;
+export const MIN_INFERENCES_SAMPLE_SIZE = 300;
+export const MAX_INFERENCES_SAMPLE_SIZE = 100000;
 
 /**
  * HDBSCAN parameters

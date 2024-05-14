@@ -31,7 +31,7 @@ import {
 } from "@phoenix/contexts";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
 import { CanvasMode } from "@phoenix/store";
-import { splitEventIdsByDataset } from "@phoenix/utils/pointCloudUtils";
+import { splitEventIdsByInferenceSet } from "@phoenix/utils/pointCloudUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import { CanvasDisplaySettingsDropdown } from "./CanvasDisplaySettingsDropdown";
@@ -58,7 +58,7 @@ const PointCloudInfo = function PointCloudInfo() {
   const umapParameters = usePointCloudContext((state) => state.umapParameters);
   const [numPrimary, numReference, numCorpus] = useMemo(() => {
     const { primaryEventIds, referenceEventIds, corpusEventIds } =
-      splitEventIdsByDataset(points.map((point) => point.eventId));
+      splitEventIdsByInferenceSet(points.map((point) => point.eventId));
     return [
       primaryEventIds.length,
       referenceEventIds.length,
