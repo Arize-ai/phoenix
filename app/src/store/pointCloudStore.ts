@@ -8,7 +8,6 @@ import { ColorSchemes } from "@arizeai/point-cloud";
 import {
   ColoringStrategy,
   CorrectnessGroup,
-  InferencesGroup,
   DEFAULT_CLUSTER_MIN_SAMPLES,
   DEFAULT_CLUSTER_SELECTION_EPSILON,
   DEFAULT_DARK_COLOR_SCHEME,
@@ -18,6 +17,7 @@ import {
   DEFAULT_MIN_DIST,
   DEFAULT_N_NEIGHBORS,
   FALLBACK_COLOR,
+  InferencesGroup,
   SelectionDisplay,
   SelectionGridSize,
   UNKNOWN_COLOR,
