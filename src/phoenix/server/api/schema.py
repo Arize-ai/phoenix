@@ -23,6 +23,7 @@ from phoenix.server.api.input_types.Coordinates import (
     InputCoordinate3D,
 )
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
+from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.Dimension import to_gql_dimension
 from phoenix.server.api.types.EmbeddingDimension import (
     DEFAULT_CLUSTER_SELECTION_EPSILON,
@@ -73,6 +74,35 @@ class Query:
                 gradient_end_color=project.gradient_end_color,
             )
             for project in projects
+        ]
+        return connection_from_list(data=data, args=args)
+
+    @strawberry.field
+    async def datasets(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[Dataset]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db() as session:
+            datasets = await session.scalars(select(models.Dataset))
+        data = [
+            Dataset(
+                id_attr=dataset.id,
+                name=dataset.name,
+                description=dataset.description,
+                created_at=dataset.created_at,
+                updated_at=dataset.updated_at,
+            )
+            for dataset in datasets
         ]
         return connection_from_list(data=data, args=args)
 
@@ -135,6 +165,25 @@ class Query:
             if span is None:
                 raise ValueError(f"Unknown span: {id}")
             return to_gql_span(span)
+        elif type_name == "Dataset":
+            dataset_stmt = select(
+                models.Dataset.id,
+                models.Dataset.name,
+                models.Dataset.description,
+                models.Dataset.created_at,
+                models.Dataset.updated_at,
+            ).where(models.Dataset.id == node_id)
+            async with info.context.db() as session:
+                dataset = (await session.execute(dataset_stmt)).first()
+            if dataset is None:
+                raise ValueError(f"Unknown dataset: {id}")
+            return Dataset(
+                id_attr=dataset.id,
+                name=dataset.name,
+                description=dataset.description,
+                created_at=dataset.created_at,
+                updated_at=dataset.updated_at,
+            )
         raise Exception(f"Unknown node type: {type_name}")
 
     @strawberry.field

@@ -53,6 +53,33 @@ type DataQualityTimeSeries implements TimeSeries {
   data: [TimeSeriesDataPoint!]!
 }
 
+type Dataset implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  name: String!
+  description: String
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""A connection to a list of items."""
+type DatasetConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DatasetEdge!]!
+}
+
+"""An edge in a connection."""
+type DatasetEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Dataset!
+}
+
 type DatasetValues {
   primaryValue: Float
   referenceValue: Float
@@ -627,6 +654,7 @@ type PromptResponse {
 
 type Query {
   projects(first: Int = 50, last: Int, after: String, before: String): ProjectConnection!
+  datasets(first: Int = 50, last: Int, after: String, before: String): DatasetConnection!
   functionality: Functionality!
   model: Model!
   node(id: GlobalID!): Node!
