@@ -301,7 +301,7 @@ class Client(TraceDataExtractor):
             None
         """
         if action not in ("create", "append"):
-            raise ValueError(f"Unknown action: {action}")
+            raise ValueError(f"Invalid action: {action}")
         if not name:
             raise ValueError("Dataset name must not be blank")
         keys = DatasetKeys(
