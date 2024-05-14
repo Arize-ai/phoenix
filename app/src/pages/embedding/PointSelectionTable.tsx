@@ -14,7 +14,7 @@ import { ExternalLink, LinkButton } from "@phoenix/components";
 import { Shape, ShapeIcon } from "@phoenix/components/pointcloud";
 import { FloatCell, TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
-import { useDatasets, usePointCloudContext } from "@phoenix/contexts";
+import { useInferences, usePointCloudContext } from "@phoenix/contexts";
 
 import { ModelEvent } from "./types";
 import { useDefaultColorScheme } from "./useDefaultColorScheme";
@@ -32,7 +32,7 @@ export function PointSelectionTable({
   data: ModelEvent[];
   onPointSelected: (pointId: string) => void;
 }) {
-  const { primaryInferences, referenceInferences } = useDatasets();
+  const { primaryInferences, referenceInferences } = useInferences();
   const metric = usePointCloudContext((state) => state.metric);
   const [sorting, setSorting] = useState<SortingState>([]);
   const { columns, tableData } = useMemo<{

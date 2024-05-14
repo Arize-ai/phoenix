@@ -11,7 +11,7 @@ import {
   TriggerWrap,
 } from "@arizeai/components";
 
-import { useDatasets } from "@phoenix/contexts";
+import { useInferences } from "@phoenix/contexts";
 import { TimePreset, useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
@@ -25,7 +25,7 @@ export function PrimaryInferencesTimeRange(_: PrimaryInferencesTimeRangeProps) {
   } = useTimeRange();
   const {
     primaryInferences: { name },
-  } = useDatasets();
+  } = useInferences();
   const nameAbbr = name.slice(0, 10);
   return (
     <FieldColorDesignation color={"designationTurquoise"}>

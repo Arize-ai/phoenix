@@ -9,7 +9,7 @@ import {
   ListBox,
 } from "@arizeai/components";
 
-import { useDatasets, usePointCloudContext } from "@phoenix/contexts";
+import { useInferences, usePointCloudContext } from "@phoenix/contexts";
 import { ClusterSort } from "@phoenix/store";
 
 type Item = {
@@ -21,7 +21,7 @@ function getSortKey(sort: ClusterSort): string {
   return `${sort.column}:${sort.dir}`;
 }
 export function ClusterSortPicker() {
-  const { referenceInferences } = useDatasets();
+  const { referenceInferences } = useInferences();
   const hasReferenceDataset = !!referenceInferences;
   const sort = usePointCloudContext((state) => state.clusterSort);
   const setSort = usePointCloudContext((state) => state.setClusterSort);

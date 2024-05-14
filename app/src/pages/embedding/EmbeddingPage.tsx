@@ -50,7 +50,7 @@ import {
   useGlobalNotification,
   usePointCloudContext,
 } from "@phoenix/contexts";
-import { useDatasets } from "@phoenix/contexts";
+import { useInferences } from "@phoenix/contexts";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import {
   TimeSliceContextProvider,
@@ -219,7 +219,7 @@ const EmbeddingPageUMAPQuery = graphql`
 `;
 
 export function EmbeddingPage() {
-  const { referenceInferences, corpusInferences } = useDatasets();
+  const { referenceInferences, corpusInferences } = useInferences();
   const { timeRange } = useTimeRange();
   // Initialize the store based on whether or not there is a reference inferences
   const defaultPointCloudProps = useMemo<Partial<PointCloudProps>>(() => {
@@ -255,7 +255,7 @@ export function EmbeddingPage() {
 
 function EmbeddingMain() {
   const embeddingDimensionId = useEmbeddingDimensionId();
-  const { primaryInferences, referenceInferences } = useDatasets();
+  const { primaryInferences, referenceInferences } = useInferences();
   const umapParameters = usePointCloudContext((state) => state.umapParameters);
   const getHDSCANParameters = usePointCloudContext(
     (state) => state.getHDSCANParameters
@@ -633,7 +633,7 @@ function PointSelectionPanelContentWrap(props: { children: ReactNode }) {
  */
 const CLUSTERING_CONFIG_TAB_INDEX = 1;
 const ClustersPanelContents = React.memo(function ClustersPanelContents() {
-  const { referenceInferences } = useDatasets();
+  const { referenceInferences } = useInferences();
   const clusters = usePointCloudContext((state) => state.clusters);
   const selectedClusterId = usePointCloudContext(
     (state) => state.selectedClusterId

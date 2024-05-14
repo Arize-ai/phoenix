@@ -5,7 +5,7 @@ import { Alert, Form } from "@arizeai/components";
 
 import { ConnectedDimensionPicker } from "@phoenix/components/form";
 import { ColoringStrategy } from "@phoenix/constants/pointCloudConstants";
-import { useDatasets } from "@phoenix/contexts";
+import { useInferences } from "@phoenix/contexts";
 import { usePointCloudContext } from "@phoenix/contexts";
 
 import { Loading } from "../Loading";
@@ -15,7 +15,7 @@ import { InferencesVisibilitySettings } from "./InferencesVisibilitySettings";
 import { PointGroupVisibilitySettings } from "./PointGroupVisibilitySettings";
 
 export function PointCloudDisplaySettings() {
-  const { referenceInferences, corpusInferences } = useDatasets();
+  const { referenceInferences, corpusInferences } = useInferences();
   const coloringStrategy = usePointCloudContext(
     (state) => state.coloringStrategy
   );

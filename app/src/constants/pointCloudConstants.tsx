@@ -55,7 +55,7 @@ export enum SelectionGridSize {
  * Definitions for the color groups as determined by the coloring strategy.
  */
 
-export enum DatasetGroup {
+export enum InferencesGroup {
   primary = "primary",
   reference = "reference",
   corpus = "corpus",

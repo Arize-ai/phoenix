@@ -10,7 +10,7 @@ import {
   TriggerWrap,
 } from "@arizeai/components";
 
-import { useDatasets } from "@phoenix/contexts";
+import { useInferences } from "@phoenix/contexts";
 
 const timeFormatter = timeFormat("%x %X");
 type ReferenceInferencesTimeRangeProps = {
@@ -24,7 +24,7 @@ type ReferenceInferencesTimeRangeProps = {
 export function ReferenceInferencesTimeRange({
   timeRange,
 }: ReferenceInferencesTimeRangeProps) {
-  const { referenceInferences } = useDatasets();
+  const { referenceInferences } = useInferences();
   const name = referenceInferences?.name ?? "reference";
   const nameAbbr = name.slice(0, 10);
   return (

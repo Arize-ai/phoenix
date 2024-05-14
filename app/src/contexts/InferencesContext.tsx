@@ -13,17 +13,17 @@ export type InferencesContextType = {
   primaryInferences: InferencesDef;
   referenceInferences: InferencesDef | null;
   corpusInferences: InferencesDef | null;
-  getDatasetNameByRole: (role: InferencesRole) => string;
+  getInferencesNameByRole: (role: InferencesRole) => string;
 };
 
 export const InferencesContext = createContext<InferencesContextType | null>(
   null
 );
 
-export function useDatasets() {
+export function useInferences() {
   const context = React.useContext(InferencesContext);
   if (context === null) {
-    throw new Error("useDatasets must be used within a InferencesProvider");
+    throw new Error("useInferences must be used within a InferencesProvider");
   }
   return context;
 }
@@ -42,7 +42,7 @@ export function InferencesProvider(props: InferencesProviderProps) {
         primaryInferences: props.primaryInferences,
         referenceInferences: props.referenceInferences,
         corpusInferences: props.corpusInferences,
-        getDatasetNameByRole: (inferencesRole: InferencesRole) => {
+        getInferencesNameByRole: (inferencesRole: InferencesRole) => {
           switch (inferencesRole) {
             case InferencesRole.primary:
               return props.primaryInferences.name;

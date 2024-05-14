@@ -8,7 +8,7 @@ import { ColorSchemes } from "@arizeai/point-cloud";
 import {
   ColoringStrategy,
   CorrectnessGroup,
-  DatasetGroup,
+  InferencesGroup,
   DEFAULT_CLUSTER_MIN_SAMPLES,
   DEFAULT_CLUSTER_SELECTION_EPSILON,
   DEFAULT_DARK_COLOR_SCHEME,
@@ -513,13 +513,13 @@ export function getDefaultDriftPointCloudProps(): Partial<PointCloudProps> {
   return {
     coloringStrategy: ColoringStrategy.inferences,
     pointGroupVisibility: {
-      [DatasetGroup.primary]: true,
-      [DatasetGroup.reference]: true,
+      [InferencesGroup.primary]: true,
+      [InferencesGroup.reference]: true,
     },
     pointGroupColors: {
-      [DatasetGroup.primary]: defaultColorScheme[0],
-      [DatasetGroup.reference]: defaultColorScheme[1],
-      [DatasetGroup.corpus]: FALLBACK_COLOR,
+      [InferencesGroup.primary]: defaultColorScheme[0],
+      [InferencesGroup.reference]: defaultColorScheme[1],
+      [InferencesGroup.corpus]: FALLBACK_COLOR,
     },
     metric: {
       type: "drift",
@@ -536,12 +536,12 @@ export function getDefaultRetrievalTroubleshootingPointCloudProps(): Partial<Poi
   return {
     coloringStrategy: ColoringStrategy.inferences,
     pointGroupVisibility: {
-      [DatasetGroup.primary]: true,
-      [DatasetGroup.corpus]: true,
+      [InferencesGroup.primary]: true,
+      [InferencesGroup.corpus]: true,
     },
     pointGroupColors: {
-      [DatasetGroup.primary]: defaultColorScheme[0],
-      [DatasetGroup.corpus]: FALLBACK_COLOR,
+      [InferencesGroup.primary]: defaultColorScheme[0],
+      [InferencesGroup.corpus]: FALLBACK_COLOR,
     },
     metric: {
       type: "retrieval",
@@ -598,15 +598,15 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     coloringStrategy: ColoringStrategy.inferences,
     inferencesVisibility: { primary: true, reference: true, corpus: true },
     pointGroupVisibility: {
-      [DatasetGroup.primary]: true,
-      [DatasetGroup.reference]: true,
-      [DatasetGroup.corpus]: true,
+      [InferencesGroup.primary]: true,
+      [InferencesGroup.reference]: true,
+      [InferencesGroup.corpus]: true,
     },
     pointGroupColors: {
       // TODO move to a single source of truth
-      [DatasetGroup.primary]: getDefaultColorScheme()[0],
-      [DatasetGroup.reference]: getDefaultColorScheme()[1],
-      [DatasetGroup.corpus]: FALLBACK_COLOR,
+      [InferencesGroup.primary]: getDefaultColorScheme()[0],
+      [InferencesGroup.reference]: getDefaultColorScheme()[1],
+      [InferencesGroup.corpus]: FALLBACK_COLOR,
     },
     eventIdToGroup: {},
     selectionDisplay: SelectionDisplay.gallery,
@@ -763,15 +763,15 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
           // Clear out the point groups as there are no groups
           set({
             pointGroupVisibility: {
-              [DatasetGroup.primary]: true,
-              [DatasetGroup.reference]: true,
-              [DatasetGroup.corpus]: true,
+              [InferencesGroup.primary]: true,
+              [InferencesGroup.reference]: true,
+              [InferencesGroup.corpus]: true,
             },
             pointGroupColors: {
               // TODO move these colors to a constants file
-              [DatasetGroup.primary]: getDefaultColorScheme()[0],
-              [DatasetGroup.reference]: getDefaultColorScheme()[1],
-              [DatasetGroup.corpus]: FALLBACK_COLOR,
+              [InferencesGroup.primary]: getDefaultColorScheme()[0],
+              [InferencesGroup.reference]: getDefaultColorScheme()[1],
+              [InferencesGroup.corpus]: FALLBACK_COLOR,
             },
             dimension: null,
             dimensionMetadata: null,
@@ -1025,13 +1025,13 @@ function getEventIdToGroup(
       const { primaryEventIds, referenceEventIds, corpusEventIds } =
         splitEventIdsByDataset(eventIds);
       primaryEventIds.forEach((eventId) => {
-        eventIdToGroup[eventId] = DatasetGroup.primary;
+        eventIdToGroup[eventId] = InferencesGroup.primary;
       });
       referenceEventIds.forEach((eventId) => {
-        eventIdToGroup[eventId] = DatasetGroup.reference;
+        eventIdToGroup[eventId] = InferencesGroup.reference;
       });
       corpusEventIds.forEach((eventId) => {
-        eventIdToGroup[eventId] = DatasetGroup.corpus;
+        eventIdToGroup[eventId] = InferencesGroup.corpus;
       });
       break;
     }

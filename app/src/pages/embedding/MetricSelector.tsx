@@ -11,7 +11,7 @@ import {
   Section,
 } from "@arizeai/components";
 
-import { useDatasets, usePointCloudContext } from "@phoenix/contexts";
+import { useInferences, usePointCloudContext } from "@phoenix/contexts";
 import {
   DriftMetricDefinition,
   MetricDefinition,
@@ -149,7 +149,7 @@ export function MetricSelector({
     `,
     model
   );
-  const { referenceInferences, corpusInferences } = useDatasets();
+  const { referenceInferences, corpusInferences } = useInferences();
   const hasReferenceDataset = !!referenceInferences;
   const hasCorpusDataset = !!corpusInferences;
   const metric = usePointCloudContext((state) => state.metric);

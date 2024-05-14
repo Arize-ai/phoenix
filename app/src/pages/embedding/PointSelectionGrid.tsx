@@ -2,7 +2,7 @@ import React from "react";
 import { css } from "@emotion/react";
 
 import { EventItem } from "@phoenix/components/pointcloud";
-import { useDatasets, usePointCloudContext } from "@phoenix/contexts";
+import { useInferences, usePointCloudContext } from "@phoenix/contexts";
 import { getInferencesRoleFromEventId } from "@phoenix/utils/pointCloudUtils";
 
 import { EventsList } from "./types";
@@ -12,7 +12,7 @@ type PointSelectionGridProps = {
 };
 
 export function PointSelectionGrid(props: PointSelectionGridProps) {
-  const { getDatasetNameByRole } = useDatasets();
+  const { getInferencesNameByRole } = useInferences();
   const { events, onItemSelected } = props;
   const eventIdToDataMap = usePointCloudContext(
     (state) => state.eventIdToDataMap
@@ -73,7 +73,7 @@ export function PointSelectionGrid(props: PointSelectionGridProps) {
           const { predictionLabel = null, actualLabel = null } =
             data?.eventMetadata ?? {};
           const inferencesRole = getInferencesRoleFromEventId(event.id);
-          const inferencesName = getDatasetNameByRole(inferencesRole);
+          const inferencesName = getInferencesNameByRole(inferencesRole);
           const group = eventIdToGroup[event.id];
           const color = pointGroupColors[group];
 
