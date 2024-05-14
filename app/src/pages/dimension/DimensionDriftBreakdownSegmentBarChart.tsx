@@ -22,7 +22,7 @@ import {
   getBinName,
   useChartColors,
 } from "@phoenix/components/chart";
-import { useDatasets } from "@phoenix/contexts";
+import { useInferences } from "@phoenix/contexts";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
@@ -92,13 +92,13 @@ function TooltipContent({
 export function DimensionDriftBreakdownSegmentBarChart(props: {
   dimensionId: string;
 }) {
-  const { primaryDataset, referenceDataset } = useDatasets();
-  const primaryName = primaryDataset.name;
-  const referenceName = referenceDataset?.name || "reference";
+  const { primaryInferences, referenceInferences } = useInferences();
+  const primaryName = primaryInferences.name;
+  const referenceName = referenceInferences?.name || "reference";
   const { selectedTimestamp } = useTimeSlice();
   const endTime = useMemo(
-    () => selectedTimestamp ?? new Date(primaryDataset.endTime),
-    [selectedTimestamp, primaryDataset.endTime]
+    () => selectedTimestamp ?? new Date(primaryInferences.endTime),
+    [selectedTimestamp, primaryInferences.endTime]
   );
   const timeRange = useMemo(() => {
     return {

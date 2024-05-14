@@ -1,3 +1,3 @@
 export * from "./Toolbar";
-export * from "./PrimaryDatasetTimeRange";
-export * from "./ReferenceDatasetTimeRange";
+export * from "./PrimaryInferencesTimeRange";
+export * from "./ReferenceInferencesTimeRange";

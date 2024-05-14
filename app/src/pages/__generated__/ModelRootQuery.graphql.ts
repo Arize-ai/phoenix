@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<df662386f58467849411bb66b59ea668>>
+ * @generated SignedSource<<69138674d0e192eab0760f01ea7549a8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,17 +12,17 @@ import { ConcreteRequest, Query } from 'relay-runtime';
 export type ModelRootQuery$variables = Record<PropertyKey, never>;
 export type ModelRootQuery$data = {
   readonly model: {
-    readonly corpusDataset: {
+    readonly corpusInferences: {
       readonly endTime: string;
       readonly name: string;
       readonly startTime: string;
     } | null;
-    readonly primaryDataset: {
+    readonly primaryInferences: {
       readonly endTime: string;
       readonly name: string;
       readonly startTime: string;
     };
-    readonly referenceDataset: {
+    readonly referenceInferences: {
       readonly endTime: string;
       readonly name: string;
       readonly startTime: string;
@@ -70,9 +70,9 @@ v1 = [
       {
         "alias": null,
         "args": null,
-        "concreteType": "Dataset",
+        "concreteType": "Inferences",
         "kind": "LinkedField",
-        "name": "primaryDataset",
+        "name": "primaryInferences",
         "plural": false,
         "selections": (v0/*: any*/),
         "storageKey": null
@@ -80,9 +80,9 @@ v1 = [
       {
         "alias": null,
         "args": null,
-        "concreteType": "Dataset",
+        "concreteType": "Inferences",
         "kind": "LinkedField",
-        "name": "referenceDataset",
+        "name": "referenceInferences",
         "plural": false,
         "selections": (v0/*: any*/),
         "storageKey": null
@@ -90,9 +90,9 @@ v1 = [
       {
         "alias": null,
         "args": null,
-        "concreteType": "Dataset",
+        "concreteType": "Inferences",
         "kind": "LinkedField",
-        "name": "corpusDataset",
+        "name": "corpusInferences",
         "plural": false,
         "selections": (v0/*: any*/),
         "storageKey": null
@@ -119,16 +119,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "8b79fd7c38d3485b9945813c6fd68baa",
+    "cacheID": "c3baccc5527002697b40a06eef432a4d",
     "id": null,
     "metadata": {},
     "name": "ModelRootQuery",
     "operationKind": "query",
-    "text": "query ModelRootQuery {\n  model {\n    primaryDataset {\n      name\n      startTime\n      endTime\n    }\n    referenceDataset {\n      name\n      startTime\n      endTime\n    }\n    corpusDataset {\n      name\n      startTime\n      endTime\n    }\n  }\n}\n"
+    "text": "query ModelRootQuery {\n  model {\n    primaryInferences {\n      name\n      startTime\n      endTime\n    }\n    referenceInferences {\n      name\n      startTime\n      endTime\n    }\n    corpusInferences {\n      name\n      startTime\n      endTime\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3f5bceab9f77e4f079fb0083b04d39ed";
+(node as any).hash = "b73d8f3f532a0c6f88863f3c6dd5734f";
 
 export default node;

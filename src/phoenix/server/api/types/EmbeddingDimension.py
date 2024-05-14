@@ -22,7 +22,7 @@ from phoenix.core.model_schema import (
     PRIMARY,
     PROMPT,
     REFERENCE,
-    Dataset,
+    Inferences,
 )
 from phoenix.metrics.timeseries import row_interval_from_sorted_time_index
 from phoenix.pointcloud.clustering import Hdbscan
@@ -31,7 +31,7 @@ from phoenix.pointcloud.projectors import Umap
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.Cluster import to_gql_clusters
-from phoenix.server.api.types.DatasetRole import AncillaryDatasetRole, DatasetRole
+from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
 from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric
 
 from ..input_types.Granularity import Granularity
@@ -155,16 +155,16 @@ class EmbeddingDimension(Node):
         metric: DataQualityMetric,
         time_range: TimeRange,
         granularity: Granularity,
-        dataset_role: Annotated[
-            Optional[DatasetRole],
+        inferences_role: Annotated[
+            Optional[InferencesRole],
             strawberry.argument(
                 description="The dataset (primary or reference) to query",
             ),
-        ] = DatasetRole.primary,
+        ] = InferencesRole.primary,
     ) -> DataQualityTimeSeries:
-        if not isinstance(dataset_role, DatasetRole):
-            dataset_role = DatasetRole.primary
-        dataset = info.context.model[dataset_role.value]
+        if not isinstance(inferences_role, InferencesRole):
+            inferences_role = InferencesRole.primary
+        dataset = info.context.model[inferences_role.value]
         time_range, granularity = ensure_timeseries_parameters(
             dataset,
             time_range,
@@ -176,7 +176,7 @@ class EmbeddingDimension(Node):
                 metric,
                 time_range,
                 granularity,
-                dataset_role,
+                inferences_role,
             )
         )
 
@@ -314,16 +314,16 @@ class EmbeddingDimension(Node):
         model = info.context.model
         data: Dict[ID, npt.NDArray[np.float64]] = {}
         retrievals: List[Tuple[ID, Any, Any]] = []
-        for dataset in model[Dataset]:
-            dataset_id = dataset.role
-            row_id_start, row_id_stop = 0, len(dataset)
-            if dataset_id is PRIMARY:
+        for inferences in model[Inferences]:
+            inferences_id = inferences.role
+            row_id_start, row_id_stop = 0, len(inferences)
+            if inferences_id is PRIMARY:
                 row_id_start, row_id_stop = row_interval_from_sorted_time_index(
-                    time_index=cast(pd.DatetimeIndex, dataset.index),
+                    time_index=cast(pd.DatetimeIndex, inferences.index),
                     time_start=time_range.start,
                     time_stop=time_range.end,
                 )
-            vector_column = self.dimension[dataset_id]
+            vector_column = self.dimension[inferences_id]
             samples_collected = 0
             for row_id in _row_indices(
                 row_id_start,
@@ -337,7 +337,7 @@ class EmbeddingDimension(Node):
                 # of dunder method __len__.
                 if not hasattr(embedding_vector, "__len__"):
                     continue
-                event_id = create_event_id(row_id, dataset_id)
+                event_id = create_event_id(row_id, inferences_id)
                 data[event_id] = embedding_vector
                 samples_collected += 1
                 if isinstance(
@@ -347,8 +347,8 @@ class EmbeddingDimension(Node):
                     retrievals.append(
                         (
                             event_id,
-                            self.dimension.context_retrieval_ids(dataset).iloc[row_id],
-                            self.dimension.context_retrieval_scores(dataset).iloc[row_id],
+                            self.dimension.context_retrieval_ids(inferences).iloc[row_id],
+                            self.dimension.context_retrieval_scores(inferences).iloc[row_id],
                         )
                     )
 
@@ -357,13 +357,13 @@ class EmbeddingDimension(Node):
             self.dimension,
             ms.RetrievalEmbeddingDimension,
         ) and (corpus := info.context.corpus):
-            corpus_dataset = corpus[PRIMARY]
-            for row_id, document_embedding_vector in enumerate(corpus_dataset[PROMPT]):
+            corpus_inferences = corpus[PRIMARY]
+            for row_id, document_embedding_vector in enumerate(corpus_inferences[PROMPT]):
                 if not hasattr(document_embedding_vector, "__len__"):
                     continue
-                event_id = create_event_id(row_id, AncillaryDatasetRole.corpus)
+                event_id = create_event_id(row_id, AncillaryInferencesRole.corpus)
                 data[event_id] = document_embedding_vector
-            corpus_primary_key = corpus_dataset.primary_key
+            corpus_primary_key = corpus_inferences.primary_key
             for event_id, retrieval_ids, retrieval_scores in retrievals:
                 if not isinstance(retrieval_ids, Iterable):
                     continue
@@ -385,7 +385,7 @@ class EmbeddingDimension(Node):
                         )
                     except KeyError:
                         continue
-                    document_embedding_vector = corpus_dataset[PROMPT].iloc[document_row_id]
+                    document_embedding_vector = corpus_inferences[PROMPT].iloc[document_row_id]
                     if not hasattr(document_embedding_vector, "__len__"):
                         continue
                     context_retrievals.append(
@@ -393,7 +393,7 @@ class EmbeddingDimension(Node):
                             query_id=event_id,
                             document_id=create_event_id(
                                 document_row_id,
-                                AncillaryDatasetRole.corpus,
+                                AncillaryInferencesRole.corpus,
                             ),
                             relevance=document_score,
                         )
@@ -413,11 +413,13 @@ class EmbeddingDimension(Node):
             ),
         ).generate(data, n_components=n_components)
 
-        points: Dict[Union[DatasetRole, AncillaryDatasetRole], List[UMAPPoint]] = defaultdict(list)
+        points: Dict[Union[InferencesRole, AncillaryInferencesRole], List[UMAPPoint]] = defaultdict(
+            list
+        )
         for event_id, vector in vectors.items():
-            row_id, dataset_role = unpack_event_id(event_id)
-            if isinstance(dataset_role, DatasetRole):
-                dataset = model[dataset_role.value]
+            row_id, inferences_role = unpack_event_id(event_id)
+            if isinstance(inferences_role, InferencesRole):
+                dataset = model[inferences_role.value]
                 embedding_metadata = EmbeddingMetadata(
                     prediction_id=dataset[PREDICTION_ID][row_id],
                     link_to_data=dataset[self.dimension.link_to_data][row_id],
@@ -433,9 +435,9 @@ class EmbeddingDimension(Node):
                 )
             else:
                 continue
-            points[dataset_role].append(
+            points[inferences_role].append(
                 UMAPPoint(
-                    id=GlobalID(f"{type(self).__name__}:{str(dataset_role)}", row_id),
+                    id=GlobalID(f"{type(self).__name__}:{str(inferences_role)}", row_id),
                     event_id=event_id,
                     coordinates=to_gql_coordinates(vector),
                     event_metadata=EventMetadata(
@@ -449,12 +451,12 @@ class EmbeddingDimension(Node):
             )
 
         return UMAPPoints(
-            data=points[DatasetRole.primary],
-            reference_data=points[DatasetRole.reference],
+            data=points[InferencesRole.primary],
+            reference_data=points[InferencesRole.reference],
             clusters=to_gql_clusters(
                 clustered_events=clustered_events,
             ),
-            corpus_data=points[AncillaryDatasetRole.corpus],
+            corpus_data=points[AncillaryInferencesRole.corpus],
             context_retrievals=context_retrievals,
         )
 

@@ -14,7 +14,7 @@ from openinference.semconv.trace import (
 from pandas import DataFrame, read_parquet
 from pyarrow import Schema, Table, parquet
 
-from phoenix.config import DATASET_DIR, GENERATED_DATASET_NAME_PREFIX, TRACE_DATASET_DIR
+from phoenix.config import GENERATED_INFERENCES_NAME_PREFIX, INFERENCES_DIR, TRACE_DATASETS_DIR
 from phoenix.datetime_utils import normalize_timestamps
 from phoenix.trace.attributes import unflatten
 from phoenix.trace.errors import InvalidParquetMetadataError
@@ -138,7 +138,7 @@ class TraceDataset:
         self._id = uuid4()
         self.dataframe = normalize_dataframe(dataframe)
         # TODO: This is not used in any meaningful way. Should remove
-        self.name = name or f"{GENERATED_DATASET_NAME_PREFIX}{str(self._id)}"
+        self.name = name or f"{GENERATED_INFERENCES_NAME_PREFIX}{str(self._id)}"
         self.evaluations = list(evaluations)
 
     @classmethod
@@ -201,13 +201,13 @@ class TraceDataset:
     @classmethod
     def from_name(cls, name: str) -> "TraceDataset":
         """Retrieves a dataset by name from the file system"""
-        directory = DATASET_DIR / name
+        directory = INFERENCES_DIR / name
         df = read_parquet(directory / cls._data_file_name)
         return cls(df, name)
 
     def to_disc(self) -> None:
         """writes the data to disc"""
-        directory = DATASET_DIR / self.name
+        directory = INFERENCES_DIR / self.name
         directory.mkdir(parents=True, exist_ok=True)
         get_serializable_spans_dataframe(self.dataframe).to_parquet(
             directory / self._data_file_name,
@@ -230,7 +230,7 @@ class TraceDataset:
             UUID: The id of the trace dataset, which can be used as key to load
             the dataset from disk using `load`.
         """
-        directory = Path(directory or TRACE_DATASET_DIR)
+        directory = Path(directory or TRACE_DATASETS_DIR)
         for evals in self.evaluations:
             evals.save(directory)
         path = directory / TRACE_DATASET_PARQUET_FILE_NAME.format(id=self._id)
@@ -280,7 +280,7 @@ class TraceDataset:
         """
         if not isinstance(id, UUID):
             id = UUID(id)
-        path = Path(directory or TRACE_DATASET_DIR) / TRACE_DATASET_PARQUET_FILE_NAME.format(id=id)
+        path = Path(directory or TRACE_DATASETS_DIR) / TRACE_DATASET_PARQUET_FILE_NAME.format(id=id)
         schema = parquet.read_schema(path)
         dataset_id, dataset_name, eval_ids = _parse_schema_metadata(schema)
         if id != dataset_id:
