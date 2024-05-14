@@ -2,59 +2,17 @@ import base64
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, auto
-from typing import ClassVar, Generic, List, Optional, Tuple, TypeVar, Union
+from typing import ClassVar, List, Optional, Tuple, Union
 
-import strawberry
 from strawberry import UNSET
+from strawberry.relay.types import Connection, Edge, NodeType, PageInfo
 from typing_extensions import TypeAlias, assert_never
 
 ID: TypeAlias = int
-GenericType = TypeVar("GenericType")
 CursorSortColumnValue: TypeAlias = Union[str, int, float, datetime]
-
-
-@strawberry.type
-class Connection(Generic[GenericType]):
-    """Represents a paginated relationship between two entities
-
-    This pattern is used when the relationship itself has attributes.
-    """
-
-    page_info: "PageInfo"
-    edges: List["Edge[GenericType]"]
-
-
-@strawberry.type
-class PageInfo:
-    """Pagination context to navigate objects with cursor-based pagination
-
-    Instead of classic offset pagination via `page` and `limit` parameters,
-    here we have a cursor of the last object and we fetch items starting from that one
-
-    Read more at:
-        - https://graphql.org/learn/pagination/#pagination-and-edges
-        - https://relay.dev/graphql/connections.htm
-    """
-
-    has_next_page: bool
-    has_previous_page: bool
-    start_cursor: Optional[str]
-    end_cursor: Optional[str]
-
 
 # A type alias for the connection cursor implementation
 CursorString = str
-
-
-@strawberry.type
-class Edge(Generic[GenericType]):
-    """
-    An edge may contain additional information of the relationship. This is the trivial case
-    """
-
-    node: GenericType
-    cursor: str
-
 
 # The hashing prefix for a connection cursor
 CURSOR_PREFIX = "connection:"
@@ -218,9 +176,9 @@ class ConnectionArgs:
 
 
 def connection_from_list(
-    data: List[GenericType],
+    data: List[NodeType],
     args: ConnectionArgs,
-) -> Connection[GenericType]:
+) -> Connection[NodeType]:
     """
     A simple function that accepts a list and connection arguments, and returns
     a connection object for use in GraphQL. It uses list offsets as pagination,
@@ -230,11 +188,11 @@ def connection_from_list(
 
 
 def connection_from_list_slice(
-    list_slice: List[GenericType],
+    list_slice: List[NodeType],
     args: ConnectionArgs,
     slice_start: int,
     list_length: int,
-) -> Connection[GenericType]:
+) -> Connection[NodeType]:
     """
     Given a slice (subset) of a list, returns a connection object for use in
     GraphQL.
@@ -295,12 +253,12 @@ def connection_from_list_slice(
     )
 
 
-def connections(
-    data: List[Tuple[Cursor, GenericType]],
+def connection_from_cursors_and_nodes(
+    cursors_and_nodes: List[Tuple[Cursor, NodeType]],
     has_previous_page: bool,
     has_next_page: bool,
-) -> Connection[GenericType]:
-    edges = [Edge(node=node, cursor=str(cursor)) for cursor, node in data]
+) -> Connection[NodeType]:
+    edges = [Edge(node=node, cursor=str(cursor)) for cursor, node in cursors_and_nodes]
     has_edges = len(edges) > 0
     first_edge = edges[0] if has_edges else None
     last_edge = edges[-1] if has_edges else None

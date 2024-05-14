@@ -3,13 +3,13 @@ from typing import List, Union
 import numpy as np
 import numpy.typing as npt
 import strawberry
+from strawberry.relay.types import GlobalID
 from strawberry.scalars import ID
 
 from phoenix.server.api.types.Cluster import Cluster
 
 from .EmbeddingMetadata import EmbeddingMetadata
 from .EventMetadata import EventMetadata
-from .node import GlobalID
 from .Retrieval import Retrieval
 
 
