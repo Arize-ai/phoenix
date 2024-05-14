@@ -272,7 +272,11 @@ def _lifespan(
 ) -> StatefulLifespan[Starlette]:
     @contextlib.asynccontextmanager
     async def lifespan(_: Starlette) -> AsyncIterator[Dict[str, Any]]:
-        async with bulk_inserter as (queue_span, queue_evaluation), GrpcServer(
+        async with bulk_inserter as (
+            queue_span,
+            queue_evaluation,
+            enqueue_operation,
+        ), GrpcServer(
             queue_span,
             disabled=read_only,
             tracer_provider=tracer_provider,
@@ -281,6 +285,7 @@ def _lifespan(
             yield {
                 "queue_span_for_bulk_insert": queue_span,
                 "queue_evaluation_for_bulk_insert": queue_evaluation,
+                "enqueue_operation": enqueue_operation,
             }
         for clean_up in clean_ups:
             clean_up()
