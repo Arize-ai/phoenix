@@ -199,24 +199,6 @@ class RelevanceEvaluator(LLMEvaluator):
         super().__init__(model=model, template=EvalCriteria.RELEVANCE.value)
 
 
-class ToxicityEvaluator(LLMEvaluator):
-    """
-    Leverages an LLM to evaluate whether the string stored under the "input"
-    column contains racist, sexist, chauvinistic, biased, or otherwise toxic
-    content.
-    """
-
-    def __init__(self, model: BaseModel) -> None:
-        """
-        Initializer for ToxicityEvaluator.
-
-        Args:
-            model (BaseEvalModel): The LLM model to use for evaluation.
-        """
-
-        super().__init__(model=model, template=EvalCriteria.TOXICITY.value)
-
-
 class QAEvaluator(LLMEvaluator):
     """
     Leverages an LLM to evaluate whether a response (stored under an "output"
@@ -234,6 +216,24 @@ class QAEvaluator(LLMEvaluator):
         """
 
         super().__init__(model=model, template=EvalCriteria.QA.value)
+
+
+class ToxicityEvaluator(LLMEvaluator):
+    """
+    Leverages an LLM to evaluate whether the string stored under the "input"
+    column contains racist, sexist, chauvinistic, biased, or otherwise toxic
+    content.
+    """
+
+    def __init__(self, model: BaseModel) -> None:
+        """
+        Initializer for ToxicityEvaluator.
+
+        Args:
+            model (BaseEvalModel): The LLM model to use for evaluation.
+        """
+
+        super().__init__(model=model, template=EvalCriteria.TOXICITY.value)
 
 
 class SummarizationEvaluator(LLMEvaluator):
