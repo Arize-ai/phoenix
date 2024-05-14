@@ -7,6 +7,7 @@ import strawberry
 from sqlalchemy import delete, select
 from sqlalchemy.orm import contains_eager, load_only
 from strawberry import ID, UNSET
+from strawberry.relay import Connection, GlobalID, Node
 from strawberry.types import Info
 from typing_extensions import Annotated
 
@@ -34,14 +35,8 @@ from phoenix.server.api.types.ExportEventsMutation import ExportEventsMutation
 from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
 from phoenix.server.api.types.Model import Model
-from phoenix.server.api.types.node import (
-    GlobalID,
-    Node,
-    from_global_id,
-    from_global_id_with_expected_type,
-)
+from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
-    Connection,
     ConnectionArgs,
     CursorString,
     connection_from_list,
@@ -97,7 +92,7 @@ class Query:
 
     @strawberry.field
     async def node(self, id: GlobalID, info: Info[Context, None]) -> Node:
-        type_name, node_id = from_global_id(str(id))
+        type_name, node_id = from_global_id(id)
         if type_name == "Dimension":
             dimension = info.context.model.scalar_dimensions[node_id]
             return to_gql_dimension(node_id, dimension)
@@ -277,7 +272,7 @@ class Mutation(ExportEventsMutation):
     async def delete_project(self, info: Info[Context, None], id: GlobalID) -> Query:
         if info.context.read_only:
             return Query()
-        node_id = from_global_id_with_expected_type(str(id), "Project")
+        node_id = from_global_id_with_expected_type(global_id=id, expected_type_name="Project")
         async with info.context.db() as session:
             project = await session.scalar(
                 select(models.Project)
@@ -295,7 +290,7 @@ class Mutation(ExportEventsMutation):
     async def clear_project(self, info: Info[Context, None], id: GlobalID) -> Query:
         if info.context.read_only:
             return Query()
-        project_id = from_global_id_with_expected_type(str(id), "Project")
+        project_id = from_global_id_with_expected_type(global_id=id, expected_type_name="Project")
         delete_statement = delete(models.Trace).where(models.Trace.project_rowid == project_id)
         async with info.context.db() as session:
             await session.execute(delete_statement)
