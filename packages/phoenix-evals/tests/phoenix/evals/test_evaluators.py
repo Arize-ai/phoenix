@@ -172,27 +172,27 @@ def test_llm_evaluator_evaluate_makes_best_effort_attempt_to_parse_invalid_funct
         pytest.param(
             HallucinationEvaluator,
             "hallucinated",
-            id="HallucinationEvaluator",
+            id="hallucination-evaluator",
         ),
         pytest.param(
             RelevanceEvaluator,
             "relevant",
-            id="RelevanceEvaluator",
+            id="relevance-evaluator",
         ),
         pytest.param(
             QAEvaluator,
             "correct",
-            id="QAEvaluator",
+            id="qa-evaluator",
         ),
         pytest.param(
             ToxicityEvaluator,
             "toxic",
-            id="ToxicityEvaluator",
+            id="toxicity-evaluator",
         ),
         pytest.param(
             SummarizationEvaluator,
             "good",
-            id="SummarizationEvaluator",
+            id="summarization-evaluator",
         ),
     ],
 )
