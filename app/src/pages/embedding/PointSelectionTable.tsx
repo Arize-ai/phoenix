@@ -79,7 +79,7 @@ export function PointSelectionTable({
         size: 50,
         cell: ({ getValue }) => {
           return (
-            <EventDatasetCell
+            <EventInferencesRoleCell
               id={getValue() as string}
               primaryInferencesName={primaryInferences.name}
               referenceInferencesName={referenceInferences?.name ?? "reference"}
@@ -266,7 +266,7 @@ export function PointSelectionTable({
   );
 }
 
-function EventDatasetCell({
+function EventInferencesRoleCell({
   id,
   primaryInferencesName,
   referenceInferencesName,
