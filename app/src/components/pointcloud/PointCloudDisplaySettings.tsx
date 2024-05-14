@@ -5,17 +5,17 @@ import { Alert, Form } from "@arizeai/components";
 
 import { ConnectedDimensionPicker } from "@phoenix/components/form";
 import { ColoringStrategy } from "@phoenix/constants/pointCloudConstants";
-import { useDatasets } from "@phoenix/contexts";
+import { useInferences } from "@phoenix/contexts";
 import { usePointCloudContext } from "@phoenix/contexts";
 
 import { Loading } from "../Loading";
 
 import { ColoringStrategyPicker } from "./ColoringStrategyPicker";
-import { DatasetVisibilitySettings } from "./DatasetVisibilitySettings";
+import { InferencesVisibilitySettings } from "./InferencesVisibilitySettings";
 import { PointGroupVisibilitySettings } from "./PointGroupVisibilitySettings";
 
 export function PointCloudDisplaySettings() {
-  const { referenceDataset, corpusDataset } = useDatasets();
+  const { referenceInferences, corpusInferences } = useInferences();
   const coloringStrategy = usePointCloudContext(
     (state) => state.coloringStrategy
   );
@@ -28,8 +28,8 @@ export function PointCloudDisplaySettings() {
   );
   const setDimension = usePointCloudContext((state) => state.setDimension);
 
-  const showDatasetVisibilitySettings =
-    referenceDataset != null || corpusDataset != null;
+  const showInferencesVisibilitySettings =
+    referenceInferences != null || corpusInferences != null;
 
   const isAwaitingDimensionSelection =
     coloringStrategy === ColoringStrategy.dimension && dimension == null;
@@ -38,9 +38,9 @@ export function PointCloudDisplaySettings() {
     dimension != null &&
     dimensionMetadata == null;
 
-  // Show the point group visibility settings if the strategy is not dataset.
+  // Show the point group visibility settings if the strategy is not inferences.
   const showPointGroupVisibilitySettings =
-    coloringStrategy !== ColoringStrategy.dataset &&
+    coloringStrategy !== ColoringStrategy.inferences &&
     !isAwaitingDimensionSelection &&
     !isAwaitingDimensionMetadataRetrieval;
 
@@ -73,10 +73,10 @@ export function PointCloudDisplaySettings() {
         </>
       </Form>
 
-      {showDatasetVisibilitySettings ? (
-        <DatasetVisibilitySettings
-          hasReference={referenceDataset != null}
-          hasCorpus={corpusDataset != null}
+      {showInferencesVisibilitySettings ? (
+        <InferencesVisibilitySettings
+          hasReference={referenceInferences != null}
+          hasCorpus={corpusInferences != null}
         />
       ) : null}
       {showPointGroupVisibilitySettings ? (

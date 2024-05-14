@@ -31,7 +31,7 @@ export type ChartColors = {
   readonly gray600: string;
   readonly gray700: string;
   readonly default: string;
-  // Colors specific to the dataset role
+  // Colors specific to the inferences role
   readonly primary: string;
   readonly reference: string;
 };
@@ -65,7 +65,7 @@ const darkColors: ChartColors = Object.freeze({
   gray600: "#525252",
   gray700: "#252525",
   default: "#ffffff",
-  // Colors specific to the dataset role
+  // Colors specific to the inferences role
   primary: "#9efcfd",
   reference: "#baa1f9",
 });
@@ -99,7 +99,7 @@ const lightColors: ChartColors = Object.freeze({
   gray500: "#bdbdbd",
   gray600: "#d9d9d9",
   gray700: "#f0f0f0",
-  // Colors specific to the dataset role
+  // Colors specific to the inferences role
   primary: "#00add0",
   reference: "#4500d9",
 });

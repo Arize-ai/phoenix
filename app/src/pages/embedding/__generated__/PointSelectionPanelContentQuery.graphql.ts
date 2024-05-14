@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ddf3621710b2a1ab8bb4dad30852c82d>>
+ * @generated SignedSource<<102514678a19714e71666c0dd876b04f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,7 +17,7 @@ export type PointSelectionPanelContentQuery$variables = {
 };
 export type PointSelectionPanelContentQuery$data = {
   readonly model: {
-    readonly corpusDataset: {
+    readonly corpusInferences: {
       readonly events: ReadonlyArray<{
         readonly dimensions: ReadonlyArray<{
           readonly dimension: {
@@ -41,7 +41,7 @@ export type PointSelectionPanelContentQuery$data = {
         } | null;
       }>;
     } | null;
-    readonly primaryDataset: {
+    readonly primaryInferences: {
       readonly events: ReadonlyArray<{
         readonly dimensions: ReadonlyArray<{
           readonly dimension: {
@@ -65,7 +65,7 @@ export type PointSelectionPanelContentQuery$data = {
         } | null;
       }>;
     };
-    readonly referenceDataset: {
+    readonly referenceInferences: {
       readonly events: ReadonlyArray<{
         readonly dimensions: ReadonlyArray<{
           readonly dimension: {
@@ -254,9 +254,9 @@ v4 = [
       {
         "alias": null,
         "args": null,
-        "concreteType": "Dataset",
+        "concreteType": "Inferences",
         "kind": "LinkedField",
-        "name": "primaryDataset",
+        "name": "primaryInferences",
         "plural": false,
         "selections": [
           {
@@ -281,9 +281,9 @@ v4 = [
       {
         "alias": null,
         "args": null,
-        "concreteType": "Dataset",
+        "concreteType": "Inferences",
         "kind": "LinkedField",
-        "name": "referenceDataset",
+        "name": "referenceInferences",
         "plural": false,
         "selections": [
           {
@@ -308,9 +308,9 @@ v4 = [
       {
         "alias": null,
         "args": null,
-        "concreteType": "Dataset",
+        "concreteType": "Inferences",
         "kind": "LinkedField",
-        "name": "corpusDataset",
+        "name": "corpusInferences",
         "plural": false,
         "selections": [
           {
@@ -362,16 +362,16 @@ return {
     "selections": (v4/*: any*/)
   },
   "params": {
-    "cacheID": "a1ce797d7fc303bb85730466d1a14bdd",
+    "cacheID": "8b48064eba35d0d6c8dc834c2f7795c0",
     "id": null,
     "metadata": {},
     "name": "PointSelectionPanelContentQuery",
     "operationKind": "query",
-    "text": "query PointSelectionPanelContentQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n  $corpusEventIds: [ID!]!\n) {\n  model {\n    primaryDataset {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n    referenceDataset {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n    corpusDataset {\n      events(eventIds: $corpusEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n  }\n}\n"
+    "text": "query PointSelectionPanelContentQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n  $corpusEventIds: [ID!]!\n) {\n  model {\n    primaryInferences {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n    referenceInferences {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n    corpusInferences {\n      events(eventIds: $corpusEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6238f84e3d942c6c9af51ea7180b7608";
+(node as any).hash = "4bd627481610322f2acbcf73dfbfaadc";
 
 export default node;

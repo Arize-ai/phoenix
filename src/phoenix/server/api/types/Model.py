@@ -14,11 +14,11 @@ from ..input_types.DimensionFilter import DimensionFilter
 from ..input_types.Granularity import Granularity
 from ..input_types.PerformanceMetricInput import PerformanceMetricInput
 from ..input_types.TimeRange import TimeRange
-from .Dataset import Dataset
-from .DatasetRole import AncillaryDatasetRole, DatasetRole
 from .Dimension import Dimension, to_gql_dimension
 from .EmbeddingDimension import EmbeddingDimension, to_gql_embedding_dimension
 from .ExportedFile import ExportedFile
+from .Inferences import Inferences
+from .InferencesRole import AncillaryInferencesRole, InferencesRole
 from .pagination import Connection, ConnectionArgs, CursorString, connection_from_list
 from .TimeSeries import (
     PerformanceTimeSeries,
@@ -57,45 +57,45 @@ class Model:
         )
 
     @strawberry.field
-    def primary_dataset(self, info: Info[Context, None]) -> Dataset:
-        dataset = info.context.model[PRIMARY]
-        start, stop = dataset.time_range
-        return Dataset(
+    def primary_inferences(self, info: Info[Context, None]) -> Inferences:
+        inferences = info.context.model[PRIMARY]
+        start, stop = inferences.time_range
+        return Inferences(
             start_time=start,
             end_time=stop,
-            record_count=len(dataset),
-            dataset=dataset,
-            dataset_role=DatasetRole.primary,
+            record_count=len(inferences),
+            inferences=inferences,
+            inferences_role=InferencesRole.primary,
             model=info.context.model,
         )
 
     @strawberry.field
-    def reference_dataset(self, info: Info[Context, None]) -> Optional[Dataset]:
-        if (dataset := info.context.model[REFERENCE]).empty:
+    def reference_inferences(self, info: Info[Context, None]) -> Optional[Inferences]:
+        if (inferences := info.context.model[REFERENCE]).empty:
             return None
-        start, stop = dataset.time_range
-        return Dataset(
+        start, stop = inferences.time_range
+        return Inferences(
             start_time=start,
             end_time=stop,
-            record_count=len(dataset),
-            dataset=dataset,
-            dataset_role=DatasetRole.reference,
+            record_count=len(inferences),
+            inferences=inferences,
+            inferences_role=InferencesRole.reference,
             model=info.context.model,
         )
 
     @strawberry.field
-    def corpus_dataset(self, info: Info[Context, None]) -> Optional[Dataset]:
+    def corpus_inferences(self, info: Info[Context, None]) -> Optional[Inferences]:
         if info.context.corpus is None:
             return None
-        if (dataset := info.context.corpus[PRIMARY]).empty:
+        if (inferences := info.context.corpus[PRIMARY]).empty:
             return None
-        start, stop = dataset.time_range
-        return Dataset(
+        start, stop = inferences.time_range
+        return Inferences(
             start_time=start,
             end_time=stop,
-            record_count=len(dataset),
-            dataset=dataset,
-            dataset_role=AncillaryDatasetRole.corpus,
+            record_count=len(inferences),
+            inferences=inferences,
+            inferences_role=AncillaryInferencesRole.corpus,
             model=info.context.corpus,
         )
 
@@ -156,24 +156,24 @@ class Model:
         info: Info[Context, None],
         metric: PerformanceMetricInput,
         time_range: Optional[TimeRange] = UNSET,
-        dataset_role: Annotated[
-            Optional[DatasetRole],
+        inferences_role: Annotated[
+            Optional[InferencesRole],
             strawberry.argument(
-                description="The dataset (primary or reference) to query",
+                description="The inferences (primary or reference) to query",
             ),
-        ] = DatasetRole.primary,
+        ] = InferencesRole.primary,
     ) -> Optional[float]:
-        if not isinstance(dataset_role, DatasetRole):
-            dataset_role = DatasetRole.primary
+        if not isinstance(inferences_role, InferencesRole):
+            inferences_role = InferencesRole.primary
         model = info.context.model
-        dataset = model[dataset_role.value]
+        inferences = model[inferences_role.value]
         time_range, granularity = ensure_timeseries_parameters(
-            dataset,
+            inferences,
             time_range,
         )
         metric_instance = metric.metric_instance(model)
         data = get_timeseries_data(
-            dataset,
+            inferences,
             metric_instance,
             time_range,
             granularity,
@@ -194,26 +194,26 @@ class Model:
         metric: PerformanceMetricInput,
         time_range: TimeRange,
         granularity: Granularity,
-        dataset_role: Annotated[
-            Optional[DatasetRole],
+        inferences_role: Annotated[
+            Optional[InferencesRole],
             strawberry.argument(
-                description="The dataset (primary or reference) to query",
+                description="The inferences (primary or reference) to query",
             ),
-        ] = DatasetRole.primary,
+        ] = InferencesRole.primary,
     ) -> PerformanceTimeSeries:
-        if not isinstance(dataset_role, DatasetRole):
-            dataset_role = DatasetRole.primary
+        if not isinstance(inferences_role, InferencesRole):
+            inferences_role = InferencesRole.primary
         model = info.context.model
-        dataset = model[dataset_role.value]
+        inferences = model[inferences_role.value]
         time_range, granularity = ensure_timeseries_parameters(
-            dataset,
+            inferences,
             time_range,
             granularity,
         )
         metric_instance = metric.metric_instance(model)
         return PerformanceTimeSeries(
             data=get_timeseries_data(
-                dataset,
+                inferences,
                 metric_instance,
                 time_range,
                 granularity,

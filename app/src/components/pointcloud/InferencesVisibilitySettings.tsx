@@ -11,40 +11,40 @@ import { Shape } from "./ShapeIcon";
 import { VisibilityCheckboxField } from "./VisibilityCheckboxField";
 
 /**
- * Small checkbox form that controls the visibility of each dataset.
+ * Small checkbox form that controls the visibility of each inference set.
  */
-export function DatasetVisibilitySettings({
+export function InferencesVisibilitySettings({
   hasReference,
   hasCorpus,
 }: {
   hasReference: boolean;
   hasCorpus: boolean;
 }) {
-  const datasetVisibility = usePointCloudContext(
-    (state) => state.datasetVisibility
+  const inferencesVisibility = usePointCloudContext(
+    (state) => state.inferencesVisibility
   );
-  const setDatasetVisibility = usePointCloudContext(
-    (state) => state.setDatasetVisibility
+  const setInferencesVisibility = usePointCloudContext(
+    (state) => state.setInferencesVisibility
   );
   const coloringStrategy = usePointCloudContext(
     (state) => state.coloringStrategy
   );
 
-  const handleDatasetVisibilityChange = useCallback(
+  const handleInferencesVisibilityChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
       const { name, checked } = event.target;
-      setDatasetVisibility({
-        ...datasetVisibility,
+      setInferencesVisibility({
+        ...inferencesVisibility,
         [name]: checked,
       });
     },
-    [datasetVisibility, setDatasetVisibility]
+    [inferencesVisibility, setInferencesVisibility]
   );
   const DEFAULT_COLOR_SCHEME = useDefaultColorScheme();
 
   const primaryColor = useMemo(() => {
     switch (coloringStrategy) {
-      case ColoringStrategy.dataset:
+      case ColoringStrategy.inferences:
         return DEFAULT_COLOR_SCHEME[0];
       case ColoringStrategy.correctness:
       case ColoringStrategy.dimension:
@@ -56,7 +56,7 @@ export function DatasetVisibilitySettings({
 
   const referenceColor = useMemo(() => {
     switch (coloringStrategy) {
-      case ColoringStrategy.dataset:
+      case ColoringStrategy.inferences:
         return DEFAULT_COLOR_SCHEME[1];
       case ColoringStrategy.correctness:
       case ColoringStrategy.dimension:
@@ -68,9 +68,11 @@ export function DatasetVisibilitySettings({
   const corpusColor = FALLBACK_COLOR;
 
   const referenceShape =
-    coloringStrategy === ColoringStrategy.dataset ? Shape.circle : Shape.square;
+    coloringStrategy === ColoringStrategy.inferences
+      ? Shape.circle
+      : Shape.square;
   const corpusShape =
-    coloringStrategy === ColoringStrategy.dataset
+    coloringStrategy === ColoringStrategy.inferences
       ? Shape.circle
       : Shape.diamond;
 
@@ -83,25 +85,25 @@ export function DatasetVisibilitySettings({
       `}
     >
       <VisibilityCheckboxField
-        checked={datasetVisibility.primary}
+        checked={inferencesVisibility.primary}
         name="primary"
         color={primaryColor}
-        onChange={handleDatasetVisibilityChange}
+        onChange={handleInferencesVisibilityChange}
       />
       {hasReference ? (
         <VisibilityCheckboxField
-          checked={datasetVisibility.reference}
+          checked={inferencesVisibility.reference}
           name="reference"
-          onChange={handleDatasetVisibilityChange}
+          onChange={handleInferencesVisibilityChange}
           color={referenceColor}
           iconShape={referenceShape}
         />
       ) : null}
       {hasCorpus ? (
         <VisibilityCheckboxField
-          checked={datasetVisibility.corpus}
+          checked={inferencesVisibility.corpus}
           name="corpus"
-          onChange={handleDatasetVisibilityChange}
+          onChange={handleInferencesVisibilityChange}
           color={corpusColor}
           iconShape={corpusShape}
         />

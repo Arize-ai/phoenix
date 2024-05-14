@@ -11,7 +11,7 @@ import {
   Section,
 } from "@arizeai/components";
 
-import { useDatasets, usePointCloudContext } from "@phoenix/contexts";
+import { useInferences, usePointCloudContext } from "@phoenix/contexts";
 import {
   DriftMetricDefinition,
   MetricDefinition,
@@ -116,7 +116,7 @@ const contextualHelp = (
     <Content>
       <p>Select a metric to drive the analysis of your embeddings.</p>
       <p>
-        To analyze the the drift between your two datasets, select a drift
+        To analyze the the drift between your two inferencess, select a drift
         metric and the UI will highlight areas of high drift.
       </p>
       <p>
@@ -149,9 +149,9 @@ export function MetricSelector({
     `,
     model
   );
-  const { referenceDataset, corpusDataset } = useDatasets();
-  const hasReferenceDataset = !!referenceDataset;
-  const hasCorpusDataset = !!corpusDataset;
+  const { referenceInferences, corpusInferences } = useInferences();
+  const hasReferenceInferences = !!referenceInferences;
+  const hasCorpusInferences = !!corpusInferences;
   const metric = usePointCloudContext((state) => state.metric);
   const loading = usePointCloudContext((state) => state.loading);
   const setMetric = usePointCloudContext((state) => state.setMetric);
@@ -180,7 +180,7 @@ export function MetricSelector({
       placeholder="Select a metric..."
       isDisabled={loading}
     >
-      {hasReferenceDataset ? (
+      {hasReferenceInferences ? (
         <Section title="Drift">
           <Item
             key={getMetricKey({
@@ -194,7 +194,7 @@ export function MetricSelector({
       ) : (
         (null as unknown as CollectionElement<unknown>)
       )}
-      {hasCorpusDataset ? (
+      {hasCorpusInferences ? (
         <Section title="Retrieval">
           <Item
             key={getMetricKey({
