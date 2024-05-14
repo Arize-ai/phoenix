@@ -8,8 +8,7 @@ import numpy.typing as npt
 import pandas as pd
 import strawberry
 from strawberry import UNSET
-from strawberry.relay import Node, NodeID
-from strawberry.relay.types import GlobalID
+from strawberry.relay import GlobalID, Node, NodeID
 from strawberry.scalars import ID
 from strawberry.types import Info
 from typing_extensions import Annotated
