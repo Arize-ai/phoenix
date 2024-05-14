@@ -2,24 +2,24 @@ import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Outlet } from "react-router-dom";
 
-import { DatasetsProvider, TimeRangeProvider } from "@phoenix/contexts";
+import { InferencesProvider, TimeRangeProvider } from "@phoenix/contexts";
 
 import { ModelRootQuery } from "./__generated__/ModelRootQuery.graphql";
 
 const RootQuery = graphql`
   query ModelRootQuery {
     model {
-      primaryDataset {
+      primaryInferences {
         name
         startTime
         endTime
       }
-      referenceDataset {
+      referenceInferences {
         name
         startTime
         endTime
       }
-      corpusDataset {
+      corpusInferences {
         name
         startTime
         endTime
@@ -34,23 +34,23 @@ const RootQuery = graphql`
 export function ModelRoot() {
   const data = useLazyLoadQuery<ModelRootQuery>(RootQuery, {});
   const {
-    model: { primaryDataset, referenceDataset, corpusDataset },
+    model: { primaryInferences, referenceInferences, corpusInferences },
   } = data;
 
   return (
-    <DatasetsProvider
-      primaryDataset={primaryDataset}
-      referenceDataset={referenceDataset ?? null}
-      corpusDataset={corpusDataset ?? null}
+    <InferencesProvider
+      primaryInferences={primaryInferences}
+      referenceInferences={referenceInferences ?? null}
+      corpusInferences={corpusInferences ?? null}
     >
       <TimeRangeProvider
         timeRangeBounds={{
-          start: new Date(primaryDataset.startTime),
-          end: new Date(primaryDataset.endTime),
+          start: new Date(primaryInferences.startTime),
+          end: new Date(primaryInferences.endTime),
         }}
       >
         <Outlet />
       </TimeRangeProvider>
-    </DatasetsProvider>
+    </InferencesProvider>
   );
 }

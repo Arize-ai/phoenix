@@ -9,7 +9,7 @@ import {
   ListBox,
 } from "@arizeai/components";
 
-import { useDatasets, usePointCloudContext } from "@phoenix/contexts";
+import { useInferences, usePointCloudContext } from "@phoenix/contexts";
 import { ClusterSort } from "@phoenix/store";
 
 type Item = {
@@ -21,14 +21,14 @@ function getSortKey(sort: ClusterSort): string {
   return `${sort.column}:${sort.dir}`;
 }
 export function ClusterSortPicker() {
-  const { referenceDataset } = useDatasets();
-  const hasReferenceDataset = !!referenceDataset;
+  const { referenceInferences } = useInferences();
+  const hasReferenceInferences = !!referenceInferences;
   const sort = usePointCloudContext((state) => state.clusterSort);
   const setSort = usePointCloudContext((state) => state.setClusterSort);
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const items = useMemo<Item[]>(() => {
     const dynamicItems: Item[] = [];
-    if (hasReferenceDataset) {
+    if (hasReferenceInferences) {
       dynamicItems.push({
         label: "Most drift",
         value: getSortKey({
@@ -68,7 +68,7 @@ export function ClusterSortPicker() {
         }),
       },
     ];
-  }, [hasReferenceDataset]);
+  }, [hasReferenceInferences]);
   const selectedSortKey = getSortKey(sort);
   return (
     <div

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<aa89ee3ddadf6638ddf335867f8e3426>>
+ * @generated SignedSource<<2d7fe62a6d5d80db2fa781302409244e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,7 +17,7 @@ export type pointCloudStore_eventsQuery$variables = {
 };
 export type pointCloudStore_eventsQuery$data = {
   readonly model: {
-    readonly corpusDataset: {
+    readonly corpusInferences: {
       readonly events: ReadonlyArray<{
         readonly dimensions: ReadonlyArray<{
           readonly dimension: {
@@ -41,7 +41,7 @@ export type pointCloudStore_eventsQuery$data = {
         } | null;
       }>;
     } | null;
-    readonly primaryDataset: {
+    readonly primaryInferences: {
       readonly events: ReadonlyArray<{
         readonly dimensions: ReadonlyArray<{
           readonly dimension: {
@@ -65,7 +65,7 @@ export type pointCloudStore_eventsQuery$data = {
         } | null;
       }>;
     };
-    readonly referenceDataset: {
+    readonly referenceInferences: {
       readonly events: ReadonlyArray<{
         readonly dimensions: ReadonlyArray<{
           readonly dimension: {
@@ -262,9 +262,9 @@ v11 = [
       {
         "alias": null,
         "args": null,
-        "concreteType": "Dataset",
+        "concreteType": "Inferences",
         "kind": "LinkedField",
-        "name": "primaryDataset",
+        "name": "primaryInferences",
         "plural": false,
         "selections": [
           {
@@ -289,9 +289,9 @@ v11 = [
       {
         "alias": null,
         "args": null,
-        "concreteType": "Dataset",
+        "concreteType": "Inferences",
         "kind": "LinkedField",
-        "name": "referenceDataset",
+        "name": "referenceInferences",
         "plural": false,
         "selections": [
           {
@@ -347,9 +347,9 @@ v11 = [
       {
         "alias": null,
         "args": null,
-        "concreteType": "Dataset",
+        "concreteType": "Inferences",
         "kind": "LinkedField",
-        "name": "corpusDataset",
+        "name": "corpusInferences",
         "plural": false,
         "selections": [
           {
@@ -401,16 +401,16 @@ return {
     "selections": (v11/*: any*/)
   },
   "params": {
-    "cacheID": "e26a15665d2dd03479941745a539410d",
+    "cacheID": "388c28f19a685a131b1dfd4bac80cb7c",
     "id": null,
     "metadata": {},
     "name": "pointCloudStore_eventsQuery",
     "operationKind": "query",
-    "text": "query pointCloudStore_eventsQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n  $corpusEventIds: [ID!]!\n) {\n  model {\n    primaryDataset {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n    referenceDataset {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            id\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n    corpusDataset {\n      events(eventIds: $corpusEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n  }\n}\n"
+    "text": "query pointCloudStore_eventsQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n  $corpusEventIds: [ID!]!\n) {\n  model {\n    primaryInferences {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n    referenceInferences {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            id\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n    corpusInferences {\n      events(eventIds: $corpusEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2ecca9b28388f179d9bd79010fae7bf2";
+(node as any).hash = "00a957322684d9186fdf16d33a75b931";
 
 export default node;

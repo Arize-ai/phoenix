@@ -11,7 +11,7 @@ import pandas as pd
 from pandas.api.types import is_integer_dtype, is_numeric_dtype, is_string_dtype
 from pyarrow import RecordBatchStreamReader, Schema, Table, parquet
 
-from phoenix.config import TRACE_DATASET_DIR
+from phoenix.config import TRACE_DATASETS_DIR
 from phoenix.exceptions import PhoenixEvaluationNameIsMissing
 from phoenix.trace.errors import InvalidParquetMetadataError
 
@@ -201,7 +201,7 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
             UUID: The ID of the evaluations, which can be used as a key to load
             the evaluations from disk using `load`.
         """
-        directory = Path(directory) if directory else TRACE_DATASET_DIR
+        directory = Path(directory) if directory else TRACE_DATASETS_DIR
         path = directory / EVAL_PARQUET_FILE_NAME.format(id=self.id)
         table = self.to_pyarrow_table()
         parquet.write_table(table, path)
@@ -229,7 +229,7 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
         """
         if not isinstance(id, UUID):
             id = UUID(id)
-        path = Path(directory or TRACE_DATASET_DIR) / EVAL_PARQUET_FILE_NAME.format(id=id)
+        path = Path(directory or TRACE_DATASETS_DIR) / EVAL_PARQUET_FILE_NAME.format(id=id)
         schema = parquet.read_schema(path)
         eval_id, eval_name, evaluations_cls = _parse_schema_metadata(schema)
         if id != eval_id:

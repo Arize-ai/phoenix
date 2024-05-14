@@ -3,7 +3,7 @@ import { css } from "@emotion/react";
 
 import { Flex, Heading, Text } from "@arizeai/components";
 
-import { DatasetRole } from "@phoenix/types";
+import { InferencesRole } from "@phoenix/types";
 import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
 type ClusterItemProps = {
@@ -35,7 +35,7 @@ type ClusterItemProps = {
    */
   driftRatio?: number | null;
   /**
-   * The ratio of the primary dataset's count to the count of corpus points
+   * The ratio of the primary inferences' count to the count of corpus points
    * Used to troubleshoot retrieval
    */
   primaryToCorpusRatio?: number | null;
@@ -77,22 +77,22 @@ export function ClusterItem(props: ClusterItemProps) {
 
   // Calculate the percentage of primary points in the cluster
 
-  const { percentage: primaryPercentage, comparisonDatasetRole } = useMemo<{
+  const { percentage: primaryPercentage, comparisonInferencesRole } = useMemo<{
     percentage: number;
-    comparisonDatasetRole: DatasetRole | null;
+    comparisonInferencesRole: InferencesRole | null;
   }>(() => {
     if (typeof primaryToCorpusRatio === "number") {
       return {
         percentage: ((primaryToCorpusRatio + 1) / 2) * 100,
-        comparisonDatasetRole: DatasetRole.corpus,
+        comparisonInferencesRole: InferencesRole.corpus,
       };
     } else if (typeof driftRatio === "number") {
       return {
         percentage: ((driftRatio + 1) / 2) * 100,
-        comparisonDatasetRole: DatasetRole.reference,
+        comparisonInferencesRole: InferencesRole.reference,
       };
     }
-    return { percentage: 100, comparisonDatasetRole: null };
+    return { percentage: 100, comparisonInferencesRole: null };
   }, [driftRatio, primaryToCorpusRatio]);
   return (
     <div
@@ -163,7 +163,7 @@ export function ClusterItem(props: ClusterItemProps) {
       </div>
       <DistributionBar
         primaryPercentage={primaryPercentage}
-        comparisonDatasetRole={comparisonDatasetRole}
+        comparisonInferencesRole={comparisonInferencesRole}
       />
     </div>
   );
@@ -171,14 +171,14 @@ export function ClusterItem(props: ClusterItemProps) {
 
 function DistributionBar({
   primaryPercentage,
-  comparisonDatasetRole,
+  comparisonInferencesRole,
 }: {
   primaryPercentage: number;
-  comparisonDatasetRole?: DatasetRole | null;
+  comparisonInferencesRole?: InferencesRole | null;
 }) {
   return (
     <div
-      data-testid="dataset-distribution"
+      data-testid="inferences-distribution"
       css={css`
         display: flex;
         flex-direction: row;
@@ -198,16 +198,16 @@ function DistributionBar({
       />
       <div
         data-testid="reference-distribution"
-        data-reference-dataset-role={`${comparisonDatasetRole ?? "none"}`}
+        data-reference-inferences-role={`${comparisonInferencesRole ?? "none"}`}
         css={css`
-          &[data-reference-dataset-role="reference"] {
+          &[data-reference-inferences-role="reference"] {
             background-image: linear-gradient(
               to right,
               var(--px-reference-color) 0%,
               var(--px-reference-color--transparent)
             );
           }
-          &[data-reference-dataset-role="corpus"] {
+          &[data-reference-inferences-role="corpus"] {
             background-image: linear-gradient(
               to right,
               var(--px-corpus-color) 0%,

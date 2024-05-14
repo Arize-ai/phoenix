@@ -6,7 +6,7 @@ import { css } from "@emotion/react";
 import { Dialog, DialogContainer, Flex, View } from "@arizeai/components";
 
 import { Loading, ViewSummaryAside } from "@phoenix/components";
-import { useDatasets, useTimeRange } from "@phoenix/contexts";
+import { useInferences, useTimeRange } from "@phoenix/contexts";
 import { TimeSliceContextProvider } from "@phoenix/contexts/TimeSliceContext";
 
 import { dimensionLoaderQuery$data } from "./__generated__/dimensionLoaderQuery.graphql";
@@ -28,8 +28,8 @@ export function DimensionPage() {
   const { dimensionId } = useParams();
   const { timeRange } = useTimeRange();
   const loaderData = useLoaderData() as dimensionLoaderQuery$data;
-  const { referenceDataset } = useDatasets();
-  const hasReference = referenceDataset !== null;
+  const { referenceInferences } = useInferences();
+  const hasReference = referenceInferences !== null;
   const showDrift = hasReference;
   // Only show cardinality if if the shape is non-continuous
   const showCardinality = loaderData.dimension.shape !== "continuous";

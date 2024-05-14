@@ -63,7 +63,7 @@ export function useTimeRange() {
 type TimeRangeProviderProps = {
   children: ReactNode;
   /**
-   * The min and max time range of the application (typically the min and max of the primary dataset)
+   * The min and max time range of the application (typically the min and max of the primary inferences)
    */
   timeRangeBounds: TimeRange;
 };

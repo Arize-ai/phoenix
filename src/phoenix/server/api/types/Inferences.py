@@ -9,24 +9,24 @@ import phoenix.core.model_schema as ms
 from phoenix.core.model_schema import FEATURE, TAG, ScalarDimension
 
 from ..input_types.DimensionInput import DimensionInput
-from .DatasetRole import AncillaryDatasetRole, DatasetRole
 from .Dimension import Dimension, to_gql_dimension
-from .Event import Event, create_event, create_event_id, parse_event_ids_by_dataset_role
+from .Event import Event, create_event, create_event_id, parse_event_ids_by_inferences_role
+from .InferencesRole import AncillaryInferencesRole, InferencesRole
 
 
 @strawberry.type
-class Dataset:
+class Inferences:
     start_time: datetime = strawberry.field(description="The start bookend of the data")
     end_time: datetime = strawberry.field(description="The end bookend of the data")
     record_count: int = strawberry.field(description="The record count of the data")
-    dataset: strawberry.Private[ms.Dataset]
-    dataset_role: strawberry.Private[Union[DatasetRole, AncillaryDatasetRole]]
+    inferences: strawberry.Private[ms.Inferences]
+    inferences_role: strawberry.Private[Union[InferencesRole, AncillaryInferencesRole]]
     model: strawberry.Private[ms.Model]
 
     # type ignored here to get around the following: https://github.com/strawberry-graphql/strawberry/issues/1929
-    @strawberry.field(description="Returns a human friendly name for the dataset.")  # type: ignore
+    @strawberry.field(description="Returns a human friendly name for the inferences.")  # type: ignore
     def name(self) -> str:
-        return self.dataset.display_name
+        return self.inferences.display_name
 
     @strawberry.field
     def events(
@@ -40,10 +40,10 @@ class Dataset:
         """
         if not event_ids:
             return []
-        row_ids = parse_event_ids_by_dataset_role(event_ids)
-        if len(row_ids) > 1 or self.dataset_role not in row_ids:
-            raise ValueError("eventIds contains IDs from incorrect dataset.")
-        events = self.dataset[row_ids[self.dataset_role]]
+        row_ids = parse_event_ids_by_inferences_role(event_ids)
+        if len(row_ids) > 1 or self.inferences_role not in row_ids:
+            raise ValueError("eventIds contains IDs from incorrect inferences.")
+        events = self.inferences[row_ids[self.inferences_role]]
         requested_gql_dimensions = _get_requested_features_and_tags(
             core_dimensions=self.model.scalar_dimensions,
             requested_dimension_names=set(dim.name for dim in dimensions)
@@ -52,10 +52,10 @@ class Dataset:
         )
         return [
             create_event(
-                event_id=create_event_id(event.id.row_id, self.dataset_role),
+                event_id=create_event_id(event.id.row_id, self.inferences_role),
                 event=event,
                 dimensions=requested_gql_dimensions,
-                is_document_record=self.dataset_role is AncillaryDatasetRole.corpus,
+                is_document_record=self.inferences_role is AncillaryInferencesRole.corpus,
             )
             for event in events
         ]
@@ -66,7 +66,7 @@ def _get_requested_features_and_tags(
     requested_dimension_names: Optional[Set[str]] = UNSET,
 ) -> List[Dimension]:
     """
-    Returns requested features and tags as a list of strawberry Datasets. If no
+    Returns requested features and tags as a list of strawberry Inferences. If no
     dimensions are explicitly requested, returns all features and tags.
     """
     requested_features_and_tags: List[Dimension] = []
