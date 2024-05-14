@@ -178,7 +178,7 @@ class HallucinationEvaluator(LLMEvaluator):
             model (BaseEvalModel): The LLM model to use for evaluation.
         """
 
-        super().__init__(self, model=model, template=EvalCriteria.HALLUCINATION.value)
+        super().__init__(model=model, template=EvalCriteria.HALLUCINATION.value)
 
 
 class RelevanceEvaluator(LLMEvaluator):
@@ -196,7 +196,7 @@ class RelevanceEvaluator(LLMEvaluator):
             model (BaseEvalModel): The LLM model to use for evaluation.
         """
 
-        super().__init__(self, model=model, template=EvalCriteria.RELEVANCE.value)
+        super().__init__(model=model, template=EvalCriteria.RELEVANCE.value)
 
 
 class ToxicityEvaluator(LLMEvaluator):
@@ -214,7 +214,7 @@ class ToxicityEvaluator(LLMEvaluator):
             model (BaseEvalModel): The LLM model to use for evaluation.
         """
 
-        super().__init__(self, model=model, template=EvalCriteria.TOXICITY.value)
+        super().__init__(model=model, template=EvalCriteria.TOXICITY.value)
 
 
 class QAEvaluator(LLMEvaluator):
@@ -233,7 +233,7 @@ class QAEvaluator(LLMEvaluator):
             model (BaseEvalModel): The LLM model to use for evaluation.
         """
 
-        super().__init__(self, model=model, template=EvalCriteria.QA.value)
+        super().__init__(model=model, template=EvalCriteria.QA.value)
 
 
 class SummarizationEvaluator(LLMEvaluator):
@@ -251,7 +251,7 @@ class SummarizationEvaluator(LLMEvaluator):
             model (BaseEvalModel): The LLM model to use for evaluation.
         """
 
-        super().__init__(self, model=model, template=EvalCriteria.SUMMARIZATION.value)
+        super().__init__(model=model, template=EvalCriteria.SUMMARIZATION.value)
 
 
 class MapReducer:
