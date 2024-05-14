@@ -41,7 +41,7 @@ dependencies = [
   "protobuf>=3.20, <6.0",
   "grpcio",
   "tqdm",
-  "requests",
+  "httpx",
   "opentelemetry-sdk",
   "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
   "opentelemetry-exporter-otlp",
@@ -149,7 +149,6 @@ dependencies = [
   "litellm>=1.0.3",
   "openai>=1.0.0",
   "tenacity",
-  "requests",
   "protobuf==3.20",  # version minimum (for tests)
   "responses",
   "tiktoken",
@@ -168,7 +167,6 @@ dependencies = [
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "types-psutil",
   "types-tqdm",
-  "types-requests",
   "types-protobuf",
   "types-setuptools",
   "types-cachetools",
@@ -284,7 +282,6 @@ check = [
 [tool.hatch.envs.gql]
 dependencies = [
   "strawberry-graphql[cli]==0.227.2",  # need to pin version because we're monkey-patching
-  "requests",
 ]
 
 [tool.hatch.envs.gql.scripts]
