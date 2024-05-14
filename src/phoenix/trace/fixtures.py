@@ -1,3 +1,4 @@
+import logging
 import shutil
 from binascii import hexlify
 from dataclasses import dataclass, field, replace
@@ -5,19 +6,23 @@ from datetime import datetime, timezone
 from io import StringIO
 from random import getrandbits
 from tempfile import NamedTemporaryFile
-from time import sleep
+from time import sleep, time
 from typing import Dict, Iterable, Iterator, List, NamedTuple, Optional, Sequence, Tuple, cast
 from urllib import request
+from urllib.parse import urljoin
 
+import httpx
 import pandas as pd
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
-from httpx import HTTPStatusError
+from httpx import ConnectError, HTTPStatusError
 
 import phoenix.trace.v1 as pb
 from phoenix import Client
 from phoenix.trace.schemas import Span
 from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.trace.utils import json_lines_to_df
+
+logger = logging.getLogger(__name__)
 
 
 class EvaluationResultSchema(NamedTuple):
@@ -41,10 +46,10 @@ class DocumentEvaluationFixture(EvaluationFixture):
 @dataclass(frozen=True)
 class DatasetFixture:
     file_name: str
+    name: str
     input_keys: Sequence[str]
     output_keys: Sequence[str]
     metadata_keys: Sequence[str] = ()
-    name: Optional[str] = field(default=None)
     description: Optional[str] = field(default=None)
     _df: Optional[pd.DataFrame] = field(default=None, init=False, repr=False)
     _csv: Optional[str] = field(default=None, init=False, repr=False)
@@ -224,17 +229,28 @@ def send_dataset_fixtures(
     endpoint: str,
     fixtures: Iterable[DatasetFixture],
 ) -> None:
-    sleep(5)  # wait for server to start
+    expiration = time() + 5
+    while time() < expiration:
+        try:
+            url = urljoin(endpoint, "/healthz")
+            httpx.get(url=url).raise_for_status()
+        except ConnectError:
+            sleep(0.1)
+            continue
+        except Exception as e:
+            print(str(e))
+            raise
+        break
     client = Client(endpoint=endpoint)
     for i, fixture in enumerate(fixtures):
         try:
             if i % 2:
                 client.upload_dataset_table(
                     fixture.dataframe,
+                    name=fixture.name,
                     input_keys=fixture.input_keys,
                     output_keys=fixture.output_keys,
                     metadata_keys=fixture.metadata_keys,
-                    name=fixture.name,
                     description=fixture.description,
                 )
             else:
@@ -244,18 +260,18 @@ def send_dataset_fixtures(
                         f.flush()
                     client.upload_dataset_table(
                         tf.name,
+                        name=fixture.name,
                         input_keys=fixture.input_keys,
                         output_keys=fixture.output_keys,
                         metadata_keys=fixture.metadata_keys,
-                        name=fixture.name,
                         description=fixture.description,
                     )
         except HTTPStatusError as e:
             print(e.response.content.decode())
             pass
         else:
-            name, dataframe = fixture.name, fixture.dataframe
-            print(f"Dataset sent: {name=}, {len(dataframe)=}")
+            name, df = fixture.name, fixture.dataframe
+            print(f"Dataset sent: {name=}, {len(df)=}")
 
 
 def get_evals_from_fixture(use_case: str) -> Iterator[pb.Evaluation]:

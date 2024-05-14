@@ -1,13 +1,11 @@
 import csv
 import gzip
 import logging
-import shutil
 import weakref
 from collections import Counter
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from typing import (
     Any,
     BinaryIO,
@@ -270,10 +268,12 @@ class Client(TraceDataExtractor):
     def upload_dataset_table(
         self,
         table: Union[str, Path, pd.DataFrame],
-        input_keys: Iterable[str] = (),
-        output_keys: Iterable[str] = (),
+        /,
+        *,
+        name: str,
+        input_keys: Iterable[str],
+        output_keys: Iterable[str],
         metadata_keys: Iterable[str] = (),
-        name: Optional[str] = None,
         description: Optional[str] = None,
         action: Literal["create", "append"] = "create",
     ) -> None:
@@ -283,6 +283,7 @@ class Client(TraceDataExtractor):
         Args:
             table (str | Path | pd.DataFrame): Location of a CSV text file, or
                 pandas DataFrame.
+            name: (str): Name of the dataset. Required if action=append.
             input_keys (Iterable[str]): List of column names used as input keys.
                 input_keys, output_keys, metadata_keys must be disjoint, and must
                 exist in CSV column headers.
@@ -292,7 +293,6 @@ class Client(TraceDataExtractor):
             metadata_keys (Iterable[str]): List of column names used as metadata keys.
                 input_keys, output_keys, metadata_keys must be disjoint, and must
                 exist in CSV column headers.
-            name: (Optional[str]): Name of the dataset. Required if action=append.
             description: (Optional[str]): Description of the dataset.
             action: (Literal["create", "append"): Create new dataset or append to an
                 existing dataset. If action=append, dataset name is required.
@@ -302,8 +302,8 @@ class Client(TraceDataExtractor):
         """
         if action not in ("create", "append"):
             raise ValueError(f"Unknown action: {action}")
-        if action == "append" and not name:
-            raise ValueError(f"Dataset name must not be empty for {action=}")
+        if not name:
+            raise ValueError("Dataset name must not be blank")
         keys = DatasetKeys(
             frozenset(input_keys),
             frozenset(output_keys),
@@ -317,6 +317,7 @@ class Client(TraceDataExtractor):
             assert_never(table)
         response = httpx.post(
             url=urljoin(self._base_url, "/v1/datasets/upload"),
+            files={"file": file},
             data={
                 "action": action,
                 "name": name,
@@ -325,7 +326,6 @@ class Client(TraceDataExtractor):
                 "output_keys[]": sorted(keys.output),
                 "metadata_keys[]": sorted(keys.metadata),
             },
-            files={"file": file},
         )
         response.raise_for_status()
 
@@ -351,13 +351,10 @@ def _prepare_csv(
     if freq > 1:
         raise ValueError(f"Duplicated column header in CSV file: {header}")
     keys.check_differences(frozenset(column_headers))
-    with NamedTemporaryFile() as tmp:
-        with gzip.open(tmp.name, "wb") as f_out:
-            with open(path, "rb") as f_in:
-                shutil.copyfileobj(f_in, f_out)
-            f_out.flush()
-        file = open(tmp.name, "rb")
-        return path.name, file, "text/csv", {"Content-Encoding": "gzip"}
+    file = BytesIO()
+    with open(path, "rb") as f:
+        file.write(gzip.compress(f.read()))
+    return path.name, file, "text/csv", {"Content-Encoding": "gzip"}
 
 
 def _prepare_pyarrow(

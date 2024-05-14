@@ -3,20 +3,18 @@ import gzip
 import io
 import logging
 import zlib
+from asyncio import QueueFull
 from collections import Counter
 from enum import Enum
 from functools import partial
 from typing import (
     Any,
-    Awaitable,
     Callable,
     Dict,
     FrozenSet,
     Iterator,
     List,
-    Mapping,
     Optional,
-    Sequence,
     Tuple,
     cast,
 )
@@ -24,17 +22,19 @@ from typing import (
 import pyarrow as pa
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, UploadFile
 from starlette.requests import Request
 from starlette.responses import Response
-from starlette.status import HTTP_403_FORBIDDEN, HTTP_422_UNPROCESSABLE_ENTITY
+from starlette.status import (
+    HTTP_403_FORBIDDEN,
+    HTTP_422_UNPROCESSABLE_ENTITY,
+    HTTP_429_TOO_MANY_REQUESTS,
+)
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
 from phoenix.db.insertion.dataset import DatasetAction, add_dataset_examples
-from phoenix.db.insertion.helpers import DataModification
 
 logger = logging.getLogger(__name__)
 
@@ -133,19 +133,24 @@ async def post_datasets_upload(request: Request) -> Response:
             content=str(e),
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
-    return Response(
-        background=BackgroundTask(
-            _add_dataset_examples,
-            request.state.enqueue_for_transaction,
-            get_examples=get_examples,
-            action=action,
-            name=name,
-            description=description,
-            input_keys=list(input_keys),
-            output_keys=list(output_keys),
-            metadata_keys=list(metadata_keys),
+    try:
+        examples = run_in_threadpool(get_examples)
+        request.state.enqueue_operation(
+            partial(
+                add_dataset_examples,
+                examples=examples,
+                action=action,
+                name=name,
+                description=description,
+                input_keys=input_keys,
+                output_keys=output_keys,
+                metadata_keys=metadata_keys,
+            )
         )
-    )
+    except QueueFull:
+        examples.close()
+        return Response(status_code=HTTP_429_TOO_MANY_REQUESTS)
+    return Response()
 
 
 class FileContentType(Enum):
@@ -179,36 +184,13 @@ InputKeys: TypeAlias = FrozenSet[str]
 OutputKeys: TypeAlias = FrozenSet[str]
 MetadataKeys: TypeAlias = FrozenSet[str]
 DatasetId: TypeAlias = int
-
-
-async def _add_dataset_examples(
-    enqueue: Callable[[DataModification], Awaitable[None]],
-    get_examples: Callable[[], Iterator[Mapping[str, Any]]],
-    name: str,
-    input_keys: Sequence[str],
-    output_keys: Sequence[str],
-    metadata_keys: Sequence[str] = (),
-    description: Optional[str] = None,
-    action: DatasetAction = DatasetAction.CREATE,
-) -> None:
-    await enqueue(
-        partial(
-            add_dataset_examples,
-            examples=await run_in_threadpool(get_examples),
-            action=action,
-            name=name,
-            description=description,
-            input_keys=input_keys,
-            output_keys=output_keys,
-            metadata_keys=metadata_keys,
-        )
-    )
+Examples: TypeAlias = Iterator[Dict[str, Any]]
 
 
 async def _process_csv(
     content: bytes,
     content_encoding: FileContentEncoding,
-) -> Tuple[Callable[[], Iterator[Dict[str, Any]]], FrozenSet[str]]:
+) -> Tuple[Callable[[], Examples], FrozenSet[str]]:
     if content_encoding is FileContentEncoding.GZIP:
         content = await run_in_threadpool(gzip.decompress, content)
     elif content_encoding is FileContentEncoding.DEFLATE:
@@ -231,7 +213,7 @@ async def _process_csv(
 
 async def _process_pyarrow(
     content: bytes,
-) -> Tuple[Callable[[], Iterator[Dict[str, Any]]], FrozenSet[str]]:
+) -> Tuple[Callable[[], Examples], FrozenSet[str]]:
     try:
         reader = pa.ipc.open_stream(content)
     except pa.ArrowInvalid as e:

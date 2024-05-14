@@ -54,6 +54,7 @@ class BulkInserter:
         initial_batch_of_evaluations: Optional[Iterable[pb.Evaluation]] = None,
         sleep: float = 0.1,
         max_ops_per_transaction: int = 1000,
+        max_queue_size: int = 1000,
         enable_prometheus: bool = False,
     ) -> None:
         """
@@ -62,12 +63,15 @@ class BulkInserter:
         :param sleep: The time to sleep between bulk insertions
         :param max_ops_per_transaction: The maximum number of operations to dequeue from
         the operations queue for each transaction.
+        :param max_queue_size: The maximum length of the operations queue.
+        :param enable_prometheus: Whether Prometheus is enabled.
         """
         self._db = db
         self._running = False
         self._sleep = sleep
         self._max_ops_per_transaction = max_ops_per_transaction
         self._operations: Optional[Queue[DataModification]] = None
+        self._max_queue_size = max_queue_size
         self._spans: List[Tuple[Span, str]] = (
             [] if initial_batch_of_spans is None else list(initial_batch_of_spans)
         )
@@ -89,23 +93,23 @@ class BulkInserter:
     ) -> Tuple[
         Callable[[Span, str], Awaitable[None]],
         Callable[[pb.Evaluation], Awaitable[None]],
-        Callable[[DataModification], Awaitable[None]],
+        Callable[[DataModification], None],
     ]:
         self._running = True
-        self._operations = Queue()
+        self._operations = Queue(maxsize=self._max_queue_size)
         self._task = asyncio.create_task(self._bulk_insert())
         return (
             self._queue_span,
             self._queue_evaluation,
-            self._enqueue_for_transaction,
+            self._enqueue_operation,
         )
 
     async def __aexit__(self, *args: Any) -> None:
         self._operations = None
         self._running = False
 
-    async def _enqueue_for_transaction(self, job: DataModification) -> None:
-        await cast("Queue[DataModification]", self._operations).put(job)
+    def _enqueue_operation(self, operation: DataModification) -> None:
+        cast("Queue[DataModification]", self._operations).put_nowait(operation)
 
     async def _queue_span(self, span: Span, project_name: str) -> None:
         self._spans.append((span, project_name))

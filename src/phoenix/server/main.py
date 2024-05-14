@@ -223,7 +223,8 @@ if __name__ == "__main__":
         dataset_fixtures = list(get_dataset_fixtures(trace_dataset_name))
         if not read_only:
             Thread(
-                target=send_dataset_fixtures, args=(f"http://{host}:{port}", dataset_fixtures)
+                target=send_dataset_fixtures,
+                args=(f"http://{host}:{port}", dataset_fixtures),
             ).start()
     umap_params_list = args.umap_params.split(",")
     umap_params = UMAPParameters(

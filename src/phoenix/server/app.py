@@ -272,7 +272,7 @@ def _lifespan(
         async with bulk_inserter as (
             queue_span,
             queue_evaluation,
-            enqueue_for_transaction,
+            enqueue_operation,
         ), GrpcServer(
             queue_span,
             disabled=read_only,
@@ -282,7 +282,7 @@ def _lifespan(
             yield {
                 "queue_span_for_bulk_insert": queue_span,
                 "queue_evaluation_for_bulk_insert": queue_evaluation,
-                "enqueue_for_transaction": enqueue_for_transaction,
+                "enqueue_operation": enqueue_operation,
             }
         for clean_up in clean_ups:
             clean_up()

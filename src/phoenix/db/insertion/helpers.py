@@ -11,7 +11,10 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.db.helpers import SupportedSQLDialect
 
 
-class DataModificationEvent(ABC): ...
+class DataModificationEvent(ABC):
+    """
+    Execution of DML (Data Modification Language) statements.
+    """
 
 
 DataModification: TypeAlias = Callable[[AsyncSession], Awaitable[Optional[DataModificationEvent]]]

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from itertools import chain
-from typing import Any, FrozenSet, Iterable, Iterator, Mapping, Optional, Sequence
+from typing import Any, Awaitable, FrozenSet, Iterable, Iterator, Mapping, Optional, Sequence, Union
 
 from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +19,7 @@ DatasetVersionId: TypeAlias = int
 DatasetExampleId: TypeAlias = int
 DatasetExampleRevisionId: TypeAlias = int
 SpanRowId: TypeAlias = int
+Examples: TypeAlias = Iterable[Mapping[str, Any]]
 
 
 @dataclass(frozen=True)
@@ -132,7 +133,7 @@ class DatasetAction(Enum):
 async def add_dataset_examples(
     session: AsyncSession,
     name: str,
-    examples: Iterable[Mapping[str, Any]],
+    examples: Union[Examples, Awaitable[Examples]],
     input_keys: Sequence[str],
     output_keys: Sequence[str],
     metadata_keys: Sequence[str] = (),
@@ -172,7 +173,7 @@ async def add_dataset_examples(
         logger.exception(f"Fail to insert dataset version for {dataset_id=}")
         raise
     assert dataset_version_id is not None
-    for row in examples:
+    for example in (await examples) if isinstance(examples, Awaitable) else examples:
         try:
             dataset_example_id = await insert_dataset_example(
                 session=session,
@@ -188,9 +189,9 @@ async def add_dataset_examples(
                 session=session,
                 dataset_version_id=dataset_version_id,
                 dataset_example_id=dataset_example_id,
-                input={key: row.get(key) for key in keys.input},
-                output={key: row.get(key) for key in keys.output},
-                metadata={key: row.get(key) for key in keys.metadata},
+                input={key: example.get(key) for key in keys.input},
+                output={key: example.get(key) for key in keys.output},
+                metadata={key: example.get(key) for key in keys.metadata},
                 created_at=created_at,
             )
         except Exception:
