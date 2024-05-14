@@ -56,4 +56,4 @@ export type RetrievalDocument = {
 };
 
 export type EventsList =
-  PointSelectionPanelContentQuery$data["model"]["primaryDataset"]["events"];
+  PointSelectionPanelContentQuery$data["model"]["primaryInferences"]["events"];

@@ -9,9 +9,9 @@ from phoenix.core.model_schema import PRIMARY, REFERENCE
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.DataQualityMetricInput import DataQualityMetricInput
 from phoenix.server.api.input_types.PerformanceMetricInput import PerformanceMetricInput
-from phoenix.server.api.types.DatasetRole import AncillaryDatasetRole, DatasetRole
 from phoenix.server.api.types.DatasetValues import DatasetValues
 from phoenix.server.api.types.Event import unpack_event_id
+from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
 
 
 @strawberry.type
@@ -36,8 +36,8 @@ class Cluster:
         """
         Calculates the drift score of the cluster. The score will be a value
         representing the balance of points between the primary and the reference
-        datasets, and will be on a scale between 1 (all primary) and -1 (all
-        reference), with 0 being an even balance between the two datasets.
+        inferences, and will be on a scale between 1 (all primary) and -1 (all
+        reference), with 0 being an even balance between the two inference sets.
 
         Returns
         -------
@@ -47,8 +47,8 @@ class Cluster:
         if model[REFERENCE].empty:
             return None
         count_by_role = Counter(unpack_event_id(event_id)[1] for event_id in self.event_ids)
-        primary_count = count_by_role[DatasetRole.primary]
-        reference_count = count_by_role[DatasetRole.reference]
+        primary_count = count_by_role[InferencesRole.primary]
+        reference_count = count_by_role[InferencesRole.reference]
         return (
             None
             if not (denominator := (primary_count + reference_count))
@@ -76,8 +76,8 @@ class Cluster:
         if corpus is None or corpus[PRIMARY].empty:
             return None
         count_by_role = Counter(unpack_event_id(event_id)[1] for event_id in self.event_ids)
-        primary_count = count_by_role[DatasetRole.primary]
-        corpus_count = count_by_role[AncillaryDatasetRole.corpus]
+        primary_count = count_by_role[InferencesRole.primary]
+        corpus_count = count_by_role[AncillaryInferencesRole.corpus]
         return (
             None
             if not (denominator := (primary_count + corpus_count))
@@ -94,19 +94,19 @@ class Cluster:
         metric: DataQualityMetricInput,
     ) -> DatasetValues:
         model = info.context.model
-        row_ids: Dict[DatasetRole, List[int]] = defaultdict(list)
-        for row_id, dataset_role in map(unpack_event_id, self.event_ids):
-            if not isinstance(dataset_role, DatasetRole):
+        row_ids: Dict[InferencesRole, List[int]] = defaultdict(list)
+        for row_id, inferences_role in map(unpack_event_id, self.event_ids):
+            if not isinstance(inferences_role, InferencesRole):
                 continue
-            row_ids[dataset_role].append(row_id)
+            row_ids[inferences_role].append(row_id)
         return DatasetValues(
             primary_value=metric.metric_instance(
                 model[PRIMARY],
-                subset_rows=row_ids[DatasetRole.primary],
+                subset_rows=row_ids[InferencesRole.primary],
             ),
             reference_value=metric.metric_instance(
                 model[REFERENCE],
-                subset_rows=row_ids[DatasetRole.reference],
+                subset_rows=row_ids[InferencesRole.reference],
             ),
         )
 
@@ -120,20 +120,20 @@ class Cluster:
         metric: PerformanceMetricInput,
     ) -> DatasetValues:
         model = info.context.model
-        row_ids: Dict[DatasetRole, List[int]] = defaultdict(list)
-        for row_id, dataset_role in map(unpack_event_id, self.event_ids):
-            if not isinstance(dataset_role, DatasetRole):
+        row_ids: Dict[InferencesRole, List[int]] = defaultdict(list)
+        for row_id, inferences_role in map(unpack_event_id, self.event_ids):
+            if not isinstance(inferences_role, InferencesRole):
                 continue
-            row_ids[dataset_role].append(row_id)
+            row_ids[inferences_role].append(row_id)
         metric_instance = metric.metric_instance(model)
         return DatasetValues(
             primary_value=metric_instance(
                 model[PRIMARY],
-                subset_rows=row_ids[DatasetRole.primary],
+                subset_rows=row_ids[InferencesRole.primary],
             ),
             reference_value=metric_instance(
                 model[REFERENCE],
-                subset_rows=row_ids[DatasetRole.reference],
+                subset_rows=row_ids[InferencesRole.reference],
             ),
         )
 

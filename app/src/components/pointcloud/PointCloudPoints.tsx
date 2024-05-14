@@ -68,8 +68,8 @@ export function PointCloudPoints({
   color,
   radius,
 }: PointCloudPointsProps) {
-  const datasetVisibility = usePointCloudContext(
-    (state) => state.datasetVisibility
+  const inferencesVisibility = usePointCloudContext(
+    (state) => state.inferencesVisibility
   );
   const coloringStrategy = usePointCloudContext(
     (state) => state.coloringStrategy
@@ -93,14 +93,17 @@ export function PointCloudPoints({
     return debounce(setHoveredEventId, DEBOUNCE_WAIT);
   }, [setHoveredEventId]);
 
-  // Only use a cube shape if the coloring strategy is not dataset
-  const referenceDatasetPointShape = useMemo(
-    () => (coloringStrategy !== ColoringStrategy.dataset ? "cube" : "sphere"),
+  // Only use a cube shape if the coloring strategy is not inferences
+  const referenceInferencesPointShape = useMemo(
+    () =>
+      coloringStrategy !== ColoringStrategy.inferences ? "cube" : "sphere",
     [coloringStrategy]
   );
-  const corpusDatasetPointShape = useMemo(
+  const corpusInferencesPointShape = useMemo(
     () =>
-      coloringStrategy !== ColoringStrategy.dataset ? "octahedron" : "sphere",
+      coloringStrategy !== ColoringStrategy.inferences
+        ? "octahedron"
+        : "sphere",
     [coloringStrategy]
   );
 
@@ -129,8 +132,8 @@ export function PointCloudPoints({
     [selectedEventIds, color, dimmedColor]
   );
 
-  const showReferencePoints = datasetVisibility.reference && referenceData;
-  const showCorpusPoints = datasetVisibility.corpus && corpusData;
+  const showReferencePoints = inferencesVisibility.reference && referenceData;
+  const showCorpusPoints = inferencesVisibility.corpus && corpusData;
 
   const onPointClicked = useCallback(
     (point: PointBaseProps) => {
@@ -158,7 +161,7 @@ export function PointCloudPoints({
 
   return (
     <>
-      {datasetVisibility.primary ? (
+      {inferencesVisibility.primary ? (
         <Points
           data={primaryData}
           pointProps={{ color: colorByFn, radius, scale: pointSizeScale }}
@@ -178,7 +181,7 @@ export function PointCloudPoints({
           }}
           onPointHovered={onPointHovered}
           onPointerLeave={onPointerLeave}
-          pointShape={referenceDatasetPointShape}
+          pointShape={referenceInferencesPointShape}
           onPointClicked={onPointClicked}
         />
       ) : null}
@@ -193,7 +196,7 @@ export function PointCloudPoints({
           }}
           onPointHovered={onPointHovered}
           onPointerLeave={onPointerLeave}
-          pointShape={corpusDatasetPointShape}
+          pointShape={corpusInferencesPointShape}
           onPointClicked={onPointClicked}
         />
       ) : null}

@@ -1,2 +1,2 @@
-export * from "./dataset";
+export * from "./inferences";
 export * from "./dimension";
