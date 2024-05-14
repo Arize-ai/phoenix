@@ -1,17 +1,28 @@
+import logging
+import shutil
 from binascii import hexlify
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
+from io import StringIO
 from random import getrandbits
-from typing import Dict, Iterable, Iterator, List, NamedTuple, Optional, Tuple, cast
+from tempfile import NamedTemporaryFile
+from time import sleep, time
+from typing import Dict, Iterable, Iterator, List, NamedTuple, Optional, Sequence, Tuple, cast
 from urllib import request
+from urllib.parse import urljoin
 
+import httpx
 import pandas as pd
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
+from httpx import ConnectError, HTTPStatusError
 
 import phoenix.trace.v1 as pb
+from phoenix import Client
 from phoenix.trace.schemas import Span
 from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.trace.utils import json_lines_to_df
+
+logger = logging.getLogger(__name__)
 
 
 class EvaluationResultSchema(NamedTuple):
@@ -33,11 +44,43 @@ class DocumentEvaluationFixture(EvaluationFixture):
 
 
 @dataclass(frozen=True)
+class DatasetFixture:
+    file_name: str
+    name: str
+    input_keys: Sequence[str]
+    output_keys: Sequence[str]
+    metadata_keys: Sequence[str] = ()
+    description: Optional[str] = field(default=None)
+    _df: Optional[pd.DataFrame] = field(default=None, init=False, repr=False)
+    _csv: Optional[str] = field(default=None, init=False, repr=False)
+
+    def load(self) -> "DatasetFixture":
+        if self._df is None:
+            df = pd.read_csv(_url(self.file_name))
+            object.__setattr__(self, "_df", df)
+        return self
+
+    @property
+    def dataframe(self) -> pd.DataFrame:
+        self.load()
+        return cast(pd.DataFrame, self._df).copy(deep=False)
+
+    @property
+    def csv(self) -> StringIO:
+        if self._csv is None:
+            with StringIO() as buffer:
+                self.dataframe.to_csv(buffer, index=False)
+                object.__setattr__(self, "_csv", buffer.getvalue())
+        return StringIO(self._csv)
+
+
+@dataclass(frozen=True)
 class TracesFixture:
     name: str
     description: str
     file_name: str
     evaluation_fixtures: Iterable[EvaluationFixture] = ()
+    dataset_fixtures: Iterable[DatasetFixture] = ()
 
 
 llama_index_rag_fixture = TracesFixture(
@@ -56,6 +99,36 @@ llama_index_rag_fixture = TracesFixture(
         DocumentEvaluationFixture(
             evaluation_name="Relevance",
             file_name="llama_index_rag_v8.retrieved_documents_eval.parquet",
+        ),
+    ),
+    dataset_fixtures=(
+        DatasetFixture(
+            file_name="hybridial_samples.csv.gz",
+            input_keys=("messages", "ctxs"),
+            output_keys=("answers",),
+            name="ChatRAG-Bench: Hybrid Dialogue (samples)",
+            description="https://huggingface.co/datasets/nvidia/ChatRAG-Bench/viewer/hybridial",
+        ),
+        DatasetFixture(
+            file_name="sqa_samples.csv.gz",
+            input_keys=("messages", "ctxs"),
+            output_keys=("answers",),
+            name="ChatRAG-Bench: SQA (samples)",
+            description="https://huggingface.co/datasets/nvidia/ChatRAG-Bench/viewer/sqa",
+        ),
+        DatasetFixture(
+            file_name="doqa_cooking_samples.csv.gz",
+            input_keys=("messages", "ctxs"),
+            output_keys=("answers",),
+            name="ChatRAG-Bench: DoQA Cooking (samples)",
+            description="https://huggingface.co/datasets/nvidia/ChatRAG-Bench/viewer/doqa_cooking",
+        ),
+        DatasetFixture(
+            file_name="synthetic_convqa_samples.csv.gz",
+            input_keys=("messages", "document"),
+            output_keys=("answers",),
+            name="ChatQA-Train: Synthetic ConvQA (samples)",
+            description="https://huggingface.co/datasets/nvidia/ChatQA-Training-Data/viewer/synthetic_convqa",
         ),
     ),
 )
@@ -138,16 +211,69 @@ def download_traces_fixture(
         return cast(List[str], f.readlines())
 
 
-def load_example_traces(use_case: str) -> TraceDataset:
+def load_example_traces(fixture_name: str) -> TraceDataset:
     """
     Loads a trace dataframe by name.
     """
-    fixture = get_trace_fixture_by_name(use_case)
+    fixture = get_trace_fixture_by_name(fixture_name)
     return TraceDataset(json_lines_to_df(download_traces_fixture(fixture)))
 
 
-def get_evals_from_fixture(use_case: str) -> Iterator[pb.Evaluation]:
-    fixture = get_trace_fixture_by_name(use_case)
+def get_dataset_fixtures(fixture_name: str) -> Iterable[DatasetFixture]:
+    return (fixture.load() for fixture in get_trace_fixture_by_name(fixture_name).dataset_fixtures)
+
+
+def send_dataset_fixtures(
+    endpoint: str,
+    fixtures: Iterable[DatasetFixture],
+) -> None:
+    expiration = time() + 5
+    while time() < expiration:
+        try:
+            url = urljoin(endpoint, "/healthz")
+            httpx.get(url=url).raise_for_status()
+        except ConnectError:
+            sleep(0.1)
+            continue
+        except Exception as e:
+            print(str(e))
+            raise
+        break
+    client = Client(endpoint=endpoint)
+    for i, fixture in enumerate(fixtures):
+        try:
+            if i % 2:
+                client.upload_dataset_table(
+                    fixture.dataframe,
+                    name=fixture.name,
+                    input_keys=fixture.input_keys,
+                    output_keys=fixture.output_keys,
+                    metadata_keys=fixture.metadata_keys,
+                    description=fixture.description,
+                )
+            else:
+                with NamedTemporaryFile() as tf:
+                    with open(tf.name, "w") as f:
+                        shutil.copyfileobj(fixture.csv, f)
+                        f.flush()
+                    client.upload_dataset_table(
+                        tf.name,
+                        name=fixture.name,
+                        input_keys=fixture.input_keys,
+                        output_keys=fixture.output_keys,
+                        metadata_keys=fixture.metadata_keys,
+                        description=fixture.description,
+                    )
+        except HTTPStatusError as e:
+            print(e.response.content.decode())
+            pass
+        else:
+            name, df = fixture.name, fixture.dataframe
+            print(f"Dataset sent: {name=}, {len(df)=}")
+
+
+def get_evals_from_fixture(fixture_name: str) -> Iterator[pb.Evaluation]:
+    fixture = get_trace_fixture_by_name(fixture_name)
     for eval_fixture in fixture.evaluation_fixtures:
         yield from _read_eval_fixture(eval_fixture)
 
@@ -195,8 +321,8 @@ def _read_eval_fixture(eval_fixture: EvaluationFixture) -> Iterator[pb.Evaluatio
 def _url(
     file_name: str,
     host: Optional[str] = "https://storage.googleapis.com/",
-    bucket: Optional[str] = "arize-assets",
-    prefix: Optional[str] = "phoenix/traces/",
+    bucket: Optional[str] = "arize-phoenix-assets",
+    prefix: Optional[str] = "traces/",
 ) -> str:
     return f"{host}{bucket}/{prefix}{file_name}"
 
