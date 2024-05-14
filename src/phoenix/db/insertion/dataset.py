@@ -3,7 +3,18 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from itertools import chain
-from typing import Any, Awaitable, FrozenSet, Iterable, Iterator, Mapping, Optional, Sequence, Union
+from typing import (
+    Any,
+    Awaitable,
+    FrozenSet,
+    Iterable,
+    Iterator,
+    Mapping,
+    Optional,
+    Sequence,
+    Union,
+    cast,
+)
 
 from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,8 +44,8 @@ async def insert_dataset(
     description: Optional[str] = None,
     metadata: Optional[Mapping[str, Any]] = None,
     created_at: Optional[datetime] = None,
-) -> Optional[DatasetId]:
-    return await session.scalar(
+) -> DatasetId:
+    id_ = await session.scalar(
         insert(models.Dataset)
         .values(
             name=name,
@@ -44,6 +55,7 @@ async def insert_dataset(
         )
         .returning(models.Dataset.id)
     )
+    return cast(DatasetId, id_)
 
 
 async def insert_dataset_version(
@@ -52,8 +64,8 @@ async def insert_dataset_version(
     description: Optional[str] = None,
     metadata: Optional[Mapping[str, Any]] = None,
     created_at: Optional[datetime] = None,
-) -> Optional[DatasetVersionId]:
-    return await session.scalar(
+) -> DatasetVersionId:
+    id_ = await session.scalar(
         insert(models.DatasetVersion)
         .values(
             dataset_id=dataset_id,
@@ -63,6 +75,7 @@ async def insert_dataset_version(
         )
         .returning(models.DatasetVersion.id)
     )
+    return cast(DatasetVersionId, id_)
 
 
 async def insert_dataset_example(
@@ -70,8 +83,8 @@ async def insert_dataset_example(
     dataset_id: DatasetId,
     span_rowid: Optional[SpanRowId] = None,
     created_at: Optional[datetime] = None,
-) -> Optional[DatasetExampleId]:
-    return await session.scalar(
+) -> DatasetExampleId:
+    id_ = await session.scalar(
         insert(models.DatasetExample)
         .values(
             dataset_id=dataset_id,
@@ -80,6 +93,7 @@ async def insert_dataset_example(
         )
         .returning(models.DatasetExample.id)
     )
+    return cast(DatasetExampleId, id_)
 
 
 class RevisionKind(Enum):
@@ -103,8 +117,8 @@ async def insert_dataset_example_revision(
     metadata: Optional[Mapping[str, Any]] = None,
     revision_kind: RevisionKind = RevisionKind.CREATE,
     created_at: Optional[datetime] = None,
-) -> Optional[DatasetExampleRevisionId]:
-    return await session.scalar(
+) -> DatasetExampleRevisionId:
+    id_ = await session.scalar(
         insert(models.DatasetExampleRevisions)
         .values(
             dataset_version_id=dataset_version_id,
@@ -117,6 +131,7 @@ async def insert_dataset_example_revision(
         )
         .returning(models.DatasetExampleRevisions.id)
     )
+    return cast(DatasetExampleRevisionId, id_)
 
 
 class DatasetAction(Enum):
@@ -162,7 +177,6 @@ async def add_dataset_examples(
                 f"Fail to insert dataset: {input_keys=}, {output_keys=}, {metadata_keys=}"
             )
             raise
-    assert dataset_id is not None
     try:
         dataset_version_id = await insert_dataset_version(
             session=session,
@@ -172,7 +186,6 @@ async def add_dataset_examples(
     except Exception:
         logger.exception(f"Fail to insert dataset version for {dataset_id=}")
         raise
-    assert dataset_version_id is not None
     for example in (await examples) if isinstance(examples, Awaitable) else examples:
         try:
             dataset_example_id = await insert_dataset_example(
@@ -183,9 +196,8 @@ async def add_dataset_examples(
         except Exception:
             logger.exception(f"Fail to insert dataset example for {dataset_id=}")
             raise
-        assert dataset_example_id is not None
         try:
-            dataset_example_revision = await insert_dataset_example_revision(
+            await insert_dataset_example_revision(
                 session=session,
                 dataset_version_id=dataset_version_id,
                 dataset_example_id=dataset_example_id,
@@ -200,7 +212,6 @@ async def add_dataset_examples(
                 f"{dataset_example_id=}"
             )
             raise
-        assert dataset_example_revision is not None
     return DatasetCreationEvent(dataset_id=dataset_id)
 
 

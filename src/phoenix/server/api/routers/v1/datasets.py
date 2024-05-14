@@ -106,7 +106,7 @@ async def post_datasets_upload(request: Request) -> Response:
                 content=str(e),
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
             )
-        if name and action is DatasetAction.CREATE:
+        if action is DatasetAction.CREATE:
             async with request.app.state.db() as session:
                 if await _check_table_exists(session, name):
                     return Response(
