@@ -1,12 +1,23 @@
+from abc import ABC
 from enum import Enum, auto
-from typing import Any, Mapping, Optional, Sequence
+from typing import Any, Awaitable, Callable, Mapping, Optional, Sequence
 
 from sqlalchemy import Insert, insert
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
-from typing_extensions import assert_never
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db.helpers import SupportedSQLDialect
+
+
+class DataManipulationEvent(ABC):
+    """
+    Execution of DML (Data Manipulation Language) statements.
+    """
+
+
+DataManipulation: TypeAlias = Callable[[AsyncSession], Awaitable[Optional[DataManipulationEvent]]]
 
 
 class OnConflict(Enum):
