@@ -6,9 +6,13 @@ from phoenix.evals import (
     NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     ClassificationTemplate,
+    HallucinationEvaluator,
     LLMEvaluator,
     OpenAIModel,
+    QAEvaluator,
     RelevanceEvaluator,
+    SummarizationEvaluator,
+    ToxicityEvaluator,
 )
 from phoenix.evals.utils import _EXPLANATION, _RESPONSE
 
@@ -162,19 +166,52 @@ def test_llm_evaluator_evaluate_makes_best_effort_attempt_to_parse_invalid_funct
     assert explanation is None
 
 
-def test_relevance_evaluator_evaluate_outputs_label_when_model_produces_expected_output(
+@pytest.mark.parametrize(
+    "evaluator_cls, expected_label",
+    [
+        pytest.param(
+            HallucinationEvaluator,
+            "hallucinated",
+            id="hallucination-evaluator",
+        ),
+        pytest.param(
+            RelevanceEvaluator,
+            "relevant",
+            id="relevance-evaluator",
+        ),
+        pytest.param(
+            QAEvaluator,
+            "correct",
+            id="qa-evaluator",
+        ),
+        pytest.param(
+            ToxicityEvaluator,
+            "toxic",
+            id="toxicity-evaluator",
+        ),
+        pytest.param(
+            SummarizationEvaluator,
+            "good",
+            id="summarization-evaluator",
+        ),
+    ],
+)
+def test_evaluator_evaluate_outputs_expected_label_when_model_produces_expected_output(
+    evaluator_cls: LLMEvaluator,
+    expected_label: str,
     openai_model: OpenAIModel,
 ) -> None:
-    openai_model._generate = MagicMock(return_value="relevant")
-    evaluator = RelevanceEvaluator(openai_model)
+    openai_model._generate = MagicMock(return_value=expected_label)
+    evaluator = evaluator_cls(openai_model)
     label, score, explanation = evaluator.evaluate(
         {
-            "input": "What is the capital of California?",
-            "reference": "Sacramento is the capital of California.",
+            "input": "input-text",
+            "reference": "reference-text",
+            "output": "output-text",
         },
         use_function_calling_if_available=False,
     )
-    assert label == "relevant"
+    assert label == expected_label
     assert math.isclose(score, 1.0)
     assert explanation is None
 
