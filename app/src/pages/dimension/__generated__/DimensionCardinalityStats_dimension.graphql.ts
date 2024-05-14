@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<74e7fed5cd8c39a867075a85a2ca5bff>>
+ * @generated SignedSource<<3788d1ebcbd82573e22ade8263d8b3ac>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -75,14 +75,14 @@ return {
           "args": [
             {
               "kind": "Literal",
-              "name": "datasetRole",
+              "name": "inferencesRole",
               "value": "reference"
             },
             (v0/*: any*/)
           ],
           "kind": "ScalarField",
           "name": "dataQualityMetric",
-          "storageKey": "dataQualityMetric(datasetRole:\"reference\",metric:\"cardinality\")"
+          "storageKey": "dataQualityMetric(inferencesRole:\"reference\",metric:\"cardinality\")"
         }
       ]
     }
@@ -92,6 +92,6 @@ return {
 };
 })();
 
-(node as any).hash = "64914c9034900600ea929cfbc657a000";
+(node as any).hash = "8b4edef350e4df49e799afa70ca34918";
 
 export default node;

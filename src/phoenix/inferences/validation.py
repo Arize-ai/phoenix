@@ -34,7 +34,7 @@ def _check_valid_schema(schema: Schema) -> List[err.ValidationError]:
     return []
 
 
-def validate_dataset_inputs(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
+def validate_inferences_inputs(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
     errors = _check_missing_columns(dataframe, schema)
     if errors:
         return errors

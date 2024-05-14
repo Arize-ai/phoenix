@@ -23,9 +23,9 @@ from phoenix.config import (
     get_pids_path,
     get_working_dir,
 )
-from phoenix.core.model_schema_adapter import create_model_from_datasets
+from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import get_printable_db_url
-from phoenix.inferences.fixtures import FIXTURES, get_datasets
+from phoenix.inferences.fixtures import FIXTURES, get_inferences
 from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
 from phoenix.pointcloud.umap_parameters import (
     DEFAULT_MIN_DIST,
@@ -102,14 +102,14 @@ def _get_pid_file() -> Path:
 DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_SAMPLES}"
 
 if __name__ == "__main__":
-    primary_dataset_name: str
-    reference_dataset_name: Optional[str]
+    primary_inferences_name: str
+    reference_inferences_name: Optional[str]
     trace_dataset_name: Optional[str] = None
     simulate_streaming: Optional[bool] = None
 
-    primary_dataset: Inferences = EMPTY_INFERENCES
-    reference_dataset: Optional[Inferences] = None
-    corpus_dataset: Optional[Inferences] = None
+    primary_inferences: Inferences = EMPTY_INFERENCES
+    reference_inferences: Optional[Inferences] = None
+    corpus_inferences: Optional[Inferences] = None
 
     # Initialize the settings for the Server
     Settings.log_migrations = True
@@ -154,34 +154,34 @@ if __name__ == "__main__":
     )
     export_path = Path(args.export_path) if args.export_path else EXPORT_DIR
     if args.command == "datasets":
-        primary_dataset_name = args.primary
-        reference_dataset_name = args.reference
-        corpus_dataset_name = args.corpus
-        primary_dataset = Inferences.from_name(primary_dataset_name)
-        reference_dataset = (
-            Inferences.from_name(reference_dataset_name)
-            if reference_dataset_name is not None
+        primary_inferences_name = args.primary
+        reference_inferences_name = args.reference
+        corpus_inferences_name = args.corpus
+        primary_inferences = Inferences.from_name(primary_inferences_name)
+        reference_inferences = (
+            Inferences.from_name(reference_inferences_name)
+            if reference_inferences_name is not None
             else None
         )
-        corpus_dataset = (
-            None if corpus_dataset_name is None else Inferences.from_name(corpus_dataset_name)
+        corpus_inferences = (
+            None if corpus_inferences_name is None else Inferences.from_name(corpus_inferences_name)
         )
     elif args.command == "fixture":
         fixture_name = args.fixture
         primary_only = args.primary_only
-        primary_dataset, reference_dataset, corpus_dataset = get_datasets(
+        primary_inferences, reference_inferences, corpus_inferences = get_inferences(
             fixture_name,
             args.no_internet,
         )
         if primary_only:
-            reference_dataset_name = None
-            reference_dataset = None
+            reference_inferences_name = None
+            reference_inferences = None
     elif args.command == "trace-fixture":
         trace_dataset_name = args.fixture
         simulate_streaming = args.simulate_streaming
     elif args.command == "demo":
         fixture_name = args.fixture
-        primary_dataset, reference_dataset, corpus_dataset = get_datasets(
+        primary_inferences, reference_inferences, corpus_inferences = get_inferences(
             fixture_name,
             args.no_internet,
         )
@@ -203,9 +203,9 @@ if __name__ == "__main__":
     host_root_path = get_env_host_root_path()
     read_only = args.read_only
 
-    model = create_model_from_datasets(
-        primary_dataset,
-        reference_dataset,
+    model = create_model_from_inferences(
+        primary_inferences,
+        reference_inferences,
     )
 
     fixture_spans: List[Span] = []
@@ -255,7 +255,9 @@ if __name__ == "__main__":
         export_path=export_path,
         model=model,
         umap_params=umap_params,
-        corpus=None if corpus_dataset is None else create_model_from_datasets(corpus_dataset),
+        corpus=None
+        if corpus_inferences is None
+        else create_model_from_inferences(corpus_inferences),
         debug=args.debug,
         read_only=read_only,
         enable_prometheus=enable_prometheus,

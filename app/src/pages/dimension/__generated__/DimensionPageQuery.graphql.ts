@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<629874fab12c4ab50d151e5c03f57ec4>>
+ * @generated SignedSource<<f876e32a0153e4e84fea049f63c1d0da>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -104,7 +104,7 @@ v11 = {
 },
 v12 = {
   "kind": "Literal",
-  "name": "datasetRole",
+  "name": "inferencesRole",
   "value": "reference"
 };
 return {
@@ -435,7 +435,7 @@ return {
                     ],
                     "kind": "ScalarField",
                     "name": "dataQualityMetric",
-                    "storageKey": "dataQualityMetric(datasetRole:\"reference\",metric:\"cardinality\")"
+                    "storageKey": "dataQualityMetric(inferencesRole:\"reference\",metric:\"cardinality\")"
                   },
                   {
                     "alias": "referencePercentEmpty",
@@ -445,7 +445,7 @@ return {
                     ],
                     "kind": "ScalarField",
                     "name": "dataQualityMetric",
-                    "storageKey": "dataQualityMetric(datasetRole:\"reference\",metric:\"percentEmpty\")"
+                    "storageKey": "dataQualityMetric(inferencesRole:\"reference\",metric:\"percentEmpty\")"
                   }
                 ]
               }
@@ -459,12 +459,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9c8cfb791dbd8ff321722f2864db30e9",
+    "cacheID": "2ad937e56d4647309b9d78ac11f57265",
     "id": null,
     "metadata": {},
     "name": "DimensionPageQuery",
     "operationKind": "query",
-    "text": "query DimensionPageQuery(\n  $dimensionId: GlobalID!\n  $timeRange: TimeRange!\n  $hasReference: Boolean!\n) {\n  dimension: node(id: $dimensionId) {\n    __typename\n    ... on Dimension {\n      id\n      ...DimensionSegmentsBarChart_dimension_3E0ZE6\n      ...DimensionCountStats_dimension_3E0ZE6\n      ...DimensionDriftStats_dimension_3E0ZE6\n      ...DimensionCardinalityStats_dimension_1JBzL3\n      ...DimensionPercentEmptyStats_dimension_1JBzL3\n      ...DimensionQuantilesStats_dimension_3E0ZE6\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment DimensionCardinalityStats_dimension_1JBzL3 on Dimension {\n  id\n  cardinality: dataQualityMetric(metric: cardinality, timeRange: $timeRange)\n  referenceCardinality: dataQualityMetric(metric: cardinality, datasetRole: reference) @include(if: $hasReference)\n}\n\nfragment DimensionCountStats_dimension_3E0ZE6 on Dimension {\n  id\n  count: dataQualityMetric(metric: count, timeRange: $timeRange)\n}\n\nfragment DimensionDriftStats_dimension_3E0ZE6 on Dimension {\n  id\n  psi: driftMetric(metric: psi, timeRange: $timeRange)\n}\n\nfragment DimensionPercentEmptyStats_dimension_1JBzL3 on Dimension {\n  id\n  percentEmpty: dataQualityMetric(metric: percentEmpty, timeRange: $timeRange)\n  referencePercentEmpty: dataQualityMetric(metric: percentEmpty, datasetRole: reference) @include(if: $hasReference)\n}\n\nfragment DimensionQuantilesStats_dimension_3E0ZE6 on Dimension {\n  p99: dataQualityMetric(metric: p99, timeRange: $timeRange)\n  p75: dataQualityMetric(metric: p75, timeRange: $timeRange)\n  p50: dataQualityMetric(metric: p50, timeRange: $timeRange)\n  p25: dataQualityMetric(metric: p25, timeRange: $timeRange)\n  p1: dataQualityMetric(metric: p01, timeRange: $timeRange)\n}\n\nfragment DimensionSegmentsBarChart_dimension_3E0ZE6 on Dimension {\n  id\n  segmentsComparison(primaryTimeRange: $timeRange) {\n    segments {\n      bin {\n        __typename\n        ... on NominalBin {\n          __typename\n          name\n        }\n        ... on IntervalBin {\n          __typename\n          range {\n            start\n            end\n          }\n        }\n        ... on MissingValueBin {\n          __typename\n        }\n      }\n      counts {\n        primaryValue\n      }\n    }\n    totalCounts {\n      primaryValue\n    }\n  }\n}\n"
+    "text": "query DimensionPageQuery(\n  $dimensionId: GlobalID!\n  $timeRange: TimeRange!\n  $hasReference: Boolean!\n) {\n  dimension: node(id: $dimensionId) {\n    __typename\n    ... on Dimension {\n      id\n      ...DimensionSegmentsBarChart_dimension_3E0ZE6\n      ...DimensionCountStats_dimension_3E0ZE6\n      ...DimensionDriftStats_dimension_3E0ZE6\n      ...DimensionCardinalityStats_dimension_1JBzL3\n      ...DimensionPercentEmptyStats_dimension_1JBzL3\n      ...DimensionQuantilesStats_dimension_3E0ZE6\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment DimensionCardinalityStats_dimension_1JBzL3 on Dimension {\n  id\n  cardinality: dataQualityMetric(metric: cardinality, timeRange: $timeRange)\n  referenceCardinality: dataQualityMetric(metric: cardinality, inferencesRole: reference) @include(if: $hasReference)\n}\n\nfragment DimensionCountStats_dimension_3E0ZE6 on Dimension {\n  id\n  count: dataQualityMetric(metric: count, timeRange: $timeRange)\n}\n\nfragment DimensionDriftStats_dimension_3E0ZE6 on Dimension {\n  id\n  psi: driftMetric(metric: psi, timeRange: $timeRange)\n}\n\nfragment DimensionPercentEmptyStats_dimension_1JBzL3 on Dimension {\n  id\n  percentEmpty: dataQualityMetric(metric: percentEmpty, timeRange: $timeRange)\n  referencePercentEmpty: dataQualityMetric(metric: percentEmpty, inferencesRole: reference) @include(if: $hasReference)\n}\n\nfragment DimensionQuantilesStats_dimension_3E0ZE6 on Dimension {\n  p99: dataQualityMetric(metric: p99, timeRange: $timeRange)\n  p75: dataQualityMetric(metric: p75, timeRange: $timeRange)\n  p50: dataQualityMetric(metric: p50, timeRange: $timeRange)\n  p25: dataQualityMetric(metric: p25, timeRange: $timeRange)\n  p1: dataQualityMetric(metric: p01, timeRange: $timeRange)\n}\n\nfragment DimensionSegmentsBarChart_dimension_3E0ZE6 on Dimension {\n  id\n  segmentsComparison(primaryTimeRange: $timeRange) {\n    segments {\n      bin {\n        __typename\n        ... on NominalBin {\n          __typename\n          name\n        }\n        ... on IntervalBin {\n          __typename\n          range {\n            start\n            end\n          }\n        }\n        ... on MissingValueBin {\n          __typename\n        }\n      }\n      counts {\n        primaryValue\n      }\n    }\n    totalCounts {\n      primaryValue\n    }\n  }\n}\n"
   }
 };
 })();

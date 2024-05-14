@@ -48,7 +48,7 @@ from pandas.core.dtypes.common import (
 from typing_extensions import TypeAlias, TypeGuard
 from wrapt import ObjectProxy
 
-from phoenix.config import GENERATED_DATASET_NAME_PREFIX
+from phoenix.config import GENERATED_INFERENCES_NAME_PREFIX
 from phoenix.datetime_utils import floor_to_minute
 
 
@@ -185,7 +185,7 @@ class RetrievalEmbedding(Embedding):
                 yield value
 
 
-class DatasetRole(Enum):
+class InferencesRole(Enum):
     """A dataframe's role in a Model: primary or reference (as
     baseline for drift).
     """
@@ -194,8 +194,8 @@ class DatasetRole(Enum):
     REFERENCE = auto()
 
 
-PRIMARY = DatasetRole.PRIMARY
-REFERENCE = DatasetRole.REFERENCE
+PRIMARY = InferencesRole.PRIMARY
+REFERENCE = InferencesRole.REFERENCE
 
 
 @dataclass(frozen=True, repr=False, eq=False)
@@ -381,7 +381,7 @@ class Dimension(Column, ABC):
             # But we really want the role to be specified for a Dimension.
             raise ValueError("role must be assigned")
 
-    def __getitem__(self, df_role: DatasetRole) -> "pd.Series[Any]":
+    def __getitem__(self, df_role: InferencesRole) -> "pd.Series[Any]":
         if self._model is None:
             return pd.Series(dtype=object)
         model = cast(Model, self._model)
@@ -416,7 +416,7 @@ class ScalarDimension(Dimension):
         if self._model is None or self.data_type is CONTINUOUS:
             return ()
         model = cast(Model, self._model)
-        return model.dimension_categories_from_all_datasets(self.name)
+        return model.dimension_categories_from_all_inferences(self.name)
 
 
 @dataclass(frozen=True)
@@ -582,7 +582,7 @@ class EventId(NamedTuple):
     """Identifies an event."""
 
     row_id: int = 0
-    dataset_id: DatasetRole = PRIMARY
+    inferences_id: InferencesRole = PRIMARY
 
     def __str__(self) -> str:
         return ":".join(map(str, self))
@@ -625,7 +625,7 @@ class Events(ModelData):
         self,
         df: pd.DataFrame,
         /,
-        role: DatasetRole,
+        role: InferencesRole,
         **kwargs: Any,
     ) -> None:
         super().__init__(df, **kwargs)
@@ -676,7 +676,7 @@ class Events(ModelData):
         return super().__getitem__(key)
 
 
-class Dataset(Events):
+class Inferences(Events):
     """pd.DataFrame wrapped with extra functions and metadata."""
 
     def __init__(
@@ -701,13 +701,13 @@ class Dataset(Events):
         friendly. Falls back to the role of the dataset if no name is provided.
         """
         ds_name = self._self_name
-        if ds_name.startswith(GENERATED_DATASET_NAME_PREFIX):
+        if ds_name.startswith(GENERATED_INFERENCES_NAME_PREFIX):
             # The generated names are UUIDs so use the role as the name
-            return "primary" if self.role is DatasetRole.PRIMARY else "reference"
+            return "primary" if self.role is InferencesRole.PRIMARY else "reference"
         return ds_name
 
     @property
-    def role(self) -> DatasetRole:
+    def role(self) -> InferencesRole:
         return self._self_role
 
     @property
@@ -746,14 +746,14 @@ class Model:
     a column of NaNs.
     """
 
-    _datasets: Dict[DatasetRole, Dataset]
+    _inference_sets: Dict[InferencesRole, Inferences]
     _dimensions: Dict[Name, Dimension]
     _dim_names_by_role: Dict[DimensionRole, List[Name]]
-    _original_columns_by_role: Dict[DatasetRole, pd.Index]
+    _original_columns_by_role: Dict[InferencesRole, pd.Index]
     _default_timestamps_factory: _ConstantValueSeriesFactory
     _nan_series_factory: _ConstantValueSeriesFactory
-    _dimension_categories_from_all_datasets: _Cache[Name, Tuple[str, ...]]
-    _dimension_min_max_from_all_datasets: _Cache[Name, Tuple[float, float]]
+    _dimension_categories_from_all_inferences: _Cache[Name, Tuple[str, ...]]
+    _dimension_min_max_from_all_inferences: _Cache[Name, Tuple[float, float]]
 
     def __init__(
         self,
@@ -769,12 +769,12 @@ class Model:
         # memoization
         object.__setattr__(
             self,
-            "_dimension_categories_from_all_datasets",
+            "_dimension_categories_from_all_inferences",
             _Cache[Name, "pd.Series[Any]"](),
         )
         object.__setattr__(
             self,
-            "_dimension_min_max_from_all_datasets",
+            "_dimension_min_max_from_all_inferences",
             _Cache[Name, Tuple[float, float]](),
         )
 
@@ -785,21 +785,21 @@ class Model:
         str_col_dfs = _coerce_str_column_names(dfs)
         padded_dfs = _add_padding(str_col_dfs, pd.DataFrame)
         padded_df_names = _add_padding(df_names, _rand_str)
-        datasets = starmap(
-            self._new_dataset,
-            zip(padded_dfs, padded_df_names, DatasetRole),
+        inference_sets = starmap(
+            self._new_inferences,
+            zip(padded_dfs, padded_df_names, InferencesRole),
         )
-        # Store datasets by role.
+        # Store inferences by role.
         object.__setattr__(
             self,
-            "_datasets",
-            {dataset.role: dataset for dataset in datasets},
+            "_inference_sets",
+            {inferences.role: inferences for inferences in inference_sets},
         )
         # Preserve originals, useful for exporting.
         object.__setattr__(
             self,
             "_original_columns_by_role",
-            {role: dataset.columns for role, dataset in self._datasets.items()},
+            {role: inferences.columns for role, inferences in self._inference_sets.items()},
         )
 
         object.__setattr__(
@@ -828,7 +828,7 @@ class Model:
                 (name, self._new_dimension(name, role=FEATURE))
                 for name in _get_omitted_column_names(
                     self._dimensions.values(),
-                    self._datasets.values(),
+                    self._inference_sets.values(),
                 )
             )
 
@@ -849,7 +849,7 @@ class Model:
                 data_type=(
                     _guess_data_type(
                         dataset.loc[:, dim.name]
-                        for dataset in self._datasets.values()
+                        for dataset in self._inference_sets.values()
                         if dim.name in dataset.columns
                     )
                 ),
@@ -859,9 +859,9 @@ class Model:
         # Add TIMESTAMP if missing.
         # If needed, normalize the timestamps values.
         # If needed, sort the dataframes by time.
-        for dataset_role, dataset in list(self._datasets.items()):
+        for inferences_role, dataset in list(self._inference_sets.items()):
             df = dataset.__wrapped__
-            df_original_columns = self._original_columns_by_role[dataset_role]
+            df_original_columns = self._original_columns_by_role[inferences_role]
 
             # PREDICTION_ID
             dim_pred_id = self._dimensions.get(
@@ -897,20 +897,20 @@ class Model:
             df = df.set_index(dim_time.name, drop=False)
 
             # Update dataset since its dataframe may have changed.
-            self._datasets[dataset_role] = self._new_dataset(
-                df, name=dataset.name, role=dataset_role
+            self._inference_sets[inferences_role] = self._new_inferences(
+                df, name=dataset.name, role=inferences_role
             )
 
     @cached_property
     def is_empty(self) -> bool:
         """Returns True if the model has no data."""
-        return not any(map(len, self._datasets.values()))
+        return not any(map(len, self._inference_sets.values()))
 
     def export_rows_as_parquet_file(
         self,
-        row_numbers: Mapping[DatasetRole, Iterable[int]],
+        row_numbers: Mapping[InferencesRole, Iterable[int]],
         parquet_file: BinaryIO,
-        cluster_ids: Optional[Mapping[DatasetRole, Mapping[int, str]]] = None,
+        cluster_ids: Optional[Mapping[InferencesRole, Mapping[int, str]]] = None,
     ) -> None:
         """
         Given row numbers, exports dataframe subset into parquet file.
@@ -921,29 +921,31 @@ class Model:
 
         Parameters
         ----------
-        row_numbers: Mapping[DatasetRole, Iterable[int]]
+        row_numbers: Mapping[InferencesRole, Iterable[int]]
             mapping of dataset role to list of row numbers
         parquet_file: file handle
             output parquet file handle
-        cluster_ids: Optional[Mapping[DatasetRole, Mapping[int, str]]]
-            mapping of dataset role to mapping of row number to cluster id.
+        cluster_ids: Optional[Mapping[InferencesRole, Mapping[int, str]]]
+            mapping of inferences role to mapping of row number to cluster id.
             If cluster_ids is non-empty, a new column is inserted to the
             dataframe containing the cluster IDs of each row in the exported
             data. The name of the added column name is `__phoenix_cluster_id__`.
         """
         export_dataframes = [pd.DataFrame()]
-        model_has_multiple_datasets = sum(not df.empty for df in self._datasets.values()) > 1
-        for dataset_role, numbers in row_numbers.items():
-            df = self._datasets[dataset_role]
+        model_has_multiple_inference_sets = (
+            sum(not df.empty for df in self._inference_sets.values()) > 1
+        )
+        for inferences_role, numbers in row_numbers.items():
+            df = self._inference_sets[inferences_role]
             columns = [
                 df.columns.get_loc(column_name)
-                for column_name in self._original_columns_by_role[dataset_role]
+                for column_name in self._original_columns_by_role[inferences_role]
             ]
             rows = pd.Series(sorted(set(numbers)))
             filtered_df = df.iloc[rows, columns].reset_index(drop=True)
-            if model_has_multiple_datasets:
+            if model_has_multiple_inference_sets:
                 filtered_df["__phoenix_dataset_name__"] = df.display_name
-            if cluster_ids and (ids := cluster_ids.get(dataset_role)):
+            if cluster_ids and (ids := cluster_ids.get(inferences_role)):
                 filtered_df["__phoenix_cluster_id__"] = rows.apply(ids.get)
             export_dataframes.append(filtered_df)
         pd.concat(export_dataframes).to_parquet(
@@ -977,24 +979,24 @@ class Model:
             if not dim.is_dummy and isinstance(dim, EmbeddingDimension)
         )
 
-    def dimension_categories_from_all_datasets(
+    def dimension_categories_from_all_inferences(
         self,
         dimension_name: Name,
     ) -> Tuple[str, ...]:
         dim = self[dimension_name]
         if dim.data_type is CONTINUOUS:
             return cast(Tuple[str, ...], ())
-        with self._dimension_categories_from_all_datasets() as cache:
+        with self._dimension_categories_from_all_inferences() as cache:
             try:
                 return cache[dimension_name]
             except KeyError:
                 pass
         categories_by_dataset = (
-            pd.Series(dim[role].unique()).dropna().astype(str) for role in DatasetRole
+            pd.Series(dim[role].unique()).dropna().astype(str) for role in InferencesRole
         )
         all_values_combined = chain.from_iterable(categories_by_dataset)
         ans = tuple(np.sort(pd.Series(all_values_combined).unique()))
-        with self._dimension_categories_from_all_datasets() as cache:
+        with self._dimension_categories_from_all_inferences() as cache:
             cache[dimension_name] = ans
         return ans
 
@@ -1005,24 +1007,24 @@ class Model:
         dim = self[dimension_name]
         if dim.data_type is not CONTINUOUS:
             return (np.nan, np.nan)
-        with self._dimension_min_max_from_all_datasets() as cache:
+        with self._dimension_min_max_from_all_inferences() as cache:
             try:
                 return cache[dimension_name]
             except KeyError:
                 pass
-        min_max_by_df = (_agg_min_max(dim[df_role]) for df_role in DatasetRole)
+        min_max_by_df = (_agg_min_max(dim[df_role]) for df_role in InferencesRole)
         all_values_combined = chain.from_iterable(min_max_by_df)
         min_max = _agg_min_max(pd.Series(all_values_combined))
         ans = (min_max.min(), min_max.max())
-        with self._dimension_min_max_from_all_datasets() as cache:
+        with self._dimension_min_max_from_all_inferences() as cache:
             cache[dimension_name] = ans
         return ans
 
     @overload
-    def __getitem__(self, key: Type[Dataset]) -> Iterator[Dataset]: ...
+    def __getitem__(self, key: Type[Inferences]) -> Iterator[Inferences]: ...
 
     @overload
-    def __getitem__(self, key: DatasetRole) -> Dataset: ...
+    def __getitem__(self, key: InferencesRole) -> Inferences: ...
 
     @overload
     def __getitem__(self, key: ColumnKey) -> Dimension: ...
@@ -1049,10 +1051,10 @@ class Model:
     ) -> Iterator[Dimension]: ...
 
     def __getitem__(self, key: Any) -> Any:
-        if key is Dataset:
-            return self._datasets.values()
-        if isinstance(key, DatasetRole):
-            return self._datasets[key]
+        if key is Inferences:
+            return self._inference_sets.values()
+        if isinstance(key, InferencesRole):
+            return self._inference_sets[key]
         if _is_column_key(key):
             return self._get_dim(key)
         if _is_multi_dimension_key(key):
@@ -1152,17 +1154,17 @@ class Model:
             )
         raise ValueError(f"invalid argument: {repr(obj)}")
 
-    def _new_dataset(
+    def _new_inferences(
         self,
         df: pd.DataFrame,
         /,
         name: str,
-        role: DatasetRole,
-    ) -> Dataset:
-        """Creates a new Dataset, setting the model weak reference to the
+        role: InferencesRole,
+    ) -> Inferences:
+        """Creates a new Inferences, setting the model weak reference to the
         `self` Model instance.
         """
-        return Dataset(df, name=name, role=role, _model=proxy(self))
+        return Inferences(df, name=name, role=role, _model=proxy(self))
 
 
 @dataclass(frozen=True)
@@ -1344,7 +1346,7 @@ def _series_uuid(length: int) -> "pd.Series[str]":
 
 
 def _raise_if_too_many_dataframes(given: int) -> None:
-    limit = len(DatasetRole)
+    limit = len(InferencesRole)
     if not 0 < given <= limit:
         raise ValueError(f"expected between 1 to {limit} dataframes, but {given} were given")
 

@@ -17,10 +17,10 @@ from phoenix.core.model_schema import (
 )
 
 from ..interceptor import GqlValueMediator
-from .DatasetRole import STR_TO_DATASET_ROLE, AncillaryDatasetRole, DatasetRole
 from .Dimension import Dimension
 from .DimensionWithValue import DimensionWithValue
 from .EventMetadata import EventMetadata
+from .InferencesRole import STR_TO_INFEREENCES_ROLE, AncillaryInferencesRole, InferencesRole
 from .PromptResponse import PromptResponse
 
 
@@ -41,35 +41,35 @@ class Event:
 
 def create_event_id(
     row_id: int,
-    dataset_role: Union[DatasetRole, AncillaryDatasetRole, ms.DatasetRole],
+    inferences_role: Union[InferencesRole, AncillaryInferencesRole, ms.InferencesRole],
 ) -> ID:
-    dataset_role_str = (
-        dataset_role.value
-        if isinstance(dataset_role, (DatasetRole, AncillaryDatasetRole))
-        else dataset_role
+    inferences_role_str = (
+        inferences_role.value
+        if isinstance(inferences_role, (InferencesRole, AncillaryInferencesRole))
+        else inferences_role
     )
-    return ID(f"{row_id}:{dataset_role_str}")
+    return ID(f"{row_id}:{inferences_role_str}")
 
 
 def unpack_event_id(
     event_id: ID,
-) -> Tuple[int, Union[DatasetRole, AncillaryDatasetRole]]:
-    row_id_str, dataset_role_str = str(event_id).split(":")
+) -> Tuple[int, Union[InferencesRole, AncillaryInferencesRole]]:
+    row_id_str, inferences_role_str = str(event_id).split(":")
     row_id = int(row_id_str)
-    dataset_role = STR_TO_DATASET_ROLE[dataset_role_str]
-    return row_id, dataset_role
+    inferences_role = STR_TO_INFEREENCES_ROLE[inferences_role_str]
+    return row_id, inferences_role
 
 
-def parse_event_ids_by_dataset_role(
+def parse_event_ids_by_inferences_role(
     event_ids: List[ID],
-) -> Dict[Union[DatasetRole, AncillaryDatasetRole], List[int]]:
+) -> Dict[Union[InferencesRole, AncillaryInferencesRole], List[int]]:
     """
     Parses event IDs and returns the corresponding row indexes.
     """
-    row_indexes: Dict[Union[DatasetRole, AncillaryDatasetRole], List[int]] = defaultdict(list)
+    row_indexes: Dict[Union[InferencesRole, AncillaryInferencesRole], List[int]] = defaultdict(list)
     for event_id in event_ids:
-        row_id, dataset_role = unpack_event_id(event_id)
-        row_indexes[dataset_role].append(row_id)
+        row_id, inferences_role = unpack_event_id(event_id)
+        row_indexes[inferences_role].append(row_id)
     return row_indexes
 
 

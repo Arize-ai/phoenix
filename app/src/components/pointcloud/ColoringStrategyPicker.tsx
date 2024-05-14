@@ -31,8 +31,8 @@ const contextualHelp = (
       <Text>
         The way in which inference point is colored. Each point in the
         point-cloud represents a model inference. These inferences can be
-        colored by a particular attribute (such as dataset and dimension) or by
-        a performance value such as correctness (predicted value equals the
+        colored by a particular attribute (such as inferences and dimension) or
+        by a performance value such as correctness (predicted value equals the
         actual value)
       </Text>
     </Content>

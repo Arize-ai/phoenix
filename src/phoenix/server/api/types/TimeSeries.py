@@ -7,7 +7,7 @@ import pandas as pd
 import strawberry
 from strawberry import UNSET
 
-from phoenix.core.model_schema import CONTINUOUS, PRIMARY, REFERENCE, Column, Dataset, Dimension
+from phoenix.core.model_schema import CONTINUOUS, PRIMARY, REFERENCE, Column, Dimension, Inferences
 from phoenix.metrics import Metric, binning
 from phoenix.metrics.mixins import UnaryOperator
 from phoenix.metrics.timeseries import timeseries
@@ -15,7 +15,7 @@ from phoenix.server.api.input_types.Granularity import Granularity, to_timestamp
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.interceptor import GqlValueMediator
 from phoenix.server.api.types.DataQualityMetric import DataQualityMetric
-from phoenix.server.api.types.DatasetRole import DatasetRole
+from phoenix.server.api.types.InferencesRole import InferencesRole
 from phoenix.server.api.types.ScalarDriftMetricEnum import ScalarDriftMetric
 from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric
 
@@ -97,7 +97,7 @@ def get_data_quality_timeseries_data(
     metric: DataQualityMetric,
     time_range: TimeRange,
     granularity: Granularity,
-    dataset_role: DatasetRole,
+    inferences_role: InferencesRole,
 ) -> List[TimeSeriesDataPoint]:
     metric_instance = metric.value()
     if isinstance(metric_instance, UnaryOperator):
@@ -106,7 +106,7 @@ def get_data_quality_timeseries_data(
             operand=Column(dimension.name),
         )
     df = pd.DataFrame(
-        {dimension.name: dimension[dataset_role.value]},
+        {dimension.name: dimension[inferences_role.value]},
         copy=False,
     )
     return get_timeseries_data(
@@ -160,12 +160,12 @@ class PerformanceTimeSeries(TimeSeries):
 
 
 def ensure_timeseries_parameters(
-    dataset: Dataset,
+    inferences: Inferences,
     time_range: Optional[TimeRange] = UNSET,
     granularity: Optional[Granularity] = UNSET,
 ) -> Tuple[TimeRange, Granularity]:
     if not isinstance(time_range, TimeRange):
-        start, stop = dataset.time_range
+        start, stop = inferences.time_range
         time_range = TimeRange(start=start, end=stop)
     if not isinstance(granularity, Granularity):
         total_minutes = int((time_range.end - time_range.start).total_seconds()) // 60

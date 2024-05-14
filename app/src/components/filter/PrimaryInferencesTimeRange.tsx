@@ -11,31 +11,31 @@ import {
   TriggerWrap,
 } from "@arizeai/components";
 
-import { useDatasets } from "@phoenix/contexts";
+import { useInferences } from "@phoenix/contexts";
 import { TimePreset, useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
-type PrimaryDatasetTimeRangeProps = object;
+type PrimaryInferencesTimeRangeProps = object;
 
-export function PrimaryDatasetTimeRange(_: PrimaryDatasetTimeRangeProps) {
+export function PrimaryInferencesTimeRange(_: PrimaryInferencesTimeRangeProps) {
   const {
     timeRange,
     timePreset: selectedTimePreset,
     setTimePreset,
   } = useTimeRange();
   const {
-    primaryDataset: { name },
-  } = useDatasets();
+    primaryInferences: { name },
+  } = useInferences();
   const nameAbbr = name.slice(0, 10);
   return (
     <FieldColorDesignation color={"designationTurquoise"}>
       <TooltipTrigger delay={0} placement="bottom right">
         <TriggerWrap>
           <Picker
-            label="primary dataset"
+            label="primary inferences"
             defaultSelectedKey={selectedTimePreset}
-            data-testid="dataset-time-range"
-            aria-label={`Time range for the primary dataset`}
+            data-testid="inferences-time-range"
+            aria-label={`Time range for the primary inferences`}
             addonBefore={nameAbbr}
             onSelectionChange={(key) => {
               if (key !== selectedTimePreset) {
@@ -63,7 +63,7 @@ export function PrimaryDatasetTimeRange(_: PrimaryDatasetTimeRangeProps) {
               }
             `}
           >
-            <Heading level={4}>primary dataset time range</Heading>
+            <Heading level={4}>primary inferences time range</Heading>
             <div>start: {fullTimeFormatter(timeRange.start)}</div>
             <div>end: {fullTimeFormatter(timeRange.end)}</div>
           </section>
