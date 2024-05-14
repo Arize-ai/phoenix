@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 import strawberry
 from strawberry import UNSET
+from strawberry.relay import Node, NodeID
 from strawberry.types import Info
 from typing_extensions import Annotated
 
@@ -22,7 +23,6 @@ from .DimensionDataType import DimensionDataType
 from .DimensionShape import DimensionShape
 from .DimensionType import DimensionType
 from .InferencesRole import InferencesRole
-from .node import Node
 from .ScalarDriftMetricEnum import ScalarDriftMetric
 from .Segments import (
     GqlBinFactory,
@@ -40,6 +40,7 @@ from .TimeSeries import (
 
 @strawberry.type
 class Dimension(Node):
+    id_attr: NodeID[int]
     name: str = strawberry.field(description="The name of the dimension (a.k.a. the column name)")
     type: DimensionType = strawberry.field(
         description="Whether the dimension represents a feature, tag, prediction, or actual."
