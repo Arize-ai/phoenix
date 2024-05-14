@@ -211,18 +211,16 @@ def download_traces_fixture(
         return cast(List[str], f.readlines())
 
 
-def load_example_traces(use_case: str) -> TraceDataset:
+def load_example_traces(fixture_name: str) -> TraceDataset:
     """
     Loads a trace dataframe by name.
     """
-    fixture = get_trace_fixture_by_name(use_case)
+    fixture = get_trace_fixture_by_name(fixture_name)
     return TraceDataset(json_lines_to_df(download_traces_fixture(fixture)))
 
 
-def get_dataset_fixtures(
-    use_case: str,
-) -> Iterable[DatasetFixture]:
-    return (fixture.load() for fixture in get_trace_fixture_by_name(use_case).dataset_fixtures)
+def get_dataset_fixtures(fixture_name: str) -> Iterable[DatasetFixture]:
+    return (fixture.load() for fixture in get_trace_fixture_by_name(fixture_name).dataset_fixtures)
 
 
 def send_dataset_fixtures(
@@ -274,8 +272,8 @@ def send_dataset_fixtures(
             print(f"Dataset sent: {name=}, {len(df)=}")
 
 
-def get_evals_from_fixture(use_case: str) -> Iterator[pb.Evaluation]:
-    fixture = get_trace_fixture_by_name(use_case)
+def get_evals_from_fixture(fixture_name: str) -> Iterator[pb.Evaluation]:
+    fixture = get_trace_fixture_by_name(fixture_name)
     for eval_fixture in fixture.evaluation_fixtures:
         yield from _read_eval_fixture(eval_fixture)
 
