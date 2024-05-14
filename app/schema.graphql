@@ -62,6 +62,7 @@ type DatasetValues {
 scalar DateTime
 
 type Dimension implements Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
 
   """The name of the dimension (a.k.a. the column name)"""
@@ -114,8 +115,12 @@ type Dimension implements Node {
   segmentsComparison(primaryTimeRange: TimeRange): Segments!
 }
 
+"""A connection to a list of items."""
 type DimensionConnection {
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
   edges: [DimensionEdge!]!
 }
 
@@ -124,9 +129,13 @@ enum DimensionDataType {
   numeric
 }
 
+"""An edge in a connection."""
 type DimensionEdge {
-  node: Dimension!
+  """A cursor for use in pagination"""
   cursor: String!
+
+  """The item at the end of the edge"""
+  node: Dimension!
 }
 
 input DimensionFilter {
@@ -229,6 +238,7 @@ type DriftTimeSeries implements TimeSeries {
 }
 
 type EmbeddingDimension implements Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   name: String!
 
@@ -290,14 +300,22 @@ type EmbeddingDimension implements Node {
   ): UMAPPoints!
 }
 
+"""A connection to a list of items."""
 type EmbeddingDimensionConnection {
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
   edges: [EmbeddingDimensionEdge!]!
 }
 
+"""An edge in a connection."""
 type EmbeddingDimensionEdge {
-  node: EmbeddingDimension!
+  """A cursor for use in pagination"""
   cursor: String!
+
+  """The item at the end of the edge"""
+  node: EmbeddingDimension!
 }
 
 type EmbeddingMetadata {
@@ -489,8 +507,9 @@ type Mutation {
   clearProject(id: GlobalID!): Query!
 }
 
-"""A node in the graph with a globally unique ID"""
+"""An object with a Globally Unique ID"""
 interface Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
 }
 
@@ -503,10 +522,18 @@ type NumericRange {
   end: Float!
 }
 
+"""Information to aid in pagination."""
 type PageInfo {
+  """When paginating forwards, are there more items?"""
   hasNextPage: Boolean!
+
+  """When paginating backwards, are there more items?"""
   hasPreviousPage: Boolean!
+
+  """When paginating backwards, the cursor to continue."""
   startCursor: String
+
+  """When paginating forwards, the cursor to continue."""
   endCursor: String
 }
 
@@ -536,6 +563,7 @@ type Point3D {
 }
 
 type Project implements Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   name: String!
   gradientStartColor: String!
@@ -571,14 +599,22 @@ type Project implements Node {
   validateSpanFilterCondition(condition: String!): ValidationResult!
 }
 
+"""A connection to a list of items."""
 type ProjectConnection {
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
   edges: [ProjectEdge!]!
 }
 
+"""An edge in a connection."""
 type ProjectEdge {
-  node: Project!
+  """A cursor for use in pagination"""
   cursor: String!
+
+  """The item at the end of the edge"""
+  node: Project!
 }
 
 type PromptResponse {
@@ -644,6 +680,7 @@ enum SortDir {
 }
 
 type Span implements Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   name: String!
   statusCode: SpanStatusCode!
@@ -719,8 +756,12 @@ enum SpanColumn {
   cumulativeTokenCountCompletion
 }
 
+"""A connection to a list of items."""
 type SpanConnection {
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
   edges: [SpanEdge!]!
 }
 
@@ -729,9 +770,13 @@ type SpanContext {
   spanId: ID!
 }
 
+"""An edge in a connection."""
 type SpanEdge {
-  node: Span!
+  """A cursor for use in pagination"""
   cursor: String!
+
+  """The item at the end of the edge"""
+  node: Span!
 }
 
 type SpanEvaluation implements Evaluation {
@@ -810,6 +855,7 @@ type TimeSeriesDataPoint {
 }
 
 type Trace implements Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
 
