@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.8.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.8.1...arize-phoenix-evals-v0.8.2) (2024-05-14)
+
+
+### Bug Fixes
+
+* evaluators no longer have incorrect type hints ([#3195](https://github.com/Arize-ai/phoenix/issues/3195)) ([7d57e2e](https://github.com/Arize-ai/phoenix/commit/7d57e2e760a98095c57b45b3e39e2d009972faaf))
+
+
+### Miscellaneous Chores
+
+* release 0.8.2 ([d5bde47](https://github.com/Arize-ai/phoenix/commit/d5bde47e3dcd9e7b44754c648570578f1ae48efe))
+* release 4.0.0 ([#3130](https://github.com/Arize-ai/phoenix/issues/3130)) ([f5ae248](https://github.com/Arize-ai/phoenix/commit/f5ae248425a48e8aed265788d3aa0b6cb88b84c5))
+
 ## [0.8.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.8.0...arize-phoenix-evals-v0.8.1) (2024-05-03)
 
 
