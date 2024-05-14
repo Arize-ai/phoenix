@@ -4,15 +4,15 @@ from typing import (
     Any,
     List,
     Optional,
+    Tuple,
 )
 
 import strawberry
-from aioitertools.itertools import islice
 from sqlalchemy import and_, desc, distinct, select
 from sqlalchemy.orm import contains_eager
 from sqlalchemy.sql.expression import tuple_
 from strawberry import ID, UNSET
-from strawberry.relay import Connection, Node, NodeID
+from strawberry.relay import Node, NodeID, connection
 from strawberry.types import Info
 
 from phoenix.datetime_utils import right_open_time_range
@@ -25,16 +25,13 @@ from phoenix.server.api.types.EvaluationSummary import EvaluationSummary
 from phoenix.server.api.types.pagination import (
     Cursor,
     CursorSortColumn,
-    CursorString,
-    connections,
+    ForwardPaginatedConnection,
 )
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.trace.dsl import SpanFilter
-
-SPANS_LIMIT = 1000
 
 
 @strawberry.type
@@ -155,19 +152,19 @@ class Project(Node):
                 return None
         return Trace(id_attr=id_attr)
 
-    @strawberry.field
+    @connection(ForwardPaginatedConnection[Span])  # type: ignore
     async def spans(
         self,
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
-        first: Optional[int] = 50,
+        first: Optional[int] = UNSET,
         last: Optional[int] = UNSET,
-        after: Optional[CursorString] = UNSET,
-        before: Optional[CursorString] = UNSET,
+        after: Optional[str] = UNSET,
+        before: Optional[str] = UNSET,
         sort: Optional[SpanSort] = UNSET,
         root_spans_only: Optional[bool] = UNSET,
         filter_condition: Optional[str] = UNSET,
-    ) -> Connection[Span]:
+    ) -> List[Tuple[Cursor, Span]]:
         stmt = (
             select(models.Span)
             .join(models.Trace)
@@ -219,8 +216,7 @@ class Project(Node):
         stmt = stmt.order_by(cursor_rowid_column)
         data = []
         async with info.context.db() as session:
-            span_records = await session.execute(stmt)
-            async for span_record in islice(span_records, first):
+            for span_record in await session.execute(stmt):
                 span = span_record[0]
                 sort_column_value = span_record[1] if len(span_record) > 1 else None
                 cursor = Cursor(
@@ -235,17 +231,7 @@ class Project(Node):
                     ),
                 )
                 data.append((cursor, to_gql_span(span)))
-            has_next_page = True
-            try:
-                next(span_records)
-            except StopIteration:
-                has_next_page = False
-
-        return connections(
-            data,
-            has_previous_page=False,
-            has_next_page=has_next_page,
-        )
+        return data
 
     @strawberry.field(
         description="Names of all available evaluations for traces. "

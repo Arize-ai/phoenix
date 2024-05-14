@@ -2,22 +2,16 @@ import base64
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, auto
-from typing import ClassVar, List, Optional, Tuple, Union
+from itertools import islice
+from typing import Any, ClassVar, Iterable, Optional, Self, Tuple, Union
 
-from strawberry import UNSET
+import strawberry
 from strawberry.relay.types import Connection, Edge, NodeType, PageInfo
+from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
 ID: TypeAlias = int
 CursorSortColumnValue: TypeAlias = Union[str, int, float, datetime]
-
-
-# A type alias for the connection cursor implementation
-CursorString = str
-
-
-# The hashing prefix for a connection cursor
-CURSOR_PREFIX = "connection:"
 
 
 class CursorSortColumnDataType(Enum):
@@ -138,138 +132,39 @@ class Cursor:
         return cls(rowid=int(rowid_string), sort_column=sort_column)
 
 
-def offset_to_cursor(offset: int) -> CursorString:
-    """
-    Creates the cursor string from an offset.
-    """
-    return base64.b64encode(f"{CURSOR_PREFIX}{offset}".encode("utf-8")).decode()
-
-
-def cursor_to_offset(cursor: CursorString) -> int:
-    """
-    Extracts the offset from the cursor string.
-    """
-    prefix, offset = base64.b64decode(cursor).decode().split(":")
-    return int(offset)
-
-
-def get_offset_with_default(cursor: Optional[CursorString], default_offset: int) -> int:
-    """
-    Given an optional cursor and a default offset, returns the offset
-    to use; if the cursor contains a valid offset, that will be used,
-    otherwise it will be the default.
-    """
-    if not isinstance(cursor, CursorString):
-        return default_offset
-    offset = cursor_to_offset(cursor)
-    return offset if isinstance(offset, int) else default_offset
-
-
-@dataclass(frozen=True)
-class ConnectionArgs:
-    """
-    Arguments common to all connections
-    """
-
-    first: Optional[int] = UNSET
-    after: Optional[CursorString] = UNSET
-    last: Optional[int] = UNSET
-    before: Optional[CursorString] = UNSET
-
-
-def connection_from_list(
-    data: List[NodeType],
-    args: ConnectionArgs,
-) -> Connection[NodeType]:
-    """
-    A simple function that accepts a list and connection arguments, and returns
-    a connection object for use in GraphQL. It uses list offsets as pagination,
-    so pagination will only work if the list is static.
-    """
-    return connection_from_list_slice(data, args, slice_start=0, list_length=len(data))
-
-
-def connection_from_list_slice(
-    list_slice: List[NodeType],
-    args: ConnectionArgs,
-    slice_start: int,
-    list_length: int,
-) -> Connection[NodeType]:
-    """
-    Given a slice (subset) of a list, returns a connection object for use in
-    GraphQL.
-
-    This function is similar to `connection_from_list`, but is intended for use
-    cases where you know the cardinality of the connection, consider it too large
-    to materialize the entire list, and instead wish pass in a slice of the
-    total result large enough to cover the range specified in `args`.
-    """
-
-    slice_end = slice_start + len(list_slice)
-
-    start_offset = max(slice_start, 0)
-    end_offset = min(slice_end, list_length)
-
-    after_offset = get_offset_with_default(args.after, -1)
-
-    if 0 <= after_offset < list_length:
-        start_offset = max(start_offset, after_offset + 1)
-
-    before_offset = get_offset_with_default(args.before, end_offset)
-
-    if 0 <= before_offset < list_length:
-        end_offset = min(end_offset, before_offset)
-
-    if isinstance(args.first, int):
-        if args.first < 0:
-            raise Exception('Argument "first" must be a non-negative int')
-        end_offset = min(end_offset, start_offset + args.first)
-
-    if isinstance(args.last, int):
-        if args.last < 0:
-            raise Exception('Argument "last" must be a non-negative int')
-        start_offset = max(start_offset, end_offset - args.last)
-
-    # If supplied slice is too large, trim it down before mapping over it.
-    slice = list_slice[start_offset - slice_start : end_offset - slice_start]
-
-    edges = [
-        Edge(node=node, cursor=offset_to_cursor(start_offset + index))
-        for index, node in enumerate(slice)
-    ]
-
-    has_edges = len(edges) > 0
-    first_edge = edges[0] if has_edges else None
-    last_edge = edges[-1] if has_edges else None
-    lower_bound = after_offset + 1 if args.after is not None else 0
-    upper_bound = before_offset if args.before is not None else list_length
-
-    return Connection(
-        edges=edges,
-        page_info=PageInfo(
-            start_cursor=first_edge.cursor if first_edge else None,
-            end_cursor=last_edge.cursor if last_edge else None,
-            has_previous_page=start_offset > lower_bound if isinstance(args.last, int) else False,
-            has_next_page=end_offset < upper_bound if isinstance(args.first, int) else False,
-        ),
-    )
-
-
-def connections(
-    data: List[Tuple[Cursor, NodeType]],
-    has_previous_page: bool,
-    has_next_page: bool,
-) -> Connection[NodeType]:
-    edges = [Edge(node=node, cursor=str(cursor)) for cursor, node in data]
-    has_edges = len(edges) > 0
-    first_edge = edges[0] if has_edges else None
-    last_edge = edges[-1] if has_edges else None
-    return Connection(
-        edges=edges,
-        page_info=PageInfo(
-            start_cursor=first_edge.cursor if first_edge else None,
-            end_cursor=last_edge.cursor if last_edge else None,
-            has_previous_page=has_previous_page,
-            has_next_page=has_next_page,
-        ),
-    )
+@strawberry.type
+class ForwardPaginatedConnection(Connection[NodeType]):
+    @classmethod
+    def resolve_connection(
+        cls,
+        data: Iterable[Tuple[Cursor, NodeType]],  # type: ignore
+        *,
+        info: Info,
+        before: Optional[str] = None,
+        after: Optional[str] = None,
+        first: Optional[int] = None,
+        last: Optional[int] = None,
+        **kwargs: Any,
+    ) -> Self:
+        data_iterator = iter(data)
+        edges = [
+            Edge(node=node, cursor=str(cursor)) for cursor, node in islice(data_iterator, first)
+        ]
+        has_edges = len(edges) > 0
+        first_edge = edges[0] if has_edges else None
+        last_edge = edges[-1] if has_edges else None
+        has_next_page: bool
+        try:
+            next(data_iterator)
+            has_next_page = True
+        except StopIteration:
+            has_next_page = False
+        return cls(
+            edges=edges,
+            page_info=PageInfo(
+                start_cursor=first_edge.cursor if first_edge else None,
+                end_cursor=last_edge.cursor if last_edge else None,
+                has_previous_page=False,
+                has_next_page=has_next_page,
+            ),
+        )
