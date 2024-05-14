@@ -1,19 +1,34 @@
+import csv
 import gzip
 import logging
 import weakref
+from collections import Counter
 from datetime import datetime
 from io import BytesIO
-from typing import Any, List, Optional, Union, cast
+from pathlib import Path
+from typing import (
+    Any,
+    BinaryIO,
+    Dict,
+    Iterable,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 from urllib.parse import urljoin
 
+import httpx
 import pandas as pd
 import pyarrow as pa
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import ExportTraceServiceRequest
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
 from opentelemetry.proto.resource.v1.resource_pb2 import Resource
 from opentelemetry.proto.trace.v1.trace_pb2 import ResourceSpans, ScopeSpans
-from pyarrow import ArrowInvalid
-from requests import Session
+from pyarrow import ArrowInvalid, Table
+from typing_extensions import TypeAlias, assert_never
 
 from phoenix.config import (
     get_env_collector_endpoint,
@@ -22,6 +37,7 @@ from phoenix.config import (
     get_env_project_name,
 )
 from phoenix.datetime_utils import normalize_datetime
+from phoenix.db.insertion.dataset import DatasetKeys
 from phoenix.session.data_extractor import DEFAULT_SPAN_LIMIT, TraceDataExtractor
 from phoenix.trace import Evaluations, TraceDataset
 from phoenix.trace.dsl import SpanQuery
@@ -55,11 +71,11 @@ class Client(TraceDataExtractor):
         host = get_env_host()
         if host == "0.0.0.0":
             host = "127.0.0.1"
-        base_url = endpoint or get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
-        self._base_url = base_url if base_url.endswith("/") else base_url + "/"
-
-        self._session = Session()
-        weakref.finalize(self, self._session.close)
+        self._base_url = (
+            endpoint or get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
+        )
+        self._client = httpx.Client()
+        weakref.finalize(self, self._client.close)
         if warn_if_server_not_running:
             self._warn_if_phoenix_is_not_running()
 
@@ -98,8 +114,8 @@ class Client(TraceDataExtractor):
                 "stop_time is deprecated. Use end_time instead.",
             )
             end_time = end_time or stop_time
-        response = self._session.post(
-            url=urljoin(self._base_url, "v1/spans"),
+        response = self._client.post(
+            url=urljoin(self._base_url, "/v1/spans"),
             params={"project-name": project_name},
             json={
                 "queries": [q.to_dict() for q in queries],
@@ -145,8 +161,8 @@ class Client(TraceDataExtractor):
                 empty list if no evaluations are found.
         """
         project_name = project_name or get_env_project_name()
-        response = self._session.get(
-            urljoin(self._base_url, "v1/evaluations"),
+        response = self._client.get(
+            url=urljoin(self._base_url, "/v1/evaluations"),
             params={"project-name": project_name},
         )
         if response.status_code == 404:
@@ -167,7 +183,7 @@ class Client(TraceDataExtractor):
 
     def _warn_if_phoenix_is_not_running(self) -> None:
         try:
-            self._session.get(urljoin(self._base_url, "arize_phoenix_version")).raise_for_status()
+            self._client.get(urljoin(self._base_url, "/arize_phoenix_version")).raise_for_status()
         except Exception:
             logger.warning(
                 f"Arize Phoenix is not running on {self._base_url}. Launch Phoenix "
@@ -197,9 +213,9 @@ class Client(TraceDataExtractor):
             headers = {"content-type": "application/x-pandas-arrow"}
             with pa.ipc.new_stream(sink, table.schema) as writer:
                 writer.write_table(table)
-            self._session.post(
-                urljoin(self._base_url, "v1/evaluations"),
-                data=cast(bytes, sink.getvalue().to_pybytes()),
+            self._client.post(
+                url=urljoin(self._base_url, "/v1/evaluations"),
+                content=cast(bytes, sink.getvalue().to_pybytes()),
                 headers=headers,
             ).raise_for_status()
 
@@ -239,15 +255,123 @@ class Client(TraceDataExtractor):
         ]
         for otlp_span in otlp_spans:
             serialized = otlp_span.SerializeToString()
-            data = gzip.compress(serialized)
-            self._session.post(
-                urljoin(self._base_url, "v1/traces"),
-                data=data,
+            content = gzip.compress(serialized)
+            self._client.post(
+                url=urljoin(self._base_url, "/v1/traces"),
+                content=content,
                 headers={
                     "content-type": "application/x-protobuf",
                     "content-encoding": "gzip",
                 },
             ).raise_for_status()
+
+    def upload_dataset_table(
+        self,
+        table: Union[str, Path, pd.DataFrame],
+        /,
+        *,
+        name: str,
+        input_keys: Iterable[str],
+        output_keys: Iterable[str],
+        metadata_keys: Iterable[str] = (),
+        description: Optional[str] = None,
+        action: Literal["create", "append"] = "create",
+    ) -> None:
+        """
+        Upload table as dataset to the Phoenix server.
+
+        Args:
+            table (str | Path | pd.DataFrame): Location of a CSV text file, or
+                pandas DataFrame.
+            name: (str): Name of the dataset. Required if action=append.
+            input_keys (Iterable[str]): List of column names used as input keys.
+                input_keys, output_keys, metadata_keys must be disjoint, and must
+                exist in CSV column headers.
+            output_keys (Iterable[str]): List of column names used as output keys.
+                input_keys, output_keys, metadata_keys must be disjoint, and must
+                exist in CSV column headers.
+            metadata_keys (Iterable[str]): List of column names used as metadata keys.
+                input_keys, output_keys, metadata_keys must be disjoint, and must
+                exist in CSV column headers.
+            description: (Optional[str]): Description of the dataset.
+            action: (Literal["create", "append"): Create new dataset or append to an
+                existing dataset. If action=append, dataset name is required.
+
+        Returns:
+            None
+        """
+        if action not in ("create", "append"):
+            raise ValueError(f"Invalid action: {action}")
+        if not name:
+            raise ValueError("Dataset name must not be blank")
+        keys = DatasetKeys(
+            frozenset(input_keys),
+            frozenset(output_keys),
+            frozenset(metadata_keys),
+        )
+        if isinstance(table, pd.DataFrame):
+            file = _prepare_pyarrow(table, keys)
+        elif isinstance(table, (str, Path)):
+            file = _prepare_csv(Path(table), keys)
+        else:
+            assert_never(table)
+        response = httpx.post(
+            url=urljoin(self._base_url, "/v1/datasets/upload"),
+            files={"file": file},
+            data={
+                "action": action,
+                "name": name,
+                "description": description,
+                "input_keys[]": sorted(keys.input),
+                "output_keys[]": sorted(keys.output),
+                "metadata_keys[]": sorted(keys.metadata),
+            },
+        )
+        response.raise_for_status()
+
+
+FileName: TypeAlias = str
+FilePointer: TypeAlias = BinaryIO
+FileType: TypeAlias = str
+FileHeaders: TypeAlias = Dict[str, str]
+
+
+def _prepare_csv(
+    path: Path,
+    keys: DatasetKeys,
+) -> Tuple[FileName, FilePointer, FileType, FileHeaders]:
+    path = path.resolve()
+    if not path.is_file():
+        raise FileNotFoundError(f"File does not exist: {path}")
+    with open(path, "r") as f:
+        for row in csv.reader(f):
+            column_headers = row
+            break
+    (header, freq), *_ = Counter(column_headers).most_common(1)
+    if freq > 1:
+        raise ValueError(f"Duplicated column header in CSV file: {header}")
+    keys.check_differences(frozenset(column_headers))
+    file = BytesIO()
+    with open(path, "rb") as f:
+        file.write(gzip.compress(f.read()))
+    return path.name, file, "text/csv", {"Content-Encoding": "gzip"}
+
+
+def _prepare_pyarrow(
+    df: pd.DataFrame,
+    keys: DatasetKeys,
+) -> Tuple[FileName, FilePointer, FileType, FileHeaders]:
+    (header, freq), *_ = Counter(df.columns).most_common(1)
+    if freq > 1:
+        raise ValueError(f"Duplicated column header in file: {header}")
+    keys.check_differences(frozenset(df.columns))
+    table = Table.from_pandas(df.loc[:, list(keys)])
+    sink = pa.BufferOutputStream()
+    options = pa.ipc.IpcWriteOptions(compression="lz4")
+    with pa.ipc.new_stream(sink, table.schema, options=options) as writer:
+        writer.write_table(table)
+    file = BytesIO(sink.getvalue().to_pybytes())
+    return "pandas", file, "application/x-pandas-pyarrow", {}
 
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
