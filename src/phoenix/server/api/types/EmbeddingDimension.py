@@ -439,7 +439,10 @@ class EmbeddingDimension(Node):
                 continue
             points[inferences_role].append(
                 UMAPPoint(
-                    id=GlobalID(f"{type(self).__name__}:{str(inferences_role)}", str(row_id)),
+                    id=GlobalID(
+                        type_name=f"{type(self).__name__}:{str(inferences_role)}",
+                        node_id=str(row_id),
+                    ),
                     event_id=event_id,
                     coordinates=to_gql_coordinates(vector),
                     event_metadata=EventMetadata(

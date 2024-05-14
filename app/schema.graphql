@@ -464,37 +464,11 @@ type MissingValueBin {
 }
 
 type Model {
-  dimensions(
-    """Returns the first n items from the list."""
-    first: Int = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    last: Int = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    after: String = null
-
-    """Returns the items in the list that come before the specified cursor."""
-    before: String = null
-    include: DimensionFilter
-    exclude: DimensionFilter
-  ): DimensionConnection!
+  dimensions(first: Int = 50, last: Int, after: String, before: String, include: DimensionFilter, exclude: DimensionFilter): DimensionConnection!
   primaryInferences: Inferences!
   referenceInferences: Inferences
   corpusInferences: Inferences
-  embeddingDimensions(
-    """Returns the first n items from the list."""
-    first: Int = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    last: Int = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    after: String = null
-
-    """Returns the items in the list that come before the specified cursor."""
-    before: String = null
-  ): EmbeddingDimensionConnection!
+  embeddingDimensions(first: Int = 50, last: Int, after: String, before: String): EmbeddingDimensionConnection!
 
   """Returns exported file names sorted by descending modification time."""
   exportedFiles: [ExportedFile!]!
@@ -652,19 +626,7 @@ type PromptResponse {
 }
 
 type Query {
-  projects(
-    """Returns the first n items from the list."""
-    first: Int = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    last: Int = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    after: String = null
-
-    """Returns the items in the list that come before the specified cursor."""
-    before: String = null
-  ): ProjectConnection!
+  projects(first: Int = 50, last: Int, after: String, before: String): ProjectConnection!
   functionality: Functionality!
   model: Model!
   node(id: GlobalID!): Node!

@@ -7,8 +7,7 @@ import strawberry
 from sqlalchemy import delete, select
 from sqlalchemy.orm import contains_eager, load_only
 from strawberry import ID, UNSET
-from strawberry.relay import ListConnection, Node, connection
-from strawberry.relay.types import GlobalID
+from strawberry.relay import Connection, GlobalID, Node
 from strawberry.types import Info
 from typing_extensions import Annotated
 
@@ -36,7 +35,12 @@ from phoenix.server.api.types.ExportEventsMutation import ExportEventsMutation
 from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
 from phoenix.server.api.types.Model import Model
-from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
+from phoenix.server.api.types.pagination import (
+    ConnectionArgs,
+    CursorString,
+    connection_from_list,
+)
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.Span import to_gql_span
 from phoenix.server.api.types.Trace import Trace
@@ -44,18 +48,24 @@ from phoenix.server.api.types.Trace import Trace
 
 @strawberry.type
 class Query:
-    @connection(ListConnection[Project])  # type: ignore
+    @strawberry.field
     async def projects(
         self,
         info: Info[Context, None],
         first: Optional[int] = 50,
         last: Optional[int] = UNSET,
-        after: Optional[str] = UNSET,
-        before: Optional[str] = UNSET,
-    ) -> List[Project]:
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[Project]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
         async with info.context.db() as session:
             projects = await session.scalars(select(models.Project))
-        return [
+        data = [
             Project(
                 id_attr=project.id,
                 name=project.name,
@@ -64,6 +74,7 @@ class Query:
             )
             for project in projects
         ]
+        return connection_from_list(data=data, args=args)
 
     @strawberry.field
     async def functionality(self, info: Info[Context, None]) -> "Functionality":
@@ -81,8 +92,7 @@ class Query:
 
     @strawberry.field
     async def node(self, id: GlobalID, info: Info[Context, None]) -> Node:
-        type_name = id.type_name
-        node_id = int(id.node_id)
+        type_name, node_id = from_global_id(id)
         if type_name == "Dimension":
             dimension = info.context.model.scalar_dimensions[node_id]
             return to_gql_dimension(node_id, dimension)
@@ -260,7 +270,7 @@ class Query:
 class Mutation(ExportEventsMutation):
     @strawberry.mutation
     async def delete_project(self, info: Info[Context, None], id: GlobalID) -> Query:
-        node_id = from_global_id_with_expected_type(str(id), "Project")
+        node_id = from_global_id_with_expected_type(global_id=id, expected_type_name="Project")
         async with info.context.db() as session:
             project = await session.scalar(
                 select(models.Project)
@@ -276,7 +286,7 @@ class Mutation(ExportEventsMutation):
 
     @strawberry.mutation
     async def clear_project(self, info: Info[Context, None], id: GlobalID) -> Query:
-        project_id = from_global_id_with_expected_type(str(id), "Project")
+        project_id = from_global_id_with_expected_type(global_id=id, expected_type_name="Project")
         delete_statement = delete(models.Trace).where(models.Trace.project_rowid == project_id)
         async with info.context.db() as session:
             await session.execute(delete_statement)

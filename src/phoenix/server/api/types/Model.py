@@ -2,7 +2,7 @@ import asyncio
 from typing import List, Optional
 
 import strawberry
-from strawberry.relay import ListConnection, connection
+from strawberry.relay import Connection
 from strawberry.types import Info
 from strawberry.unset import UNSET
 from typing_extensions import Annotated
@@ -20,6 +20,7 @@ from .EmbeddingDimension import EmbeddingDimension, to_gql_embedding_dimension
 from .ExportedFile import ExportedFile
 from .Inferences import Inferences
 from .InferencesRole import AncillaryInferencesRole, InferencesRole
+from .pagination import ConnectionArgs, CursorString, connection_from_list
 from .TimeSeries import (
     PerformanceTimeSeries,
     ensure_timeseries_parameters,
@@ -29,24 +30,32 @@ from .TimeSeries import (
 
 @strawberry.type
 class Model:
-    @connection(ListConnection[Dimension])  # type: ignore
+    @strawberry.field
     def dimensions(
         self,
         info: Info[Context, None],
-        first: Optional[int] = UNSET,
+        first: Optional[int] = 50,
         last: Optional[int] = UNSET,
-        after: Optional[str] = UNSET,
-        before: Optional[str] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
         include: Optional[DimensionFilter] = UNSET,
         exclude: Optional[DimensionFilter] = UNSET,
-    ) -> List[Dimension]:
+    ) -> Connection[Dimension]:
         model = info.context.model
-        return [
-            to_gql_dimension(index, dimension)
-            for index, dimension in enumerate(model.scalar_dimensions)
-            if (not isinstance(include, DimensionFilter) or include.matches(dimension))
-            and (not isinstance(exclude, DimensionFilter) or not exclude.matches(dimension))
-        ]
+        return connection_from_list(
+            [
+                to_gql_dimension(index, dimension)
+                for index, dimension in enumerate(model.scalar_dimensions)
+                if (not isinstance(include, DimensionFilter) or include.matches(dimension))
+                and (not isinstance(exclude, DimensionFilter) or not exclude.matches(dimension))
+            ],
+            args=ConnectionArgs(
+                first=first,
+                after=after if isinstance(after, CursorString) else None,
+                last=last,
+                before=before if isinstance(before, CursorString) else None,
+            ),
+        )
 
     @strawberry.field
     def primary_inferences(self, info: Info[Context, None]) -> Inferences:
@@ -91,27 +100,35 @@ class Model:
             model=info.context.corpus,
         )
 
-    @connection(ListConnection[EmbeddingDimension])  # type: ignore
+    @strawberry.field
     def embedding_dimensions(
         self,
         info: Info[Context, None],
-        first: Optional[int] = UNSET,
+        first: Optional[int] = 50,
         last: Optional[int] = UNSET,
-        after: Optional[str] = UNSET,
-        before: Optional[str] = UNSET,
-    ) -> List[EmbeddingDimension]:
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[EmbeddingDimension]:
         """
         A non-trivial implementation should efficiently fetch only
         the necessary books after the offset.
         For simplicity, here we build the list and then slice it accordingly
         """
         model = info.context.model
-        return [
-            to_gql_embedding_dimension(index, embedding_dimension)
-            for index, embedding_dimension in enumerate(
-                model.embedding_dimensions,
-            )
-        ]
+        return connection_from_list(
+            [
+                to_gql_embedding_dimension(index, embedding_dimension)
+                for index, embedding_dimension in enumerate(
+                    model.embedding_dimensions,
+                )
+            ],
+            args=ConnectionArgs(
+                first=first,
+                after=after if isinstance(after, CursorString) else None,
+                last=last,
+                before=before if isinstance(before, CursorString) else None,
+            ),
+        )
 
     @strawberry.field(
         description="Returns exported file names sorted by descending modification time.",

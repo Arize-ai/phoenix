@@ -4,12 +4,17 @@ import strawberry
 from sqlalchemy import desc, select
 from sqlalchemy.orm import contains_eager
 from strawberry import UNSET
-from strawberry.relay import ListConnection, Node, NodeID, connection
+from strawberry.relay import Connection, Node, NodeID
 from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.Evaluation import TraceEvaluation
+from phoenix.server.api.types.pagination import (
+    ConnectionArgs,
+    CursorString,
+    connection_from_list,
+)
 from phoenix.server.api.types.Span import Span, to_gql_span
 
 
@@ -17,15 +22,21 @@ from phoenix.server.api.types.Span import Span, to_gql_span
 class Trace(Node):
     id_attr: NodeID[int]
 
-    @connection(ListConnection[Span])  # type: ignore
+    @strawberry.field
     async def spans(
         self,
         info: Info[Context, None],
-        first: Optional[int] = UNSET,
+        first: Optional[int] = 50,
         last: Optional[int] = UNSET,
         after: Optional[str] = UNSET,
         before: Optional[str] = UNSET,
-    ) -> List[Span]:
+    ) -> Connection[Span]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
         stmt = (
             select(models.Span)
             .join(models.Trace)
@@ -38,7 +49,8 @@ class Trace(Node):
         )
         async with info.context.db() as session:
             spans = await session.stream_scalars(stmt)
-            return [to_gql_span(span) async for span in spans]
+            data = [to_gql_span(span) async for span in spans]
+        return connection_from_list(data=data, args=args)
 
     @strawberry.field(description="Evaluations associated with the trace")  # type: ignore
     async def trace_evaluations(self, info: Info[Context, None]) -> List[TraceEvaluation]:
