@@ -15,7 +15,7 @@ from pandas.api.types import (
 )
 from typing_extensions import TypeAlias
 
-from phoenix.config import DATASET_DIR, GENERATED_DATASET_NAME_PREFIX
+from phoenix.config import GENERATED_INFERENCES_NAME_PREFIX, INFERENCES_DIR
 from phoenix.datetime_utils import normalize_timestamps
 from phoenix.utilities.deprecation import deprecated
 
@@ -31,7 +31,7 @@ from .schema import (
     SchemaFieldName,
     SchemaFieldValue,
 )
-from .validation import validate_dataset_inputs
+from .validation import validate_inferences_inputs
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ class Inferences:
 
     Examples
     --------
-    >>> primary_dataset = px.Inferences(
+    >>> primary_inferences = px.Inferences(
     >>>    dataframe=production_dataframe, schema=schema, name="primary"
     >>> )
     """
@@ -81,7 +81,7 @@ class Inferences:
         # allow for schema like objects
         if not isinstance(schema, Schema):
             schema = _get_schema_from_unknown_schema_param(schema)
-        errors = validate_dataset_inputs(
+        errors = validate_inferences_inputs(
             dataframe=dataframe,
             schema=schema,
         )
@@ -95,7 +95,7 @@ class Inferences:
         self.__dataframe: DataFrame = dataframe
         self.__schema: Schema = schema
         self.__name: str = (
-            name if name is not None else f"{GENERATED_DATASET_NAME_PREFIX}{str(uuid.uuid4())}"
+            name if name is not None else f"{GENERATED_INFERENCES_NAME_PREFIX}{str(uuid.uuid4())}"
         )
         self._is_empty = self.dataframe.empty
         logger.info(f"""Dataset: {self.__name} initialized""")
@@ -118,7 +118,7 @@ class Inferences:
     @classmethod
     def from_name(cls, name: str) -> "Inferences":
         """Retrieves a dataset by name from the file system"""
-        directory = DATASET_DIR / name
+        directory = INFERENCES_DIR / name
         df = read_parquet(directory / cls._data_file_name)
         with open(directory / cls._schema_file_name) as schema_file:
             schema_json = schema_file.read()
@@ -127,7 +127,7 @@ class Inferences:
 
     def to_disc(self) -> None:
         """writes the data and schema to disc"""
-        directory = DATASET_DIR / self.name
+        directory = INFERENCES_DIR / self.name
         directory.mkdir(parents=True, exist_ok=True)
         self.dataframe.to_parquet(
             directory / self._data_file_name,

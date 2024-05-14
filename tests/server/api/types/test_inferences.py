@@ -2,17 +2,17 @@ from typing import Callable, Literal, Optional
 
 import pytest
 from pandas import DataFrame, Timestamp
-from phoenix.inferences.inferences import Inferences as InternalInference
+from phoenix.inferences.inferences import Inferences as InternalInferences
 from phoenix.inferences.inferences import Schema
 from phoenix.server.api.context import Context
 from strawberry.schema import Schema as StrawberrySchema
 from typing_extensions import TypeAlias
 
-ContextFactory: TypeAlias = Callable[[InternalInference, Optional[InternalInference]], Context]
+ContextFactory: TypeAlias = Callable[[InternalInferences, Optional[InternalInferences]], Context]
 
 
 @pytest.fixture
-def input_dataset() -> InternalInference:
+def input_inferences() -> InternalInferences:
     input_df = DataFrame(
         {
             "prediction_label": ["apple", "orange", "grape"],
@@ -28,27 +28,27 @@ def input_dataset() -> InternalInference:
         prediction_label_column_name="prediction_label",
         timestamp_column_name="timestamp",
     )
-    return InternalInference(dataframe=input_df, schema=input_schema)
+    return InternalInferences(dataframe=input_df, schema=input_schema)
 
 
 class TestDatasetEvents:
     def test_no_input_dimensions_correctly_selects_event_ids_and_all_features_and_tags(
         self,
-        primary_dataset: InternalInference,
-        reference_dataset: InternalInference,
+        primary_inferences: InternalInferences,
+        reference_inferences: InternalInferences,
         context_factory: ContextFactory,
         strawberry_schema: StrawberrySchema,
     ) -> None:
         result = strawberry_schema.execute_sync(
-            query=self._get_events_query("primaryDataset"),
-            context_value=context_factory(primary_dataset, reference_dataset),
+            query=self._get_events_query("primaryInferences"),
+            context_value=context_factory(primary_inferences, reference_inferences),
             variable_values={
-                "eventIds": ["0:DatasetRole.PRIMARY"],
+                "eventIds": ["0:InferencesRole.PRIMARY"],
             },
         )
         assert result.errors is None
         assert result.data is not None
-        events = result.data["model"]["primaryDataset"]["events"]
+        events = result.data["model"]["primaryInferences"]["events"]
         assert len(events) == 1
         event_dimension_names = [
             dim_with_value["dimension"]["name"] for dim_with_value in events[0]["dimensions"]
@@ -72,16 +72,16 @@ class TestDatasetEvents:
 
     def test_input_dimensions_correctly_selects_event_ids_and_dimensions(
         self,
-        primary_dataset: InternalInference,
-        reference_dataset: InternalInference,
+        primary_inferences: InternalInferences,
+        reference_inferences: InternalInferences,
         context_factory: ContextFactory,
         strawberry_schema: StrawberrySchema,
     ) -> None:
         result = strawberry_schema.execute_sync(
-            query=self._get_events_query("referenceDataset"),
-            context_value=context_factory(primary_dataset, reference_dataset),
+            query=self._get_events_query("referenceInferences"),
+            context_value=context_factory(primary_inferences, reference_inferences),
             variable_values={
-                "eventIds": ["1:DatasetRole.REFERENCE", "2:DatasetRole.REFERENCE"],
+                "eventIds": ["1:InferencesRole.REFERENCE", "2:InferencesRole.REFERENCE"],
                 "dimensions": [
                     {"name": "tag0", "type": "tag"},
                 ],
@@ -90,7 +90,7 @@ class TestDatasetEvents:
 
         assert result.errors is None
         assert result.data is not None
-        events = result.data["model"]["referenceDataset"]["events"]
+        events = result.data["model"]["referenceInferences"]["events"]
         assert len(events) == 2
         event_dimension_names = [
             dim_with_value["dimension"]["name"] for dim_with_value in events[0]["dimensions"]
@@ -129,41 +129,41 @@ class TestDatasetEvents:
 
     def test_empty_event_ids_returns_empty_list(
         self,
-        primary_dataset: InternalInference,
-        reference_dataset: InternalInference,
+        primary_inferences: InternalInferences,
+        reference_inferences: InternalInferences,
         context_factory: ContextFactory,
         strawberry_schema: StrawberrySchema,
     ) -> None:
         result = strawberry_schema.execute_sync(
-            query=self._get_events_query("primaryDataset"),
-            context_value=context_factory(primary_dataset, reference_dataset),
+            query=self._get_events_query("primaryInferences"),
+            context_value=context_factory(primary_inferences, reference_inferences),
             variable_values={
                 "eventIds": [],
             },
         )
         assert result.errors is None
         assert result.data is not None
-        assert len(result.data["model"]["primaryDataset"]["events"]) == 0
+        assert len(result.data["model"]["primaryInferences"]["events"]) == 0
 
     def test_empty_input_dimensions_returns_events_with_empty_dimensions(
         self,
-        primary_dataset: InternalInference,
-        reference_dataset: InternalInference,
+        primary_inferences: InternalInferences,
+        reference_inferences: InternalInferences,
         context_factory: ContextFactory,
         strawberry_schema: StrawberrySchema,
     ) -> None:
         result = strawberry_schema.execute_sync(
-            query=self._get_events_query("referenceDataset"),
-            context_value=context_factory(primary_dataset, reference_dataset),
+            query=self._get_events_query("referenceInferences"),
+            context_value=context_factory(primary_inferences, reference_inferences),
             variable_values={
-                "eventIds": ["1:DatasetRole.REFERENCE"],
+                "eventIds": ["1:InferencesRole.REFERENCE"],
                 "dimensions": [],
             },
         )
 
         assert result.errors is None
         assert result.data is not None
-        events = result.data["model"]["referenceDataset"]["events"]
+        events = result.data["model"]["referenceInferences"]["events"]
         assert len(events) == 1
         event_dimensions = events[0]["dimensions"]
         assert len(event_dimensions) == 0
@@ -175,29 +175,31 @@ class TestDatasetEvents:
             "actualScore": 3.0,
         }
 
-    def test_event_ids_from_incorrect_dataset_returns_error(
+    def test_event_ids_from_incorrect_inferences_returns_error(
         self,
-        primary_dataset: InternalInference,
-        reference_dataset: InternalInference,
+        primary_inferences: InternalInferences,
+        reference_inferences: InternalInferences,
         context_factory: ContextFactory,
         strawberry_schema: StrawberrySchema,
     ) -> None:
         result = strawberry_schema.execute_sync(
-            query=self._get_events_query("primaryDataset"),
-            context_value=context_factory(primary_dataset, reference_dataset),
+            query=self._get_events_query("primaryInferences"),
+            context_value=context_factory(primary_inferences, reference_inferences),
             variable_values={
-                "eventIds": ["0:DatasetRole.PRIMARY", "1:DatasetRole.REFERENCE"],
+                "eventIds": ["0:InferencesRole.PRIMARY", "1:InferencesRole.REFERENCE"],
             },
         )
         assert result.errors is not None
         assert len(result.errors) == 1
-        assert "incorrect dataset" in str(result.errors[0])
+        assert "incorrect inferences" in str(result.errors[0])
         assert result.data is None
 
     @staticmethod
-    def _get_events_query(dataset_role: Literal["primaryDataset", "referenceDataset"]) -> str:
+    def _get_events_query(
+        inferences_role: Literal["primaryInferences", "referenceInferences"],
+    ) -> str:
         """
-        Returns a formatted events query for the input dataset type.
+        Returns a formatted events query for the input inferences type.
         """
         return (
             """
@@ -222,13 +224,13 @@ class TestDatasetEvents:
                 }
             }
         """
-            % dataset_role
+            % inferences_role
         )
 
     @staticmethod
     @pytest.fixture
-    def primary_dataset() -> InternalInference:
-        return InternalInference(
+    def primary_inferences() -> InternalInferences:
+        return InternalInferences(
             dataframe=DataFrame(
                 {
                     "prediction_id": ["primary_pred0", "primary_pred1", "primary_pred2"],
@@ -255,8 +257,8 @@ class TestDatasetEvents:
 
     @staticmethod
     @pytest.fixture
-    def reference_dataset() -> InternalInference:
-        return InternalInference(
+    def reference_inferences() -> InternalInferences:
+        return InternalInferences(
             dataframe=DataFrame(
                 {
                     "prediction_id": ["reference_pred0", "reference_pred1", "reference_pred2"],

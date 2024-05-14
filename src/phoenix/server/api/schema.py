@@ -22,7 +22,6 @@ from phoenix.server.api.input_types.Coordinates import (
     InputCoordinate3D,
 )
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
-from phoenix.server.api.types.DatasetRole import AncillaryDatasetRole, DatasetRole
 from phoenix.server.api.types.Dimension import to_gql_dimension
 from phoenix.server.api.types.EmbeddingDimension import (
     DEFAULT_CLUSTER_SELECTION_EPSILON,
@@ -33,6 +32,7 @@ from phoenix.server.api.types.EmbeddingDimension import (
 from phoenix.server.api.types.Event import create_event_id, unpack_event_id
 from phoenix.server.api.types.ExportEventsMutation import ExportEventsMutation
 from phoenix.server.api.types.Functionality import Functionality
+from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
 from phoenix.server.api.types.Model import Model
 from phoenix.server.api.types.node import (
     GlobalID,
@@ -231,28 +231,28 @@ class Query:
             return []
 
         grouped_event_ids: Dict[
-            Union[DatasetRole, AncillaryDatasetRole],
+            Union[InferencesRole, AncillaryInferencesRole],
             List[ID],
         ] = defaultdict(list)
         grouped_coordinates: Dict[
-            Union[DatasetRole, AncillaryDatasetRole],
+            Union[InferencesRole, AncillaryInferencesRole],
             List[npt.NDArray[np.float64]],
         ] = defaultdict(list)
 
         for event_id, coordinate in zip(event_ids, coordinates):
-            row_id, dataset_role = unpack_event_id(event_id)
-            grouped_coordinates[dataset_role].append(coordinate)
-            grouped_event_ids[dataset_role].append(create_event_id(row_id, dataset_role))
+            row_id, inferences_role = unpack_event_id(event_id)
+            grouped_coordinates[inferences_role].append(coordinate)
+            grouped_event_ids[inferences_role].append(create_event_id(row_id, inferences_role))
 
         stacked_event_ids = (
-            grouped_event_ids[DatasetRole.primary]
-            + grouped_event_ids[DatasetRole.reference]
-            + grouped_event_ids[AncillaryDatasetRole.corpus]
+            grouped_event_ids[InferencesRole.primary]
+            + grouped_event_ids[InferencesRole.reference]
+            + grouped_event_ids[AncillaryInferencesRole.corpus]
         )
         stacked_coordinates = np.stack(
-            grouped_coordinates[DatasetRole.primary]
-            + grouped_coordinates[DatasetRole.reference]
-            + grouped_coordinates[AncillaryDatasetRole.corpus]
+            grouped_coordinates[InferencesRole.primary]
+            + grouped_coordinates[InferencesRole.reference]
+            + grouped_coordinates[AncillaryInferencesRole.corpus]
         )
 
         clusters = Hdbscan(

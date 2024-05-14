@@ -8,16 +8,16 @@ import { ColorSchemes } from "@arizeai/point-cloud";
 import {
   ColoringStrategy,
   CorrectnessGroup,
-  DatasetGroup,
   DEFAULT_CLUSTER_MIN_SAMPLES,
   DEFAULT_CLUSTER_SELECTION_EPSILON,
   DEFAULT_DARK_COLOR_SCHEME,
-  DEFAULT_DATASET_SAMPLE_SIZE,
+  DEFAULT_INFERENCES_SAMPLE_SIZE,
   DEFAULT_LIGHT_COLOR_SCHEME,
   DEFAULT_MIN_CLUSTER_SIZE,
   DEFAULT_MIN_DIST,
   DEFAULT_N_NEIGHBORS,
   FALLBACK_COLOR,
+  InferencesGroup,
   SelectionDisplay,
   SelectionGridSize,
   UNKNOWN_COLOR,
@@ -26,7 +26,7 @@ import { getCurrentTheme } from "@phoenix/contexts";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import { Dimension } from "@phoenix/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
-import { splitEventIdsByDataset } from "@phoenix/utils/pointCloudUtils";
+import { splitEventIdsByInferenceSet } from "@phoenix/utils/pointCloudUtils";
 
 import { pointCloudStore_clusterMetricsQuery } from "./__generated__/pointCloudStore_clusterMetricsQuery.graphql";
 import { pointCloudStore_clustersQuery } from "./__generated__/pointCloudStore_clustersQuery.graphql";
@@ -78,7 +78,7 @@ export type UMAPParameters = {
    */
   nNeighbors: number;
   /**
-   * The number of samples to use for the UMAP projection. The sample number is per dataset.
+   * The number of samples to use for the UMAP projection. The sample number is per inferences.
    */
   nSamples: number;
 };
@@ -102,9 +102,9 @@ export enum ClusterColorMode {
 }
 
 /**
- * The visibility of the two datasets in the point cloud.
+ * The visibility of the two inferencess in the point cloud.
  */
-type DatasetVisibility = {
+type InferencesVisibility = {
   primary: boolean;
   reference: boolean;
   corpus: boolean;
@@ -161,8 +161,8 @@ interface ClusterComputedFields {
 interface ClusterBase {
   readonly driftRatio: number | null;
   /**
-   * The ratio of the primary dataset to the corpus
-   * Used for troubleshooting retrieval of data from a corpus dataset
+   * The ratio of the primary inferences to the corpus
+   * Used for troubleshooting retrieval of data from a corpus inferences
    */
   readonly primaryToCorpusRatio: number | null;
   readonly eventIds: readonly string[];
@@ -195,7 +195,7 @@ export type ClusterSort = {
 };
 
 export type EventData =
-  pointCloudStore_eventsQuery$data["model"]["primaryDataset"]["events"][number];
+  pointCloudStore_eventsQuery$data["model"]["primaryInferences"]["events"][number];
 
 /**
  * A mapping from a point ID to its data
@@ -320,10 +320,10 @@ export interface PointCloudProps {
    */
   coloringStrategy: ColoringStrategy;
   /**
-   * The visibility of the two datasets in the point cloud.
+   * The visibility of the two inferencess in the point cloud.
    * @default { primary: true, reference: true }
    */
-  datasetVisibility: DatasetVisibility;
+  inferencesVisibility: InferencesVisibility;
   /**
    * The visibility of the point groups in the point cloud.
    */
@@ -432,10 +432,10 @@ export interface PointCloudState extends PointCloudProps {
    */
   setColoringStrategy: (strategy: ColoringStrategy) => void;
   /**
-   * Sets the dataset visibility to the given value.
-   * @param {DatasetVisibility} visibility
+   * Sets the inferences visibility to the given value.
+   * @param {InferencesVisibility} visibility
    */
-  setDatasetVisibility: (visibility: DatasetVisibility) => void;
+  setInferencesVisibility: (visibility: InferencesVisibility) => void;
   /**
    * Sets the point group visibility for the entire point cloud
    * @param {Record<string, PointGroupVisibility>} visibility
@@ -506,20 +506,20 @@ const getDefaultColorScheme = () => {
 };
 
 /**
- * The default point cloud properties in the case that there are two datasets.
+ * The default point cloud properties in the case that there are two inferencess.
  */
 export function getDefaultDriftPointCloudProps(): Partial<PointCloudProps> {
   const defaultColorScheme = getDefaultColorScheme();
   return {
-    coloringStrategy: ColoringStrategy.dataset,
+    coloringStrategy: ColoringStrategy.inferences,
     pointGroupVisibility: {
-      [DatasetGroup.primary]: true,
-      [DatasetGroup.reference]: true,
+      [InferencesGroup.primary]: true,
+      [InferencesGroup.reference]: true,
     },
     pointGroupColors: {
-      [DatasetGroup.primary]: defaultColorScheme[0],
-      [DatasetGroup.reference]: defaultColorScheme[1],
-      [DatasetGroup.corpus]: FALLBACK_COLOR,
+      [InferencesGroup.primary]: defaultColorScheme[0],
+      [InferencesGroup.reference]: defaultColorScheme[1],
+      [InferencesGroup.corpus]: FALLBACK_COLOR,
     },
     metric: {
       type: "drift",
@@ -529,19 +529,19 @@ export function getDefaultDriftPointCloudProps(): Partial<PointCloudProps> {
 }
 
 /**
- * The default point cloud properties in the case that there are two datasets.
+ * The default point cloud properties in the case that there are two inferencess.
  */
 export function getDefaultRetrievalTroubleshootingPointCloudProps(): Partial<PointCloudProps> {
   const defaultColorScheme = getDefaultColorScheme();
   return {
-    coloringStrategy: ColoringStrategy.dataset,
+    coloringStrategy: ColoringStrategy.inferences,
     pointGroupVisibility: {
-      [DatasetGroup.primary]: true,
-      [DatasetGroup.corpus]: true,
+      [InferencesGroup.primary]: true,
+      [InferencesGroup.corpus]: true,
     },
     pointGroupColors: {
-      [DatasetGroup.primary]: defaultColorScheme[0],
-      [DatasetGroup.corpus]: FALLBACK_COLOR,
+      [InferencesGroup.primary]: defaultColorScheme[0],
+      [InferencesGroup.corpus]: FALLBACK_COLOR,
     },
     metric: {
       type: "retrieval",
@@ -552,9 +552,9 @@ export function getDefaultRetrievalTroubleshootingPointCloudProps(): Partial<Poi
   };
 }
 /**
- * The default point cloud properties in the case that there is only one dataset.
+ * The default point cloud properties in the case that there is only one inferences.
  */
-export function getDefaultSingleDatasetPointCloudProps(): Partial<PointCloudProps> {
+export function getDefaultSingleInferenceSetPointCloudProps(): Partial<PointCloudProps> {
   return {
     coloringStrategy: ColoringStrategy.correctness,
     pointGroupVisibility: {
@@ -579,7 +579,7 @@ export function getDefaultSingleDatasetPointCloudProps(): Partial<PointCloudProp
 export type PointCloudStore = ReturnType<typeof createPointCloudStore>;
 
 export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
-  // The default props irrespective of the number of datasets
+  // The default props irrespective of the number of inferencess
   const defaultProps: PointCloudProps = {
     loading: false,
     errorMessage: null,
@@ -595,18 +595,18 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     canvasMode: CanvasMode.move,
     pointSizeScale: 1,
     clusterColorMode: ClusterColorMode.default,
-    coloringStrategy: ColoringStrategy.dataset,
-    datasetVisibility: { primary: true, reference: true, corpus: true },
+    coloringStrategy: ColoringStrategy.inferences,
+    inferencesVisibility: { primary: true, reference: true, corpus: true },
     pointGroupVisibility: {
-      [DatasetGroup.primary]: true,
-      [DatasetGroup.reference]: true,
-      [DatasetGroup.corpus]: true,
+      [InferencesGroup.primary]: true,
+      [InferencesGroup.reference]: true,
+      [InferencesGroup.corpus]: true,
     },
     pointGroupColors: {
       // TODO move to a single source of truth
-      [DatasetGroup.primary]: getDefaultColorScheme()[0],
-      [DatasetGroup.reference]: getDefaultColorScheme()[1],
-      [DatasetGroup.corpus]: FALLBACK_COLOR,
+      [InferencesGroup.primary]: getDefaultColorScheme()[0],
+      [InferencesGroup.reference]: getDefaultColorScheme()[1],
+      [InferencesGroup.corpus]: FALLBACK_COLOR,
     },
     eventIdToGroup: {},
     selectionDisplay: SelectionDisplay.gallery,
@@ -616,7 +616,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     umapParameters: {
       minDist: DEFAULT_MIN_DIST,
       nNeighbors: DEFAULT_N_NEIGHBORS,
-      nSamples: DEFAULT_DATASET_SAMPLE_SIZE,
+      nSamples: DEFAULT_INFERENCES_SAMPLE_SIZE,
     },
     hdbscanParameters: {
       minClusterSize: DEFAULT_MIN_CLUSTER_SIZE,
@@ -759,19 +759,19 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
             }),
           });
           break;
-        case ColoringStrategy.dataset: {
+        case ColoringStrategy.inferences: {
           // Clear out the point groups as there are no groups
           set({
             pointGroupVisibility: {
-              [DatasetGroup.primary]: true,
-              [DatasetGroup.reference]: true,
-              [DatasetGroup.corpus]: true,
+              [InferencesGroup.primary]: true,
+              [InferencesGroup.reference]: true,
+              [InferencesGroup.corpus]: true,
             },
             pointGroupColors: {
               // TODO move these colors to a constants file
-              [DatasetGroup.primary]: getDefaultColorScheme()[0],
-              [DatasetGroup.reference]: getDefaultColorScheme()[1],
-              [DatasetGroup.corpus]: FALLBACK_COLOR,
+              [InferencesGroup.primary]: getDefaultColorScheme()[0],
+              [InferencesGroup.reference]: getDefaultColorScheme()[1],
+              [InferencesGroup.corpus]: FALLBACK_COLOR,
             },
             dimension: null,
             dimensionMetadata: null,
@@ -810,9 +810,9 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
           assertUnreachable(strategy);
       }
     },
-    datasetVisibility: { primary: true, reference: true, corpus: true },
-    setDatasetVisibility: (visibility) =>
-      set({ datasetVisibility: visibility }),
+    inferencesVisibility: { primary: true, reference: true, corpus: true },
+    setInferencesVisibility: (visibility) =>
+      set({ inferencesVisibility: visibility }),
     setPointGroupVisibility: (visibility) =>
       set({ pointGroupVisibility: visibility }),
     selectionDisplay: SelectionDisplay.gallery,
@@ -1021,17 +1021,17 @@ function getEventIdToGroup(
   const eventIdToGroup: Record<string, string> = {};
   const eventIds = points.map((point) => point.eventId);
   switch (coloringStrategy) {
-    case ColoringStrategy.dataset: {
+    case ColoringStrategy.inferences: {
       const { primaryEventIds, referenceEventIds, corpusEventIds } =
-        splitEventIdsByDataset(eventIds);
+        splitEventIdsByInferenceSet(eventIds);
       primaryEventIds.forEach((eventId) => {
-        eventIdToGroup[eventId] = DatasetGroup.primary;
+        eventIdToGroup[eventId] = InferencesGroup.primary;
       });
       referenceEventIds.forEach((eventId) => {
-        eventIdToGroup[eventId] = DatasetGroup.reference;
+        eventIdToGroup[eventId] = InferencesGroup.reference;
       });
       corpusEventIds.forEach((eventId) => {
-        eventIdToGroup[eventId] = DatasetGroup.corpus;
+        eventIdToGroup[eventId] = InferencesGroup.corpus;
       });
       break;
     }
@@ -1218,7 +1218,7 @@ type GetEventIdToGroupParams = {
 
 async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
   const { primaryEventIds, referenceEventIds, corpusEventIds } =
-    splitEventIdsByDataset([...eventIds]);
+    splitEventIdsByInferenceSet([...eventIds]);
   const data = await fetchQuery<pointCloudStore_eventsQuery>(
     RelayEnvironment,
     graphql`
@@ -1228,7 +1228,7 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
         $corpusEventIds: [ID!]!
       ) {
         model {
-          primaryDataset {
+          primaryInferences {
             events(eventIds: $primaryEventIds) {
               id
               dimensions {
@@ -1249,11 +1249,11 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
                 prompt
                 response
               }
-              # TODO: delineate between corpus events and dataset events
+              # TODO: delineate between corpus events and inferences events
               documentText
             }
           }
-          referenceDataset {
+          referenceInferences {
             events(eventIds: $referenceEventIds) {
               id
               dimensions {
@@ -1278,7 +1278,7 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
               documentText
             }
           }
-          corpusDataset {
+          corpusInferences {
             events(eventIds: $corpusEventIds) {
               id
               dimensions {
@@ -1312,9 +1312,9 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
     }
   ).toPromise();
   // Construct a map of point id to the event data
-  const primaryEvents = data?.model?.primaryDataset?.events ?? [];
-  const referenceEvents = data?.model?.referenceDataset?.events ?? [];
-  const corpusEvents = data?.model?.corpusDataset?.events ?? [];
+  const primaryEvents = data?.model?.primaryInferences?.events ?? [];
+  const referenceEvents = data?.model?.referenceInferences?.events ?? [];
+  const corpusEvents = data?.model?.corpusInferences?.events ?? [];
   const allEvents = [...primaryEvents, ...referenceEvents, ...corpusEvents];
   return allEvents.reduce((acc, event) => {
     acc[event.id] = event;
