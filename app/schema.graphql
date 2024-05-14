@@ -458,7 +458,7 @@ type Model {
     metric: PerformanceMetricInput!
     timeRange: TimeRange
 
-    """The dataset (primary or reference) to query"""
+    """The inferences (primary or reference) to query"""
     inferencesRole: InferencesRole = primary
   ): Float
 
@@ -470,7 +470,7 @@ type Model {
     timeRange: TimeRange!
     granularity: Granularity!
 
-    """The dataset (primary or reference) to query"""
+    """The inferences (primary or reference) to query"""
     inferencesRole: InferencesRole = primary
   ): PerformanceTimeSeries!
 }
