@@ -15,6 +15,7 @@
         "conda",
         "dataframe",
         "dbutils",
+        "dunder",
         "Evals",
         "gitbook",
         "graphiql",

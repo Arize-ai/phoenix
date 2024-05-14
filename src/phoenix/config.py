@@ -105,15 +105,15 @@ GRPC_PORT = 4317
 """The port the gRPC server will run on after launch_app is called.
 The default network port for OTLP/gRPC is 4317.
 See https://opentelemetry.io/docs/specs/otlp/#otlpgrpc-default-port"""
-GENERATED_DATASET_NAME_PREFIX = "phoenix_dataset_"
+GENERATED_INFERENCES_NAME_PREFIX = "phoenix_inferences_"
 """The prefix of datasets that are auto-assigned a name."""
 WORKING_DIR = get_working_dir()
-"""The work directory for saving, loading, and exporting datasets."""
+"""The work directory for saving, loading, and exporting data."""
 
 ROOT_DIR = WORKING_DIR
 EXPORT_DIR = ROOT_DIR / "exports"
-DATASET_DIR = ROOT_DIR / "datasets"
-TRACE_DATASET_DIR = ROOT_DIR / "trace_datasets"
+INFERENCES_DIR = ROOT_DIR / "inferences"
+TRACE_DATASETS_DIR = ROOT_DIR / "trace_datasets"
 
 
 def ensure_working_dir() -> None:
@@ -126,8 +126,8 @@ def ensure_working_dir() -> None:
         for path in (
             ROOT_DIR,
             EXPORT_DIR,
-            DATASET_DIR,
-            TRACE_DATASET_DIR,
+            INFERENCES_DIR,
+            TRACE_DATASETS_DIR,
         ):
             path.mkdir(parents=True, exist_ok=True)
     except Exception as e:

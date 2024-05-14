@@ -1,5 +1,5 @@
 """
-Test dataset
+Test inferences
 """
 
 import logging
@@ -537,7 +537,7 @@ class TestParseDataFrameAndSchema:
             caplog=caplog,
         )
 
-    def test_dataset_coerce_vectors_from_lists_to_arrays(
+    def test_inferences_coerce_vectors_from_lists_to_arrays(
         self,
         caplog,
     ):
@@ -605,7 +605,7 @@ class TestParseDataFrameAndSchema:
                 return True
         return False
 
-    def test_dataset_normalization_columns_already_normalized(self):
+    def test_inferences_normalization_columns_already_normalized(self):
         input_dataframe = DataFrame(
             {
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
@@ -630,7 +630,7 @@ class TestParseDataFrameAndSchema:
 
         assert output_dataframe.equals(input_dataframe)
 
-    def test_dataset_normalization_prediction_id_integer_to_string(self):
+    def test_inferences_normalization_prediction_id_integer_to_string(self):
         input_dataframe = DataFrame(
             {
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
@@ -656,7 +656,7 @@ class TestParseDataFrameAndSchema:
         expected_dataframe["prediction_id"] = expected_dataframe["prediction_id"].astype(str)
         assert output_dataframe.equals(expected_dataframe)
 
-    def test_dataset_normalization_columns_add_missing_prediction_id(self):
+    def test_inferences_normalization_columns_add_missing_prediction_id(self):
         input_dataframe = DataFrame(
             {
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
@@ -696,7 +696,7 @@ class TestParseDataFrameAndSchema:
 class TestDataset:
     _NUM_RECORDS = 9
 
-    def test_dataset_normalization_columns_already_normalized(self):
+    def test_inferences_normalization_columns_already_normalized(self):
         input_dataframe = DataFrame(
             {
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
@@ -715,9 +715,9 @@ class TestDataset:
             prediction_label_column_name="prediction_label",
         )
 
-        dataset = Inferences(dataframe=input_dataframe, schema=input_schema)
-        output_dataframe = dataset.dataframe
-        output_schema = dataset.schema
+        inferences = Inferences(dataframe=input_dataframe, schema=input_schema)
+        output_dataframe = inferences.dataframe
+        output_schema = inferences.schema
 
         assert output_dataframe.equals(
             input_dataframe.set_index("timestamp", drop=False).sort_index()
@@ -725,7 +725,7 @@ class TestDataset:
         assert output_schema == input_schema
 
     # TODO: Move validation tests to validation module; keep one validation integration test
-    def test_dataset_validate_invalid_prediction_id_datatype(self) -> None:
+    def test_inferences_validate_invalid_prediction_id_datatype(self) -> None:
         input_df = DataFrame(
             {
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
@@ -742,13 +742,13 @@ class TestDataset:
             prediction_label_column_name="prediction_label",
         )
 
-        with raises_dataset_error(
+        with raises_inferences_error(
             err.InvalidColumnType,
             "Invalid column types: ['prediction_id should be a string or numeric type']",
         ):
             Inferences(dataframe=input_df, schema=input_schema)
 
-    def test_dataset_validate_invalid_schema_excludes_timestamp(self) -> None:
+    def test_inferences_validate_invalid_schema_excludes_timestamp(self) -> None:
         input_df = DataFrame(
             {
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
@@ -764,14 +764,14 @@ class TestDataset:
             excluded_column_names=["timestamp"],
         )
 
-        with raises_dataset_error(
+        with raises_inferences_error(
             err.InvalidSchemaError,
             "The schema is invalid: timestamp cannot be excluded "
             "because it is already being used as the timestamp column.",
         ):
             Inferences(dataframe=input_df, schema=input_schema)
 
-    def test_dataset_validate_invalid_schema_excludes_prediction_id(self) -> None:
+    def test_inferences_validate_invalid_schema_excludes_prediction_id(self) -> None:
         input_df = DataFrame(
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
@@ -788,14 +788,14 @@ class TestDataset:
             excluded_column_names=["prediction_id"],
         )
 
-        with raises_dataset_error(
+        with raises_inferences_error(
             err.InvalidSchemaError,
             "The schema is invalid: prediction_id cannot be excluded because it is "
             "already being used as the prediction id column.",
         ):
             Inferences(dataframe=input_df, schema=input_schema)
 
-    def test_dataset_validate_invalid_schema_missing_column(self) -> None:
+    def test_inferences_validate_invalid_schema_missing_column(self) -> None:
         input_df = DataFrame(
             {
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
@@ -810,7 +810,7 @@ class TestDataset:
             prediction_label_column_name="prediction_label",
         )
 
-        with raises_dataset_error(
+        with raises_inferences_error(
             err.MissingColumns,
             "The following columns are declared in the Schema "
             "but are not found in the dataframe: prediction_id.",
@@ -823,7 +823,7 @@ class TestDataset:
 
 
 @contextmanager
-def raises_dataset_error(validation_error_type, message):
+def raises_inferences_error(validation_error_type, message):
     with raises(DatasetError) as exc_info:
         yield
     assert [type(error) for error in exc_info.value.errors] == [validation_error_type]
@@ -1321,7 +1321,7 @@ def test_normalize_timestamps_raises_value_error_for_invalid_input() -> None:
         )
 
 
-def test_dataset_with_arize_schema() -> None:
+def test_inferences_with_arize_schema() -> None:
     from arize.utils.types import EmbeddingColumnNames as ArizeEmbeddingColumnNames
     from arize.utils.types import Schema as ArizeSchema
 
@@ -1354,9 +1354,10 @@ def test_dataset_with_arize_schema() -> None:
             )
         },
     )
-    dataset = Inferences(dataframe=input_df, schema=input_schema)
-    assert isinstance(dataset.schema, Schema)
-    assert dataset.schema.prediction_id_column_name == "prediction_id"
+    inferences = Inferences(dataframe=input_df, schema=input_schema)
+    assert isinstance(inferences.schema, Schema)
+    assert inferences.schema.prediction_id_column_name == "prediction_id"
     assert (
-        dataset.schema.embedding_feature_column_names["embedding"].vector_column_name == "embedding"
+        inferences.schema.embedding_feature_column_names["embedding"].vector_column_name
+        == "embedding"
     )

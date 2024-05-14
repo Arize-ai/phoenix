@@ -37,7 +37,7 @@ from phoenix.config import (
     get_exported_files,
     get_working_dir,
 )
-from phoenix.core.model_schema_adapter import create_model_from_datasets
+from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import create_app
@@ -108,9 +108,9 @@ class Session(TraceDataExtractor, ABC):
     def __init__(
         self,
         database_url: str,
-        primary_dataset: Inferences,
-        reference_dataset: Optional[Inferences] = None,
-        corpus_dataset: Optional[Inferences] = None,
+        primary_inferences: Inferences,
+        reference_inferences: Optional[Inferences] = None,
+        corpus_inferences: Optional[Inferences] = None,
         trace_dataset: Optional[TraceDataset] = None,
         default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
@@ -118,9 +118,9 @@ class Session(TraceDataExtractor, ABC):
         notebook_env: Optional[NotebookEnvironment] = None,
     ):
         self._database_url = database_url
-        self.primary_dataset = primary_dataset
-        self.reference_dataset = reference_dataset
-        self.corpus_dataset = corpus_dataset
+        self.primary_inferences = primary_inferences
+        self.reference_inferences = reference_inferences
+        self.corpus_inferences = corpus_inferences
         self.trace_dataset = trace_dataset
         self.umap_parameters = get_umap_parameters(default_umap_parameters)
         self.host = host or get_env_host()
@@ -264,9 +264,9 @@ class ProcessSession(Session):
     def __init__(
         self,
         database_url: str,
-        primary_dataset: Inferences,
-        reference_dataset: Optional[Inferences] = None,
-        corpus_dataset: Optional[Inferences] = None,
+        primary_inferences: Inferences,
+        reference_inferences: Optional[Inferences] = None,
+        corpus_inferences: Optional[Inferences] = None,
         trace_dataset: Optional[TraceDataset] = None,
         default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
@@ -276,20 +276,20 @@ class ProcessSession(Session):
     ) -> None:
         super().__init__(
             database_url=database_url,
-            primary_dataset=primary_dataset,
-            reference_dataset=reference_dataset,
-            corpus_dataset=corpus_dataset,
+            primary_inferences=primary_inferences,
+            reference_inferences=reference_inferences,
+            corpus_inferences=corpus_inferences,
             trace_dataset=trace_dataset,
             default_umap_parameters=default_umap_parameters,
             host=host,
             port=port,
             notebook_env=notebook_env,
         )
-        primary_dataset.to_disc()
-        if isinstance(reference_dataset, Inferences):
-            reference_dataset.to_disc()
-        if isinstance(corpus_dataset, Inferences):
-            corpus_dataset.to_disc()
+        primary_inferences.to_disc()
+        if isinstance(reference_inferences, Inferences):
+            reference_inferences.to_disc()
+        if isinstance(corpus_inferences, Inferences):
+            corpus_inferences.to_disc()
         if isinstance(trace_dataset, TraceDataset):
             trace_dataset.to_disc()
         umap_params_str = (
@@ -304,13 +304,13 @@ class ProcessSession(Session):
             host=self.host,
             port=self.port,
             root_path=self.root_path,
-            primary_dataset_name=self.primary_dataset.name,
+            primary_inferences_name=self.primary_inferences.name,
             umap_params=umap_params_str,
-            reference_dataset_name=(
-                self.reference_dataset.name if self.reference_dataset is not None else None
+            reference_inferences_name=(
+                self.reference_inferences.name if self.reference_inferences is not None else None
             ),
-            corpus_dataset_name=(
-                self.corpus_dataset.name if self.corpus_dataset is not None else None
+            corpus_inferences_name=(
+                self.corpus_inferences.name if self.corpus_inferences is not None else None
             ),
             trace_dataset_name=(
                 self.trace_dataset.name if self.trace_dataset is not None else None
@@ -330,9 +330,9 @@ class ThreadSession(Session):
     def __init__(
         self,
         database_url: str,
-        primary_dataset: Inferences,
-        reference_dataset: Optional[Inferences] = None,
-        corpus_dataset: Optional[Inferences] = None,
+        primary_inferences: Inferences,
+        reference_inferences: Optional[Inferences] = None,
+        corpus_inferences: Optional[Inferences] = None,
         trace_dataset: Optional[TraceDataset] = None,
         default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
@@ -342,24 +342,24 @@ class ThreadSession(Session):
     ):
         super().__init__(
             database_url=database_url,
-            primary_dataset=primary_dataset,
-            reference_dataset=reference_dataset,
-            corpus_dataset=corpus_dataset,
+            primary_inferences=primary_inferences,
+            reference_inferences=reference_inferences,
+            corpus_inferences=corpus_inferences,
             trace_dataset=trace_dataset,
             default_umap_parameters=default_umap_parameters,
             host=host,
             port=port,
             notebook_env=notebook_env,
         )
-        self.model = create_model_from_datasets(
-            primary_dataset,
-            reference_dataset,
+        self.model = create_model_from_inferences(
+            primary_inferences,
+            reference_inferences,
         )
         self.corpus = (
-            create_model_from_datasets(
-                corpus_dataset,
+            create_model_from_inferences(
+                corpus_inferences,
             )
-            if corpus_dataset is not None
+            if corpus_inferences is not None
             else None
         )
         # Initialize an app service that keeps the server running

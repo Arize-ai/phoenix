@@ -13,10 +13,10 @@ import {
 } from "@arizeai/components";
 
 import {
-  MAX_DATASET_SAMPLE_SIZE,
+  MAX_INFERENCES_SAMPLE_SIZE,
   MAX_MIN_DIST,
   MAX_N_NEIGHBORS,
-  MIN_DATASET_SAMPLE_SIZE,
+  MIN_INFERENCES_SAMPLE_SIZE,
   MIN_MIN_DIST,
   MIN_N_NEIGHBORS,
 } from "@phoenix/constants/pointCloudConstants";
@@ -84,9 +84,10 @@ const nSamplesContextualHelp = (
     </Heading>
     <Content>
       <Text elementType="p">
-        Determines the number of samples from each dataset to use when
-        projecting the point cloud using UMAP. This number is per-dataset so a
-        value of 500 means that the point cloud will contain up to 1000 points.
+        Determines the number of samples from each inferences to use when
+        projecting the point cloud using UMAP. This number is per-inferences so
+        a value of 500 means that the point cloud will contain up to 1000
+        points.
       </Text>
       <br />
       <Text elementType="p">
@@ -205,12 +206,12 @@ export function PointCloudParameterSettings() {
           rules={{
             required: "n samples is required",
             max: {
-              value: MAX_DATASET_SAMPLE_SIZE,
-              message: `must be below ${MAX_DATASET_SAMPLE_SIZE}`,
+              value: MAX_INFERENCES_SAMPLE_SIZE,
+              message: `must be below ${MAX_INFERENCES_SAMPLE_SIZE}`,
             },
             min: {
-              value: MIN_DATASET_SAMPLE_SIZE,
-              message: `must be above ${MIN_DATASET_SAMPLE_SIZE}`,
+              value: MIN_INFERENCES_SAMPLE_SIZE,
+              message: `must be above ${MIN_INFERENCES_SAMPLE_SIZE}`,
             },
           }}
           render={({
@@ -222,7 +223,7 @@ export function PointCloudParameterSettings() {
               labelExtra={nSamplesContextualHelp}
               defaultValue="500"
               type="number"
-              description={`number of points to use per dataset`}
+              description={`number of points to use per inferences`}
               errorMessage={error?.message}
               validationState={invalid ? "invalid" : "valid"}
               onChange={(v) => onChange(parseInt(v, 10))}

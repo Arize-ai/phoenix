@@ -11,7 +11,7 @@ const METRIC_DEFINITIONS: Record<
   euclideanDistance: {
     name: "Euclidean Distance",
     shortName: "Euc. Distance",
-    definition: `Euclidean distance over time captures how much your primary dataset's embeddings are drifting from the reference data. Euclidean distance of the embeddings is calculated by taking the centroid of the embedding vectors for each dataset and calculating the distance between the two centroids.`,
+    definition: `Euclidean distance over time captures how much your primary inferences's embeddings are drifting from the reference data. Euclidean distance of the embeddings is calculated by taking the centroid of the embedding vectors for each inferences and calculating the distance between the two centroids.`,
   },
   queryDistance: {
     name: "Query Distance",

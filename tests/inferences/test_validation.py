@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame
 from phoenix.inferences import errors as err
-from phoenix.inferences.inferences import EmbeddingColumnNames, Schema, validate_dataset_inputs
+from phoenix.inferences.inferences import EmbeddingColumnNames, Schema, validate_inferences_inputs
 
 _NUM_RECORDS = 5
 _EMBEDDING_DIMENSION = 7
@@ -31,7 +31,7 @@ def test_embeddings_vector_length_mismatch():
         },
     )
 
-    errors = validate_dataset_inputs(
+    errors = validate_inferences_inputs(
         dataframe=input_dataframe,
         schema=input_schema,
     )
@@ -61,7 +61,7 @@ def test_invalid_embeddings_vector_length():
         },
     )
 
-    errors = validate_dataset_inputs(
+    errors = validate_inferences_inputs(
         dataframe=input_dataframe,
         schema=input_schema,
     )
@@ -102,7 +102,7 @@ def test_embeddings_vector_invalid_type():
         },
     )
 
-    errors = validate_dataset_inputs(
+    errors = validate_inferences_inputs(
         dataframe=input_dataframe,
         schema=input_schema,
     )
@@ -137,7 +137,7 @@ def test_embedding_reserved_columns():
             ),
         },
     )
-    errors = validate_dataset_inputs(
+    errors = validate_inferences_inputs(
         dataframe=input_dataframe,
         schema=input_schema,
     )
@@ -149,7 +149,7 @@ def test_embedding_reserved_columns():
     )
     input_schema = input_schema.replace(prompt_column_names=emb_col_names)
 
-    errors = validate_dataset_inputs(
+    errors = validate_inferences_inputs(
         dataframe=input_dataframe,
         schema=input_schema,
     )
@@ -163,7 +163,7 @@ def test_embedding_reserved_columns():
     input_schema = input_schema.replace(prompt_column_names=None)
     input_schema = input_schema.replace(response_column_names=emb_col_names)
 
-    errors = validate_dataset_inputs(
+    errors = validate_inferences_inputs(
         dataframe=input_dataframe,
         schema=input_schema,
     )

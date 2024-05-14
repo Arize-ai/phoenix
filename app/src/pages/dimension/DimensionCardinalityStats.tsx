@@ -24,7 +24,7 @@ export function DimensionCardinalityStats(props: {
         )
         referenceCardinality: dataQualityMetric(
           metric: cardinality
-          datasetRole: reference
+          inferencesRole: reference
         ) @include(if: $hasReference)
       }
     `,

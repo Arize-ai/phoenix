@@ -3,8 +3,8 @@ import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import { css } from "@emotion/react";
 
-import { useDatasets, usePointCloudContext } from "@phoenix/contexts";
-import { getDatasetRoleFromEventId } from "@phoenix/utils/pointCloudUtils";
+import { useInferences, usePointCloudContext } from "@phoenix/contexts";
+import { getInferencesRoleFromEventId } from "@phoenix/utils/pointCloudUtils";
 
 import { EventItem } from "./EventItem";
 
@@ -22,7 +22,7 @@ const TOOLTIP_OFFSET = 10;
  */
 const vec = new THREE.Vector3();
 export const PointCloudPointTooltip = () => {
-  const { getDatasetNameByRole } = useDatasets();
+  const { getInferencesNameByRole } = useInferences();
   const hoveredEventId = usePointCloudContext((state) => state.hoveredEventId);
   const eventIdToDataMap = usePointCloudContext(
     (state) => state.eventIdToDataMap
@@ -42,8 +42,8 @@ export const PointCloudPointTooltip = () => {
   if (baseEvent == null || eventDetails == null) return null;
   const group = eventIdToGroup[hoveredEventId];
   const color = pointGroupColors[eventIdToGroup[hoveredEventId]];
-  const datasetRole = getDatasetRoleFromEventId(hoveredEventId);
-  const datasetName = getDatasetNameByRole(datasetRole);
+  const inferencesRole = getInferencesRoleFromEventId(hoveredEventId);
+  const inferencesName = getInferencesNameByRole(inferencesRole);
   return (
     <Html
       position={baseEvent.position}
@@ -85,7 +85,7 @@ export const PointCloudPointTooltip = () => {
           actualLabel={baseEvent.eventMetadata.actualLabel}
           promptAndResponse={eventDetails.promptAndResponse}
           documentText={eventDetails.documentText}
-          datasetName={datasetName}
+          inferencesName={inferencesName}
           group={group}
           color={color}
           size={"medium"}
