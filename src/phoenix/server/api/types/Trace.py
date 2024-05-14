@@ -28,8 +28,8 @@ class Trace(Node):
         info: Info[Context, None],
         first: Optional[int] = 50,
         last: Optional[int] = UNSET,
-        after: Optional[str] = UNSET,
-        before: Optional[str] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
     ) -> Connection[Span]:
         args = ConnectionArgs(
             first=first,
