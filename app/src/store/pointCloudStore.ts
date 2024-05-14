@@ -102,7 +102,7 @@ export enum ClusterColorMode {
 }
 
 /**
- * The visibility of the two inferencess in the point cloud.
+ * The visibility of the two inferences in the point cloud.
  */
 type InferencesVisibility = {
   primary: boolean;
