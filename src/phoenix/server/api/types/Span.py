@@ -7,6 +7,7 @@ import numpy as np
 import strawberry
 from openinference.semconv.trace import EmbeddingAttributes, SpanAttributes
 from strawberry import ID, UNSET
+from strawberry.relay import Node, NodeID
 from strawberry.types import Info
 
 import phoenix.trace.schemas as trace_schema
@@ -15,7 +16,6 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
 from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluation
 from phoenix.server.api.types.MimeType import MimeType
-from phoenix.server.api.types.node import Node
 from phoenix.trace.attributes import get_attribute_value
 
 EMBEDDING_EMBEDDINGS = SpanAttributes.EMBEDDING_EMBEDDINGS
@@ -103,6 +103,7 @@ class SpanEvent:
 
 @strawberry.type
 class Span(Node):
+    id_attr: NodeID[int]
     name: str
     status_code: SpanStatusCode
     status_message: str
