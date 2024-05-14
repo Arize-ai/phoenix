@@ -24,8 +24,8 @@ The following environment variables will control how your phoenix server runs.
 
 * **PHOENIX\_PORT:** The port to run the phoenix web server. Defaults to 6006.
 * **PHOENIX\_GRPC\_PORT:** The port to run the gRPC OTLP trace collector. Defaults to 4317.
-* &#x20;**PHOENIX\_HOST:** The host to run the phoenix server. Defaults to 0.0.0.0&#x20;
-* &#x20;**PHOENIX\_WORKING\_DIR:** The directory in which to save, load, and export datasets. This directory must be accessible by both the Phoenix server and the notebook environment.&#x20;
+* **PHOENIX\_HOST:** The host to run the phoenix server. Defaults to 0.0.0.0
+* **PHOENIX\_WORKING\_DIR:** The directory in which to save, load, and export datasets. This directory must be accessible by both the Phoenix server and the notebook environment. Defaults to `~/.phoenix/`
 * **PHOENIX\_SQL\_DATABASE\_URL:** The SQL database URL to use when logging traces and evals. if you plan on using SQLite, it's advised to to use a persistent volume and simply point the `PHOENIX_WORKING_DIR` to that volume. If URL is not specified, by default Phoenix starts with a file-based SQLite database in a temporary folder, the location of which will be shown at startup. Phoenix also supports PostgresSQL as shown below:
   * PostgreSQL, e.g. `postgresql://@host/dbname?user=user&password=password` or `postgresql://user:password@host/dbname`
   * SQLite, e.g. `sqlite:///path/to/database.db`
