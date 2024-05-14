@@ -1,6 +1,6 @@
 from starlette.routing import Route
 
-from . import evaluations, spans, traces
+from . import datasets, evaluations, spans, traces
 
 V1_ROUTES = [
     Route("/v1/evaluations", evaluations.post_evaluations, methods=["POST"]),
@@ -8,4 +8,5 @@ V1_ROUTES = [
     Route("/v1/traces", traces.post_traces, methods=["POST"]),
     Route("/v1/spans", spans.query_spans_handler, methods=["POST"]),
     Route("/v1/spans", spans.get_spans_handler, methods=["GET"]),
+    Route("/v1/datasets/upload", datasets.post_datasets_upload, methods=["POST"]),
 ]
