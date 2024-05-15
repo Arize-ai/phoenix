@@ -353,6 +353,7 @@ def create_app(
     enable_prometheus: bool = False,
     initial_spans: Optional[Iterable[Union[Span, Tuple[Span, str]]]] = None,
     initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
+    serve_ui: bool = True,
 ) -> Starlette:
     clean_ups: List[Callable[[], None]] = []  # To be called at app shutdown.
     initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
@@ -462,21 +463,27 @@ def create_app(
                 "/graphql",
                 graphql,
             ),
-            Mount(
-                "/",
-                app=Static(
-                    directory=SERVER_DIR / "static",
-                    app_config=AppConfig(
-                        has_inferences=model.is_empty is not True,
-                        has_corpus=corpus is not None,
-                        min_dist=umap_params.min_dist,
-                        n_neighbors=umap_params.n_neighbors,
-                        n_samples=umap_params.n_samples,
+        ]
+        + (
+            [
+                Mount(
+                    "/",
+                    app=Static(
+                        directory=SERVER_DIR / "static",
+                        app_config=AppConfig(
+                            has_inferences=model.is_empty is not True,
+                            has_corpus=corpus is not None,
+                            min_dist=umap_params.min_dist,
+                            n_neighbors=umap_params.n_neighbors,
+                            n_samples=umap_params.n_samples,
+                        ),
                     ),
+                    name="static",
                 ),
-                name="static",
-            ),
-        ],
+            ]
+            if serve_ui
+            else []
+        ),
     )
     app.state.read_only = read_only
     app.state.db = db

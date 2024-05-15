@@ -16,9 +16,8 @@ async def test_client(dialect, db):
         model=create_model_from_inferences(EMPTY_INFERENCES, None),
         export_path=EXPORT_DIR,
         umap_params=get_umap_parameters(None),
+        serve_ui=False,
     )
-    # remove UI route at "" to avoid loading static assets
-    app.routes = [route for route in app.routes if route.path != ""]
     async with httpx.AsyncClient(app=app, base_url="http://test") as client:
         yield client
 
