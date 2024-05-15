@@ -19,7 +19,7 @@ from phoenix.config import (
     get_env_grpc_port,
     get_env_host,
     get_env_port,
-    get_env_root_path,
+    get_env_host_root_path,
     get_pids_path,
     get_working_dir,
 )
@@ -120,7 +120,7 @@ if __name__ == "__main__":
     parser.add_argument("--export_path")
     parser.add_argument("--host", type=str, required=False)
     parser.add_argument("--port", type=int, required=False)
-    parser.add_argument("--root_path", type=str, required=False)
+    parser.add_argument("--host-root-path", type=str, required=False)
     parser.add_argument("--read-only", type=bool, default=False)
     parser.add_argument("--no-internet", action="store_true")
     parser.add_argument("--umap_params", type=str, required=False, default=DEFAULT_UMAP_PARAMS_STR)
@@ -199,7 +199,7 @@ if __name__ == "__main__":
         host = None
 
     port = args.port or get_env_port()
-    root_path = args.root_path or get_env_root_path()
+    host_root_path = args.host_root_path or get_env_host_root_path()
     model = create_model_from_datasets(
         primary_dataset,
         reference_dataset,
@@ -253,7 +253,7 @@ if __name__ == "__main__":
         initial_spans=fixture_spans,
         initial_evaluations=fixture_evals,
     )
-    server = Server(config=Config(app, host=host, port=port, root_path=root_path))  # type: ignore
+    server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
 
     # Print information about the server
@@ -262,7 +262,7 @@ if __name__ == "__main__":
         "version": phoenix_version,
         "host": display_host,
         "port": port,
-        "root_path": root_path.lstrip("/"),
+        "root_path": host_root_path.lstrip("/"),
         "grpc_port": get_env_grpc_port(),
         "storage": get_printable_db_url(db_connection_str),
     }
