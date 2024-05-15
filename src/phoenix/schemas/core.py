@@ -55,7 +55,7 @@ class Dataset:
             "name": self.name,
             "description": self.description,
             "metadata": self.metadata,
-            "created_at": self.created_at,
-            "updated_at": self.updated_at,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
             "record_count": active_records,
         }
