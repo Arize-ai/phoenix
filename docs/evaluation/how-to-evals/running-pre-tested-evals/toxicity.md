@@ -57,7 +57,7 @@ We are continually iterating our templates, view the most up-to-date template on
 ## How To Run the Eval
 
 ```python
-from phoenix.experimental.evals import (
+from phoenix.evals import (
     TOXICITY_PROMPT_RAILS_MAP,
     TOXICITY_PROMPT_TEMPLATE,
     OpenAIModel,
@@ -79,6 +79,7 @@ toxic_classifications = llm_classify(
     template=TOXICITY_PROMPT_TEMPLATE,
     model=model,
     rails=rails,
+    provide_explanation=True, #optional to generate explanations for the value produced by the eval LLM
 )
 ```
 

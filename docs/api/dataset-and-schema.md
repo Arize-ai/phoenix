@@ -1,22 +1,22 @@
 ---
 description: >-
-  Detailed descriptions of classes and methods related to Phoenix datasets and
+  Detailed descriptions of classes and methods related to Phoenix inferences and
   schemas
 ---
 
-# Dataset and Schema
+# Inferences and Schema
 
-## phoenix.Dataset
+## phoenix.Inferences
 
 ```python
-class Dataset(
+class Inferences(
     dataframe: pandas.DataFrame,
     schema: Schema,
     name: Optional[str] = None,
 )
 ```
 
-A dataset containing a split or cohort of data to be analyzed independently or compared to another cohort. Common examples include training, validation, test, or production datasets.
+A collection of inferences containing a split or cohort of data to be analyzed independently or compared to another cohort. Common examples include training, validation, test, or production datasets.
 
 **\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/datasets/dataset.py)**]**
 
@@ -24,30 +24,30 @@ A dataset containing a split or cohort of data to be analyzed independently or c
 
 * **dataframe** (pandas.DataFrame): The data to be analyzed or compared.
 * **schema** ([Schema](dataset-and-schema.md#phoenix.schema)): A schema that assigns the columns of the dataframe to the appropriate model dimensions (features, predictions, actuals, etc.).
-* **name** (Optional\[str]): The name used to identify the dataset in the application. If not provided, a random name will be generated.
+* **name** (Optional\[str]): The name used to identify the inferences in the application. If not provided, a random name will be generated.
 
 ### Attributes
 
-* **dataframe** (pandas.DataFrame): The pandas dataframe of the dataset.
-* **schema** ([Schema](dataset-and-schema.md#phoenix.schema)): The schema of the dataset.
-* **name** (str): The name of the dataset.
+* **dataframe** (pandas.DataFrame): The pandas dataframe of the inferences.
+* **schema** ([Schema](dataset-and-schema.md#phoenix.schema)): The schema of the inferences.
+* **name** (str): The name of the inferences.
 
 {% hint style="info" %}
-The input dataframe and schema are lightly processed during dataset initialization and are not necessarily identical to the corresponding `dataframe` and `schema` attributes.
+The input dataframe and schema are lightly processed during inference initialization and are not necessarily identical to the corresponding `dataframe` and `schema` attributes.
 {% endhint %}
 
 ### Usage
 
-Define a dataset `ds` from a pandas dataframe `df` and a schema object `schema` by running
+Define inferences `ds` from a pandas dataframe `df` and a schema object `schema` by running
 
 ```python
-ds = px.Dataset(df, schema)
+ds = px.Inferences(df, schema)
 ```
 
-Alternatively, provide a name for the dataset that will appear in the application:
+Alternatively, provide a name for the inferences that will appear in the application:
 
 ```python
-ds = px.Dataset(df, schema, name="training")
+ds = px.Inferences(df, schema, name="training")
 ```
 
 `ds` is then passed as the `primary` or `reference` argument to [launch\_app](session.md#phoenix.launch\_app).
@@ -77,15 +77,15 @@ Assigns the columns of a pandas dataframe to the appropriate model dimensions (p
 
 ### Parameters
 
-* **prediction\_id\_column\_name** (Optional\[str]): The name of the dataframe's prediction ID column, if one exists. Prediction IDs are strings that uniquely identify each record in a Phoenix dataset (equivalently, each row in the dataframe). If no prediction ID column name is provided, Phoenix will automatically generate unique UUIDs for each record of the dataset upon [Dataset](dataset-and-schema.md#phoenix.dataset) initialization.
+* **prediction\_id\_column\_name** (Optional\[str]): The name of the dataframe's prediction ID column, if one exists. Prediction IDs are strings that uniquely identify each record in Phoenix inferences (equivalently, each row in the dataframe). If no prediction ID column name is provided, Phoenix will automatically generate unique UUIDs for each record of the inferences upon Inferences initialization.
 * **timestamp\_column\_name** (Optional\[str]): The name of the dataframe's timestamp column, if one exists. Timestamp columns must be pandas Series with numeric, datetime or object dtypes.
   * If the timestamp column has numeric dtype (`int` or `float`), the entries of the column are interpreted as Unix timestamps, i.e., the number of seconds since midnight on January 1st, 1970.
   * If the column has datetime dtype and contains timezone-naive timestamps, Phoenix assumes those timestamps belong to the local timezone and converts them to UTC.
   * If the column has datetime dtype and contains timezone-aware timestamps, those timestamps are converted to UTC.
   * If the column has object dtype having ISO8601 formatted timestamp strings, those entries are converted to datetime dtype UTC timestamps; if timezone-naive then assumed as belonging to local timezone.
-  * If no timestamp column is provided, each record in the dataset is assigned the current timestamp upon [Dataset](dataset-and-schema.md#phoenix.dataset) initialization.
+  * If no timestamp column is provided, each record in the inferences is assigned the current timestamp upon Inferences initialization.
 * **feature\_column\_names** (Optional\[List\[str]]): The names of the dataframe's feature columns, if any exist. If no feature column names are provided, all dataframe column names that are not included elsewhere in the schema and are not explicitly excluded in `excluded_column_names` are assumed to be features.
-* **tag\_column\_names** (Optional\[List\[str]]): The names of the dataframe's tag columns, if any exist. Tags, like features, are attributes that can be used for filtering records of the dataset while using the app. Unlike features, tags are not model inputs and are not used for computing metrics.
+* **tag\_column\_names** (Optional\[List\[str]]): The names of the dataframe's tag columns, if any exist. Tags, like features, are attributes that can be used for filtering records of the inferences while using the app. Unlike features, tags are not model inputs and are not used for computing metrics.
 * **prediction\_label\_column\_name** (Optional\[str]): The name of the dataframe's predicted label column, if one exists. Predicted labels are used for classification problems with categorical model output.
 * **prediction\_score\_column\_name** (Optional\[str]): The name of the dataframe's predicted score column, if one exists. Predicted scores are used for regression problems with continuous numerical model output.
 * **actual\_label\_column\_name** (Optional\[str]): The name of the dataframe's actual label column, if one exists. Actual (i.e., ground truth) labels are used for classification problems with categorical model output.

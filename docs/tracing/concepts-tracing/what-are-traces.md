@@ -105,7 +105,7 @@ For example, if a span invokes an LLM, you can capture the model name, the invoc
 Attributes have the following rules:
 
 * Keys must be non-null string values
-* Values must be a non-null string, boolean, floating point value, integer, or an array of these values Additionally, there are Semantic Attributes, which are known naming conventions for metadata that is typically present in common operations. It's helpful to use semantic attribute naming wherever possible so that common kinds of metadata are standardized across systems. See [semantic conventions](https://github.com/Arize-ai/open-inference-spec/blob/main/trace/spec/semantic\_conventions.md) for more information.
+* Values must be a non-null string, boolean, floating point value, integer, or an array of these values Additionally, there are Semantic Attributes, which are known naming conventions for metadata that is typically present in common operations. It's helpful to use semantic attribute naming wherever possible so that common kinds of metadata are standardized across systems. See [semantic conventions](https://github.com/Arize-ai/openinference/blob/main/spec/semantic\_conventions.md) for more information.
 
 ##
 

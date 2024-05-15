@@ -6,7 +6,11 @@
 * [Setup](setup/README.md)
   * [Environments](environments.md)
   * [Configuration](setup/configuration.md)
-* [Deployment](reference/deploying-phoenix.md)
+* [Deployment](deployment/README.md)
+  * [Quickstart: Deployment](deployment/deploying-phoenix.md)
+  * [Persistence](deployment/persistence.md)
+  * [Kubernetes](deployment/kubernetes.md)
+  * [Docker](deployment/docker.md)
 
 ## 🔭 Tracing
 
@@ -19,16 +23,23 @@
   * [Tracing Core Concepts](tracing/how-to-tracing/tracing-core-concepts.md)
   * [Customize Traces](tracing/how-to-tracing/customize-traces.md)
   * [Auto Instrumentation](tracing/how-to-tracing/instrumentation/README.md)
-    * [LlamaIndex](tracing/how-to-tracing/instrumentation/llamaindex.md)
-    * [LangChain](tracing/how-to-tracing/instrumentation/langchain.md)
-    * [OpenAI](tracing/how-to-tracing/instrumentation/openai.md)
-    * [MistralAI](tracing/how-to-tracing/instrumentation/mistralai.md)
-    * [DSPy](tracing/how-to-tracing/instrumentation/dspy.md)
-    * [Bedrock](tracing/how-to-tracing/instrumentation/bedrock.md)
-    * [AutoGen](tracing/how-to-tracing/instrumentation/autogen-support.md)
-  * [Manual Instrumentation](tracing/how-to-tracing/custom-spans.md)
+    * [Auto Instrument: Python](tracing/how-to-tracing/instrumentation/auto-instrument-python/README.md)
+      * [LlamaIndex](tracing/how-to-tracing/instrumentation/auto-instrument-python/llamaindex.md)
+      * [LangChain](tracing/how-to-tracing/instrumentation/auto-instrument-python/langchain.md)
+      * [OpenAI](tracing/how-to-tracing/instrumentation/auto-instrument-python/openai.md)
+      * [MistralAI](tracing/how-to-tracing/instrumentation/auto-instrument-python/mistralai.md)
+      * [DSPy](tracing/how-to-tracing/instrumentation/auto-instrument-python/dspy.md)
+      * [Bedrock](tracing/how-to-tracing/instrumentation/auto-instrument-python/bedrock.md)
+      * [AutoGen](tracing/how-to-tracing/instrumentation/auto-instrument-python/autogen-support.md)
+    * [Auto Instrument: TS](tracing/how-to-tracing/instrumentation/auto-instrument-ts/README.md)
+      * [OpenAI Node SDK](tracing/how-to-tracing/instrumentation/auto-instrument-ts/openai-node-sdk.md)
+      * [LangChain.js](tracing/how-to-tracing/instrumentation/auto-instrument-ts/langchain.js.md)
+  * [Manual Instrumentation](tracing/how-to-tracing/manual-instrumentation/README.md)
+    * [Instrument: Python](tracing/how-to-tracing/manual-instrumentation/custom-spans.md)
+    * [Instrument: TS](tracing/how-to-tracing/manual-instrumentation/javascript.md)
   * [Querying Spans](tracing/how-to-tracing/extract-data-from-spans.md)
   * [Log Evaluation Results](tracing/how-to-tracing/llm-evaluations.md)
+  * [Save and Load Traces](tracing/how-to-tracing/save-and-load-traces.md)
   * [Trace a Deployed App](tracing/how-to-tracing/trace-a-deployed-app.md)
 * [Use Cases: Tracing](tracing/use-cases-tracing/README.md)
   * [Evaluate RAG](use-cases/rag-evaluation.md)
@@ -54,19 +65,19 @@
     * [Toxicity](evaluation/how-to-evals/running-pre-tested-evals/toxicity.md)
     * [AI vs Human (Groundtruth)](evaluation/how-to-evals/running-pre-tested-evals/ai-vs-human-groundtruth.md)
     * [Reference (citation) Link](evaluation/how-to-evals/running-pre-tested-evals/reference-link-evals.md)
+    * [SQL Generation Eval](evaluation/how-to-evals/running-pre-tested-evals/sql-generation-eval.md)
   * [Bring Your Own Evaluator](evaluation/how-to-evals/bring-your-own-evaluator.md)
   * [Online Evals](evaluation/how-to-evals/online-evals.md)
 * [Evaluation Models](evaluation/evaluation-models.md)
 
-## 🔎 Search and Retrieval
+## 🔎 Retrieval
 
-* [Overview: Retrieval](search-and-retrieval/overview-retrieval.md)
-* [Quickstart: Retrieval](search-and-retrieval/quickstart-retrieval.md)
-* [How To: Retrieval](search-and-retrieval/how-to-retrieval.md)
-* [Concepts: Retrieval](search-and-retrieval/concepts-retrieval/README.md)
-  * [Retrieval with Embeddings](search-and-retrieval/concepts-retrieval/troubleshooting-llm-retrieval-with-vector-stores.md)
-  * [Benchmarking Retrieval](search-and-retrieval/concepts-retrieval/benchmarking-retrieval-rag.md)
-  * [Retrieval Evals on Document Chunks](search-and-retrieval/concepts-retrieval/retrieval-evals-on-document-chunks.md)
+* [Overview: Retrieval](retrieval/overview-retrieval.md)
+* [Quickstart: Retrieval](retrieval/quickstart-retrieval.md)
+* [Concepts: Retrieval](retrieval/concepts-retrieval/README.md)
+  * [Retrieval with Embeddings](retrieval/concepts-retrieval/troubleshooting-llm-retrieval-with-vector-stores.md)
+  * [Benchmarking Retrieval](retrieval/concepts-retrieval/benchmarking-retrieval-rag.md)
+  * [Retrieval Evals on Document Chunks](retrieval/concepts-retrieval/retrieval-evals-on-document-chunks.md)
 
 ## 🌌 inferences
 
@@ -79,20 +90,17 @@
   * [Export Data](how-to/export-your-data.md)
   * [Generate Embeddings](inferences/how-to-inferences/generating-embeddings.md)
   * [Manage the App](how-to/manage-the-app.md)
+* [Concepts: Inferences](inferences/inferences.md)
+* [How to: Inferences](inferences/how-to-inferences-1/README.md)
+  * [Use Example Inferences](inferences/how-to-inferences-1/use-example-datasets.md)
 * [Use-Cases: Inferences](inferences/use-cases-inferences/README.md)
   * [Embeddings Analysis](inferences/use-cases-inferences/embeddings-analysis.md)
-* [Concepts: Inferences](inferences/concepts-inferences/README.md)
-  * [Concepts: Inferences](inferences/concepts-inferences/inferences.md)
-* [How to: Inferences](inferences/how-to-inferences-1/README.md)
-  * [Use Example Datasets](inferences/how-to-inferences-1/use-example-datasets.md)
-
-## 🔮 Use Cases
 
 ## ⌨️ API
 
-* [Dataset and Schema](api/dataset-and-schema.md)
+* [Inferences and Schema](api/dataset-and-schema.md)
 * [Session](api/session.md)
-* [Client](api/client.md)
+* [Client & Get Spans](api/client.md)
 * [Evals](api/evals.md)
 * [Models](api/evaluation-models.md)
 
@@ -101,10 +109,6 @@
 * [Arize](integrations/arize/README.md)
   * [Export Data from Arize to Phoenix](integrations/bring-production-data-to-notebook-for-eda-or-retraining.md)
 * [Ragas](integrations/ragas.md)
-
-## 🏴‍☠️ Programming Languages
-
-* [JavaScript](programming-languages/javascript.md)
 
 ## 📚 Reference
 

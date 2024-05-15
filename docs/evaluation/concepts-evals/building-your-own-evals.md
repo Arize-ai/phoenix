@@ -25,7 +25,7 @@ Building such a dataset is laborious, but you can often find a standardized one 
 The Evals dataset is designed or easy benchmarking and pre-set downloadable test datasets. The datasets are pre-tested, many are hand crafted and designed for testing specific Eval tasks.
 
 ```python
-from phoenix.experimental.evals import download_benchmark_dataset
+from phoenix.evals import download_benchmark_dataset
 
 df = download_benchmark_dataset(
     task="binary-hallucination-classification", dataset_name="halueval_qa_data"

@@ -1,6 +1,6 @@
 # Concepts: Retrieval
 
-We've collected a few best practices on how to troubleshoot and evaluate search and retrieval use cases. Check them out below!
+We've collected a few best practices on how to troubleshoot and evaluate search and retrieval use cases:
 
 {% content-ref url="benchmarking-retrieval-rag.md" %}
 [benchmarking-retrieval-rag.md](benchmarking-retrieval-rag.md)

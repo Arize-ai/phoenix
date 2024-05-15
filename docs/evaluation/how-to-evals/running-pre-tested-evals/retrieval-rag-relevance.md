@@ -53,7 +53,7 @@ We are continually iterating our templates, view the most up-to-date template on
 
 ## How To Run the Eval
 
-<pre class="language-python"><code class="lang-python"><strong>from phoenix.experimental.evals import (
+<pre class="language-python"><code class="lang-python"><strong>from phoenix.evals import (
 </strong>    RAG_RELEVANCY_PROMPT_RAILS_MAP,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     OpenAIModel,
@@ -75,6 +75,7 @@ relevance_classifications = llm_classify(
     template=RAG_RELEVANCY_PROMPT_TEMPLATE,
     model=model,
     rails=rails,
+    provide_explanation=True, #optional to generate explanations for the value produced by the eval LLM
 )
 </code></pre>
 
