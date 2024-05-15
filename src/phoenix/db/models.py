@@ -406,7 +406,7 @@ class DatasetExample(Base):
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
 
 
-class DatasetExampleRevisions(Base):
+class DatasetExampleRevision(Base):
     __tablename__ = "dataset_example_revisions"
     id: Mapped[int] = mapped_column(primary_key=True)
     dataset_example_id: Mapped[int] = mapped_column(
