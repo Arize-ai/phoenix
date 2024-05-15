@@ -40,7 +40,7 @@ from phoenix.config import (
 from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
-from phoenix.server.app import create_app
+from phoenix.server.app import create_app, create_engine_and_run_migrations
 from phoenix.server.thread_server import ThreadServer
 from phoenix.services import AppService
 from phoenix.session.client import Client
@@ -364,7 +364,7 @@ class ThreadSession(Session):
         )
         # Initialize an app service that keeps the server running
         self.app = create_app(
-            database_url=database_url,
+            db=create_engine_and_run_migrations(database_url),
             export_path=self.export_path,
             model=self.model,
             corpus=self.corpus,

@@ -32,7 +32,7 @@ from phoenix.pointcloud.umap_parameters import (
     DEFAULT_N_SAMPLES,
     UMAPParameters,
 )
-from phoenix.server.app import create_app
+from phoenix.server.app import create_app, create_engine_and_run_migrations
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
@@ -249,7 +249,7 @@ if __name__ == "__main__":
 
     working_dir = get_working_dir().resolve()
     app = create_app(
-        database_url=db_connection_str,
+        db=create_engine_and_run_migrations(db_connection_str),
         export_path=export_path,
         model=model,
         umap_params=umap_params,

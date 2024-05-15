@@ -302,8 +302,48 @@ async def api_docs(request: Request) -> Response:
     return get_swagger_ui_html(openapi_url="/schema", title="arize-phoenix API")
 
 
-def create_app(
+class SessionFactory:
+    def __init__(
+        self,
+        session_factory: Callable[[], AsyncContextManager[AsyncSession]],
+        dialect: str,
+        engine: Optional[AsyncEngine] = None,
+    ):
+        self.session_factory = session_factory
+        self.dialect = dialect
+        self.engine = engine
+
+    def __call__(self) -> AsyncSession:
+        return self.session_factory()
+
+
+def create_engine_and_run_migrations(
     database_url: str,
+) -> SessionFactory:
+    try:
+        engine = create_engine(database_url)
+    except PhoenixMigrationError as e:
+        msg = (
+            "\n\n⚠️⚠️ Phoenix failed to migrate the database to the latest version. ⚠️⚠️\n\n"
+            "The database may be in a dirty state. To resolve this, the Alembic CLI can be used\n"
+            "from the `src/phoenix/db` directory inside the Phoenix project root. From here,\n"
+            "revert any partial migrations and run `alembic stamp` to reset the migration state,\n"
+            "then try starting Phoenix again.\n\n"
+            "If issues persist, please reach out for support in the Arize community Slack:\n"
+            "https://arize-ai.slack.com\n\n"
+            "You can also refer to the Alembic documentation for more information:\n"
+            "https://alembic.sqlalchemy.org/en/latest/tutorial.html\n\n"
+            ""
+        )
+        raise PhoenixMigrationError(msg) from e
+    factory = SessionFactory(
+        session_factory=_db(engine), dialect=engine.dialect.name, engine=engine
+    )
+    return factory
+
+
+def create_app(
+    db: SessionFactory,
     export_path: Path,
     model: Model,
     umap_params: UMAPParameters,
@@ -324,28 +364,12 @@ def create_app(
         )
     )
     initial_batch_of_evaluations = () if initial_evaluations is None else initial_evaluations
-    try:
-        engine = create_engine(database_url)
-    except PhoenixMigrationError as e:
-        msg = (
-            "\n\n⚠️⚠️ Phoenix failed to migrate the database to the latest version. ⚠️⚠️\n\n"
-            "The database may be in a dirty state. To resolve this, the Alembic CLI can be used\n"
-            "from the `src/phoenix/db` directory inside the Phoenix project root. From here,\n"
-            "revert any partial migrations and run `alembic stamp` to reset the migration state,\n"
-            "then try starting Phoenix again.\n\n"
-            "If issues persist, please reach out for support in the Arize community Slack:\n"
-            "https://arize-ai.slack.com\n\n"
-            "You can also refer to the Alembic documentation for more information:\n"
-            "https://alembic.sqlalchemy.org/en/latest/tutorial.html\n\n"
-            ""
-        )
-        raise PhoenixMigrationError(msg) from e
     cache_for_dataloaders = (
         CacheForDataLoaders()
-        if SupportedSQLDialect(engine.dialect.name) is SupportedSQLDialect.SQLITE
+        if SupportedSQLDialect(db.dialect) is SupportedSQLDialect.SQLITE
         else None
     )
-    db = _db(engine)
+
     bulk_inserter = BulkInserter(
         db,
         enable_prometheus=enable_prometheus,
@@ -356,29 +380,33 @@ def create_app(
     tracer_provider = None
     strawberry_extensions = schema.get_extensions()
     if server_instrumentation_is_enabled():
-        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
-        from opentelemetry.trace import TracerProvider
-        from strawberry.extensions.tracing import OpenTelemetryExtension
+        if engine := db.engine:
+            from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+            from opentelemetry.trace import TracerProvider
+            from strawberry.extensions.tracing import OpenTelemetryExtension
 
-        tracer_provider = initialize_opentelemetry_tracer_provider()
-        SQLAlchemyInstrumentor().instrument(
-            engine=engine.sync_engine,
-            tracer_provider=tracer_provider,
-        )
-        clean_ups.append(SQLAlchemyInstrumentor().uninstrument)
-        if TYPE_CHECKING:
-            # Type-check the class before monkey-patching its private attribute.
-            assert OpenTelemetryExtension._tracer
+            tracer_provider = initialize_opentelemetry_tracer_provider()
+            SQLAlchemyInstrumentor().instrument(
+                engine=engine.sync_engine,
+                tracer_provider=tracer_provider,
+            )
+            clean_ups.append(SQLAlchemyInstrumentor().uninstrument)
+            if TYPE_CHECKING:
+                # Type-check the class before monkey-patching its private attribute.
+                assert OpenTelemetryExtension._tracer
 
-        class _OpenTelemetryExtension(OpenTelemetryExtension):
-            def __init__(self, *args: Any, **kwargs: Any) -> None:
-                super().__init__(*args, **kwargs)
-                # Monkey-patch its private tracer to eliminate usage of the global
-                # TracerProvider, which in a notebook setting could be the one
-                # used by OpenInference.
-                self._tracer = cast(TracerProvider, tracer_provider).get_tracer("strawberry")
+            class _OpenTelemetryExtension(OpenTelemetryExtension):
+                def __init__(self, *args: Any, **kwargs: Any) -> None:
+                    super().__init__(*args, **kwargs)
+                    # Monkey-patch its private tracer to eliminate usage of the global
+                    # TracerProvider, which in a notebook setting could be the one
+                    # used by OpenInference.
+                    self._tracer = cast(TracerProvider, tracer_provider).get_tracer("strawberry")
 
-        strawberry_extensions.append(_OpenTelemetryExtension)
+            strawberry_extensions.append(_OpenTelemetryExtension)
+        else:
+            logger.info("Instrumenting is not supported in tests.")
+
     graphql = GraphQLWithContext(
         db=db,
         schema=strawberry.Schema(

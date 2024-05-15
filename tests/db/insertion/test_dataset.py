@@ -25,13 +25,13 @@ async def test_create_dataset(
         )
     async with db() as session:
         data = await session.scalars(
-            select(models.DatasetExampleRevisions)
+            select(models.DatasetExampleRevision)
             .join(models.DatasetExample)
             .join_from(models.DatasetExample, models.Dataset)
             .where(models.Dataset.name == "abc")
             .where(models.Dataset.description == "xyz")
             .where(models.Dataset.metadata_["m"].as_float() == 0)
-            .order_by(models.DatasetExampleRevisions.id)
+            .order_by(models.DatasetExampleRevision.id)
         )
     rev = next(data)
     assert rev.input == {"x": 1, "y": 2}
