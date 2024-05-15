@@ -42,7 +42,7 @@ const sideNavCSS = css`
 
 const navLinkCSS = css`
   width: 100%;
-  color: var(--ac-global-text-color-500);
+  color: var(--ac-global-color-grey-500);
   background-color: transparent;
   border-radius: var(--ac-global-rounding-small);
   display: flex;
@@ -54,11 +54,11 @@ const navLinkCSS = css`
     background-color 0.2s ease-in-out;
   text-decoration: none;
   &.active {
-    color: var(--ac-global-text-color-900);
+    color: var(--ac-global-color-grey-1200);
     background-color: var(--ac-global-color-primary-300);
   }
   &:hover:not(.active) {
-    color: var(--ac-global-text-color-900);
+    color: var(--ac-global-color-grey-1200);
     background-color: var(--ac-global-color-grey-200);
   }
   & > .ac-icon-wrap {
@@ -114,7 +114,7 @@ export function DocsLink() {
   return (
     <ExternalLink
       href="https://docs.arize.com/phoenix"
-      icon={<Icon svg={<Icons.BookFilled />} />}
+      icon={<Icon svg={<Icons.BookOutline />} />}
       text="Documentation"
     />
   );
