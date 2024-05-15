@@ -1,7 +1,7 @@
 import React, { Suspense } from "react";
 import { useLoaderData } from "react-router";
 
-import { Flex, Heading, Text, View } from "@arizeai/components";
+import { Flex, Text, View } from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
 
