@@ -15,7 +15,7 @@ Phoenix is built by [Arize AI](https://www.arize.com), the company behind the th
 In your Jupyter or Colab environment, run the following command to install.
 
 ```sh
-pip install arize-phoenix[evals]
+pip install 'arize-phoenix[evals]'
 ```
 
 For full details on how to run phoenix in various environments such as Databricks, consult our [environments guide.](environments.md)
@@ -36,11 +36,13 @@ Checkout the [environments section](environments.md) and [deployment guide](depl
 {% endtab %}
 {% endtabs %}
 
+Note that `arize-phoenix and arize-phoenix-evals` work on conjunction with OpenTelemetry and [OpenInference](https://github.com/Arize-ai/openinference) instrumentation. If you are looking to deploy phoenix as a service rather than a library, see [deployment](deployment/ "mention")
+
 ## Quickstarts
 
 Running Phoenix for the first time? Select a quickstart below.&#x20;
 
-<table data-card-size="large" data-view="cards"><thead><tr><th align="center"></th><th data-hidden data-card-target data-type="content-ref"></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td align="center"><strong>Tracing</strong> </td><td><a href="quickstart/llm-traces.md">llm-traces.md</a></td><td><a href=".gitbook/assets/Screenshot 2023-09-27 at 1.51.45 PM.png">Screenshot 2023-09-27 at 1.51.45 PM.png</a></td></tr><tr><td align="center"><strong>Evaluation</strong></td><td><a href="quickstart/evals.md">evals.md</a></td><td><a href=".gitbook/assets/evals.png">evals.png</a></td></tr><tr><td align="center"><strong>Inferences</strong></td><td><a href="quickstart/phoenix-inferences/">phoenix-inferences</a></td><td><a href=".gitbook/assets/Screenshot 2023-09-27 at 1.53.06 PM.png">Screenshot 2023-09-27 at 1.53.06 PM.png</a></td></tr></tbody></table>
+<table data-card-size="large" data-view="cards"><thead><tr><th align="center"></th><th data-hidden data-card-target data-type="content-ref"></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td align="center"><strong>Tracing</strong> </td><td><a href="quickstart/llm-traces.md">llm-traces.md</a></td><td><a href=".gitbook/assets/Screenshot 2023-09-27 at 1.51.45 PM.png">Screenshot 2023-09-27 at 1.51.45 PM.png</a></td></tr><tr><td align="center"><strong>Evaluation</strong></td><td><a href="quickstart/evals.md">evals.md</a></td><td><a href=".gitbook/assets/evals.png">evals.png</a></td></tr><tr><td align="center"><strong>Inferences</strong></td><td><a href="quickstart/phoenix-inferences/">phoenix-inferences</a></td><td><a href=".gitbook/assets/Screenshot 2023-09-27 at 1.53.06 PM.png">Screenshot 2023-09-27 at 1.53.06 PM.png</a></td></tr><tr><td align="center"><strong>Deployment</strong></td><td><a href="deployment/">deployment</a></td><td><a href=".gitbook/assets/k8s.png">k8s.png</a></td></tr></tbody></table>
 
 ### Demo
 
@@ -57,23 +59,3 @@ Check out a comprehensive list of example notebooks for LLM Traces, Evals, RAG A
 ### [Community](https://join.slack.com/t/arize-ai/shared\_invite/zt-1ppbtg5dd-1CYmQO4dWF4zvXFiONTjMg)
 
 Join the Phoenix Slack community to ask questions, share findings, provide feedback, and connect with other developers.&#x20;
-
-## Supported Eval Models
-
-The phoenix library supports a set of foundation models for Evals:
-
-Direct Integrations:
-
-* OpenAI
-* Vertex AI
-* Azure Open AI
-* Anthropic
-* Mixtral/Mistral&#x20;
-* AWS Bedrock
-
-&#x20;Partner Integrations:
-
-* Llama
-* Falcon
-* Code Llama
-* Local Hosted Models
