@@ -2,10 +2,13 @@ import React from "react";
 import { createRoutesFromElements, Route, RouterProvider } from "react-router";
 import { createBrowserRouter } from "react-router-dom";
 
+import { datasetLoaderQuery$data } from "./pages/dataset/__generated__/datasetLoaderQuery.graphql";
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
-import { projectLoader, ProjectPage } from "./pages/project";
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
 import {
+  datasetLoader,
+  DatasetPage,
+  DatasetsPage,
   dimensionLoader,
   DimensionPage,
   embeddingLoader,
@@ -15,6 +18,8 @@ import {
   Layout,
   ModelPage,
   ModelRoot,
+  projectLoader,
+  ProjectPage,
   ProjectsPage,
   ProjectsRoot,
   TracePage,
@@ -76,6 +81,17 @@ const router = createBrowserRouter(
             </Route>
           </Route>
         </Route>
+      </Route>
+      <Route path="/datasets" handle={{ crumb: () => "datasets" }}>
+        <Route index element={<DatasetsPage />} />
+        <Route
+          path=":datasetId"
+          loader={datasetLoader}
+          handle={{
+            crumb: (data: datasetLoaderQuery$data) => data.dataset.name,
+          }}
+          element={<DatasetPage />}
+        />
       </Route>
     </Route>
   ),
