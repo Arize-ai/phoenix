@@ -11,6 +11,7 @@
   * [Persistence](deployment/persistence.md)
   * [Kubernetes](deployment/kubernetes.md)
   * [Docker](deployment/docker.md)
+  * [FAQs: Deployment](deployment/faqs-deployment.md)
 
 ## 🔭 Tracing
 

@@ -15,10 +15,11 @@ def launch_app(
     host: Optional[str] = None,
     port: Optional[int] = None,
     run_in_thread: Optional[bool] = True,
+    use_temp_dir: Optional[bool] = True,
 ) -> Session
 ```
 
-Launches and returns a new Phoenix session.&#x20;
+Launches and returns a new Phoenix session in a python notebook.
 
 All parameters are optional and `launch_app()` launches a Phoenix session with no data and is always ready to receive trace data your LLM applications in real time. See [LLM Traces](../concepts/llm-traces.md) for more.
 
@@ -35,6 +36,7 @@ All parameters are optional and `launch_app()` launches a Phoenix session with n
 * **host** (Optional\[str]): The host on which the server runs. It can also be set using environment variable `PHOENIX_HOST`, otherwise it defaults to `127.0.0.1`. Most users don't need to worry this parameter.
 * **port** (Optional\[int]): The port on which the server listens. It can also be set using environment variable `PHOENIX_PORT`, otherwise it defaults to `6006`. This parameter is useful if `6006` is already occupied by a separate application.
 * **run\_in\_thread** (bool): Whether the server should run in a Thread or Process. Defaults to True. This can be turned off if there is a problem starting a thread in a Jupyter Notebook.
+* **use\_temp\_dir** (bool): By default, data will be persisted in a temp directory. Set this to false to write to the directory specified by the PHOENIX\_WORKING\_DIR environment variable. See [#environment-variables](../setup/configuration.md#environment-variables "mention")
 * **default\_umap\_parameters** (Optional Dict\[str, Union\[int, float]]): default UMAP parameters to use when launching the point-cloud eg: {"n\_neighbors": 10, "n\_samples": 5, "min\_dist": 0.5}
 
 ### Returns
@@ -212,6 +214,14 @@ Get spans associated with calls to retrievers in a Retrieval Augmented Generatio
 <pre class="language-python"><code class="lang-python"><strong>session.get_spans_dataframe("span_kind == 'RETRIEVER'")
 </strong></code></pre>
 
+## phoenix.delete\_all
+
+```python
+def delete_all(prompt_before_delete: Optional[bool] = True) -> None:
+```
+
+Removes all persisted data under the **PHOENIX\_WORKING\_DIR** to reset your session on next launch.
+
 ## Environment Variables
 
 Some settings of the Phoenix [Session](session.md#phoenix.session) can be configured through the environment variables below.&#x20;
@@ -219,9 +229,9 @@ Some settings of the Phoenix [Session](session.md#phoenix.session) can be config
 * `PHOENIX_PORT` The port on which the server listens.
 * `PHOENIX_HOST` The host on which the server listens.
 
-Below is an example of how to set up the `port` parameter as an environment variable.
+Below is an example of how to set up the `port` parameter as an environment variable.&#x20;
 
-```
+```python
 import os
 os.environ["PHOENIX_PORT"] = "54321"
 ```
