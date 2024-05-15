@@ -25,7 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, UploadFile
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import JSONResponse, Response
 from starlette.status import (
     HTTP_403_FORBIDDEN,
     HTTP_422_UNPROCESSABLE_ENTITY,
@@ -35,8 +35,37 @@ from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
 from phoenix.db.insertion.dataset import DatasetAction, add_dataset_examples
+from phoenix.schemas.core import Dataset
 
 logger = logging.getLogger(__name__)
+
+
+async def get_dataset_by_id(request: Request) -> Response:
+    """
+    summary: Get dataset by ID
+    operationId: getDatasetById
+    tags:
+      - datasets
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    responses:
+      200:
+        description: Success
+      404:
+        description: Dataset not found
+    """
+    dataset_id = int(request.path_params["id"])
+    async with request.app.state.db() as session:
+        dataset = await session.get(models.Dataset, dataset_id)
+        if dataset is None:
+            return Response(status_code=404)
+        model = Dataset.from_model(dataset)
+        output_dict = await model.serialize(session=session)
+        return JSONResponse(content=output_dict)
 
 
 async def post_datasets_upload(request: Request) -> Response:
