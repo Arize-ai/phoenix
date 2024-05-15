@@ -2,7 +2,7 @@ import tempfile
 
 import httpx
 import pytest
-from phoenix.core.model_schema_adapter import create_model_from_datasets
+from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import models
 from phoenix.inferences.inferences import EMPTY_INFERENCES
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
@@ -15,7 +15,7 @@ async def test_client(dialect, db):
     temp_dir = tempfile.TemporaryDirectory()
     app = create_app(
         db=factory,
-        model=create_model_from_datasets(EMPTY_INFERENCES, None),
+        model=create_model_from_inferences(EMPTY_INFERENCES, None),
         export_path=temp_dir.name,
         umap_params=get_umap_parameters(None),
     )
