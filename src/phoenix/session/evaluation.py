@@ -149,6 +149,6 @@ def log_evaluations(
     port = port or get_env_port()
     endpoint = endpoint or urljoin(
         get_env_collector_endpoint() or f"http://{host}:{port}",
-        "/v1/traces",
+        "v1/traces",
     )
     Client(endpoint=endpoint).log_evaluations(*evals)

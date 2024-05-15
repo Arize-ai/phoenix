@@ -35,7 +35,7 @@ class _OpenInferenceExporter(OTLPSpanExporter):
             host = "127.0.0.1"
         endpoint = urljoin(
             get_env_collector_endpoint() or f"http://{host}:{get_env_port()}",
-            "/v1/traces",
+            "v1/traces",
         )
         _warn_if_phoenix_is_not_running(endpoint)
         super().__init__(endpoint)
@@ -117,14 +117,14 @@ class HttpExporter:
 
     def _url(self, message: Message) -> str:
         if isinstance(message, pb.Evaluation):
-            return urljoin(self._base_url, "/v1/evaluations")
+            return urljoin(self._base_url, "v1/evaluations")
         logger.exception(f"unrecognized message type: {type(message)}")
         assert_never(message)
 
 
 def _warn_if_phoenix_is_not_running(endpoint: str) -> None:
     try:
-        requests.get(urljoin(endpoint, "/arize_phoenix_version")).raise_for_status()
+        requests.get(urljoin(endpoint, "arize_phoenix_version")).raise_for_status()
     except Exception:
         logger.warning(
             f"Arize Phoenix is not running on {endpoint}. Launch Phoenix "
