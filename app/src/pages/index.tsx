@@ -10,3 +10,5 @@ export * from "./ModelRoot";
 export * from "./TracingRoot";
 export * from "./ProjectsRoot";
 export * from "./projects";
+export * from "./datasets";
+export * from "./dataset";
