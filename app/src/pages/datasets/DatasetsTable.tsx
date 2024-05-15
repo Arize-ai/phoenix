@@ -25,7 +25,6 @@ type DatasetsTableProps = {
 };
 
 export function DatasetsTable(props: DatasetsTableProps) {
-  console.log("rendering DatasetsTable");
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
