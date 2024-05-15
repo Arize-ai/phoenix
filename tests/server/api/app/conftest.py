@@ -26,6 +26,10 @@ async def test_client(dialect, db):
 
 @pytest.fixture
 async def simple_dataset(session):
+    """
+    A dataset with one example added in one version
+    """
+
     dataset = models.Dataset(
         id=0,
         name="simple dataset",
@@ -66,6 +70,10 @@ async def simple_dataset(session):
 
 @pytest.fixture
 async def empty_dataset(session):
+    """
+    A dataset with three versions, where two examples are added, patched, then deleted
+    """
+
     dataset = models.Dataset(
         id=1,
         name="empty dataset",
@@ -186,4 +194,108 @@ async def empty_dataset(session):
         revision_kind="DELETE",
     )
     session.add(example_2_revision_3)
+    await session.flush()
+
+
+@pytest.fixture
+async def dataset_with_revisions(session):
+    """
+    A dataset with two versions, first two examples are added, then one example is patched and a
+    third example is added
+    """
+
+    dataset = models.Dataset(
+        id=2,
+        name="revised dataset",
+        description="this dataset grows over time",
+        metadata_={},
+    )
+    session.add(dataset)
+    await session.flush()
+
+    dataset_version_4 = models.DatasetVersion(
+        id=4,
+        dataset_id=2,
+        description="data gets added",
+        metadata_={"info": "gotta get some test data somewhere"},
+    )
+    session.add(dataset_version_4)
+    await session.flush()
+
+    example_3 = models.DatasetExample(
+        id=3,
+        dataset_id=2,
+    )
+    session.add(example_3)
+    await session.flush()
+
+    example_4 = models.DatasetExample(
+        id=4,
+        dataset_id=2,
+    )
+    session.add(example_4)
+    await session.flush()
+
+    example_3_revision_4 = models.DatasetExampleRevision(
+        id=7,
+        dataset_example_id=3,
+        dataset_version_id=4,
+        input={"in": "foo"},
+        output={"out": "bar"},
+        metadata_={"info": "first revision"},
+        revision_kind="CREATE",
+    )
+    session.add(example_3_revision_4)
+    await session.flush()
+
+    example_4_revision_4 = models.DatasetExampleRevision(
+        id=8,
+        dataset_example_id=4,
+        dataset_version_id=4,
+        input={"in": "foofoo"},
+        output={"out": "barbar"},
+        metadata_={"info": "first revision"},
+        revision_kind="CREATE",
+    )
+    session.add(example_4_revision_4)
+    await session.flush()
+
+    dataset_version_5 = models.DatasetVersion(
+        id=5,
+        dataset_id=2,
+        description="data gets patched and added",
+        metadata_={},
+    )
+    session.add(dataset_version_5)
+    await session.flush()
+
+    example_5 = models.DatasetExample(
+        id=5,
+        dataset_id=2,
+    )
+    session.add(example_5)
+    await session.flush()
+
+    example_4_revision_5 = models.DatasetExampleRevision(
+        id=9,
+        dataset_example_id=4,
+        dataset_version_id=5,
+        input={"in": "updated foofoo"},
+        output={"out": "updated barbar"},
+        metadata_={"info": "updating revision"},
+        revision_kind="PATCH",
+    )
+    session.add(example_4_revision_5)
+    await session.flush()
+
+    example_5_revision_5 = models.DatasetExampleRevision(
+        id=10,
+        dataset_example_id=5,
+        dataset_version_id=5,
+        input={"in": "look at me"},
+        output={"out": "i have all the answers"},
+        metadata_={"info": "a new example"},
+        revision_kind="CREATE",
+    )
+    session.add(example_5_revision_5)
     await session.flush()
