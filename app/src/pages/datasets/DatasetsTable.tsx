@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {
@@ -25,6 +25,7 @@ type DatasetsTableProps = {
 };
 
 export function DatasetsTable(props: DatasetsTableProps) {
+  console.log("rendering DatasetsTable");
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -51,7 +52,10 @@ export function DatasetsTable(props: DatasetsTableProps) {
     `,
     props.query
   );
-  const tableData = data.datasets.edges.map((edge) => edge.node);
+  const tableData = useMemo(
+    () => data.datasets.edges.map((edge) => edge.node),
+    [data.datasets.edges]
+  );
   const fetchMoreOnBottomReached = React.useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {

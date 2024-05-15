@@ -28,6 +28,7 @@ export function DatasetsPage() {
 }
 
 export function DatasetsPageContent() {
+  console.log("rendering DatasetsPageContent");
   const data = useLazyLoadQuery<DatasetsPageQuery>(
     graphql`
       query DatasetsPageQuery {
