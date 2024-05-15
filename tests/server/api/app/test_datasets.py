@@ -1,5 +1,3 @@
-from phoenix.db import models
-from sqlalchemy import select
 
 
 async def test_datasets(test_client, dataset_0):
