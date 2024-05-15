@@ -7,7 +7,6 @@ from phoenix.db import models
 from phoenix.inferences.inferences import EMPTY_INFERENCES
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import SessionFactory, create_app
-from starlette.testclient import TestClient
 
 
 @pytest.fixture

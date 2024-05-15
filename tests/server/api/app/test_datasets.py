@@ -5,7 +5,7 @@ async def test_get_simple_dataset(test_client, simple_dataset):
 
     assert "created_at" in dataset_json
     assert "updated_at" in dataset_json
-    fixture_values ={
+    fixture_values = {
         "id": 0,
         "name": "simple dataset",
         "description": "a test dataset with a single example",
@@ -22,7 +22,7 @@ async def test_get_empty_dataset(test_client, empty_dataset):
 
     assert "created_at" in dataset_json
     assert "updated_at" in dataset_json
-    fixture_values ={
+    fixture_values = {
         "id": 1,
         "name": "empty dataset",
         "description": "emptied after two revisions",
@@ -39,7 +39,7 @@ async def test_get_dataset_with_revisions(test_client, dataset_with_revisions):
 
     assert "created_at" in dataset_json
     assert "updated_at" in dataset_json
-    fixture_values ={
+    fixture_values = {
         "id": 2,
         "name": "revised dataset",
         "description": "this dataset grows over time",
