@@ -27,7 +27,7 @@ class Dataset:
             metadata=model.metadata_,
         )
 
-    async def count_active_records(self, session: AsyncSession) -> int:
+    async def count_active_examples(self, session: AsyncSession) -> int:
         result = await session.execute(
             select(
                 func.sum(
@@ -49,7 +49,7 @@ class Dataset:
         return active_count if active_count is not None else 0
 
     async def serialize(self, session: AsyncSession) -> Dict[str, Any]:
-        active_records = await self.count_active_records(session)
+        active_examples = await self.count_active_examples(session)
         return {
             "id": self.id,
             "name": self.name,
@@ -57,5 +57,5 @@ class Dataset:
             "metadata": self.metadata,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
-            "record_count": active_records,
+            "example_count": active_examples,
         }
