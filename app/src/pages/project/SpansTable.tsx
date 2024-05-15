@@ -1,5 +1,6 @@
 import React, {
   startTransition,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -323,7 +324,7 @@ export function SpansTable(props: SpansTableProps) {
       );
     });
   }, [sorting, refetch, filterCondition, fetchKey]);
-  const fetchMoreOnBottomReached = React.useCallback(
+  const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
         const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
