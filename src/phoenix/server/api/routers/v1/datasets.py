@@ -63,8 +63,8 @@ async def get_dataset_by_id(request: Request) -> Response:
         dataset = await session.get(models.Dataset, dataset_id)
         if dataset is None:
             return Response(status_code=404)
-        model = Dataset.from_model(dataset)
-        output_dict = await model.serialize(session=session)
+        model = await Dataset.from_model(dataset, session)
+        output_dict = await model.serialize()
         return JSONResponse(content=output_dict)
 
 

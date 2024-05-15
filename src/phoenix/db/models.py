@@ -14,12 +14,14 @@ from sqlalchemy import (
     String,
     TypeDecorator,
     UniqueConstraint,
+    case,
     func,
     insert,
+    select,
     text,
 )
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import (
@@ -381,6 +383,25 @@ class Dataset(Base):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
+
+    async def load_example_count(self, session: AsyncSession) -> int:
+        result = await session.execute(
+            select(
+                func.sum(
+                    case(
+                        (DatasetExampleRevision.revision_kind == "CREATE", 1),
+                        (DatasetExampleRevision.revision_kind == "DELETE", -1),
+                        else_=0,
+                    )
+                )
+            )
+            .select_from(DatasetExampleRevision)
+            .join(DatasetExample, DatasetExample.id == DatasetExampleRevision.dataset_example_id)
+            .filter(DatasetExample.dataset_id == self.id)
+        )
+        active_count = result.scalar()
+        assert isinstance(active_count, int) or active_count is None
+        return active_count if active_count is not None else 0
 
 
 class DatasetVersion(Base):

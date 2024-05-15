@@ -3,8 +3,6 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from phoenix.db import models
-from sqlalchemy import case, func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @dataclass
@@ -15,9 +13,10 @@ class Dataset:
     created_at: datetime
     updated_at: datetime
     metadata: Dict[str, Any]
+    example_count: int
 
     @classmethod
-    def from_model(cls, model: models.Dataset) -> "Dataset":
+    async def from_model(cls, model: models.Dataset, session) -> "Dataset":
         return cls(
             id=model.id,
             name=model.name,
@@ -25,32 +24,10 @@ class Dataset:
             created_at=model.created_at,
             updated_at=model.updated_at,
             metadata=model.metadata_,
+            example_count=await model.load_example_count(session),
         )
 
-    async def count_active_examples(self, session: AsyncSession) -> int:
-        result = await session.execute(
-            select(
-                func.sum(
-                    case(
-                        (models.DatasetExampleRevision.revision_kind == "CREATE", 1),
-                        (models.DatasetExampleRevision.revision_kind == "DELETE", -1),
-                        else_=0,
-                    )
-                )
-            )
-            .select_from(models.DatasetExampleRevision)
-            .join(
-                models.DatasetExample,
-                models.DatasetExample.id == models.DatasetExampleRevision.dataset_example_id,
-            )
-            .filter(models.DatasetExample.dataset_id == self.id)
-        )
-        active_count = result.scalar()
-        assert isinstance(active_count, int) or active_count is None
-        return active_count if active_count is not None else 0
-
-    async def serialize(self, session: AsyncSession) -> Dict[str, Any]:
-        active_examples = await self.count_active_examples(session)
+    async def serialize(self) -> Dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
@@ -58,5 +35,5 @@ class Dataset:
             "metadata": self.metadata,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
-            "example_count": active_examples,
+            "example_count": self.example_count,
         }
