@@ -1,5 +1,5 @@
 import { fetchQuery, graphql } from "react-relay";
-import { LoaderFunctionArgs } from "react-router";
+import { LoaderFunctionArgs } from "react-router-dom";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
