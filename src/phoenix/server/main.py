@@ -71,7 +71,7 @@ _WELCOME_MESSAGE = """
 |  Phoenix UI: http://{host}:{port}/{root_path}
 |  Log traces:
 |    - gRPC: http://{host}:{grpc_port}
-|    - HTTP: http://{host}:{port}/v1/traces
+|    - HTTP: http://{host}:{port}/{root_path}/v1/traces
 |  Storage: {storage}
 """
 
@@ -262,7 +262,7 @@ if __name__ == "__main__":
         "version": phoenix_version,
         "host": display_host,
         "port": port,
-        "root_path": host_root_path.lstrip("/"),
+        "root_path": host_root_path.strip("/"),
         "grpc_port": get_env_grpc_port(),
         "storage": get_printable_db_url(db_connection_str),
     }
