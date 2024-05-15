@@ -17,11 +17,13 @@ class Dataset:
     metadata: Dict[str, Any]
 
     @classmethod
-    def from_model(cls, model):
+    def from_model(cls, model: models.Dataset) -> "Dataset":
         return cls(
             id=model.id,
             name=model.name,
             description=model.description,
+            created_at=model.created_at,
+            modified_at=model.modified_at,
             metadata=model.metadata_,
         )
 
@@ -46,12 +48,14 @@ class Dataset:
         active_count = result.scalar()
         return active_count if active_count is not None else 0
 
-    async def serialize(self, session):
+    async def serialize(self, session: AsyncSession) -> Dict[str, Any]:
         active_records = await self.count_active_records(session)
         return {
+            "id": self.id,
             "name": self.name,
             "description": self.description,
-            "id": self.id,
             "metadata": self.metadata,
+            "created_at": self.created_at,
+            "modified_at": self.modified_at,
             "record_count": active_records,
         }
