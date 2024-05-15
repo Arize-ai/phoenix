@@ -13,7 +13,7 @@ class Dataset:
     name: str
     description: str
     created_at: datetime
-    modified_at: datetime
+    updated_at: datetime
     metadata: Dict[str, Any]
 
     @classmethod
@@ -23,7 +23,7 @@ class Dataset:
             name=model.name,
             description=model.description,
             created_at=model.created_at,
-            modified_at=model.modified_at,
+            updated_at=model.updated_at,
             metadata=model.metadata_,
         )
 
@@ -56,6 +56,6 @@ class Dataset:
             "description": self.description,
             "metadata": self.metadata,
             "created_at": self.created_at,
-            "modified_at": self.modified_at,
+            "updated_at": self.updated_at,
             "record_count": active_records,
         }
