@@ -76,11 +76,11 @@ export function DatasetsTable(props: DatasetsTableProps) {
         cell: ({ row }) => {
           return (
             <Flex direction="column" gap="size-50">
-              <a href={`/datasets/${row.original.id}`}>
+              <Link to={`${row.original.id}`}>
                 <Text textSize="xlarge" color="inherit">
                   {row.original.name}
                 </Text>
-              </a>
+              </Link>
               <Text color="text-700">{row.original.description}</Text>
             </Flex>
           );
