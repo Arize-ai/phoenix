@@ -85,7 +85,7 @@ function SideNav() {
               <NavLink
                 to="/model"
                 text="Model"
-                icon={<Icon svg={<Icons.Cube />} />}
+                icon={<Icon svg={<Icons.CubeOutline />} />}
               />
             </li>
           )}
@@ -93,7 +93,14 @@ function SideNav() {
             <NavLink
               to="/projects"
               text="Projects"
-              icon={<Icon svg={<Icons.Grid />} />}
+              icon={<Icon svg={<Icons.GridOutline />} />}
+            />
+          </li>
+          <li>
+            <NavLink
+              to="/datasets"
+              text="Datasets"
+              icon={<Icon svg={<Icons.DatabaseOutline />} />}
             />
           </li>
         </ul>
