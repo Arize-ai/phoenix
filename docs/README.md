@@ -31,6 +31,8 @@ conda install -c conda-forge arize-phoenix[evals]
 Phoenix can also run via a container. The image can be found at:
 
 {% embed url="https://hub.docker.com/r/arizephoenix/phoenix" %}
+Images for phoenix are published to dockerhub
+{% endembed %}
 
 Checkout the [environments section](environments.md) and [deployment guide](deployment/deploying-phoenix.md) for details.
 {% endtab %}
