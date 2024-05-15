@@ -15,7 +15,7 @@ In your Jupyter or Colab environment, run the following command to install.
 {% tabs %}
 {% tab title="Using pip" %}
 ```sh
-pip install arize-phoenix[evals]
+pip install 'arize-phoenix[evals]'
 ```
 {% endtab %}
 
@@ -33,7 +33,7 @@ import phoenix as px
 session = px.launch_app()
 ```
 
-The above launches a Phoenix server that acts as a trace collector for any LLM application running locally.
+The above launches a Phoenix server that acts as a trace collector for any LLM application running locally in you jupyter notebook! (Note, this step is not necessary if you have launched the app via [Docker](../deployment/docker.md))
 
 ```markup
 🌍 To view the Phoenix app in your browser, visit https://z8rwookkcle1-496ff2e9c6d22116-6060-colab.googleusercontent.com/
