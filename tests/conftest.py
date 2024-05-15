@@ -28,11 +28,8 @@ def pytest_collection_modifyitems(config, items):
     skip_postgres = pytest.mark.skip(reason="Skipping Postgres tests")
     if not config.getoption("--run-postgres"):
         for item in items:
-            if "session" in item.fixturenames:
-                if "postgres_session" in item.callspec.params.values():
-                    item.add_marker(skip_postgres)
-            elif "db" in item.fixturenames:
-                if "postgres_db" in item.callspec.params.values():
+            if "dialect" in item.fixturenames:
+                if "postgresql" in item.callspec.params.values():
                     item.add_marker(skip_postgres)
 
 
