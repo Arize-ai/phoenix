@@ -8,7 +8,7 @@ async def test_get_simple_dataset(test_client, simple_dataset):
     fixture_values = {
         "id": 0,
         "name": "simple dataset",
-        "description": "a test dataset with a single example",
+        "description": None,
         "metadata": {"info": "a test dataset"},
         "example_count": 1,
     }

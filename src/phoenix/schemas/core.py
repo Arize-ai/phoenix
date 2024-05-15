@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from phoenix.db import models
 from sqlalchemy import case, func, select
@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 class Dataset:
     id: int
     name: str
-    description: str
+    description: Optional[str]
     created_at: datetime
     updated_at: datetime
     metadata: Dict[str, Any]
@@ -46,6 +46,7 @@ class Dataset:
             .filter(models.DatasetExample.dataset_id == self.id)
         )
         active_count = result.scalar()
+        assert isinstance(active_count, int) or active_count is None
         return active_count if active_count is not None else 0
 
     async def serialize(self, session: AsyncSession) -> Dict[str, Any]:

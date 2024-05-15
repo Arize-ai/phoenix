@@ -32,7 +32,7 @@ async def simple_dataset(session):
     dataset = models.Dataset(
         id=0,
         name="simple dataset",
-        description="a test dataset with a single example",
+        description=None,
         metadata_={"info": "a test dataset"},
     )
     session.add(dataset)
