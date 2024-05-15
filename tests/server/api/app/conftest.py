@@ -1,7 +1,6 @@
-import tempfile
-
 import httpx
 import pytest
+from phoenix.config import EXPORT_DIR
 from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import models
 from phoenix.inferences.inferences import EMPTY_INFERENCES
@@ -12,11 +11,10 @@ from phoenix.server.app import SessionFactory, create_app
 @pytest.fixture
 async def test_client(dialect, db):
     factory = SessionFactory(session_factory=db, dialect=dialect)
-    temp_dir = tempfile.TemporaryDirectory()
     app = create_app(
         db=factory,
         model=create_model_from_inferences(EMPTY_INFERENCES, None),
-        export_path=temp_dir.name,
+        export_path=EXPORT_DIR,
         umap_params=get_umap_parameters(None),
     )
     async with httpx.AsyncClient(app=app, base_url="http://test") as client:
