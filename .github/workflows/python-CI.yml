@@ -124,8 +124,17 @@ jobs:
               run: |
                   sudo apt-get -yqq install postgresql
 
-            - name: Create necessary directories
-              run: mkdir -p /home/runner/work/phoenix/phoenix/src/phoenix/server/static
+            - name: Create necessary directories (Linux)
+              if: runner.os == 'Linux'
+              run: mkdir -p ~/.phoenix
+    
+            - name: Create necessary directories (macOS)
+              if: runner.os == 'macOS'
+              run: mkdir -p ~/.phoenix
+    
+            - name: Create necessary directories (Windows)
+              if: runner.os == 'Windows'
+              run: mkdir -p $env:USERPROFILE\.phoenix
 
             - name: Run tests (Ubuntu)
               if: runner.os == 'Linux'
