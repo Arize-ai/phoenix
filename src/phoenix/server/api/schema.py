@@ -352,8 +352,8 @@ class Mutation(ExportEventsMutation):
         self,
         info: Info[Context, None],
         name: str,
-        description: Optional[str],
-        metadata: Optional[JSON],
+        description: Optional[str] = None,
+        metadata: Optional[JSON] = None,
     ) -> Dataset:
         metadata = metadata or {}
         async with info.context.db() as session:
@@ -366,22 +366,23 @@ class Mutation(ExportEventsMutation):
                 )
                 .returning(
                     models.Dataset.id,
+                    models.Dataset.name,
+                    models.Dataset.description,
                     models.Dataset.created_at,
                     models.Dataset.updated_at,
+                    models.Dataset.metadata_,
                 )
             )
-            row = result.fetchone()
-            if row:
-                return Dataset(
-                    id_attr=row.id,
-                    name=name,
-                    description=description,
-                    created_at=row.created_at,
-                    updated_at=row.updated_at,
-                    metadata=metadata,
-                )
-            else:
+            if not (row := result.fetchone()):
                 raise ValueError("Failed to create dataset")
+            return Dataset(
+                id_attr=row.id,
+                name=row.name,
+                description=row.description,
+                created_at=row.created_at,
+                updated_at=row.updated_at,
+                metadata=row.metadata_,
+            )
 
 
 # This is the schema for generating `schema.graphql`.
