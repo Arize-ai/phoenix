@@ -17,7 +17,6 @@ from typing import (
     Union,
     cast,
 )
-from urllib.parse import urljoin
 
 import pandas as pd
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue

@@ -55,9 +55,7 @@ class Client(TraceDataExtractor):
         host = get_env_host()
         if host == "0.0.0.0":
             host = "127.0.0.1"
-        base_url = (
-            endpoint or get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
-        )
+        base_url = endpoint or get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
         self._base_url = base_url if base_url.endswith("/") else base_url + "/"
 
         self._session = Session()

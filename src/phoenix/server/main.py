@@ -18,8 +18,8 @@ from phoenix.config import (
     get_env_enable_prometheus,
     get_env_grpc_port,
     get_env_host,
-    get_env_port,
     get_env_host_root_path,
+    get_env_port,
     get_pids_path,
     get_working_dir,
 )
