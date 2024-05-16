@@ -257,7 +257,7 @@ if __name__ == "__main__":
     engine = create_engine_and_run_migrations(db_connection_str)
     instrumentation_cleanups = instrument_engine_if_enabled(engine)
     factory = SessionFactory(
-        session_factory=_db(engine), dialect=engine.dialect.name, engine=engine
+        session_factory=_db(engine), dialect=engine.dialect.name
     )
     app = create_app(
         db=factory,

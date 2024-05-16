@@ -307,11 +307,9 @@ class SessionFactory:
         self,
         session_factory: Callable[[], AsyncContextManager[AsyncSession]],
         dialect: str,
-        engine: Optional[AsyncEngine] = None,
     ):
         self.session_factory = session_factory
         self.dialect = dialect
-        self.engine = engine
 
     def __call__(self) -> AsyncContextManager[AsyncSession]:
         return self.session_factory()

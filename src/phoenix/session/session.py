@@ -372,7 +372,7 @@ class ThreadSession(Session):
         engine = create_engine_and_run_migrations(database_url)
         instrumentation_cleanups = instrument_engine_if_enabled(engine)
         factory = SessionFactory(
-            session_factory=_db(engine), dialect=engine.dialect.name, engine=engine
+            session_factory=_db(engine), dialect=engine.dialect.name
         )
         self.app = create_app(
             db=factory,
