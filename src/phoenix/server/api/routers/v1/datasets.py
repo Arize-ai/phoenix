@@ -183,7 +183,14 @@ async def get_dataset_by_id(request: Request) -> Response:
             content=f"ID {dataset_id} refers to a f{type_name}", status_code=HTTP_404_NOT_FOUND
         )
     async with request.app.state.db() as session:
-        dataset = await session.get(models.Dataset, int(dataset_id.node_id))
+        result = await session.execute(
+            select(models.Dataset, models.Dataset.example_count).filter(
+                models.Dataset.id == int(dataset_id.node_id)
+            )
+        )
+        dataset_query = result.first()
+        dataset = dataset_query[0] if dataset_query else None
+        example_count = dataset_query[1] if dataset_query else 0
         if dataset is None:
             return Response(
                 content=f"Dataset with ID {dataset_id} not found", status_code=HTTP_404_NOT_FOUND
@@ -196,7 +203,7 @@ async def get_dataset_by_id(request: Request) -> Response:
             "metadata": dataset.metadata_,
             "created_at": dataset.created_at.isoformat(),
             "updated_at": dataset.updated_at.isoformat(),
-            "example_count": await dataset.load_example_count(session),
+            "example_count": example_count,
         }
         return JSONResponse(content=output_dict)
 
