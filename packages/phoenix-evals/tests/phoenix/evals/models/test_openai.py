@@ -30,16 +30,15 @@ def test_azure_openai_model(monkeypatch):
 
 def test_azure_openai_model_added_custom_header(monkeypatch):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
-    with mock.patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        header_key = "header"
-        header_value = "my-example-header-value"
-        default_headers = {header_key: header_value}
-        model = OpenAIModel(
-            model="gpt-4-turbo-preview",
-            api_version="2023-07-01-preview",
-            azure_endpoint="https://example-endpoint.openai.azure.com",
-            default_headers=default_headers,
-        )
+    header_key = "header"
+    header_value = "my-example-header-value"
+    default_headers = {header_key: header_value}
+    model = OpenAIModel(
+        model="gpt-4-turbo-preview",
+        api_version="2023-07-01-preview",
+        azure_endpoint="https://example-endpoint.openai.azure.com",
+        default_headers=default_headers,
+    )
 
     assert isinstance(model._client, AzureOpenAI)
     # check if custom header is added to headers
