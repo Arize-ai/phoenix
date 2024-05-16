@@ -33,7 +33,7 @@ export function CreateDatasetForm(props: CreateDatasetFormProps) {
   const { onDatasetCreated, onDatasetCreateError } = props;
   const {
     control,
-    handleSubmit: handleSubmit,
+    handleSubmit,
     formState: { isDirty, isValid },
   } = useForm({
     defaultValues: {
