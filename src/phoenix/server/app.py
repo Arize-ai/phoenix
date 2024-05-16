@@ -306,10 +306,10 @@ class SessionFactory:
     def __init__(
         self,
         session_factory: Callable[[], AsyncContextManager[AsyncSession]],
-        dialect: SupportedSQLDialect,
+        dialect: str,
     ):
         self.session_factory = session_factory
-        self.dialect = dialect
+        self.dialect = SupportedSQLDialect(dialect)
 
     def __call__(self) -> AsyncContextManager[AsyncSession]:
         return self.session_factory()
@@ -375,9 +375,7 @@ def create_app(
     )
     initial_batch_of_evaluations = () if initial_evaluations is None else initial_evaluations
     cache_for_dataloaders = (
-        CacheForDataLoaders()
-        if SupportedSQLDialect(db.dialect) is SupportedSQLDialect.SQLITE
-        else None
+        CacheForDataLoaders() if db.dialect is SupportedSQLDialect.SQLITE else None
     )
 
     bulk_inserter = BulkInserter(
