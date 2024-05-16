@@ -1,6 +1,7 @@
 from unittest import mock
 
 import pytest
+from unittest.mock import patch
 from openai import AzureOpenAI, OpenAI
 from phoenix.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME, OpenAIModel
 
@@ -26,6 +27,31 @@ def test_azure_openai_model(monkeypatch):
         azure_endpoint="https://example-endpoint.openai.azure.com",
     )
     assert isinstance(model._client, AzureOpenAI)
+
+
+def test_azure_openai_model_added_custom_header(monkeypatch):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        header_key = "header"
+        header_value = "my-example-header-value"
+        default_headers = {header_key: header_value}
+        model = OpenAIModel(
+            model="gpt-4-turbo-preview",
+            api_version="2023-07-01-preview",
+            azure_endpoint="https://example-endpoint.openai.azure.com",
+            default_headers=default_headers,
+        )
+
+    assert isinstance(model._client, AzureOpenAI)
+    # check if custom header is added to headers
+    assert (
+        header_key in model._client.default_headers
+        and model._client.default_headers.get(header_key) == header_value
+    )
+    assert (
+        header_key in model._async_client.default_headers
+        and model._async_client.default_headers.get(header_key) == header_value
+    )
 
 
 def test_azure_fails_when_missing_options(monkeypatch):
