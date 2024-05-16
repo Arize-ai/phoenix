@@ -1,7 +1,6 @@
 from unittest import mock
 
 import pytest
-from unittest.mock import patch
 from openai import AzureOpenAI, OpenAI
 from phoenix.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME, OpenAIModel
 
@@ -31,7 +30,7 @@ def test_azure_openai_model(monkeypatch):
 
 def test_azure_openai_model_added_custom_header(monkeypatch):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+    with mock.patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
         header_key = "header"
         header_value = "my-example-header-value"
         default_headers = {header_key: header_value}
