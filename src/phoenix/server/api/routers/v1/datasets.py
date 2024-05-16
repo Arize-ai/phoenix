@@ -28,9 +28,11 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.status import (
     HTTP_403_FORBIDDEN,
+    HTTP_404_NOT_FOUND,
     HTTP_422_UNPROCESSABLE_ENTITY,
     HTTP_429_TOO_MANY_REQUESTS,
 )
+from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
@@ -50,21 +52,28 @@ async def get_dataset_by_id(request: Request) -> Response:
         name: id
         required: true
         schema:
-          type: integer
+          type: string
     responses:
       200:
         description: Success
       404:
         description: Dataset not found
     """
-    dataset_id = int(request.path_params["id"])
+    dataset_id = GlobalID.from_id(request.path_params["id"])
+
+    if (type_name := dataset_id.type_name) != "Dataset":
+        return Response(
+            content=f"ID {dataset_id} refers to a f{type_name}", status_code=HTTP_404_NOT_FOUND
+        )
     async with request.app.state.db() as session:
-        dataset = await session.get(models.Dataset, dataset_id)
+        dataset = await session.get(models.Dataset, int(dataset_id.node_id))
         if dataset is None:
-            return Response(status_code=404)
+            return Response(
+                content=f"Dataset with ID {dataset_id} not found", status_code=HTTP_404_NOT_FOUND
+            )
 
         output_dict = {
-            "id": dataset.id,
+            "id": str(dataset_id),
             "name": dataset.name,
             "description": dataset.description,
             "metadata": dataset.metadata_,
