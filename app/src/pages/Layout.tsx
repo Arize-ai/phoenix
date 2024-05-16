@@ -103,6 +103,13 @@ function SideNav() {
               icon={<Icon svg={<Icons.DatabaseOutline />} />}
             />
           </li>
+          <li>
+            <NavLink
+              to="/apis"
+              text="APIs"
+              icon={<Icon svg={<Icons.Code />} />}
+            />
+          </li>
         </ul>
         <ul css={bottomLinksCSS}>
           <li>
