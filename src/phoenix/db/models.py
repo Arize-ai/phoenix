@@ -396,7 +396,10 @@ class Dataset(Base):
                 )
             )
             .select_from(DatasetExampleRevision)
-            .join(DatasetExample, DatasetExample.id == DatasetExampleRevision.dataset_example_id)
+            .join(
+                DatasetExample,
+                onclause=DatasetExample.id == DatasetExampleRevision.dataset_example_id,
+            )
             .filter(DatasetExample.dataset_id == self.id)
         )
         active_count = result.scalar()
