@@ -34,7 +34,7 @@ export function CreateDatasetForm(props: CreateDatasetFormProps) {
   const {
     control,
     handleSubmit: handleSubmit,
-    formState: { isDirty: isDirty, isValid: isValid },
+    formState: { isDirty, isValid },
   } = useForm({
     defaultValues: {
       name: "Dataset " + new Date().toISOString(),
