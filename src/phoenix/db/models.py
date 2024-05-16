@@ -21,7 +21,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import (
@@ -385,28 +385,14 @@ class Dataset(Base):
     )
 
     @hybrid_property
-    def example_count(self) -> Select:
-        return (
-            select(
-                func.sum(
-                    case(
-                        (DatasetExampleRevision.revision_kind == "CREATE", 1),
-                        (DatasetExampleRevision.revision_kind == "DELETE", -1),
-                        else_=0,
-                    )
-                )
-            )
-            .select_from(DatasetExampleRevision)
-            .join(
-                DatasetExample,
-                onclause=DatasetExample.id == DatasetExampleRevision.dataset_example_id,
-            )
-            .filter(DatasetExample.dataset_id == self.id)
-            .scalar_subquery()
-        )
+    def example_count(self) -> Optional[int]:
+        if hasattr(self, "_example_count_value"):
+            return self._example_count_value
+        raise AttributeError("example_count not loaded, await `load_example_count` first")
+
 
     @example_count.expression
-    def _example_count(cls) -> Select:
+    def example_count(cls) -> Select:
         return (
             select(
                 func.sum(
@@ -425,6 +411,27 @@ class Dataset(Base):
             .filter(DatasetExample.dataset_id == cls.id)
             .label("example_count")
         )
+
+    async def load_example_count(self, session: AsyncSession) -> None:
+        if not hasattr(self, "_example_count_value"):
+            self._example_count_value = await session.scalar(
+                select(
+                    func.sum(
+                        case(
+                            (DatasetExampleRevision.revision_kind == "CREATE", 1),
+                            (DatasetExampleRevision.revision_kind == "DELETE", -1),
+                            else_=0,
+                        )
+                    )
+                )
+                .select_from(DatasetExampleRevision)
+                .join(
+                    DatasetExample,
+                    onclause=DatasetExample.id == DatasetExampleRevision.dataset_example_id,
+                )
+                .filter(DatasetExample.dataset_id == self.id)
+            )
+        return self._example_count_value
 
 
 class DatasetVersion(Base):
