@@ -58,25 +58,20 @@ async def post_datasets_upload(request: Request) -> Response:
             properties:
               name:
                 type: string
-                format: binary
               description:
                 type: string
-                format: binary
               inputKeys:
                 type: array
                 items:
                   type: string
-                  format: binary
               outputKeys:
                 type: array
                 items:
                   type: string
-                  format: binary
               metadataKeys:
                 type: array
                 items:
                   type: string
-                  format: binary
               file:
                 type: string
                 format: binary
