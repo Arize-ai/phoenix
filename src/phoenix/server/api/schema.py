@@ -433,7 +433,7 @@ class Mutation(ExportEventsMutation):
                     .returning(models.DatasetExample.id)
                 )
                 await session.execute(
-                    insert(models.DatasetExampleRevisions).values(
+                    insert(models.DatasetExampleRevision).values(
                         dataset_example_id=dataset_example_rowid,
                         dataset_version_id=dataset_version_rowid,
                         input=get_dataset_example_input(span),
