@@ -306,7 +306,7 @@ class SessionFactory:
     def __init__(
         self,
         session_factory: Callable[[], AsyncContextManager[AsyncSession]],
-        dialect: str,
+        dialect: SupportedSQLDialect,
     ):
         self.session_factory = session_factory
         self.dialect = dialect
