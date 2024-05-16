@@ -320,33 +320,7 @@ class Query:
 
 
 @strawberry.type
-class Mutation(ExportEventsMutation):
-    @strawberry.mutation
-    async def delete_project(self, info: Info[Context, None], id: GlobalID) -> Query:
-        node_id = from_global_id_with_expected_type(global_id=id, expected_type_name="Project")
-        async with info.context.db() as session:
-            project = await session.scalar(
-                select(models.Project)
-                .where(models.Project.id == node_id)
-                .options(load_only(models.Project.name))
-            )
-            if project is None:
-                raise ValueError(f"Unknown project: {id}")
-            if project.name == DEFAULT_PROJECT_NAME:
-                raise ValueError(f"Cannot delete the {DEFAULT_PROJECT_NAME} project")
-            await session.delete(project)
-        return Query()
-
-    @strawberry.mutation
-    async def clear_project(self, info: Info[Context, None], id: GlobalID) -> Query:
-        project_id = from_global_id_with_expected_type(global_id=id, expected_type_name="Project")
-        delete_statement = delete(models.Trace).where(models.Trace.project_rowid == project_id)
-        async with info.context.db() as session:
-            await session.execute(delete_statement)
-            if cache := info.context.cache_for_dataloaders:
-                cache.invalidate(ClearProjectSpansEvent(project_rowid=project_id))
-        return Query()
-
+class DatasetsMutation:
     @strawberry.mutation
     async def create_dataset(
         self,
@@ -383,6 +357,35 @@ class Mutation(ExportEventsMutation):
                 updated_at=row.updated_at,
                 metadata=row.metadata_,
             )
+
+
+@strawberry.type
+class Mutation(DatasetsMutation, ExportEventsMutation):
+    @strawberry.mutation
+    async def delete_project(self, info: Info[Context, None], id: GlobalID) -> Query:
+        node_id = from_global_id_with_expected_type(global_id=id, expected_type_name="Project")
+        async with info.context.db() as session:
+            project = await session.scalar(
+                select(models.Project)
+                .where(models.Project.id == node_id)
+                .options(load_only(models.Project.name))
+            )
+            if project is None:
+                raise ValueError(f"Unknown project: {id}")
+            if project.name == DEFAULT_PROJECT_NAME:
+                raise ValueError(f"Cannot delete the {DEFAULT_PROJECT_NAME} project")
+            await session.delete(project)
+        return Query()
+
+    @strawberry.mutation
+    async def clear_project(self, info: Info[Context, None], id: GlobalID) -> Query:
+        project_id = from_global_id_with_expected_type(global_id=id, expected_type_name="Project")
+        delete_statement = delete(models.Trace).where(models.Trace.project_rowid == project_id)
+        async with info.context.db() as session:
+            await session.execute(delete_statement)
+            if cache := info.context.cache_for_dataloaders:
+                cache.invalidate(ClearProjectSpansEvent(project_rowid=project_id))
+        return Query()
 
 
 # This is the schema for generating `schema.graphql`.
