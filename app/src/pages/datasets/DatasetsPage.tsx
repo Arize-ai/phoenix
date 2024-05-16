@@ -1,22 +1,21 @@
 import React, { ReactNode, Suspense, useCallback, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import { useNavigate } from "react-router";
 
 import {
   Button,
   Dialog,
   DialogContainer,
   Flex,
-  Form,
   Heading,
-  TextArea,
-  TextField,
   View,
 } from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
+import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import { DatasetsPageQuery } from "./__generated__/DatasetsPageQuery.graphql";
+import { CreateDatasetForm } from "./CreateDatasetForm";
 import { DatasetsTable } from "./DatasetsTable";
 
 export function DatasetsPage() {
@@ -28,111 +27,74 @@ export function DatasetsPage() {
 }
 
 export function DatasetsPageContent() {
+  const [fetchKey, setFetchKey] = useState(0);
   const data = useLazyLoadQuery<DatasetsPageQuery>(
     graphql`
       query DatasetsPageQuery {
         ...DatasetsTable_datasets
       }
     `,
-    {}
+    {},
+    {
+      fetchKey: fetchKey,
+    }
   );
+
+  // TODO(persistence): figure out how to refresh the data after a dataset is created
+  const onDatasetCreated = useCallback(() => {
+    setFetchKey((prev) => prev + 1);
+  }, [setFetchKey]);
   return (
-    <div>
+    <Flex direction="column" height="100%">
       <View
         padding="size-200"
         borderBottomWidth="thin"
         borderBottomColor="dark"
+        flex="none"
       >
         <Flex direction="row" justifyContent="space-between">
           <Heading level={1}>Datasets</Heading>
-          <CreateDatasetButton />
+          <CreateDatasetButton onDatasetCreated={onDatasetCreated} />
         </Flex>
       </View>
       <DatasetsTable query={data} />
-    </div>
+    </Flex>
   );
 }
 
-function CreateDatasetButton() {
-  const {
-    control,
-    handleSubmit: handleSubmit,
-    formState: { isDirty: isDirty, isValid: isValid },
-  } = useForm({
-    defaultValues: {
-      name: "Dataset " + new Date().toISOString(),
-      description: "",
-    },
-  });
-  const onSubmit = useCallback(() => {
-    // TODO: Implement mutation
-  }, []);
+type CreateDatasetButtonProps = {
+  onDatasetCreated: () => void;
+};
+function CreateDatasetButton({ onDatasetCreated }: CreateDatasetButtonProps) {
+  const navigate = useNavigate();
+  const notifySuccess = useNotifySuccess();
+  const notifyError = useNotifyError();
   const [dialog, setDialog] = useState<ReactNode>(null);
   const onCreateDataset = () => {
     setDialog(
-      <Dialog size="S" title="Create Dataset">
-        <View padding="size-200">
-          <Form onSubmit={handleSubmit(onSubmit)}>
-            <Controller
-              name="name"
-              control={control}
-              rules={{
-                required: "field is required",
-              }}
-              render={({
-                field: { onChange, onBlur, value },
-                fieldState: { invalid, error },
-              }) => (
-                <TextField
-                  label="Dataset Name"
-                  description={`The name of the dataset`}
-                  errorMessage={error?.message}
-                  validationState={invalid ? "invalid" : "valid"}
-                  onChange={onChange}
-                  onBlur={onBlur}
-                  value={value.toString()}
-                />
-              )}
-            />
-            <Controller
-              name="description"
-              control={control}
-              render={({
-                field: { onChange, onBlur, value },
-                fieldState: { invalid, error },
-              }) => (
-                <TextArea
-                  label="description"
-                  isRequired={false}
-                  height={200}
-                  errorMessage={error?.message}
-                  validationState={invalid ? "invalid" : "valid"}
-                  onChange={onChange}
-                  onBlur={onBlur}
-                  value={value.toString()}
-                />
-              )}
-            />
-          </Form>
-        </View>
-        <View
-          paddingEnd="size-200"
-          paddingTop="size-100"
-          paddingBottom="size-100"
-          borderTopColor="light"
-          borderTopWidth="thin"
-        >
-          <Flex direction="row" justifyContent="end">
-            <Button
-              type="submit"
-              isDisabled={!isValid}
-              variant={isDirty ? "primary" : "default"}
-              size="compact"
-            >
-              Create Dataset
-            </Button>
-          </Flex>
-        </View>
+      <Dialog size="S" title="New Dataset">
+        <CreateDatasetForm
+          onDatasetCreated={(dataset) => {
+            notifySuccess({
+              title: "Dataset created",
+              message: `${dataset.name} has been successfully created.`,
+              action: {
+                text: "Go to Dataset",
+                onClick: () => {
+                  navigate(`/datasets/${dataset.id}`);
+                },
+              },
+            });
+            setDialog(null);
+            onDatasetCreated();
+          }}
+          onDatasetCreateError={(error) => {
+            notifyError({
+              title: "Dataset creation failed",
+              message: error.message,
+            });
+          }}
+        />
       </Dialog>
     );
   };
