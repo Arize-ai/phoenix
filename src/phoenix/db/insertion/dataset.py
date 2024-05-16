@@ -119,7 +119,7 @@ async def insert_dataset_example_revision(
     created_at: Optional[datetime] = None,
 ) -> DatasetExampleRevisionId:
     id_ = await session.scalar(
-        insert(models.DatasetExampleRevisions)
+        insert(models.DatasetExampleRevision)
         .values(
             dataset_version_id=dataset_version_id,
             dataset_example_id=dataset_example_id,
@@ -129,7 +129,7 @@ async def insert_dataset_example_revision(
             revision_kind=revision_kind.value,
             created_at=created_at,
         )
-        .returning(models.DatasetExampleRevisions.id)
+        .returning(models.DatasetExampleRevision.id)
     )
     return cast(DatasetExampleRevisionId, id_)
 
