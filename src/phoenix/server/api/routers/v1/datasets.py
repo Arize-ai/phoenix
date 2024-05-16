@@ -35,7 +35,6 @@ from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
 from phoenix.db.insertion.dataset import DatasetAction, add_dataset_examples
-from phoenix.schemas.core import Dataset
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +62,16 @@ async def get_dataset_by_id(request: Request) -> Response:
         dataset = await session.get(models.Dataset, dataset_id)
         if dataset is None:
             return Response(status_code=404)
-        model = await Dataset.from_model(dataset, session)
-        output_dict = await model.serialize()
+
+        output_dict = {
+            "id": dataset.id,
+            "name": dataset.name,
+            "description": dataset.description,
+            "metadata": dataset.metadata_,
+            "created_at": dataset.created_at.isoformat(),
+            "updated_at": dataset.updated_at.isoformat(),
+            "example_count": await dataset.load_example_count(session),
+        }
         return JSONResponse(content=output_dict)
 
 
