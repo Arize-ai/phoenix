@@ -4,10 +4,11 @@ from typing import Dict, List, Optional, Set, Union
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from sqlalchemy import delete, select
+from sqlalchemy import delete, insert, select
 from sqlalchemy.orm import contains_eager, load_only
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, GlobalID, Node
+from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import Annotated
 
@@ -101,6 +102,7 @@ class Query:
                 description=dataset.description,
                 created_at=dataset.created_at,
                 updated_at=dataset.updated_at,
+                metadata=dataset.metadata_,
             )
             for dataset in datasets
         ]
@@ -172,6 +174,7 @@ class Query:
                 models.Dataset.description,
                 models.Dataset.created_at,
                 models.Dataset.updated_at,
+                models.Dataset.metadata_,
             ).where(models.Dataset.id == node_id)
             async with info.context.db() as session:
                 dataset = (await session.execute(dataset_stmt)).first()
@@ -183,6 +186,7 @@ class Query:
                 description=dataset.description,
                 created_at=dataset.created_at,
                 updated_at=dataset.updated_at,
+                metadata=dataset.metadata_,
             )
         raise Exception(f"Unknown node type: {type_name}")
 
@@ -346,6 +350,43 @@ class Mutation(ExportEventsMutation):
             if cache := info.context.cache_for_dataloaders:
                 cache.invalidate(ClearProjectSpansEvent(project_rowid=project_id))
         return Query()
+
+    @strawberry.mutation
+    async def create_dataset(
+        self,
+        info: Info[Context, None],
+        name: str,
+        description: Optional[str] = None,
+        metadata: Optional[JSON] = None,
+    ) -> Dataset:
+        metadata = metadata or {}
+        async with info.context.db() as session:
+            result = await session.execute(
+                insert(models.Dataset)
+                .values(
+                    name=name,
+                    description=description,
+                    metadata_=metadata,
+                )
+                .returning(
+                    models.Dataset.id,
+                    models.Dataset.name,
+                    models.Dataset.description,
+                    models.Dataset.created_at,
+                    models.Dataset.updated_at,
+                    models.Dataset.metadata_,
+                )
+            )
+            if not (row := result.fetchone()):
+                raise ValueError("Failed to create dataset")
+            return Dataset(
+                id_attr=row.id,
+                name=row.name,
+                description=row.description,
+                created_at=row.created_at,
+                updated_at=row.updated_at,
+                metadata=row.metadata_,
+            )
 
 
 # This is the schema for generating `schema.graphql`.
