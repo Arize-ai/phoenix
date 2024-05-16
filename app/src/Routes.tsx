@@ -6,6 +6,7 @@ import { datasetLoaderQuery$data } from "./pages/dataset/__generated__/datasetLo
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
 import {
+  APIsPage,
   datasetLoader,
   DatasetPage,
   DatasetsPage,
@@ -93,6 +94,13 @@ const router = createBrowserRouter(
           element={<DatasetPage />}
         />
       </Route>
+      <Route
+        path="/apis"
+        element={<APIsPage />}
+        handle={{
+          crumb: () => "APIs",
+        }}
+      />
     </Route>
   ),
   {
