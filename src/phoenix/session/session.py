@@ -363,8 +363,9 @@ class ThreadSession(Session):
             else None
         )
         # Initialize an app service that keeps the server running
+        db, cleanups = create_engine_and_run_migrations(database_url)
         self.app = create_app(
-            db=create_engine_and_run_migrations(database_url),
+            db=db,
             export_path=self.export_path,
             model=self.model,
             corpus=self.corpus,
@@ -375,6 +376,7 @@ class ThreadSession(Session):
                 if (trace_dataset and (initial_evaluations := trace_dataset.evaluations))
                 else None
             ),
+            clean_up_callbacks=cleanups,
         )
         self.server = ThreadServer(
             app=self.app,

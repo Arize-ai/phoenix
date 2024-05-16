@@ -319,9 +319,19 @@ class SessionFactory:
 
 def create_engine_and_run_migrations(
     database_url: str,
-) -> SessionFactory:
+) -> Tuple[SessionFactory, List[Callable[[], None]]]:
     try:
         engine = create_engine(database_url)
+        clean_ups: List[Callable[[], None]] = []
+        if server_instrumentation_is_enabled():
+            from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+
+            tracer_provider = initialize_opentelemetry_tracer_provider()
+            SQLAlchemyInstrumentor().instrument(
+                engine=engine.sync_engine,
+                tracer_provider=tracer_provider,
+            )
+            clean_ups.append(SQLAlchemyInstrumentor().uninstrument)
     except PhoenixMigrationError as e:
         msg = (
             "\n\n⚠️⚠️ Phoenix failed to migrate the database to the latest version. ⚠️⚠️\n\n"
@@ -339,7 +349,7 @@ def create_engine_and_run_migrations(
     factory = SessionFactory(
         session_factory=_db(engine), dialect=engine.dialect.name, engine=engine
     )
-    return factory
+    return factory, clean_ups
 
 
 def create_app(
@@ -354,8 +364,9 @@ def create_app(
     initial_spans: Optional[Iterable[Union[Span, Tuple[Span, str]]]] = None,
     initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
     serve_ui: bool = True,
+    clean_up_callbacks: List[Callable[[], None]] = [],
 ) -> Starlette:
-    clean_ups: List[Callable[[], None]] = []  # To be called at app shutdown.
+    clean_ups: List[Callable[[], None]] = clean_up_callbacks  # To be called at app shutdown.
     initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
         ()
         if initial_spans is None
@@ -381,32 +392,22 @@ def create_app(
     tracer_provider = None
     strawberry_extensions = schema.get_extensions()
     if server_instrumentation_is_enabled():
-        if engine := db.engine:
-            from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
-            from opentelemetry.trace import TracerProvider
-            from strawberry.extensions.tracing import OpenTelemetryExtension
+        from opentelemetry.trace import TracerProvider
+        from strawberry.extensions.tracing import OpenTelemetryExtension
 
-            tracer_provider = initialize_opentelemetry_tracer_provider()
-            SQLAlchemyInstrumentor().instrument(
-                engine=engine.sync_engine,
-                tracer_provider=tracer_provider,
-            )
-            clean_ups.append(SQLAlchemyInstrumentor().uninstrument)
-            if TYPE_CHECKING:
-                # Type-check the class before monkey-patching its private attribute.
-                assert OpenTelemetryExtension._tracer
+        if TYPE_CHECKING:
+            # Type-check the class before monkey-patching its private attribute.
+            assert OpenTelemetryExtension._tracer
 
-            class _OpenTelemetryExtension(OpenTelemetryExtension):
-                def __init__(self, *args: Any, **kwargs: Any) -> None:
-                    super().__init__(*args, **kwargs)
-                    # Monkey-patch its private tracer to eliminate usage of the global
-                    # TracerProvider, which in a notebook setting could be the one
-                    # used by OpenInference.
-                    self._tracer = cast(TracerProvider, tracer_provider).get_tracer("strawberry")
+        class _OpenTelemetryExtension(OpenTelemetryExtension):
+            def __init__(self, *args: Any, **kwargs: Any) -> None:
+                super().__init__(*args, **kwargs)
+                # Monkey-patch its private tracer to eliminate usage of the global
+                # TracerProvider, which in a notebook setting could be the one
+                # used by OpenInference.
+                self._tracer = cast(TracerProvider, tracer_provider).get_tracer("strawberry")
 
-            strawberry_extensions.append(_OpenTelemetryExtension)
-        else:
-            logger.info("Instrumenting is not supported in tests.")
+        strawberry_extensions.append(_OpenTelemetryExtension)
 
     graphql = GraphQLWithContext(
         db=db,

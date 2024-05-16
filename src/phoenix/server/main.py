@@ -248,8 +248,9 @@ if __name__ == "__main__":
         start_prometheus()
 
     working_dir = get_working_dir().resolve()
+    db, cleanups = create_engine_and_run_migrations(db_connection_str)
     app = create_app(
-        db=create_engine_and_run_migrations(db_connection_str),
+        db=db,
         export_path=export_path,
         model=model,
         umap_params=umap_params,
@@ -261,6 +262,7 @@ if __name__ == "__main__":
         enable_prometheus=enable_prometheus,
         initial_spans=fixture_spans,
         initial_evaluations=fixture_evals,
+        clean_up_callbacks=cleanups,
     )
     server = Server(config=Config(app, host=host, port=port))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
