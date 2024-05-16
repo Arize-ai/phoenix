@@ -31,7 +31,7 @@ from sqlalchemy.orm import (
     mapped_column,
     relationship,
 )
-from sqlalchemy.sql import Select, expression
+from sqlalchemy.sql import expression
 
 from phoenix.datetime_utils import normalize_datetime
 
@@ -387,12 +387,12 @@ class Dataset(Base):
     @hybrid_property
     def example_count(self) -> Optional[int]:
         if hasattr(self, "_example_count_value"):
+            assert isinstance(self._example_count_value, int)
             return self._example_count_value
-        raise AttributeError("example_count not loaded, await `load_example_count` first")
+        return None
 
-
-    @example_count.expression
-    def example_count(cls) -> Select:
+    @example_count.inplace.expression
+    def _example_count(cls) -> ColumnElement[int]:
         return (
             select(
                 func.sum(
@@ -431,7 +431,6 @@ class Dataset(Base):
                 )
                 .filter(DatasetExample.dataset_id == self.id)
             )
-        return self._example_count_value
 
 
 class DatasetVersion(Base):
