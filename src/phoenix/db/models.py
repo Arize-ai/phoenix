@@ -15,12 +15,14 @@ from sqlalchemy import (
     String,
     TypeDecorator,
     UniqueConstraint,
+    case,
     func,
     insert,
+    select,
     text,
 )
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import (
@@ -389,6 +391,54 @@ class Dataset(Base):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
 
+    @hybrid_property
+    def example_count(self) -> Optional[int]:
+        if hasattr(self, "_example_count_value"):
+            assert isinstance(self._example_count_value, int)
+            return self._example_count_value
+        return None
+
+    @example_count.inplace.expression
+    def _example_count(cls) -> ColumnElement[int]:
+        return (
+            select(
+                func.sum(
+                    case(
+                        (DatasetExampleRevision.revision_kind == "CREATE", 1),
+                        (DatasetExampleRevision.revision_kind == "DELETE", -1),
+                        else_=0,
+                    )
+                )
+            )
+            .select_from(DatasetExampleRevision)
+            .join(
+                DatasetExample,
+                onclause=DatasetExample.id == DatasetExampleRevision.dataset_example_id,
+            )
+            .filter(DatasetExample.dataset_id == cls.id)
+            .label("example_count")
+        )
+
+    async def load_example_count(self, session: AsyncSession) -> None:
+        if not hasattr(self, "_example_count_value"):
+            self._example_count_value = await session.scalar(
+                select(
+                    func.sum(
+                        case(
+                            (DatasetExampleRevision.revision_kind == "CREATE", 1),
+                            (DatasetExampleRevision.revision_kind == "DELETE", -1),
+                            else_=0,
+                        )
+                    )
+                )
+                .select_from(DatasetExampleRevision)
+                .join(
+                    DatasetExample,
+                    onclause=DatasetExample.id == DatasetExampleRevision.dataset_example_id,
+                )
+                .filter(DatasetExample.dataset_id == self.id)
+            )
+
 
 class DatasetVersion(Base):
     __tablename__ = "dataset_versions"
@@ -413,7 +463,7 @@ class DatasetExample(Base):
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
 
 
-class DatasetExampleRevisions(Base):
+class DatasetExampleRevision(Base):
     __tablename__ = "dataset_example_revisions"
     id: Mapped[int] = mapped_column(primary_key=True)
     dataset_example_id: Mapped[int] = mapped_column(
