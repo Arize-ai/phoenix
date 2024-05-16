@@ -56,6 +56,27 @@ async def get_dataset_by_id(request: Request) -> Response:
     responses:
       200:
         description: Success
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                name:
+                  type: string
+                description:
+                  type: string
+                metadata:
+                  type: object
+                created_at:
+                  type: string
+                  format: date-time
+                updated_at:
+                  type: string
+                  format: date-time
+                example_count:
+                  type: integer
       404:
         description: Dataset not found
     """
