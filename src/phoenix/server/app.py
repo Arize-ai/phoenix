@@ -319,19 +319,9 @@ class SessionFactory:
 
 def create_engine_and_run_migrations(
     database_url: str,
-) -> Tuple[SessionFactory, List[Callable[[], None]]]:
+) -> AsyncEngine:
     try:
-        engine = create_engine(database_url)
-        clean_ups: List[Callable[[], None]] = []
-        if server_instrumentation_is_enabled():
-            from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
-
-            tracer_provider = initialize_opentelemetry_tracer_provider()
-            SQLAlchemyInstrumentor().instrument(
-                engine=engine.sync_engine,
-                tracer_provider=tracer_provider,
-            )
-            clean_ups.append(SQLAlchemyInstrumentor().uninstrument)
+        return create_engine(database_url)
     except PhoenixMigrationError as e:
         msg = (
             "\n\n⚠️⚠️ Phoenix failed to migrate the database to the latest version. ⚠️⚠️\n\n"
@@ -346,10 +336,20 @@ def create_engine_and_run_migrations(
             ""
         )
         raise PhoenixMigrationError(msg) from e
-    factory = SessionFactory(
-        session_factory=_db(engine), dialect=engine.dialect.name, engine=engine
-    )
-    return factory, clean_ups
+
+
+def instrument_engine_if_enabled(engine: AsyncEngine) -> List[Callable[[], None]]:
+    instrumentation_cleanups = []
+    if server_instrumentation_is_enabled():
+        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+
+        tracer_provider = initialize_opentelemetry_tracer_provider()
+        SQLAlchemyInstrumentor().instrument(
+            engine=engine.sync_engine,
+            tracer_provider=tracer_provider,
+        )
+        instrumentation_cleanups.append(SQLAlchemyInstrumentor().uninstrument)
+    return instrumentation_cleanups
 
 
 def create_app(
