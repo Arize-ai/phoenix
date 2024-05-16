@@ -538,7 +538,7 @@ type Mutation {
   exportClusters(clusters: [ClusterInput!]!, fileName: String): ExportedFile!
   deleteProject(id: GlobalID!): Query!
   clearProject(id: GlobalID!): Query!
-  createDataset(name: String!, description: String, metadata: JSON): Dataset!
+  createDataset(name: String!, description: String = null, metadata: JSON = null): Dataset!
 }
 
 """An object with a Globally Unique ID"""
