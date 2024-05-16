@@ -18,7 +18,9 @@ async def test_client(dialect, db):
         umap_params=get_umap_parameters(None),
         serve_ui=False,
     )
-    async with httpx.AsyncClient(app=app, base_url="http://test") as client:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
         yield client
 
 

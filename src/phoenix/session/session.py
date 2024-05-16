@@ -371,9 +371,7 @@ class ThreadSession(Session):
         # Initialize an app service that keeps the server running
         engine = create_engine_and_run_migrations(database_url)
         instrumentation_cleanups = instrument_engine_if_enabled(engine)
-        factory = SessionFactory(
-            session_factory=_db(engine), dialect=engine.dialect.name
-        )
+        factory = SessionFactory(session_factory=_db(engine), dialect=engine.dialect.name)
         self.app = create_app(
             db=factory,
             export_path=self.export_path,
