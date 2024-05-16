@@ -32,7 +32,13 @@ from phoenix.pointcloud.umap_parameters import (
     DEFAULT_N_SAMPLES,
     UMAPParameters,
 )
-from phoenix.server.app import create_app
+from phoenix.server.app import (
+    SessionFactory,
+    _db,
+    create_app,
+    create_engine_and_run_migrations,
+    instrument_engine_if_enabled,
+)
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
@@ -248,8 +254,11 @@ if __name__ == "__main__":
         start_prometheus()
 
     working_dir = get_working_dir().resolve()
+    engine = create_engine_and_run_migrations(db_connection_str)
+    instrumentation_cleanups = instrument_engine_if_enabled(engine)
+    factory = SessionFactory(session_factory=_db(engine), dialect=engine.dialect.name)
     app = create_app(
-        database_url=db_connection_str,
+        db=factory,
         export_path=export_path,
         model=model,
         umap_params=umap_params,
@@ -261,6 +270,7 @@ if __name__ == "__main__":
         enable_prometheus=enable_prometheus,
         initial_spans=fixture_spans,
         initial_evaluations=fixture_evals,
+        clean_up_callbacks=instrumentation_cleanups,
     )
     server = Server(config=Config(app, host=host, port=port))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()

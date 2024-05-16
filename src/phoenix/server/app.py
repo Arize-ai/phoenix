@@ -302,30 +302,24 @@ async def api_docs(request: Request) -> Response:
     return get_swagger_ui_html(openapi_url="/schema", title="arize-phoenix API")
 
 
-def create_app(
+class SessionFactory:
+    def __init__(
+        self,
+        session_factory: Callable[[], AsyncContextManager[AsyncSession]],
+        dialect: str,
+    ):
+        self.session_factory = session_factory
+        self.dialect = SupportedSQLDialect(dialect)
+
+    def __call__(self) -> AsyncContextManager[AsyncSession]:
+        return self.session_factory()
+
+
+def create_engine_and_run_migrations(
     database_url: str,
-    export_path: Path,
-    model: Model,
-    umap_params: UMAPParameters,
-    corpus: Optional[Model] = None,
-    debug: bool = False,
-    read_only: bool = False,
-    enable_prometheus: bool = False,
-    initial_spans: Optional[Iterable[Union[Span, Tuple[Span, str]]]] = None,
-    initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
-) -> Starlette:
-    clean_ups: List[Callable[[], None]] = []  # To be called at app shutdown.
-    initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
-        ()
-        if initial_spans is None
-        else (
-            ((item, DEFAULT_PROJECT_NAME) if isinstance(item, Span) else item)
-            for item in initial_spans
-        )
-    )
-    initial_batch_of_evaluations = () if initial_evaluations is None else initial_evaluations
+) -> AsyncEngine:
     try:
-        engine = create_engine(database_url)
+        return create_engine(database_url)
     except PhoenixMigrationError as e:
         msg = (
             "\n\n⚠️⚠️ Phoenix failed to migrate the database to the latest version. ⚠️⚠️\n\n"
@@ -340,12 +334,50 @@ def create_app(
             ""
         )
         raise PhoenixMigrationError(msg) from e
-    cache_for_dataloaders = (
-        CacheForDataLoaders()
-        if SupportedSQLDialect(engine.dialect.name) is SupportedSQLDialect.SQLITE
-        else None
+
+
+def instrument_engine_if_enabled(engine: AsyncEngine) -> List[Callable[[], None]]:
+    instrumentation_cleanups = []
+    if server_instrumentation_is_enabled():
+        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+
+        tracer_provider = initialize_opentelemetry_tracer_provider()
+        SQLAlchemyInstrumentor().instrument(
+            engine=engine.sync_engine,
+            tracer_provider=tracer_provider,
+        )
+        instrumentation_cleanups.append(SQLAlchemyInstrumentor().uninstrument)
+    return instrumentation_cleanups
+
+
+def create_app(
+    db: SessionFactory,
+    export_path: Path,
+    model: Model,
+    umap_params: UMAPParameters,
+    corpus: Optional[Model] = None,
+    debug: bool = False,
+    read_only: bool = False,
+    enable_prometheus: bool = False,
+    initial_spans: Optional[Iterable[Union[Span, Tuple[Span, str]]]] = None,
+    initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
+    serve_ui: bool = True,
+    clean_up_callbacks: List[Callable[[], None]] = [],
+) -> Starlette:
+    clean_ups: List[Callable[[], None]] = clean_up_callbacks  # To be called at app shutdown.
+    initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
+        ()
+        if initial_spans is None
+        else (
+            ((item, DEFAULT_PROJECT_NAME) if isinstance(item, Span) else item)
+            for item in initial_spans
+        )
     )
-    db = _db(engine)
+    initial_batch_of_evaluations = () if initial_evaluations is None else initial_evaluations
+    cache_for_dataloaders = (
+        CacheForDataLoaders() if db.dialect is SupportedSQLDialect.SQLITE else None
+    )
+
     bulk_inserter = BulkInserter(
         db,
         enable_prometheus=enable_prometheus,
@@ -356,16 +388,9 @@ def create_app(
     tracer_provider = None
     strawberry_extensions = schema.get_extensions()
     if server_instrumentation_is_enabled():
-        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
         from opentelemetry.trace import TracerProvider
         from strawberry.extensions.tracing import OpenTelemetryExtension
 
-        tracer_provider = initialize_opentelemetry_tracer_provider()
-        SQLAlchemyInstrumentor().instrument(
-            engine=engine.sync_engine,
-            tracer_provider=tracer_provider,
-        )
-        clean_ups.append(SQLAlchemyInstrumentor().uninstrument)
         if TYPE_CHECKING:
             # Type-check the class before monkey-patching its private attribute.
             assert OpenTelemetryExtension._tracer
@@ -379,6 +404,7 @@ def create_app(
                 self._tracer = cast(TracerProvider, tracer_provider).get_tracer("strawberry")
 
         strawberry_extensions.append(_OpenTelemetryExtension)
+
     graphql = GraphQLWithContext(
         db=db,
         schema=strawberry.Schema(
@@ -434,21 +460,27 @@ def create_app(
                 "/graphql",
                 graphql,
             ),
-            Mount(
-                "/",
-                app=Static(
-                    directory=SERVER_DIR / "static",
-                    app_config=AppConfig(
-                        has_inferences=model.is_empty is not True,
-                        has_corpus=corpus is not None,
-                        min_dist=umap_params.min_dist,
-                        n_neighbors=umap_params.n_neighbors,
-                        n_samples=umap_params.n_samples,
+        ]
+        + (
+            [
+                Mount(
+                    "/",
+                    app=Static(
+                        directory=SERVER_DIR / "static",
+                        app_config=AppConfig(
+                            has_inferences=model.is_empty is not True,
+                            has_corpus=corpus is not None,
+                            min_dist=umap_params.min_dist,
+                            n_neighbors=umap_params.n_neighbors,
+                            n_samples=umap_params.n_samples,
+                        ),
                     ),
+                    name="static",
                 ),
-                name="static",
-            ),
-        ],
+            ]
+            if serve_ui
+            else []
+        ),
     )
     app.state.read_only = read_only
     app.state.db = db
