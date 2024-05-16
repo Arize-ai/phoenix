@@ -25,18 +25,187 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, UploadFile
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import JSONResponse, Response
 from starlette.status import (
     HTTP_403_FORBIDDEN,
+    HTTP_404_NOT_FOUND,
     HTTP_422_UNPROCESSABLE_ENTITY,
     HTTP_429_TOO_MANY_REQUESTS,
 )
+from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
 from phoenix.db.insertion.dataset import DatasetAction, add_dataset_examples
 
 logger = logging.getLogger(__name__)
+
+NODE_NAME = "Dataset"
+
+
+async def list_datasets(request: Request) -> Response:
+    """
+    summary: List datasets with cursor-based pagination
+    operationId: listDatasets
+    tags:
+      - datasets
+    parameters:
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+        description: Cursor for pagination
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          default: 10
+    responses:
+      200:
+        description: A paginated list of datasets
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                next_cursor:
+                  type: string
+                data:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type: string
+                      metadata:
+                        type: object
+                      created_at:
+                        type: string
+                        format: date-time
+                      updated_at:
+                        type: string
+                        format: date-time
+      404:
+        description: No datasets found
+    """
+    cursor = request.query_params.get("cursor")
+    limit = int(request.query_params.get("limit", 10))
+    async with request.app.state.db() as session:
+        query = select(models.Dataset).order_by(models.Dataset.id.desc())
+
+        if cursor:
+            try:
+                cursor_id = GlobalID.from_id(cursor).node_id
+                query = query.filter(models.Dataset.id <= int(cursor_id))
+            except ValueError:
+                return Response(
+                    content=f"Invalid cursor format: {cursor}",
+                    status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+
+        query = query.limit(limit + 1)
+        result = await session.execute(query)
+        datasets = result.scalars().all()
+
+        if not datasets:
+            return JSONResponse(content={"next_cursor": None, "data": []}, status_code=200)
+
+        next_cursor = None
+        if len(datasets) == limit + 1:
+            next_cursor = str(GlobalID(NODE_NAME, str(datasets[-1].id)))
+            datasets = datasets[:-1]
+
+        data = []
+        for dataset in datasets:
+            data.append(
+                {
+                    "id": str(GlobalID(NODE_NAME, str(dataset.id))),
+                    "name": dataset.name,
+                    "description": dataset.description,
+                    "metadata": dataset.metadata_,
+                    "created_at": dataset.created_at.isoformat(),
+                    "updated_at": dataset.updated_at.isoformat(),
+                }
+            )
+
+        return JSONResponse(content={"next_cursor": next_cursor, "data": data})
+
+
+async def get_dataset_by_id(request: Request) -> Response:
+    """
+    summary: Get dataset by ID
+    operationId: getDatasetById
+    tags:
+      - datasets
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                name:
+                  type: string
+                description:
+                  type: string
+                metadata:
+                  type: object
+                created_at:
+                  type: string
+                  format: date-time
+                updated_at:
+                  type: string
+                  format: date-time
+                example_count:
+                  type: integer
+      404:
+        description: Dataset not found
+    """
+    dataset_id = GlobalID.from_id(request.path_params["id"])
+
+    if (type_name := dataset_id.type_name) != NODE_NAME:
+        return Response(
+            content=f"ID {dataset_id} refers to a f{type_name}", status_code=HTTP_404_NOT_FOUND
+        )
+    async with request.app.state.db() as session:
+        result = await session.execute(
+            select(models.Dataset, models.Dataset.example_count).filter(
+                models.Dataset.id == int(dataset_id.node_id)
+            )
+        )
+        dataset_query = result.first()
+        dataset = dataset_query[0] if dataset_query else None
+        example_count = dataset_query[1] if dataset_query else 0
+        if dataset is None:
+            return Response(
+                content=f"Dataset with ID {dataset_id} not found", status_code=HTTP_404_NOT_FOUND
+            )
+
+        output_dict = {
+            "id": str(dataset_id),
+            "name": dataset.name,
+            "description": dataset.description,
+            "metadata": dataset.metadata_,
+            "created_at": dataset.created_at.isoformat(),
+            "updated_at": dataset.updated_at.isoformat(),
+            "example_count": example_count,
+        }
+        return JSONResponse(content=output_dict)
 
 
 async def post_datasets_upload(request: Request) -> Response:

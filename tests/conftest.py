@@ -28,11 +28,8 @@ def pytest_collection_modifyitems(config, items):
     skip_postgres = pytest.mark.skip(reason="Skipping Postgres tests")
     if not config.getoption("--run-postgres"):
         for item in items:
-            if "session" in item.fixturenames:
-                if "postgres_session" in item.callspec.params.values():
-                    item.add_marker(skip_postgres)
-            elif "db" in item.fixturenames:
-                if "postgres_db" in item.callspec.params.values():
+            if "dialect" in item.fixturenames:
+                if "postgresql" in item.callspec.params.values():
                     item.add_marker(skip_postgres)
 
 
@@ -66,6 +63,11 @@ async def postgres_engine(phoenix_postgresql: Connection) -> AsyncGenerator[Asyn
     await engine.dispose()
 
 
+@pytest.fixture(params=["sqlite", "postgresql"])
+def dialect(request):
+    return request.param
+
+
 @pytest.fixture
 async def sqlite_engine() -> AsyncEngine:
     engine = aio_sqlite_engine(make_url("sqlite+aiosqlite://"), migrate=False, shared_cache=False)
@@ -74,40 +76,51 @@ async def sqlite_engine() -> AsyncEngine:
     return engine
 
 
-@pytest.fixture(params=["sqlite_session", "postgres_session"])
-def session(request) -> AsyncSession:
-    return request.getfixturevalue(request.param)
-
-
-@pytest.fixture(params=["sqlite_db", "postgres_db"])
-def db(request) -> async_sessionmaker:
-    return request.getfixturevalue(request.param)
+@pytest.fixture
+def session(request, dialect) -> AsyncSession:
+    if dialect == "sqlite":
+        return request.getfixturevalue("sqlite_session")
+    elif dialect == "postgresql":
+        return request.getfixturevalue("postgres_session")
+    raise ValueError(f"Unknown session fixture: {dialect}")
 
 
 @pytest.fixture
-async def sqlite_db(sqlite_engine: AsyncEngine) -> Callable[[], AsyncContextManager[AsyncSession]]:
+def db(request, dialect) -> async_sessionmaker:
+    if dialect == "sqlite":
+        return request.getfixturevalue("sqlite_db")
+    elif dialect == "postgresql":
+        return request.getfixturevalue("postgres_db")
+    raise ValueError(f"Unknown db fixture: {dialect}")
+
+
+@pytest.fixture
+async def sqlite_db(
+    sqlite_engine: AsyncEngine,
+) -> AsyncGenerator[Callable[[], AsyncContextManager[AsyncSession]], None]:
     Session = async_sessionmaker(sqlite_engine, expire_on_commit=False)
 
-    @contextlib.asynccontextmanager
-    async def factory() -> AsyncIterator[AsyncSession]:
-        async with Session.begin() as session:
+    async with Session.begin() as session:
+
+        @contextlib.asynccontextmanager
+        async def factory() -> AsyncIterator[AsyncSession]:
             yield session
 
-    return factory
+        yield factory
 
 
 @pytest.fixture
 async def postgres_db(
     postgres_engine: AsyncEngine,
-) -> Callable[[], AsyncContextManager[AsyncSession]]:
+) -> AsyncGenerator[Callable[[], AsyncContextManager[AsyncSession]], None]:
     Session = async_sessionmaker(postgres_engine, expire_on_commit=False)
+    async with Session.begin() as session:
 
-    @contextlib.asynccontextmanager
-    async def factory() -> AsyncIterator[AsyncSession]:
-        async with Session.begin() as session:
+        @contextlib.asynccontextmanager
+        async def factory() -> AsyncIterator[AsyncSession]:
             yield session
 
-    return factory
+        yield factory
 
 
 @pytest.fixture
