@@ -106,6 +106,13 @@ function SideNav() {
         </ul>
         <ul css={bottomLinksCSS}>
           <li>
+            <NavLink
+              to="/apis"
+              text="APIs"
+              icon={<Icon svg={<Icons.Code />} />}
+            />
+          </li>
+          <li>
             <DocsLink />
           </li>
           <li>
