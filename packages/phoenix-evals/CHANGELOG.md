@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.8.2...arize-phoenix-evals-v0.9.0) (2024-05-17)
+
+
+### Features
+
+* Added support for default_headers for azure_openai. ([#3211](https://github.com/Arize-ai/phoenix/issues/3211)) ([2d48192](https://github.com/Arize-ai/phoenix/commit/2d48192d57a1b97e4b08efc30f5c689423667c93))
+
 ## [0.8.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.8.1...arize-phoenix-evals-v0.8.2) (2024-05-14)
 
 
