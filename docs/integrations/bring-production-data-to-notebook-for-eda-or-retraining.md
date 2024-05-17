@@ -20,13 +20,13 @@ They can then easily augment and fine tune the data and verify improved performa
 
 There are two ways export data out of [Arize](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/-MAlgpMyBRcl2qFZRQ67/) for further investigation:
 
-1. The easiest way is to click the export button on the Embeddings and Datasets pages. This will produce a code snippet that you can copy into a Python environment and install Phoenix. This code snippet will include the date range you have selected in the [Arize](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/-MAlgpMyBRcl2qFZRQ67/) platform, in addition to the datasets you have selected.
+1. The easiest way is to click the export button on the Embeddings and Inferences pages. This will produce a code snippet that you can copy into a Python environment and install Phoenix. This code snippet will include the date range you have selected in the [Arize](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/-MAlgpMyBRcl2qFZRQ67/) platform, in addition to the inferences you have selected.
 
 <figure><img src="../.gitbook/assets/image (4).png" alt=""><figcaption><p>Export button on Embeddings tab in Arize UI</p></figcaption></figure>
 
 <figure><img src="../.gitbook/assets/image (6).png" alt=""><figcaption><p>Export to Phoenix module in Arize UI</p></figcaption></figure>
 
-2. Users can also query [Arize](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/-MAlgpMyBRcl2qFZRQ67/) for data directly using the Arize Python export client. We recommend doing this once you're more comfortable with the in-platform export functionality, as you will need to manually enter in the data ranges and datasets you want to export.
+2. Users can also query [Arize](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/-MAlgpMyBRcl2qFZRQ67/) for data directly using the Arize Python export client. We recommend doing this once you're more comfortable with the in-platform export functionality, as you will need to manually enter in the data ranges and data you want to export.
 
 ```python
 os.environ['ARIZE_API_KEY'] = ARIZE_API_KEY
