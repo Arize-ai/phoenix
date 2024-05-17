@@ -8,15 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 
-class TestAddSpanToDataset:
-    async def test_example(
-        self,
-        test_client,
-        simple_dataset,
-        spans,
-    ) -> None:
-        # todo: enhance this query to return the newly created examples
-        mutation = """
+async def test_add_span_to_dataset(
+    self,
+    test_client,
+    simple_dataset,
+    spans,
+) -> None:
+    # todo: enhance this query to return the newly created examples
+    mutation = """
 mutation($datasetId: GlobalID!, $spanIds: [GlobalID!]!) {
 	addSpansToDataset(input: {datasetId: $datasetId, spanIds: $spanIds}) {
     dataset {
@@ -25,23 +24,23 @@ mutation($datasetId: GlobalID!, $spanIds: [GlobalID!]!) {
   }
 }
 """
-        dataset_rowid = 0
-        dataset_id = GlobalID("Dataset", str(dataset_rowid))
-        span_ids = [GlobalID("Span", str(1)), GlobalID("Span", str(2))]
-        response = await test_client.post(
-            "/graphql",
-            json={
-                "query": mutation,
-                "variables": {
-                    "datasetId": str(dataset_id),
-                    "spanIds": [str(span_id) for span_id in span_ids],
-                },
+    dataset_rowid = 0
+    dataset_id = GlobalID("Dataset", str(dataset_rowid))
+    span_ids = [GlobalID("Span", str(1)), GlobalID("Span", str(2))]
+    response = await test_client.post(
+        "/graphql",
+        json={
+            "query": mutation,
+            "variables": {
+                "datasetId": str(dataset_id),
+                "spanIds": [str(span_id) for span_id in span_ids],
             },
-        )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert (errors := response_json.get("errors")) is None, errors
-        assert response_json["data"] == {"addSpansToDataset": {"dataset": {"id": str(dataset_id)}}}
+        },
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert (errors := response_json.get("errors")) is None, errors
+    assert response_json["data"] == {"addSpansToDataset": {"dataset": {"id": str(dataset_id)}}}
 
 
 @pytest.fixture
@@ -113,7 +112,3 @@ async def spans(session: AsyncSession) -> None:
         )
         .returning(models.Span.id)
     )
-
-
-def f() -> None:
-    pass
