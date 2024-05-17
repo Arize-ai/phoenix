@@ -9,7 +9,6 @@ from strawberry.relay import GlobalID
 
 
 async def test_add_span_to_dataset(
-    self,
     test_client,
     simple_dataset,
     spans,
