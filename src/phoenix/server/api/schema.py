@@ -48,7 +48,7 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.Project import Project
-from phoenix.server.api.types.Span import to_gql_span
+from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.Trace import Trace
 
 
@@ -416,10 +416,10 @@ class Mutation(ExportEventsMutation):
         )
         dataset_version_metadata = input.dataset_version_metadata
         dataset_rowid = from_global_id_with_expected_type(
-            global_id=dataset_id, expected_type_name="Dataset"
+            global_id=dataset_id, expected_type_name=Dataset.__name__
         )
         span_rowids = {
-            from_global_id_with_expected_type(global_id=span_id, expected_type_name="Span")
+            from_global_id_with_expected_type(global_id=span_id, expected_type_name=Span.__name__)
             for span_id in set(span_ids)
         }
         async with info.context.db() as session:
