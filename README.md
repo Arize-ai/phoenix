@@ -68,7 +68,7 @@ Join our community to connect with thousands of AI builders.
 
 ## Breaking Changes
 
-see the [migration guide](./MIGRATION.md) for a list of breaking changes.
+See the [migration guide](./MIGRATION.md) for a list of breaking changes.
 
 ## Copyright, Patent, and License
 
