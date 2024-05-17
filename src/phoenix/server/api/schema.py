@@ -485,7 +485,7 @@ class Mutation(ExportEventsMutation):
             spans = span_query_result.all()
             if missing_span_rowids := span_rowids - {span.id for span in spans}:
                 raise ValueError(
-                    f"Could not find spans with rowids: {", ".join(map(str, missing_span_rowids))}"
+                    f"Could not find spans with rowids: {', '.join(map(str, missing_span_rowids))}"
                 )  # todo: implement error handling types https://github.com/Arize-ai/phoenix/issues/3221
             for span in spans:
                 dataset_example_rowid = await session.scalar(
