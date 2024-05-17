@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.1.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.1.0...arize-phoenix-v4.1.1) (2024-05-17)
+
+
+### Bug Fixes
+
+* resolve rounding issue in postgres ([#3232](https://github.com/Arize-ai/phoenix/issues/3232)) ([3b6c666](https://github.com/Arize-ai/phoenix/commit/3b6c666cef077ed740b85e8583f2b6f452329dd6))
+
 ## [4.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.0.3...arize-phoenix-v4.1.0) (2024-05-17)
 
 
