@@ -2,8 +2,8 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import (
-    FLOAT,
     JSON,
+    NUMERIC,
     TIMESTAMP,
     CheckConstraint,
     ColumnElement,
@@ -231,7 +231,8 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
     return compiler.process(
         func.round(
             func.cast(
-                (func.extract("EPOCH", end_time) - func.extract("EPOCH", start_time)) * 1000, FLOAT
+                (func.extract("EPOCH", end_time) - func.extract("EPOCH", start_time)) * 1000,
+                NUMERIC,
             ),
             1,
         ),
