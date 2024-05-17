@@ -45,7 +45,7 @@ Install Phoenix via `pip` or or `conda` as well as any of its subpackages.
 pip install 'arize-phoenix[evals]'
 ```
 
-Phoenix server container images are available via [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix) and can be deployed using docker and kubernetes.
+Phoenix container images are available via [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix) and can be deployed using Docker or Kubernetes.
 
 ## Tutorials
 
