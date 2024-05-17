@@ -1,9 +1,10 @@
 from collections import defaultdict
-from typing import Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Set, Union
 
 import numpy as np
 import numpy.typing as npt
 import strawberry
+from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import delete, insert, select
 from sqlalchemy.orm import contains_eager, load_only
 from strawberry import ID, UNSET
@@ -440,23 +441,43 @@ class Mutation(ExportEventsMutation):
                 )
                 .returning(models.DatasetVersion.id)
             )
+            input_mime_type = _get_attribute_value(models.Span.attributes, INPUT_MIME_TYPE).label(
+                "input_mime_type"
+            )
+            input_value = _get_attribute_value(models.Span.attributes, INPUT_VALUE).label(
+                "input_value"
+            )
+            output_mime_type = _get_attribute_value(models.Span.attributes, OUTPUT_MIME_TYPE).label(
+                "output_mime_type"
+            )
+            output_value = _get_attribute_value(models.Span.attributes, OUTPUT_VALUE).label(
+                "output_value"
+            )
+            prompt_template_variables = _get_attribute_value(
+                models.Span.attributes, LLM_PROMPT_TEMPLATE_VARIABLES
+            ).label("prompt_template_variables")
+            llm_input_messages = _get_attribute_value(
+                models.Span.attributes, LLM_INPUT_MESSAGES
+            ).label("llm_input_messages")
+            llm_output_messages = _get_attribute_value(
+                models.Span.attributes, LLM_OUTPUT_MESSAGES
+            ).label("llm_output_messages")
+            retrieval_documents = _get_attribute_value(
+                models.Span.attributes, RETRIEVAL_DOCUMENTS
+            ).label("retrieval_documents")
             span_query_result = await session.execute(
                 select(
                     models.Span.id,
                     models.Span.span_kind,
                     models.Span.attributes,
-                    models.Span.attributes["input"]["mime_type"].label("input_mime_type"),
-                    models.Span.attributes["input"]["value"].label("input_value"),
-                    models.Span.attributes["output"]["mime_type"].label("output_mime_type"),
-                    models.Span.attributes["input"]["value"].label("output_value"),
-                    models.Span.attributes["llm"]["prompt_template"]["variables"].label(
-                        "prompt_template_variables"
-                    ),
-                    models.Span.attributes["llm"]["input"]["messages"].label("llm_input_messages"),
-                    models.Span.attributes["llm"]["output"]["messages"].label(
-                        "llm_output_messages"
-                    ),
-                    models.Span.attributes["retrieval"]["documents"].label("retrieval_documents"),
+                    input_mime_type,
+                    input_value,
+                    output_mime_type,
+                    output_value,
+                    prompt_template_variables,
+                    llm_input_messages,
+                    llm_output_messages,
+                    retrieval_documents,
                 )
                 .select_from(models.Span)
                 .where(models.Span.id.in_(span_rowids))
@@ -492,6 +513,28 @@ class Mutation(ExportEventsMutation):
                 metadata=dataset.metadata_,
             )
         )
+
+
+def _get_attribute_value(attributes: Any, semconv: str) -> Any:
+    """
+    Applies a semantic convention path to a dictionary of attributes.
+
+    For example, for "input.value", returns attributes["input"]["value"]
+    """
+    attribute_value = attributes
+    for key in semconv.split("."):
+        attribute_value = attribute_value[key]
+    return attribute_value
+
+
+INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
+INPUT_VALUE = SpanAttributes.INPUT_VALUE
+OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
+OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
+LLM_PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
+LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
+LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
+RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
 
 
 # This is the schema for generating `schema.graphql`.
