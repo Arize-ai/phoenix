@@ -61,6 +61,7 @@ type Dataset implements Node {
   metadata: JSON!
   createdAt: DateTime!
   updatedAt: DateTime!
+  versions(first: Int = 50, last: Int, after: String, before: String): DatasetVersionConnection!
 }
 
 """A connection to a list of items."""
@@ -84,6 +85,32 @@ type DatasetEdge {
 type DatasetValues {
   primaryValue: Float
   referenceValue: Float
+}
+
+type DatasetVersion implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  description: String
+  metadata: JSON!
+  createdAt: DateTime!
+}
+
+"""A connection to a list of items."""
+type DatasetVersionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DatasetVersionEdge!]!
+}
+
+"""An edge in a connection."""
+type DatasetVersionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: DatasetVersion!
 }
 
 """Date with time (isoformat)"""
