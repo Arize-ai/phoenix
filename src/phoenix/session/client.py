@@ -55,9 +55,9 @@ class Client(TraceDataExtractor):
         host = get_env_host()
         if host == "0.0.0.0":
             host = "127.0.0.1"
-        self._base_url = (
-            endpoint or get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
-        )
+        base_url = endpoint or get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
+        self._base_url = base_url if base_url.endswith("/") else base_url + "/"
+
         self._session = Session()
         weakref.finalize(self, self._session.close)
         if warn_if_server_not_running:
@@ -99,7 +99,7 @@ class Client(TraceDataExtractor):
             )
             end_time = end_time or stop_time
         response = self._session.post(
-            url=urljoin(self._base_url, "/v1/spans"),
+            url=urljoin(self._base_url, "v1/spans"),
             params={"project-name": project_name},
             json={
                 "queries": [q.to_dict() for q in queries],
@@ -146,7 +146,7 @@ class Client(TraceDataExtractor):
         """
         project_name = project_name or get_env_project_name()
         response = self._session.get(
-            urljoin(self._base_url, "/v1/evaluations"),
+            urljoin(self._base_url, "v1/evaluations"),
             params={"project-name": project_name},
         )
         if response.status_code == 404:
@@ -167,7 +167,7 @@ class Client(TraceDataExtractor):
 
     def _warn_if_phoenix_is_not_running(self) -> None:
         try:
-            self._session.get(urljoin(self._base_url, "/arize_phoenix_version")).raise_for_status()
+            self._session.get(urljoin(self._base_url, "arize_phoenix_version")).raise_for_status()
         except Exception:
             logger.warning(
                 f"Arize Phoenix is not running on {self._base_url}. Launch Phoenix "
@@ -198,7 +198,7 @@ class Client(TraceDataExtractor):
             with pa.ipc.new_stream(sink, table.schema) as writer:
                 writer.write_table(table)
             self._session.post(
-                urljoin(self._base_url, "/v1/evaluations"),
+                urljoin(self._base_url, "v1/evaluations"),
                 data=cast(bytes, sink.getvalue().to_pybytes()),
                 headers=headers,
             ).raise_for_status()
@@ -241,7 +241,7 @@ class Client(TraceDataExtractor):
             serialized = otlp_span.SerializeToString()
             data = gzip.compress(serialized)
             self._session.post(
-                urljoin(self._base_url, "/v1/traces"),
+                urljoin(self._base_url, "v1/traces"),
                 data=data,
                 headers={
                     "content-type": "application/x-protobuf",

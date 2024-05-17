@@ -17,7 +17,6 @@ from typing import (
     Union,
     cast,
 )
-from urllib.parse import urljoin
 
 import pandas as pd
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
@@ -147,8 +146,5 @@ def log_evaluations(
     if host == "0.0.0.0":
         host = "127.0.0.1"
     port = port or get_env_port()
-    endpoint = endpoint or urljoin(
-        get_env_collector_endpoint() or f"http://{host}:{port}",
-        "/v1/traces",
-    )
+    endpoint = endpoint or get_env_collector_endpoint() or f"http://{host}:{port}"
     Client(endpoint=endpoint).log_evaluations(*evals)

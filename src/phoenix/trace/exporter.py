@@ -33,11 +33,11 @@ class _OpenInferenceExporter(OTLPSpanExporter):
         host = get_env_host()
         if host == "0.0.0.0":
             host = "127.0.0.1"
-        endpoint = urljoin(
-            get_env_collector_endpoint() or f"http://{host}:{get_env_port()}",
-            "/v1/traces",
-        )
-        _warn_if_phoenix_is_not_running(endpoint)
+        base_url = get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
+        base_url = base_url if base_url.endswith("/") else base_url + "/"
+        _warn_if_phoenix_is_not_running(base_url)
+
+        endpoint = urljoin(base_url, "v1/traces")
         super().__init__(endpoint)
 
 
@@ -68,11 +68,12 @@ class HttpExporter:
         """
         self._host = host or get_env_host()
         self._port = port or get_env_port()
-        self._base_url = (
+        base_url = (
             endpoint
             or get_env_collector_endpoint()
             or f"http://{'127.0.0.1' if self._host == '0.0.0.0' else self._host}:{self._port}"
         )
+        self._base_url = base_url if base_url.endswith("/") else base_url + "/"
         _warn_if_phoenix_is_not_running(self._base_url)
         self._session = Session()
         weakref.finalize(self, self._session.close)
@@ -117,16 +118,16 @@ class HttpExporter:
 
     def _url(self, message: Message) -> str:
         if isinstance(message, pb.Evaluation):
-            return urljoin(self._base_url, "/v1/evaluations")
+            return urljoin(self._base_url, "v1/evaluations")
         logger.exception(f"unrecognized message type: {type(message)}")
         assert_never(message)
 
 
-def _warn_if_phoenix_is_not_running(endpoint: str) -> None:
+def _warn_if_phoenix_is_not_running(base_url: str) -> None:
     try:
-        requests.get(urljoin(endpoint, "/arize_phoenix_version")).raise_for_status()
+        requests.get(urljoin(base_url, "arize_phoenix_version")).raise_for_status()
     except Exception:
         logger.warning(
-            f"Arize Phoenix is not running on {endpoint}. Launch Phoenix "
+            f"Arize Phoenix is not running on {base_url}. Launch Phoenix "
             f"with `import phoenix as px; px.launch_app()`"
         )

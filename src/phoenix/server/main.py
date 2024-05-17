@@ -18,6 +18,7 @@ from phoenix.config import (
     get_env_enable_prometheus,
     get_env_grpc_port,
     get_env_host,
+    get_env_host_root_path,
     get_env_port,
     get_pids_path,
     get_working_dir,
@@ -67,10 +68,10 @@ _WELCOME_MESSAGE = """
 |  https://docs.arize.com/phoenix
 |
 |  🚀 Phoenix Server 🚀
-|  Phoenix UI: http://{host}:{port}
+|  Phoenix UI: http://{host}:{port}/{root_path}
 |  Log traces:
 |    - gRPC: http://{host}:{grpc_port}
-|    - HTTP: http://{host}:{port}/v1/traces
+|    - HTTP: http://{host}:{port}/{root_path}/v1/traces
 |  Storage: {storage}
 """
 
@@ -197,7 +198,7 @@ if __name__ == "__main__":
         host = None
 
     port = args.port or get_env_port()
-
+    host_root_path = get_env_host_root_path()
     model = create_model_from_datasets(
         primary_dataset,
         reference_dataset,
@@ -251,7 +252,7 @@ if __name__ == "__main__":
         initial_spans=fixture_spans,
         initial_evaluations=fixture_evals,
     )
-    server = Server(config=Config(app, host=host, port=port))  # type: ignore
+    server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
 
     # Print information about the server
@@ -260,6 +261,7 @@ if __name__ == "__main__":
         "version": phoenix_version,
         "host": display_host,
         "port": port,
+        "root_path": host_root_path.strip("/"),
         "grpc_port": get_env_grpc_port(),
         "storage": get_printable_db_url(db_connection_str),
     }
