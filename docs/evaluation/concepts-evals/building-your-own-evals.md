@@ -22,7 +22,7 @@ Building such a dataset is laborious, but you can often find a standardized one 
 
 <figure><img src="https://storage.cloud.google.com/arize-assets/phoenix/assets/images/Create_Your_Own_Template_Golden_Dataset.png" alt=""><figcaption><p>Golden Dataset</p></figcaption></figure>
 
-The Evals dataset is designed or easy benchmarking and pre-set downloadable test datasets. The datasets are pre-tested, many are hand crafted and designed for testing specific Eval tasks.
+The Eval inferences are designed or easy benchmarking and pre-set downloadable test inferences. The inferences are pre-tested, many are hand crafted and designed for testing specific Eval tasks.
 
 ```python
 from phoenix.evals import download_benchmark_dataset

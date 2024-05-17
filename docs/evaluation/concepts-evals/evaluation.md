@@ -46,9 +46,9 @@ Retrieval is possibly the most important step in any LLM application as poor and
 
 ### Evaluations
 
-<figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/blog/Evaluations.png?raw=true" alt=""><figcaption><p>Datasets that contain generative records can be fed into evals to produce evaluations for analysis</p></figcaption></figure>
+<figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/blog/Evaluations.png?raw=true" alt=""><figcaption><p>Inferences that contain generative records can be fed into evals to produce evaluations for analysis</p></figcaption></figure>
 
-With Phoenix's LLM Evals, evaluation results (or just **Evaluations** for short) is a dataset consisting of 3 main columns:
+With Phoenix's LLM Evals, evaluation results (or just **Evaluations** for short) is data consisting of 3 main columns:
 
 * **label**: str \[optional] - a classification label for the evaluation (e.g. "hallucinated" vs "factual"). Can be used to calculate percentages (e.g. percent hallucinated) and can be used to filter down your data (e.g. `Evals["Hallucinations"].label == "hallucinated"`)
 * **score**: number \[optional] - a numeric score for the evaluation (e.g. 1 for good, 0 for bad). Scores are great way to sort your data to surface poorly performing examples and can be used to filter your data by a threshold.
