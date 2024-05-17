@@ -113,3 +113,7 @@ async def spans(session: AsyncSession) -> None:
         )
         .returning(models.Span.id)
     )
+
+
+def f() -> None:
+    pass
