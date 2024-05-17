@@ -69,7 +69,7 @@ def _get_llm_span_output(
 ) -> Dict[str, Any]:
     if llm_output_messages is not None:
         return {"output_messages": llm_output_messages}
-    return _get_generic_io_value(io_value=output_value, mime_type=output_mime_type, kind="input")
+    return _get_generic_io_value(io_value=output_value, mime_type=output_mime_type, kind="output")
 
 
 def _get_retriever_span_output(
@@ -79,7 +79,7 @@ def _get_retriever_span_output(
 ) -> Dict[str, Any]:
     if retrieval_documents is not None:
         return {"retrieval_documents": retrieval_documents}
-    return _get_generic_io_value(io_value=output_value, mime_type=output_mime_type, kind="input")
+    return _get_generic_io_value(io_value=output_value, mime_type=output_mime_type, kind="output")
 
 
 def _get_generic_io_value(
