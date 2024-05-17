@@ -18,7 +18,7 @@ class TestAddSpanToDataset:
         # todo: enhance this query to return the newly created examples
         mutation = """
 mutation($datasetId: GlobalID!, $spanIds: [GlobalID!]!) {
-  addSpansToDataset(datasetId: $datasetId, spanIds: $spanIds) {
+	addSpansToDataset(input: {datasetId: $datasetId, spanIds: $spanIds}) {
     dataset {
       id
     }

@@ -323,6 +323,14 @@ class Query:
         )
 
 
+@strawberry.input
+class AddSpansToDatasetInput:
+    dataset_id: GlobalID
+    span_ids: List[GlobalID]
+    dataset_version_description: Optional[str] = UNSET
+    dataset_version_metadata: Optional[JSON] = UNSET
+
+
 @strawberry.type
 class AddSpansToDatasetPayload:
     dataset: Dataset
@@ -397,11 +405,16 @@ class Mutation(ExportEventsMutation):
     async def add_spans_to_dataset(
         self,
         info: Info[Context, None],
-        dataset_id: GlobalID,
-        span_ids: List[GlobalID],
-        dataset_version_description: Optional[str] = UNSET,
-        dataset_version_metadata: Optional[JSON] = UNSET,
+        input: AddSpansToDatasetInput,
     ) -> AddSpansToDatasetPayload:
+        dataset_id = input.dataset_id
+        span_ids = input.span_ids
+        dataset_version_description = (
+            input.dataset_version_description
+            if isinstance(input.dataset_version_description, str)
+            else None
+        )
+        dataset_version_metadata = input.dataset_version_metadata
         dataset_rowid = from_global_id_with_expected_type(
             global_id=dataset_id, expected_type_name="Dataset"
         )
@@ -422,9 +435,7 @@ class Mutation(ExportEventsMutation):
                 insert(models.DatasetVersion)
                 .values(
                     dataset_id=dataset_rowid,
-                    description=dataset_version_description
-                    if isinstance(dataset_version_description, str)
-                    else None,
+                    description=dataset_version_description,
                     metadata_=dataset_version_metadata or {},
                 )
                 .returning(models.DatasetVersion.id)
