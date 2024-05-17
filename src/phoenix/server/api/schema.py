@@ -324,6 +324,11 @@ class Query:
 
 
 @strawberry.type
+class AddSpansToDatasetPayload:
+    dataset: Dataset
+
+
+@strawberry.type
 class Mutation(ExportEventsMutation):
     @strawberry.mutation
     async def delete_project(self, info: Info[Context, None], id: GlobalID) -> Query:
@@ -393,21 +398,38 @@ class Mutation(ExportEventsMutation):
         self,
         info: Info[Context, None],
         dataset_id: GlobalID,
-        dataset_version_id: GlobalID,
         span_ids: List[GlobalID],
-    ) -> Query:
+        dataset_version_description: Optional[str] = UNSET,
+        dataset_version_metadata: Optional[JSON] = UNSET,
+    ) -> AddSpansToDatasetPayload:
         dataset_rowid = from_global_id_with_expected_type(
             global_id=dataset_id, expected_type_name="Dataset"
         )
-        dataset_version_rowid = from_global_id_with_expected_type(
-            global_id=dataset_version_id, expected_type_name="DatasetVersion"
-        )
-        span_rowids = [
+        span_rowids = {
             from_global_id_with_expected_type(global_id=span_id, expected_type_name="Span")
-            for span_id in span_ids
-        ]
+            for span_id in set(span_ids)
+        }
         async with info.context.db() as session:
-            spans = await session.execute(
+            if (
+                dataset := await session.scalar(
+                    select(models.Dataset).where(models.Dataset.id == dataset_rowid)
+                )
+            ) is None:
+                raise ValueError(
+                    f"Unknown dataset: {dataset_id}"
+                )  # todo: implement error types https://github.com/Arize-ai/phoenix/issues/3221
+            dataset_version_rowid = await session.scalar(
+                insert(models.DatasetVersion)
+                .values(
+                    dataset_id=dataset_rowid,
+                    description=dataset_version_description
+                    if isinstance(dataset_version_description, str)
+                    else None,
+                    metadata_=dataset_version_metadata or {},
+                )
+                .returning(models.DatasetVersion.id)
+            )
+            span_query_result = await session.execute(
                 select(
                     models.Span.id,
                     models.Span.span_kind,
@@ -424,8 +446,15 @@ class Mutation(ExportEventsMutation):
                         "llm_output_messages"
                     ),
                     models.Span.attributes["retrieval"]["documents"].label("retrieval_documents"),
-                ).where(models.Span.id.in_(span_rowids))
+                )
+                .select_from(models.Span)
+                .where(models.Span.id.in_(span_rowids))
             )
+            spans = span_query_result.all()
+            if missing_span_rowids := span_rowids - {span.id for span in spans}:
+                raise ValueError(
+                    f"Could not find spans with rowids: {", ".join(map(str, missing_span_rowids))}"
+                )  # todo: implement error handling types https://github.com/Arize-ai/phoenix/issues/3221
             for span in spans:
                 dataset_example_rowid = await session.scalar(
                     insert(models.DatasetExample)
@@ -442,7 +471,16 @@ class Mutation(ExportEventsMutation):
                         revision_kind="CREATE",
                     )
                 )
-        return Query()
+        return AddSpansToDatasetPayload(
+            dataset=Dataset(
+                id_attr=dataset.id,
+                name=dataset.name,
+                description=dataset.description,
+                created_at=dataset.created_at,
+                updated_at=dataset.updated_at,
+                metadata=dataset.metadata_,
+            )
+        )
 
 
 # This is the schema for generating `schema.graphql`.
