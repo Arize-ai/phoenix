@@ -1,4 +1,11 @@
-import React, { PropsWithChildren, ReactNode, useMemo } from "react";
+import React, {
+  PropsWithChildren,
+  ReactNode,
+  Suspense,
+  useCallback,
+  useMemo,
+  useState,
+} from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useNavigate, useParams } from "react-router";
@@ -11,6 +18,7 @@ import { css } from "@emotion/react";
 
 import {
   Alert,
+  Button,
   Card,
   CardProps,
   Content,
@@ -61,7 +69,7 @@ import { SpanKindIcon } from "@phoenix/components/trace/SpanKindIcon";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
 import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
-import { useTheme } from "@phoenix/contexts";
+import { useNotifySuccess, useTheme } from "@phoenix/contexts";
 import {
   AttributeDocument,
   AttributeEmbedding,
@@ -85,6 +93,7 @@ import {
   TracePageQuery$data,
 } from "./__generated__/TracePageQuery.graphql";
 import { SpanEvaluationsTable } from "./SpanEvaluationsTable";
+import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
 
 type Span = NonNullable<
   TracePageQuery$data["project"]["trace"]
@@ -164,6 +173,7 @@ export function TracePage() {
               spans(first: 1000) {
                 edges {
                   span: node {
+                    id
                     context {
                       spanId
                     }
@@ -421,7 +431,17 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
         paddingEnd="size-200"
         flex="none"
       >
-        <SpanItem {...selectedSpan} />
+        <Flex
+          direction="row"
+          gap="size-200"
+          justifyContent="space-between"
+          alignItems="center"
+        >
+          <SpanItem {...selectedSpan} />
+          <View flex="none">
+            <AddSpanToDatasetButton span={selectedSpan} />
+          </View>
+        </Flex>
       </View>
       <Tabs>
         <TabPane name={"Info"}>
@@ -464,6 +484,46 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
         </TabPane>
       </Tabs>
     </Flex>
+  );
+}
+
+function AddSpanToDatasetButton({ span }: { span: Span }) {
+  const [dialog, setDialog] = useState<ReactNode>(null);
+  const notifySuccess = useNotifySuccess();
+  const onAddSpanToDataset = useCallback(() => {
+    setDialog(
+      <SpanToDatasetExampleDialog
+        spanId={span.id}
+        onCompleted={() => {
+          setDialog(null);
+          notifySuccess({
+            title: "Add to Dataset",
+            message: "Successfully added span to dataset",
+          });
+        }}
+      />
+    );
+  }, [span]);
+  return (
+    <>
+      <Button
+        variant="default"
+        size="compact"
+        icon={<Icon svg={<Icons.DatabaseOutline />} />}
+        onClick={onAddSpanToDataset}
+      >
+        Add to Dataset
+      </Button>
+      <Suspense>
+        <DialogContainer
+          type="slideOver"
+          isDismissable
+          onDismiss={() => setDialog(null)}
+        >
+          {dialog}
+        </DialogContainer>
+      </Suspense>
+    </>
   );
 }
 
