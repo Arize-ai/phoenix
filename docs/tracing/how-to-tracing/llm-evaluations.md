@@ -48,7 +48,7 @@ px.Client().log_evaluations(
 
 ## Logging Multiple Evaluation DataFrames
 
-Multiple evaluation datasets can be logged by the same `px.Client().log_evaluations()` function call.
+Multiple sets of Evaluations can be logged by the same `px.Client().log_evaluations()` function call.
 
 ```
 px.Client().log_evaluations(

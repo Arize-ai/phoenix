@@ -18,7 +18,7 @@ import phoenix as px
 session = px.launch_app()
 ```
 
-This will start a local Phoenix server. You can initialize the phoenix server with various types of datasets (traces, inferences). Check out the [API for details](how-to/manage-the-app.md)
+This will start a local Phoenix server. You can initialize the phoenix server with various kinds of data (traces, inferences). Check out the [API for details](how-to/manage-the-app.md)
 
 {% hint style="info" %}
 When running phoenix in the notebook, by default it does not persist your data.&#x20;

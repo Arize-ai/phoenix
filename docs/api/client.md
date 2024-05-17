@@ -110,7 +110,7 @@ Send evaluations to Phoenix. See [#logging-multiple-evaluation-dataframes](../tr
 
 **Parameters**
 
-* **\*evaluations** (Evaluations): One or more Evaluations datasets. See [llm-evaluations.md](../tracing/how-to-tracing/llm-evaluations.md "mention")for more details.
+* **\*evaluations** (Evaluations): A collection of Evaluations. See [llm-evaluations.md](../tracing/how-to-tracing/llm-evaluations.md "mention")for more details.
 * **project\_name** (Optional\[str]): The name of the project to send the evaluations for. It can also be specified via an environment variable, or if left blank, defaults to the default project name.
 
 ### Usage

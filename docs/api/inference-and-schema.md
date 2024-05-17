@@ -16,9 +16,9 @@ class Inferences(
 )
 ```
 
-A collection of inferences containing a split or cohort of data to be analyzed independently or compared to another cohort. Common examples include training, validation, test, or production datasets.
+A collection of inferences containing a split or cohort of data to be analyzed independently or compared to another cohort. Common examples include training, validation, test, or production data.
 
-**\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/datasets/dataset.py)**]**
+**\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/inferences/inferences.py)**]**
 
 ### Parameters
 
@@ -73,7 +73,7 @@ class Schema(
 
 Assigns the columns of a pandas dataframe to the appropriate model dimensions (predictions, actuals, features, etc.). Each column of the dataframe should appear in the corresponding schema at most once.
 
-**\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/datasets/schema.py)**]**
+**\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/inferences/schema.py)**]**
 
 ### Parameters
 
@@ -111,7 +111,7 @@ class EmbeddingColumnNames(
 
 A dataclass that associates one or more columns of a dataframe with an [embedding](broken-reference) feature. Instances of this class are only used as values in a dictionary passed to the `embedding_feature_column_names` field of [Schema](dataset-and-schema.md#phoenix.schema).
 
-**\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/datasets/schema.py)**]**
+**\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/inferences/schema.py)**]**
 
 ### Parameters
 
