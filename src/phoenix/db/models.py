@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import (
+    FLOAT,
     JSON,
     TIMESTAMP,
     CheckConstraint,
@@ -228,7 +229,12 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     start_time, end_time = list(element.clauses)
     return compiler.process(
-        func.round((func.extract("EPOCH", end_time) - func.extract("EPOCH", start_time)) * 1000, 1),
+        func.round(
+            func.cast(
+                (func.extract("EPOCH", end_time) - func.extract("EPOCH", start_time)) * 1000, FLOAT
+            ),
+            1,
+        ),
         **kw,
     )
 
