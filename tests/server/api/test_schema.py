@@ -23,8 +23,7 @@ mutation($datasetId: GlobalID!, $spanIds: [GlobalID!]!) {
   }
 }
 """
-    dataset_rowid = 0
-    dataset_id = GlobalID("Dataset", str(dataset_rowid))
+    dataset_id = GlobalID("Dataset", str(0))
     span_ids = [GlobalID("Span", str(1)), GlobalID("Span", str(2))]
     response = await test_client.post(
         "/graphql",
