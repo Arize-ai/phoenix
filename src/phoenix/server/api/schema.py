@@ -453,9 +453,9 @@ class Mutation(ExportEventsMutation):
             output_value = _get_attribute_value(models.Span.attributes, OUTPUT_VALUE).label(
                 "output_value"
             )
-            prompt_template_variables = _get_attribute_value(
+            llm_prompt_template_variables = _get_attribute_value(
                 models.Span.attributes, LLM_PROMPT_TEMPLATE_VARIABLES
-            ).label("prompt_template_variables")
+            ).label("llm_prompt_template_variables")
             llm_input_messages = _get_attribute_value(
                 models.Span.attributes, LLM_INPUT_MESSAGES
             ).label("llm_input_messages")
@@ -474,7 +474,7 @@ class Mutation(ExportEventsMutation):
                     input_value,
                     output_mime_type,
                     output_value,
-                    prompt_template_variables,
+                    llm_prompt_template_variables,
                     llm_input_messages,
                     llm_output_messages,
                     retrieval_documents,

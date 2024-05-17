@@ -3,9 +3,9 @@ from typing import Any, Dict, Literal, Optional, Protocol
 from openinference.semconv.trace import OpenInferenceMimeTypeValues, OpenInferenceSpanKindValues
 
 
-class HasSpanIOAttributes(Protocol):
+class HasSpanIO(Protocol):
     """
-    An interface that contains the attributes needed to extract dataset example
+    An interface that contains the information needed to extract dataset example
     input and output values from a span.
     """
 
@@ -14,13 +14,13 @@ class HasSpanIOAttributes(Protocol):
     input_mime_type: Optional[str]
     output_value: Any
     output_mime_type: Optional[str]
-    prompt_template_variables: Any
+    llm_prompt_template_variables: Any
     llm_input_messages: Any
     llm_output_messages: Any
     retrieval_documents: Any
 
 
-def get_dataset_example_input(span: HasSpanIOAttributes) -> Dict[str, Any]:
+def get_dataset_example_input(span: HasSpanIO) -> Dict[str, Any]:
     """
     Extracts the input value from a span and returns it as a dictionary. Input
     values from LLM spans are extracted from the input messages and prompt
@@ -31,15 +31,15 @@ def get_dataset_example_input(span: HasSpanIOAttributes) -> Dict[str, Any]:
     input_mime_type = span.input_mime_type
     if span.span_kind == OpenInferenceSpanKindValues.LLM.value:
         return _get_llm_span_input(
-            llm_input_messages=span.llm_input_messages,
+            input_messages=span.llm_input_messages,
             input_value=input_value,
             input_mime_type=input_mime_type,
-            prompt_template_variables=span.prompt_template_variables,
+            prompt_template_variables=span.llm_prompt_template_variables,
         )
     return _get_generic_io_value(io_value=input_value, mime_type=input_mime_type, kind="input")
 
 
-def get_dataset_example_output(span: HasSpanIOAttributes) -> Dict[str, Any]:
+def get_dataset_example_output(span: HasSpanIO) -> Dict[str, Any]:
     """
     Extracts the output value from a span and returns it as a dictionary. Output
     values from LLM spans are extracted from the output messages (if present).
@@ -52,7 +52,7 @@ def get_dataset_example_output(span: HasSpanIOAttributes) -> Dict[str, Any]:
     output_mime_type = span.output_mime_type
     if (span_kind := span.span_kind) == OpenInferenceSpanKindValues.LLM.value:
         return _get_llm_span_output(
-            llm_output_messages=span.llm_output_messages,
+            output_messages=span.llm_output_messages,
             output_value=output_value,
             output_mime_type=output_mime_type,
         )
@@ -66,7 +66,7 @@ def get_dataset_example_output(span: HasSpanIOAttributes) -> Dict[str, Any]:
 
 
 def _get_llm_span_input(
-    llm_input_messages: Any,
+    input_messages: Any,
     input_value: Any,
     input_mime_type: Optional[str],
     prompt_template_variables: Any,
@@ -77,8 +77,8 @@ def _get_llm_span_input(
     template variables (if present).
     """
     input: Dict[str, Any]
-    if llm_input_messages is not None:
-        input = {"input_messages": llm_input_messages}
+    if input_messages is not None:
+        input = {"input_messages": input_messages}
     else:
         input = _get_generic_io_value(io_value=input_value, mime_type=input_mime_type, kind="input")
     if prompt_template_variables:
@@ -87,7 +87,7 @@ def _get_llm_span_input(
 
 
 def _get_llm_span_output(
-    llm_output_messages: Any,
+    output_messages: Any,
     output_value: Any,
     output_mime_type: Optional[str],
 ) -> Dict[str, Any]:
@@ -95,8 +95,8 @@ def _get_llm_span_output(
     Extracts the output value from an LLM span and returns it as a dictionary.
     The output is extracted from the output messages (if present).
     """
-    if llm_output_messages is not None:
-        return {"output_messages": llm_output_messages}
+    if output_messages is not None:
+        return {"output_messages": output_messages}
     return _get_generic_io_value(io_value=output_value, mime_type=output_mime_type, kind="output")
 
 
