@@ -441,68 +441,59 @@ class Mutation(ExportEventsMutation):
                 )
                 .returning(models.DatasetVersion.id)
             )
-            input_mime_type = _get_attribute_value(models.Span.attributes, INPUT_MIME_TYPE).label(
-                "input_mime_type"
-            )
-            input_value = _get_attribute_value(models.Span.attributes, INPUT_VALUE).label(
-                "input_value"
-            )
-            output_mime_type = _get_attribute_value(models.Span.attributes, OUTPUT_MIME_TYPE).label(
-                "output_mime_type"
-            )
-            output_value = _get_attribute_value(models.Span.attributes, OUTPUT_VALUE).label(
-                "output_value"
-            )
-            llm_prompt_template_variables = _get_attribute_value(
-                models.Span.attributes, LLM_PROMPT_TEMPLATE_VARIABLES
-            ).label("llm_prompt_template_variables")
-            llm_input_messages = _get_attribute_value(
-                models.Span.attributes, LLM_INPUT_MESSAGES
-            ).label("llm_input_messages")
-            llm_output_messages = _get_attribute_value(
-                models.Span.attributes, LLM_OUTPUT_MESSAGES
-            ).label("llm_output_messages")
-            retrieval_documents = _get_attribute_value(
-                models.Span.attributes, RETRIEVAL_DOCUMENTS
-            ).label("retrieval_documents")
-            span_query_result = await session.execute(
-                select(
-                    models.Span.id,
-                    models.Span.span_kind,
-                    models.Span.attributes,
-                    input_mime_type,
-                    input_value,
-                    output_mime_type,
-                    output_value,
-                    llm_prompt_template_variables,
-                    llm_input_messages,
-                    llm_output_messages,
-                    retrieval_documents,
+            spans = (
+                await session.execute(
+                    select(
+                        models.Span.id,
+                        models.Span.span_kind,
+                        models.Span.attributes,
+                        _span_attribute(INPUT_MIME_TYPE),
+                        _span_attribute(INPUT_VALUE),
+                        _span_attribute(OUTPUT_MIME_TYPE),
+                        _span_attribute(OUTPUT_VALUE),
+                        _span_attribute(LLM_PROMPT_TEMPLATE_VARIABLES),
+                        _span_attribute(LLM_INPUT_MESSAGES),
+                        _span_attribute(LLM_OUTPUT_MESSAGES),
+                        _span_attribute(RETRIEVAL_DOCUMENTS),
+                    )
+                    .select_from(models.Span)
+                    .where(models.Span.id.in_(span_rowids))
                 )
-                .select_from(models.Span)
-                .where(models.Span.id.in_(span_rowids))
-            )
-            spans = span_query_result.all()
+            ).all()
             if missing_span_rowids := span_rowids - {span.id for span in spans}:
                 raise ValueError(
                     f"Could not find spans with rowids: {', '.join(map(str, missing_span_rowids))}"
                 )  # todo: implement error handling types https://github.com/Arize-ai/phoenix/issues/3221
-            for span in spans:
-                dataset_example_rowid = await session.scalar(
-                    insert(models.DatasetExample)
-                    .values(dataset_id=dataset_rowid, span_rowid=span.id)
-                    .returning(models.DatasetExample.id)
+            DatasetExample = models.DatasetExample
+            dataset_example_rowids = (
+                await session.scalars(
+                    insert(DatasetExample).returning(DatasetExample.id),
+                    [
+                        {
+                            DatasetExample.dataset_id.key: dataset_rowid,
+                            DatasetExample.span_rowid.key: span.id,
+                        }
+                        for span in spans
+                    ],
                 )
-                await session.execute(
-                    insert(models.DatasetExampleRevision).values(
-                        dataset_example_id=dataset_example_rowid,
-                        dataset_version_id=dataset_version_rowid,
-                        input=get_dataset_example_input(span),
-                        output=get_dataset_example_output(span),
-                        metadata_=span.attributes,
-                        revision_kind="CREATE",
-                    )
-                )
+            ).all()
+            assert len(dataset_example_rowids) == len(spans)
+            assert all(map(lambda id: isinstance(id, int), dataset_example_rowids))
+            DatasetExampleRevision = models.DatasetExampleRevision
+            await session.execute(
+                insert(DatasetExampleRevision),
+                [
+                    {
+                        DatasetExampleRevision.dataset_example_id.key: dataset_example_rowid,
+                        DatasetExampleRevision.dataset_version_id.key: dataset_version_rowid,
+                        DatasetExampleRevision.input.key: get_dataset_example_input(span),
+                        DatasetExampleRevision.output.key: get_dataset_example_output(span),
+                        DatasetExampleRevision.metadata_.key: span.attributes,
+                        DatasetExampleRevision.revision_kind.key: "CREATE",
+                    }
+                    for dataset_example_rowid, span in zip(dataset_example_rowids, spans)
+                ],
+            )
         return AddSpansToDatasetPayload(
             dataset=Dataset(
                 id_attr=dataset.id,
@@ -515,16 +506,17 @@ class Mutation(ExportEventsMutation):
         )
 
 
-def _get_attribute_value(attributes: Any, semconv: str) -> Any:
+def _span_attribute(semconv: str) -> Any:
     """
-    Applies a semantic convention path to a dictionary of attributes.
+    Extracts an attribute from the ORM span attributes column and labels the
+    result.
 
-    For example, for "input.value", returns attributes["input"]["value"]
+    E.g., "input.value" -> Span.attributes["input"]["value"].label("input_value")
     """
-    attribute_value = attributes
+    attribute_value: Any = models.Span.attributes
     for key in semconv.split("."):
         attribute_value = attribute_value[key]
-    return attribute_value
+    return attribute_value.label(semconv.replace(".", "_"))
 
 
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
