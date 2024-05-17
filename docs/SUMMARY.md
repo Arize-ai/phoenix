@@ -93,13 +93,13 @@
   * [Manage the App](how-to/manage-the-app.md)
 * [Concepts: Inferences](inferences/inferences.md)
 * [How to: Inferences](inferences/how-to-inferences-1/README.md)
-  * [Use Example Inferences](inferences/how-to-inferences-1/use-example-datasets.md)
+  * [Use Example Inferences](inferences/how-to-inferences-1/use-example-inferences.md)
 * [Use-Cases: Inferences](inferences/use-cases-inferences/README.md)
   * [Embeddings Analysis](inferences/use-cases-inferences/embeddings-analysis.md)
 
 ## ⌨️ API
 
-* [Inferences and Schema](api/dataset-and-schema.md)
+* [Inferences and Schema](api/inference-and-schema.md)
 * [Session](api/session.md)
 * [Client & Get Spans](api/client.md)
 * [Evals](api/evals.md)
