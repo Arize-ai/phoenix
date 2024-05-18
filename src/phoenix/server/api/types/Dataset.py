@@ -2,15 +2,16 @@ from datetime import datetime
 from typing import Optional
 
 import strawberry
-from sqlalchemy import select
+from sqlalchemy import and_, func, select
 from strawberry import UNSET
-from strawberry.relay import Connection, Node, NodeID
+from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.DatasetExample import DatasetExample
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     CursorString,
@@ -62,5 +63,74 @@ class Dataset(Node):
         return connection_from_list(data=data, args=args)
 
     @strawberry.field
-    async def examples(self) -> Connection[DatasetExample]:
-        raise NotImplementedError
+    async def examples(
+        self,
+        info: Info[Context, None],
+        dataset_version_id: Optional[GlobalID] = UNSET,
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[DatasetExample]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db() as session:
+            latest_revisions = select(
+                models.DatasetExampleRevision.id,
+                func.max(models.DatasetExampleRevision.dataset_version_id).label(
+                    "latest_version_id"
+                ),
+            ).group_by(models.DatasetExampleRevision.dataset_example_id)
+            if dataset_version_id:
+                dataset_version_rowid = from_global_id_with_expected_type(
+                    global_id=dataset_version_id, expected_type_name="DatasetVersion"
+                )
+                dataset_version_exists = bool(
+                    (
+                        await session.scalar(
+                            select(1).where(models.DatasetVersion.id == dataset_version_rowid)
+                        )
+                    ).first()
+                )
+                if not dataset_version_exists:
+                    raise ValueError(f"Unknown dataset version: {dataset_version_id}")
+                latest_revisions = latest_revisions.where(
+                    models.DatasetExampleRevision.dataset_version_id <= dataset_version_rowid
+                )
+            latest_revisions_cte = latest_revisions.cte("latest_revisions")
+            query = (
+                select(models.DatasetExampleRevision, models.DatasetExample.created_at)
+                .join(
+                    latest_revisions_cte,
+                    onclause=and_(
+                        models.DatasetExampleRevision.id == latest_revisions_cte.c.id,
+                        models.DatasetExampleRevision.dataset_version_id
+                        == latest_revisions_cte.c.latest_version_id,
+                    ),
+                )
+                .join(
+                    models.DatasetExample,
+                    onclause=models.DatasetExample.id
+                    == models.DatasetExampleRevision.dataset_example_id,
+                )
+                .where(
+                    models.DatasetExampleRevision.revision_kind != "DELETE",
+                )
+            )
+            dataset_examples = [
+                DatasetExample(
+                    id_attr=dataset_example_revision.id,
+                    input=dataset_example_revision.input,
+                    output=dataset_example_revision.output,
+                    metadata=dataset_example_revision.metadata,
+                    created_at=dataset_example_created_at,
+                )
+                for dataset_example_revision, dataset_example_created_at in await session.execute(
+                    query
+                )
+            ]
+        return connection_from_list(data=dataset_examples, args=args)

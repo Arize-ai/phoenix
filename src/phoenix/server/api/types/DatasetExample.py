@@ -12,4 +12,3 @@ class DatasetExample(Node):
     output: JSON
     metadata: JSON
     created_at: datetime
-    updated_at: datetime
