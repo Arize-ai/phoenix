@@ -75,6 +75,26 @@ async def test_dataset_examples_resolver_returns_latest_example_revisions_up_to_
     }
 
 
+async def test_dataset_examples_resolver_returns_empty_connection_for_nonexistent_dataset_version(
+    test_client,
+    dataset_with_patch_revision,
+) -> None:
+    response = await test_client.post(
+        "/graphql",
+        json={
+            "query": DATASET_EXAMPLES_QUERY,
+            "variables": {
+                "datasetId": str(GlobalID("Dataset", str(1))),
+                "datasetVersionId": str(GlobalID("DatasetVersion", str(3))),  # does not exist
+            },
+        },
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert (errors := response_json.get("errors")) is None, errors
+    assert response_json["data"] == {"node": {"examples": {"edges": []}}}
+
+
 async def test_dataset_examples_resolver_excludes_deleted_examples(
     test_client, dataset_with_deletion
 ) -> None:

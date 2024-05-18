@@ -92,7 +92,7 @@ class Dataset(Node):
                 if not await session.scalar(
                     select(1).where(models.DatasetVersion.id == dataset_version_rowid)
                 ):
-                    raise ValueError(f"Unknown dataset version: {dataset_version_id}")
+                    return connection_from_list(data=[], args=args)
                 latest_revisions = latest_revisions.where(
                     models.DatasetExampleRevision.dataset_version_id <= dataset_version_rowid
                 )
