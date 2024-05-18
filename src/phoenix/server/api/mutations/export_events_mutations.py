@@ -16,7 +16,7 @@ from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, Inf
 
 
 @strawberry.type
-class ExportEventsMutation:
+class ExportEventsMutationMixin:
     @strawberry.mutation(
         description=(
             "Given a list of event ids, export the corresponding data subset in Parquet format."
