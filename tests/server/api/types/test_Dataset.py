@@ -106,7 +106,7 @@ async def dataset_with_patch_revision(session):
     dataset = models.Dataset(
         id=1,
         name="dataset-name",
-        description="this dataset changes over time",
+        description=None,
         metadata_={},
     )
     session.add(dataset)
@@ -174,7 +174,7 @@ async def dataset_with_deletion(session):
     dataset = models.Dataset(
         id=1,
         name="dataset-name",
-        description="this dataset changes over time",
+        description=None,
         metadata_={},
     )
     session.add(dataset)
@@ -233,7 +233,7 @@ async def dataset_with_deletion(session):
 
 DATASET_EXAMPLES_QUERY = """
 query($datasetId: GlobalID!, $datasetVersionId: GlobalID) {
-  node(id:$datasetId) {
+  node(id: $datasetId) {
     ...on Dataset {
       examples(datasetVersionId: $datasetVersionId) {
         edges {
