@@ -5,7 +5,7 @@ import logging
 import signal
 import traceback
 from typing import Any, Callable, Coroutine, List, Optional, Protocol, Sequence, Tuple, Union
-
+import threading
 from phoenix.evals.exceptions import PhoenixException
 from tqdm.auto import tqdm
 
@@ -164,11 +164,17 @@ class AsyncExecutor(Executor):
     async def execute(self, inputs: Sequence[Any]) -> List[Any]:
         termination_event = asyncio.Event()
 
-        def termination_handler(signum: int, frame: Any) -> None:
-            termination_event.set()
-            tqdm.write("Process was interrupted. The return value will be incomplete...")
+        if threading.current_thread() is threading.main_thread():
+            def termination_handler(signum: int, frame: Any) -> None:
+                termination_event.set()
+                tqdm.write("Process was interrupted. The return value will be incomplete...")
 
-        signal.signal(self.termination_signal, termination_handler)
+            signal.signal(self.termination_signal, termination_handler)
+        else:
+            # Async is not supported inside a thread, it must be used in the main thread
+            if isinstance(self, AsyncExecutor):
+                tqdm.write("ERROR - Running async mode while inside a thread is not supported. Run from Main or use run_sync=True")
+                raise Exception
         outputs = [self.fallback_return_value] * len(inputs)
         progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
@@ -207,9 +213,9 @@ class AsyncExecutor(Executor):
 
         if not termination_event_watcher.done():
             termination_event_watcher.cancel()
-
-        # reset the SIGTERM handler
-        signal.signal(self.termination_signal, signal.SIG_DFL)  # reset the SIGTERM handler
+        if threading.current_thread() is threading.main_thread():
+            # reset the SIGTERM handler
+            signal.signal(self.termination_signal, signal.SIG_DFL)  # reset the SIGTERM handler
         return outputs
 
     def run(self, inputs: Sequence[Any]) -> List[Any]:
@@ -260,7 +266,8 @@ class SyncExecutor(Executor):
         self._TERMINATE = True
 
     def run(self, inputs: Sequence[Any]) -> List[Any]:
-        signal.signal(self.termination_signal, self._signal_handler)
+        if threading.current_thread() is threading.main_thread():
+            signal.signal(self.termination_signal, self._signal_handler)
         outputs = [self.fallback_return_value] * len(inputs)
         progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
@@ -287,7 +294,8 @@ class SyncExecutor(Executor):
                     return outputs
                 else:
                     progress_bar.update()
-        signal.signal(self.termination_signal, signal.SIG_DFL)  # reset the SIGTERM handler
+        if threading.current_thread() is threading.main_thread():
+            signal.signal(self.termination_signal, signal.SIG_DFL)  # reset the SIGTERM handler
         return outputs
 
 
