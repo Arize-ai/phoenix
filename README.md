@@ -39,7 +39,7 @@ Phoenix runs practically anywhere, including your python-notebook, local machine
 
 ## Installation
 
-Install Phoenix via `pip` or or `conda` as well as any of its subpackages.
+Install Phoenix via `pip` or `conda` along with extra dependencies for running evals:
 
 ```shell
 pip install 'arize-phoenix[evals]'
