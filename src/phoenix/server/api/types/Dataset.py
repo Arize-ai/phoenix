@@ -89,14 +89,9 @@ class Dataset(Node):
                 dataset_version_rowid = from_global_id_with_expected_type(
                     global_id=dataset_version_id, expected_type_name="DatasetVersion"
                 )
-                dataset_version_exists = bool(
-                    (
-                        await session.scalar(
-                            select(1).where(models.DatasetVersion.id == dataset_version_rowid)
-                        )
-                    ).first()
-                )
-                if not dataset_version_exists:
+                if not await session.scalar(
+                    select(1).where(models.DatasetVersion.id == dataset_version_rowid)
+                ):
                     raise ValueError(f"Unknown dataset version: {dataset_version_id}")
                 latest_revisions = latest_revisions.where(
                     models.DatasetExampleRevision.dataset_version_id <= dataset_version_rowid
