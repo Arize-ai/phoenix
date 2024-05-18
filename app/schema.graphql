@@ -73,7 +73,7 @@ type Dataset implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   versions(first: Int = 50, last: Int, after: String, before: String): DatasetVersionConnection!
-  examples: DatasetExampleConnection!
+  examples(datasetVersionId: GlobalID, first: Int = 50, last: Int, after: String, before: String): DatasetExampleConnection!
 }
 
 """A connection to a list of items."""
@@ -101,7 +101,6 @@ type DatasetExample implements Node {
   output: JSON!
   metadata: JSON!
   createdAt: DateTime!
-  updatedAt: DateTime!
 }
 
 """A connection to a list of items."""
