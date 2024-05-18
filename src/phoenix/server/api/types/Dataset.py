@@ -78,40 +78,38 @@ class Dataset(Node):
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        async with info.context.db() as session:
-            latest_revisions = select(
-                models.DatasetExampleRevision.id,
-                func.max(models.DatasetExampleRevision.dataset_version_id).label(
-                    "latest_version_id"
-                ),
-            ).group_by(models.DatasetExampleRevision.dataset_example_id)
-            if dataset_version_id:
-                dataset_version_rowid = from_global_id_with_expected_type(
-                    global_id=dataset_version_id, expected_type_name="DatasetVersion"
-                )
-                latest_revisions = latest_revisions.where(
-                    models.DatasetExampleRevision.dataset_version_id <= dataset_version_rowid
-                )
-            latest_revisions_cte = latest_revisions.cte("latest_revisions")
-            query = (
-                select(models.DatasetExampleRevision, models.DatasetExample.created_at)
-                .join(
-                    latest_revisions_cte,
-                    onclause=and_(
-                        models.DatasetExampleRevision.id == latest_revisions_cte.c.id,
-                        models.DatasetExampleRevision.dataset_version_id
-                        == latest_revisions_cte.c.latest_version_id,
-                    ),
-                )
-                .join(
-                    models.DatasetExample,
-                    onclause=models.DatasetExample.id
-                    == models.DatasetExampleRevision.dataset_example_id,
-                )
-                .where(
-                    models.DatasetExampleRevision.revision_kind != "DELETE",
-                )
+        latest_revisions = select(
+            models.DatasetExampleRevision.id,
+            func.max(models.DatasetExampleRevision.dataset_version_id).label("latest_version_id"),
+        ).group_by(models.DatasetExampleRevision.dataset_example_id)
+        if dataset_version_id:
+            dataset_version_rowid = from_global_id_with_expected_type(
+                global_id=dataset_version_id, expected_type_name="DatasetVersion"
             )
+            latest_revisions = latest_revisions.where(
+                models.DatasetExampleRevision.dataset_version_id <= dataset_version_rowid
+            )
+        latest_revisions_cte = latest_revisions.cte("latest_revisions")
+        query = (
+            select(models.DatasetExampleRevision, models.DatasetExample.created_at)
+            .join(
+                latest_revisions_cte,
+                onclause=and_(
+                    models.DatasetExampleRevision.id == latest_revisions_cte.c.id,
+                    models.DatasetExampleRevision.dataset_version_id
+                    == latest_revisions_cte.c.latest_version_id,
+                ),
+            )
+            .join(
+                models.DatasetExample,
+                onclause=models.DatasetExample.id
+                == models.DatasetExampleRevision.dataset_example_id,
+            )
+            .where(
+                models.DatasetExampleRevision.revision_kind != "DELETE",
+            )
+        )
+        async with info.context.db() as session:
             dataset_examples = [
                 DatasetExample(
                     id_attr=dataset_example_revision.id,
