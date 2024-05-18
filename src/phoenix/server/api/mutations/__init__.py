@@ -1,10 +1,10 @@
 import strawberry
 
-from phoenix.server.api.mutations.dataset_mutations import DatasetMutation
-from phoenix.server.api.mutations.export_events_mutations import ExportEventsMutation
-from phoenix.server.api.mutations.project_mutations import ProjectMutation
+from phoenix.server.api.mutations.dataset_mutations import DatasetMutationMixin
+from phoenix.server.api.mutations.export_events_mutations import ExportEventsMutationMixin
+from phoenix.server.api.mutations.project_mutations import ProjectMutationMixin
 
 
 @strawberry.type
-class Mutation(ProjectMutation, DatasetMutation, ExportEventsMutation):
+class Mutation(ProjectMutationMixin, DatasetMutationMixin, ExportEventsMutationMixin):
     pass

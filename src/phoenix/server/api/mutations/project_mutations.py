@@ -13,7 +13,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
 @strawberry.type
-class ProjectMutation:
+class ProjectMutationMixin:
     @strawberry.mutation
     async def delete_project(self, info: Info[Context, None], id: GlobalID) -> Query:
         node_id = from_global_id_with_expected_type(global_id=id, expected_type_name="Project")

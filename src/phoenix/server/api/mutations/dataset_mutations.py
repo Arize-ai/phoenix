@@ -33,7 +33,7 @@ class AddSpansToDatasetPayload:
 
 
 @strawberry.type
-class DatasetMutation:
+class DatasetMutationMixin:
     @strawberry.mutation
     async def create_dataset(
         self,
