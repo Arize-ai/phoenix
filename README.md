@@ -47,8 +47,6 @@ pip install 'arize-phoenix[evals]'
 
 Phoenix container images are available via [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix) and can be deployed using Docker or Kubernetes.
 
-## Tutorials
-
 ## Community
 
 Join our community to connect with thousands of AI builders.
