@@ -6,5 +6,5 @@ from phoenix.server.api.mutations.project_mutations import ProjectMutation
 
 
 @strawberry.type
-class Mutation(DatasetMutation, ProjectMutation, ExportEventsMutation):
+class Mutation(ProjectMutation, DatasetMutation, ExportEventsMutation):
     pass
