@@ -10,6 +10,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     CursorString,
@@ -59,3 +60,7 @@ class Dataset(Node):
             for version in versions
         ]
         return connection_from_list(data=data, args=args)
+
+    @strawberry.field
+    async def examples(self) -> Connection[DatasetExample]:
+        raise NotImplementedError
