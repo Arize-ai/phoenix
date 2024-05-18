@@ -79,8 +79,10 @@ class Dataset(Node):
             before=before if isinstance(before, CursorString) else None,
         )
         latest_revisions = select(
-            models.DatasetExampleRevision.id,
-            func.max(models.DatasetExampleRevision.dataset_version_id).label("latest_version_id"),
+            models.DatasetExampleRevision.dataset_example_id,
+            func.max(models.DatasetExampleRevision.dataset_version_id).label(
+                "latest_dataset_version_id"
+            ),
         ).group_by(models.DatasetExampleRevision.dataset_example_id)
         if dataset_version_id:
             dataset_version_rowid = from_global_id_with_expected_type(
@@ -95,9 +97,14 @@ class Dataset(Node):
             .join(
                 latest_revisions_cte,
                 onclause=and_(
-                    models.DatasetExampleRevision.id == latest_revisions_cte.c.id,
-                    models.DatasetExampleRevision.dataset_version_id
-                    == latest_revisions_cte.c.latest_version_id,
+                    (
+                        models.DatasetExampleRevision.dataset_example_id
+                        == latest_revisions_cte.c.dataset_example_id
+                    ),
+                    (
+                        models.DatasetExampleRevision.dataset_version_id
+                        == latest_revisions_cte.c.latest_dataset_version_id
+                    ),
                 ),
             )
             .join(
