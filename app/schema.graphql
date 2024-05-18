@@ -1,3 +1,14 @@
+input AddSpansToDatasetInput {
+  datasetId: GlobalID!
+  spanIds: [GlobalID!]!
+  datasetVersionDescription: String
+  datasetVersionMetadata: JSON
+}
+
+type AddSpansToDatasetPayload {
+  dataset: Dataset!
+}
+
 union Bin = NominalBin | IntervalBin | MissingValueBin
 
 type Cluster {
@@ -566,6 +577,7 @@ type Mutation {
   deleteProject(id: GlobalID!): Query!
   clearProject(id: GlobalID!): Query!
   createDataset(name: String!, description: String = null, metadata: JSON = null): Dataset!
+  addSpansToDataset(input: AddSpansToDatasetInput!): AddSpansToDatasetPayload!
 }
 
 """An object with a Globally Unique ID"""
