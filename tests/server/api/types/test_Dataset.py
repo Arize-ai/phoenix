@@ -251,7 +251,7 @@ async def dataset_with_deletion(session):
 
 DATASET_EXAMPLES_QUERY = """
 query($datasetId: GlobalID!, $datasetVersionId: GlobalID) {
-	node(id:$datasetId) {
+  node(id:$datasetId) {
     ...on Dataset {
       examples(datasetVersionId: $datasetVersionId) {
         edges {
