@@ -481,7 +481,7 @@ class DatasetMutation:
 
 
 @strawberry.type
-class Mutation(DatasetMutation, ExportEventsMutation):
+class ProjectMutation:
     @strawberry.mutation
     async def delete_project(self, info: Info[Context, None], id: GlobalID) -> Query:
         node_id = from_global_id_with_expected_type(global_id=id, expected_type_name="Project")
@@ -507,6 +507,11 @@ class Mutation(DatasetMutation, ExportEventsMutation):
             if cache := info.context.cache_for_dataloaders:
                 cache.invalidate(ClearProjectSpansEvent(project_rowid=project_id))
         return Query()
+
+
+@strawberry.type
+class Mutation(DatasetMutation, ProjectMutation, ExportEventsMutation):
+    pass
 
 
 def _span_attribute(semconv: str) -> Any:
