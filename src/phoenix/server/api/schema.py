@@ -1,15 +1,7 @@
 import strawberry
 
-from phoenix.server.api.mutations.dataset_mutations import DatasetMutation
-from phoenix.server.api.mutations.project_mutations import ProjectMutation
+from phoenix.server.api.mutations import Mutation
 from phoenix.server.api.query import Query
-from phoenix.server.api.types.ExportEventsMutation import ExportEventsMutation
-
-
-@strawberry.type
-class Mutation(DatasetMutation, ProjectMutation, ExportEventsMutation):
-    pass
-
 
 # This is the schema for generating `schema.graphql`.
 # See https://strawberry.rocks/docs/guides/schema-export
