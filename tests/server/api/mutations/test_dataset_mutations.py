@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 import pytest
-from phoenix.server.api.datasets_helpers import (
+from phoenix.server.api.mutations.dataset_mutations import (
     get_dataset_example_input,
     get_dataset_example_output,
 )

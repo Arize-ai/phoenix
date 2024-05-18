@@ -1,7 +1,7 @@
 import strawberry
 
 from phoenix.server.api.mutations import Mutation
-from phoenix.server.api.query import Query
+from phoenix.server.api.queries import Query
 
 # This is the schema for generating `schema.graphql`.
 # See https://strawberry.rocks/docs/guides/schema-export

@@ -8,7 +8,7 @@ from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.insertion.span import ClearProjectSpansEvent
 from phoenix.server.api.context import Context
-from phoenix.server.api.query import Query
+from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
