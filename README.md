@@ -33,7 +33,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 -   **_Evaluation_** - Leverage LLMs to benchmark your application's performance using response and retrieval evals.
 -   **_Inference Analysis_** - Visualize inferences and embeddings using dimensionality reduction and clustering to identify drift and performance degradation.
 
-Phoenix is vendor and language agnostic with out of the box support for popular frameworks (🦙LlamaIndex, 🦜⛓LangChain, 🧩DSPy) and LLM providors (OpenAI, Bedrock, and more). For details on auto-instrumentation, check out the [OpenInference](https://github.com/Arize-ai/openinference) project.
+Phoenix is vendor- and language-agnostic with out-of-the-box support for popular frameworks (🦙LlamaIndex, 🦜⛓LangChain, 🧩DSPy) and LLM providers (OpenAI, Bedrock, and more). For details on auto-instrumentation, check out the [OpenInference](https://github.com/Arize-ai/openinference) project.
 
 Phoenix runs practically anywhere, including your Jupyter notebook, local machine, containerized deployment, or in the cloud.
 
