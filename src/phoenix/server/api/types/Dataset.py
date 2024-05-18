@@ -121,7 +121,7 @@ class Dataset(Node):
                     id_attr=dataset_example_revision.id,
                     input=dataset_example_revision.input,
                     output=dataset_example_revision.output,
-                    metadata=dataset_example_revision.metadata,
+                    metadata=dataset_example_revision.metadata_,
                     created_at=dataset_example_created_at,
                 )
                 for dataset_example_revision, dataset_example_created_at in await session.execute(

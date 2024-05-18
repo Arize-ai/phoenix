@@ -31,6 +31,7 @@ async def test_dataset_examples_resolver_returns_latest_revisions(
                             "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
                             "input": {"input": "second-input"},
                             "output": {"output": "second-output"},
+                            "metadata": {},
                             "createdAt": "2020-01-01T00:00:00+00:00",
                         }
                     }
@@ -66,6 +67,7 @@ async def test_dataset_examples_resolver_returns_latest_revisions_up_to_dataset_
                             "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
                             "input": {"input": "first-input"},
                             "output": {"output": "first-output"},
+                            "metadata": {},
                             "createdAt": "2020-01-01T00:00:00+00:00",
                         }
                     }
@@ -259,6 +261,7 @@ query($datasetId: GlobalID!, $datasetVersionId: GlobalID) {
             id
             input
             output
+            metadata
             createdAt
           }
         }
