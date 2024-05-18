@@ -40,7 +40,7 @@ async def test_dataset_examples_resolver_returns_latest_revisions(
     }
 
 
-async def test_dataset_examples_resolver_returns_latest_example_revisions_up_to_dataset_version(
+async def test_dataset_examples_resolver_returns_latest_revisions_up_to_dataset_version(
     test_client,
     dataset_with_patch_revision,
 ) -> None:
