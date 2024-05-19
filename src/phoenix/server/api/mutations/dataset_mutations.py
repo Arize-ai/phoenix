@@ -7,12 +7,12 @@ from openinference.semconv.trace import (
     SpanAttributes,
 )
 from sqlalchemy import insert, select
-from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.AddSpansToDatasetInput import AddSpansToDatasetInput
+from phoenix.server.api.input_types.CreateDatasetInput import CreateDatasetInput
 from phoenix.server.api.types.AddSpansToDatasetPayload import AddSpansToDatasetPayload
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -25,11 +25,11 @@ class DatasetMutationMixin:
     async def create_dataset(
         self,
         info: Info[Context, None],
-        name: str,
-        description: Optional[str] = None,
-        metadata: Optional[JSON] = None,
+        input: CreateDatasetInput,
     ) -> Dataset:
-        metadata = metadata or {}
+        name = input.name
+        description = input.description
+        metadata = input.metadata or {}
         async with info.context.db() as session:
             result = await session.execute(
                 insert(models.Dataset)
