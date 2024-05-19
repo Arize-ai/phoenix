@@ -13,14 +13,7 @@ from sqlalchemy import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
-
-async def test_add_span_to_dataset(
-    test_client,
-    simple_dataset,
-    spans,
-) -> None:
-    # todo: enhance this query to return the newly created examples
-    mutation = """
+ADD_SPANS_TO_DATASET_MUTATION = """
 mutation($datasetId: GlobalID!, $spanIds: [GlobalID!]!) {
 	addSpansToDataset(input: {datasetId: $datasetId, spanIds: $spanIds}) {
     dataset {
@@ -29,12 +22,19 @@ mutation($datasetId: GlobalID!, $spanIds: [GlobalID!]!) {
   }
 }
 """
+
+
+async def test_add_span_to_dataset(
+    test_client,
+    simple_dataset,
+    spans,
+) -> None:
     dataset_id = GlobalID("Dataset", str(0))
     span_ids = [GlobalID("Span", str(1)), GlobalID("Span", str(2))]
     response = await test_client.post(
         "/graphql",
         json={
-            "query": mutation,
+            "query": ADD_SPANS_TO_DATASET_MUTATION,
             "variables": {
                 "datasetId": str(dataset_id),
                 "spanIds": [str(span_id) for span_id in span_ids],
