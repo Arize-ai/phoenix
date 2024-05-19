@@ -7,6 +7,7 @@ from openinference.semconv.trace import (
     SpanAttributes,
 )
 from sqlalchemy import insert, select
+from strawberry import UNSET
 from strawberry.types import Info
 
 from phoenix.db import models
@@ -29,7 +30,7 @@ class DatasetMutationMixin:
         input: CreateDatasetInput,
     ) -> CreateDatasetPayload:
         name = input.name
-        description = input.description
+        description = input.description if input.description is not UNSET else None
         metadata = input.metadata or {}
         async with info.context.db() as session:
             result = await session.execute(
