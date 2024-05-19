@@ -74,14 +74,14 @@ function CreateDatasetButton({ onDatasetCreated }: CreateDatasetButtonProps) {
     setDialog(
       <Dialog size="S" title="New Dataset">
         <CreateDatasetForm
-          onDatasetCreated={(createDatasetPayload) => {
+          onDatasetCreated={(payload) => {
             notifySuccess({
               title: "Dataset created",
-              message: `${createDatasetPayload.dataset.name} has been successfully created.`,
+              message: `${payload.dataset.name} has been successfully created.`,
               action: {
                 text: "Go to Dataset",
                 onClick: () => {
-                  navigate(`/datasets/${createDatasetPayload.dataset.id}`);
+                  navigate(`/datasets/${payload.dataset.id}`);
                 },
               },
             });
