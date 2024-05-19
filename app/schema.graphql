@@ -46,6 +46,10 @@ input CreateDatasetInput {
   metadata: JSON
 }
 
+type CreateDatasetPayload {
+  dataset: Dataset!
+}
+
 enum DataQualityMetric {
   cardinality
   percentEmpty
@@ -573,7 +577,7 @@ type Model {
 type Mutation {
   deleteProject(id: GlobalID!): Query!
   clearProject(id: GlobalID!): Query!
-  createDataset(input: CreateDatasetInput!): Dataset!
+  createDataset(input: CreateDatasetInput!): CreateDatasetPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): AddSpansToDatasetPayload!
 
   """
