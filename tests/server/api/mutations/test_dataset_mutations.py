@@ -10,52 +10,169 @@ from phoenix.server.api.mutations.dataset_mutations import (
     get_dataset_example_output,
 )
 from sqlalchemy import insert
-from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
-
-ADD_SPANS_TO_DATASET_MUTATION = """
-mutation($datasetId: GlobalID!, $spanIds: [GlobalID!]!) {
-	addSpansToDataset(input: {datasetId: $datasetId, spanIds: $spanIds}) {
-    dataset {
-      id
-    }
-  }
-}
-"""
 
 
 async def test_add_span_to_dataset(
     test_client,
-    simple_dataset,
+    empty_dataset,
     spans,
 ) -> None:
-    dataset_id = GlobalID("Dataset", str(0))
-    span_ids = [GlobalID("Span", str(1)), GlobalID("Span", str(2))]
+    dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
+    mutation = """
+mutation ($datasetId: GlobalID!, $spanIds: [GlobalID!]!) {
+  addSpansToDataset(input: {datasetId: $datasetId, spanIds: $spanIds}) {
+    dataset {
+      id
+      examples {
+        edges {
+          node {
+            input
+            output
+            metadata
+          }
+        }
+      }
+    }
+  }
+}
+"""
     response = await test_client.post(
         "/graphql",
         json={
-            "query": ADD_SPANS_TO_DATASET_MUTATION,
+            "query": mutation,
             "variables": {
                 "datasetId": str(dataset_id),
-                "spanIds": [str(span_id) for span_id in span_ids],
+                "spanIds": [
+                    str(GlobalID(type_name="Span", node_id=span_id))
+                    for span_id in map(str, range(1, 4))
+                ],
             },
         },
     )
     assert response.status_code == 200
     response_json = response.json()
     assert (errors := response_json.get("errors")) is None, errors
-    assert response_json["data"] == {"addSpansToDataset": {"dataset": {"id": str(dataset_id)}}}
+    assert response_json["data"] == {
+        "addSpansToDataset": {
+            "dataset": {
+                "id": str(dataset_id),
+                "examples": {
+                    "edges": [
+                        {
+                            "node": {
+                                "input": {"input": "chain-span-input-value"},
+                                "output": {"output": "chain-span-output-value"},
+                                "metadata": {
+                                    "input": {
+                                        "value": "chain-span-input-value",
+                                        "mime_type": "text/plain",
+                                    },
+                                    "output": {
+                                        "value": "chain-span-output-value",
+                                        "mime_type": "text/plain",
+                                    },
+                                },
+                            }
+                        },
+                        {
+                            "node": {
+                                "input": {"input": "retriever-span-input"},
+                                "output": {
+                                    "retrieval_documents": [
+                                        {
+                                            "document": {
+                                                "content": "retrieved-document-content",
+                                                "score": 1,
+                                            }
+                                        }
+                                    ]
+                                },
+                                "metadata": {
+                                    "input": {
+                                        "value": "retriever-span-input",
+                                        "mime_type": "text/plain",
+                                    },
+                                    "retrieval": {
+                                        "documents": [
+                                            {
+                                                "document": {
+                                                    "content": "retrieved-document-content",
+                                                    "score": 1,
+                                                }
+                                            }
+                                        ]
+                                    },
+                                },
+                            }
+                        },
+                        {
+                            "node": {
+                                "input": {
+                                    "input_messages": [
+                                        {"content": "user-message-content", "role": "user"}
+                                    ]
+                                },
+                                "metadata": {
+                                    "llm": {
+                                        "input_messages": [
+                                            {"content": "user-message-content", "role": "user"}
+                                        ],
+                                        "invocation_parameters": {"temperature": 1},
+                                        "output_messages": [
+                                            {
+                                                "content": "assistant-message-content",
+                                                "role": "assistant",
+                                            }
+                                        ],
+                                    }
+                                },
+                                "output": {
+                                    "output_messages": [
+                                        {
+                                            "content": "assistant-message-content",
+                                            "role": "assistant",
+                                        }
+                                    ]
+                                },
+                            }
+                        },
+                    ]
+                },
+            }
+        }
+    }
 
 
 @pytest.fixture
-async def spans(session: AsyncSession) -> None:
+async def empty_dataset(session):
+    """
+    Inserts an empty dataset.
+    """
+
+    dataset = models.Dataset(
+        id=1,
+        name="empty dataset",
+        description=None,
+        metadata_={},
+    )
+    session.add(dataset)
+    await session.flush()
+
+
+@pytest.fixture
+async def spans(session):
+    """
+    Inserts three spans from a single trace: a chain root span, a retriever
+    child span, and an llm child span.
+    """
     project_row_id = await session.scalar(
         insert(models.Project).values(name=DEFAULT_PROJECT_NAME).returning(models.Project.id)
     )
     trace_row_id = await session.scalar(
         insert(models.Trace)
         .values(
-            trace_id="0123",
+            trace_id="1",
             project_rowid=project_row_id,
             start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
             end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
@@ -66,15 +183,15 @@ async def spans(session: AsyncSession) -> None:
         insert(models.Span)
         .values(
             trace_rowid=trace_row_id,
-            span_id="2345",
+            span_id="1",
             parent_id=None,
-            name="root span",
-            span_kind="UNKNOWN",
+            name="chain span",
+            span_kind="CHAIN",
             start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
             end_time=datetime.fromisoformat("2021-01-01T00:00:30.000+00:00"),
             attributes={
-                "input": {"value": "210", "mime_type": "text/plain"},
-                "output": {"value": "321", "mime_type": "text/plain"},
+                "input": {"value": "chain-span-input-value", "mime_type": "text/plain"},
+                "output": {"value": "chain-span-output-value", "mime_type": "text/plain"},
             },
             events=[],
             status_code="OK",
@@ -86,24 +203,22 @@ async def spans(session: AsyncSession) -> None:
         .returning(models.Span.id)
     )
     await session.execute(
-        insert(models.Span)
-        .values(
+        insert(models.Span).values(
             trace_rowid=trace_row_id,
-            span_id="4567",
-            parent_id="2345",
+            span_id="2",
+            parent_id="1",
             name="retriever span",
             span_kind="RETRIEVER",
             start_time=datetime.fromisoformat("2021-01-01T00:00:05.000+00:00"),
             end_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
             attributes={
                 "input": {
-                    "value": "xyz",
+                    "value": "retriever-span-input",
+                    "mime_type": "text/plain",
                 },
                 "retrieval": {
                     "documents": [
-                        {"document": {"content": "A", "score": 1}},
-                        {"document": {"content": "B", "score": 2}},
-                        {"document": {"content": "C", "score": 3}},
+                        {"document": {"content": "retrieved-document-content", "score": 1}},
                     ],
                 },
             },
@@ -114,7 +229,32 @@ async def spans(session: AsyncSession) -> None:
             cumulative_llm_token_count_prompt=0,
             cumulative_llm_token_count_completion=0,
         )
-        .returning(models.Span.id)
+    )
+    await session.execute(
+        insert(models.Span).values(
+            trace_rowid=trace_row_id,
+            span_id="3",
+            parent_id="1",
+            name="llm span",
+            span_kind="LLM",
+            start_time=datetime.fromisoformat("2021-01-01T00:00:05.000+00:00"),
+            end_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
+            attributes={
+                "llm": {
+                    "input_messages": [{"role": "user", "content": "user-message-content"}],
+                    "output_messages": [
+                        {"role": "assistant", "content": "assistant-message-content"}
+                    ],
+                    "invocation_parameters": {"temperature": 1},
+                },
+            },
+            events=[],
+            status_code="OK",
+            status_message="okay",
+            cumulative_error_count=0,
+            cumulative_llm_token_count_prompt=0,
+            cumulative_llm_token_count_completion=0,
+        )
     )
 
 
