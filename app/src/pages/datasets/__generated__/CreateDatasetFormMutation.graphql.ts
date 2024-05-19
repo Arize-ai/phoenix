@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<91de17d830e585b9bea1e8e2581d25eb>>
+ * @generated SignedSource<<eeb66726448e1a952ea8755d8c2dd481>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -47,19 +47,25 @@ v3 = [
     "alias": null,
     "args": [
       {
-        "kind": "Variable",
-        "name": "description",
-        "variableName": "description"
-      },
-      {
-        "kind": "Variable",
-        "name": "metadata",
-        "variableName": "metadata"
-      },
-      {
-        "kind": "Variable",
-        "name": "name",
-        "variableName": "name"
+        "fields": [
+          {
+            "kind": "Variable",
+            "name": "description",
+            "variableName": "description"
+          },
+          {
+            "kind": "Variable",
+            "name": "metadata",
+            "variableName": "metadata"
+          },
+          {
+            "kind": "Variable",
+            "name": "name",
+            "variableName": "name"
+          }
+        ],
+        "kind": "ObjectValue",
+        "name": "input"
       }
     ],
     "concreteType": "Dataset",
@@ -118,16 +124,16 @@ return {
     "selections": (v3/*: any*/)
   },
   "params": {
-    "cacheID": "a7c591a53c426ce4a7e8b32ba8841dac",
+    "cacheID": "bac36aac3321c6b2d9c630f22e67046c",
     "id": null,
     "metadata": {},
     "name": "CreateDatasetFormMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateDatasetFormMutation(\n  $name: String!\n  $description: String = null\n  $metadata: JSON = null\n) {\n  createDataset(name: $name, description: $description, metadata: $metadata) {\n    id\n    name\n    description\n  }\n}\n"
+    "text": "mutation CreateDatasetFormMutation(\n  $name: String!\n  $description: String = null\n  $metadata: JSON = null\n) {\n  createDataset(input: {name: $name, description: $description, metadata: $metadata}) {\n    id\n    name\n    description\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "517dd55c623a32a39da2f31871e0ee52";
+(node as any).hash = "796797ce5c39a4b7345d82d898fdf1f4";
 
 export default node;
