@@ -9,7 +9,9 @@ from phoenix.server.api.types.pagination import Cursor
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
-PROJECT_SPANS_QUERY = """
+
+class TestProjectsSpans:
+    PROJECT_SPANS_QUERY = """
 query (
     $projectId: GlobalID!,
     $after: String = null,
@@ -45,8 +47,6 @@ query (
 }
 """
 
-
-class TestProjectsSpans:
     async def test_basic_query(
         self,
         test_client,
@@ -56,7 +56,7 @@ class TestProjectsSpans:
         response = await test_client.post(
             "/graphql",
             json={
-                "query": PROJECT_SPANS_QUERY,
+                "query": self.PROJECT_SPANS_QUERY,
                 "variables": {
                     "projectId": str(project_id),
                     "first": 2,
