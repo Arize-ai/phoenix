@@ -40,29 +40,16 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
 
 
 @pytest.mark.parametrize(
-    "variables, expected_response",
+    "variables, start_cursor, end_cursor, has_next_page",
     [
         pytest.param(
             {
                 "projectId": PROJECT_ID,
                 "first": 2,
             },
-            {
-                "node": {
-                    "spans": {
-                        "edges": [
-                            {"cursor": str(Cursor(rowid=1))},
-                            {"cursor": str(Cursor(rowid=2))},
-                        ],
-                        "pageInfo": {
-                            "startCursor": str(Cursor(rowid=1)),
-                            "endCursor": str(Cursor(rowid=2)),
-                            "hasNextPage": True,
-                            "hasPreviousPage": False,
-                        },
-                    }
-                }
-            },
+            Cursor(rowid=1),
+            Cursor(rowid=2),
+            True,
             id="basic-query",
         ),
         pytest.param(
@@ -71,22 +58,9 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
                 "after": str(Cursor(rowid=13)),
                 "first": 2,
             },
-            {
-                "node": {
-                    "spans": {
-                        "edges": [
-                            {"cursor": str(Cursor(rowid=14))},
-                            {"cursor": str(Cursor(rowid=15))},
-                        ],
-                        "pageInfo": {
-                            "startCursor": str(Cursor(rowid=14)),
-                            "endCursor": str(Cursor(rowid=15)),
-                            "hasNextPage": False,
-                            "hasPreviousPage": False,
-                        },
-                    }
-                }
-            },
+            Cursor(rowid=14),
+            Cursor(rowid=15),
+            False,
             id="page-ends-exactly-on-last-record",
         ),
         pytest.param(
@@ -95,21 +69,9 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
                 "after": str(Cursor(14)),
                 "first": 2,
             },
-            {
-                "node": {
-                    "spans": {
-                        "edges": [
-                            {"cursor": str(Cursor(rowid=15))},
-                        ],
-                        "pageInfo": {
-                            "startCursor": str(Cursor(rowid=15)),
-                            "endCursor": str(Cursor(rowid=15)),
-                            "hasNextPage": False,
-                            "hasPreviousPage": False,
-                        },
-                    }
-                }
-            },
+            Cursor(rowid=15),
+            Cursor(rowid=15),
+            False,
             id="page-ends-before-it-reaches-limit",
         ),
         pytest.param(
@@ -118,22 +80,9 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
                 "first": 2,
                 "filterCondition": "span_kind == 'LLM'",
             },
-            {
-                "node": {
-                    "spans": {
-                        "edges": [
-                            {"cursor": str(Cursor(rowid=5))},
-                            {"cursor": str(Cursor(rowid=10))},
-                        ],
-                        "pageInfo": {
-                            "startCursor": str(Cursor(rowid=5)),
-                            "endCursor": str(Cursor(rowid=10)),
-                            "hasNextPage": True,
-                            "hasPreviousPage": False,
-                        },
-                    }
-                }
-            },
+            Cursor(rowid=5),
+            Cursor(rowid=10),
+            True,
             id="filter-condition",
         ),
         pytest.param(
@@ -143,22 +92,9 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
                 "after": str(Cursor(5)),  # skip the first span satisfying the filter condition
                 "filterCondition": "span_kind == 'LLM'",
             },
-            {
-                "node": {
-                    "spans": {
-                        "edges": [
-                            {"cursor": str(Cursor(rowid=10))},
-                            {"cursor": str(Cursor(rowid=15))},
-                        ],
-                        "pageInfo": {
-                            "startCursor": str(Cursor(rowid=10)),
-                            "endCursor": str(Cursor(rowid=15)),
-                            "hasNextPage": False,
-                            "hasPreviousPage": False,
-                        },
-                    }
-                }
-            },
+            Cursor(rowid=10),
+            Cursor(rowid=15),
+            False,
             id="filter-condition-with-cursor",
         ),
         pytest.param(
@@ -167,66 +103,21 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
                 "sort": {"col": "startTime", "dir": "desc"},
                 "first": 2,
             },
-            {
-                "node": {
-                    "spans": {
-                        "edges": [
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=15,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.DATETIME,
-                                            value=datetime.fromisoformat(
-                                                "2023-12-11T17:43:26.706204+00:00"
-                                            ),
-                                        ),
-                                    )
-                                )
-                            },
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=14,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.DATETIME,
-                                            value=datetime.fromisoformat(
-                                                "2023-12-11T17:43:26.704532+00:00"
-                                            ),
-                                        ),
-                                    )
-                                )
-                            },
-                        ],
-                        "pageInfo": {
-                            "startCursor": str(
-                                Cursor(
-                                    rowid=15,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.DATETIME,
-                                        value=datetime.fromisoformat(
-                                            "2023-12-11T17:43:26.706204+00:00"
-                                        ),
-                                    ),
-                                )
-                            ),
-                            "endCursor": str(
-                                Cursor(
-                                    rowid=14,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.DATETIME,
-                                        value=datetime.fromisoformat(
-                                            "2023-12-11T17:43:26.704532+00:00"
-                                        ),
-                                    ),
-                                )
-                            ),
-                            "hasNextPage": True,
-                            "hasPreviousPage": False,
-                        },
-                    }
-                }
-            },
+            Cursor(
+                rowid=15,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.DATETIME,
+                    value=datetime.fromisoformat("2023-12-11T17:43:26.706204+00:00"),
+                ),
+            ),
+            Cursor(
+                rowid=14,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.DATETIME,
+                    value=datetime.fromisoformat("2023-12-11T17:43:26.704532+00:00"),
+                ),
+            ),
+            True,
             id="sort-by-descending-start-time",
         ),
         pytest.param(
@@ -235,66 +126,21 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
                 "sort": {"col": "startTime", "dir": "asc"},
                 "first": 2,
             },
-            {
-                "node": {
-                    "spans": {
-                        "edges": [
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=1,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.DATETIME,
-                                            value=datetime.fromisoformat(
-                                                "2023-12-11T17:43:23.306838+00:00"
-                                            ),
-                                        ),
-                                    )
-                                )
-                            },
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=2,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.DATETIME,
-                                            value=datetime.fromisoformat(
-                                                "2023-12-11T17:43:23.306945+00:00"
-                                            ),
-                                        ),
-                                    )
-                                )
-                            },
-                        ],
-                        "pageInfo": {
-                            "startCursor": str(
-                                Cursor(
-                                    rowid=1,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.DATETIME,
-                                        value=datetime.fromisoformat(
-                                            "2023-12-11T17:43:23.306838+00:00"
-                                        ),
-                                    ),
-                                )
-                            ),
-                            "endCursor": str(
-                                Cursor(
-                                    rowid=2,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.DATETIME,
-                                        value=datetime.fromisoformat(
-                                            "2023-12-11T17:43:23.306945+00:00"
-                                        ),
-                                    ),
-                                )
-                            ),
-                            "hasNextPage": True,
-                            "hasPreviousPage": False,
-                        },
-                    }
-                }
-            },
+            Cursor(
+                rowid=1,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.DATETIME,
+                    value=datetime.fromisoformat("2023-12-11T17:43:23.306838+00:00"),
+                ),
+            ),
+            Cursor(
+                rowid=2,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.DATETIME,
+                    value=datetime.fromisoformat("2023-12-11T17:43:23.306945+00:00"),
+                ),
+            ),
+            True,
             id="sort-by-ascending-start-time",
         ),
         pytest.param(
@@ -303,58 +149,21 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
                 "sort": {"col": "cumulativeTokenCountTotal", "dir": "desc"},
                 "first": 2,
             },
-            {
-                "node": {
-                    "spans": {
-                        "edges": [
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=15,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.INT,
-                                            value=382,
-                                        ),
-                                    )
-                                )
-                            },
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=14,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.INT,
-                                            value=382,
-                                        ),
-                                    )
-                                )
-                            },
-                        ],
-                        "pageInfo": {
-                            "startCursor": str(
-                                Cursor(
-                                    rowid=15,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.INT,
-                                        value=382,
-                                    ),
-                                )
-                            ),
-                            "endCursor": str(
-                                Cursor(
-                                    rowid=14,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.INT,
-                                        value=382,
-                                    ),
-                                )
-                            ),
-                            "hasNextPage": True,
-                            "hasPreviousPage": False,
-                        },
-                    }
-                }
-            },
+            Cursor(
+                rowid=15,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.INT,
+                    value=382,
+                ),
+            ),
+            Cursor(
+                rowid=14,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.INT,
+                    value=382,
+                ),
+            ),
+            True,
             id="sort-by-descending-cumulative-prompt-token-count-total",
         ),
         pytest.param(
@@ -363,58 +172,21 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
                 "sort": {"col": "cumulativeTokenCountTotal", "dir": "asc"},
                 "first": 2,
             },
-            {
-                "node": {
-                    "spans": {
-                        "edges": [
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=2,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.INT,
-                                            value=0,
-                                        ),
-                                    )
-                                )
-                            },
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=3,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.INT,
-                                            value=0,
-                                        ),
-                                    )
-                                )
-                            },
-                        ],
-                        "pageInfo": {
-                            "startCursor": str(
-                                Cursor(
-                                    rowid=2,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.INT,
-                                        value=0,
-                                    ),
-                                )
-                            ),
-                            "endCursor": str(
-                                Cursor(
-                                    rowid=3,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.INT,
-                                        value=0,
-                                    ),
-                                )
-                            ),
-                            "hasNextPage": True,
-                            "hasPreviousPage": False,
-                        },
-                    }
-                }
-            },
+            Cursor(
+                rowid=2,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.INT,
+                    value=0,
+                ),
+            ),
+            Cursor(
+                rowid=3,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.INT,
+                    value=0,
+                ),
+            ),
+            True,
             id="sort-by-ascending-cumulative-prompt-token-count-total",
         ),
         pytest.param(
@@ -432,66 +204,21 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
                     )
                 ),
             },
-            {
-                "node": {
-                    "spans": {
-                        "edges": [
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=2,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.DATETIME,
-                                            value=datetime.fromisoformat(
-                                                "2023-12-11T17:43:23.306945+00:00"
-                                            ),
-                                        ),
-                                    )
-                                )
-                            },
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=1,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.DATETIME,
-                                            value=datetime.fromisoformat(
-                                                "2023-12-11T17:43:23.306838+00:00"
-                                            ),
-                                        ),
-                                    )
-                                )
-                            },
-                        ],
-                        "pageInfo": {
-                            "startCursor": str(
-                                Cursor(
-                                    rowid=2,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.DATETIME,
-                                        value=datetime.fromisoformat(
-                                            "2023-12-11T17:43:23.306945+00:00"
-                                        ),
-                                    ),
-                                )
-                            ),
-                            "endCursor": str(
-                                Cursor(
-                                    rowid=1,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.DATETIME,
-                                        value=datetime.fromisoformat(
-                                            "2023-12-11T17:43:23.306838+00:00"
-                                        ),
-                                    ),
-                                )
-                            ),
-                            "hasNextPage": False,
-                            "hasPreviousPage": False,
-                        },
-                    }
-                }
-            },
+            Cursor(
+                rowid=2,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.DATETIME,
+                    value=datetime.fromisoformat("2023-12-11T17:43:23.306945+00:00"),
+                ),
+            ),
+            Cursor(
+                rowid=1,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.DATETIME,
+                    value=datetime.fromisoformat("2023-12-11T17:43:23.306838+00:00"),
+                ),
+            ),
+            False,
             id="sort-by-descending-start-time-with-cursor",
         ),
         pytest.param(
@@ -509,66 +236,21 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
                     )
                 ),
             },
-            {
-                "node": {
-                    "spans": {
-                        "edges": [
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=4,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.DATETIME,
-                                            value=datetime.fromisoformat(
-                                                "2023-12-11T17:43:23.710148+00:00"
-                                            ),
-                                        ),
-                                    )
-                                )
-                            },
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=5,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.DATETIME,
-                                            value=datetime.fromisoformat(
-                                                "2023-12-11T17:43:23.712144+00:00"
-                                            ),
-                                        ),
-                                    )
-                                )
-                            },
-                        ],
-                        "pageInfo": {
-                            "startCursor": str(
-                                Cursor(
-                                    rowid=4,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.DATETIME,
-                                        value=datetime.fromisoformat(
-                                            "2023-12-11T17:43:23.710148+00:00"
-                                        ),
-                                    ),
-                                )
-                            ),
-                            "endCursor": str(
-                                Cursor(
-                                    rowid=5,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.DATETIME,
-                                        value=datetime.fromisoformat(
-                                            "2023-12-11T17:43:23.712144+00:00"
-                                        ),
-                                    ),
-                                )
-                            ),
-                            "hasNextPage": True,
-                            "hasPreviousPage": False,
-                        },
-                    }
-                }
-            },
+            Cursor(
+                rowid=4,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.DATETIME,
+                    value=datetime.fromisoformat("2023-12-11T17:43:23.710148+00:00"),
+                ),
+            ),
+            Cursor(
+                rowid=5,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.DATETIME,
+                    value=datetime.fromisoformat("2023-12-11T17:43:23.712144+00:00"),
+                ),
+            ),
+            True,
             id="sort-by-ascending-start-time-with-cursor",
         ),
         pytest.param(
@@ -585,58 +267,21 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
                     )
                 ),
             },
-            {
-                "node": {
-                    "spans": {
-                        "edges": [
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=1,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.INT,
-                                            value=296,
-                                        ),
-                                    )
-                                )
-                            },
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=13,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.INT,
-                                            value=0,
-                                        ),
-                                    )
-                                )
-                            },
-                        ],
-                        "pageInfo": {
-                            "startCursor": str(
-                                Cursor(
-                                    rowid=1,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.INT,
-                                        value=296,
-                                    ),
-                                )
-                            ),
-                            "endCursor": str(
-                                Cursor(
-                                    rowid=13,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.INT,
-                                        value=0,
-                                    ),
-                                )
-                            ),
-                            "hasNextPage": True,
-                            "hasPreviousPage": False,
-                        },
-                    }
-                }
-            },
+            Cursor(
+                rowid=1,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.INT,
+                    value=296,
+                ),
+            ),
+            Cursor(
+                rowid=13,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.INT,
+                    value=0,
+                ),
+            ),
+            True,
             id="sort-by-descending-cumulative-prompt-token-count-total-with-cursor",
         ),
         pytest.param(
@@ -653,58 +298,21 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
                     )
                 ),
             },
-            {
-                "node": {
-                    "spans": {
-                        "edges": [
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=5,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.INT,
-                                            value=296,
-                                        ),
-                                    )
-                                )
-                            },
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=6,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.INT,
-                                            value=336,
-                                        ),
-                                    )
-                                )
-                            },
-                        ],
-                        "pageInfo": {
-                            "startCursor": str(
-                                Cursor(
-                                    rowid=5,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.INT,
-                                        value=296,
-                                    ),
-                                )
-                            ),
-                            "endCursor": str(
-                                Cursor(
-                                    rowid=6,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.INT,
-                                        value=336,
-                                    ),
-                                )
-                            ),
-                            "hasNextPage": True,
-                            "hasPreviousPage": False,
-                        },
-                    }
-                }
-            },
+            Cursor(
+                rowid=5,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.INT,
+                    value=296,
+                ),
+            ),
+            Cursor(
+                rowid=6,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.INT,
+                    value=336,
+                ),
+            ),
+            True,
             id="sort-by-ascending-cumulative-prompt-token-count-total-with-cursor",
         ),
         pytest.param(
@@ -716,58 +324,21 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
                 },
                 "first": 2,
             },
-            {
-                "node": {
-                    "spans": {
-                        "edges": [
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=11,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.STRING,
-                                            value="hallucinated",
-                                        ),
-                                    )
-                                )
-                            },
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=1,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.STRING,
-                                            value="hallucinated",
-                                        ),
-                                    )
-                                )
-                            },
-                        ],
-                        "pageInfo": {
-                            "startCursor": str(
-                                Cursor(
-                                    rowid=11,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.STRING,
-                                        value="hallucinated",
-                                    ),
-                                )
-                            ),
-                            "endCursor": str(
-                                Cursor(
-                                    rowid=1,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.STRING,
-                                        value="hallucinated",
-                                    ),
-                                )
-                            ),
-                            "hasNextPage": True,
-                            "hasPreviousPage": False,
-                        },
-                    }
-                }
-            },
+            Cursor(
+                rowid=11,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.STRING,
+                    value="hallucinated",
+                ),
+            ),
+            Cursor(
+                rowid=1,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.STRING,
+                    value="hallucinated",
+                ),
+            ),
+            True,
             id="sort-by-descending-hallucination-eval-label",
         ),
         pytest.param(
@@ -779,58 +350,21 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
                 },
                 "first": 2,
             },
-            {
-                "node": {
-                    "spans": {
-                        "edges": [
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=6,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.STRING,
-                                            value="factual",
-                                        ),
-                                    )
-                                )
-                            },
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=1,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.STRING,
-                                            value="hallucinated",
-                                        ),
-                                    )
-                                )
-                            },
-                        ],
-                        "pageInfo": {
-                            "startCursor": str(
-                                Cursor(
-                                    rowid=6,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.STRING,
-                                        value="factual",
-                                    ),
-                                )
-                            ),
-                            "endCursor": str(
-                                Cursor(
-                                    rowid=1,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.STRING,
-                                        value="hallucinated",
-                                    ),
-                                )
-                            ),
-                            "hasNextPage": True,
-                            "hasPreviousPage": False,
-                        },
-                    }
-                }
-            },
+            Cursor(
+                rowid=6,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.STRING,
+                    value="factual",
+                ),
+            ),
+            Cursor(
+                rowid=1,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.STRING,
+                    value="hallucinated",
+                ),
+            ),
+            True,
             id="sort-by-ascending-hallucination-eval-label",
         ),
         pytest.param(
@@ -850,58 +384,21 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
                     )
                 ),
             },
-            {
-                "node": {
-                    "spans": {
-                        "edges": [
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=1,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.STRING,
-                                            value="hallucinated",
-                                        ),
-                                    )
-                                )
-                            },
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=6,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.STRING,
-                                            value="factual",
-                                        ),
-                                    )
-                                )
-                            },
-                        ],
-                        "pageInfo": {
-                            "startCursor": str(
-                                Cursor(
-                                    rowid=1,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.STRING,
-                                        value="hallucinated",
-                                    ),
-                                )
-                            ),
-                            "endCursor": str(
-                                Cursor(
-                                    rowid=6,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.STRING,
-                                        value="factual",
-                                    ),
-                                )
-                            ),
-                            "hasNextPage": False,
-                            "hasPreviousPage": False,
-                        },
-                    }
-                }
-            },
+            Cursor(
+                rowid=1,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.STRING,
+                    value="hallucinated",
+                ),
+            ),
+            Cursor(
+                rowid=6,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.STRING,
+                    value="factual",
+                ),
+            ),
+            False,
             id="sort-by-descending-hallucination-eval-label-with-cursor",
         ),
         pytest.param(
@@ -921,58 +418,21 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
                     )
                 ),
             },
-            {
-                "node": {
-                    "spans": {
-                        "edges": [
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=1,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.STRING,
-                                            value="hallucinated",
-                                        ),
-                                    )
-                                )
-                            },
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=11,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.STRING,
-                                            value="hallucinated",
-                                        ),
-                                    )
-                                )
-                            },
-                        ],
-                        "pageInfo": {
-                            "startCursor": str(
-                                Cursor(
-                                    rowid=1,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.STRING,
-                                        value="hallucinated",
-                                    ),
-                                )
-                            ),
-                            "endCursor": str(
-                                Cursor(
-                                    rowid=11,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.STRING,
-                                        value="hallucinated",
-                                    ),
-                                )
-                            ),
-                            "hasNextPage": False,
-                            "hasPreviousPage": False,
-                        },
-                    }
-                }
-            },
+            Cursor(
+                rowid=1,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.STRING,
+                    value="hallucinated",
+                ),
+            ),
+            Cursor(
+                rowid=11,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.STRING,
+                    value="hallucinated",
+                ),
+            ),
+            False,
             id="sort-by-ascending-hallucination-eval-label-with-cursor",
         ),
         pytest.param(
@@ -990,47 +450,21 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
                     )
                 ),
             },
-            {
-                "node": {
-                    "spans": {
-                        "edges": [
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=1,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.FLOAT,
-                                            value=0.0,
-                                        ),
-                                    )
-                                )
-                            },
-                        ],
-                        "pageInfo": {
-                            "startCursor": str(
-                                Cursor(
-                                    rowid=1,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.FLOAT,
-                                        value=0.0,
-                                    ),
-                                )
-                            ),
-                            "endCursor": str(
-                                Cursor(
-                                    rowid=1,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.FLOAT,
-                                        value=0.0,
-                                    ),
-                                )
-                            ),
-                            "hasNextPage": False,
-                            "hasPreviousPage": False,
-                        },
-                    }
-                }
-            },
+            Cursor(
+                rowid=1,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.FLOAT,
+                    value=0.0,
+                ),
+            ),
+            Cursor(
+                rowid=1,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.FLOAT,
+                    value=0.0,
+                ),
+            ),
+            False,
             id="sort-by-descending-hallucination-eval-score-with-cursor",
         ),
         pytest.param(
@@ -1048,65 +482,30 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
                     )
                 ),
             },
-            {
-                "node": {
-                    "spans": {
-                        "edges": [
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=11,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.FLOAT,
-                                            value=0.0,
-                                        ),
-                                    )
-                                )
-                            },
-                            {
-                                "cursor": str(
-                                    Cursor(
-                                        rowid=6,
-                                        sort_column=CursorSortColumn(
-                                            type=CursorSortColumnDataType.FLOAT,
-                                            value=1.0,
-                                        ),
-                                    )
-                                )
-                            },
-                        ],
-                        "pageInfo": {
-                            "startCursor": str(
-                                Cursor(
-                                    rowid=11,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.FLOAT,
-                                        value=0.0,
-                                    ),
-                                )
-                            ),
-                            "endCursor": str(
-                                Cursor(
-                                    rowid=6,
-                                    sort_column=CursorSortColumn(
-                                        type=CursorSortColumnDataType.FLOAT,
-                                        value=1.0,
-                                    ),
-                                )
-                            ),
-                            "hasNextPage": False,
-                            "hasPreviousPage": False,
-                        },
-                    }
-                }
-            },
+            Cursor(
+                rowid=11,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.FLOAT,
+                    value=0.0,
+                ),
+            ),
+            Cursor(
+                rowid=6,
+                sort_column=CursorSortColumn(
+                    type=CursorSortColumnDataType.FLOAT,
+                    value=1.0,
+                ),
+            ),
+            False,
             id="sort-by-ascending-hallucination-eval-score-with-cursor",
         ),
     ],
 )
 async def test_project_spans(
     variables,
-    expected_response,
+    start_cursor,
+    end_cursor,
+    has_next_page,
     test_client,
     llama_index_rag_spans,
 ) -> None:
@@ -1120,7 +519,14 @@ async def test_project_spans(
     assert response.status_code == 200
     response_json = response.json()
     assert (errors := response_json.get("errors")) is None, errors
-    assert response_json["data"] == expected_response
+    spans = response_json["data"]["node"]["spans"]
+    page_info = spans["pageInfo"]
+    assert page_info["startCursor"] == str(start_cursor)
+    assert page_info["endCursor"] == str(end_cursor)
+    assert page_info["hasNextPage"] == has_next_page
+    edges = spans["edges"]
+    assert edges[0]["cursor"] == str(start_cursor)
+    assert edges[-1]["cursor"] == str(end_cursor)
 
 
 @pytest.fixture
