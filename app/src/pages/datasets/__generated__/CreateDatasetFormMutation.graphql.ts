@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<91de17d830e585b9bea1e8e2581d25eb>>
+ * @generated SignedSource<<6cdeb954351fb1678084ff14e016ce3e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,9 +16,11 @@ export type CreateDatasetFormMutation$variables = {
 };
 export type CreateDatasetFormMutation$data = {
   readonly createDataset: {
-    readonly description: string | null;
-    readonly id: string;
-    readonly name: string;
+    readonly dataset: {
+      readonly description: string | null;
+      readonly id: string;
+      readonly name: string;
+    };
   };
 };
 export type CreateDatasetFormMutation = {
@@ -47,22 +49,28 @@ v3 = [
     "alias": null,
     "args": [
       {
-        "kind": "Variable",
-        "name": "description",
-        "variableName": "description"
-      },
-      {
-        "kind": "Variable",
-        "name": "metadata",
-        "variableName": "metadata"
-      },
-      {
-        "kind": "Variable",
-        "name": "name",
-        "variableName": "name"
+        "fields": [
+          {
+            "kind": "Variable",
+            "name": "description",
+            "variableName": "description"
+          },
+          {
+            "kind": "Variable",
+            "name": "metadata",
+            "variableName": "metadata"
+          },
+          {
+            "kind": "Variable",
+            "name": "name",
+            "variableName": "name"
+          }
+        ],
+        "kind": "ObjectValue",
+        "name": "input"
       }
     ],
-    "concreteType": "Dataset",
+    "concreteType": "CreateDatasetPayload",
     "kind": "LinkedField",
     "name": "createDataset",
     "plural": false,
@@ -70,22 +78,33 @@ v3 = [
       {
         "alias": null,
         "args": null,
-        "kind": "ScalarField",
-        "name": "id",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "name",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "description",
+        "concreteType": "Dataset",
+        "kind": "LinkedField",
+        "name": "dataset",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "id",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "name",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "description",
+            "storageKey": null
+          }
+        ],
         "storageKey": null
       }
     ],
@@ -118,16 +137,16 @@ return {
     "selections": (v3/*: any*/)
   },
   "params": {
-    "cacheID": "a7c591a53c426ce4a7e8b32ba8841dac",
+    "cacheID": "d2aeec21cead6fee265f4e80c330cf18",
     "id": null,
     "metadata": {},
     "name": "CreateDatasetFormMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateDatasetFormMutation(\n  $name: String!\n  $description: String = null\n  $metadata: JSON = null\n) {\n  createDataset(name: $name, description: $description, metadata: $metadata) {\n    id\n    name\n    description\n  }\n}\n"
+    "text": "mutation CreateDatasetFormMutation(\n  $name: String!\n  $description: String = null\n  $metadata: JSON = null\n) {\n  createDataset(input: {name: $name, description: $description, metadata: $metadata}) {\n    dataset {\n      id\n      name\n      description\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "517dd55c623a32a39da2f31871e0ee52";
+(node as any).hash = "06eeac5ef68e9533c4881faad4b4e07d";
 
 export default node;

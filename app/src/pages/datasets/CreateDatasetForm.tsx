@@ -49,13 +49,13 @@ export function CreateDatasetForm(props: CreateDatasetFormProps) {
       $metadata: JSON = null
     ) {
       createDataset(
-        name: $name
-        description: $description
-        metadata: $metadata
+        input: { name: $name, description: $description, metadata: $metadata }
       ) {
-        id
-        name
-        description
+        dataset {
+          id
+          name
+          description
+        }
       }
     }
   `);

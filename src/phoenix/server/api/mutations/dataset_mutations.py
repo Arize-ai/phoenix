@@ -7,13 +7,15 @@ from openinference.semconv.trace import (
     SpanAttributes,
 )
 from sqlalchemy import insert, select
-from strawberry.scalars import JSON
+from strawberry import UNSET
 from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.AddSpansToDatasetInput import AddSpansToDatasetInput
+from phoenix.server.api.input_types.CreateDatasetInput import CreateDatasetInput
 from phoenix.server.api.types.AddSpansToDatasetPayload import AddSpansToDatasetPayload
+from phoenix.server.api.types.CreateDatasetPayload import CreateDatasetPayload
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
@@ -25,11 +27,11 @@ class DatasetMutationMixin:
     async def create_dataset(
         self,
         info: Info[Context, None],
-        name: str,
-        description: Optional[str] = None,
-        metadata: Optional[JSON] = None,
-    ) -> Dataset:
-        metadata = metadata or {}
+        input: CreateDatasetInput,
+    ) -> CreateDatasetPayload:
+        name = input.name
+        description = input.description if input.description is not UNSET else None
+        metadata = input.metadata or {}
         async with info.context.db() as session:
             result = await session.execute(
                 insert(models.Dataset)
@@ -49,13 +51,15 @@ class DatasetMutationMixin:
             )
             if not (row := result.fetchone()):
                 raise ValueError("Failed to create dataset")
-            return Dataset(
-                id_attr=row.id,
-                name=row.name,
-                description=row.description,
-                created_at=row.created_at,
-                updated_at=row.updated_at,
-                metadata=row.metadata_,
+            return CreateDatasetPayload(
+                dataset=Dataset(
+                    id_attr=row.id,
+                    name=row.name,
+                    description=row.description,
+                    created_at=row.created_at,
+                    updated_at=row.updated_at,
+                    metadata=row.metadata_,
+                )
             )
 
     @strawberry.mutation
