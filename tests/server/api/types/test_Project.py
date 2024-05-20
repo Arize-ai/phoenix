@@ -12,15 +12,7 @@ from strawberry.relay import GlobalID
 
 class TestProjectsSpans:
     PROJECT_SPANS_QUERY = """
-query (
-    $projectId: GlobalID!,
-    $after: String = null,
-    $before: String = null,
-    $filterCondition: String = null,
-    $first: Int = null,
-    $last: Int = null,
-    $sort: SpanSort = null
-) {
+query ($projectId: GlobalID!, $after: String = null, $before: String = null, $filterCondition: String = null, $first: Int = null, $last: Int = null, $sort: SpanSort = null) {
   node(id: $projectId) {
     ... on Project {
       spans(
