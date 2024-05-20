@@ -40,6 +40,16 @@ input ClusterInput {
   id: ID
 }
 
+input CreateDatasetInput {
+  name: String!
+  description: String
+  metadata: JSON
+}
+
+type CreateDatasetPayload {
+  dataset: Dataset!
+}
+
 enum DataQualityMetric {
   cardinality
   percentEmpty
@@ -567,7 +577,7 @@ type Model {
 type Mutation {
   deleteProject(id: GlobalID!): Query!
   clearProject(id: GlobalID!): Query!
-  createDataset(name: String!, description: String = null, metadata: JSON = null): Dataset!
+  createDataset(input: CreateDatasetInput!): CreateDatasetPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): AddSpansToDatasetPayload!
 
   """
