@@ -530,7 +530,8 @@ async def test_project_spans(
 
 @pytest.fixture
 async def llama_index_rag_spans(session):
-    # Inserts the first three traces from the llama-index-rag trace fixture (minus embeddings).
+    # Inserts the first three traces from the llama-index-rag trace fixture
+    # (minus embeddings) along with associated span evaluations.
     project_row_id = await session.scalar(
         insert(models.Project).values(name=DEFAULT_PROJECT_NAME).returning(models.Project.id)
     )
