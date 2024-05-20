@@ -1,6 +1,6 @@
 import warnings
 from datetime import datetime
-from typing import List, Optional, Protocol, Union, cast
+from typing import List, Optional, Protocol, Tuple, Union, cast
 
 import pandas as pd
 from openinference.semconv.trace import DocumentAttributes, SpanAttributes
@@ -75,7 +75,7 @@ def get_qa_with_reference(
     project_name: Optional[str] = None,
     # Deprecated
     stop_time: Optional[datetime] = None,
-) -> pd.DataFrame:
+) -> Optional[pd.DataFrame]:
     project_name = project_name or get_env_project_name()
     if stop_time:
         # Deprecated. Raise a warning
@@ -84,23 +84,35 @@ def get_qa_with_reference(
             DeprecationWarning,
         )
         end_time = end_time or stop_time
-    return pd.concat(
-        cast(
-            List[pd.DataFrame],
-            obj.query_spans(
-                SpanQuery().select(**IO).where(IS_ROOT),
-                SpanQuery()
-                .where(IS_RETRIEVER)
-                .select(span_id="parent_id")
-                .concat(
-                    RETRIEVAL_DOCUMENTS,
-                    reference=DOCUMENT_CONTENT,
-                ),
-                start_time=start_time,
-                end_time=end_time,
-                project_name=project_name,
-            ),
-        ),
-        axis=1,
-        join="inner",
+    separator = "\n\n"
+    qa_query = SpanQuery().select("span_id", **IO).where(IS_ROOT).with_index("trace_id")
+    docs_query = (
+        SpanQuery()
+        .where(IS_RETRIEVER)
+        .concat(RETRIEVAL_DOCUMENTS, reference=DOCUMENT_CONTENT)
+        .with_concat_separator(separator=separator)
+        .with_index("trace_id")
     )
+    df_qa, df_docs = cast(
+        Tuple[pd.DataFrame, pd.DataFrame],
+        obj.query_spans(
+            qa_query,
+            docs_query,
+            start_time=start_time,
+            end_time=end_time,
+            project_name=project_name,
+        ),
+    )
+    if df_qa is None or df_qa.empty:
+        print("No spans found.")
+        return None
+    if df_docs is None or df_docs.empty:
+        print("No retrieval documents found.")
+        return None
+    # Consolidate duplicate rows via concatenation. This can happen if there are multiple
+    # retriever spans in the same trace. We simply concatenate all of them (in no particular
+    # order) into a single row.
+    ref = df_docs.groupby("context.trace_id")["reference"].apply(lambda x: separator.join(x))
+    df_ref = pd.DataFrame({"reference": ref})
+    df_qa_ref = pd.concat([df_qa, df_ref], axis=1, join="inner").set_index("context.span_id")
+    return df_qa_ref
