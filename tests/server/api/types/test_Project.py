@@ -9,32 +9,6 @@ from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, Cursor
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
-PROJECT_SPANS_QUERY = """
-query ($projectId: GlobalID!, $after: String = null, $before: String = null, $filterCondition: String = null, $first: Int = null, $last: Int = null, $sort: SpanSort = null) {
-  node(id: $projectId) {
-    ... on Project {
-      spans(
-        after: $after
-        before: $before
-        filterCondition: $filterCondition
-        first: $first
-        last: $last
-        rootSpansOnly: false
-        sort: $sort
-      ) {
-        edges {
-          cursor
-        }
-        pageInfo {
-          hasNextPage
-          startCursor
-          endCursor
-        }
-      }
-    }
-  }
-}
-"""
 PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
 
 
@@ -508,10 +482,36 @@ async def test_project_spans(
     test_client,
     llama_index_rag_spans,
 ) -> None:
+    query = """
+query ($projectId: GlobalID!, $after: String = null, $before: String = null, $filterCondition: String = null, $first: Int = null, $last: Int = null, $sort: SpanSort = null) {
+  node(id: $projectId) {
+    ... on Project {
+      spans(
+        after: $after
+        before: $before
+        filterCondition: $filterCondition
+        first: $first
+        last: $last
+        rootSpansOnly: false
+        sort: $sort
+      ) {
+        edges {
+          cursor
+        }
+        pageInfo {
+          hasNextPage
+          startCursor
+          endCursor
+        }
+      }
+    }
+  }
+}
+"""
     response = await test_client.post(
         "/graphql",
         json={
-            "query": PROJECT_SPANS_QUERY,
+            "query": query,
             "variables": variables,
         },
     )
