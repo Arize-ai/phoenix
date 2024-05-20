@@ -520,12 +520,12 @@ async def test_project_spans(
     assert (errors := response_json.get("errors")) is None, errors
     spans = response_json["data"]["node"]["spans"]
     page_info = spans["pageInfo"]
-    assert page_info["startCursor"] == str(start_cursor)
-    assert page_info["endCursor"] == str(end_cursor)
+    assert Cursor.from_string(page_info["startCursor"]) == start_cursor
+    assert Cursor.from_string(page_info["endCursor"]) == end_cursor
     assert page_info["hasNextPage"] == has_next_page
     edges = spans["edges"]
-    assert edges[0]["cursor"] == str(start_cursor)
-    assert edges[-1]["cursor"] == str(end_cursor)
+    assert Cursor.from_string(edges[0]["cursor"]) == start_cursor
+    assert Cursor.from_string(edges[-1]["cursor"]) == end_cursor
 
 
 @pytest.fixture
