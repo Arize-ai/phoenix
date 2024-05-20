@@ -759,7 +759,7 @@ async def llama_index_rag_spans(session):
             ],
         )
     ).all()
-    (
+    span_rowids = (
         await session.scalars(
             insert(models.Span).returning(models.Span.id),
             [
@@ -1254,3 +1254,74 @@ async def llama_index_rag_spans(session):
             ],
         )
     ).all()
+    await session.execute(
+        insert(models.SpanAnnotation),
+        [
+            {
+                "span_rowid": span_rowids[0],
+                "name": "Hallucination",
+                "label": "hallucinated",
+                "score": 0,
+                "explanation": "The query asks about how to use the SDK to upload a ranking model. The reference text provides information about ranking models and their challenges, and mentions a specific model 'arize-demo-hotel-ranking'. However, it does not provide any information about how to use an SDK to upload a ranking model. The answer talks about following the documentation provided by the SDK to upload the model, which is not mentioned or suggested in the reference text. Therefore, the answer is not based on the reference text.",
+                "metadata_": {},
+                "annotator_kind": "LLM",
+                "created_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+                "updated_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+            },
+            {
+                "span_rowid": span_rowids[5],
+                "name": "Hallucination",
+                "label": "factual",
+                "score": 1,
+                "explanation": "The query asks about the drift metrics supported in Arize. The reference text mentions that Arize calculates drift metrics such as Population Stability Index, KL Divergence, and Wasserstein Distance. The answer states the same information, that Arize supports drift metrics such as Population Stability Index, KL Divergence, and Wasserstein Distance. Therefore, the answer is based on the information provided in the reference text.",
+                "metadata_": {},
+                "annotator_kind": "LLM",
+                "created_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+                "updated_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+            },
+            {
+                "span_rowid": span_rowids[10],
+                "name": "Hallucination",
+                "label": "hallucinated",
+                "score": 0,
+                "explanation": "The query asks if Arize supports batch models. The reference text mentions that Arize supports many model types, but it does not specify if batch models are among those supported. Therefore, the answer assumes information that is not available in the reference text.",
+                "metadata_": {},
+                "annotator_kind": "LLM",
+                "created_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+                "updated_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+            },
+            {
+                "span_rowid": span_rowids[0],
+                "name": "Q&A Correctness",
+                "label": "incorrect",
+                "score": 0,
+                "explanation": "The reference text does not provide any information on how to use the SDK to upload a ranking model. It only mentions the use of a specific model 'arize-demo-hotel-ranking' and some challenges associated with ranking models. The answer, on the other hand, talks about following the documentation provided by the SDK to upload a ranking model. However, since the reference text does not mention anything about an SDK or its documentation, the answer does not correctly answer the question based on the reference text.",
+                "metadata_": {},
+                "annotator_kind": "LLM",
+                "created_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+                "updated_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+            },
+            {
+                "span_rowid": span_rowids[5],
+                "name": "Q&A Correctness",
+                "label": "correct",
+                "score": 1,
+                "explanation": "The reference text clearly states that Arize calculates drift metrics such as Population Stability Index, KL Divergence, and Wasserstein Distance. This directly matches the given answer, which states that Arize supports these same drift metrics. Therefore, the answer is correct.",
+                "metadata_": {},
+                "annotator_kind": "LLM",
+                "created_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+                "updated_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+            },
+            {
+                "span_rowid": span_rowids[10],
+                "name": "Q&A Correctness",
+                "label": "incorrect",
+                "score": 0,
+                "explanation": "The reference text mentions that Arize supports many model types and provides infrastructure for developers to create, train, and deploy machine-learning models in the cloud. However, it does not specifically mention that Arize supports batch models. Therefore, the answer is not supported by the reference text.",
+                "metadata_": {},
+                "annotator_kind": "LLM",
+                "created_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+                "updated_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+            },
+        ],
+    )
