@@ -27,7 +27,6 @@ query ($projectId: GlobalID!, $after: String = null, $before: String = null, $fi
         }
         pageInfo {
           hasNextPage
-          hasPreviousPage
           startCursor
           endCursor
         }
