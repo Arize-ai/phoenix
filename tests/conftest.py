@@ -51,7 +51,7 @@ def create_async_postgres_engine(psycopg_connection: Connection) -> AsyncEngine:
     host = connection.info.host
     port = connection.info.port
     async_database_url = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}"
-    return create_async_engine(async_database_url, echo=True)
+    return create_async_engine(async_database_url)
 
 
 @pytest.fixture
@@ -70,9 +70,7 @@ def dialect(request):
 
 @pytest.fixture
 async def sqlite_engine() -> AsyncEngine:
-    engine = aio_sqlite_engine(
-        make_url("sqlite+aiosqlite://"), migrate=False, shared_cache=False, echo=True
-    )
+    engine = aio_sqlite_engine(make_url("sqlite+aiosqlite://"), migrate=False, shared_cache=False)
     async with engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
     return engine
