@@ -213,7 +213,7 @@ async def get_dataset_by_id(request: Request) -> Response:
 
 async def get_dataset_download_csv_by_dataset_id(request: Request) -> Response:
     """
-    summary: Download dataset as CSV text file
+    summary: Download dataset as CSV text file (latest dataset version)
     operationId: getDatasetDownloadCsvByDatasetId
     tags:
       - datasets
