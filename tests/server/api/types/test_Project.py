@@ -5,7 +5,7 @@ from datetime import datetime
 import pytest
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
-from phoenix.server.api.types.pagination import Cursor
+from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
@@ -159,7 +159,75 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
                     }
                 }
             },
-            id="filter-condition",
+            id="filter-condition-with-cursor",
+        ),
+        pytest.param(
+            {
+                "projectId": PROJECT_ID,
+                "sort": {"col": "startTime", "dir": "desc"},
+                "first": 2,
+            },
+            {
+                "node": {
+                    "spans": {
+                        "edges": [
+                            {
+                                "cursor": str(
+                                    Cursor(
+                                        rowid=15,
+                                        sort_column=CursorSortColumn(
+                                            type=CursorSortColumnDataType.DATETIME,
+                                            value=datetime.fromisoformat(
+                                                "2023-12-11T17:43:26.706204+00:00"
+                                            ),
+                                        ),
+                                    )
+                                )
+                            },
+                            {
+                                "cursor": str(
+                                    Cursor(
+                                        rowid=14,
+                                        sort_column=CursorSortColumn(
+                                            type=CursorSortColumnDataType.DATETIME,
+                                            value=datetime.fromisoformat(
+                                                "2023-12-11T17:43:26.704532+00:00"
+                                            ),
+                                        ),
+                                    )
+                                )
+                            },
+                        ],
+                        "pageInfo": {
+                            "startCursor": str(
+                                Cursor(
+                                    rowid=15,
+                                    sort_column=CursorSortColumn(
+                                        type=CursorSortColumnDataType.DATETIME,
+                                        value=datetime.fromisoformat(
+                                            "2023-12-11T17:43:26.706204+00:00"
+                                        ),
+                                    ),
+                                )
+                            ),
+                            "endCursor": str(
+                                Cursor(
+                                    rowid=14,
+                                    sort_column=CursorSortColumn(
+                                        type=CursorSortColumnDataType.DATETIME,
+                                        value=datetime.fromisoformat(
+                                            "2023-12-11T17:43:26.704532+00:00"
+                                        ),
+                                    ),
+                                )
+                            ),
+                            "hasNextPage": True,
+                            "hasPreviousPage": False,
+                        },
+                    }
+                }
+            },
+            id="sort-by-descending-start-time",
         ),
     ],
 )
