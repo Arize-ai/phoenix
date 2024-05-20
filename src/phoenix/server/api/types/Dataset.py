@@ -115,6 +115,7 @@ class Dataset(Node):
             .where(
                 models.DatasetExampleRevision.revision_kind != "DELETE",
             )
+            .order_by(models.DatasetExampleRevision.dataset_example_id)
         )
         async with info.context.db() as session:
             dataset_examples = [
