@@ -112,6 +112,30 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
             },
             id="page-ends-before-it-reaches-limit",
         ),
+        pytest.param(
+            {
+                "projectId": PROJECT_ID,
+                "first": 2,
+                "filterCondition": "span_kind == 'LLM'",
+            },
+            {
+                "node": {
+                    "spans": {
+                        "edges": [
+                            {"cursor": str(Cursor(rowid=5))},
+                            {"cursor": str(Cursor(rowid=10))},
+                        ],
+                        "pageInfo": {
+                            "startCursor": str(Cursor(rowid=5)),
+                            "endCursor": str(Cursor(rowid=10)),
+                            "hasNextPage": True,
+                            "hasPreviousPage": False,
+                        },
+                    }
+                }
+            },
+            id="filter-condition",
+        ),
     ],
 )
 async def test_project_spans(
