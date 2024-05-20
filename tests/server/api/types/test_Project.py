@@ -136,6 +136,31 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
             },
             id="filter-condition",
         ),
+        pytest.param(
+            {
+                "projectId": PROJECT_ID,
+                "first": 2,
+                "after": str(Cursor(5)),  # skip the first span satisfying the filter condition
+                "filterCondition": "span_kind == 'LLM'",
+            },
+            {
+                "node": {
+                    "spans": {
+                        "edges": [
+                            {"cursor": str(Cursor(rowid=10))},
+                            {"cursor": str(Cursor(rowid=15))},
+                        ],
+                        "pageInfo": {
+                            "startCursor": str(Cursor(rowid=10)),
+                            "endCursor": str(Cursor(rowid=15)),
+                            "hasNextPage": False,
+                            "hasPreviousPage": False,
+                        },
+                    }
+                }
+            },
+            id="filter-condition",
+        ),
     ],
 )
 async def test_project_spans(
