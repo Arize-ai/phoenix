@@ -19,8 +19,9 @@ from typing import (
     cast,
 )
 
+import pandas as pd
 import pyarrow as pa
-from sqlalchemy import select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, UploadFile
@@ -37,6 +38,8 @@ from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
 from phoenix.db.insertion.dataset import DatasetAction, add_dataset_examples
+from phoenix.server.api.types.Dataset import Dataset
+from phoenix.server.api.types.DatasetVersion import DatasetVersion
 
 logger = logging.getLogger(__name__)
 
@@ -206,6 +209,69 @@ async def get_dataset_by_id(request: Request) -> Response:
             "example_count": example_count,
         }
         return JSONResponse(content=output_dict)
+
+
+async def get_dataset_download_csv_by_dataset_id(request: Request) -> Response:
+    """
+    summary: Download dataset as CSV text file
+    operationId: getDatasetDownloadByDatasetId
+    tags:
+      - datasets
+    parameters:
+      - in: path
+        name: datasetId
+        required: true
+        schema:
+          type: string
+    responses:
+      200:
+        description: Success
+        content:
+          text/csv:
+            schema:
+              type: string
+              contentMediaType: text/csv
+              contentEncoding: gzip
+      404:
+        description: Dataset does not exist or has no examples
+      422:
+        description: Invalid datasetId or datasetVersionId
+    """
+    return await _get_dataset_download_csv(request)
+
+
+async def get_dataset_download_csv_by_dataset_version_id(request: Request) -> Response:
+    """
+    summary: Download dataset as CSV text file
+    operationId: getDatasetDownloadByDatasetVersionId
+    tags:
+      - datasets
+    parameters:
+      - in: path
+        name: datasetId
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: datasetVersionId
+        required: true
+        schema:
+          type: string
+    responses:
+      200:
+        description: Success
+        content:
+          text/csv:
+            schema:
+              type: string
+              contentMediaType: text/csv
+              contentEncoding: gzip
+      404:
+        description: Dataset does not exist or has no examples
+      422:
+        description: Invalid datasetId or datasetVersionId
+    """
+    return await _get_dataset_download_csv(request)
 
 
 async def post_datasets_upload(request: Request) -> Response:
@@ -449,4 +515,102 @@ async def _parse_form_data(
         output_keys,
         metadata_keys,
         file,
+    )
+
+
+async def _get_dataset_download_csv(request: Request) -> Response:
+    encoded_dataset_id = request.path_params.get("datasetId")
+    if not encoded_dataset_id:
+        return Response(
+            content="Missing Dataset ID",
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+    dataset_global_id = GlobalID.from_id(encoded_dataset_id)
+    if dataset_global_id.type_name != Dataset.__name__:
+        return Response(
+            content=f"Invalid Dataset ID: {encoded_dataset_id}",
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+    encoded_dataset_version_id = request.path_params.get("datasetVersionId")
+    dataset_version_global_id = (
+        GlobalID.from_id(encoded_dataset_version_id) if encoded_dataset_version_id else None
+    )
+    if dataset_version_global_id and dataset_version_global_id.type_name != DatasetVersion.__name__:
+        return Response(
+            content=f"Invalid Dataset Version ID: {encoded_dataset_version_id}",
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+    dataset_id = int(dataset_global_id.node_id)
+    mder = models.DatasetExampleRevision
+    latest_version = (
+        select(
+            mder.dataset_example_id,
+            (func.rank().over(order_by=mder.dataset_example_id) - 1).label("example_index"),
+            func.max(mder.dataset_version_id).label("dataset_version_id"),
+        )
+        .group_by(mder.dataset_example_id)
+        .join(models.DatasetExample)
+        .where(models.DatasetExample.dataset_id == dataset_id)
+    )
+    if dataset_version_global_id:
+        max_dataset_version_id = int(dataset_version_global_id.node_id)
+        latest_version = latest_version.where(mder.dataset_version_id <= max_dataset_version_id)
+    subq = latest_version.subquery("latest_version")
+    stmt = (
+        select(
+            mder.input,
+            mder.output,
+            mder.metadata_,
+            subq.c.example_index,
+        )
+        .join(
+            subq,
+            onclause=and_(
+                mder.dataset_example_id == subq.c.dataset_example_id,
+                mder.dataset_version_id == subq.c.dataset_version_id,
+            ),
+        )
+        .where(mder.revision_kind != "DELETE")
+        .order_by(mder.dataset_example_id)
+    )
+    examples = []
+    async with request.app.state.db() as session:
+        dataset_name: Optional[str] = await session.scalar(
+            select(models.Dataset.name).where(models.Dataset.id == dataset_id)
+        )
+        if not dataset_name:
+            return Response(
+                content="Dataset does not exist.",
+                status_code=HTTP_404_NOT_FOUND,
+            )
+        async for input, output, metadata, example_index in await session.stream(stmt):
+            examples.append(
+                {
+                    **metadata,
+                    **input,
+                    **output,
+                    "__example_index__": example_index,
+                }
+            )
+    if not examples:
+        return Response(
+            content=f"Dataset has no examples: {dataset_name}",
+            status_code=HTTP_404_NOT_FOUND,
+        )
+    content = await run_in_threadpool(
+        lambda records: gzip.compress(
+            pd.DataFrame.from_records(records, index="__example_index__")
+            .sort_index(axis=1)
+            .to_csv()
+            .encode()
+        ),
+        examples,
+    )
+    return Response(
+        content=content,
+        headers={
+            "content-disposition": f'attachment; filename="{dataset_name}.csv"',
+            "content-type": "text/csv",
+            "content-encoding": "gzip",
+        },
     )

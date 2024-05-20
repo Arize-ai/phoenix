@@ -1,5 +1,6 @@
 import gzip
 from datetime import datetime
+from io import StringIO
 from typing import cast
 from urllib.parse import urljoin
 from uuid import uuid4
@@ -18,6 +19,7 @@ from phoenix.trace import SpanEvaluations
 from phoenix.trace.dsl import SpanQuery
 from phoenix.trace.trace_dataset import TraceDataset
 from respx import MockRouter
+from strawberry.relay import GlobalID
 
 
 def test_get_spans_dataframe(
@@ -135,6 +137,58 @@ def test_log_traces_to_project(
     respx_mock.post(url).mock(side_effect=request_callback)
     client.log_traces(trace_dataset=trace_ds, project_name="special-project")
     assert span_counter == len(trace_ds.dataframe)
+
+
+def test_download_dataset_examples_latest_version(
+    client: Client,
+    endpoint: str,
+    respx_mock: MockRouter,
+) -> None:
+    dataset_global_id = GlobalID("Dataset", str(999))
+    url = urljoin(endpoint, f"v1/datasets/download/csv/{dataset_global_id}")
+    content = gzip.compress("__example_index__,a,b,c\n0,x,y,z\n".encode())
+    respx_mock.get(url).mock(
+        Response(
+            200,
+            content=content,
+            headers={"content-type": "text/csv", "content-encoding": "gzip"},
+        )
+    )
+    expected = pd.read_csv(
+        StringIO(gzip.decompress(content).decode()),
+        index_col="__example_index__",
+    )
+    actual = client.download_dataset_examples(str(dataset_global_id))
+    assert_frame_equal(actual, expected)
+
+
+def test_download_dataset_examples_specific_version(
+    client: Client,
+    endpoint: str,
+    respx_mock: MockRouter,
+) -> None:
+    dataset_global_id = GlobalID("Dataset", str(999))
+    dataset_version_global_id = GlobalID("DatasetVersion", str(888))
+    url = urljoin(
+        endpoint, f"v1/datasets/download/csv/{dataset_global_id}/{dataset_version_global_id}"
+    )
+    content = gzip.compress("__example_index__,a,b,c\n0,x,y,z\n".encode())
+    respx_mock.get(url).mock(
+        Response(
+            200,
+            content=content,
+            headers={"content-type": "text/csv", "content-encoding": "gzip"},
+        )
+    )
+    expected = pd.read_csv(
+        StringIO(gzip.decompress(content).decode()),
+        index_col="__example_index__",
+    )
+    actual = client.download_dataset_examples(
+        str(dataset_global_id),
+        dataset_version_id=str(dataset_version_global_id),
+    )
+    assert_frame_equal(actual, expected)
 
 
 @pytest.fixture
