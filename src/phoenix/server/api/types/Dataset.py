@@ -80,9 +80,7 @@ class Dataset(Node):
         )
         latest_revisions = select(
             models.DatasetExampleRevision.dataset_example_id,
-            func.max(models.DatasetExampleRevision.dataset_version_id).label(
-                "latest_dataset_version_id"
-            ),
+            func.max(models.DatasetExampleRevision.dataset_version_id).label("dataset_version_id"),
         ).group_by(models.DatasetExampleRevision.dataset_example_id)
         if dataset_version_id:
             dataset_version_rowid = from_global_id_with_expected_type(
@@ -103,7 +101,7 @@ class Dataset(Node):
                     ),
                     (
                         models.DatasetExampleRevision.dataset_version_id
-                        == latest_revisions_cte.c.latest_dataset_version_id
+                        == latest_revisions_cte.c.dataset_version_id
                     ),
                 ),
             )
