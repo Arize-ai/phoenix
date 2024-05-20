@@ -9,9 +9,7 @@ from phoenix.server.api.types.pagination import Cursor
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
-
-class TestProjectsSpans:
-    PROJECT_SPANS_QUERY = """
+PROJECT_SPANS_QUERY = """
 query ($projectId: GlobalID!, $after: String = null, $before: String = null, $filterCondition: String = null, $first: Int = null, $last: Int = null, $sort: SpanSort = null) {
   node(id: $projectId) {
     ... on Project {
@@ -39,41 +37,52 @@ query ($projectId: GlobalID!, $after: String = null, $before: String = null, $fi
 }
 """
 
-    async def test_basic_query(
-        self,
-        test_client,
-        llama_index_rag_spans,
-    ) -> None:
-        project_id = GlobalID(type_name="Project", node_id=str(1))
-        response = await test_client.post(
-            "/graphql",
-            json={
-                "query": self.PROJECT_SPANS_QUERY,
-                "variables": {
-                    "projectId": str(project_id),
-                    "first": 2,
-                },
+
+@pytest.mark.parametrize(
+    "variables, expected_response",
+    [
+        pytest.param(
+            {
+                "projectId": str(GlobalID(type_name="Project", node_id="1")),
+                "first": 2,
             },
-        )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert (errors := response_json.get("errors")) is None, errors
-        assert response_json["data"] == {
-            "node": {
-                "spans": {
-                    "edges": [
-                        {"cursor": str(Cursor(rowid=1))},
-                        {"cursor": str(Cursor(rowid=2))},
-                    ],
-                    "pageInfo": {
-                        "startCursor": str(Cursor(rowid=1)),
-                        "endCursor": str(Cursor(rowid=2)),
-                        "hasNextPage": True,
-                        "hasPreviousPage": False,
-                    },
+            {
+                "node": {
+                    "spans": {
+                        "edges": [
+                            {"cursor": str(Cursor(rowid=1))},
+                            {"cursor": str(Cursor(rowid=2))},
+                        ],
+                        "pageInfo": {
+                            "startCursor": str(Cursor(rowid=1)),
+                            "endCursor": str(Cursor(rowid=2)),
+                            "hasNextPage": True,
+                            "hasPreviousPage": False,
+                        },
+                    }
                 }
-            }
-        }
+            },
+            id="basic-query",
+        )
+    ],
+)
+async def test_project_spans(
+    variables,
+    expected_response,
+    test_client,
+    llama_index_rag_spans,
+) -> None:
+    response = await test_client.post(
+        "/graphql",
+        json={
+            "query": PROJECT_SPANS_QUERY,
+            "variables": variables,
+        },
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert (errors := response_json.get("errors")) is None, errors
+    assert response_json["data"] == expected_response
 
 
 @pytest.fixture
