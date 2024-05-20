@@ -81,13 +81,36 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
                         "pageInfo": {
                             "startCursor": str(Cursor(rowid=14)),
                             "endCursor": str(Cursor(rowid=15)),
-                            "hasNextPage": True,
+                            "hasNextPage": False,
                             "hasPreviousPage": False,
                         },
                     }
                 }
             },
             id="page-ends-exactly-on-last-record",
+        ),
+        pytest.param(
+            {
+                "projectId": PROJECT_ID,
+                "after": str(Cursor(14)),
+                "first": 2,
+            },
+            {
+                "node": {
+                    "spans": {
+                        "edges": [
+                            {"cursor": str(Cursor(rowid=15))},
+                        ],
+                        "pageInfo": {
+                            "startCursor": str(Cursor(rowid=15)),
+                            "endCursor": str(Cursor(rowid=15)),
+                            "hasNextPage": False,
+                            "hasPreviousPage": False,
+                        },
+                    }
+                }
+            },
+            id="page-ends-before-it-reaches-limit",
         ),
     ],
 )
