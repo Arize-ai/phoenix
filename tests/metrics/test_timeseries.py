@@ -33,7 +33,7 @@ reference_data = pd.read_csv(
     ),
     names=["ts", "index", "x", "y", "v"],
     parse_dates=["ts"],
-    date_format="ISO8601",
+    date_parser=pd.to_datetime,
     index_col="ts",
     converters={"v": txt2arr},
 )
@@ -88,7 +88,7 @@ data = pd.read_csv(
     ),
     names=["ts", "index", "x", "y", "v"],
     parse_dates=["ts"],
-    date_format="ISO8601",
+    date_parser=pd.to_datetime,
     index_col="ts",
     converters={"v": txt2arr},
 )
@@ -138,7 +138,7 @@ def test_timeseries_durational_granularity() -> None:
         ),
         names=["ts"] + names,
         parse_dates=["ts"],
-        date_format="ISO8601",
+        date_parser=pd.to_datetime,
         index_col="ts",
         converters={"VectorSum(v)": txt2arr, "VectorMean(v)": txt2arr},
     )
@@ -171,7 +171,7 @@ def test_timeseries_durational_granularity() -> None:
         ),
         names=["ts"] + names,
         parse_dates=["ts"],
-        date_format="ISO8601",
+        date_parser=pd.to_datetime,
         index_col="ts",
         converters={"VectorSum(v)": txt2arr, "VectorMean(v)": txt2arr},
     )
@@ -200,7 +200,7 @@ def test_timeseries_durational_granularity() -> None:
         ),
         names=["ts"] + names,
         parse_dates=["ts"],
-        date_format="ISO8601",
+        date_parser=pd.to_datetime,
         index_col="ts",
         converters={"VectorSum(v)": txt2arr, "VectorMean(v)": txt2arr},
     )
@@ -224,7 +224,7 @@ def test_timeseries_durational_granularity() -> None:
         ),
         names=["ts"] + names,
         parse_dates=["ts"],
-        date_format="ISO8601",
+        date_parser=pd.to_datetime,
         index_col="ts",
         converters={"VectorSum(v)": txt2arr, "VectorMean(v)": txt2arr},
     )
@@ -257,7 +257,7 @@ def test_timeseries_simple_granularity() -> None:
         ),
         names=["ts"] + names,
         parse_dates=["ts"],
-        date_format="ISO8601",
+        date_parser=pd.to_datetime,
         index_col="ts",
         converters={"VectorSum(v)": txt2arr, "VectorMean(v)": txt2arr},
     )
@@ -282,7 +282,7 @@ def test_timeseries_all_granularity() -> None:
         ),
         names=["ts"] + names,
         parse_dates=["ts"],
-        date_format="ISO8601",
+        date_parser=pd.to_datetime,
         index_col="ts",
         converters={"VectorSum(v)": txt2arr, "VectorMean(v)": txt2arr},
     )
