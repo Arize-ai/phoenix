@@ -36,6 +36,7 @@ query ($projectId: GlobalID!, $after: String = null, $before: String = null, $fi
   }
 }
 """
+PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
 
 
 @pytest.mark.parametrize(
@@ -43,7 +44,7 @@ query ($projectId: GlobalID!, $after: String = null, $before: String = null, $fi
     [
         pytest.param(
             {
-                "projectId": str(GlobalID(type_name="Project", node_id="1")),
+                "projectId": PROJECT_ID,
                 "first": 2,
             },
             {
@@ -63,7 +64,31 @@ query ($projectId: GlobalID!, $after: String = null, $before: String = null, $fi
                 }
             },
             id="basic-query",
-        )
+        ),
+        pytest.param(
+            {
+                "projectId": PROJECT_ID,
+                "after": str(Cursor(rowid=13)),
+                "first": 2,
+            },
+            {
+                "node": {
+                    "spans": {
+                        "edges": [
+                            {"cursor": str(Cursor(rowid=14))},
+                            {"cursor": str(Cursor(rowid=15))},
+                        ],
+                        "pageInfo": {
+                            "startCursor": str(Cursor(rowid=14)),
+                            "endCursor": str(Cursor(rowid=15)),
+                            "hasNextPage": True,
+                            "hasPreviousPage": False,
+                        },
+                    }
+                }
+            },
+            id="page-ends-exactly-on-last-record",
+        ),
     ],
 )
 async def test_project_spans(
