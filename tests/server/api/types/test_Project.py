@@ -297,6 +297,66 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
             },
             id="sort-by-ascending-start-time",
         ),
+        pytest.param(
+            {
+                "projectId": PROJECT_ID,
+                "sort": {"col": "cumulativeTokenCountTotal", "dir": "desc"},
+                "first": 2,
+            },
+            {
+                "node": {
+                    "spans": {
+                        "edges": [
+                            {
+                                "cursor": str(
+                                    Cursor(
+                                        rowid=15,
+                                        sort_column=CursorSortColumn(
+                                            type=CursorSortColumnDataType.INT,
+                                            value=382,
+                                        ),
+                                    )
+                                )
+                            },
+                            {
+                                "cursor": str(
+                                    Cursor(
+                                        rowid=14,
+                                        sort_column=CursorSortColumn(
+                                            type=CursorSortColumnDataType.INT,
+                                            value=382,
+                                        ),
+                                    )
+                                )
+                            },
+                        ],
+                        "pageInfo": {
+                            "startCursor": str(
+                                Cursor(
+                                    rowid=15,
+                                    sort_column=CursorSortColumn(
+                                        type=CursorSortColumnDataType.INT,
+                                        value=382,
+                                    ),
+                                )
+                            ),
+                            "endCursor": str(
+                                Cursor(
+                                    rowid=14,
+                                    sort_column=CursorSortColumn(
+                                        type=CursorSortColumnDataType.INT,
+                                        value=382,
+                                    ),
+                                )
+                            ),
+                            "hasNextPage": True,
+                            "hasPreviousPage": False,
+                        },
+                    }
+                }
+            },
+            id="sort-by-descending-cumulative-prompt-token-count-total",
+        ),
     ],
 )
 async def test_project_spans(
