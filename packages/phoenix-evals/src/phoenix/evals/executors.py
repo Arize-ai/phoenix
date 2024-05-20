@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import signal
+import threading
 import traceback
 from typing import Any, Callable, Coroutine, List, Optional, Protocol, Sequence, Tuple, Union
 
@@ -244,7 +245,7 @@ class SyncExecutor(Executor):
         max_retries: int = 10,
         exit_on_error: bool = True,
         fallback_return_value: Union[Unset, Any] = _unset,
-        termination_signal: signal.Signals = signal.SIGINT,
+        termination_signal: Optional[signal.Signals] = signal.SIGINT,
     ):
         self.generate = generation_fn
         self.fallback_return_value = fallback_return_value
@@ -258,9 +259,17 @@ class SyncExecutor(Executor):
     def _signal_handler(self, signum: int, frame: Any) -> None:
         tqdm.write("Process was interrupted. The return value will be incomplete...")
         self._TERMINATE = True
+    
+    def _set_signal_handler(self, signum: Optional[int], handler: Callable[[int, Any], None]) -> None:
+        if signum is not None:
+            signal.signal(signum, handler)
+    
+    def _reset_signal_handler(self, signum: Optional[int]) -> None:
+        if signum is not None:
+            signal.signal(signum, signal.SIG_DFL)
 
     def run(self, inputs: Sequence[Any]) -> List[Any]:
-        signal.signal(self.termination_signal, self._signal_handler)
+        self._set_signal_handler(self.termination_signal, self._signal_handler)
         outputs = [self.fallback_return_value] * len(inputs)
         progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
@@ -287,7 +296,7 @@ class SyncExecutor(Executor):
                     return outputs
                 else:
                     progress_bar.update()
-        signal.signal(self.termination_signal, signal.SIG_DFL)  # reset the SIGTERM handler
+        self._reset_signal_handler(self.termination_signal)
         return outputs
 
 
@@ -300,12 +309,19 @@ def get_executor_on_sync_context(
     exit_on_error: bool = True,
     fallback_return_value: Union[Unset, Any] = _unset,
 ) -> Executor:
+    if threading.current_thread() is threading.main_thread():
+        # only handle termination signals in the main thread
+        termination_signal = None
+    else:
+        termination_signal = signal.SIGINT
+
     if run_sync:
         return SyncExecutor(
             sync_fn,
             tqdm_bar_format=tqdm_bar_format,
             exit_on_error=exit_on_error,
             fallback_return_value=fallback_return_value,
+            termination_signal=termination_signal,
         )
 
     if _running_event_loop_exists():
@@ -328,6 +344,7 @@ def get_executor_on_sync_context(
                 tqdm_bar_format=tqdm_bar_format,
                 exit_on_error=exit_on_error,
                 fallback_return_value=fallback_return_value,
+                termination_signal=termination_signal,
             )
     else:
         return AsyncExecutor(
