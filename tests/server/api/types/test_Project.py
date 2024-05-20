@@ -833,6 +833,77 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
             },
             id="sort-by-ascending-hallucination-eval-label",
         ),
+        pytest.param(
+            {
+                "projectId": PROJECT_ID,
+                "sort": {
+                    "evalResultKey": {"name": "Hallucination", "attr": "label"},
+                    "dir": "desc",
+                },
+                "first": 2,
+                "after": str(
+                    Cursor(
+                        rowid=11,
+                        sort_column=CursorSortColumn(
+                            type=CursorSortColumnDataType.STRING, value="hallucinated"
+                        ),
+                    )
+                ),
+            },
+            {
+                "node": {
+                    "spans": {
+                        "edges": [
+                            {
+                                "cursor": str(
+                                    Cursor(
+                                        rowid=1,
+                                        sort_column=CursorSortColumn(
+                                            type=CursorSortColumnDataType.STRING,
+                                            value="hallucinated",
+                                        ),
+                                    )
+                                )
+                            },
+                            {
+                                "cursor": str(
+                                    Cursor(
+                                        rowid=6,
+                                        sort_column=CursorSortColumn(
+                                            type=CursorSortColumnDataType.STRING,
+                                            value="factual",
+                                        ),
+                                    )
+                                )
+                            },
+                        ],
+                        "pageInfo": {
+                            "startCursor": str(
+                                Cursor(
+                                    rowid=1,
+                                    sort_column=CursorSortColumn(
+                                        type=CursorSortColumnDataType.STRING,
+                                        value="hallucinated",
+                                    ),
+                                )
+                            ),
+                            "endCursor": str(
+                                Cursor(
+                                    rowid=6,
+                                    sort_column=CursorSortColumn(
+                                        type=CursorSortColumnDataType.STRING,
+                                        value="factual",
+                                    ),
+                                )
+                            ),
+                            "hasNextPage": False,
+                            "hasPreviousPage": False,
+                        },
+                    }
+                }
+            },
+            id="sort-by-descending-hallucination-eval-label-with-cursor",
+        ),
     ],
 )
 async def test_project_spans(
