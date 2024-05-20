@@ -120,14 +120,12 @@ class Dataset(Node):
         async with info.context.db() as session:
             dataset_examples = [
                 DatasetExample(
-                    id_attr=dataset_example_revision.id,
-                    input=dataset_example_revision.input,
-                    output=dataset_example_revision.output,
-                    metadata=dataset_example_revision.metadata_,
-                    created_at=dataset_example_created_at,
+                    id_attr=revision.id,
+                    input=revision.input,
+                    output=revision.output,
+                    metadata=revision.metadata_,
+                    created_at=created_at,
                 )
-                for dataset_example_revision, dataset_example_created_at in await session.execute(
-                    query
-                )
+                async for revision, created_at in await session.stream(query)
             ]
         return connection_from_list(data=dataset_examples, args=args)
