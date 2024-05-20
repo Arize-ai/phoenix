@@ -83,6 +83,7 @@ type Dataset implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   versions(first: Int = 50, last: Int, after: String, before: String): DatasetVersionConnection!
+  examples(datasetVersionId: GlobalID, first: Int = 50, last: Int, after: String, before: String): DatasetExampleConnection!
 }
 
 """A connection to a list of items."""
@@ -101,6 +102,33 @@ type DatasetEdge {
 
   """The item at the end of the edge"""
   node: Dataset!
+}
+
+type DatasetExample implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  input: JSON!
+  output: JSON!
+  metadata: JSON!
+  createdAt: DateTime!
+}
+
+"""A connection to a list of items."""
+type DatasetExampleConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DatasetExampleEdge!]!
+}
+
+"""An edge in a connection."""
+type DatasetExampleEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: DatasetExample!
 }
 
 type DatasetValues {
