@@ -109,7 +109,9 @@ def get_qa_with_reference(
     if df_docs is None or df_docs.empty:
         print("No retrieval documents found.")
         return None
-    # eliminate duplicates via concatenation
+    # Consolidate duplicate rows via concatenation. This can happen if there are multiple
+    # retriever spans in the same trace. We simply concatenate all of them (in no particular
+    # order) into a single row.
     ref = df_docs.groupby("context.trace_id")["reference"].apply(lambda x: separator.join(x))
     df_ref = pd.DataFrame({"reference": ref})
     df_qa_ref = pd.concat([df_qa, df_ref], axis=1, join="inner").set_index("context.span_id")
