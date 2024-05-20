@@ -214,7 +214,7 @@ async def get_dataset_by_id(request: Request) -> Response:
 async def get_dataset_download_csv_by_dataset_id(request: Request) -> Response:
     """
     summary: Download dataset as CSV text file
-    operationId: getDatasetDownloadByDatasetId
+    operationId: getDatasetDownloadCsvByDatasetId
     tags:
       - datasets
     parameters:
@@ -243,7 +243,7 @@ async def get_dataset_download_csv_by_dataset_id(request: Request) -> Response:
 async def get_dataset_download_csv_by_dataset_version_id(request: Request) -> Response:
     """
     summary: Download dataset as CSV text file
-    operationId: getDatasetDownloadByDatasetVersionId
+    operationId: getDatasetDownloadCsvByDatasetVersionId
     tags:
       - datasets
     parameters:
