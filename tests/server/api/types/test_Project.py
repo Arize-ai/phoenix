@@ -417,6 +417,83 @@ PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
             },
             id="sort-by-ascending-cumulative-prompt-token-count-total",
         ),
+        pytest.param(
+            {
+                "projectId": PROJECT_ID,
+                "sort": {"col": "startTime", "dir": "desc"},
+                "first": 2,
+                "after": str(
+                    Cursor(
+                        3,
+                        sort_column=CursorSortColumn.from_string(
+                            type=CursorSortColumnDataType.DATETIME,
+                            cursor_string="2023-12-11T17:43:23.307166+00:00",
+                        ),
+                    )
+                ),
+            },
+            {
+                "node": {
+                    "spans": {
+                        "edges": [
+                            {
+                                "cursor": str(
+                                    Cursor(
+                                        rowid=2,
+                                        sort_column=CursorSortColumn(
+                                            type=CursorSortColumnDataType.DATETIME,
+                                            value=datetime.fromisoformat(
+                                                "2023-12-11T17:43:23.306945+00:00"
+                                            ),
+                                        ),
+                                    )
+                                )
+                            },
+                            {
+                                "cursor": str(
+                                    Cursor(
+                                        rowid=1,
+                                        sort_column=CursorSortColumn(
+                                            type=CursorSortColumnDataType.DATETIME,
+                                            value=datetime.fromisoformat(
+                                                "2023-12-11T17:43:23.306838+00:00"
+                                            ),
+                                        ),
+                                    )
+                                )
+                            },
+                        ],
+                        "pageInfo": {
+                            "startCursor": str(
+                                Cursor(
+                                    rowid=2,
+                                    sort_column=CursorSortColumn(
+                                        type=CursorSortColumnDataType.DATETIME,
+                                        value=datetime.fromisoformat(
+                                            "2023-12-11T17:43:23.306945+00:00"
+                                        ),
+                                    ),
+                                )
+                            ),
+                            "endCursor": str(
+                                Cursor(
+                                    rowid=1,
+                                    sort_column=CursorSortColumn(
+                                        type=CursorSortColumnDataType.DATETIME,
+                                        value=datetime.fromisoformat(
+                                            "2023-12-11T17:43:23.306838+00:00"
+                                        ),
+                                    ),
+                                )
+                            ),
+                            "hasNextPage": False,
+                            "hasPreviousPage": False,
+                        },
+                    }
+                }
+            },
+            id="sort-by-descending-start-time-with-cursor",
+        ),
     ],
 )
 async def test_project_spans(
