@@ -573,7 +573,6 @@ async def _get_dataset_download_csv(request: Request) -> Response:
         .where(mder.revision_kind != "DELETE")
         .order_by(mder.dataset_example_id)
     )
-    examples = []
     async with request.app.state.db() as session:
         dataset_name: Optional[str] = await session.scalar(
             select(models.Dataset.name).where(models.Dataset.id == dataset_id)
@@ -583,18 +582,18 @@ async def _get_dataset_download_csv(request: Request) -> Response:
                 content="Dataset does not exist.",
                 status_code=HTTP_404_NOT_FOUND,
             )
-        async for input, output, metadata, example_index in await session.stream(stmt):
-            examples.append(
-                {
-                    **metadata,
-                    **input,
-                    **output,
-                    "__example_index__": example_index,
-                }
-            )
+        examples = [
+            {
+                **metadata,
+                **input,
+                **output,
+                "__example_index__": example_index,
+            }
+            async for input, output, metadata, example_index in await session.stream(stmt)
+        ]
     if not examples:
         return Response(
-            content=f"Dataset has no examples: {dataset_name}",
+            content=f"Dataset has no examples: {dataset_name=}",
             status_code=HTTP_404_NOT_FOUND,
         )
     content = await run_in_threadpool(
