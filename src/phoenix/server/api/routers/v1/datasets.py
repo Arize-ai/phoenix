@@ -235,7 +235,7 @@ async def get_dataset_download_csv_by_dataset_id(request: Request) -> Response:
       404:
         description: Dataset does not exist or has no examples
       422:
-        description: Invalid datasetId or datasetVersionId
+        description: Invalid datasetId
     """
     return await _get_dataset_download_csv(request)
 
