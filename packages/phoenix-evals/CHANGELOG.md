@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.9.0...arize-phoenix-evals-v0.9.1) (2024-05-21)
+
+
+### Bug Fixes
+
+* clarify error message for missing azure api-key ([#3256](https://github.com/Arize-ai/phoenix/issues/3256)) ([58a1398](https://github.com/Arize-ai/phoenix/commit/58a1398b4f1fcc64af7fdb06463f9a0fc0f53b76))
+
 ## [0.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.8.2...arize-phoenix-evals-v0.9.0) (2024-05-17)
 
 
