@@ -1,3 +1,5 @@
+ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot
+
 # This Dockerfile is provided for convenience if you wish to run Phoenix in a
 # container or sidecar. To build the image, run the following commmand:
 #
@@ -54,7 +56,6 @@ RUN pip install --target ./env ".[container, pg]"
 # https://github.com/GoogleContainerTools/distroless?tab=readme-ov-file#debug-images
 #
 # Use the debug tag in the following line to build the debug image.
-ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot
 FROM ${BASE_IMAGE}
 WORKDIR /phoenix
 COPY --from=backend-builder /phoenix/env/ ./env
