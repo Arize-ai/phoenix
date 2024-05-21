@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<92417fd62f18f55233ff6dcadb92e2a0>>
+ * @generated SignedSource<<d0e1796f70c8fa6099732ff98c20df11>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -27,6 +27,7 @@ export type SpansTable_spans$data = {
           readonly ndcg: number | null;
           readonly precision: number | null;
         }>;
+        readonly id: string;
         readonly input: {
           readonly value: string;
         } | null;
@@ -66,10 +67,17 @@ v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v2 = [
+v3 = [
   {
     "alias": "value",
     "args": null,
@@ -184,6 +192,7 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
+                (v1/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -191,7 +200,7 @@ return {
                   "name": "spanKind",
                   "storageKey": null
                 },
-                (v1/*: any*/),
+                (v2/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -273,7 +282,7 @@ return {
                   "kind": "LinkedField",
                   "name": "input",
                   "plural": false,
-                  "selections": (v2/*: any*/),
+                  "selections": (v3/*: any*/),
                   "storageKey": null
                 },
                 {
@@ -283,7 +292,7 @@ return {
                   "kind": "LinkedField",
                   "name": "output",
                   "plural": false,
-                  "selections": (v2/*: any*/),
+                  "selections": (v3/*: any*/),
                   "storageKey": null
                 },
                 {
@@ -294,7 +303,7 @@ return {
                   "name": "spanEvaluations",
                   "plural": true,
                   "selections": [
-                    (v1/*: any*/),
+                    (v2/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -410,19 +419,13 @@ return {
       ],
       "storageKey": null
     },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "id",
-      "storageKey": null
-    }
+    (v1/*: any*/)
   ],
   "type": "Project",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "ba5d821b72675bc6ea380d9f0f36e8b7";
+(node as any).hash = "78738e3d457d0b4140c9bb4f4dc1180a";
 
 export default node;

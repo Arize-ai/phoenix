@@ -21,6 +21,7 @@ import { css } from "@emotion/react";
 import { Flex, Icon, Icons, View } from "@arizeai/components";
 
 import { Link } from "@phoenix/components/Link";
+import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TextCell } from "@phoenix/components/table/TextCell";
@@ -40,6 +41,7 @@ import { EvaluationLabel } from "./EvaluationLabel";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
+import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { spansTableCSS } from "./styles";
 import {
   DEFAULT_SORT,
@@ -58,6 +60,7 @@ export function SpansTable(props: SpansTableProps) {
   const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
@@ -86,6 +89,7 @@ export function SpansTable(props: SpansTableProps) {
           ) @connection(key: "SpansTable_spans") {
             edges {
               span: node {
+                id
                 spanKind
                 name
                 metadata
@@ -224,6 +228,20 @@ export function SpansTable(props: SpansTableProps) {
   ];
   const columns: ColumnDef<TableRow>[] = [
     {
+      id: "select",
+      maxSize: 10,
+      cell: ({ row }) => (
+        <IndeterminateCheckboxCell
+          {...{
+            checked: row.getIsSelected(),
+            disabled: !row.getCanSelect(),
+            indeterminate: row.getIsSomeSelected(),
+            onChange: row.getToggleSelectedHandler(),
+          }}
+        />
+      ),
+    },
+    {
       header: "kind",
       accessorKey: "spanKind",
       maxSize: 100,
@@ -346,13 +364,21 @@ export function SpansTable(props: SpansTableProps) {
     state: {
       sorting,
       columnVisibility,
+      rowSelection,
     },
     manualSorting: true,
+    enableRowSelection: true,
+    onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
   const rows = table.getRowModel().rows;
+  const selectedRows = table.getSelectedRowModel().rows;
+  const selectedSpans = selectedRows.map((row) => row.original);
+  const clearSelection = useCallback(() => {
+    setRowSelection({});
+  }, [setRowSelection]);
   const isEmpty = rows.length === 0;
   const computedColumns = table.getAllColumns().filter((column) => {
     // Filter out columns that are eval groupings
@@ -456,6 +482,12 @@ export function SpansTable(props: SpansTableProps) {
           )}
         </table>
       </div>
+      {selectedRows.length ? (
+        <SpanSelectionToolbar
+          selectedSpans={selectedSpans}
+          onClearSelection={clearSelection}
+        />
+      ) : null}
     </div>
   );
 }

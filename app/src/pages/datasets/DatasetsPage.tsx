@@ -12,10 +12,10 @@ import {
 } from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
+import { CreateDatasetForm } from "@phoenix/components/dataset/CreateDatasetForm";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import { DatasetsPageQuery } from "./__generated__/DatasetsPageQuery.graphql";
-import { CreateDatasetForm } from "./CreateDatasetForm";
 import { DatasetsTable } from "./DatasetsTable";
 
 export function DatasetsPage() {
@@ -74,14 +74,14 @@ function CreateDatasetButton({ onDatasetCreated }: CreateDatasetButtonProps) {
     setDialog(
       <Dialog size="S" title="New Dataset">
         <CreateDatasetForm
-          onDatasetCreated={(payload) => {
+          onDatasetCreated={(newDataset) => {
             notifySuccess({
               title: "Dataset created",
-              message: `${payload.dataset.name} has been successfully created.`,
+              message: `${newDataset.name} has been successfully created.`,
               action: {
                 text: "Go to Dataset",
                 onClick: () => {
-                  navigate(`/datasets/${payload.dataset.id}`);
+                  navigate(`/datasets/${newDataset.id}`);
                 },
               },
             });
