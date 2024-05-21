@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
 import React, {
   startTransition,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -24,6 +25,7 @@ import { Flex, Icon, Icons, View } from "@arizeai/components";
 
 import { Link } from "@phoenix/components/Link";
 import { TextCell } from "@phoenix/components/table";
+import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
@@ -45,6 +47,7 @@ import { EvaluationLabel } from "./EvaluationLabel";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
+import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { spansTableCSS } from "./styles";
 import {
   DEFAULT_SORT,
@@ -88,6 +91,7 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(
 export function TracesTable(props: TracesTableProps) {
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
   const navigate = useNavigate();
@@ -117,6 +121,7 @@ export function TracesTable(props: TracesTableProps) {
           ) @connection(key: "TracesTable_rootSpans") {
             edges {
               rootSpan: node {
+                id
                 spanKind
                 name
                 metadata
@@ -149,6 +154,7 @@ export function TracesTable(props: TracesTableProps) {
                   hit
                 }
                 descendants {
+                  id
                   spanKind
                   name
                   statusCode: propagatedStatusCode
@@ -296,6 +302,20 @@ export function TracesTable(props: TracesTableProps) {
   ];
 
   const columns: ColumnDef<TableRow>[] = [
+    {
+      id: "select",
+      maxSize: 10,
+      cell: ({ row }) => (
+        <IndeterminateCheckboxCell
+          {...{
+            checked: row.getIsSelected(),
+            disabled: !row.getCanSelect(),
+            indeterminate: row.getIsSomeSelected(),
+            onChange: row.getToggleSelectedHandler(),
+          }}
+        />
+      ),
+    },
     {
       header: () => {
         return (
@@ -462,13 +482,21 @@ export function TracesTable(props: TracesTableProps) {
       sorting,
       expanded,
       columnVisibility,
+      rowSelection,
     },
+    onRowSelectionChange: setRowSelection,
+    enableSubRowSelection: false,
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
   });
   const rows = table.getRowModel().rows;
+  const selectedRows = table.getSelectedRowModel().rows;
+  const selectedSpans = selectedRows.map((row) => row.original);
+  const clearSelection = useCallback(() => {
+    setRowSelection({});
+  }, [setRowSelection]);
   const isEmpty = rows.length === 0;
   const computedColumns = table.getAllColumns().filter((column) => {
     // Filter out columns that are eval groupings
@@ -571,6 +599,12 @@ export function TracesTable(props: TracesTableProps) {
           )}
         </table>
       </div>
+      {selectedRows.length ? (
+        <SpanSelectionToolbar
+          selectedSpans={selectedSpans}
+          onClearSelection={clearSelection}
+        />
+      ) : null}
     </div>
   );
 }

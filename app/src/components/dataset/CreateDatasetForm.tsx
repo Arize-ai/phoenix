@@ -24,7 +24,7 @@ type CreateDatasetParams = {
 
 export type CreateDatasetFormProps = {
   onDatasetCreated: (
-    dataset: CreateDatasetFormMutation$data["createDataset"]
+    dataset: CreateDatasetFormMutation$data["createDataset"]["dataset"]
   ) => void;
   onDatasetCreateError: (error: Error) => void;
 };
@@ -64,7 +64,7 @@ export function CreateDatasetForm(props: CreateDatasetFormProps) {
       commit({
         variables: params,
         onCompleted: (response) => {
-          onDatasetCreated(response["createDataset"]);
+          onDatasetCreated(response["createDataset"]["dataset"]);
         },
         onError: (error) => {
           // TODO(datasets): cleanup error handling to show human friendly error
