@@ -243,7 +243,7 @@ def send_dataset_fixtures(
     for i, fixture in enumerate(fixtures):
         try:
             if i % 2:
-                client.upload_dataset_table(
+                client.upload_dataset_examples(
                     fixture.dataframe,
                     name=fixture.name,
                     input_keys=fixture.input_keys,
@@ -256,7 +256,7 @@ def send_dataset_fixtures(
                     with open(tf.name, "w") as f:
                         shutil.copyfileobj(fixture.csv, f)
                         f.flush()
-                    client.upload_dataset_table(
+                    client.upload_dataset_examples(
                         tf.name,
                         name=fixture.name,
                         input_keys=fixture.input_keys,
