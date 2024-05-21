@@ -161,11 +161,10 @@ class OpenAIModel(BaseModel):
                         "Azure API key not provided. Pass it as an argument to 'api_key' "
                         "or set it in your environment: 'export OPENAI_API_KEY=****'"
                     )
-                else:
-                    raise RuntimeError(
-                        "OpenAI's API key not provided. Pass it as an argument to 'api_key' "
-                        "or set it in your environment: 'export OPENAI_API_KEY=sk-****'"
-                    )
+                raise RuntimeError(
+                    "OpenAI's API key not provided. Pass it as an argument to 'api_key' "
+                    "or set it in your environment: 'export OPENAI_API_KEY=sk-****'"
+                )
             self.api_key = api_key
 
         # Set the version, organization, and base_url - default to openAI
