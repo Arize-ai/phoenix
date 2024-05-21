@@ -1,0 +1,66 @@
+name: Publish nightly Docker image
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  push_to_registry:
+    name: Push nightly Docker image to Docker Hub
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        variant: [root, nonroot, debug]
+    permissions:
+      packages: write
+      contents: read
+    env:
+      REGISTRY: arizephoenix
+      IMAGE_NAME: phoenix
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+      
+      - name: Extract commit hash
+        id: extract_commit
+        run: echo "COMMIT_HASH=${GITHUB_SHA::7}" >> $GITHUB_ENV
+      
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            ${{ matrix.variant == 'root' && 'nightly' || '' }}
+            ${{ matrix.variant == 'nonroot' && 'nightly-nonroot' || '' }}
+            ${{ matrix.variant == 'debug' && 'nightly-debug' || '' }}
+
+      - name: Build and push Docker image
+        id: push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ matrix.variant == 'root' && env.REGISTRY + '/' + env.IMAGE_NAME + ':nightly' || '' }}
+            ${{ matrix.variant == 'root' && env.REGISTRY + '/' + env.IMAGE_NAME + ':commit-' + env.COMMIT_HASH || '' }}
+            ${{ matrix.variant == 'nonroot' && env.REGISTRY + '/' + env.IMAGE_NAME + ':nightly-nonroot' || '' }}
+            ${{ matrix.variant == 'debug' && env.REGISTRY + '/' + env.IMAGE_NAME + ':nightly-debug' || '' }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BASE_IMAGE=${{ matrix.variant == 'root' && 'gcr.io/distroless/python3-debian12' || (matrix.variant == 'debug' && 'gcr.io/distroless/python3-debian12:debug') || 'gcr.io/distroless/python3-debian12:nonroot' }}
+      
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.variant }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
