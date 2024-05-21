@@ -324,19 +324,27 @@ def get_executor_on_sync_context(
     exit_on_error: bool = True,
     fallback_return_value: Union[Unset, Any] = _unset,
 ) -> Executor:
-    if threading.current_thread() is threading.main_thread():
-        # only handle termination signals in the main thread
-        termination_signal = None
-    else:
-        termination_signal = signal.SIGINT
+    if threading.current_thread() is not threading.main_thread():
+        # run evals synchronously if not in the main thread
 
-    if run_sync:
+        if run_sync is False:
+            logger.warning(
+                "Async evals execution is not supported in non-main threads. Falling back to sync."
+            )
         return SyncExecutor(
             sync_fn,
             tqdm_bar_format=tqdm_bar_format,
             exit_on_error=exit_on_error,
             fallback_return_value=fallback_return_value,
-            termination_signal=termination_signal,
+            termination_signal=None,
+        )
+
+    if run_sync is False:
+        return SyncExecutor(
+            sync_fn,
+            tqdm_bar_format=tqdm_bar_format,
+            exit_on_error=exit_on_error,
+            fallback_return_value=fallback_return_value,
         )
 
     if _running_event_loop_exists():
@@ -359,7 +367,6 @@ def get_executor_on_sync_context(
                 tqdm_bar_format=tqdm_bar_format,
                 exit_on_error=exit_on_error,
                 fallback_return_value=fallback_return_value,
-                termination_signal=termination_signal,
             )
     else:
         return AsyncExecutor(
