@@ -39,7 +39,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.variant }}
           tags: |
             type=${{ matrix.variant }}
-            version=${{ github.event.release.tag_name }}
+            version=${{ env.VERSION }}
             ${{ matrix.variant == 'root' && 'latest' || '' }}
 
       - name: Build and push Docker image
