@@ -1,5 +1,5 @@
 ---
-description: How to get started with phoenix
+description: How to get started with Phoenix
 ---
 
 # Setup

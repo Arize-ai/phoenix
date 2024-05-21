@@ -22,11 +22,31 @@ from respx import MockRouter
 from strawberry.relay import GlobalID
 
 
+def test_base_path(monkeypatch: pytest.MonkeyPatch):
+    # Reset environment variables
+    monkeypatch.delenv("PHOENIX_HOST", False)
+    monkeypatch.delenv("PHOENIX_PORT", False)
+    monkeypatch.delenv("PHOENIX_COLLECTOR_ENDPOINT", False)
+
+    # Test that host and port environment variables are interpreted correctly
+    monkeypatch.setenv("PHOENIX_HOST", "my-host")
+    monkeypatch.setenv("PHOENIX_PORT", "1234")
+    client = Client()
+    assert client._base_url == "http://my-host:1234/"
+
+    # Test that a collector endpoint environment variables takes precedence
+    monkeypatch.setenv("PHOENIX_COLLECTOR_ENDPOINT", "http://my-collector-endpoint/with/prefix")
+    client = Client()
+    assert client._base_url == "http://my-collector-endpoint/with/prefix/"
+
+    # Test a given endpoint takes precedence over environment variables
+    endpoint = "https://other-collector-endpoint/with/other/prefix"
+    client = Client(endpoint=endpoint)
+    assert client._base_url == "https://other-collector-endpoint/with/other/prefix/"
+
+
 def test_get_spans_dataframe(
-    client: Client,
-    endpoint: str,
-    dataframe: pd.DataFrame,
-    respx_mock: MockRouter,
+    client: Client, endpoint: str, dataframe: pd.DataFrame, respx_mock: MockRouter
 ):
     url = urljoin(endpoint, "v1/spans")
 

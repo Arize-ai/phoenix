@@ -10,6 +10,7 @@ logger = getLogger(__name__)
 ENV_PHOENIX_PORT = "PHOENIX_PORT"
 ENV_PHOENIX_GRPC_PORT = "PHOENIX_GRPC_PORT"
 ENV_PHOENIX_HOST = "PHOENIX_HOST"
+ENV_PHOENIX_HOST_ROOT_PATH = "PHOENIX_HOST_ROOT_PATH"
 ENV_NOTEBOOK_ENV = "PHOENIX_NOTEBOOK_ENV"
 ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
 """
@@ -98,6 +99,8 @@ HOST = "0.0.0.0"
 """The host the server will run on after launch_app is called."""
 PORT = 6006
 """The port the server will run on after launch_app is called."""
+HOST_ROOT_PATH = ""
+"""The ASGI root path of the server, i.e. the root path where the web application is mounted"""
 GRPC_PORT = 4317
 """The port the gRPC server will run on after launch_app is called.
 The default network port for OTLP/gRPC is 4317.
@@ -181,6 +184,10 @@ def get_env_grpc_port() -> int:
 
 def get_env_host() -> str:
     return os.getenv(ENV_PHOENIX_HOST) or HOST
+
+
+def get_env_host_root_path() -> str:
+    return os.getenv(ENV_PHOENIX_HOST_ROOT_PATH) or HOST_ROOT_PATH
 
 
 def get_env_collector_endpoint() -> Optional[str]:

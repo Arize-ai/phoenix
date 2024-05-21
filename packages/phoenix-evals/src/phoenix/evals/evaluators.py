@@ -1,5 +1,4 @@
-from textwrap import indent
-from typing import List, Mapping, Optional, Tuple, Type
+from typing import List, Mapping, Optional, Tuple
 
 from phoenix.evals.default_templates import EvalCriteria
 from phoenix.evals.models import BaseModel, OpenAIModel, set_verbosity
@@ -164,76 +163,95 @@ class LLMEvaluator:
         return label, score, explanation
 
 
-def _create_llm_evaluator_subclass(
-    class_name: str, template: ClassificationTemplate, docstring: str
-) -> Type[LLMEvaluator]:
-    """A factory method that dynamically creates subclasses of LLMEvaluator.
-
-    Args:
-        class_name (str): Name of the class to be created (should match the name
-        of the assignment variable).
-
-        template (ClassificationTemplate): The classification template to use
-        for evaluation.
-
-        docstring (str): The docstring that will be attached to the subclass.
-
-    Returns:
-        Type[LLMEvaluator]: The dynamically created subclass.
+class HallucinationEvaluator(LLMEvaluator):
+    """
+    Leverages an LLM to evaluate whether a response (stored under an "output"
+    column) is a hallucination given a query (stored under an "input" column)
+    and one or more retrieved documents (stored under a "reference" column).
     """
 
-    def __init__(self: LLMEvaluator, model: BaseModel) -> None:
-        LLMEvaluator.__init__(self, model, template)
-
-    __init__.__doc__ = f"""
-        Initializer for {class_name}.
+    def __init__(self, model: BaseModel) -> None:
+        """
+        Initializer for HallucinationEvaluator.
 
         Args:
-            model (BaseEvalModel): The LLM model to use for evaluation."""
+            model (BaseEvalModel): The LLM model to use for evaluation.
+        """
 
-    docstring += f" Outputs railed classes {', '.join(template.rails)}."
-    docstring += "\n\nThe template used for evaluation (without explanation) is:\n\n"
-    docstring += indent(template.template, 2 * _TAB)
-
-    return type(class_name, (LLMEvaluator,), {"__init__": __init__, "__doc__": docstring})
+        super().__init__(model=model, template=EvalCriteria.HALLUCINATION.value)
 
 
-(
-    HallucinationEvaluator,
-    RelevanceEvaluator,
-    ToxicityEvaluator,
-    QAEvaluator,
-    SummarizationEvaluator,
-) = map(
-    lambda args: _create_llm_evaluator_subclass(*args),
-    (
-        (
-            "HallucinationEvaluator",
-            EvalCriteria.HALLUCINATION.value,
-            'Leverages an LLM to evaluate whether a response (stored under an "output" column) is a hallucination given a query (stored under an "input" column) and one or more retrieved documents (stored under a "reference" column).',  # noqa: E501
-        ),
-        (
-            "RelevanceEvaluator",
-            EvalCriteria.RELEVANCE.value,
-            'Leverages an LLM to evaluate whether a retrieved document (stored under a "reference" column) is relevant or irrelevant to the corresponding query (stored under the "input" column).',  # noqa: E501
-        ),
-        (
-            "ToxicityEvaluator",
-            EvalCriteria.TOXICITY.value,
-            'Leverages an LLM to evaluate whether the string stored under the "input" column contains racist, sexist, chauvinistic, biased, or otherwise toxic content.',  # noqa: E501
-        ),
-        (
-            "QAEvaluator",
-            EvalCriteria.QA.value,
-            'Leverages an LLM to evaluate whether a response (stored under an "output" column) is correct or incorrect given a query (stored under an "input" column) and one or more retrieved documents (stored under a "reference" column).',  # noqa: E501
-        ),
-        (
-            "SummarizationEvaluator",
-            EvalCriteria.SUMMARIZATION.value,
-            'Leverages an LLM to evaluate whether a summary (stored under an "output" column) provides an accurate synopsis of an input document (stored under a "input" column).',  # noqa: E501
-        ),
-    ),
-)
+class RelevanceEvaluator(LLMEvaluator):
+    """
+    Leverages an LLM to evaluate whether a retrieved document (stored under a
+    "reference" column) is relevant or irrelevant to the corresponding query
+    (stored under the "input" column).
+    """
+
+    def __init__(self, model: BaseModel) -> None:
+        """
+        Initializer for RelevanceEvaluator.
+
+        Args:
+            model (BaseEvalModel): The LLM model to use for evaluation.
+        """
+
+        super().__init__(model=model, template=EvalCriteria.RELEVANCE.value)
+
+
+class QAEvaluator(LLMEvaluator):
+    """
+    Leverages an LLM to evaluate whether a response (stored under an "output"
+    column) is correct or incorrect given a query (stored under an "input"
+    column) and one or more retrieved documents (stored under a "reference"
+    column).
+    """
+
+    def __init__(self, model: BaseModel) -> None:
+        """
+        Initializer for QAEvaluator.
+
+        Args:
+            model (BaseEvalModel): The LLM model to use for evaluation.
+        """
+
+        super().__init__(model=model, template=EvalCriteria.QA.value)
+
+
+class ToxicityEvaluator(LLMEvaluator):
+    """
+    Leverages an LLM to evaluate whether the string stored under the "input"
+    column contains racist, sexist, chauvinistic, biased, or otherwise toxic
+    content.
+    """
+
+    def __init__(self, model: BaseModel) -> None:
+        """
+        Initializer for ToxicityEvaluator.
+
+        Args:
+            model (BaseEvalModel): The LLM model to use for evaluation.
+        """
+
+        super().__init__(model=model, template=EvalCriteria.TOXICITY.value)
+
+
+class SummarizationEvaluator(LLMEvaluator):
+    """
+    Leverages an LLM to evaluate whether a summary (stored under an
+    "output" column) provides an accurate synopsis of an input document
+    (stored under a "input" column).
+    """
+
+    def __init__(self, model: BaseModel) -> None:
+        """
+        Initializer for SummarizationEvaluator.
+
+        Args:
+            model (BaseEvalModel): The LLM model to use for evaluation.
+        """
+
+        super().__init__(model=model, template=EvalCriteria.SUMMARIZATION.value)
 
 
 class MapReducer:

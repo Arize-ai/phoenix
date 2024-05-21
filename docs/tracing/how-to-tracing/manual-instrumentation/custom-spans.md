@@ -1,15 +1,23 @@
 ---
 description: >-
-  While the spans created via phoenix and OpenInference creates a solid
-  foundation for tracing your application, sometimes you may need to create and
-  customize and customize the LLM spans
+  While the spans created via Phoenix and OpenInference create a solid
+  foundation for tracing your application, sometimes you need to create and
+  customize your LLM spans
 ---
 
 # Manual Instrumentation
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/Ways-to-collect-data-for-Arize-and-Phoenix.png" alt=""><figcaption></figcaption></figure>
 
-Phoenix and OpenInference use OpenTelemetry Trace API to create spans. Because Phoenix supports OpenTelemetry, this means that you can perform manual instrumentation, no LLM framework required!  This guide will help you understand how to create and customize spans using OpenTelemetry Trace API.
+Phoenix and OpenInference use the OpenTelemetry Trace API to create spans. Because Phoenix supports OpenTelemetry, this means that you can perform manual instrumentation, no LLM framework required!  This guide will help you understand how to create and customize spans using the OpenTelemetry Trace API.
+
+{% hint style="info" %}
+See [here](https://github.com/Arize-ai/phoenix/tree/main/examples/manually-instrumented-chatbot) for an end-to-end example of a manually instrumented application.
+{% endhint %}
+
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/manual_instrumentation_tutorial.ipynb" %}
+
+***
 
 First, ensure you have the API and SDK packages:
 
@@ -26,17 +34,39 @@ pip install openinference-semantic-conventions
 
 For full documentation on the OpenInference semantic conventions, please consult the specification
 
-{% embed url="https://arize-ai.github.io/openinference/spec/semantic_conventions.html" %}
+{% embed url="https://arize-ai.github.io/openinference/spec/semantic_conventions.html" fullWidth="false" %}
 
-## Acquire Tracer
+## Configuring a Tracer
 
-To start tracing, you'll need get a `tracer` (note that this assumes you already have a trace provider configured):
+Configuring an OTel tracer involves some boilerplate code that the instrumentors in `phoenix.trace` take care of for you. If you're manually instrumenting your application, you'll need to implement this boilerplate yourself:
 
 ```python
+from openinference.semconv.resource import ResourceAttributes
 from opentelemetry import trace
-# Creates a tracer from the global tracer provider
-tracer = trace.get_tracer("my.tracer.name")
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from phoenix.config import get_env_host, get_env_port
+
+resource = Resource(attributes={
+    ResourceAttributes.PROJECT_NAME: '<your-project-name>'
+})
+tracer_provider = TracerProvider(resource=resource)
+trace.set_tracer_provider(tracer_provider)
+tracer = trace.get_tracer(__name__)
+collector_endpoint = f"http://{get_env_host()}:{get_env_port()}/v1/traces"
+span_exporter = OTLPSpanExporter(endpoint=collector_endpoint)
+simple_span_processor = SimpleSpanProcessor(span_exporter=span_exporter)
+trace.get_tracer_provider().add_span_processor(simple_span_processor)
 ```
+
+This snippet contains a few OTel concepts:
+
+* A **resource** represents an origin (e.g., a particular service, or in this case, a project) from which your spans are emitted.
+* **Span processors** filter, batch, and perform operations on your spans prior to export.
+* Your **tracer** provides a handle for you to create spans and add attributes in your application code.
+* The **collector** (e.g., Phoenix) receives the spans exported by your application.
 
 ## Creating spans
 
@@ -74,7 +104,7 @@ When you view spans in a trace visualization tool, `child` will be tracked as a 
 
 ## Creating spans with decorators
 
-It's common to have a single spans track the execution of an entire function. In that scenario, there is a decorator you can use to reduce code:
+It's common to have a single span track the execution of an entire function. In that scenario, there is a decorator you can use to reduce code:
 
 ```python
 @tracer.start_as_current_span("do_work")
@@ -84,13 +114,13 @@ def do_work():
 
 Use of the decorator is equivalent to creating the span inside `do_work()` and ending it when `do_work()` is finished.
 
-To use the decorator, you must have a `tracer` instance available global to your function declaration.
+To use the decorator, you must have a `tracer` instance in scope for your function declaration.
 
 If you need to add [attributes](custom-spans.md#add-attributes-to-a-span) or [events](custom-spans.md#adding-events) then it's less convenient to use a decorator.
 
 ## Get the current span
 
-Sometimes it's helpful to access whatever the current spans is at a point in time so that you can enrich it with more information.
+Sometimes it's helpful to access whatever the current span is at a point in time so that you can enrich it with more information.
 
 ```python
 from opentelemetry import trace
@@ -115,9 +145,9 @@ current_span.set_attribute("operation.other-stuff", [1, 2, 3])
 
 Notice above that the attributes have a specific prefix `operation`. When adding custom attributes, it's best practice to vendor your attributes (e.x. `mycompany.`) so that your attributes do not clash with semantic conventions.
 
-## Add semantic attributes
+## Add Semantic Attributes
 
-Semantic Attributes are pre-defined Attributes that are well-known naming conventions for common kinds of data. Using Semantic Attributes lets you normalize this kind of information across your systems. In the case of Phoenix, the [OpenInference Semantic Conventions](https://github.com/Arize-ai/openinference/blob/main/python/openinference-semantic-conventions/README.md) package provides a set of well-known attributes that are used to represent LLM application specific semantic conventions.
+Semantic attributes are pre-defined attributes that are well-known naming conventions for common kinds of data. Using semantic attributes lets you normalize this kind of information across your systems. In the case of Phoenix, the [OpenInference Semantic Conventions](https://github.com/Arize-ai/openinference/blob/main/python/openinference-semantic-conventions/README.md) package provides a set of well-known attributes that are used to represent LLM application specific semantic conventions.
 
 To use OpenInference Semantic Attributes in Python, ensure you have the semantic conventions package:
 
@@ -130,7 +160,7 @@ Then you can use it in code:
 ```python
 from openinference.semconv.trace import SpanAttributes
 
-// ...
+# ...
 
 current_span = trace.get_current_span()
 current_span.set_attribute(SpanAttributes.INPUT_VALUE, "Hello world!")
@@ -139,7 +169,7 @@ current_span.set_attribute(SpanAttributes.LLM_MODEL_NAME, "gpt-3.5-turbo")
 
 ## Adding events
 
-An event is a human-readable message on a span that represents "something happening" during its lifetime. You can think of it as a primitive log.
+Events are human-readable messages that represent "something happening" at a particular moment during the lifetime of a span. You can think of it as a primitive log.
 
 ```python
 from opentelemetry import trace
@@ -154,6 +184,8 @@ current_span.add_event("Did it!")
 ```
 
 ## Set span status
+
+The span status allows you to signal the success or failure of the code executed within the span.
 
 ```python
 from opentelemetry import trace

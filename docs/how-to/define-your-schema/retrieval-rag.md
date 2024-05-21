@@ -28,16 +28,16 @@ primary_schema = Schema(
 )
 ```
 
-## Dataset
+## Inferences
 
-Define the dataset by pairing the dataframe with the schema.
+Define the inferences by pairing the dataframe with the schema.
 
 ```python
-primary_dataset = px.Dataset(primary_dataframe, primary_schema)
+primary_inferences = px.Inferences(primary_dataframe, primary_schema)
 ```
 
 ## Application
 
 ```python
-session = px.launch_app(primary_dataset)
+session = px.launch_app(primary_inferences)
 ```

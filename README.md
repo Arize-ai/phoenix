@@ -1,6 +1,6 @@
 <p align="center">
     <a target="_blank" href="https://phoenix.arize.com" style="background:none">
-        <img alt="phoenix logo" src="https://storage.googleapis.com/arize-assets/phoenix/assets/phoenix-logo-light.svg" width="auto" height="200"></img>
+        <img alt="phoenix banner" src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/socal/github-large-banner-phoenix.jpg?raw=true" width="auto" height="auto"></img>
     </a>
     <br/>
     <br/>
@@ -27,389 +27,46 @@
     </a>
 </p>
 
-![a rotating UMAP point cloud of a computer vision model](https://github.com/Arize-ai/phoenix-assets/blob/main/gifs/image_classification_10mb.gif?raw=true)
+Phoenix is an open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. It provides:
 
-Phoenix provides MLOps and LLMOps insights at lightning speed with zero-config observability. Phoenix provides a notebook-first experience for monitoring your models and LLM Applications by providing:
+-   **_Tracing_** - Trace your LLM application's runtime using using OpenTelemetry-based instrumentation.
+-   **_Evaluation_** - Leverage LLMs to benchmark your application's performance using response and retrieval evals.
+-   **_Inference Analysis_** - Visualize inferences and embeddings using dimensionality reduction and clustering to identify drift and performance degradation.
 
--   **LLM Traces** - Trace through the execution of your LLM Application to understand the internals of your LLM Application and to troubleshoot problems related to things like retrieval and tool execution.
--   **LLM Evals** - Leverage the power of large language models to evaluate your generative model or application's relevance, toxicity, and more.
--   **Embedding Analysis** - Explore embedding point-clouds and identify clusters of high drift and performance degradation.
--   **RAG Analysis** - Visualize your generative application's search and retrieval process to identify problems and improve your RAG pipeline.
--   **Structured Data Analysis** - Statistically analyze your structured data by performing A/B analysis, temporal drift analysis, and more.
+Phoenix is vendor and language agnostic with out-of-the-box support for popular frameworks (🦙LlamaIndex, 🦜⛓LangChain, 🧩DSPy) and LLM providers (OpenAI, Bedrock, and more). For details on auto-instrumentation, check out the [OpenInference](https://github.com/Arize-ai/openinference) project.
 
-**Table of Contents**
-
--   [Installation](#installation)
--   [LLM Traces](#llm-traces)
-    -   [Tracing with LlamaIndex](#tracing-with-llamaindex)
-    -   [Tracing with LangChain](#tracing-with-langchain)
--   [LLM Evals](#llm-evals)
--   [Embedding Analysis](#embedding-analysis)
-    -   [UMAP-based Exploratory Data Analysis](#umap-based-exploratory-data-analysis)
-    -   [Cluster-driven Drift and Performance Analysis](#cluster-driven-drift-and-performance-analysis)
-    -   [Exportable Clusters](#exportable-clusters)
--   [Retrieval-Augmented Generation Analysis](#retrieval-augmented-generation-analysis)
--   [Structured Data Analysis](#structured-data-analysis)
--   [Deploying Phoenix](#deploying-phoenix)
--   [Breaking Changes](#breaking-changes)
--   [Community](#community)
--   [Thanks](#thanks)
--   [Copyright, Patent, and License](#copyright-patent-and-license)
+Phoenix runs practically anywhere, including your Jupyter notebook, local machine, containerized deployment, or in the cloud.
 
 ## Installation
 
-Install Phoenix via `pip` or or `conda` as well as any of its subpackages.
+Install Phoenix via `pip` or `conda` along with extra dependencies for running evals:
 
 ```shell
-pip install arize-phoenix[evals]
+pip install 'arize-phoenix[evals]'
 ```
 
-> [!NOTE]
-> The above will install Phoenix and its `evals` subpackage. To just install phoenix's evaluation package, you can run `pip install arize-phoenix-evals` instead.
-
-## LLM Traces
-
-![LLM Application Tracing](https://github.com/Arize-ai/phoenix-assets/blob/main/gifs/langchain_rag_stuff_documents_chain_10mb.gif?raw=true)
-
-With the advent of powerful LLMs, it is now possible to build LLM Applications that can perform complex tasks like summarization, translation, question and answering, and more. However, these applications are often difficult to debug and troubleshoot as they have an extensive surface area: search and retrieval via vector stores, embedding generation, usage of external tools and so on. Phoenix provides a tracing framework that allows you to trace through the execution of your LLM Application hierarchically. This allows you to understand the internals of your LLM Application and to troubleshoot the complex components of your applicaition. Phoenix is built on top of the OpenInference tracing standard and uses it to trace, export, and collect critical information about your LLM Application in the form of `spans`. For more details on the OpenInference tracing standard, see the [OpenInference Specification](https://github.com/Arize-ai/openinference)
-
-### Tracing with LlamaIndex
-
-[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab&logo=googlecolab&labelColor=grey&color=blue&logoColor=orange&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/llama_index_tracing_tutorial.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub&logo=github&labelColor=grey&color=blue&logoColor=white&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/llama_index_tracing_tutorial.ipynb)
-
-![LLM Traces UI](https://storage.googleapis.com/arize-assets/phoenix/assets/images/trace_details_view.png)
-
-To extract traces from your LlamaIndex application, you will have to add Phoenix's `OpenInferenceTraceCallback` to your LlamaIndex application. A callback (in this case an OpenInference `Tracer`) is a class that automatically accumulates `spans` that trac your application as it executes. The OpenInference `Tracer` is a tracer that is specifically designed to work with Phoenix and by default exports the traces to a locally running phoenix server.
-
-```shell
-# Install phoenix as well as llama_index and your LLM of choice
-pip install "arize-phoenix[evals]" "openai>=1" "llama-index>=0.10.3" "openinference-instrumentation-llama-index>=1.0.0" "llama-index-callbacks-arize-phoenix>=0.1.2" llama-index-llms-openai
-```
-
-Launch Phoenix in a notebook and view the traces of your LlamaIndex application in the Phoenix UI.
-
-```python
-import os
-import phoenix as px
-from llama_index.core import (
-    Settings,
-    VectorStoreIndex,
-    SimpleDirectoryReader,
-    set_global_handler,
-)
-from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.llms.openai import OpenAI
-
-os.environ["OPENAI_API_KEY"] = "YOUR_OPENAI_API_KEY"
-
-# To view traces in Phoenix, you will first have to start a Phoenix server. You can do this by running the following:
-session = px.launch_app()
-
-
-# Once you have started a Phoenix server, you can start your LlamaIndex application and configure it to send traces to Phoenix. To do this, you will have to add configure Phoenix as the global handler
-
-set_global_handler("arize_phoenix")
-
-
-# LlamaIndex application initialization may vary
-# depending on your application
-Settings.llm = OpenAI(model="gpt-4-turbo-preview")
-Settings.embed_model = OpenAIEmbedding(model="text-embedding-ada-002")
-
-
-# Load your data and create an index. Note you usually want to store your index in a persistent store like a database or the file system
-documents = SimpleDirectoryReader("YOUR_DATA_DIRECTORY").load_data()
-index = VectorStoreIndex.from_documents(documents)
-
-query_engine = index.as_query_engine()
-
-# Query your LlamaIndex application
-query_engine.query("What is the meaning of life?")
-query_engine.query("Why did the cow jump over the moon?")
-
-# View the traces in the Phoenix UI
-px.active_session().url
-```
-
-### Tracing with LangChain
-
-[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab&logo=googlecolab&labelColor=grey&color=blue&logoColor=orange&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/langchain_tracing_tutorial.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub&logo=github&labelColor=grey&color=blue&logoColor=white&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/langchain_tracing_tutorial.ipynb)
-
-To extract traces from your LangChain application, you will have to add Phoenix's OpenInference Tracer to your LangChain application. A tracer is a class that automatically accumulates traces as your application executes. The OpenInference Tracer is a tracer that is specifically designed to work with Phoenix and by default exports the traces to a locally running phoenix server.
-
-```shell
-# Install phoenix as well as langchain and your LLM of choice
-pip install arize-phoenix langchain openai
-
-```
-
-Launch Phoenix in a notebook and view the traces of your LangChain application in the Phoenix UI.
-
-```python
-import phoenix as px
-import pandas as pd
-import numpy as np
-
-# Launch phoenix
-session = px.launch_app()
-
-# Once you have started a Phoenix server, you can start your LangChain application with the OpenInferenceTracer as a callback. To do this, you will have to instrument your LangChain application with the tracer:
-
-from phoenix.trace.langchain import LangChainInstrumentor
-
-# By default, the traces will be exported to the locally running Phoenix server.
-LangChainInstrumentor().instrument()
-
-# Initialize your LangChain application
-from langchain.chains import RetrievalQA
-from langchain.chat_models import ChatOpenAI
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.retrievers import KNNRetriever
-
-embeddings = OpenAIEmbeddings(model="text-embedding-ada-002")
-documents_df = pd.read_parquet(
-    "http://storage.googleapis.com/arize-assets/phoenix/datasets/unstructured/llm/context-retrieval/langchain-pinecone/database.parquet"
-)
-knn_retriever = KNNRetriever(
-    index=np.stack(documents_df["text_vector"]),
-    texts=documents_df["text"].tolist(),
-    embeddings=OpenAIEmbeddings(),
-)
-chain_type = "stuff"  # stuff, refine, map_reduce, and map_rerank
-chat_model_name = "gpt-3.5-turbo"
-llm = ChatOpenAI(model_name=chat_model_name)
-chain = RetrievalQA.from_chain_type(
-    llm=llm,
-    chain_type=chain_type,
-    retriever=knn_retriever,
-)
-
-# Instrument the execution of the runs with the tracer. By default the tracer uses an HTTPExporter
-query = "What is euclidean distance?"
-response = chain.run(query, callbacks=[tracer])
-
-# By adding the tracer to the callbacks of LangChain, we've created a one-way data connection between your LLM application and Phoenix.
-
-# To view the traces in Phoenix, simply open the UI in your browser.
-session.url
-```
-
-## LLM Evals
-
-[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab&logo=googlecolab&labelColor=grey&color=blue&logoColor=orange&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_relevance_classifications.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub&logo=github&labelColor=grey&color=blue&logoColor=white&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_relevance_classifications.ipynb)
-
-Phoenix provides tooling to evaluate LLM applications, including tools to determine the relevance or irrelevance of documents retrieved by retrieval-augmented generation (RAG) application, whether or not the response is toxic, and much more.
-
-Phoenix's approach to LLM evals is notable for the following reasons:
-
--   Includes pre-tested templates and convenience functions for a set of common Eval “tasks”
--   Data science rigor applied to the testing of model and template combinations
--   Designed to run as fast as possible on batches of data
--   Includes benchmark datasets and tests for each eval function
-
-Here is an example of running the RAG relevance eval on a dataset of Wikipedia questions and answers:
-
-```shell
-# Install phoenix as well as the evals subpackage
-pip install 'arize-phoenix[evals]' ipython matplotlib openai pycm scikit-learn
-```
-
-```python
-from phoenix.evals import (
-    RAG_RELEVANCY_PROMPT_TEMPLATE,
-    RAG_RELEVANCY_PROMPT_RAILS_MAP,
-    OpenAIModel,
-    download_benchmark_dataset,
-    llm_classify,
-)
-from sklearn.metrics import precision_recall_fscore_support, confusion_matrix, ConfusionMatrixDisplay
-
-# Download the benchmark golden dataset
-df = download_benchmark_dataset(
-    task="binary-relevance-classification", dataset_name="wiki_qa-train"
-)
-# Sample and re-name the columns to match the template
-df = df.sample(100)
-df = df.rename(
-    columns={
-        "query_text": "input",
-        "document_text": "reference",
-    },
-)
-model = OpenAIModel(
-    model="gpt-4",
-    temperature=0.0,
-)
-rails =list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values())
-df[["eval_relevance"]] = llm_classify(df, model, RAG_RELEVANCY_PROMPT_TEMPLATE, rails)
-#Golden dataset has True/False map to -> "irrelevant" / "relevant"
-#we can then scikit compare to output of template - same format
-y_true = df["relevant"].map({True: "relevant", False: "irrelevant"})
-y_pred = df["eval_relevance"]
-
-# Compute Per-Class Precision, Recall, F1 Score, Support
-precision, recall, f1, support = precision_recall_fscore_support(y_true, y_pred)
-```
-
-To learn more about LLM Evals, see the [Evals documentation](https://docs.arize.com/phoenix/concepts/llm-evals/).
-
-## Embedding Analysis
-
-[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab&logo=googlecolab&labelColor=grey&color=blue&logoColor=orange&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/image_classification_tutorial.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub&logo=github&labelColor=grey&color=blue&logoColor=white&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/image_classification_tutorial.ipynb)
-
-Explore UMAP point-clouds at times of high drift and performance degredation and identify clusters of problematic data.
-
-![Euclidean distance drift analysis](https://storage.googleapis.com/arize-assets/phoenix/assets/images/ner_color_by_correctness.png)
-
-Embedding analysis is critical for understanding the behavior of you NLP, CV, and LLM Apps that use embeddings. Phoenix provides an A/B testing framework to help you understand how your embeddings are changing over time and how they are changing between different versions of your model (`prod` vs `train`, `champion` vs `challenger`).
-
-```python
-# Import libraries.
-from dataclasses import replace
-import pandas as pd
-import phoenix as px
-
-# Download curated datasets and load them into pandas DataFrames.
-train_df = pd.read_parquet(
-    "https://storage.googleapis.com/arize-assets/phoenix/datasets/unstructured/cv/human-actions/human_actions_training.parquet"
-)
-prod_df = pd.read_parquet(
-    "https://storage.googleapis.com/arize-assets/phoenix/datasets/unstructured/cv/human-actions/human_actions_production.parquet"
-)
-
-# Define schemas that tell Phoenix which columns of your DataFrames correspond to features, predictions, actuals (i.e., ground truth), embeddings, etc.
-train_schema = px.Schema(
-    prediction_id_column_name="prediction_id",
-    timestamp_column_name="prediction_ts",
-    prediction_label_column_name="predicted_action",
-    actual_label_column_name="actual_action",
-    embedding_feature_column_names={
-        "image_embedding": px.EmbeddingColumnNames(
-            vector_column_name="image_vector",
-            link_to_data_column_name="url",
-        ),
-    },
-)
-prod_schema = replace(train_schema, actual_label_column_name=None)
-
-# Define your production and training datasets.
-prod_inf = px.Inferences(prod_df, prod_schema)
-train_inf = px.Inferences(train_df, train_schema)
-
-# Launch Phoenix.
-session = px.launch_app(prod_inf, train_inf)
-
-# View the Phoenix UI in the browser
-session.url
-```
-
-### UMAP-based Exploratory Data Analysis
-
-Color your UMAP point-clouds by your model's dimensions, drift, and performance to identify problematic cohorts.
-
-![UMAP-based EDA](https://storage.googleapis.com/arize-assets/phoenix/assets/images/cv_eda_selection.png)
-
-### Cluster-driven Drift and Performance Analysis
-
-Break-apart your data into clusters of high drift or bad performance using HDBSCAN
-
-![HDBSCAN clusters sorted by drift](https://storage.googleapis.com/arize-assets/phoenix/assets/images/HDBSCAN_drift_analysis.png)
-
-### Exportable Clusters
-
-Export your clusters to `parquet` files or dataframes for further analysis and fine-tuning.
-
-## Retrieval-Augmented Generation Analysis
-
-[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab&logo=googlecolab&labelColor=grey&color=blue&logoColor=orange&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/llama_index_search_and_retrieval_tutorial.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub&logo=github&labelColor=grey&color=blue&logoColor=white&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/llama_index_search_and_retrieval_tutorial.ipynb)
-
-![RAG Analysis](https://github.com/Arize-ai/phoenix-assets/blob/main/gifs/corpus_search_and_retrieval.gif?raw=true)
-
-Search and retrieval is a critical component of many LLM Applications as it allows you to extend the LLM's capabilities to encompass knowledge about private data. This process is known as RAG (retrieval-augmented generation) and often times a vector store is leveraged to store chunks of documents encoded as embeddings so that they can be retrieved at inference time.
-
-To help you better understand your RAG application, Phoenix allows you to upload a corpus of your knowledge base along with your LLM application's inferences to help you troubleshoot hard to find bugs with retrieval.
-
-## Structured Data Analysis
-
-[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab&logo=googlecolab&labelColor=grey&color=blue&logoColor=orange&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/credit_card_fraud_tutorial.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub&logo=github&labelColor=grey&color=blue&logoColor=white&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/credit_card_fraud_tutorial.ipynb)
-
-Phoenix provides a suite of tools for analyzing structured data. These tools allow you to perform A/B analysis, temporal drift analysis, and more.
-
-![Structured Data Analysis](https://github.com/Arize-ai/phoenix-assets/blob/main/gifs/cc_fraud_drift_10mb.gif?raw=true)
-
-```python
-import pandas as pd
-import phoenix as px
-
-# Perform A/B analysis on your training and production datasets
-train_df = pd.read_parquet(
-    "http://storage.googleapis.com/arize-assets/phoenix/datasets/structured/credit-card-fraud/credit_card_fraud_train.parquet",
-)
-prod_df = pd.read_parquet(
-    "http://storage.googleapis.com/arize-assets/phoenix/datasets/structured/credit-card-fraud/credit_card_fraud_production.parquet",
-)
-
-# Describe the data for analysis
-schema = px.Schema(
-    prediction_id_column_name="prediction_id",
-    prediction_label_column_name="predicted_label",
-    prediction_score_column_name="predicted_score",
-    actual_label_column_name="actual_label",
-    timestamp_column_name="prediction_timestamp",
-    feature_column_names=feature_column_names,
-    tag_column_names=["age"],
-)
-
-# Define your production and training datasets.
-prod_inf = px.Inferences(dataframe=prod_df, schema=schema, name="production")
-train_inf = px.Inferences(dataframe=train_df, schema=schema, name="training")
-
-# Launch Phoenix for analysis
-session = px.launch_app(primary=prod_inf, reference=train_inf)
-```
-
-## Deploying Phoenix
-
- <a target="_blank" href="https://hub.docker.com/repository/docker/arizephoenix/phoenix/general">
-        <img src="https://img.shields.io/docker/v/arizephoenix/phoenix?sort=semver&logo=docker&label=image&color=blue">
-    </a>
-    
-<img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/deployment.png" title="How phoenix can collect traces from an LLM application"/>
-
-Phoenix's notebook-first approach to observability makes it a great tool to utilize during experimentation and pre-production. However at some point you are going to want to ship your application to production and continue to monitor your application as it runs. Phoenix is made up of two components that can be deployed independently:
-
--   **Trace Instrumentation**: These are a set of plugins that can be added to your application's startup process. These plugins (known as instrumentations) automatically collect spans for your application and export them for collection and visualization. For phoenix, all the instrumentors are managed via a single repository called [OpenInference](https://github.com/Arize-ai/openinference)
--   **Trace Collector**: The Phoenix server acts as a trace collector and application that helps you troubleshoot your application in real time. You can pull the latest images of Phoenix from the [Docker Hub](https://hub.docker.com/repository/docker/arizephoenix/phoenix/general)
-
-In order to run Phoenix tracing in production, you will have to follow these following steps:
-
--   **Setup a Server**: your LLM application to run on a server ([examples](https://github.com/Arize-ai/openinference/tree/main/python/examples))
--   **Instrument**: Add [OpenInference](https://github.com/Arize-ai/openinference) Instrumentation to your server
--   **Observe**: Run the Phoenix server as a side-car or a standalone instance and point your tracing instrumentation to the phoenix server
-
-For more information on deploying Phoenix, see the [Phoenix Deployment Guide](https://docs.arize.com/phoenix/deployment/deploying-phoenix).
-
-## Breaking Changes
-
-see the [migration guide](./MIGRATION.md) for a list of breaking changes.
+Phoenix container images are available via [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix) and can be deployed using Docker or Kubernetes.
 
 ## Community
 
-Join our community to connect with thousands of machine learning practitioners and ML observability enthusiasts.
+Join our community to connect with thousands of AI builders.
 
 -   🌍 Join our [Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q).
 -   💡 Ask questions and provide feedback in the _#phoenix-support_ channel.
 -   🌟 Leave a star on our [GitHub](https://github.com/Arize-ai/phoenix).
 -   🐞 Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues).
--   🐣 Follow us on [twitter](https://twitter.com/ArizePhoenix).
+-   𝕏 Follow us on [𝕏](https://twitter.com/ArizePhoenix).
 -   💌️ Sign up for our [mailing list](https://phoenix.arize.com/#updates).
 -   🗺️ Check out our [roadmap](https://github.com/orgs/Arize-ai/projects/45) to see where we're heading next.
--   🎓 Learn the fundamentals of ML observability with our [introductory](https://arize.com/ml-observability-fundamentals/) and [advanced](https://arize.com/blog-course/) courses.
 
 ## Thanks
 
 -   [UMAP](https://github.com/lmcinnes/umap) For unlocking the ability to visualize and reason about embeddings
 -   [HDBSCAN](https://github.com/scikit-learn-contrib/hdbscan) For providing a clustering algorithm to aid in the discovery of drift and performance degradation
+
+## Breaking Changes
+
+See the [migration guide](./MIGRATION.md) for a list of breaking changes.
 
 ## Copyright, Patent, and License
 

@@ -7,13 +7,13 @@ For LlamaIndex, tracing instrumentation is added via a callback. This callback i
 {% tabs %}
 {% tab title="One-Click" %}
 {% hint style="info" %}
-Using phoenix as a callback requires an install of \`llama-index-callbacks-arize-phoenix>1.3.0'
+Using phoenix as a callback requires an install of \`llama-index-callbacks-arize-phoenix>0.1.3'
 {% endhint %}
 
 llama-index 0.10 introduced modular sub-packages. To use llama-index's one click,  you must install the small integration first:
 
 ```bash
-pip install 'llama-index-callbacks-arize-phoenix>1.3.0'
+pip install 'llama-index-callbacks-arize-phoenix>0.1.3'
 ```
 
 ```python

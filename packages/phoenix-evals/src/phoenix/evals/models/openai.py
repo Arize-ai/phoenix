@@ -7,6 +7,7 @@ from typing import (
     Callable,
     Dict,
     List,
+    Mapping,
     Optional,
     Tuple,
     Union,
@@ -98,6 +99,8 @@ class OpenAIModel(BaseModel):
     azure_deployment: Optional[str] = field(default=None)
     azure_ad_token: Optional[str] = field(default=None)
     azure_ad_token_provider: Optional[Callable[[], str]] = field(default=None)
+    default_headers: Optional[Mapping[str, str]] = field(default=None)
+    """Default headers required by AzureOpenAI"""
 
     # Deprecated fields
     model_name: Optional[str] = field(default=None)
@@ -153,6 +156,11 @@ class OpenAIModel(BaseModel):
             api_key = os.getenv(OPENAI_API_KEY_ENVVAR_NAME)
             if api_key is None:
                 # TODO: Create custom AuthenticationError
+                if self._is_azure:
+                    raise RuntimeError(
+                        "Azure API key not provided. Pass it as an argument to 'api_key' "
+                        "or set it in your environment: 'export OPENAI_API_KEY=****'"
+                    )
                 raise RuntimeError(
                     "OpenAI's API key not provided. Pass it as an argument to 'api_key' "
                     "or set it in your environment: 'export OPENAI_API_KEY=sk-****'"
@@ -178,6 +186,7 @@ class OpenAIModel(BaseModel):
                 azure_ad_token_provider=azure_options.azure_ad_token_provider,
                 api_key=self.api_key,
                 organization=self.organization,
+                default_headers=self.default_headers,
             )
             self._async_client = self._openai.AsyncAzureOpenAI(
                 azure_endpoint=azure_options.azure_endpoint,
@@ -187,6 +196,7 @@ class OpenAIModel(BaseModel):
                 azure_ad_token_provider=azure_options.azure_ad_token_provider,
                 api_key=self.api_key,
                 organization=self.organization,
+                default_headers=self.default_headers,
             )
             # return early since we don't need to check the model
             return

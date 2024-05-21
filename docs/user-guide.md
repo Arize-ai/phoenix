@@ -6,59 +6,61 @@ description: >-
 
 # User Guide
 
+Phoenix is a comprehensive platform designed to enable observability across every layer of an LLM-based system, empowering teams to build, optimize, and maintain high-quality applications efficiently.
+
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/user_guide.png" alt=""><figcaption></figcaption></figure>
 
-## 5 Pillars of LLM Observability
+## Develop
 
-* [**Traces & Spans**](user-guide.md#2.-traces-and-spans) - Visibility into where more complex or agentic workflows break.
-* [**Evaluation**](user-guide.md#1.-llm-evals) - This helps you evaluate how well the response answers the prompt by using a separate evaluation LLM.
-* [**Prompt Engineering**](user-guide.md#3.-prompt-engineering) - Iterating on a prompt template can help improve LLM results.
-* [**Search and Retrieval**](user-guide.md#4.-search-and-retrieval) - Improving the context that goes into the prompt can lead to better LLM responses.
-* [**Fine-tuning**](user-guide.md#5.-fine-tuning) - Fine-tuning generates a new model that is more aligned with your exact usage conditions for improved performance.
+During the development phase, Phoenix offers essential tools for debugging, prompt tracking, and search and retrieval optimization.
 
-<figure><img src=".gitbook/assets/image (14).png" alt=""><figcaption></figcaption></figure>
+### Traces for Debugging
 
-### 1. LLM Evals
+Phoenix's tracing and span analysis capabilities are invaluable during the prototyping and debugging stages. By instrumenting application code with Phoenix, teams gain detailed insights into the execution flow, making it easier to identify and resolve issues. Developers can drill down into specific spans, analyze performance metrics, and access relevant logs and metadata to streamline debugging efforts.
 
-<figure><img src=".gitbook/assets/image (15).png" alt=""><figcaption></figcaption></figure>
+### Prompt Tracking
 
-Evaluation is a measure of how well the response answers the prompt.
+Phoenix provides a dedicated prompt engineering workspace that allows developers to create, manage, and experiment with prompt variations. It offers tools for analyzing prompt performance, comparing outputs, and identifying patterns that lead to better results. Phoenix also enables teams to maintain a central repository of optimized prompts, facilitating collaboration and knowledge sharing.
 
-There are several ways to evaluate LLMs:
+### Search & Retrieval Embeddings Visualizer
 
-1. You can collect the feedback directly from your users. This is the simplest way but can often suffer from users not being willing to provide feedback or simply forgetting to do so. Other challenges arise from implementing this at scale.
-2. The other approach is to use an LLM to evaluate the quality of the response for a particular prompt. This is more scalable and very useful but comes with typical LLM setbacks.
+Phoenix's search and retrieval optimization tools include an embeddings visualizer that helps teams understand how their data is being represented and clustered. This visual insight can guide decisions on indexing strategies, similarity measures, and data organization to improve the relevance and efficiency of search results.
 
-Learn more about [Phoenix LLM Evals](llm-evals/llm-evals.md) library.
+&#x20;
 
-### 2. LLM Traces and Spans
+## Testing/Staging
 
-<figure><img src=".gitbook/assets/image (20).png" alt=""><figcaption></figcaption></figure>
+In the testing and staging environment, Phoenix supports comprehensive evaluation, benchmarking, and dataset curation. Traces, prompt tracking, and embedding visualizer remain important in the testing and staging phase, helping teams identify and resolve issues before deployment.
 
-For more complex or agentic workflows, it may not be obvious which call in a span or which span in your trace (a run through your entire use case) is causing the problem. You may need to repeat the evaluation process on several spans before you narrow down the problem.
+### Benchmarking of Evals
 
-This pillar is largely about diving deep into the system to isolate the issue you are investigating.
+Phoenix allows teams to benchmark their evaluation metrics against industry standards or custom baselines. This helps ensure that the LLM application meets performance and quality targets before moving into production.
 
-Learn more about [Phoenix Traces and Spans](concepts/llm-traces.md) support.
+### Evals Testing
 
-### 3. Prompt Engineering
+Phoenix's flexible evaluation framework supports thorough testing of LLM outputs. Teams can define custom metrics, collect user feedback, and leverage separate LLMs for automated assessment. Phoenix offers tools for analyzing evaluation results, identifying trends, and tracking improvements over time.
 
-Prompt engineering is the cheapest, fastest, and often the highest-leverage way to improve the performance of your application. Often, LLM performance can be improved simply by comparing different prompt templates, or iterating on the one you have. Prompt analysis is an important component in troubleshooting your LLM's performance.
+### Curate Datasets
 
-Learn about [prompt engineering](https://docs.arize.com/arize/llm-large-language-models/prompt-engineering) in Arize.
+Phoenix assists in curating high-quality datasets for testing and fine-tuning. It provides tools for data exploration, cleaning, and labeling, enabling teams to create representative and diverse datasets that cover a wide range of use cases and edge conditions.
 
-### 4. Search and Retrieval
 
-<figure><img src=".gitbook/assets/image (10).png" alt=""><figcaption></figcaption></figure>
 
-A common way to improve performance is with more relevant information being fed in.
+## Production
 
-If you can retrieve more relevant information, your prompt improves automatically. Troubleshooting retrieval systems, however, is more complex. Are there queries that don’t have sufficient context? Should you add more context for these queries to get better answers? Or should you change your embeddings or chunking strategy?
+In production, Phoenix works hand-in-hand with Arize, which focuses on the production side of the LLM lifecycle. The integration ensures a smooth transition from development to production, with consistent tooling and metrics across both platforms.&#x20;
 
-Learn more about [troubleshooting search and retrieval](search-and-retrieval/concepts-retrieval/troubleshooting-llm-retrieval-with-vector-stores.md) with Phoenix.
+### Traces in Production
 
-### 5. Fine Tuning
+Phoenix and Arize use the same collector frameworks in development and production. This allows teams to monitor latency, token usage, and other performance metrics, setting up alerts when thresholds are exceeded.
 
-Fine tuning essentially generates a new model that is more aligned with your exact usage conditions. Fine tuning is expensive, difficult, and may need to be done again as the underlying LLM or other conditions of your system change. This is a very powerful technique, requires much higher effort and complexity.
+### Evals for Production
 
-<figure><img src="https://lh3.googleusercontent.com/_GnuXCWLToFRH6HnlaDLQUg8mLYE-A7MxlDaGlRwi8FXwJDh44TCiJlqXYgHRAqlwBbmCcbFWbnfIKLOnccFDuA1bloVp8dFgvFARzzZWUpGNsZxxtlfneEV34JseZgzaY8RP2PJhVFYZaUCbSjyCAU" alt=""><figcaption></figcaption></figure>
+Phoenix's evaluation framework can be used to generate ongoing assessments of LLM performance in production. Arize complements this with online evaluations, enabling teams to set up alerts if evaluation metrics, such as hallucination rates, go beyond acceptable thresholds.&#x20;
+
+### Fine-tuning
+
+Phoenix and Arize together help teams identify data points for fine-tuning based on production performance and user feedback. This targeted approach ensures that fine-tuning efforts are directed towards the most impactful areas, maximizing the return on investment.
+
+Phoenix, in collaboration with Arize, empowers teams to build, optimize, and maintain high-quality LLM applications throughout the entire lifecycle. By providing a comprehensive observability platform and seamless integration with production monitoring tools, Phoenix and Arize enable teams to deliver exceptional LLM-driven experiences with confidence and efficiency.
+

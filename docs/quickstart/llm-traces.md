@@ -43,7 +43,7 @@ The above launches a Phoenix server that acts as a trace collector for any LLM a
 
 The `launch_app` command will spit out a URL for you to view the Phoenix UI. You can access this url again at any time via the [session](../api/session.md).\
 \
-Now that phoenix is up and running, you can now run a [LlamaIndex](../tracing/how-to-tracing/instrumentation/llamaindex.md) or [LangChain](../tracing/how-to-tracing/instrumentation/langchain.md) application OR just run the OpenAI API and debug your application as the traces stream in.
+Now that phoenix is up and running, you can now run a [LlamaIndex](../tracing/how-to-tracing/instrumentation/auto-instrument-python/llamaindex.md) or [LangChain](../tracing/how-to-tracing/instrumentation/auto-instrument-python/langchain.md) application OR just run the OpenAI API and debug your application as the traces stream in.
 
 {% tabs %}
 {% tab title="LlamaIndex" %}
@@ -95,7 +95,7 @@ query_engine.query("Why did the cow jump over the moon?")
 px.active_session().url
 ```
 
-See the [LlamaIndex](../tracing/how-to-tracing/instrumentation/llamaindex.md) for the full details as well as support for older versions of LlamaIndex
+See the [LlamaIndex](../tracing/how-to-tracing/instrumentation/auto-instrument-python/llamaindex.md) for the full details as well as support for older versions of LlamaIndex
 {% endtab %}
 
 {% tab title="LangChain" %}
@@ -130,7 +130,7 @@ chain = RetrievalQA.from_chain_type(
 response = chain.run("What is OpenInference tracing?")
 ```
 
-See the [integration guide](../tracing/how-to-tracing/instrumentation/langchain.md#traces) for details
+See the [integration guide](../tracing/how-to-tracing/instrumentation/auto-instrument-python/langchain.md#traces) for details
 {% endtab %}
 
 {% tab title="OpenAI" %}

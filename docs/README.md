@@ -32,7 +32,7 @@ Phoenix can also run via a container. The image can be found at:
 
 {% embed url="https://hub.docker.com/r/arizephoenix/phoenix" %}
 
-Checkout the [environments section](environments.md) and [deployment guide](reference/deploying-phoenix.md) for details.
+Checkout the [environments section](environments.md) and [deployment guide](deployment/deploying-phoenix.md) for details.
 {% endtab %}
 {% endtabs %}
 

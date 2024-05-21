@@ -59,8 +59,8 @@ We are continually iterating our templates, view the most up-to-date template on
 ## How To Run the Eval
 
 ```python
-import phoenix.experimental.evals.templates.default_templates as templates
-from phoenix.experimental.evals import (
+import phoenix.evals.templates.default_templates as templates
+from phoenix.evals import (
     OpenAIModel,
     download_benchmark_dataset,
     llm_classify,
@@ -80,6 +80,7 @@ summarization_classifications = llm_classify(
     template=templates.SUMMARIZATION_PROMPT_TEMPLATE,
     model=model,
     rails=rails,
+    provide_explanation=True, #optional to generate explanations for the value produced by the eval LLM
 )
 ```
 

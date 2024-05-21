@@ -1,12 +1,12 @@
 ---
-description: How to create Phoenix datasets and schemas for the corpus data
+description: How to create Phoenix inferences and schemas for the corpus data
 ---
 
 # Corpus Data
 
-In [Information Retrieval](https://en.wikipedia.org/wiki/Information\_retrieval), a document is any piece of information the user may want to retrieve, e.g. a paragraph, an article, or a Web page, and a collection of documents is referred to as the corpus. A corpus can provide the knowledge base (of proprietary data) for supplementing a user query in the prompt context to a Large Language Model (LLM) in the Retrieval-Augmented Generation (RAG) use case. Relevant documents are first [retrieved](../../../how-to/define-your-schema/retrieval-rag.md) based on the user query and its embedding, then the retrieved documents are combined with the query to construct an augmented prompt for the LLM to provide a more accurate response incorporating information from the knowledge base.  A corpus dataset can be imported into Phoenix as shown below.
+In [Information Retrieval](https://en.wikipedia.org/wiki/Information\_retrieval), a document is any piece of information the user may want to retrieve, e.g. a paragraph, an article, or a Web page, and a collection of documents is referred to as the corpus. A corpus can provide the knowledge base (of proprietary data) for supplementing a user query in the prompt context to a Large Language Model (LLM) in the Retrieval-Augmented Generation (RAG) use case. Relevant documents are first [retrieved](../../../how-to/define-your-schema/retrieval-rag.md) based on the user query and its embedding, then the retrieved documents are combined with the query to construct an augmented prompt for the LLM to provide a more accurate response incorporating information from the knowledge base.  Corpus inferences can be imported into Phoenix as shown below.
 
-## Dataframe
+## Inferences
 
 Below is an example dataframe containing Wikipedia articles along with its embedding vector.
 
@@ -26,12 +26,12 @@ corpus_schema = px.Schema(
 )
 ```
 
-## Dataset
+## Inferences
 
-Define the dataset by pairing the dataframe with the schema.
+Define the inferences by pairing the dataframe with the schema.
 
 ```python
-corpus_dataset = px.Dataset(corpus_dataframe, corpus_schema)
+corpus_inferences = px.Inferences(corpus_dataframe, corpus_schema)
 ```
 
 ## Application
@@ -39,5 +39,5 @@ corpus_dataset = px.Dataset(corpus_dataframe, corpus_schema)
 The [application](../../../how-to/manage-the-app.md#launch-the-app) launcher accepts the corpus dataset through `corpus=` parameter.
 
 ```python
-session = px.launch_app(production_dataset, corpus=corpus_dataset)
+session = px.launch_app(production_dataset, corpus=corpus_inferences)
 ```

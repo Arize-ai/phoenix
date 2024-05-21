@@ -6,28 +6,22 @@ This LLM Eval detects if the output of a model is a hallucination based on conte
 
 This Eval is specifically designed to detect hallucinations in generated answers from private or retrieved data. The Eval detects if an AI answer to a question is a hallucination based on the reference data used to generate the answer.
 
-
-
 {% hint style="info" %}
-This Eval is designed to check for hallucinations on private data, on data that is fed into the context window from retrieval.&#x20;
+This Eval is designed to check for hallucinations on private data, on data that is fed into the context window from retrieval.
 
-It is NOT designed to check hallucinations on what the LLM was trained on. It is not useful for random public fact hallucinations "What was Michael Jordan's birthday?"&#x20;
+It is NOT designed to check hallucinations on what the LLM was trained on. It is not useful for random public fact hallucinations "What was Michael Jordan's birthday?"
 
 It is useful for hallucinations in RAG systems
 {% endhint %}
 
 ## Hallucination Eval Template
 
-{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_hallucination_classifications.ipynb" %}
-Try it out!
-{% endembed %}
-
 ```
 In this task, you will be presented with a query, a reference text and an answer. The answer is
-generated to the question based on the reference text. The answer may contain false information, you
+generated to the question based on the reference text. The answer may contain false information. You
 must use the reference text to determine if the answer to the question contains false information,
-if the answer is a hallucination of facts. Your objective is to determine whether the reference text
-contains factual information and is not a hallucination. A 'hallucination' in this context refers to
+if the answer is a hallucination of facts. Your objective is to determine whether the answer text
+contains factual information and is not a hallucination. A 'hallucination' refers to
 an answer that is not based on the reference text or assumes information that is not available in
 the reference text. Your response should be a single word: either "factual" or "hallucinated", and
 it should not include any other text or characters. "hallucinated" indicates that the answer
@@ -67,7 +61,7 @@ We are continually iterating our templates, view the most up-to-date template on
 ## How To Run the Eval
 
 ```python
-from phoenix.experimental.evals import (
+from phoenix.evals import (
     HALLUCINATION_PROMPT_RAILS_MAP,
     HALLUCINATION_PROMPT_TEMPLATE,
     OpenAIModel,
@@ -85,7 +79,11 @@ model = OpenAIModel(
 #Will ensure the binary value expected from the template is returned 
 rails = list(HALLUCINATION_PROMPT_RAILS_MAP.values())
 hallucination_classifications = llm_classify(
-    dataframe=df, template=HALLUCINATION_PROMPT_TEMPLATE, model=model, rails=rails
+    dataframe=df, 
+    template=HALLUCINATION_PROMPT_TEMPLATE, 
+    model=model, 
+    rails=rails,
+    provide_explanation=True, #optional to generate explanations for the value produced by the eval LLM
 )
 
 ```

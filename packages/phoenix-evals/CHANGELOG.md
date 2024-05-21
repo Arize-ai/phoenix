@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.9.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.9.0...arize-phoenix-evals-v0.9.1) (2024-05-21)
+
+
+### Bug Fixes
+
+* clarify error message for missing azure api-key ([#3256](https://github.com/Arize-ai/phoenix/issues/3256)) ([58a1398](https://github.com/Arize-ai/phoenix/commit/58a1398b4f1fcc64af7fdb06463f9a0fc0f53b76))
+
+## [0.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.8.2...arize-phoenix-evals-v0.9.0) (2024-05-17)
+
+
+### Features
+
+* Added support for default_headers for azure_openai. ([#3211](https://github.com/Arize-ai/phoenix/issues/3211)) ([2d48192](https://github.com/Arize-ai/phoenix/commit/2d48192d57a1b97e4b08efc30f5c689423667c93))
+
+## [0.8.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.8.1...arize-phoenix-evals-v0.8.2) (2024-05-14)
+
+
+### Bug Fixes
+
+* evaluators no longer have incorrect type hints ([#3195](https://github.com/Arize-ai/phoenix/issues/3195)) ([7d57e2e](https://github.com/Arize-ai/phoenix/commit/7d57e2e760a98095c57b45b3e39e2d009972faaf))
+
 ## [0.8.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.8.0...arize-phoenix-evals-v0.8.1) (2024-05-03)
 
 
