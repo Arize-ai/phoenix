@@ -11,4 +11,14 @@ V1_ROUTES = [
     Route("/v1/datasets/upload", datasets.post_datasets_upload, methods=["POST"]),
     Route("/v1/datasets", datasets.list_datasets, methods=["GET"]),
     Route("/v1/datasets/{id:str}", datasets.get_dataset_by_id, methods=["GET"]),
+    Route(
+        "/v1/datasets/download/csv/{datasetId:str}",
+        datasets.get_dataset_download_csv_by_dataset_id,
+        methods=["GET"],
+    ),
+    Route(
+        "/v1/datasets/download/csv/{datasetId:str}/{datasetVersionId:str}",
+        datasets.get_dataset_download_csv_by_dataset_version_id,
+        methods=["GET"],
+    ),
 ]

@@ -1,3 +1,7 @@
+from io import StringIO
+
+import pandas as pd
+from pandas.testing import assert_frame_equal
 from strawberry.relay import GlobalID
 
 
@@ -181,3 +185,55 @@ async def test_list_datasets_with_cursor(
         "metadata": {"info": "a test dataset"},
     }
     assert all(item in second_page_datasets[0].items() for item in fixture_values.items())
+
+
+async def test_get_dataset_download_empty_dataset(test_client, dataset_with_revisions):
+    dataset_global_id = GlobalID("Dataset", str(1))
+    response = await test_client.get(f"/v1/datasets/download/{dataset_global_id}")
+    assert response.status_code == 404
+
+    dataset_version_global_id = GlobalID("DatasetVersion", str(1))
+    response = await test_client.get(
+        f"/v1/datasets/download/csv/{dataset_global_id}/{dataset_version_global_id}"
+    )
+    assert response.status_code == 404
+
+
+async def test_get_dataset_download_latest_version(test_client, dataset_with_revisions):
+    dataset_global_id = GlobalID("Dataset", str(2))
+    response = await test_client.get(f"/v1/datasets/download/csv/{dataset_global_id}")
+    assert response.status_code == 200
+    assert response.headers.get("content-type") == "text/csv"
+    assert response.headers.get("content-encoding") == "gzip"
+    actual = pd.read_csv(StringIO(response.content.decode()))
+    expected = pd.read_csv(
+        StringIO(
+            "__example_index__,in,info,out\n"
+            "0,foo,first revision,bar\n"
+            "1,updated foofoo,updating revision,updated barbar\n"
+            "2,look at me,a new example,i have all the answers\n"
+        )
+    )
+    assert_frame_equal(actual, expected)
+
+
+async def test_get_dataset_download_specific_version(test_client, dataset_with_revisions):
+    dataset_global_id = GlobalID("Dataset", str(2))
+    dataset_version_global_id = GlobalID("DatasetVersion", str(8))
+    response = await test_client.get(
+        f"/v1/datasets/download/csv/{dataset_global_id}/{dataset_version_global_id}"
+    )
+    assert response.status_code == 200
+    assert response.headers.get("content-type") == "text/csv"
+    assert response.headers.get("content-encoding") == "gzip"
+    actual = pd.read_csv(StringIO(response.content.decode()))
+    expected = pd.read_csv(
+        StringIO(
+            "__example_index__,in,info,out\n"
+            "0,foo,first revision,bar\n"
+            "1,updated foofoo,updating revision,updated barbar\n"
+            "2,look at me,a new example,i have all the answers\n"
+            "4,look at me,a newer example,i have all the answers\n"
+        )
+    )
+    assert_frame_equal(actual, expected)
