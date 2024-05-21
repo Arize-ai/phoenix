@@ -339,7 +339,7 @@ def get_executor_on_sync_context(
             termination_signal=None,
         )
 
-    if run_sync is False:
+    if run_sync is True:
         return SyncExecutor(
             sync_fn,
             tqdm_bar_format=tqdm_bar_format,
