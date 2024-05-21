@@ -43,8 +43,9 @@ def test_base_path(monkeypatch: pytest.MonkeyPatch):
     assert client._base_url == "https://other-collector-endpoint/with/other/prefix/"
 
 
-@responses.activate
-def test_get_spans_dataframe(client: Client, endpoint: str, dataframe: pd.DataFrame):
+def test_get_spans_dataframe(
+    client: Client, endpoint: str, dataframe: pd.DataFrame, respx_mock: MockRouter
+):
     url = urljoin(endpoint, "v1/spans")
 
     respx_mock.post(url).mock(Response(200, content=_df_to_bytes(dataframe)))
