@@ -114,7 +114,7 @@ class Client(TraceDataExtractor):
             )
             end_time = end_time or stop_time
         response = self._client.post(
-            url=urljoin(self._base_url, "/v1/spans"),
+            url=urljoin(self._base_url, "v1/spans"),
             params={"project-name": project_name},
             json={
                 "queries": [q.to_dict() for q in queries],
@@ -161,7 +161,7 @@ class Client(TraceDataExtractor):
         """
         project_name = project_name or get_env_project_name()
         response = self._client.get(
-            url=urljoin(self._base_url, "/v1/evaluations"),
+            url=urljoin(self._base_url, "v1/evaluations"),
             params={"project-name": project_name},
         )
         if response.status_code == 404:
@@ -182,7 +182,7 @@ class Client(TraceDataExtractor):
 
     def _warn_if_phoenix_is_not_running(self) -> None:
         try:
-            self._client.get(urljoin(self._base_url, "/arize_phoenix_version")).raise_for_status()
+            self._client.get(urljoin(self._base_url, "arize_phoenix_version")).raise_for_status()
         except Exception:
             logger.warning(
                 f"Arize Phoenix is not running on {self._base_url}. Launch Phoenix "
@@ -213,7 +213,7 @@ class Client(TraceDataExtractor):
             with pa.ipc.new_stream(sink, table.schema) as writer:
                 writer.write_table(table)
             self._client.post(
-                url=urljoin(self._base_url, "/v1/evaluations"),
+                url=urljoin(self._base_url, "v1/evaluations"),
                 content=cast(bytes, sink.getvalue().to_pybytes()),
                 headers=headers,
             ).raise_for_status()
@@ -256,7 +256,7 @@ class Client(TraceDataExtractor):
             serialized = otlp_span.SerializeToString()
             content = gzip.compress(serialized)
             self._client.post(
-                url=urljoin(self._base_url, "/v1/traces"),
+                url=urljoin(self._base_url, "v1/traces"),
                 content=content,
                 headers={
                     "content-type": "application/x-protobuf",
@@ -283,9 +283,9 @@ class Client(TraceDataExtractor):
             pandas DataFrame
         """
         url = (
-            f"/v1/datasets/download/csv/{dataset_id}/{dataset_version_id}"
+            f"v1/datasets/download/csv/{dataset_id}/{dataset_version_id}"
             if dataset_version_id
-            else f"/v1/datasets/download/csv/{dataset_id}"
+            else f"v1/datasets/download/csv/{dataset_id}"
         )
         response = httpx.get(url=urljoin(self._base_url, url))
         response.raise_for_status()
@@ -345,7 +345,7 @@ class Client(TraceDataExtractor):
         else:
             assert_never(table)
         response = httpx.post(
-            url=urljoin(self._base_url, "/v1/datasets/upload"),
+            url=urljoin(self._base_url, "v1/datasets/upload"),
             files={"file": file},
             data={
                 "action": action,
