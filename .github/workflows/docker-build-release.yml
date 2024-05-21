@@ -49,10 +49,10 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:version-${{ github.event.release.tag_name }}-${{ matrix.variant }}
-            ${{ matrix.variant == 'root' && env.REGISTRY + '/' + env.IMAGE_NAME + ':latest' || '' }}
-            ${{ matrix.variant == 'nonroot' && env.REGISTRY + '/' + env.IMAGE_NAME + ':nonroot' || '' }}
-            ${{ matrix.variant == 'debug' && env.REGISTRY + '/' + env.IMAGE_NAME + ':debug' || '' }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:version-${{ env.VERSION }}-${{ matrix.variant }}
+            ${{ matrix.variant == 'root' && format('{0}/{1}:latest', env.REGISTRY, env.IMAGE_NAME) || '' }}
+            ${{ matrix.variant == 'nonroot' && format('{0}/{1}:nonroot', env.REGISTRY, env.IMAGE_NAME) || '' }}
+            ${{ matrix.variant == 'debug' && format('{0}/{1}:debug', env.REGISTRY, env.IMAGE_NAME) || '' }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             BASE_IMAGE=${{ matrix.variant == 'root' && 'gcr.io/distroless/python3-debian12' || (matrix.variant == 'debug' && 'gcr.io/distroless/python3-debian12:debug') || 'gcr.io/distroless/python3-debian12:nonroot' }}

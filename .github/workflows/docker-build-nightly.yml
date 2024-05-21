@@ -50,10 +50,10 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ${{ matrix.variant == 'root' && env.REGISTRY + '/' + env.IMAGE_NAME + ':nightly' || '' }}
-            ${{ matrix.variant == 'root' && env.REGISTRY + '/' + env.IMAGE_NAME + ':commit-' + env.COMMIT_HASH || '' }}
-            ${{ matrix.variant == 'nonroot' && env.REGISTRY + '/' + env.IMAGE_NAME + ':nightly-nonroot' || '' }}
-            ${{ matrix.variant == 'debug' && env.REGISTRY + '/' + env.IMAGE_NAME + ':nightly-debug' || '' }}
+            ${{ matrix.variant == 'root' && format('{0}/{1}:nightly', env.REGISTRY, env.IMAGE_NAME) || '' }}
+            ${{ matrix.variant == 'root' && format('{0}/{1}:commit-{2}', env.REGISTRY, env.IMAGE_NAME, env.COMMIT_HASH) || '' }}
+            ${{ matrix.variant == 'nonroot' && format('{0}/{1}:nightly-nonroot', env.REGISTRY, env.IMAGE_NAME) || '' }}
+            ${{ matrix.variant == 'debug' && format('{0}/{1}:nightly-debug', env.REGISTRY, env.IMAGE_NAME) || '' }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             BASE_IMAGE=${{ matrix.variant == 'root' && 'gcr.io/distroless/python3-debian12' || (matrix.variant == 'debug' && 'gcr.io/distroless/python3-debian12:debug') || 'gcr.io/distroless/python3-debian12:nonroot' }}
