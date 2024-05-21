@@ -4,7 +4,7 @@ import logging
 import weakref
 from collections import Counter
 from datetime import datetime
-from io import BytesIO
+from io import BytesIO, StringIO
 from pathlib import Path
 from typing import (
     Any,
@@ -114,7 +114,7 @@ class Client(TraceDataExtractor):
             )
             end_time = end_time or stop_time
         response = self._client.post(
-            url=urljoin(self._base_url, "/v1/spans"),
+            url=urljoin(self._base_url, "v1/spans"),
             params={"project-name": project_name},
             json={
                 "queries": [q.to_dict() for q in queries],
@@ -161,7 +161,7 @@ class Client(TraceDataExtractor):
         """
         project_name = project_name or get_env_project_name()
         response = self._client.get(
-            url=urljoin(self._base_url, "/v1/evaluations"),
+            url=urljoin(self._base_url, "v1/evaluations"),
             params={"project-name": project_name},
         )
         if response.status_code == 404:
@@ -182,7 +182,7 @@ class Client(TraceDataExtractor):
 
     def _warn_if_phoenix_is_not_running(self) -> None:
         try:
-            self._client.get(urljoin(self._base_url, "/arize_phoenix_version")).raise_for_status()
+            self._client.get(urljoin(self._base_url, "arize_phoenix_version")).raise_for_status()
         except Exception:
             logger.warning(
                 f"Arize Phoenix is not running on {self._base_url}. Launch Phoenix "
@@ -213,7 +213,7 @@ class Client(TraceDataExtractor):
             with pa.ipc.new_stream(sink, table.schema) as writer:
                 writer.write_table(table)
             self._client.post(
-                url=urljoin(self._base_url, "/v1/evaluations"),
+                url=urljoin(self._base_url, "v1/evaluations"),
                 content=cast(bytes, sink.getvalue().to_pybytes()),
                 headers=headers,
             ).raise_for_status()
@@ -256,7 +256,7 @@ class Client(TraceDataExtractor):
             serialized = otlp_span.SerializeToString()
             content = gzip.compress(serialized)
             self._client.post(
-                url=urljoin(self._base_url, "/v1/traces"),
+                url=urljoin(self._base_url, "v1/traces"),
                 content=content,
                 headers={
                     "content-type": "application/x-protobuf",
@@ -264,7 +264,37 @@ class Client(TraceDataExtractor):
                 },
             ).raise_for_status()
 
-    def upload_dataset_table(
+    def download_dataset_examples(
+        self,
+        dataset_id: str,
+        /,
+        *,
+        dataset_version_id: Optional[str] = None,
+    ) -> pd.DataFrame:
+        """
+        Download dataset examples as pandas DataFrame.
+
+        Args:
+            dataset_id (str): dataset ID
+            dataset_version_id (Optional[str]): dataset version ID, if omitted,
+               the latest version is returned.
+
+        Returns:
+            pandas DataFrame
+        """
+        url = (
+            f"v1/datasets/download/csv/{dataset_id}/{dataset_version_id}"
+            if dataset_version_id
+            else f"v1/datasets/download/csv/{dataset_id}"
+        )
+        response = httpx.get(url=urljoin(self._base_url, url))
+        response.raise_for_status()
+        return pd.read_csv(
+            StringIO(response.content.decode()),
+            index_col="__example_index__",
+        )
+
+    def upload_dataset_examples(
         self,
         table: Union[str, Path, pd.DataFrame],
         /,
@@ -277,7 +307,7 @@ class Client(TraceDataExtractor):
         action: Literal["create", "append"] = "create",
     ) -> None:
         """
-        Upload table as dataset to the Phoenix server.
+        Upload examples as dataset to the Phoenix server.
 
         Args:
             table (str | Path | pd.DataFrame): Location of a CSV text file, or
@@ -315,7 +345,7 @@ class Client(TraceDataExtractor):
         else:
             assert_never(table)
         response = httpx.post(
-            url=urljoin(self._base_url, "/v1/datasets/upload"),
+            url=urljoin(self._base_url, "v1/datasets/upload"),
             files={"file": file},
             data={
                 "action": action,
@@ -343,9 +373,12 @@ def _prepare_csv(
     if not path.is_file():
         raise FileNotFoundError(f"File does not exist: {path}")
     with open(path, "r") as f:
-        for row in csv.reader(f):
-            column_headers = row
-            break
+        rows = csv.reader(f)
+        try:
+            column_headers = next(rows)
+            _ = next(rows)
+        except StopIteration:
+            raise ValueError("csv file has no data")
     (header, freq), *_ = Counter(column_headers).most_common(1)
     if freq > 1:
         raise ValueError(f"Duplicated column header in CSV file: {header}")
@@ -360,6 +393,8 @@ def _prepare_pyarrow(
     df: pd.DataFrame,
     keys: DatasetKeys,
 ) -> Tuple[FileName, FilePointer, FileType, FileHeaders]:
+    if df.empty:
+        raise ValueError("dataframe has no data")
     (header, freq), *_ = Counter(df.columns).most_common(1)
     if freq > 1:
         raise ValueError(f"Duplicated column header in file: {header}")

@@ -269,11 +269,61 @@ async def dataset_with_revisions(session):
     session.add(dataset_version_5)
     await session.flush()
 
+    dataset_version_6 = models.DatasetVersion(
+        id=6,
+        dataset_id=2,
+        description="datum gets created",
+        metadata_={},
+    )
+    session.add(dataset_version_6)
+    await session.flush()
+
+    dataset_version_7 = models.DatasetVersion(
+        id=7,
+        dataset_id=2,
+        description="datum gets deleted",
+        metadata_={},
+    )
+    session.add(dataset_version_7)
+    await session.flush()
+
+    dataset_version_8 = models.DatasetVersion(
+        id=8,
+        dataset_id=2,
+        description="datum gets created",
+        metadata_={},
+    )
+    session.add(dataset_version_8)
+    await session.flush()
+
+    dataset_version_9 = models.DatasetVersion(
+        id=9,
+        dataset_id=2,
+        description="datum gets deleted",
+        metadata_={},
+    )
+    session.add(dataset_version_9)
+    await session.flush()
+
     example_5 = models.DatasetExample(
         id=5,
         dataset_id=2,
     )
     session.add(example_5)
+    await session.flush()
+
+    example_6 = models.DatasetExample(
+        id=6,
+        dataset_id=2,
+    )
+    session.add(example_6)
+    await session.flush()
+
+    example_7 = models.DatasetExample(
+        id=7,
+        dataset_id=2,
+    )
+    session.add(example_7)
     await session.flush()
 
     example_4_revision_5 = models.DatasetExampleRevision(
@@ -298,4 +348,52 @@ async def dataset_with_revisions(session):
         revision_kind="CREATE",
     )
     session.add(example_5_revision_5)
+    await session.flush()
+
+    example_6_revision_6 = models.DatasetExampleRevision(
+        id=11,
+        dataset_example_id=example_6.id,
+        dataset_version_id=dataset_version_6.id,
+        input={"in": "look at us"},
+        output={"out": "we have all the answers"},
+        metadata_={"info": "a new example"},
+        revision_kind="CREATE",
+    )
+    session.add(example_6_revision_6)
+    await session.flush()
+
+    example_6_revision_7 = models.DatasetExampleRevision(
+        id=12,
+        dataset_example_id=example_6.id,
+        dataset_version_id=dataset_version_7.id,
+        input={"in": "look at us"},
+        output={"out": "we have all the answers"},
+        metadata_={"info": "a new example"},
+        revision_kind="DELETE",
+    )
+    session.add(example_6_revision_7)
+    await session.flush()
+
+    example_7_revision_8 = models.DatasetExampleRevision(
+        id=13,
+        dataset_example_id=example_7.id,
+        dataset_version_id=dataset_version_8.id,
+        input={"in": "look at me"},
+        output={"out": "i have all the answers"},
+        metadata_={"info": "a newer example"},
+        revision_kind="CREATE",
+    )
+    session.add(example_7_revision_8)
+    await session.flush()
+
+    example_7_revision_9 = models.DatasetExampleRevision(
+        id=14,
+        dataset_example_id=example_7.id,
+        dataset_version_id=dataset_version_9.id,
+        input={"in": "look at me"},
+        output={"out": "i have all the answers"},
+        metadata_={"info": "a newer example"},
+        revision_kind="DELETE",
+    )
+    session.add(example_7_revision_9)
     await session.flush()
