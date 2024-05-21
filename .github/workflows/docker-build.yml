@@ -36,11 +36,10 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.variant }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=${{ matrix.variant }}
-            version=${{ env.VERSION }}
-            ${{ matrix.variant == 'root' && 'latest' || '' }}
+            version-${{ env.VERSION }}-${{ matrix.variant }}
+            ${{ matrix.variant == 'root' && 'version-${{ env.VERSION }} latest' || '' }}
 
       - name: Build and push Docker image
         id: push
