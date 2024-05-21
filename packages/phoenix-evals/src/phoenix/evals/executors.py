@@ -3,8 +3,21 @@ from __future__ import annotations
 import asyncio
 import logging
 import signal
+import threading
 import traceback
-from typing import Any, Callable, Coroutine, List, Optional, Protocol, Sequence, Tuple, Union
+from contextlib import contextmanager
+from typing import (
+    Any,
+    Callable,
+    Coroutine,
+    Generator,
+    List,
+    Optional,
+    Protocol,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 from phoenix.evals.exceptions import PhoenixException
 from tqdm.auto import tqdm
@@ -168,7 +181,7 @@ class AsyncExecutor(Executor):
             termination_event.set()
             tqdm.write("Process was interrupted. The return value will be incomplete...")
 
-        signal.signal(self.termination_signal, termination_handler)
+        original_handler = signal.signal(self.termination_signal, termination_handler)
         outputs = [self.fallback_return_value] * len(inputs)
         progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
@@ -209,7 +222,7 @@ class AsyncExecutor(Executor):
             termination_event_watcher.cancel()
 
         # reset the SIGTERM handler
-        signal.signal(self.termination_signal, signal.SIG_DFL)  # reset the SIGTERM handler
+        signal.signal(self.termination_signal, original_handler)  # reset the SIGTERM handler
         return outputs
 
     def run(self, inputs: Sequence[Any]) -> List[Any]:
@@ -244,7 +257,7 @@ class SyncExecutor(Executor):
         max_retries: int = 10,
         exit_on_error: bool = True,
         fallback_return_value: Union[Unset, Any] = _unset,
-        termination_signal: signal.Signals = signal.SIGINT,
+        termination_signal: Optional[signal.Signals] = signal.SIGINT,
     ):
         self.generate = generation_fn
         self.fallback_return_value = fallback_return_value
@@ -259,35 +272,46 @@ class SyncExecutor(Executor):
         tqdm.write("Process was interrupted. The return value will be incomplete...")
         self._TERMINATE = True
 
-    def run(self, inputs: Sequence[Any]) -> List[Any]:
-        signal.signal(self.termination_signal, self._signal_handler)
-        outputs = [self.fallback_return_value] * len(inputs)
-        progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
-
-        for index, input in enumerate(inputs):
+    @contextmanager
+    def _executor_signal_handling(self, signum: Optional[int]) -> Generator[None, None, None]:
+        original_handler = None
+        if signum is not None:
+            original_handler = signal.signal(signum, self._signal_handler)
             try:
-                for attempt in range(self.max_retries + 1):
-                    if self._TERMINATE:
+                yield
+            finally:
+                signal.signal(signum, original_handler)
+        else:
+            yield
+
+    def run(self, inputs: Sequence[Any]) -> List[Any]:
+        with self._executor_signal_handling(self.termination_signal):
+            outputs = [self.fallback_return_value] * len(inputs)
+            progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
+
+            for index, input in enumerate(inputs):
+                try:
+                    for attempt in range(self.max_retries + 1):
+                        if self._TERMINATE:
+                            return outputs
+                        try:
+                            result = self.generate(input)
+                            outputs[index] = result
+                            progress_bar.update()
+                            break
+                        except Exception as exc:
+                            is_phoenix_exception = isinstance(exc, PhoenixException)
+                            if attempt >= self.max_retries or is_phoenix_exception:
+                                raise exc
+                            else:
+                                tqdm.write(f"Exception in worker on attempt {attempt + 1}: {exc}")
+                                tqdm.write("Retrying...")
+                except Exception as exc:
+                    tqdm.write(f"Exception in worker: {exc}")
+                    if self.exit_on_error:
                         return outputs
-                    try:
-                        result = self.generate(input)
-                        outputs[index] = result
+                    else:
                         progress_bar.update()
-                        break
-                    except Exception as exc:
-                        is_phoenix_exception = isinstance(exc, PhoenixException)
-                        if attempt >= self.max_retries or is_phoenix_exception:
-                            raise exc
-                        else:
-                            tqdm.write(f"Exception in worker on attempt {attempt + 1}: {exc}")
-                            tqdm.write("Retrying...")
-            except Exception as exc:
-                tqdm.write(f"Exception in worker: {exc}")
-                if self.exit_on_error:
-                    return outputs
-                else:
-                    progress_bar.update()
-        signal.signal(self.termination_signal, signal.SIG_DFL)  # reset the SIGTERM handler
         return outputs
 
 
@@ -300,7 +324,22 @@ def get_executor_on_sync_context(
     exit_on_error: bool = True,
     fallback_return_value: Union[Unset, Any] = _unset,
 ) -> Executor:
-    if run_sync:
+    if threading.current_thread() is not threading.main_thread():
+        # run evals synchronously if not in the main thread
+
+        if run_sync is False:
+            logger.warning(
+                "Async evals execution is not supported in non-main threads. Falling back to sync."
+            )
+        return SyncExecutor(
+            sync_fn,
+            tqdm_bar_format=tqdm_bar_format,
+            exit_on_error=exit_on_error,
+            fallback_return_value=fallback_return_value,
+            termination_signal=None,
+        )
+
+    if run_sync is True:
         return SyncExecutor(
             sync_fn,
             tqdm_bar_format=tqdm_bar_format,

@@ -1,7 +1,9 @@
 import asyncio
 import os
 import platform
+import queue
 import signal
+import threading
 import time
 from unittest.mock import AsyncMock, Mock
 
@@ -244,6 +246,33 @@ def test_sync_executor_sigint_handling():
     assert results.count("test") > 100, "most inputs should not have been processed"
 
 
+def test_sync_executor_defaults_sigint_handling():
+    def sync_fn(x):
+        return signal.getsignal(signal.SIGINT)
+
+    executor = SyncExecutor(
+        sync_fn,
+        max_retries=0,
+        fallback_return_value="test",
+    )
+    res = executor.run(["test"])
+    assert res[0] != signal.default_int_handler
+
+
+def test_sync_executor_bypasses_sigint_handling_if_none():
+    def sync_fn(x):
+        return signal.getsignal(signal.SIGINT)
+
+    executor = SyncExecutor(
+        sync_fn,
+        max_retries=0,
+        fallback_return_value="test",
+        termination_signal=None,
+    )
+    res = executor.run(["test"])
+    assert res[0] == signal.default_int_handler
+
+
 def test_sync_executor_retries():
     mock_generate = Mock(side_effect=RuntimeError("Test exception"))
     executor = SyncExecutor(mock_generate, max_retries=3)
@@ -316,3 +345,95 @@ def test_executor_factory_returns_sync_in_sync_context_if_asked():
 
     executor = executor_in_sync_context()
     assert isinstance(executor, SyncExecutor)
+
+
+def test_executor_factory_returns_sync_in_threads():
+    def sync_fn():
+        pass
+
+    async def async_fn():
+        pass
+
+    exception_log = queue.Queue()
+
+    def run_test():
+        try:
+            executor = get_executor_on_sync_context(
+                sync_fn,
+                async_fn,
+                run_sync=True,  # request a sync_executor
+            )
+            assert isinstance(executor, SyncExecutor)
+            assert executor.termination_signal is None
+        except Exception as e:
+            exception_log.put(e)
+
+    test_thread = threading.Thread(target=run_test)
+    test_thread.start()
+    test_thread.join()
+    if not exception_log.empty():
+        raise exception_log.get()
+
+
+async def test_executor_factory_returns_sync_in_threads_even_if_async_context():
+    def sync_fn():
+        pass
+
+    async def async_fn():
+        pass
+
+    exception_log = queue.Queue()
+
+    async def run_test():
+        nest_asyncio.apply()
+        try:
+            executor = get_executor_on_sync_context(
+                sync_fn,
+                async_fn,
+            )
+            assert isinstance(executor, SyncExecutor)
+            assert executor.termination_signal is None
+        except Exception as e:
+            exception_log.put(e)
+
+    def async_task(loop):
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(run_test())
+
+    loop = asyncio.new_event_loop()
+    test_thread = threading.Thread(target=async_task, args=(loop,))
+    test_thread.start()
+    test_thread.join()
+
+    if not exception_log.empty():
+        raise exception_log.get()
+
+
+def test_executor_factory_returns_async_not_in_thread_if_async_context():
+    def sync_fn():
+        pass
+
+    async def async_fn():
+        pass
+
+    exception_log = queue.Queue()
+
+    async def run_test():
+        nest_asyncio.apply()
+        try:
+            executor = get_executor_on_sync_context(
+                sync_fn,
+                async_fn,
+            )
+            assert isinstance(executor, AsyncExecutor)
+            assert executor.termination_signal is not None
+        except Exception as e:
+            exception_log.put(e)
+
+    def async_task():
+        asyncio.run(run_test())
+
+    async_task()
+
+    if not exception_log.empty():
+        raise exception_log.get()
