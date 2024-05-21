@@ -21,6 +21,19 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
+      
+      - name: Set BASE_IMAGE environment variable
+        id: set-base-image
+        run: |
+          if [ "${{ matrix.variant }}" == "root" ]; then
+            echo "BASE_IMAGE=gcr.io/distroless/python3-debian12" >> $GITHUB_ENV
+          elif [ "${{ matrix.variant }}" == "debug" ]; then
+            echo "BASE_IMAGE=gcr.io/distroless/python3-debian12:debug" >> $GITHUB_ENV
+          elif [ "${{ matrix.variant }}" == "nonroot" ]; then
+            echo "BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot" >> $GITHUB_ENV
+          else
+            echo "BASE_IMAGE=gcr.io/distroless/python3-debian12" >> $GITHUB_ENV
+          fi
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -55,7 +68,7 @@ jobs:
             ${{ matrix.variant == 'debug' && format('{0}/{1}:debug', env.REGISTRY, env.IMAGE_NAME) || '' }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            BASE_IMAGE=${{ matrix.variant == 'root' && 'gcr.io/distroless/python3-debian12' || (matrix.variant == 'debug' && 'gcr.io/distroless/python3-debian12:debug') || 'gcr.io/distroless/python3-debian12:nonroot' }}
+            BASE_IMAGE=${{ env.BASE_IMAGE }}
       
       
       - name: Generate artifact attestation
