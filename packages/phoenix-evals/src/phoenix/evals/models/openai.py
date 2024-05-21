@@ -156,10 +156,16 @@ class OpenAIModel(BaseModel):
             api_key = os.getenv(OPENAI_API_KEY_ENVVAR_NAME)
             if api_key is None:
                 # TODO: Create custom AuthenticationError
-                raise RuntimeError(
-                    "OpenAI's API key not provided. Pass it as an argument to 'api_key' "
-                    "or set it in your environment: 'export OPENAI_API_KEY=sk-****'"
-                )
+                if self._is_azure:
+                    raise RuntimeError(
+                        "Azure API key not provided. Pass it as an argument to 'api_key' "
+                        "or set it in your environment: 'export OPENAI_API_KEY=****'"
+                    )
+                else:
+                    raise RuntimeError(
+                        "OpenAI's API key not provided. Pass it as an argument to 'api_key' "
+                        "or set it in your environment: 'export OPENAI_API_KEY=sk-****'"
+                    )
             self.api_key = api_key
 
         # Set the version, organization, and base_url - default to openAI
