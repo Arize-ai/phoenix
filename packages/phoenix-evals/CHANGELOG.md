@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.9.1...arize-phoenix-evals-v0.9.2) (2024-05-21)
+
+
+### Bug Fixes
+
+* Bypass signal handler if running in a thread ([#3251](https://github.com/Arize-ai/phoenix/issues/3251)) ([8c82306](https://github.com/Arize-ai/phoenix/commit/8c8230606d173a55a2f84b2fbdbb48e920cbdb70))
+
 ## [0.9.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.9.0...arize-phoenix-evals-v0.9.1) (2024-05-21)
 
 
