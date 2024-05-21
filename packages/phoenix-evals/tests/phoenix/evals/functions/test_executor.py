@@ -244,6 +244,33 @@ def test_sync_executor_sigint_handling():
     assert results.count("test") > 100, "most inputs should not have been processed"
 
 
+def test_sync_executor_defaults_sigint_handling():
+    def sync_fn(x):
+        return signal.getsignal(signal.SIGINT)
+
+    executor = SyncExecutor(
+        sync_fn,
+        max_retries=0,
+        fallback_return_value="test",
+    )
+    res = executor.run(["test"])
+    assert res[0] != signal.default_int_handler
+
+
+def test_sync_executor_bypasses_sigint_handling_if_none():
+    def sync_fn(x):
+        return signal.getsignal(signal.SIGINT)
+
+    executor = SyncExecutor(
+        sync_fn,
+        max_retries=0,
+        fallback_return_value="test",
+        termination_signal=None,
+    )
+    res = executor.run(["test"])
+    assert res[0] == signal.default_int_handler
+
+
 def test_sync_executor_retries():
     mock_generate = Mock(side_effect=RuntimeError("Test exception"))
     executor = SyncExecutor(mock_generate, max_retries=3)
