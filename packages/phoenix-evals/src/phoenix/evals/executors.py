@@ -259,11 +259,13 @@ class SyncExecutor(Executor):
     def _signal_handler(self, signum: int, frame: Any) -> None:
         tqdm.write("Process was interrupted. The return value will be incomplete...")
         self._TERMINATE = True
-    
-    def _set_signal_handler(self, signum: Optional[int], handler: Callable[[int, Any], None]) -> None:
+
+    def _set_signal_handler(
+        self, signum: Optional[int], handler: Callable[[int, Any], None]
+    ) -> None:
         if signum is not None:
             signal.signal(signum, handler)
-    
+
     def _reset_signal_handler(self, signum: Optional[int]) -> None:
         if signum is not None:
             signal.signal(signum, signal.SIG_DFL)
