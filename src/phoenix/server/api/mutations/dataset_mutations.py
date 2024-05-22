@@ -1,4 +1,4 @@
-from typing import Any, Dict, Literal, Optional, Protocol
+from typing import Any, Dict, Literal, Optional, Protocol, cast
 
 import strawberry
 from openinference.semconv.trace import (
@@ -8,10 +8,12 @@ from openinference.semconv.trace import (
 )
 from sqlalchemy import insert, select
 from strawberry import UNSET
+from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.input_types.AddExamplesToDatasetInput import AddExamplesToDatasetInput
 from phoenix.server.api.input_types.AddSpansToDatasetInput import AddSpansToDatasetInput
 from phoenix.server.api.input_types.CreateDatasetInput import CreateDatasetInput
 from phoenix.server.api.types.Dataset import Dataset
@@ -170,9 +172,107 @@ class DatasetMutationMixin:
 
     @strawberry.mutation
     async def add_examples_to_dataset(
-        self, info: Info[Context, None], input: AddSpansToDatasetInput
-    ) -> None:
-        pass
+        self, info: Info[Context, None], input: AddExamplesToDatasetInput
+    ) -> DatasetMutationPayload:
+        dataset_id = input.dataset_id
+        # Extract the span rowids from the input examples if they exit
+        span_ids = [
+            cast(GlobalID, example.span_id)
+            for example in input.examples
+            if example.span_id is not UNSET
+        ]
+        span_rowids = {
+            from_global_id_with_expected_type(global_id=span_id, expected_type_name=Span.__name__)
+            for span_id in set(span_ids)
+        }
+        dataset_version_description = (
+            input.dataset_version_description
+            if isinstance(input.dataset_version_description, str)
+            else None
+        )
+        dataset_version_metadata = input.dataset_version_metadata
+        dataset_rowid = from_global_id_with_expected_type(
+            global_id=dataset_id, expected_type_name=Dataset.__name__
+        )
+        async with info.context.db() as session:
+            if (
+                dataset := await session.scalar(
+                    select(models.Dataset).where(models.Dataset.id == dataset_rowid)
+                )
+            ) is None:
+                raise ValueError(
+                    f"Unknown dataset: {dataset_id}"
+                )  # todo: implement error types https://github.com/Arize-ai/phoenix/issues/3221
+            dataset_version_rowid = await session.scalar(
+                insert(models.DatasetVersion)
+                .values(
+                    dataset_id=dataset_rowid,
+                    description=dataset_version_description,
+                    metadata_=dataset_version_metadata or {},
+                )
+                .returning(models.DatasetVersion.id)
+            )
+            print("dataset_version_rowid" + str(dataset_version_rowid))
+            print("span_ids" + str(span_ids))
+            spans = (
+                await session.execute(
+                    select(models.Span.id)
+                    .select_from(models.Span)
+                    .where(models.Span.id.in_(span_rowids))
+                )
+            ).all()
+            # Just validate that the number of spans matches the number of span_ids
+            # to ensure that the span_ids are valid
+            assert len(spans) == len(span_rowids)
+            print("spans" + str(spans))
+            # Create a map of span rowids to
+            DatasetExample = models.DatasetExample
+            dataset_example_rowids = (
+                await session.scalars(
+                    insert(DatasetExample).returning(DatasetExample.id),
+                    [
+                        {
+                            DatasetExample.dataset_id.key: dataset_rowid,
+                            DatasetExample.span_rowid.key: from_global_id_with_expected_type(
+                                global_id=cast(GlobalID, example.span_id),
+                                expected_type_name=Span.__name__,
+                            )
+                            if example.span_id is not UNSET
+                            else None,
+                        }
+                        for example in input.examples
+                    ],
+                )
+            ).all()
+            assert len(dataset_example_rowids) == len(input.examples)
+            assert all(map(lambda id: isinstance(id, int), dataset_example_rowids))
+            DatasetExampleRevision = models.DatasetExampleRevision
+            await session.execute(
+                insert(DatasetExampleRevision),
+                [
+                    {
+                        DatasetExampleRevision.dataset_example_id.key: dataset_example_rowid,
+                        DatasetExampleRevision.dataset_version_id.key: dataset_version_rowid,
+                        DatasetExampleRevision.input.key: example.input,
+                        DatasetExampleRevision.output.key: example.output,
+                        DatasetExampleRevision.metadata_.key: example.metadata,
+                        DatasetExampleRevision.revision_kind.key: "CREATE",
+                    }
+                    for dataset_example_rowid, example in zip(
+                        dataset_example_rowids, input.examples
+                    )
+                ],
+            )
+        return DatasetMutationPayload(
+            dataset=Dataset(
+                id_attr=dataset.id,
+                name=dataset.name,
+                description=dataset.description,
+                created_at=dataset.created_at,
+                updated_at=dataset.updated_at,
+                metadata=dataset.metadata_,
+            )
+        )
 
 
 def _span_attribute(semconv: str) -> Any:
