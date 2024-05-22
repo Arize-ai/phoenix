@@ -103,13 +103,12 @@ type DatasetEdge {
   node: Dataset!
 }
 
-type DatasetExample implements Example & Node {
+type DatasetExample implements Node & Example {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
   input: JSON!
   output: JSON!
   metadata: JSON!
-
-  """The Globally Unique ID of this object"""
-  id: GlobalID!
   createdAt: DateTime!
 }
 
@@ -873,6 +872,9 @@ type Span implements Node {
 
   """All descendant spans (children, grandchildren, etc.)"""
   descendants: [Span!]!
+
+  """The span's attributes translated into an example for a dataset"""
+  toExample: Example!
 }
 
 enum SpanColumn {
