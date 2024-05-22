@@ -3,7 +3,7 @@ from starlette.responses import JSONResponse, Response
 from starlette.status import HTTP_404_NOT_FOUND
 from strawberry.relay import GlobalID
 
-from phoenix.db.models import Dataset, DatasetExample, DatasetExampleRevision
+from phoenix.db.models import Dataset, DatasetExample, DatasetExampleRevision, DatasetVersion
 
 
 async def list_dataset_examples(request):
@@ -11,9 +11,14 @@ async def list_dataset_examples(request):
     raw_version_id = request.query_params.get("version")
     version_id = GlobalID.from_id(raw_version_id) if raw_version_id else None
 
-    if (type_name := dataset_id.type_name) != "Dataset":
+    if (dataset_type := dataset_id.type_name) != "Dataset":
         return Response(
-            content=f"ID {dataset_id} refers to a f{type_name}", status_code=HTTP_404_NOT_FOUND
+            content=f"ID {dataset_id} refers to a f{dataset_type}", status_code=HTTP_404_NOT_FOUND
+        )
+
+    if version_id and (version_type := version_id.type_name) != "DatasetVersion":
+        return Response(
+            content=f"ID {version_id} refers to a f{version_type}", status_code=HTTP_404_NOT_FOUND
         )
 
     async with request.app.state.db() as session:
@@ -65,7 +70,7 @@ async def list_dataset_examples(request):
                 }
             )
         if not data:
-            # make a second query to determine if the dataset exists
+            # make a additional queries to determine if the specified entities exist
             dataset = (
                 await session.execute(select(Dataset).where(Dataset.id == int(dataset_id.node_id)))
             ).all()
@@ -74,4 +79,15 @@ async def list_dataset_examples(request):
                     content=f"No dataset with id {dataset_id} can be found.",
                     status_code=HTTP_404_NOT_FOUND,
                 )
+            if version_id is not None:
+                version = (
+                    await session.execute(
+                        select(DatasetVersion).where(DatasetVersion.id == int(version_id.node_id))
+                    )
+                ).all()
+                if not version:
+                    return Response(
+                        content=f"No dataset version with id {version_id} can be found.",
+                        status_code=HTTP_404_NOT_FOUND,
+                    )
         return JSONResponse(data)

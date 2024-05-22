@@ -8,8 +8,28 @@ async def test_get_dataset_examples_404s_with_nonexistent_dataset_id(test_client
 
 
 async def test_get_dataset_examples_404s_with_invalid_global_id(test_client, simple_dataset):
-    global_id = GlobalID("InvalidID", str(0))
+    global_id = GlobalID("InvalidDataset", str(0))
     response = await test_client.get(f"/v1/datasets/{global_id}/examples")
+    assert response.status_code == 404
+
+
+async def test_get_dataset_examples_404s_with_nonexistent_version_id(test_client, simple_dataset):
+    global_id = GlobalID("Dataset", str(0))
+    version_id = GlobalID("DatasetVersion", str(99))
+    response = await test_client.get(
+        f"/v1/datasets/{global_id}/examples", params={"version": str(version_id)}
+    )
+    assert response.status_code == 404
+
+
+async def test_get_dataset_examples_404s_with_invalid_version_global_id(
+    test_client, simple_dataset
+):
+    global_id = GlobalID("Dataset", str(0))
+    version_id = GlobalID("InvalidDatasetVersion", str(0))
+    response = await test_client.get(
+        f"/v1/datasets/{global_id}/examples", params={"version": str(version_id)}
+    )
     assert response.status_code == 404
 
 
