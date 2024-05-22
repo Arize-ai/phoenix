@@ -1,5 +1,37 @@
+from typing import Any, Mapping
+
 import pytest
-from phoenix.trace.attributes import unflatten
+from phoenix.trace.attributes import get_attribute_value, unflatten
+
+
+@pytest.mark.parametrize(
+    "mapping,key,expected",
+    [
+        ({}, "a.b.c", None),
+        ({"a": "b"}, "a", "b"),
+        ({"a": "b"}, "a.b", None),
+        ({"a": "b"}, "a.b.c", None),
+        ({"a": {"b": "c", "d": "e"}}, "a", {"b": "c", "d": "e"}),
+        ({"a": {"b": "c", "d": "e"}}, "a.b", "c"),
+        ({"a": {"b": "c", "d": "e"}}, "a.b.c", None),
+        ({"a": {"b": {"c": "d"}}}, "a", {"b": {"c": "d"}}),
+        ({"a": {"b": {"c": "d"}}}, "a.b", {"c": "d"}),
+        ({"a": {"b": {"c": "d"}}}, "a.b.c", "d"),
+        ({"a": {"bb": {"c": "d"}}}, "a.b.c", None),
+        ("{}", "a.b.c", None),
+        ({"a": {"b": "c"}}, "", None),
+        ({"a": {"b": "c"}}, ".", None),
+        ({"a": {"b": "c"}}, "a.", None),
+        ({"a": {"b": "c"}}, "..", None),
+        ({"a": {"b": "c"}}, "a..", None),
+    ],
+)
+def test_get_attribute_value(
+    mapping: Mapping[str, Any],
+    key: str,
+    expected: Any,
+) -> None:
+    assert get_attribute_value(mapping, key) == expected
 
 
 @pytest.mark.parametrize(

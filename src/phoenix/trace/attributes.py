@@ -138,12 +138,12 @@ def get_attribute_value(
     will return `1`. If the key is `"a.b"`, then the function will return
     `{"c": 1}`.
     """
-    if not attributes:
+    if not (attributes and isinstance(attributes, dict)):
         return None
     sub_keys = key.split(separator)
     for sub_key in sub_keys[:-1]:
         attributes = attributes.get(sub_key)
-        if not attributes:
+        if not (attributes and isinstance(attributes, dict)):
             return None
     return attributes.get(sub_keys[-1])
 
