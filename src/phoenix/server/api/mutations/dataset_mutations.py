@@ -174,16 +174,14 @@ class DatasetMutationMixin:
         self, info: Info[Context, None], input: AddExamplesToDatasetInput
     ) -> DatasetMutationPayload:
         dataset_id = input.dataset_id
-        # Extract the span rowids from the input examples if they exit
+        # Extract the span rowids from the input examples if they exist
         span_ids = span_ids = [example.span_id for example in input.examples if example.span_id]
         span_rowids = {
             from_global_id_with_expected_type(global_id=span_id, expected_type_name=Span.__name__)
             for span_id in set(span_ids)
         }
         dataset_version_description = (
-            input.dataset_version_description
-            if isinstance(input.dataset_version_description, str)
-            else None
+            input.dataset_version_description if input.dataset_version_description else None
         )
         dataset_version_metadata = input.dataset_version_metadata
         dataset_rowid = from_global_id_with_expected_type(
@@ -203,12 +201,10 @@ class DatasetMutationMixin:
                 .values(
                     dataset_id=dataset_rowid,
                     description=dataset_version_description,
-                    metadata_=dataset_version_metadata or {},
+                    metadata_=dataset_version_metadata,
                 )
                 .returning(models.DatasetVersion.id)
             )
-            print("dataset_version_rowid" + str(dataset_version_rowid))
-            print("span_ids" + str(span_ids))
             spans = (
                 await session.execute(
                     select(models.Span.id)
@@ -219,8 +215,6 @@ class DatasetMutationMixin:
             # Just validate that the number of spans matches the number of span_ids
             # to ensure that the span_ids are valid
             assert len(spans) == len(span_rowids)
-            print("spans" + str(spans))
-            # Create a map of span rowids to
             DatasetExample = models.DatasetExample
             dataset_example_rowids = (
                 await session.scalars(
