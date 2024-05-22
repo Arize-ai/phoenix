@@ -1,6 +1,18 @@
 from strawberry.relay import GlobalID
 
 
+async def test_get_dataset_examples_404s_with_nonexistent_dataset_id(test_client):
+    global_id = GlobalID("Dataset", str(0))
+    response = await test_client.get(f"/v1/datasets/{global_id}/examples")
+    assert response.status_code == 404
+
+
+async def test_get_dataset_examples_404s_with_invalid_global_id(test_client, simple_dataset):
+    global_id = GlobalID("InvalidID", str(0))
+    response = await test_client.get(f"/v1/datasets/{global_id}/examples")
+    assert response.status_code == 404
+
+
 async def test_get_simple_dataset_examples(test_client, simple_dataset):
     global_id = GlobalID("Dataset", str(0))
     response = await test_client.get(f"/v1/datasets/{global_id}/examples")
@@ -13,11 +25,12 @@ async def test_get_simple_dataset_examples(test_client, simple_dataset):
             "input": {"in": "foo"},
             "output": {"out": "bar"},
             "metadata": {"info": "the first reivision"},
-            "last_updated_version": str(GlobalID("DatasetVersion", str(0))),
         }
     ]
     for example, expected in zip(result, expected_values):
-        assert example == expected
+        assert "updated_at" in example
+        example_subset = {k: v for k, v in example.items() if k in expected}
+        assert example_subset == expected
 
 
 async def test_list_simple_dataset_examples_at_each_version(test_client, simple_dataset):
@@ -84,25 +97,24 @@ async def test_list_dataset_with_revisions_examples(test_client, dataset_with_re
             "input": {"in": "foo"},
             "output": {"out": "bar"},
             "metadata": {"info": "first revision"},
-            "last_updated_version": str(GlobalID("DatasetVersion", str(4))),
         },
         {
             "id": str(GlobalID("DatasetExample", str(4))),
             "input": {"in": "updated foofoo"},
             "output": {"out": "updated barbar"},
             "metadata": {"info": "updating revision"},
-            "last_updated_version": str(GlobalID("DatasetVersion", str(5))),
         },
         {
             "id": str(GlobalID("DatasetExample", str(5))),
             "input": {"in": "look at me"},
             "output": {"out": "i have all the answers"},
             "metadata": {"info": "a new example"},
-            "last_updated_version": str(GlobalID("DatasetVersion", str(5))),
         },
     ]
-    for example, expected in zip(result[1:2], expected_values[1:2]):
-        assert example == expected
+    for example, expected in zip(result, expected_values):
+        assert "updated_at" in example
+        example_subset = {k: v for k, v in example.items() if k in expected}
+        assert example_subset == expected
 
 
 async def test_list_dataset_with_revisions_examples_at_each_version(
