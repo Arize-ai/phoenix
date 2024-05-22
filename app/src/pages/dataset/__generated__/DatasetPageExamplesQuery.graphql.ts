@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<110a6858e540f407fbf3ff4e8447efc8>>
+ * @generated SignedSource<<459f909b5b46d1c797fa49aaca6ed98f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,20 +10,17 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type datasetLoaderQuery$variables = {
+export type DatasetPageExamplesQuery$variables = {
   id: string;
 };
-export type datasetLoaderQuery$data = {
-  readonly dataset: {
-    readonly description?: string | null;
-    readonly id: string;
-    readonly name?: string;
+export type DatasetPageExamplesQuery$data = {
+  readonly node: {
     readonly " $fragmentSpreads": FragmentRefs<"DatasetPageExamplesFragment">;
   };
 };
-export type datasetLoaderQuery = {
-  response: datasetLoaderQuery$data;
-  variables: datasetLoaderQuery$variables;
+export type DatasetPageExamplesQuery = {
+  response: DatasetPageExamplesQuery$data;
+  variables: DatasetPageExamplesQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -47,50 +44,26 @@ v2 = {
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
-},
-v3 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "name",
-  "storageKey": null
-},
-v4 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "description",
-  "storageKey": null
 };
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "datasetLoaderQuery",
+    "name": "DatasetPageExamplesQuery",
     "selections": [
       {
-        "alias": "dataset",
+        "alias": null,
         "args": (v1/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
           {
-            "kind": "InlineFragment",
-            "selections": [
-              (v3/*: any*/),
-              (v4/*: any*/),
-              {
-                "args": null,
-                "kind": "FragmentSpread",
-                "name": "DatasetPageExamplesFragment"
-              }
-            ],
-            "type": "Dataset",
-            "abstractKey": null
+            "args": null,
+            "kind": "FragmentSpread",
+            "name": "DatasetPageExamplesFragment"
           }
         ],
         "storageKey": null
@@ -103,10 +76,10 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "datasetLoaderQuery",
+    "name": "DatasetPageExamplesQuery",
     "selections": [
       {
-        "alias": "dataset",
+        "alias": null,
         "args": (v1/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
@@ -120,12 +93,14 @@ return {
             "name": "__typename",
             "storageKey": null
           },
+          {
+            "kind": "TypeDiscriminator",
+            "abstractKey": "__isNode"
+          },
           (v2/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v3/*: any*/),
-              (v4/*: any*/),
               {
                 "alias": null,
                 "args": null,
@@ -191,16 +166,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d3ddde78c0981da73d0c210e9777ff42",
+    "cacheID": "503b9be64246c274f7e7d6a761d4352e",
     "id": null,
     "metadata": {},
-    "name": "datasetLoaderQuery",
+    "name": "DatasetPageExamplesQuery",
     "operationKind": "query",
-    "text": "query datasetLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      description\n      ...DatasetPageExamplesFragment\n    }\n  }\n}\n\nfragment DatasetPageExamplesFragment on Dataset {\n  examples {\n    edges {\n      node {\n        id\n        input\n        output\n        metadata\n      }\n    }\n  }\n  id\n}\n"
+    "text": "query DatasetPageExamplesQuery(\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetPageExamplesFragment\n    __isNode: __typename\n    id\n  }\n}\n\nfragment DatasetPageExamplesFragment on Dataset {\n  examples {\n    edges {\n      node {\n        id\n        input\n        output\n        metadata\n      }\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "005bbc987a802f3a724d967d04312be2";
+(node as any).hash = "1212808418be6d86daf5649c4bb71163";
 
 export default node;
