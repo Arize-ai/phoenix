@@ -19,9 +19,9 @@
 # - https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q
 # - https://github.com/Arize-ai/phoenix/issues
 
-# This Dockerfile is a multi-stage build. The first stage builds the frontend.
 ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot
 
+# This Dockerfile is a multi-stage build. The first stage builds the frontend.
 FROM node:20-slim AS frontend-builder
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
