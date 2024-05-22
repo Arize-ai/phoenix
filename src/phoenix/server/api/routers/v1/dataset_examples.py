@@ -13,12 +13,12 @@ async def list_dataset_examples(request):
 
     if (dataset_type := dataset_id.type_name) != "Dataset":
         return Response(
-            content=f"ID {dataset_id} refers to a f{dataset_type}", status_code=HTTP_404_NOT_FOUND
+            content=f"ID {dataset_id} refers to a {dataset_type}", status_code=HTTP_404_NOT_FOUND
         )
 
     if version_id and (version_type := version_id.type_name) != "DatasetVersion":
         return Response(
-            content=f"ID {version_id} refers to a f{version_type}", status_code=HTTP_404_NOT_FOUND
+            content=f"ID {version_id} refers to a {version_type}", status_code=HTTP_404_NOT_FOUND
         )
 
     async with request.app.state.db() as session:
@@ -33,8 +33,14 @@ async def list_dataset_examples(request):
         # if a version_id is provided, filter the subquery to only include revisions from that
         # version or earlier
         if version_id is not None:
+            # ensure that the specified version exists
+            matched_version_id = (
+                select(DatasetVersion.id)
+                .where(DatasetVersion.id == int(version_id.node_id))
+                .scalar_subquery()
+            )
             subquery = subquery.filter(
-                (DatasetExampleRevision.dataset_version_id <= int(version_id.node_id))
+                (DatasetExampleRevision.dataset_version_id <= matched_version_id)
             )
 
         subquery = subquery.subquery()

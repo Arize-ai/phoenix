@@ -5,12 +5,14 @@ async def test_get_dataset_examples_404s_with_nonexistent_dataset_id(test_client
     global_id = GlobalID("Dataset", str(0))
     response = await test_client.get(f"/v1/datasets/{global_id}/examples")
     assert response.status_code == 404
+    assert response.content.decode() == f"No dataset with id {global_id} can be found."
 
 
 async def test_get_dataset_examples_404s_with_invalid_global_id(test_client, simple_dataset):
     global_id = GlobalID("InvalidDataset", str(0))
     response = await test_client.get(f"/v1/datasets/{global_id}/examples")
     assert response.status_code == 404
+    assert "refers to a InvalidDataset" in response.content.decode()
 
 
 async def test_get_dataset_examples_404s_with_nonexistent_version_id(test_client, simple_dataset):
@@ -20,6 +22,7 @@ async def test_get_dataset_examples_404s_with_nonexistent_version_id(test_client
         f"/v1/datasets/{global_id}/examples", params={"version": str(version_id)}
     )
     assert response.status_code == 404
+    assert response.content.decode() == f"No dataset version with id {version_id} can be found."
 
 
 async def test_get_dataset_examples_404s_with_invalid_version_global_id(
@@ -31,6 +34,7 @@ async def test_get_dataset_examples_404s_with_invalid_version_global_id(
         f"/v1/datasets/{global_id}/examples", params={"version": str(version_id)}
     )
     assert response.status_code == 404
+    assert "refers to a InvalidDatasetVersion" in response.content.decode()
 
 
 async def test_get_simple_dataset_examples(test_client, simple_dataset):
