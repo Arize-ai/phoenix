@@ -3,11 +3,14 @@ from starlette.responses import JSONResponse, Response
 from starlette.status import HTTP_404_NOT_FOUND
 from strawberry.relay import GlobalID
 
-from phoenix.db.models import DatasetExample, DatasetExampleRevision
+from phoenix.db.models import DatasetExample, DatasetExampleRevision, DatasetVersion
 
 
 async def list_dataset_examples(request):
     dataset_id = GlobalID.from_id(request.path_params["id"])
+    raw_version_id = request.query_params.get("version")
+    version_id = GlobalID.from_id(raw_version_id) if raw_version_id else None
+
     async with request.app.state.db() as session:
         if (type_name := dataset_id.type_name) != "Dataset":
             return Response(
@@ -16,15 +19,24 @@ async def list_dataset_examples(request):
 
         # Subquery to find the maximum created_at for each dataset_example_id
         # timestamp tiebreaks are resolved by the largest id
-        subquery = (
-            select(
-                DatasetExampleRevision.dataset_example_id,
-                func.max(DatasetExampleRevision.created_at).label("most_recent"),
-                func.max(DatasetExampleRevision.id).label("max_id"),
+        subquery = select(
+            DatasetExampleRevision.dataset_example_id,
+            func.max(DatasetExampleRevision.created_at).label("most_recent"),
+            func.max(DatasetExampleRevision.id).label("max_id"),
+        ).group_by(DatasetExampleRevision.dataset_example_id)
+
+        if version_id is not None:
+            version_timestamp = (
+                select(DatasetVersion.created_at)
+                .where(DatasetVersion.id == int(version_id.node_id))
+                .scalar_subquery()
             )
-            .group_by(DatasetExampleRevision.dataset_example_id)
-            .subquery()
-        )
+            subquery = subquery.filter(
+                (DatasetExampleRevision.created_at <= version_timestamp) &
+                (DatasetExampleRevision.dataset_version_id <= int(version_id.node_id))
+            )
+
+        subquery = subquery.subquery()
 
         # Query for the most recent example revisions that are not deleted
         query = (

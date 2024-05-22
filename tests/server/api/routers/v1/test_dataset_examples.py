@@ -28,6 +28,37 @@ async def test_list_empty_dataset_examples(test_client, empty_dataset):
     assert len(result) == 0
 
 
+async def test_list_empty_dataset_examples_at_each_version(test_client, empty_dataset):
+    global_id = GlobalID("Dataset", str(1))
+    v1 = GlobalID("DatasetVersion", str(1))
+    v2 = GlobalID("DatasetVersion", str(2))
+    v3 = GlobalID("DatasetVersion", str(3))
+
+    # two examples are created in version 1
+    response = await test_client.get(
+        f"/v1/datasets/{global_id}/examples", params={"version": str(v1)}
+    )
+    assert response.status_code == 200
+    result = response.json()
+    assert len(result) == 2
+
+    # two examples are patched in version 2
+    response = await test_client.get(
+        f"/v1/datasets/{global_id}/examples", params={"version": str(v2)}
+    )
+    assert response.status_code == 200
+    result = response.json()
+    assert len(result) == 2
+
+    # two examples are deleted in version 3
+    response = await test_client.get(
+        f"/v1/datasets/{global_id}/examples", params={"version": str(v3)}
+    )
+    assert response.status_code == 200
+    result = response.json()
+    assert len(result) == 0
+
+
 async def test_list_dataset_with_revisions_examples(test_client, dataset_with_revisions):
     global_id = GlobalID("Dataset", str(2))
     response = await test_client.get(f"/v1/datasets/{global_id}/examples")
