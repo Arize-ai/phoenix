@@ -3,7 +3,7 @@ from starlette.responses import JSONResponse, Response
 from starlette.status import HTTP_404_NOT_FOUND
 from strawberry.relay import GlobalID
 
-from phoenix.db.models import DatasetExample, DatasetExampleRevision, DatasetVersion
+from phoenix.db.models import DatasetExample, DatasetExampleRevision
 
 
 async def list_dataset_examples(request):
@@ -25,14 +25,10 @@ async def list_dataset_examples(request):
             func.max(DatasetExampleRevision.id).label("max_id"),
         ).group_by(DatasetExampleRevision.dataset_example_id)
 
+        # if a version_id is provided, filter the subquery to only include revisions from that
+        # version or earlier
         if version_id is not None:
-            version_timestamp = (
-                select(DatasetVersion.created_at)
-                .where(DatasetVersion.id == int(version_id.node_id))
-                .scalar_subquery()
-            )
             subquery = subquery.filter(
-                (DatasetExampleRevision.created_at <= version_timestamp) &
                 (DatasetExampleRevision.dataset_version_id <= int(version_id.node_id))
             )
 
