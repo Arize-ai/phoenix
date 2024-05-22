@@ -1,5 +1,3 @@
-ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot
-
 # This Dockerfile is provided for convenience if you wish to run Phoenix in a
 # container or sidecar. To build the image, run the following commmand:
 #
@@ -22,6 +20,8 @@ ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot
 # - https://github.com/Arize-ai/phoenix/issues
 
 # This Dockerfile is a multi-stage build. The first stage builds the frontend.
+ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot
+
 FROM node:20-slim AS frontend-builder
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
