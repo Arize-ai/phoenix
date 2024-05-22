@@ -103,12 +103,13 @@ type DatasetEdge {
   node: Dataset!
 }
 
-type DatasetExample implements Node {
-  """The Globally Unique ID of this object"""
-  id: GlobalID!
+type DatasetExample implements Example & Node {
   input: JSON!
   output: JSON!
   metadata: JSON!
+
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
   createdAt: DateTime!
 }
 
@@ -493,6 +494,12 @@ type EventMetadata {
   predictionLabel: String
   actualScore: Float
   actualLabel: String
+}
+
+interface Example {
+  input: JSON!
+  output: JSON!
+  metadata: JSON!
 }
 
 type ExportedFile {

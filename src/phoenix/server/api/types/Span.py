@@ -13,6 +13,7 @@ from strawberry.types import Info
 import phoenix.trace.schemas as trace_schema
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.types.DatasetExample import Example
 from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
 from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluation
 from phoenix.server.api.types.MimeType import MimeType
@@ -104,6 +105,7 @@ class SpanEvent:
 @strawberry.type
 class Span(Node):
     id_attr: NodeID[int]
+    db_span: strawberry.Private[models.Span]
     name: str
     status_code: SpanStatusCode
     status_message: str
@@ -189,6 +191,16 @@ class Span(Node):
         spans = await info.context.data_loaders.span_descendants.load(span_id)
         return [to_gql_span(span) for span in spans]
 
+    @strawberry.field(
+        description="The span's attributes translated into an example for a dataset",
+    )  # type: ignore
+    def to_example(self) -> Example:
+        return Example(
+            input=self.input,
+            output=self.output,
+            metadata=self.attributes,
+        )
+
 
 def to_gql_span(span: models.Span) -> Span:
     events: List[SpanEvent] = list(map(SpanEvent.from_dict, span.events))
@@ -198,6 +210,7 @@ def to_gql_span(span: models.Span) -> Span:
     num_documents = len(retrieval_documents) if isinstance(retrieval_documents, Sized) else None
     return Span(
         id_attr=span.id,
+        db_span=span,
         name=span.name,
         status_code=SpanStatusCode(span.status_code),
         status_message=span.status_message,
