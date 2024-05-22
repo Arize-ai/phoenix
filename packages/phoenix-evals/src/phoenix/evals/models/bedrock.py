@@ -178,7 +178,7 @@ class BedrockModel(BaseModel):
             body = json.loads(response.get("body").read())
             return body.get("results")[0].get("outputText")
         elif self.model_id.startswith("mistral"):
-            bod= json.loads(response.get("body").read())
+            body = json.loads(response.get("body").read())
             return body.get("outputs")[0].get("text")
         else:
             body = json.loads(response.get("body").read())
