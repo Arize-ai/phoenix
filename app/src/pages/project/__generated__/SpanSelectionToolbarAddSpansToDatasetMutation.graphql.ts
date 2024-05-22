@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<27e425354d9a6193c25a09cbe1d7d460>>
+ * @generated SignedSource<<0e37063a8f771a567bef0611002ee33c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -48,7 +48,7 @@ v1 = [
         "variableName": "input"
       }
     ],
-    "concreteType": "AddSpansToDatasetPayload",
+    "concreteType": "DatasetMutationPayload",
     "kind": "LinkedField",
     "name": "addSpansToDataset",
     "plural": false,

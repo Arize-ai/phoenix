@@ -12,13 +12,17 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.input_types.AddExamplesToDatasetInput import AddExamplesToDatasetInput
 from phoenix.server.api.input_types.AddSpansToDatasetInput import AddSpansToDatasetInput
 from phoenix.server.api.input_types.CreateDatasetInput import CreateDatasetInput
-from phoenix.server.api.types.AddSpansToDatasetPayload import AddSpansToDatasetPayload
-from phoenix.server.api.types.CreateDatasetPayload import CreateDatasetPayload
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
+
+
+@strawberry.type
+class DatasetMutationPayload:
+    dataset: Dataset
 
 
 @strawberry.type
@@ -28,7 +32,7 @@ class DatasetMutationMixin:
         self,
         info: Info[Context, None],
         input: CreateDatasetInput,
-    ) -> CreateDatasetPayload:
+    ) -> DatasetMutationPayload:
         name = input.name
         description = input.description if input.description is not UNSET else None
         metadata = input.metadata or {}
@@ -51,7 +55,7 @@ class DatasetMutationMixin:
             )
             if not (row := result.fetchone()):
                 raise ValueError("Failed to create dataset")
-            return CreateDatasetPayload(
+            return DatasetMutationPayload(
                 dataset=Dataset(
                     id_attr=row.id,
                     name=row.name,
@@ -67,7 +71,7 @@ class DatasetMutationMixin:
         self,
         info: Info[Context, None],
         input: AddSpansToDatasetInput,
-    ) -> AddSpansToDatasetPayload:
+    ) -> DatasetMutationPayload:
         dataset_id = input.dataset_id
         span_ids = input.span_ids
         dataset_version_description = (
@@ -154,7 +158,101 @@ class DatasetMutationMixin:
                     for dataset_example_rowid, span in zip(dataset_example_rowids, spans)
                 ],
             )
-        return AddSpansToDatasetPayload(
+        return DatasetMutationPayload(
+            dataset=Dataset(
+                id_attr=dataset.id,
+                name=dataset.name,
+                description=dataset.description,
+                created_at=dataset.created_at,
+                updated_at=dataset.updated_at,
+                metadata=dataset.metadata_,
+            )
+        )
+
+    @strawberry.mutation
+    async def add_examples_to_dataset(
+        self, info: Info[Context, None], input: AddExamplesToDatasetInput
+    ) -> DatasetMutationPayload:
+        dataset_id = input.dataset_id
+        # Extract the span rowids from the input examples if they exist
+        span_ids = span_ids = [example.span_id for example in input.examples if example.span_id]
+        span_rowids = {
+            from_global_id_with_expected_type(global_id=span_id, expected_type_name=Span.__name__)
+            for span_id in set(span_ids)
+        }
+        dataset_version_description = (
+            input.dataset_version_description if input.dataset_version_description else None
+        )
+        dataset_version_metadata = input.dataset_version_metadata
+        dataset_rowid = from_global_id_with_expected_type(
+            global_id=dataset_id, expected_type_name=Dataset.__name__
+        )
+        async with info.context.db() as session:
+            if (
+                dataset := await session.scalar(
+                    select(models.Dataset).where(models.Dataset.id == dataset_rowid)
+                )
+            ) is None:
+                raise ValueError(
+                    f"Unknown dataset: {dataset_id}"
+                )  # todo: implement error types https://github.com/Arize-ai/phoenix/issues/3221
+            dataset_version_rowid = await session.scalar(
+                insert(models.DatasetVersion)
+                .values(
+                    dataset_id=dataset_rowid,
+                    description=dataset_version_description,
+                    metadata_=dataset_version_metadata,
+                )
+                .returning(models.DatasetVersion.id)
+            )
+            spans = (
+                await session.execute(
+                    select(models.Span.id)
+                    .select_from(models.Span)
+                    .where(models.Span.id.in_(span_rowids))
+                )
+            ).all()
+            # Just validate that the number of spans matches the number of span_ids
+            # to ensure that the span_ids are valid
+            assert len(spans) == len(span_rowids)
+            DatasetExample = models.DatasetExample
+            dataset_example_rowids = (
+                await session.scalars(
+                    insert(DatasetExample).returning(DatasetExample.id),
+                    [
+                        {
+                            DatasetExample.dataset_id.key: dataset_rowid,
+                            DatasetExample.span_rowid.key: from_global_id_with_expected_type(
+                                global_id=example.span_id,
+                                expected_type_name=Span.__name__,
+                            )
+                            if example.span_id
+                            else None,
+                        }
+                        for example in input.examples
+                    ],
+                )
+            ).all()
+            assert len(dataset_example_rowids) == len(input.examples)
+            assert all(map(lambda id: isinstance(id, int), dataset_example_rowids))
+            DatasetExampleRevision = models.DatasetExampleRevision
+            await session.execute(
+                insert(DatasetExampleRevision),
+                [
+                    {
+                        DatasetExampleRevision.dataset_example_id.key: dataset_example_rowid,
+                        DatasetExampleRevision.dataset_version_id.key: dataset_version_rowid,
+                        DatasetExampleRevision.input.key: example.input,
+                        DatasetExampleRevision.output.key: example.output,
+                        DatasetExampleRevision.metadata_.key: example.metadata,
+                        DatasetExampleRevision.revision_kind.key: "CREATE",
+                    }
+                    for dataset_example_rowid, example in zip(
+                        dataset_example_rowids, input.examples
+                    )
+                ],
+            )
+        return DatasetMutationPayload(
             dataset=Dataset(
                 id_attr=dataset.id,
                 name=dataset.name,
