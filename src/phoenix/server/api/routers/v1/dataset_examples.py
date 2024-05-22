@@ -1,4 +1,5 @@
 from sqlalchemy import func, select
+from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.status import HTTP_404_NOT_FOUND
 from strawberry.relay import GlobalID
@@ -6,7 +7,7 @@ from strawberry.relay import GlobalID
 from phoenix.db.models import Dataset, DatasetExample, DatasetExampleRevision, DatasetVersion
 
 
-async def list_dataset_examples(request):
+async def list_dataset_examples(request: Request) -> Response:
     dataset_id = GlobalID.from_id(request.path_params["id"])
     raw_version_id = request.query_params.get("version")
     version_id = GlobalID.from_id(raw_version_id) if raw_version_id else None
