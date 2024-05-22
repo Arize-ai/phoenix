@@ -1,4 +1,4 @@
-from typing import Any, Dict, Literal, Optional, Protocol, cast
+from typing import Any, Dict, Literal, Optional, Protocol
 
 import strawberry
 from openinference.semconv.trace import (
@@ -8,7 +8,6 @@ from openinference.semconv.trace import (
 )
 from sqlalchemy import insert, select
 from strawberry import UNSET
-from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
@@ -176,11 +175,7 @@ class DatasetMutationMixin:
     ) -> DatasetMutationPayload:
         dataset_id = input.dataset_id
         # Extract the span rowids from the input examples if they exit
-        span_ids = [
-            cast(GlobalID, example.span_id)
-            for example in input.examples
-            if example.span_id is not UNSET
-        ]
+        span_ids = span_ids = [example.span_id for example in input.examples if example.span_id]
         span_rowids = {
             from_global_id_with_expected_type(global_id=span_id, expected_type_name=Span.__name__)
             for span_id in set(span_ids)
@@ -234,10 +229,10 @@ class DatasetMutationMixin:
                         {
                             DatasetExample.dataset_id.key: dataset_rowid,
                             DatasetExample.span_rowid.key: from_global_id_with_expected_type(
-                                global_id=cast(GlobalID, example.span_id),
+                                global_id=example.span_id,
                                 expected_type_name=Span.__name__,
                             )
-                            if example.span_id is not UNSET
+                            if example.span_id
                             else None,
                         }
                         for example in input.examples
