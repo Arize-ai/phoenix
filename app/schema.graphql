@@ -1,12 +1,15 @@
+input AddExamplesToDatasetInput {
+  datasetId: GlobalID!
+  examples: [DatasetExampleInput!]!
+  datasetVersionDescription: String
+  datasetVersionMetadata: JSON
+}
+
 input AddSpansToDatasetInput {
   datasetId: GlobalID!
   spanIds: [GlobalID!]!
   datasetVersionDescription: String
   datasetVersionMetadata: JSON
-}
-
-type AddSpansToDatasetPayload {
-  dataset: Dataset!
 }
 
 union Bin = NominalBin | IntervalBin | MissingValueBin
@@ -44,10 +47,6 @@ input CreateDatasetInput {
   name: String!
   description: String
   metadata: JSON
-}
-
-type CreateDatasetPayload {
-  dataset: Dataset!
 }
 
 enum DataQualityMetric {
@@ -129,6 +128,17 @@ type DatasetExampleEdge {
 
   """The item at the end of the edge"""
   node: DatasetExample!
+}
+
+input DatasetExampleInput {
+  input: JSON!
+  output: JSON!
+  metadata: JSON!
+  spanId: GlobalID
+}
+
+type DatasetMutationPayload {
+  dataset: Dataset!
 }
 
 type DatasetValues {
@@ -605,8 +615,9 @@ type Model {
 type Mutation {
   deleteProject(id: GlobalID!): Query!
   clearProject(id: GlobalID!): Query!
-  createDataset(input: CreateDatasetInput!): CreateDatasetPayload!
-  addSpansToDataset(input: AddSpansToDatasetInput!): AddSpansToDatasetPayload!
+  createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
+  addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
+  addExamplesToDataset(input: AddExamplesToDatasetInput!): DatasetMutationPayload!
 
   """
   Given a list of event ids, export the corresponding data subset in Parquet format. File name is optional, but if specified, should be without file extension. By default the exported file name is current timestamp.
