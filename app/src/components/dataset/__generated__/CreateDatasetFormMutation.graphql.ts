@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6cdeb954351fb1678084ff14e016ce3e>>
+ * @generated SignedSource<<27f74232582510149934e574a7ebc5e0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -70,7 +70,7 @@ v3 = [
         "name": "input"
       }
     ],
-    "concreteType": "CreateDatasetPayload",
+    "concreteType": "DatasetMutationPayload",
     "kind": "LinkedField",
     "name": "createDataset",
     "plural": false,
