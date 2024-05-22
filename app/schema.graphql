@@ -1,3 +1,10 @@
+input AddExamplesToDatasetInput {
+  datasetId: GlobalID!
+  examples: [DatasetExampleInput!]!
+  datasetVersionDescription: String
+  datasetVersionMetadata: JSON
+}
+
 input AddSpansToDatasetInput {
   datasetId: GlobalID!
   spanIds: [GlobalID!]!
@@ -121,6 +128,13 @@ type DatasetExampleEdge {
 
   """The item at the end of the edge"""
   node: DatasetExample!
+}
+
+input DatasetExampleInput {
+  input: JSON!
+  output: JSON!
+  metadata: JSON!
+  spanId: GlobalID
 }
 
 type DatasetMutationPayload {
@@ -603,7 +617,7 @@ type Mutation {
   clearProject(id: GlobalID!): Query!
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
-  addExamplesToDataset(input: AddSpansToDatasetInput!): Void
+  addExamplesToDataset(input: AddExamplesToDatasetInput!): DatasetMutationPayload!
 
   """
   Given a list of event ids, export the corresponding data subset in Parquet format. File name is optional, but if specified, should be without file extension. By default the exported file name is current timestamp.
@@ -1017,6 +1031,3 @@ type ValidationResult {
 enum VectorDriftMetric {
   euclideanDistance
 }
-
-"""Represents NULL values"""
-scalar Void
