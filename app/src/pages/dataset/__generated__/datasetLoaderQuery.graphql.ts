@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6e991d97ae82e5591752965b5df4ad90>>
+ * @generated SignedSource<<5427cc7a1b13e8b8a0220b3ba70890cd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -61,7 +61,21 @@ v4 = {
   "kind": "ScalarField",
   "name": "description",
   "storageKey": null
-};
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v6 = [
+  {
+    "kind": "Literal",
+    "name": "first",
+    "value": 100
+  }
+];
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -113,13 +127,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "__typename",
-            "storageKey": null
-          },
+          (v5/*: any*/),
           (v2/*: any*/),
           {
             "kind": "InlineFragment",
@@ -128,7 +136,7 @@ return {
               (v4/*: any*/),
               {
                 "alias": null,
-                "args": null,
+                "args": (v6/*: any*/),
                 "concreteType": "DatasetExampleConnection",
                 "kind": "LinkedField",
                 "name": "examples",
@@ -171,15 +179,57 @@ return {
                             "kind": "ScalarField",
                             "name": "metadata",
                             "storageKey": null
-                          }
+                          },
+                          (v5/*: any*/)
                         ],
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "cursor",
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "PageInfo",
+                    "kind": "LinkedField",
+                    "name": "pageInfo",
+                    "plural": false,
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "endCursor",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "hasNextPage",
                         "storageKey": null
                       }
                     ],
                     "storageKey": null
                   }
                 ],
-                "storageKey": null
+                "storageKey": "examples(first:100)"
+              },
+              {
+                "alias": null,
+                "args": (v6/*: any*/),
+                "filters": null,
+                "handle": "connection",
+                "key": "DatasetExamplesTable_examples",
+                "kind": "LinkedHandle",
+                "name": "examples"
               }
             ],
             "type": "Dataset",
@@ -191,12 +241,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "041d4ad858ada75e4624503c88859461",
+    "cacheID": "03c42099114fceca1da3ce00573425f9",
     "id": null,
     "metadata": {},
     "name": "datasetLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      description\n      ...DatasetExamplesTableFragment\n    }\n  }\n}\n\nfragment DatasetExamplesTableFragment on Dataset {\n  examples {\n    edges {\n      node {\n        id\n        input\n        output\n        metadata\n      }\n    }\n  }\n  id\n}\n"
+    "text": "query datasetLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      description\n      ...DatasetExamplesTableFragment\n    }\n  }\n}\n\nfragment DatasetExamplesTableFragment on Dataset {\n  examples(first: 100) {\n    edges {\n      node {\n        id\n        input\n        output\n        metadata\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();

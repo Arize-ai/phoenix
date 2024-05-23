@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { graphql, useRefetchableFragment } from "react-relay";
+import { graphql, usePaginationFragment } from "react-relay";
 import {
   ColumnDef,
   flexRender,
@@ -22,14 +22,19 @@ export function DatasetExamplesTable({
 }: {
   dataset: datasetLoaderQuery$data["dataset"];
 }) {
-  const [data] = useRefetchableFragment<
+  const { data } = usePaginationFragment<
     datasetLoaderQuery,
     DatasetExamplesTableFragment$key
   >(
     graphql`
       fragment DatasetExamplesTableFragment on Dataset
-      @refetchable(queryName: "DatasetExamplesTableQuery") {
-        examples {
+      @refetchable(queryName: "DatasetExamplesTableQuery")
+      @argumentDefinitions(
+        after: { type: "String", defaultValue: null }
+        first: { type: "Int", defaultValue: 100 }
+      ) {
+        examples(first: $first, after: $after)
+          @connection(key: "DatasetExamplesTable_examples") {
           edges {
             node {
               id
