@@ -3,7 +3,7 @@ name: Publish Docker image
 on:
   push:
     tags:
-      - "arize-phoenix-v*"
+      - 'arize-phoenix-v*'
 
 jobs:
   push_to_registry:
