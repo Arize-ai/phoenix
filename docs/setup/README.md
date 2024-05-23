@@ -12,4 +12,5 @@ description: How to get started with Phoenix
 
 ## [How to configure phoenix](configuration.md)
 
+* [Available ports to run phoenix](configuration.md#ports)
 * [Customize phoenix using environment variables](configuration.md#environment-variables)

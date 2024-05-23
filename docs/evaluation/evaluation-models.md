@@ -6,7 +6,7 @@
 * Vertex AI
 * Azure Open AI
 * Anthropic
-* Mixtral/Mistral&#x20;
+* Mixtral/Mistral
 * AWS Bedrock
 * Llama
 * Falcon
@@ -14,19 +14,18 @@
 
 And many more.
 
-There are direct model integrations in Phoenix and indirect model integrations through LiteLLM.
+There are direct model integrations in Phoenix and indirect model integrations (e.x. local modals) through [LiteLLM](../api/evaluation-models.md#litellmmodel).
 
 **Direct Integrations:**
 
-These integrations are native to the Phoenix Evals package and have better throughput, rate limit and error management.&#x20;
+These integrations are native to the Phoenix Evals package and have better throughput, rate limit and error management.
 
 [Vertex AI](../api/evaluation-models.md#phoenix.evals.vertexai)
 
 [OpenAI](../api/evaluation-models.md#phoenix.evals.openaimodel)
 
-[Azure OpenAI ](../api/evaluation-models.md#azure-openai)
+[Azure OpenAI](../api/evaluation-models.md#azure-openai)
 
-[Anthropic](../api/evaluation-models.md#phoenix.evals.anthropic)&#x20;
+[Anthropic](../api/evaluation-models.md#phoenix.evals.anthropic)
 
 [Mistral](../api/evaluation-models.md#mistralaimodel)
-
