@@ -6,7 +6,7 @@ description: >-
 
 # Environments
 
-<table data-view="cards"><thead><tr><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td><strong>In the notebook</strong></td><td>Run phoenix in the notebook as you run experiments</td><td><a href="environments.md#notebooks">#notebooks</a></td><td><a href=".gitbook/assets/notebook.png">notebook.png</a></td></tr><tr><td><strong>As a Container</strong></td><td>Start a long-running collector</td><td><a href="environments.md#container">#container</a></td><td><a href=".gitbook/assets/docker.png">docker.png</a></td></tr><tr><td><strong>From the Terminal</strong></td><td>Run phoenix via the CLI </td><td><a href="environments.md#terminal">#terminal</a></td><td><a href=".gitbook/assets/terminal.png">terminal.png</a></td></tr></tbody></table>
+<table data-view="cards"><thead><tr><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td><strong>In the notebook</strong></td><td>Run phoenix in the notebook as you run experiments</td><td><a href="environments.md#notebooks">#notebooks</a></td><td><a href=".gitbook/assets/notebook.png">notebook.png</a></td></tr><tr><td><strong>As a Container</strong></td><td>Start a long-running collector</td><td><a href="environments.md#container">#container</a></td><td><a href=".gitbook/assets/docker.png">docker.png</a></td></tr><tr><td><strong>From the Terminal</strong></td><td>Run phoenix via the CLI</td><td><a href="environments.md#terminal">#terminal</a></td><td><a href=".gitbook/assets/terminal.png">terminal.png</a></td></tr></tbody></table>
 
 ### Notebooks
 
@@ -21,7 +21,7 @@ session = px.launch_app()
 This will start a local Phoenix server. You can initialize the phoenix server with various kinds of data (traces, inferences). Check out the [API for details](how-to/manage-the-app.md)
 
 {% hint style="info" %}
-When running phoenix in the notebook, by default it does not persist your data.&#x20;
+When running Phoenix in the notebook, by default it does not persist your data.
 {% endhint %}
 
 ### Container
@@ -30,23 +30,23 @@ When running phoenix in the notebook, by default it does not persist your data.&
 Container images are still actively being worked on. If you are interested in hosted phoenix, please get in touch!
 {% endhint %}
 
-Phoenix server images are  available via [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix). The hosted phoenix server runs as a trace collector and can be used if you want observability for LLM traces via docker compose or simply want a long-running phoenix instance. Below are examples of how to run phoenix va Docker for a specific version.
+Phoenix server images are available via [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix). The hosted phoenix server runs as a trace collector and can be used if you want observability for LLM traces via docker compose or simply want a long-running phoenix instance. Below are examples of how to run phoenix va Docker for a specific version.
 
 First pull the image you want to run (note you can use the tag `latest` if you would just like the latest version)
 
 ```bash
-docker pull arizephoenix/phoenix:version-2.9.3
+docker pull arizephoenix/phoenix:latest
 ```
 
 Now you can run the image you pulled (note you must expose the port `6006` so you can view the UI).
 
 ```bash
-docker run -p 6006:6006 arizephoenix/phoenix:version-2.9.3
+docker run -p 6006:6006 arizephoenix/phoenix:latest
 ```
 
 The Phoenix UI will be available at `localhost:6006`.
 
-If you deploy the phoenix server (collector) to a remote machine, you will have to make sure to configure the remote endpoint as the collector endpoint. (This feature is only available after phoenix **1.3.x**)
+If you deploy the Phoenix server (collector) to a remote machine, you will have to make sure to configure the remote endpoint as the collector endpoint.
 
 {% tabs %}
 {% tab title="Set Endpoint Environment Variable" %}
