@@ -62,10 +62,12 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:version-${{ env.VERSION }}-${{ matrix.variant }}
+            ${{ matrix.variant == 'root' && format('{0}/{1}:version-{2}', env.REGISTRY, env.IMAGE_NAME, env.VERSION) || '' }}
+            ${{ matrix.variant == 'nonroot' && format('{0}/{1}:version-{2}-{3}', env.REGISTRY, env.IMAGE_NAME, env.VERSION, matrix.variant) || '' }}
+            ${{ matrix.variant == 'debug' && format('{0}/{1}:version-{2}-{3}', env.REGISTRY, env.IMAGE_NAME, env.VERSION, matrix.variant) || '' }}
             ${{ matrix.variant == 'root' && format('{0}/{1}:latest', env.REGISTRY, env.IMAGE_NAME) || '' }}
-            ${{ matrix.variant == 'nonroot' && format('{0}/{1}:nonroot', env.REGISTRY, env.IMAGE_NAME) || '' }}
-            ${{ matrix.variant == 'debug' && format('{0}/{1}:debug', env.REGISTRY, env.IMAGE_NAME) || '' }}
+            ${{ matrix.variant == 'nonroot' && format('{0}/{1}:latest-nonroot', env.REGISTRY, env.IMAGE_NAME) || '' }}
+            ${{ matrix.variant == 'debug' && format('{0}/{1}:latest-debug', env.REGISTRY, env.IMAGE_NAME) || '' }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             BASE_IMAGE=${{ env.BASE_IMAGE }}
