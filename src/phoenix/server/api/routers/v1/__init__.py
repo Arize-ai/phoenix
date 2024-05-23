@@ -1,6 +1,7 @@
 from starlette.routing import Route
 
 from . import datasets, evaluations, spans, traces
+from .dataset_examples import list_dataset_examples
 
 V1_ROUTES = [
     Route("/v1/evaluations", evaluations.post_evaluations, methods=["POST"]),
@@ -21,4 +22,5 @@ V1_ROUTES = [
         datasets.get_dataset_download_csv_by_dataset_version_id,
         methods=["GET"],
     ),
+    Route("/v1/datasets/{id:str}/examples", list_dataset_examples, methods=["GET"]),
 ]
