@@ -88,4 +88,15 @@ volumes:
     driver: local
 ```
 
-\
+## Images
+
+| Image name                             | Description                                                                                                                              |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `arizephoenix/phoenix:latest`          | Latest released version of Phoenix using root permissions.                                                                               |
+| `arizephoenix/phoenix:latest-nonroot`  | Latest released version of Phoenix using nonroot permissions. **Ensure the image has the required filesystem permissions before using.** |
+| `arizephoenix/phoenix:latest-debug`    | Latest released version of Phoenix using a debug base image.                                                                             |
+| `arizephoenix/phoenix:nightly`         | Bleeding edge build of Phoenix using root permissions. May be unstable.                                                                  |
+| `arizephoenix/phoenix:nightly-nonroot` | Bleeding edge build a Phoenix using nonroot permissions. May be unstable.                                                                |
+| `arizephoenix/phoenix:nightly-debug`   | Bleeding edge build a Phoenix using nonroot permissions. May be unstable.                                                                |
+| `arizephoenix/phoenix:release-X.X.X`   | Build for a specific release version.                                                                                                    |
+| `arizephoenix/phoenix:commit-SHA7`     | Build for a specific commit using the abbreviated commit hash.                                                                           |
