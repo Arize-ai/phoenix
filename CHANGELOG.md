@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.2.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.2.0...arize-phoenix-v4.2.1) (2024-05-23)
+
+
+### Bug Fixes
+
+* **gql:** don't clear data if `read_only` ([#3291](https://github.com/Arize-ai/phoenix/issues/3291)) ([dbc3203](https://github.com/Arize-ai/phoenix/commit/dbc32035903a84b85fe3c97df80b8f4d4a3197db))
+
 ## [4.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.1.3...arize-phoenix-v4.2.0) (2024-05-23)
 
 
