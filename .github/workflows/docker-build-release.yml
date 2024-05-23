@@ -1,8 +1,9 @@
 name: Publish Docker images
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - "arize-phoenix-v*"
 
 jobs:
   push_to_registry:
@@ -21,23 +22,11 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v4
 
-      - name: Check for Phoenix release tag
-        id: check_phoenix_tag
-        run: |
-          if [[ "${{ github.ref }}" =~ ^refs/tags/arize-phoenix-v ]]; then
-            echo "PHOENIX_RELEASE=true" >> $GITHUB_ENV
-          else
-            echo "PHOENIX_RELEASE=false" >> $GITHUB_ENV
-            exit 1
-          fi
-
       - name: Extract version from tag
-        if: ${{ env.PHOENIX_RELEASE == 'true' }}
         id: extract_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/arize-phoenix-v}" >> $GITHUB_ENV
       
       - name: Set BASE_IMAGE environment variable
-        if: ${{ env.PHOENIX_RELEASE == 'true' }}
         id: set-base-image
         run: |
           if [ "${{ matrix.variant }}" == "root" ]; then
@@ -51,14 +40,12 @@ jobs:
           fi
 
       - name: Log in to Docker Hub
-        if: ${{ env.PHOENIX_RELEASE == 'true' }}
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
       
       - name: Extract metadata (tags, labels) for Docker
-        if: ${{ env.PHOENIX_RELEASE == 'true' }}
         id: meta
         uses: docker/metadata-action@v4
         with:
@@ -68,7 +55,6 @@ jobs:
             ${{ matrix.variant == 'root' && 'version-${{ env.VERSION }} latest' || '' }}
 
       - name: Build and push Docker image
-        if: ${{ env.PHOENIX_RELEASE == 'true' }}
         id: push
         uses: docker/build-push-action@v5
         with:

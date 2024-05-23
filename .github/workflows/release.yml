@@ -17,6 +17,8 @@ jobs:
       package_path: ${{ steps.parse.outputs.package_path }}
     steps:
       - uses: google-github-actions/release-please-action@v4
+        with:
+          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
         id: release-please
       - name: Parse release path
         if: ${{ steps.release-please.outputs.releases_created == 'true' }}
