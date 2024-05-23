@@ -275,6 +275,8 @@ class Query:
 class Mutation(ExportEventsMutation):
     @strawberry.mutation
     async def delete_project(self, info: Info[Context, None], id: GlobalID) -> Query:
+        if info.context.read_only:
+            return Query()
         node_id = from_global_id_with_expected_type(str(id), "Project")
         async with info.context.db() as session:
             project = await session.scalar(
@@ -291,6 +293,8 @@ class Mutation(ExportEventsMutation):
 
     @strawberry.mutation
     async def clear_project(self, info: Info[Context, None], id: GlobalID) -> Query:
+        if info.context.read_only:
+            return Query()
         project_id = from_global_id_with_expected_type(str(id), "Project")
         delete_statement = delete(models.Trace).where(models.Trace.project_rowid == project_id)
         async with info.context.db() as session:
