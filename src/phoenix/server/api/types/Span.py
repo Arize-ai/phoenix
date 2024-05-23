@@ -225,7 +225,7 @@ class Span(Node):
         return SpanAsExample(
             input=get_dataset_example_input(span_io),
             output=get_dataset_example_output(span_io),
-            metadata=self.attributes,
+            metadata=attributes,
         )
 
 
