@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import {
   ColumnDef,
@@ -6,6 +6,7 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { css } from "@emotion/react";
 
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
@@ -22,6 +23,7 @@ export function DatasetExamplesTable({
 }: {
   dataset: datasetLoaderQuery$data["dataset"];
 }) {
+  const tableContainerRef = useRef<HTMLDivElement>(null);
   const { data } = usePaginationFragment<
     datasetLoaderQuery,
     DatasetExamplesTableFragment$key
@@ -93,40 +95,51 @@ export function DatasetExamplesTable({
   const isEmpty = rows.length === 0;
 
   return (
-    <table css={selectableTableCSS}>
-      <thead>
-        {table.getHeaderGroups().map((headerGroup) => (
-          <tr key={headerGroup.id}>
-            {headerGroup.headers.map((header) => (
-              <th key={header.id}>
-                <div>
-                  {flexRender(
-                    header.column.columnDef.header,
-                    header.getContext()
-                  )}
-                </div>
-              </th>
-            ))}
-          </tr>
-        ))}
-      </thead>
-      {isEmpty ? (
-        <TableEmpty />
-      ) : (
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.id}>
-              {row.getVisibleCells().map((cell) => {
-                return (
-                  <td key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                );
-              })}
+    <div
+      css={css`
+        flex: 1 1 auto;
+        overflow: auto;
+      `}
+      ref={tableContainerRef}
+    >
+      <table css={selectableTableCSS}>
+        <thead>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <tr key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <th key={header.id}>
+                  <div>
+                    {flexRender(
+                      header.column.columnDef.header,
+                      header.getContext()
+                    )}
+                  </div>
+                </th>
+              ))}
             </tr>
           ))}
-        </tbody>
-      )}
-    </table>
+        </thead>
+        {isEmpty ? (
+          <TableEmpty />
+        ) : (
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id}>
+                {row.getVisibleCells().map((cell) => {
+                  return (
+                    <td key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        )}
+      </table>
+    </div>
   );
 }
