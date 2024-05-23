@@ -5,7 +5,8 @@ import { Flex, Text, View } from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
 
-import { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
+import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
+import { DatasetExamplesTable } from "./DatasetExamplesTable";
 
 export function DatasetPage() {
   const loaderData = useLoaderData() as datasetLoaderQuery$data;
@@ -37,6 +38,7 @@ function DatasetPageContent({
           </Flex>
         </Flex>
       </View>
+      <DatasetExamplesTable dataset={dataset} />
     </div>
   );
 }
