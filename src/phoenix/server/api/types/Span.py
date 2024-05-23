@@ -212,7 +212,7 @@ class Span(Node):
         span_io = _SpanIO(
             span_kind=db_span.span_kind,
             input_value=get_attribute_value(attributes, INPUT_VALUE),
-            input_mime_type=get_attribute_value(attributes, OUTPUT_MIME_TYPE),
+            input_mime_type=get_attribute_value(attributes, INPUT_MIME_TYPE),
             output_value=get_attribute_value(attributes, OUTPUT_VALUE),
             output_mime_type=get_attribute_value(attributes, OUTPUT_MIME_TYPE),
             llm_prompt_template_variables=get_attribute_value(
