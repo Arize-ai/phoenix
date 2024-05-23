@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.2.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.2.1...arize-phoenix-v4.2.2) (2024-05-23)
+
+
+### Bug Fixes
+
+* Tweak release flow ([#3295](https://github.com/Arize-ai/phoenix/issues/3295)) ([8ff19d3](https://github.com/Arize-ai/phoenix/commit/8ff19d347f3bc17628836ffd16ff7e33d734f024))
+
 ## [4.2.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.2.0...arize-phoenix-v4.2.1) (2024-05-23)
 
 
