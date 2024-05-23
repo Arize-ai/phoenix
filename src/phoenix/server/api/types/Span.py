@@ -18,9 +18,9 @@ from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
     get_dataset_example_output,
 )
-from phoenix.server.api.types.DatasetExample import Example
 from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
 from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluation
+from phoenix.server.api.types.ExampleInterface import Example
 from phoenix.server.api.types.MimeType import MimeType
 from phoenix.trace.attributes import get_attribute_value
 
