@@ -25,9 +25,7 @@ async def list_dataset_examples(request: Request) -> Response:
     async with request.app.state.db() as session:
         # Subquery to find the maximum created_at for each dataset_example_id
         # timestamp tiebreaks are resolved by the largest id
-        subquery = select(
-            DatasetExampleRevision.dataset_example_id,
-            func.max(DatasetExampleRevision.created_at).label("most_recent"),
+        partial_subquery = select(
             func.max(DatasetExampleRevision.id).label("max_id"),
         ).group_by(DatasetExampleRevision.dataset_example_id)
 
@@ -40,11 +38,11 @@ async def list_dataset_examples(request: Request) -> Response:
                 .where(DatasetVersion.id == int(version_id.node_id))
                 .scalar_subquery()
             )
-            subquery = subquery.filter(
-                (DatasetExampleRevision.dataset_version_id <= matched_version_id)
+            partial_subquery = partial_subquery.filter(
+                DatasetExampleRevision.dataset_version_id <= matched_version_id
             )
 
-        subquery = subquery.subquery()
+        subquery = partial_subquery.subquery()
 
         # Query for the most recent example revisions that are not deleted
         query = (
@@ -55,9 +53,7 @@ async def list_dataset_examples(request: Request) -> Response:
             )
             .join(
                 subquery,
-                (subquery.c.dataset_example_id == DatasetExampleRevision.dataset_example_id)
-                & (subquery.c.most_recent == DatasetExampleRevision.created_at)
-                & (subquery.c.max_id == DatasetExampleRevision.id),
+                (subquery.c.max_id == DatasetExampleRevision.id),
             )
             .filter(DatasetExample.dataset_id == int(dataset_id.node_id))
             .filter(DatasetExampleRevision.revision_kind != "DELETE")
