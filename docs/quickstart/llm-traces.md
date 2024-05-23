@@ -47,10 +47,11 @@ Now that phoenix is up and running, you can now run a [LlamaIndex](../tracing/ho
 
 {% tabs %}
 {% tab title="LlamaIndex" %}
-To use llama-index's one click,  you must install the small integration first:
+To use llama-index's one click, you must install the small integration first:
 
 ```bash
 pip install 'llama-index-callbacks-arize-phoenix>1.3.0'
+pip install 'llama-index>=0.10.3'
 ```
 
 ```python
@@ -81,8 +82,9 @@ Settings.llm = OpenAI(model="gpt-4-turbo-preview")
 Settings.embed_model = OpenAIEmbedding(model="text-embedding-ada-002")
 
 
+YOUR_DATA_DIRECTORY = "/."
 # Load your data and create an index. Note you usually want to store your index in a persistent store like a database or the file system
-documents = SimpleDirectoryReader("YOUR_DATA_DIRECTORY").load_data()
+documents = SimpleDirectoryReader(YOUR_DATA_DIRECTORY).load_data()
 index = VectorStoreIndex.from_documents(documents)
 
 query_engine = index.as_query_engine()
