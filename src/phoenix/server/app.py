@@ -160,6 +160,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
         corpus: Optional[Model] = None,
         streaming_last_updated_at: Callable[[ProjectRowId], Optional[datetime]] = lambda _: None,
         cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
+        read_only: bool = False,
     ) -> None:
         self.db = db
         self.model = model
@@ -167,6 +168,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
         self.export_path = export_path
         self.streaming_last_updated_at = streaming_last_updated_at
         self.cache_for_dataloaders = cache_for_dataloaders
+        self.read_only = read_only
         super().__init__(schema, graphiql=graphiql)
 
     async def get_context(
@@ -226,6 +228,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
                 trace_evaluations=TraceEvaluationsDataLoader(self.db),
             ),
             cache_for_dataloaders=self.cache_for_dataloaders,
+            read_only=self.read_only,
         )
 
 
@@ -388,6 +391,7 @@ def create_app(
         graphiql=True,
         streaming_last_updated_at=bulk_inserter.last_updated_at,
         cache_for_dataloaders=cache_for_dataloaders,
+        read_only=read_only,
     )
     if enable_prometheus:
         from phoenix.server.prometheus import PrometheusMiddleware

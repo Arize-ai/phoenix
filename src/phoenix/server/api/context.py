@@ -55,3 +55,4 @@ class Context:
     export_path: Path
     corpus: Optional[Model] = None
     streaming_last_updated_at: Callable[[ProjectRowId], Optional[datetime]] = lambda _: None
+    read_only: bool = False
