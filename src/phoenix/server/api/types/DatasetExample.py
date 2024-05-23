@@ -2,13 +2,11 @@ from datetime import datetime
 
 import strawberry
 from strawberry.relay.types import Node, NodeID
-from strawberry.scalars import JSON
+
+from .ExampleInterface import Example
 
 
 @strawberry.type
-class DatasetExample(Node):
+class DatasetExample(Node, Example):
     id_attr: NodeID[int]
-    input: JSON
-    output: JSON
-    metadata: JSON
     created_at: datetime
