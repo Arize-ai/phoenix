@@ -200,8 +200,10 @@ async def empty_dataset(session):
 @pytest.fixture
 async def dataset_with_revisions(session):
     """
-    A dataset with two versions, first two examples are added, then one example is patched and a
-    third example is added
+    A dataset with six versions, first two examples are added, then one example is patched and a
+    third example is added.
+
+    The last four revisions alternate between adding then removing an example.
     """
 
     dataset = models.Dataset(
