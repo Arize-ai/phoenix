@@ -5,7 +5,7 @@ from typing import Any, Optional
 import pytest
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
-from phoenix.server.api.mutations.dataset_mutations import (
+from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
     get_dataset_example_output,
 )
