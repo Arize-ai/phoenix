@@ -345,7 +345,7 @@ def _convert_metadata_to_string(metadata: Any) -> Optional[str]:
         return str(metadata)
 
 
-@dataclass(frozen=True)
+@dataclass
 class _SpanIO:
     """
     An class that contains the information needed to extract dataset example
