@@ -60,9 +60,8 @@ async def list_dataset_examples(request: Request) -> Response:
             .order_by(DatasetExample.id.asc())
         )
 
-        result = (await session.execute(query)).all()
         data = []
-        for example, revision in result:
+        for example, revision in (await session.execute(query)):
             data.append(
                 {
                     "id": str(GlobalID("DatasetExample", str(example.id))),
