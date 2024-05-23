@@ -61,7 +61,7 @@ async def list_dataset_examples(request: Request) -> Response:
         )
 
         data = []
-        for example, revision in (await session.execute(query)):
+        for example, revision in await session.execute(query):
             data.append(
                 {
                     "id": str(GlobalID("DatasetExample", str(example.id))),
