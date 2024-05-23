@@ -874,7 +874,13 @@ type Span implements Node {
   descendants: [Span!]!
 
   """The span's attributes translated into an example for a dataset"""
-  toExample: Example!
+  asExample: SpanAsExample!
+}
+
+type SpanAsExample implements Example {
+  input: JSON!
+  output: JSON!
+  metadata: JSON!
 }
 
 enum SpanColumn {
