@@ -20,7 +20,7 @@ export async function datasetLoader(args: LoaderFunctionArgs) {
             id
             name
             description
-            ...DatasetPageExamplesFragment
+            ...DatasetExamplesTableFragment
           }
         }
       }

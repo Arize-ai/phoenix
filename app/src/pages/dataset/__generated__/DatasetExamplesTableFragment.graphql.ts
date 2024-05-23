@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4aac4a2bfb3450bde9fda096afce484c>>
+ * @generated SignedSource<<27db3da2ca5c0c8fee0d3b7708136a08>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type DatasetPageExamplesFragment$data = {
+export type DatasetExamplesTableFragment$data = {
   readonly examples: {
     readonly edges: ReadonlyArray<{
       readonly node: {
@@ -22,11 +22,11 @@ export type DatasetPageExamplesFragment$data = {
     }>;
   };
   readonly id: string;
-  readonly " $fragmentType": "DatasetPageExamplesFragment";
+  readonly " $fragmentType": "DatasetExamplesTableFragment";
 };
-export type DatasetPageExamplesFragment$key = {
-  readonly " $data"?: DatasetPageExamplesFragment$data;
-  readonly " $fragmentSpreads": FragmentRefs<"DatasetPageExamplesFragment">;
+export type DatasetExamplesTableFragment$key = {
+  readonly " $data"?: DatasetExamplesTableFragment$data;
+  readonly " $fragmentSpreads": FragmentRefs<"DatasetExamplesTableFragment">;
 };
 
 const node: ReaderFragment = (function(){
@@ -46,14 +46,14 @@ return {
       "fragmentPathInResult": [
         "node"
       ],
-      "operation": require('./DatasetPageExamplesQuery.graphql'),
+      "operation": require('./DatasetExamplesTableQuery.graphql'),
       "identifierInfo": {
         "identifierField": "id",
         "identifierQueryVariableName": "id"
       }
     }
   },
-  "name": "DatasetPageExamplesFragment",
+  "name": "DatasetExamplesTableFragment",
   "selections": [
     {
       "alias": null,
@@ -117,6 +117,6 @@ return {
 };
 })();
 
-(node as any).hash = "1212808418be6d86daf5649c4bb71163";
+(node as any).hash = "127b8480a49a6d5066e473810c0f8d04";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<110a6858e540f407fbf3ff4e8447efc8>>
+ * @generated SignedSource<<6e991d97ae82e5591752965b5df4ad90>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,7 +18,7 @@ export type datasetLoaderQuery$data = {
     readonly description?: string | null;
     readonly id: string;
     readonly name?: string;
-    readonly " $fragmentSpreads": FragmentRefs<"DatasetPageExamplesFragment">;
+    readonly " $fragmentSpreads": FragmentRefs<"DatasetExamplesTableFragment">;
   };
 };
 export type datasetLoaderQuery = {
@@ -86,7 +86,7 @@ return {
               {
                 "args": null,
                 "kind": "FragmentSpread",
-                "name": "DatasetPageExamplesFragment"
+                "name": "DatasetExamplesTableFragment"
               }
             ],
             "type": "Dataset",
@@ -191,16 +191,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d3ddde78c0981da73d0c210e9777ff42",
+    "cacheID": "041d4ad858ada75e4624503c88859461",
     "id": null,
     "metadata": {},
     "name": "datasetLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      description\n      ...DatasetPageExamplesFragment\n    }\n  }\n}\n\nfragment DatasetPageExamplesFragment on Dataset {\n  examples {\n    edges {\n      node {\n        id\n        input\n        output\n        metadata\n      }\n    }\n  }\n  id\n}\n"
+    "text": "query datasetLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      description\n      ...DatasetExamplesTableFragment\n    }\n  }\n}\n\nfragment DatasetExamplesTableFragment on Dataset {\n  examples {\n    edges {\n      node {\n        id\n        input\n        output\n        metadata\n      }\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "005bbc987a802f3a724d967d04312be2";
+(node as any).hash = "98101306fedeef8919ca1609bb8ed054";
 
 export default node;
