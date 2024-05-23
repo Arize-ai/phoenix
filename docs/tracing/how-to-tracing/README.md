@@ -32,8 +32,8 @@ Use auto-instrumentation to export traces for common frameworks and libraries
 
 ### Auto Instrument: TypeScript
 
-* Instrument OpenAI Node SDK
-* Instrument LangChain.js
+* [Instrument OpenAI Node SDK](instrumentation/auto-instrument-ts/openai-node-sdk.md)
+* [Instrument LangChain.js](instrumentation/auto-instrument-ts/langchain.js.md)
 
 ## [Manual Instrumentation](./#manual-instrumentation)
 
