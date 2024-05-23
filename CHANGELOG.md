@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.2.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.2.2...arize-phoenix-v4.2.3) (2024-05-23)
+
+
+### Bug Fixes
+
+* adjust docker tags ([#3297](https://github.com/Arize-ai/phoenix/issues/3297)) ([f097acc](https://github.com/Arize-ai/phoenix/commit/f097accc603fd78478f68cb2c9a4a0830da3cce0))
+
 ## [4.2.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.2.1...arize-phoenix-v4.2.2) (2024-05-23)
 
 
