@@ -35,6 +35,32 @@ function DatasetPageContent({
 }: {
   dataset: datasetLoaderQuery$data["dataset"];
 }) {
+  return (
+    <div>
+      <View
+        padding="size-200"
+        borderBottomWidth="thin"
+        borderBottomColor="dark"
+      >
+        <Flex direction="row" justifyContent="space-between">
+          <Flex direction="column" justifyContent="space-between">
+            <Text elementType="h1" textSize="xlarge" weight="heavy">
+              {dataset.name}
+            </Text>
+            <Text color="text-700">{dataset.description || "--"}</Text>
+          </Flex>
+        </Flex>
+      </View>
+      <DatasetExamplesTable dataset={dataset} />
+    </div>
+  );
+}
+
+function DatasetExamplesTable({
+  dataset,
+}: {
+  dataset: datasetLoaderQuery$data["dataset"];
+}) {
   const [data] = useRefetchableFragment<
     datasetLoaderQuery,
     DatasetPageExamplesFragment$key
@@ -99,60 +125,42 @@ function DatasetPageContent({
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
+
   return (
-    <div>
-      <View
-        padding="size-200"
-        borderBottomWidth="thin"
-        borderBottomColor="dark"
-      >
-        <Flex direction="row" justifyContent="space-between">
-          <Flex direction="column" justifyContent="space-between">
-            <Text elementType="h1" textSize="xlarge" weight="heavy">
-              {dataset.name}
-            </Text>
-            <Text color="text-700">{dataset.description || "--"}</Text>
-          </Flex>
-        </Flex>
-      </View>
-      <table css={selectableTableCSS}>
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th key={header.id}>
-                  <div>
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
-                  </div>
-                </th>
-              ))}
+    <table css={selectableTableCSS}>
+      <thead>
+        {table.getHeaderGroups().map((headerGroup) => (
+          <tr key={headerGroup.id}>
+            {headerGroup.headers.map((header) => (
+              <th key={header.id}>
+                <div>
+                  {flexRender(
+                    header.column.columnDef.header,
+                    header.getContext()
+                  )}
+                </div>
+              </th>
+            ))}
+          </tr>
+        ))}
+      </thead>
+      {isEmpty ? (
+        <TableEmpty />
+      ) : (
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.id}>
+              {row.getVisibleCells().map((cell) => {
+                return (
+                  <td key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                );
+              })}
             </tr>
           ))}
-        </thead>
-        {isEmpty ? (
-          <TableEmpty />
-        ) : (
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id}>
-                {row.getVisibleCells().map((cell) => {
-                  return (
-                    <td key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        )}
-      </table>
-    </div>
+        </tbody>
+      )}
+    </table>
   );
 }
