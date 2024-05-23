@@ -11,6 +11,7 @@ import {
 import { Flex, Text, View } from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
+import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TextCell } from "@phoenix/components/table/TextCell";
 
@@ -114,7 +115,7 @@ function DatasetPageContent({
           </Flex>
         </Flex>
       </View>
-      <table>
+      <table css={selectableTableCSS}>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
