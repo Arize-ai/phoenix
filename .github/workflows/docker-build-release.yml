@@ -1,9 +1,8 @@
-name: Publish Docker image
+name: Publish Docker images
 
 on:
-  push:
-    tags:
-      - "arize-phoenix-v*"
+  release:
+    types: [published]
 
 jobs:
   push_to_registry:
