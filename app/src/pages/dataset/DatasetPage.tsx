@@ -1,7 +1,17 @@
 import React, { Suspense } from "react";
 import { useLoaderData } from "react-router";
 
-import { Flex, Text, View } from "@arizeai/components";
+import {
+  ActionButton,
+  ActionMenu,
+  Button,
+  Flex,
+  Icon,
+  Icons,
+  Item,
+  Text,
+  View,
+} from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
 
@@ -29,12 +39,34 @@ function DatasetPageContent({
         borderBottomWidth="thin"
         borderBottomColor="dark"
       >
-        <Flex direction="row" justifyContent="space-between">
+        <Flex
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+        >
           <Flex direction="column" justifyContent="space-between">
             <Text elementType="h1" textSize="xlarge" weight="heavy">
               {dataset.name}
             </Text>
             <Text color="text-700">{dataset.description || "--"}</Text>
+          </Flex>
+          <Flex direction="row" gap="size-100">
+            <ActionMenu
+              icon={<Icon svg={<Icons.DownloadOutline />} />}
+              onAction={(action) => {
+                switch (action) {
+                  case "csv":
+                    // TODO(datasets): change this URL to be more RESTful
+                    window.open(
+                      `/v1/datasets/download/csv/${dataset.id}`,
+                      "_blank"
+                    );
+                    break;
+                }
+              }}
+            >
+              <Item key="csv">Download CSV</Item>
+            </ActionMenu>
           </Flex>
         </Flex>
       </View>
