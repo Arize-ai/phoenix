@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<eb2038a99d492696e59f38990b598ad3>>
+ * @generated SignedSource<<ec2000c446b4df99cfec14bcebd50cb8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -45,6 +45,7 @@ export type TracePageQuery$data = {
               readonly name: string;
               readonly timestamp: string;
             }>;
+            readonly id: string;
             readonly input: {
               readonly mimeType: MimeType;
               readonly value: string;
@@ -115,6 +116,13 @@ v4 = [
 v5 = {
   "alias": null,
   "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
   "concreteType": "SpanContext",
   "kind": "LinkedField",
   "name": "context",
@@ -130,77 +138,77 @@ v5 = {
   ],
   "storageKey": null
 },
-v6 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v7 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "spanKind",
   "storageKey": null
 },
-v8 = {
+v9 = {
   "alias": "statusCode",
   "args": null,
   "kind": "ScalarField",
   "name": "propagatedStatusCode",
   "storageKey": null
 },
-v9 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "statusMessage",
   "storageKey": null
 },
-v10 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "startTime",
   "storageKey": null
 },
-v11 = {
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "parentId",
   "storageKey": null
 },
-v12 = {
+v13 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "latencyMs",
   "storageKey": null
 },
-v13 = {
+v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "tokenCountTotal",
   "storageKey": null
 },
-v14 = {
+v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "tokenCountPrompt",
   "storageKey": null
 },
-v15 = {
+v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "tokenCountCompletion",
   "storageKey": null
 },
-v16 = [
+v17 = [
   {
     "alias": null,
     "args": null,
@@ -216,34 +224,34 @@ v16 = [
     "storageKey": null
   }
 ],
-v17 = {
+v18 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "input",
   "plural": false,
-  "selections": (v16/*: any*/),
+  "selections": (v17/*: any*/),
   "storageKey": null
 },
-v18 = {
+v19 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "output",
   "plural": false,
-  "selections": (v16/*: any*/),
+  "selections": (v17/*: any*/),
   "storageKey": null
 },
-v19 = {
+v20 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "attributes",
   "storageKey": null
 },
-v20 = {
+v21 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanEvent",
@@ -251,7 +259,7 @@ v20 = {
   "name": "events",
   "plural": true,
   "selections": [
-    (v6/*: any*/),
+    (v7/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -269,21 +277,21 @@ v20 = {
   ],
   "storageKey": null
 },
-v21 = {
+v22 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "label",
   "storageKey": null
 },
-v22 = {
+v23 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "score",
   "storageKey": null
 },
-v23 = {
+v24 = {
   "alias": null,
   "args": null,
   "concreteType": "DocumentRetrievalMetrics",
@@ -322,14 +330,14 @@ v23 = {
   ],
   "storageKey": null
 },
-v24 = {
+v25 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "explanation",
   "storageKey": null
 },
-v25 = {
+v26 = {
   "alias": null,
   "args": null,
   "concreteType": "DocumentEvaluation",
@@ -344,10 +352,10 @@ v25 = {
       "name": "documentPosition",
       "storageKey": null
     },
-    (v6/*: any*/),
-    (v21/*: any*/),
+    (v7/*: any*/),
     (v22/*: any*/),
-    (v24/*: any*/)
+    (v23/*: any*/),
+    (v25/*: any*/)
   ],
   "storageKey": null
 };
@@ -415,10 +423,11 @@ return {
                               (v13/*: any*/),
                               (v14/*: any*/),
                               (v15/*: any*/),
-                              (v17/*: any*/),
+                              (v16/*: any*/),
                               (v18/*: any*/),
                               (v19/*: any*/),
                               (v20/*: any*/),
+                              (v21/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -427,14 +436,14 @@ return {
                                 "name": "spanEvaluations",
                                 "plural": true,
                                 "selections": [
-                                  (v6/*: any*/),
-                                  (v21/*: any*/),
-                                  (v22/*: any*/)
+                                  (v7/*: any*/),
+                                  (v22/*: any*/),
+                                  (v23/*: any*/)
                                 ],
                                 "storageKey": null
                               },
-                              (v23/*: any*/),
-                              (v25/*: any*/),
+                              (v24/*: any*/),
+                              (v26/*: any*/),
                               {
                                 "args": null,
                                 "kind": "FragmentSpread",
@@ -533,10 +542,11 @@ return {
                               (v13/*: any*/),
                               (v14/*: any*/),
                               (v15/*: any*/),
-                              (v17/*: any*/),
+                              (v16/*: any*/),
                               (v18/*: any*/),
                               (v19/*: any*/),
                               (v20/*: any*/),
+                              (v21/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -545,15 +555,15 @@ return {
                                 "name": "spanEvaluations",
                                 "plural": true,
                                 "selections": [
-                                  (v6/*: any*/),
-                                  (v21/*: any*/),
+                                  (v7/*: any*/),
                                   (v22/*: any*/),
-                                  (v24/*: any*/)
+                                  (v23/*: any*/),
+                                  (v25/*: any*/)
                                 ],
                                 "storageKey": null
                               },
-                              (v23/*: any*/),
-                              (v25/*: any*/)
+                              (v24/*: any*/),
+                              (v26/*: any*/)
                             ],
                             "storageKey": null
                           }
@@ -574,29 +584,23 @@ return {
             "kind": "TypeDiscriminator",
             "abstractKey": "__isNode"
           },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "id",
-            "storageKey": null
-          }
+          (v5/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "3086b780c690895d7bd37d03dec6d4a5",
+    "cacheID": "6dd46b3013ec88841b2c3959f7f7e9ad",
     "id": null,
     "metadata": {},
     "name": "TracePageQuery",
     "operationKind": "query",
-    "text": "query TracePageQuery(\n  $traceId: ID!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        spans(first: 1000) {\n          edges {\n            span: node {\n              context {\n                spanId\n              }\n              name\n              spanKind\n              statusCode: propagatedStatusCode\n              statusMessage\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              tokenCountPrompt\n              tokenCountCompletion\n              input {\n                value\n                mimeType\n              }\n              output {\n                value\n                mimeType\n              }\n              attributes\n              events {\n                name\n                message\n                timestamp\n              }\n              spanEvaluations {\n                name\n                label\n                score\n              }\n              documentRetrievalMetrics {\n                evaluationName\n                ndcg\n                precision\n                hit\n              }\n              documentEvaluations {\n                documentPosition\n                name\n                label\n                score\n                explanation\n              }\n              ...SpanEvaluationsTable_evals\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanEvaluationsTable_evals on Span {\n  spanEvaluations {\n    name\n    label\n    score\n    explanation\n  }\n}\n"
+    "text": "query TracePageQuery(\n  $traceId: ID!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              context {\n                spanId\n              }\n              name\n              spanKind\n              statusCode: propagatedStatusCode\n              statusMessage\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              tokenCountPrompt\n              tokenCountCompletion\n              input {\n                value\n                mimeType\n              }\n              output {\n                value\n                mimeType\n              }\n              attributes\n              events {\n                name\n                message\n                timestamp\n              }\n              spanEvaluations {\n                name\n                label\n                score\n              }\n              documentRetrievalMetrics {\n                evaluationName\n                ndcg\n                precision\n                hit\n              }\n              documentEvaluations {\n                documentPosition\n                name\n                label\n                score\n                explanation\n              }\n              ...SpanEvaluationsTable_evals\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanEvaluationsTable_evals on Span {\n  spanEvaluations {\n    name\n    label\n    score\n    explanation\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4975ac3e59a296d71492d7cee3aee2ea";
+(node as any).hash = "635cbdf63b471afbe4876fe360064b2c";
 
 export default node;

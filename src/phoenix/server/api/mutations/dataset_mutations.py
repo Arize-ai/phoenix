@@ -185,7 +185,7 @@ class DatasetMutationMixin:
         dataset_version_description = (
             input.dataset_version_description if input.dataset_version_description else None
         )
-        dataset_version_metadata = input.dataset_version_metadata
+        dataset_version_metadata = input.dataset_version_metadata or {}
         dataset_rowid = from_global_id_with_expected_type(
             global_id=dataset_id, expected_type_name=Dataset.__name__
         )
