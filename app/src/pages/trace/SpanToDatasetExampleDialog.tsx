@@ -212,7 +212,7 @@ export function SpanToDatasetExampleDialog({
                 }) => (
                   <Card
                     title="Input"
-                    subTitle="The input to the LLM, prompt, or program"
+                    subTitle="The input to the LLM, retriever, program, etc."
                     {...defaultCardProps}
                   >
                     {invalid ? (
