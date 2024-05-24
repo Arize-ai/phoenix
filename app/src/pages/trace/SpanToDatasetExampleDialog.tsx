@@ -237,7 +237,7 @@ export function SpanToDatasetExampleDialog({
                 }) => (
                   <Card
                     title="Output"
-                    subTitle="The output to the LLM, or program. To be used as the expected output"
+                    subTitle="The output of the LLM or program to be used as an expected output"
                     {...defaultCardProps}
                     backgroundColor="green-100"
                     borderColor="green-700"
