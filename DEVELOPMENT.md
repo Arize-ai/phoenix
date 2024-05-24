@@ -13,6 +13,13 @@
         -   [Configuring a Remote Interpreter](#configuring-a-remote-interpreter)
         -   [Troubleshooting](#troubleshooting)
     -   [Publishing a New Release](#publishing-a-new-release)
+    -   [Best Practices](#best-practices)
+        -   [REST API](#rest-api)
+            -   [HTTP Methods](#http-methods)
+            -   [Status Codes](#status-codes)
+            -   [Query Parameters](#query-parameters)
+            -   [Pagination](#pagination)
+        -   [Response Format](#response-format)
 
 ## Setting Up Your macOS Development Environment
 
@@ -86,7 +93,6 @@ pg_config --bindir
 
 This command should point to the `homebrew` install of `postgresql`, if it doesn't, try creating
 a fresh Python environment or modifying your `PATH`.
-
 
 Phoenix uses `hatch` as the project management tool to lint and test source code and to build the package. After creating and activating your `phoenix` virtual environment, view your `hatch` environments, dependencies and, scripts defined in `pyproject.toml` with
 
@@ -312,3 +318,36 @@ To publish a new release, follow the steps below.
 9. Using the [GitHub CLI](https://cli.github.com/), create a draft release with `gh release create <version> --generate-notes --draft`
 10. Edit the release notes as needed and publish the release. This will trigger a slack notification to the `#phoenix-releases` channel.
 11. A conda-forge PR will be automatically created. If the PR is not created, you can create it manually by following the instructions [here](https://conda-forge.org/docs/maintainer/updating_pkgs.html#forking-and-pull-requests).
+
+## Best Practices
+
+### REST API
+
+-   The API should communicate over JSON unless otherwise specified by the URL.
+-   The API should be versioned. If a backwards incompatible change is made, the new route should be nested under a new version.
+
+#### HTTP Methods
+
+-   **GET** Used to retrieve a representation of a resource.
+-   **POST** Used to create new new resources and sub-resources
+-   **PUT** Used to update existing resources. Use PUT when you want to replace a resource.
+-   **PATCH** Used to update existing resources. Use PATCH when you want to apply a partial update to the resource.
+-   **DELETE** Used to delete existing resources
+
+#### Status Codes
+
+-   **4xx** The client application behaved erroneously - client error
+-   **5xx** The API behaved erroneously - server error
+-   **2xx**The client and API worked
+
+#### Query Parameters
+
+Use query parameters for filtering, sorting, and pagination.
+
+#### Pagination
+
+Use cursor-based pagination. Each request gives a cursor to the next page of results.
+
+### Response Format
+
+-   The response should be a JSON object with a `data` key.
