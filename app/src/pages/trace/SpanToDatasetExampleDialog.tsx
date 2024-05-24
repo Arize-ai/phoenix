@@ -99,17 +99,17 @@ export function SpanToDatasetExampleDialog({
       setSubmitError(null);
       if (!isJSONObjectString(newExample?.input)) {
         return setError("input", {
-          message: "Input must be a valid JSON Object",
+          message: "Input must be a valid JSON object",
         });
       }
       if (!isJSONObjectString(newExample?.output)) {
         return setError("output", {
-          message: "Output must be a valid JSON Object",
+          message: "Output must be a valid JSON object",
         });
       }
       if (!isJSONObjectString(newExample?.metadata)) {
         return setError("metadata", {
-          message: "Metadata must be a valid JSON Object",
+          message: "Metadata must be a valid JSON object",
         });
       }
       if (!newExample?.datasetId) {
