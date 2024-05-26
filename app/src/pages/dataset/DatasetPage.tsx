@@ -1,5 +1,6 @@
 import React, { Suspense } from "react";
 import { useLoaderData } from "react-router";
+import { css } from "@emotion/react";
 
 import { Flex, Text, View } from "@arizeai/components";
 
@@ -23,11 +24,19 @@ function DatasetPageContent({
   dataset: datasetLoaderQuery$data["dataset"];
 }) {
   return (
-    <div>
+    <div
+      css={css`
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        overflow: hidden;
+      `}
+    >
       <View
         padding="size-200"
         borderBottomWidth="thin"
         borderBottomColor="dark"
+        flex="none"
       >
         <Flex direction="row" justifyContent="space-between">
           <Flex direction="column" justifyContent="space-between">
