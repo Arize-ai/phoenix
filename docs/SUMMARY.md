@@ -45,6 +45,7 @@
 * [Use Cases: Tracing](tracing/use-cases-tracing/README.md)
   * [Evaluate RAG](use-cases/rag-evaluation.md)
   * [Structured Data Extraction](tracing/use-cases-tracing/structured-extraction.md)
+* [FAQs: Tracing](tracing/faqs-tracing.md)
 
 ## 🧠 Evaluation
 
