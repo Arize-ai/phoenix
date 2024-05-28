@@ -330,10 +330,10 @@ To publish a new release, follow the steps below.
 #### HTTP Methods
 
 -   **GET** Used to retrieve a representation of a resource.
--   **POST** Used to create new new resources and sub-resources
+-   **POST** Used to create new resources and sub-resources.
 -   **PUT** Used to update existing resources. Use PUT when you want to replace a resource.
 -   **PATCH** Used to update existing resources. Use PATCH when you want to apply a partial update to the resource.
--   **DELETE** Used to delete existing resources
+-   **DELETE** Used to delete existing resources.
 
 #### Status Codes
 
