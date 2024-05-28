@@ -17,9 +17,10 @@
         -   [REST API](#rest-api)
             -   [HTTP Methods](#http-methods)
             -   [Status Codes](#status-codes)
+        -   [Path Structure](#path-structure)
             -   [Query Parameters](#query-parameters)
             -   [Pagination](#pagination)
-        -   [Response Format](#response-format)
+            -   [Response Format](#response-format)
 
 ## Setting Up Your macOS Development Environment
 
@@ -340,14 +341,21 @@ To publish a new release, follow the steps below.
 -   **5xx** The API behaved erroneously - server error
 -   **2xx**The client and API worked
 
+### Path Structure
+
+-   Use nouns for resources and sub-resources.
+-   Avoid using verbs in the path.
+-   Nouns should be pluralized and followed by a globally unique identifier for specific resources (e.g., `/datasets/:dataset_id` where the dataset ID is the globally unique identifier consistent with the GraphQL API).
+
 #### Query Parameters
 
-Use query parameters for filtering, sorting, and pagination.
+Use query parameters for filtering, sorting, and pagination. Query parameters should use `-` as a separator (see [recommendations](https://developers.google.com/search/docs/specialty/ecommerce/designing-a-url-structure-for-ecommerce-sites))
 
 #### Pagination
 
 Use cursor-based pagination. Each request gives a cursor to the next page of results.
 
-### Response Format
+#### Response Format
 
 -   The response should be a JSON object with a `data` key.
+-   Payload content should use snake case to make it easier to work with when translating to objects.
