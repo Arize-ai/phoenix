@@ -282,16 +282,15 @@ class Client(TraceDataExtractor):
         Returns:
             pandas DataFrame
         """
-        url = (
-            f"v1/datasets/download/csv/{dataset_id}/{dataset_version_id}"
-            if dataset_version_id
-            else f"v1/datasets/download/csv/{dataset_id}"
+        url = f"v1/datasets/{dataset_id}/csv"
+        response = httpx.get(
+            url=urljoin(self._base_url, url),
+            params={"version": dataset_version_id} if dataset_version_id else {},
         )
-        response = httpx.get(url=urljoin(self._base_url, url))
         response.raise_for_status()
         return pd.read_csv(
             StringIO(response.content.decode()),
-            index_col="__example_index__",
+            index_col="example_id",
         )
 
     def upload_dataset_examples(
