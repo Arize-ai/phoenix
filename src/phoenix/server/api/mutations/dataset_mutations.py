@@ -271,7 +271,7 @@ class DatasetMutationMixin:
         self,
         info: Info[Context, None],
         input: DeleteDatasetInput,
-    ) -> None:
+    ) -> DatasetMutationPayload:
         dataset_id = input.dataset_id
         dataset_rowid = from_global_id_with_expected_type(
             global_id=dataset_id, expected_type_name=Dataset.__name__
@@ -279,10 +279,24 @@ class DatasetMutationMixin:
 
         async with info.context.db() as session:
             delete_result = await session.execute(
-                delete(models.Dataset).where(models.Dataset.id == dataset_rowid)
+                delete(models.Dataset)
+                .where(models.Dataset.id == dataset_rowid)
+                .returning(models.Dataset)
             )
-            if delete_result.rowcount == 0:
+            if not (datasets := delete_result.first()):
                 raise ValueError(f"Unknown dataset: {dataset_id}")
+
+        dataset = datasets[0]
+        return DatasetMutationPayload(
+            dataset=Dataset(
+                id_attr=dataset.id,
+                name=dataset.name,
+                description=dataset.description,
+                created_at=dataset.created_at,
+                updated_at=dataset.updated_at,
+                metadata=dataset.metadata_,
+            )
+        )
 
 
 def _span_attribute(semconv: str) -> Any:
