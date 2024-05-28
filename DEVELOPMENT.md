@@ -349,7 +349,7 @@ To publish a new release, follow the steps below.
 
 #### Query Parameters
 
-Use query parameters for filtering, sorting, and pagination. Query parameters should use `-` as a separator (see [recommendations](https://developers.google.com/search/docs/specialty/ecommerce/designing-a-url-structure-for-ecommerce-sites))
+Use query parameters for filtering, sorting, and pagination. Query parameters should use `-` as a separator (see [recommendations](https://developers.google.com/search/docs/specialty/ecommerce/designing-a-url-structure-for-ecommerce-sites)).
 
 #### Pagination
 
