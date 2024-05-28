@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3b1c053d4ae60fb43faceee69099a8dc>>
+ * @generated SignedSource<<89add5f23fc190bb61721cb1bde36bc6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,6 +11,8 @@
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DatasetExamplesTableQuery$variables = {
+  after?: string | null;
+  first?: number | null;
   id: string;
 };
 export type DatasetExamplesTableQuery$data = {
@@ -28,6 +30,16 @@ var v0 = [
   {
     "defaultValue": null,
     "kind": "LocalArgument",
+    "name": "after"
+  },
+  {
+    "defaultValue": 100,
+    "kind": "LocalArgument",
+    "name": "first"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
     "name": "id"
   }
 ],
@@ -38,7 +50,26 @@ v1 = [
     "variableName": "id"
   }
 ],
-v2 = {
+v2 = [
+  {
+    "kind": "Variable",
+    "name": "after",
+    "variableName": "after"
+  },
+  {
+    "kind": "Variable",
+    "name": "first",
+    "variableName": "first"
+  }
+],
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -61,7 +92,7 @@ return {
         "plural": false,
         "selections": [
           {
-            "args": null,
+            "args": (v2/*: any*/),
             "kind": "FragmentSpread",
             "name": "DatasetExamplesTableFragment"
           }
@@ -86,24 +117,18 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "__typename",
-            "storageKey": null
-          },
+          (v3/*: any*/),
           {
             "kind": "TypeDiscriminator",
             "abstractKey": "__isNode"
           },
-          (v2/*: any*/),
+          (v4/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               {
                 "alias": null,
-                "args": null,
+                "args": (v2/*: any*/),
                 "concreteType": "DatasetExampleConnection",
                 "kind": "LinkedField",
                 "name": "examples",
@@ -125,7 +150,7 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v2/*: any*/),
+                          (v4/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -146,8 +171,41 @@ return {
                             "kind": "ScalarField",
                             "name": "metadata",
                             "storageKey": null
-                          }
+                          },
+                          (v3/*: any*/)
                         ],
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "cursor",
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "PageInfo",
+                    "kind": "LinkedField",
+                    "name": "pageInfo",
+                    "plural": false,
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "endCursor",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "hasNextPage",
                         "storageKey": null
                       }
                     ],
@@ -155,6 +213,15 @@ return {
                   }
                 ],
                 "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": (v2/*: any*/),
+                "filters": null,
+                "handle": "connection",
+                "key": "DatasetExamplesTable_examples",
+                "kind": "LinkedHandle",
+                "name": "examples"
               }
             ],
             "type": "Dataset",
@@ -166,16 +233,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "dfb5b0e44679c2643b30d1657306a7ec",
+    "cacheID": "55aa4dc1a52aa3b5ceba99e7b66048f4",
     "id": null,
     "metadata": {},
     "name": "DatasetExamplesTableQuery",
     "operationKind": "query",
-    "text": "query DatasetExamplesTableQuery(\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetExamplesTableFragment\n    __isNode: __typename\n    id\n  }\n}\n\nfragment DatasetExamplesTableFragment on Dataset {\n  examples {\n    edges {\n      node {\n        id\n        input\n        output\n        metadata\n      }\n    }\n  }\n  id\n}\n"
+    "text": "query DatasetExamplesTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetExamplesTableFragment_2HEEH6\n    __isNode: __typename\n    id\n  }\n}\n\nfragment DatasetExamplesTableFragment_2HEEH6 on Dataset {\n  examples(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        input\n        output\n        metadata\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "127b8480a49a6d5066e473810c0f8d04";
+(node as any).hash = "6f18c8e8350131a019ab46403e37f3df";
 
 export default node;
