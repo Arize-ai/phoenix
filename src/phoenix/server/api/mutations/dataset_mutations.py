@@ -17,6 +17,7 @@ from phoenix.server.api.helpers.dataset_helpers import (
 from phoenix.server.api.input_types.AddExamplesToDatasetInput import AddExamplesToDatasetInput
 from phoenix.server.api.input_types.AddSpansToDatasetInput import AddSpansToDatasetInput
 from phoenix.server.api.input_types.CreateDatasetInput import CreateDatasetInput
+from phoenix.server.api.input_types.DeleteDatasetExamplesInput import DeleteDatasetExamplesInput
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
@@ -264,6 +265,88 @@ class DatasetMutationMixin:
                 metadata=dataset.metadata_,
             )
         )
+
+    @strawberry.mutation
+    async def delete_dataset_examples(
+        self, info: Info[Context, None], input: DeleteDatasetExamplesInput
+    ) -> DatasetMutationPayload:
+        example_db_ids = [
+            from_global_id_with_expected_type(global_id, models.DatasetExample.__name__)
+            for global_id in input.example_ids
+        ]
+        # Guard against empty input
+        if not example_db_ids:
+            raise ValueError("Must provide examples to delete")
+        dataset_version_description = (
+            input.dataset_version_description
+            if isinstance(input.dataset_version_description, str)
+            else None
+        )
+        dataset_version_metadata = input.dataset_version_metadata or {}
+        async with info.context.db() as session:
+            # Check if the examples are from a single dataset
+            dataset_ids = (
+                (
+                    await session.execute(
+                        select(models.DatasetExample.dataset_id)
+                        .where(models.DatasetExample.id.in_(example_db_ids))
+                        .distinct()
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            if len(dataset_ids) > 1:
+                raise ValueError("Examples must be from the same dataset")
+            elif not dataset_ids:
+                raise ValueError("Examples not found")
+
+            # Get the dataset and raise an error if it doesn't exist
+            dataset_db_id = dataset_ids[0]
+
+            dataset_version_rowid = await session.scalar(
+                insert(models.DatasetVersion)
+                .values(
+                    dataset_id=dataset_db_id,
+                    description=dataset_version_description,
+                    metadata_=dataset_version_metadata,
+                )
+                .returning(models.DatasetVersion.id)
+            )
+            DatasetExampleRevision = models.DatasetExampleRevision
+            await session.execute(
+                insert(DatasetExampleRevision),
+                [
+                    {
+                        DatasetExampleRevision.dataset_example_id.key: dataset_example_rowid,
+                        DatasetExampleRevision.dataset_version_id.key: dataset_version_rowid,
+                        DatasetExampleRevision.input.key: {},
+                        DatasetExampleRevision.output.key: {},
+                        DatasetExampleRevision.metadata_.key: {},
+                        DatasetExampleRevision.revision_kind.key: "DELETE",
+                    }
+                    for dataset_example_rowid in example_db_ids
+                ],
+            )
+
+            # Fetch the dataset to return
+            dataset = await session.scalar(
+                select(models.Dataset).where(models.Dataset.id == dataset_db_id)
+            )
+
+            if not dataset:
+                raise ValueError("Dataset not found")
+
+            return DatasetMutationPayload(
+                dataset=Dataset(
+                    id_attr=dataset.id,
+                    name=dataset.name,
+                    description=dataset.description,
+                    created_at=dataset.created_at,
+                    updated_at=dataset.updated_at,
+                    metadata=dataset.metadata_,
+                )
+            )
 
 
 def _span_attribute(semconv: str) -> Any:
