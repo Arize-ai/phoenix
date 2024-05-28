@@ -286,10 +286,8 @@ async def test_delete_a_dataset(
     assert response_json["data"]["deleteDataset"]["dataset"] == {
         "id": str(dataset_id)
     }, "deleted dataset is returned"
-    dataset_query = (
-        await session.execute(select(models.Dataset).where(models.Dataset.id == 1))
-    ).first()
-    assert not dataset_query
+    dataset = (await session.execute(select(models.Dataset).where(models.Dataset.id == 1))).first()
+    assert not dataset
 
 
 async def test_deleting_a_nonexistent_dataset_fails(
