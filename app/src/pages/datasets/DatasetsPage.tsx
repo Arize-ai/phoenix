@@ -100,7 +100,6 @@ function CreateDatasetButton({ onDatasetCreated }: CreateDatasetButtonProps) {
   };
   return (
     <>
-      {/* Disabled until the mutation is created */}
       <Button variant="default" onClick={onCreateDataset}>
         Create Dataset
       </Button>
