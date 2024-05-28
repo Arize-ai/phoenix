@@ -392,14 +392,14 @@ const attributesContextualHelp = (
         </Heading>
         <Content>
           <Text>
-            All attributes associated with the span. Attributes are key-value
-            pairs that represent metadata associated with a span. For a detailed
-            description of the attributes, consult the semantic conventions of
-            the OpenInference tracing specification.
+            Attributes are key-value pairs that represent metadata associated
+            with a span. For detailed descriptions of specific attributes,
+            consult the semantic conventions section of the OpenInference
+            tracing specification.
           </Text>
         </Content>
         <footer>
-          <ExternalLink href="https://arize-ai.github.io/open-inference-spec/trace/spec/semantic_conventions.html">
+          <ExternalLink href="https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md">
             Semantic Conventions
           </ExternalLink>
         </footer>
