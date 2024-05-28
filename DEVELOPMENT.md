@@ -339,7 +339,7 @@ To publish a new release, follow the steps below.
 
 -   **4xx** The client application behaved erroneously - client error
 -   **5xx** The API behaved erroneously - server error
--   **2xx**The client and API worked
+-   **2xx** The client and API worked
 
 #### Path Structure
 
