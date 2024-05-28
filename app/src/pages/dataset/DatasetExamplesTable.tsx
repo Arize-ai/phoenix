@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import {
   ColumnDef,
@@ -18,13 +18,15 @@ import type {
   datasetLoaderQuery$data,
 } from "./__generated__/datasetLoaderQuery.graphql";
 
+const PAGE_SIZE = 100;
+
 export function DatasetExamplesTable({
   dataset,
 }: {
   dataset: datasetLoaderQuery$data["dataset"];
 }) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  const { data } = usePaginationFragment<
+  const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
     datasetLoaderQuery,
     DatasetExamplesTableFragment$key
   >(
@@ -93,7 +95,22 @@ export function DatasetExamplesTable({
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
-
+  const fetchMoreOnBottomReached = useCallback(
+    (containerRefElement?: HTMLDivElement | null) => {
+      if (containerRefElement) {
+        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
+        //once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
+        if (
+          scrollHeight - scrollTop - clientHeight < 300 &&
+          !isLoadingNext &&
+          hasNext
+        ) {
+          loadNext(PAGE_SIZE);
+        }
+      }
+    },
+    [hasNext, isLoadingNext, loadNext]
+  );
   return (
     <div
       css={css`
@@ -101,6 +118,7 @@ export function DatasetExamplesTable({
         overflow: auto;
       `}
       ref={tableContainerRef}
+      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
     >
       <table css={selectableTableCSS}>
         <thead>
