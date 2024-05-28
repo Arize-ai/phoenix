@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.2.4](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.2.3...arize-phoenix-v4.2.4) (2024-05-28)
+
+
+### Bug Fixes
+
+* update link to openinference spec ([#3322](https://github.com/Arize-ai/phoenix/issues/3322)) ([61dedf8](https://github.com/Arize-ai/phoenix/commit/61dedf8828f7a9aea1ee3b31790bb03e13207285))
+
+
+### Documentation
+
+* Update langchain dependencies in tutorials ([#3316](https://github.com/Arize-ai/phoenix/issues/3316)) ([e403652](https://github.com/Arize-ai/phoenix/commit/e4036528248369fe822c8cee836b68b1bc252d3d))
+
 ## [4.2.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.2.2...arize-phoenix-v4.2.3) (2024-05-23)
 
 
