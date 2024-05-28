@@ -188,6 +188,66 @@ async def test_list_datasets_with_cursor(
     assert all(item in second_page_datasets[0].items() for item in fixture_values.items())
 
 
+async def test_get_dataset_versions(test_client, dataset_with_revisions):
+    dataset_global_id = GlobalID("Dataset", str(2))
+    response = await test_client.get(f"/v1/datasets/{dataset_global_id}/versions?limit=2")
+    assert response.status_code == 200
+    assert response.headers.get("content-type") == "application/json"
+    assert response.json() == {
+        "next_cursor": "RGF0YXNldFZlcnNpb246Nw==",
+        "data": [
+            {
+                "version_id": "RGF0YXNldFZlcnNpb246OQ==",
+                "description": "datum gets deleted",
+                "metadata": {},
+                "created_at": "2024-05-28T00:00:09+00:00",
+            },
+            {
+                "version_id": "RGF0YXNldFZlcnNpb246OA==",
+                "description": "datum gets created",
+                "metadata": {},
+                "created_at": "2024-05-28T00:00:08+00:00",
+            },
+        ],
+    }
+
+
+async def test_get_dataset_versions_with_cursor(test_client, dataset_with_revisions):
+    dataset_global_id = GlobalID("Dataset", str(2))
+    response = await test_client.get(
+        f"/v1/datasets/{dataset_global_id}/versions?limit=2&cursor=RGF0YXNldFZlcnNpb246Nw=="
+    )
+    assert response.status_code == 200
+    assert response.headers.get("content-type") == "application/json"
+    assert response.json() == {
+        "next_cursor": "RGF0YXNldFZlcnNpb246NQ==",
+        "data": [
+            {
+                "created_at": "2024-05-28T00:00:07+00:00",
+                "description": "datum gets deleted",
+                "metadata": {},
+                "version_id": "RGF0YXNldFZlcnNpb246Nw==",
+            },
+            {
+                "created_at": "2024-05-28T00:00:06+00:00",
+                "description": "datum gets created",
+                "metadata": {},
+                "version_id": "RGF0YXNldFZlcnNpb246Ng==",
+            },
+        ],
+    }
+
+
+async def test_get_dataset_versions_with_invalid_cursor(test_client, dataset_with_revisions):
+    dataset_global_id = GlobalID("Dataset", str(2))
+    response = await test_client.get(
+        f"/v1/datasets/{dataset_global_id}/versions?limit=1&cursor=RGF0YXNldFZlcnNpb246MQ=="
+    )
+    assert response.status_code == 200
+    assert response.headers.get("content-type") == "application/json"
+    assert response.json() == {"next_cursor": None, "data": []}
+
+
 async def test_get_dataset_download_empty_dataset(test_client, empty_dataset):
     dataset_global_id = GlobalID("Dataset", str(1))
     response = await test_client.get(f"/v1/datasets/{dataset_global_id}/csv")
