@@ -257,7 +257,7 @@ async def test_delete_a_dataset(
     session,
     test_client,
     empty_dataset,
-) -> None:
+):
     dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
     mutation = textwrap.dedent(
         """
