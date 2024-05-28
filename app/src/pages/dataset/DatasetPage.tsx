@@ -63,11 +63,7 @@ function DatasetPageContent({
               onAction={(action) => {
                 switch (action) {
                   case "csv":
-                    // TODO(datasets): change this URL to be more RESTful
-                    window.open(
-                      `/v1/datasets/download/csv/${dataset.id}`,
-                      "_blank"
-                    );
+                    window.open(`/v1/datasets/${dataset.id}/csv`, "_blank");
                     break;
                 }
               }}
