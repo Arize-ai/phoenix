@@ -17,7 +17,7 @@
         -   [REST API](#rest-api)
             -   [HTTP Methods](#http-methods)
             -   [Status Codes](#status-codes)
-        -   [Path Structure](#path-structure)
+            -   [Path Structure](#path-structure)
             -   [Query Parameters](#query-parameters)
             -   [Pagination](#pagination)
             -   [Response Format](#response-format)
@@ -341,7 +341,7 @@ To publish a new release, follow the steps below.
 -   **5xx** The API behaved erroneously - server error
 -   **2xx**The client and API worked
 
-### Path Structure
+#### Path Structure
 
 -   Use nouns for resources and sub-resources.
 -   Avoid using verbs in the path.
