@@ -4,7 +4,7 @@ import strawberry
 from openinference.semconv.trace import (
     SpanAttributes,
 )
-from sqlalchemy import insert, select
+from sqlalchemy import delete, insert, select
 from strawberry import UNSET
 from strawberry.types import Info
 
@@ -17,6 +17,7 @@ from phoenix.server.api.helpers.dataset_helpers import (
 from phoenix.server.api.input_types.AddExamplesToDatasetInput import AddExamplesToDatasetInput
 from phoenix.server.api.input_types.AddSpansToDatasetInput import AddSpansToDatasetInput
 from phoenix.server.api.input_types.CreateDatasetInput import CreateDatasetInput
+from phoenix.server.api.input_types.DeleteDatasetInput import DeleteDatasetInput
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
@@ -264,6 +265,24 @@ class DatasetMutationMixin:
                 metadata=dataset.metadata_,
             )
         )
+
+    @strawberry.mutation
+    async def delete_dataset(
+        self,
+        info: Info[Context, None],
+        input: DeleteDatasetInput,
+    ) -> None:
+        dataset_id = input.dataset_id
+        dataset_rowid = from_global_id_with_expected_type(
+            global_id=dataset_id, expected_type_name=Dataset.__name__
+        )
+
+        async with info.context.db() as session:
+            delete_result = await session.execute(
+                delete(models.Dataset).where(models.Dataset.id == dataset_rowid)
+            )
+            if delete_result.rowcount == 0:
+                raise ValueError(f"Unknown dataset: {dataset_id}")
 
 
 def _span_attribute(semconv: str) -> Any:
