@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.9.2...arize-phoenix-evals-v0.10.0) (2024-05-29)
+
+
+### Features
+
+* docker image runs as root by default with tags for nonroot and debug images ([#3280](https://github.com/Arize-ai/phoenix/issues/3280)) ([41a4826](https://github.com/Arize-ai/phoenix/commit/41a4826733e104a3ec533a73049df5b778391e7f))
+* Support mistral ([#3270](https://github.com/Arize-ai/phoenix/issues/3270)) ([4e38531](https://github.com/Arize-ai/phoenix/commit/4e3853159881fa936d04beff5feb971df72ad038))
+
 ## [0.9.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.9.1...arize-phoenix-evals-v0.9.2) (2024-05-21)
 
 
