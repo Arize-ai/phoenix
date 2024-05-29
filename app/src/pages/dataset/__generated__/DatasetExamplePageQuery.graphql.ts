@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<026b596ca8c3b896c9b9578bfd63d2ce>>
+ * @generated SignedSource<<ad99eb749ff9b5170ab3dc64471b6649>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,7 +13,7 @@ export type DatasetExamplePageQuery$variables = {
   exampleId: string;
 };
 export type DatasetExamplePageQuery$data = {
-  readonly node: {
+  readonly example: {
     readonly input?: any;
     readonly metadata?: any;
     readonly output?: any;
@@ -75,7 +75,7 @@ return {
     "name": "DatasetExamplePageQuery",
     "selections": [
       {
-        "alias": null,
+        "alias": "example",
         "args": (v1/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
@@ -97,7 +97,7 @@ return {
     "name": "DatasetExamplePageQuery",
     "selections": [
       {
-        "alias": null,
+        "alias": "example",
         "args": (v1/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
@@ -129,16 +129,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "465a825f2a6cfc9b9458b3aee2d40e0a",
+    "cacheID": "14c3912558e81f4281842e0467d1ede3",
     "id": null,
     "metadata": {},
     "name": "DatasetExamplePageQuery",
     "operationKind": "query",
-    "text": "query DatasetExamplePageQuery(\n  $exampleId: GlobalID!\n) {\n  node(id: $exampleId) {\n    __typename\n    ... on DatasetExample {\n      input\n      output\n      metadata\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query DatasetExamplePageQuery(\n  $exampleId: GlobalID!\n) {\n  example: node(id: $exampleId) {\n    __typename\n    ... on DatasetExample {\n      input\n      output\n      metadata\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b42ec9db7469841ae16cdb068c98b53f";
+(node as any).hash = "fd81e36b6dccd1d7955a559d4aa26b96";
 
 export default node;
