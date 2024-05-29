@@ -1,5 +1,5 @@
 import React, { Suspense } from "react";
-import { useLoaderData } from "react-router";
+import { Outlet, useLoaderData } from "react-router";
 import { css } from "@emotion/react";
 
 import {
@@ -74,6 +74,9 @@ function DatasetPageContent({
         </Flex>
       </View>
       <DatasetExamplesTable dataset={dataset} />
+      <Suspense>
+        <Outlet />
+      </Suspense>
     </div>
   );
 }
