@@ -143,13 +143,14 @@ class BedrockModel(BaseModel):
             return {
                 **{
                     {
-                        "prompt":prompt,
+                        "prompt": prompt,
                         "max_tokens": self.max_tokens,
                         "temperature": self.temperature,
                         "stop": self.stop_sequences,
                         "top_p": self.top_p,
                         "top_k": self.top_k,
                     }
+                }
             }
         else:
             if not self.model_id.startswith("amazon"):
