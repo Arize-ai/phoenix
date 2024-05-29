@@ -213,6 +213,118 @@ async def get_dataset_by_id(request: Request) -> Response:
         return JSONResponse(content=output_dict)
 
 
+async def get_dataset_versions(request: Request) -> Response:
+    """
+    summary: Get dataset versions (sorted from latest to oldest)
+    operationId: getDatasetVersionsByDatasetId
+    tags:
+      - datasets
+    parameters:
+      - in: path
+        name: id
+        required: true
+        description: Dataset ID
+        schema:
+          type: string
+      - in: query
+        name: cursor
+        description: Cursor for pagination.
+        schema:
+          type: string
+      - in: query
+        name: limit
+        description: Maximum number versions to return.
+        schema:
+          type: integer
+          default: 10
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                next_cursor:
+                  type: string
+                data:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      version_id:
+                        type: string
+                      description:
+                        type: string
+                      metadata:
+                        type: object
+                      created_at:
+                        type: string
+                        format: date-time
+      422:
+        description: Dataset ID, cursor or limit is invalid.
+    """
+    if id_ := request.path_params.get("id"):
+        try:
+            dataset_id = from_global_id_with_expected_type(
+                GlobalID.from_id(id_),
+                Dataset.__name__,
+            )
+        except ValueError:
+            return Response(
+                content=f"Invalid Dataset ID: {id_}",
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+    else:
+        return Response(
+            content="Missing Dataset ID",
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+    try:
+        limit = int(request.query_params.get("limit", 10))
+        assert limit > 0
+    except (ValueError, AssertionError):
+        return Response(
+            content="Invalid limit parameter",
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+    stmt = (
+        select(models.DatasetVersion)
+        .where(models.DatasetVersion.dataset_id == dataset_id)
+        .order_by(models.DatasetVersion.id.desc())
+        .limit(limit + 1)
+    )
+    if cursor := request.query_params.get("cursor"):
+        try:
+            dataset_version_id = from_global_id_with_expected_type(
+                GlobalID.from_id(cursor),
+                DatasetVersion.__name__,
+            )
+        except ValueError:
+            return Response(
+                content=f"Invalid cursor: {cursor}",
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        max_dataset_version_id = (
+            select(models.DatasetVersion.id)
+            .where(models.DatasetVersion.id == dataset_version_id)
+            .where(models.DatasetVersion.dataset_id == dataset_id)
+        ).scalar_subquery()
+        stmt = stmt.filter(models.DatasetVersion.id <= max_dataset_version_id)
+    async with request.app.state.db() as session:
+        data = [
+            {
+                "version_id": str(GlobalID(DatasetVersion.__name__, str(version.id))),
+                "description": version.description,
+                "metadata": version.metadata_,
+                "created_at": version.created_at.isoformat(),
+            }
+            async for version in await session.stream_scalars(stmt)
+        ]
+    next_cursor = data.pop()["version_id"] if len(data) == limit + 1 else None
+    return JSONResponse(content={"next_cursor": next_cursor, "data": data})
+
+
 async def post_datasets_upload(request: Request) -> Response:
     """
     summary: Upload CSV or PyArrow file as dataset

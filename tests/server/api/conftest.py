@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import httpx
 import pytest
 from phoenix.config import EXPORT_DIR
@@ -220,6 +222,7 @@ async def dataset_with_revisions(session):
         dataset_id=2,
         description="data gets added",
         metadata_={"info": "gotta get some test data somewhere"},
+        created_at=datetime.fromisoformat("2024-05-28T00:00:04+00:00"),
     )
     session.add(dataset_version_4)
     await session.flush()
@@ -267,6 +270,7 @@ async def dataset_with_revisions(session):
         dataset_id=2,
         description="data gets patched and added",
         metadata_={},
+        created_at=datetime.fromisoformat("2024-05-28T00:00:05+00:00"),
     )
     session.add(dataset_version_5)
     await session.flush()
@@ -276,6 +280,7 @@ async def dataset_with_revisions(session):
         dataset_id=2,
         description="datum gets created",
         metadata_={},
+        created_at=datetime.fromisoformat("2024-05-28T00:00:06+00:00"),
     )
     session.add(dataset_version_6)
     await session.flush()
@@ -285,6 +290,7 @@ async def dataset_with_revisions(session):
         dataset_id=2,
         description="datum gets deleted",
         metadata_={},
+        created_at=datetime.fromisoformat("2024-05-28T00:00:07+00:00"),
     )
     session.add(dataset_version_7)
     await session.flush()
@@ -294,6 +300,7 @@ async def dataset_with_revisions(session):
         dataset_id=2,
         description="datum gets created",
         metadata_={},
+        created_at=datetime.fromisoformat("2024-05-28T00:00:08+00:00"),
     )
     session.add(dataset_version_8)
     await session.flush()
@@ -303,6 +310,7 @@ async def dataset_with_revisions(session):
         dataset_id=2,
         description="datum gets deleted",
         metadata_={},
+        created_at=datetime.fromisoformat("2024-05-28T00:00:09+00:00"),
     )
     session.add(dataset_version_9)
     await session.flush()
