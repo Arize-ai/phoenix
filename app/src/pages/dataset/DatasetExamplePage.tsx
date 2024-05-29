@@ -100,6 +100,9 @@ const defaultCardProps: Partial<CardProps> = {
   borderColor: "light",
   variant: "compact",
   collapsible: true,
+  bodyStyle: {
+    padding: 0,
+  },
 };
 
 /**
