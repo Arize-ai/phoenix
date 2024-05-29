@@ -1,9 +1,10 @@
+import textwrap
 from datetime import datetime
 
 import pytest
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
-from sqlalchemy import insert
+from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
 
@@ -250,3 +251,72 @@ async def spans(session):
             cumulative_llm_token_count_completion=0,
         )
     )
+
+
+async def test_delete_a_dataset(
+    session,
+    test_client,
+    empty_dataset,
+):
+    dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
+    mutation = textwrap.dedent(
+        """
+        mutation ($datasetId: GlobalID!) {
+          deleteDataset(input: { datasetId: $datasetId }) {
+            dataset {
+              id
+            }
+          }
+        }
+        """
+    )
+
+    response = await test_client.post(
+        "/graphql",
+        json={
+            "query": mutation,
+            "variables": {
+                "datasetId": str(dataset_id),
+            },
+        },
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert (errors := response_json.get("errors")) is None, errors
+    assert response_json["data"]["deleteDataset"]["dataset"] == {
+        "id": str(dataset_id)
+    }, "deleted dataset is returned"
+    dataset = (await session.execute(select(models.Dataset).where(models.Dataset.id == 1))).first()
+    assert not dataset
+
+
+async def test_deleting_a_nonexistent_dataset_fails(
+    session,
+    test_client,
+):
+    dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
+    mutation = textwrap.dedent(
+        """
+        mutation ($datasetId: GlobalID!) {
+          deleteDataset(input: { datasetId: $datasetId }) {
+            dataset {
+              id
+            }
+          }
+        }
+        """
+    )
+
+    response = await test_client.post(
+        "/graphql",
+        json={
+            "query": mutation,
+            "variables": {
+                "datasetId": str(dataset_id),
+            },
+        },
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert (errors := response_json.get("errors")), "Dataset does not exist"
+    assert f"Unknown dataset: {dataset_id}" in errors[0]["message"]
