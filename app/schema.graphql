@@ -135,7 +135,7 @@ input DatasetExampleInput {
   spanId: GlobalID
 }
 
-type DatasetExampleRevision implements Node {
+type DatasetExampleRevision implements Node & ExampleRevision {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   input: JSON!
@@ -513,7 +513,7 @@ type EventMetadata {
   actualLabel: String
 }
 
-interface Example {
+interface ExampleRevision {
   input: JSON!
   output: JSON!
   metadata: JSON!
@@ -900,10 +900,10 @@ type Span implements Node {
   descendants: [Span!]!
 
   """The span's attributes translated into an example for a dataset"""
-  asExample: SpanAsExample!
+  asExampleRevision: SpanAsExampleRevision!
 }
 
-type SpanAsExample implements Example {
+type SpanAsExampleRevision implements ExampleRevision {
   input: JSON!
   output: JSON!
   metadata: JSON!

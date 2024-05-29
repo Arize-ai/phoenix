@@ -3,7 +3,8 @@ from enum import Enum
 
 import strawberry
 from strawberry.relay import Node, NodeID
-from strawberry.scalars import JSON
+
+from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
 
 
 @strawberry.enum
@@ -14,14 +15,11 @@ class RevisionKind(Enum):
 
 
 @strawberry.type
-class DatasetExampleRevision(Node):
+class DatasetExampleRevision(Node, ExampleRevision):
     """
     Represents a revision (i.e., update or alteration) of a dataset example.
     """
 
     id_attr: NodeID[int]
-    input: JSON
-    output: JSON
-    metadata: JSON
     revision_kind: RevisionKind
     created_at: datetime
