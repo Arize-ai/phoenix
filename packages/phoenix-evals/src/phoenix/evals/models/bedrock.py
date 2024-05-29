@@ -139,6 +139,18 @@ class BedrockModel(BaseModel):
                 },
                 **self.extra_parameters,
             }
+        elif self.model_id.startswith("mistral"):
+            return {
+                **{
+                    "prompt": prompt,
+                    "max_tokens": self.max_tokens,
+                    "temperature": self.temperature,
+                    "stop": self.stop_sequences,
+                    "top_p": self.top_p,
+                    "top_k": self.top_k,
+                },
+                **self.extra_parameters,
+            }
         else:
             if not self.model_id.startswith("amazon"):
                 logger.warn(f"Unknown format for model {self.model_id}, returning titan format...")
@@ -165,6 +177,9 @@ class BedrockModel(BaseModel):
         elif self.model_id.startswith("amazon"):
             body = json.loads(response.get("body").read())
             return body.get("results")[0].get("outputText")
+        elif self.model_id.startswith("mistral"):
+            body = json.loads(response.get("body").read())
+            return body.get("outputs")[0].get("text")
         else:
             body = json.loads(response.get("body").read())
             return body.get("results")[0].get("data").get("outputText")
