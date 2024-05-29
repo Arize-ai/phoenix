@@ -1,7 +1,16 @@
 import React, { Suspense } from "react";
 import { useLoaderData } from "react-router";
+import { css } from "@emotion/react";
 
-import { Flex, Text, View } from "@arizeai/components";
+import {
+  ActionMenu,
+  Flex,
+  Icon,
+  Icons,
+  Item,
+  Text,
+  View,
+} from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
 
@@ -23,18 +32,44 @@ function DatasetPageContent({
   dataset: datasetLoaderQuery$data["dataset"];
 }) {
   return (
-    <div>
+    <div
+      css={css`
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        overflow: hidden;
+      `}
+    >
       <View
         padding="size-200"
         borderBottomWidth="thin"
         borderBottomColor="dark"
+        flex="none"
       >
-        <Flex direction="row" justifyContent="space-between">
+        <Flex
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+        >
           <Flex direction="column" justifyContent="space-between">
             <Text elementType="h1" textSize="xlarge" weight="heavy">
               {dataset.name}
             </Text>
             <Text color="text-700">{dataset.description || "--"}</Text>
+          </Flex>
+          <Flex direction="row" gap="size-100">
+            <ActionMenu
+              icon={<Icon svg={<Icons.DownloadOutline />} />}
+              onAction={(action) => {
+                switch (action) {
+                  case "csv":
+                    window.open(`/v1/datasets/${dataset.id}/csv`, "_blank");
+                    break;
+                }
+              }}
+            >
+              <Item key="csv">Download CSV</Item>
+            </ActionMenu>
           </Flex>
         </Flex>
       </View>

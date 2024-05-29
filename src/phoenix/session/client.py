@@ -264,6 +264,33 @@ class Client(TraceDataExtractor):
                 },
             ).raise_for_status()
 
+    def get_dataset_versions(
+        self,
+        dataset_id: str,
+        /,
+        *,
+        limit: Optional[int] = 100,
+    ) -> pd.DataFrame:
+        """
+        Get dataset versions as pandas DataFrame.
+
+        Args:
+            dataset_id (str): dataset ID
+            limit (Optional[int]): maximum number of versions to return,
+                starting from the most recent version
+
+        Returns:
+            pandas DataFrame
+        """
+        url = urljoin(self._base_url, f"v1/datasets/{dataset_id}/versions")
+        response = httpx.get(url=url, params={"limit": limit})
+        response.raise_for_status()
+        if not (records := response.json()["data"]):
+            return pd.DataFrame()
+        df = pd.DataFrame.from_records(records, index="version_id")
+        df["created_at"] = pd.to_datetime(df.created_at)
+        return df
+
     def download_dataset_examples(
         self,
         dataset_id: str,
@@ -282,16 +309,15 @@ class Client(TraceDataExtractor):
         Returns:
             pandas DataFrame
         """
-        url = (
-            f"v1/datasets/download/csv/{dataset_id}/{dataset_version_id}"
-            if dataset_version_id
-            else f"v1/datasets/download/csv/{dataset_id}"
+        url = f"v1/datasets/{dataset_id}/csv"
+        response = httpx.get(
+            url=urljoin(self._base_url, url),
+            params={"version": dataset_version_id} if dataset_version_id else {},
         )
-        response = httpx.get(url=urljoin(self._base_url, url))
         response.raise_for_status()
         return pd.read_csv(
             StringIO(response.content.decode()),
-            index_col="__example_index__",
+            index_col="example_id",
         )
 
     def upload_dataset_examples(

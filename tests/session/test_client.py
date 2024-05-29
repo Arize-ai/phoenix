@@ -159,14 +159,54 @@ def test_log_traces_to_project(
     assert span_counter == len(trace_ds.dataframe)
 
 
+def test_get_dataset_versions(
+    client: Client,
+    endpoint: str,
+    respx_mock: MockRouter,
+) -> None:
+    dataset_global_id = GlobalID("Dataset", str(999))
+    url = urljoin(endpoint, f"v1/datasets/{dataset_global_id}/versions")
+    data = [{"version_id": "abc", "description": "xyz", "created_at": "2024-05-28T00:00:00+00:00"}]
+    respx_mock.get(url).mock(
+        Response(
+            200,
+            headers={"content-type": "application/json"},
+            json={"next_cursor": "123", "data": data},
+        )
+    )
+    expected = pd.DataFrame.from_records(data, index="version_id")
+    expected["created_at"] = pd.to_datetime(expected.created_at)
+    actual = client.get_dataset_versions(str(dataset_global_id))
+    assert_frame_equal(actual, expected)
+
+
+def test_get_dataset_versions_empty_data(
+    client: Client,
+    endpoint: str,
+    respx_mock: MockRouter,
+) -> None:
+    dataset_global_id = GlobalID("Dataset", str(999))
+    url = urljoin(endpoint, f"v1/datasets/{dataset_global_id}/versions")
+    respx_mock.get(url).mock(
+        Response(
+            200,
+            headers={"content-type": "application/json"},
+            json={"next_cursor": None, "data": []},
+        )
+    )
+    expected = pd.DataFrame()
+    actual = client.get_dataset_versions(str(dataset_global_id))
+    assert_frame_equal(actual, expected)
+
+
 def test_download_dataset_examples_latest_version(
     client: Client,
     endpoint: str,
     respx_mock: MockRouter,
 ) -> None:
     dataset_global_id = GlobalID("Dataset", str(999))
-    url = urljoin(endpoint, f"v1/datasets/download/csv/{dataset_global_id}")
-    content = gzip.compress("__example_index__,a,b,c\n0,x,y,z\n".encode())
+    url = urljoin(endpoint, f"v1/datasets/{dataset_global_id}/csv")
+    content = gzip.compress("example_id,a,b,c\nRGF0YXNldEV4YW1wbGU6MQ==,x,y,z\n".encode())
     respx_mock.get(url).mock(
         Response(
             200,
@@ -176,7 +216,7 @@ def test_download_dataset_examples_latest_version(
     )
     expected = pd.read_csv(
         StringIO(gzip.decompress(content).decode()),
-        index_col="__example_index__",
+        index_col="example_id",
     )
     actual = client.download_dataset_examples(str(dataset_global_id))
     assert_frame_equal(actual, expected)
@@ -190,9 +230,9 @@ def test_download_dataset_examples_specific_version(
     dataset_global_id = GlobalID("Dataset", str(999))
     dataset_version_global_id = GlobalID("DatasetVersion", str(888))
     url = urljoin(
-        endpoint, f"v1/datasets/download/csv/{dataset_global_id}/{dataset_version_global_id}"
+        endpoint, f"v1/datasets/{dataset_global_id}/csv?version={dataset_version_global_id}"
     )
-    content = gzip.compress("__example_index__,a,b,c\n0,x,y,z\n".encode())
+    content = gzip.compress("example_id,a,b,c\nRGF0YXNldEV4YW1wbGU6MQ==,x,y,z\n".encode())
     respx_mock.get(url).mock(
         Response(
             200,
@@ -202,7 +242,7 @@ def test_download_dataset_examples_specific_version(
     )
     expected = pd.read_csv(
         StringIO(gzip.decompress(content).decode()),
-        index_col="__example_index__",
+        index_col="example_id",
     )
     actual = client.download_dataset_examples(
         str(dataset_global_id),

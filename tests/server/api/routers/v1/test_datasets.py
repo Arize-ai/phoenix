@@ -1,6 +1,7 @@
 from io import StringIO
 
 import pandas as pd
+import pytest
 from pandas.testing import assert_frame_equal
 from strawberry.relay import GlobalID
 
@@ -187,33 +188,107 @@ async def test_list_datasets_with_cursor(
     assert all(item in second_page_datasets[0].items() for item in fixture_values.items())
 
 
-async def test_get_dataset_download_empty_dataset(test_client, dataset_with_revisions):
-    dataset_global_id = GlobalID("Dataset", str(1))
-    response = await test_client.get(f"/v1/datasets/download/{dataset_global_id}")
-    assert response.status_code == 404
+async def test_get_dataset_versions(test_client, dataset_with_revisions):
+    dataset_global_id = GlobalID("Dataset", str(2))
+    response = await test_client.get(f"/v1/datasets/{dataset_global_id}/versions?limit=2")
+    assert response.status_code == 200
+    assert response.headers.get("content-type") == "application/json"
+    assert response.json() == {
+        "next_cursor": f'{GlobalID("DatasetVersion", str(7))}',
+        "data": [
+            {
+                "version_id": str(GlobalID("DatasetVersion", str(9))),
+                "description": "datum gets deleted",
+                "metadata": {},
+                "created_at": "2024-05-28T00:00:09+00:00",
+            },
+            {
+                "version_id": str(GlobalID("DatasetVersion", str(8))),
+                "description": "datum gets created",
+                "metadata": {},
+                "created_at": "2024-05-28T00:00:08+00:00",
+            },
+        ],
+    }
 
-    dataset_version_global_id = GlobalID("DatasetVersion", str(1))
+
+async def test_get_dataset_versions_with_cursor(test_client, dataset_with_revisions):
+    dataset_global_id = GlobalID("Dataset", str(2))
     response = await test_client.get(
-        f"/v1/datasets/download/csv/{dataset_global_id}/{dataset_version_global_id}"
+        f"/v1/datasets/{dataset_global_id}/versions?limit=2"
+        f'&cursor={GlobalID("DatasetVersion", str(4))}'
     )
-    assert response.status_code == 404
+    assert response.status_code == 200
+    assert response.headers.get("content-type") == "application/json"
+    assert response.json() == {
+        "next_cursor": None,
+        "data": [
+            {
+                "version_id": str(GlobalID("DatasetVersion", str(4))),
+                "created_at": "2024-05-28T00:00:04+00:00",
+                "description": "data gets added",
+                "metadata": {"info": "gotta get some test data somewhere"},
+            },
+        ],
+    }
+
+
+async def test_get_dataset_versions_with_nonexistent_cursor(test_client, dataset_with_revisions):
+    dataset_global_id = GlobalID("Dataset", str(2))
+    response = await test_client.get(
+        f"/v1/datasets/{dataset_global_id}/versions?limit=1"
+        f'&cursor={GlobalID("DatasetVersion", str(1))}'
+    )
+    assert response.status_code == 200
+    assert response.headers.get("content-type") == "application/json"
+    assert response.json() == {"next_cursor": None, "data": []}
+
+
+async def test_get_dataset_download_empty_dataset(test_client, empty_dataset):
+    dataset_global_id = GlobalID("Dataset", str(1))
+    response = await test_client.get(f"/v1/datasets/{dataset_global_id}/csv")
+    assert response.status_code == 200
+    assert response.headers.get("content-type") == "text/csv"
+    assert response.headers.get("content-encoding") == "gzip"
+    assert response.headers.get("content-disposition") == 'attachment; filename="empty dataset.csv"'
+    with pytest.raises(Exception):
+        pd.read_csv(StringIO(response.content.decode()))
+
+
+async def test_get_dataset_download_nonexistent_version(
+    test_client, empty_dataset, dataset_with_revisions
+):
+    dataset_global_id = GlobalID("Dataset", str(1))
+    dataset_version_global_id = GlobalID("DatasetVersion", str(4))  # Version for Dataset id=2
+    response = await test_client.get(
+        f"/v1/datasets/{dataset_global_id}/csv?version={dataset_version_global_id}"
+    )
+    assert response.status_code == 200
+    assert response.headers.get("content-type") == "text/csv"
+    assert response.headers.get("content-encoding") == "gzip"
+    assert response.headers.get("content-disposition") == 'attachment; filename="empty dataset.csv"'
+    with pytest.raises(Exception):
+        pd.read_csv(StringIO(response.content.decode()))
 
 
 async def test_get_dataset_download_latest_version(test_client, dataset_with_revisions):
     dataset_global_id = GlobalID("Dataset", str(2))
-    response = await test_client.get(f"/v1/datasets/download/csv/{dataset_global_id}")
+    response = await test_client.get(f"/v1/datasets/{dataset_global_id}/csv")
     assert response.status_code == 200
     assert response.headers.get("content-type") == "text/csv"
     assert response.headers.get("content-encoding") == "gzip"
-    actual = pd.read_csv(StringIO(response.content.decode()))
+    assert (
+        response.headers.get("content-disposition") == 'attachment; filename="revised dataset.csv"'
+    )
+    actual = pd.read_csv(StringIO(response.content.decode())).sort_index(axis=1)
     expected = pd.read_csv(
         StringIO(
-            "__example_index__,in,info,out\n"
-            "0,foo,first revision,bar\n"
-            "1,updated foofoo,updating revision,updated barbar\n"
-            "2,look at me,a new example,i have all the answers\n"
+            "example_id,input_in,metadata_info,output_out\n"
+            "RGF0YXNldEV4YW1wbGU6Mw==,foo,first revision,bar\n"
+            "RGF0YXNldEV4YW1wbGU6NA==,updated foofoo,updating revision,updated barbar\n"
+            "RGF0YXNldEV4YW1wbGU6NQ==,look at me,a new example,i have all the answers\n"
         )
-    )
+    ).sort_index(axis=1)
     assert_frame_equal(actual, expected)
 
 
@@ -221,19 +296,22 @@ async def test_get_dataset_download_specific_version(test_client, dataset_with_r
     dataset_global_id = GlobalID("Dataset", str(2))
     dataset_version_global_id = GlobalID("DatasetVersion", str(8))
     response = await test_client.get(
-        f"/v1/datasets/download/csv/{dataset_global_id}/{dataset_version_global_id}"
+        f"/v1/datasets/{dataset_global_id}/csv?version={dataset_version_global_id}"
     )
     assert response.status_code == 200
     assert response.headers.get("content-type") == "text/csv"
     assert response.headers.get("content-encoding") == "gzip"
-    actual = pd.read_csv(StringIO(response.content.decode()))
+    assert (
+        response.headers.get("content-disposition") == 'attachment; filename="revised dataset.csv"'
+    )
+    actual = pd.read_csv(StringIO(response.content.decode())).sort_index(axis=1)
     expected = pd.read_csv(
         StringIO(
-            "__example_index__,in,info,out\n"
-            "0,foo,first revision,bar\n"
-            "1,updated foofoo,updating revision,updated barbar\n"
-            "2,look at me,a new example,i have all the answers\n"
-            "4,look at me,a newer example,i have all the answers\n"
+            "example_id,input_in,metadata_info,output_out\n"
+            "RGF0YXNldEV4YW1wbGU6Mw==,foo,first revision,bar\n"
+            "RGF0YXNldEV4YW1wbGU6NA==,updated foofoo,updating revision,updated barbar\n"
+            "RGF0YXNldEV4YW1wbGU6NQ==,look at me,a new example,i have all the answers\n"
+            "RGF0YXNldEV4YW1wbGU6Nw==,look at me,a newer example,i have all the answers\n"
         )
-    )
+    ).sort_index(axis=1)
     assert_frame_equal(actual, expected)

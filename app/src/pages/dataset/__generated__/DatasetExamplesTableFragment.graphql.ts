@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<27db3da2ca5c0c8fee0d3b7708136a08>>
+ * @generated SignedSource<<1248d14e00521222137f28f24c2ef11b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -30,7 +30,10 @@ export type DatasetExamplesTableFragment$key = {
 };
 
 const node: ReaderFragment = (function(){
-var v0 = {
+var v0 = [
+  "examples"
+],
+v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -38,11 +41,37 @@ var v0 = {
   "storageKey": null
 };
 return {
-  "argumentDefinitions": [],
+  "argumentDefinitions": [
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "after"
+    },
+    {
+      "defaultValue": 100,
+      "kind": "LocalArgument",
+      "name": "first"
+    }
+  ],
   "kind": "Fragment",
   "metadata": {
+    "connection": [
+      {
+        "count": "first",
+        "cursor": "after",
+        "direction": "forward",
+        "path": (v0/*: any*/)
+      }
+    ],
     "refetch": {
-      "connection": null,
+      "connection": {
+        "forward": {
+          "count": "first",
+          "cursor": "after"
+        },
+        "backward": null,
+        "path": (v0/*: any*/)
+      },
       "fragmentPathInResult": [
         "node"
       ],
@@ -56,11 +85,11 @@ return {
   "name": "DatasetExamplesTableFragment",
   "selections": [
     {
-      "alias": null,
+      "alias": "examples",
       "args": null,
       "concreteType": "DatasetExampleConnection",
       "kind": "LinkedField",
-      "name": "examples",
+      "name": "__DatasetExamplesTable_examples_connection",
       "plural": false,
       "selections": [
         {
@@ -79,7 +108,7 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v0/*: any*/),
+                (v1/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -100,8 +129,47 @@ return {
                   "kind": "ScalarField",
                   "name": "metadata",
                   "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "__typename",
+                  "storageKey": null
                 }
               ],
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "cursor",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "PageInfo",
+          "kind": "LinkedField",
+          "name": "pageInfo",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "endCursor",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "hasNextPage",
               "storageKey": null
             }
           ],
@@ -110,13 +178,13 @@ return {
       ],
       "storageKey": null
     },
-    (v0/*: any*/)
+    (v1/*: any*/)
   ],
   "type": "Dataset",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "127b8480a49a6d5066e473810c0f8d04";
+(node as any).hash = "6f18c8e8350131a019ab46403e37f3df";
 
 export default node;

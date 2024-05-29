@@ -39,7 +39,9 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.db import models
 from phoenix.db.insertion.dataset import DatasetAction, add_dataset_examples
 from phoenix.server.api.types.Dataset import Dataset
+from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 logger = logging.getLogger(__name__)
 
@@ -211,67 +213,116 @@ async def get_dataset_by_id(request: Request) -> Response:
         return JSONResponse(content=output_dict)
 
 
-async def get_dataset_download_csv_by_dataset_id(request: Request) -> Response:
+async def get_dataset_versions(request: Request) -> Response:
     """
-    summary: Download dataset as CSV text file (latest dataset version)
-    operationId: getDatasetDownloadCsvByDatasetId
+    summary: Get dataset versions (sorted from latest to oldest)
+    operationId: getDatasetVersionsByDatasetId
     tags:
       - datasets
     parameters:
       - in: path
-        name: datasetId
+        name: id
         required: true
+        description: Dataset ID
         schema:
           type: string
+      - in: query
+        name: cursor
+        description: Cursor for pagination.
+        schema:
+          type: string
+      - in: query
+        name: limit
+        description: Maximum number versions to return.
+        schema:
+          type: integer
+          default: 10
     responses:
       200:
         description: Success
         content:
-          text/csv:
+          application/json:
             schema:
-              type: string
-              contentMediaType: text/csv
-              contentEncoding: gzip
-      404:
-        description: Dataset does not exist or has no examples
+              type: object
+              properties:
+                next_cursor:
+                  type: string
+                data:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      version_id:
+                        type: string
+                      description:
+                        type: string
+                      metadata:
+                        type: object
+                      created_at:
+                        type: string
+                        format: date-time
       422:
-        description: Invalid datasetId
+        description: Dataset ID, cursor or limit is invalid.
     """
-    return await _get_dataset_download_csv(request)
-
-
-async def get_dataset_download_csv_by_dataset_version_id(request: Request) -> Response:
-    """
-    summary: Download dataset as CSV text file
-    operationId: getDatasetDownloadCsvByDatasetVersionId
-    tags:
-      - datasets
-    parameters:
-      - in: path
-        name: datasetId
-        required: true
-        schema:
-          type: string
-      - in: path
-        name: datasetVersionId
-        required: true
-        schema:
-          type: string
-    responses:
-      200:
-        description: Success
-        content:
-          text/csv:
-            schema:
-              type: string
-              contentMediaType: text/csv
-              contentEncoding: gzip
-      404:
-        description: Dataset does not exist or has no examples
-      422:
-        description: Invalid datasetId or datasetVersionId
-    """
-    return await _get_dataset_download_csv(request)
+    if id_ := request.path_params.get("id"):
+        try:
+            dataset_id = from_global_id_with_expected_type(
+                GlobalID.from_id(id_),
+                Dataset.__name__,
+            )
+        except ValueError:
+            return Response(
+                content=f"Invalid Dataset ID: {id_}",
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+    else:
+        return Response(
+            content="Missing Dataset ID",
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+    try:
+        limit = int(request.query_params.get("limit", 10))
+        assert limit > 0
+    except (ValueError, AssertionError):
+        return Response(
+            content="Invalid limit parameter",
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+    stmt = (
+        select(models.DatasetVersion)
+        .where(models.DatasetVersion.dataset_id == dataset_id)
+        .order_by(models.DatasetVersion.id.desc())
+        .limit(limit + 1)
+    )
+    if cursor := request.query_params.get("cursor"):
+        try:
+            dataset_version_id = from_global_id_with_expected_type(
+                GlobalID.from_id(cursor),
+                DatasetVersion.__name__,
+            )
+        except ValueError:
+            return Response(
+                content=f"Invalid cursor: {cursor}",
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        max_dataset_version_id = (
+            select(models.DatasetVersion.id)
+            .where(models.DatasetVersion.id == dataset_version_id)
+            .where(models.DatasetVersion.dataset_id == dataset_id)
+        ).scalar_subquery()
+        stmt = stmt.filter(models.DatasetVersion.id <= max_dataset_version_id)
+    async with request.app.state.db() as session:
+        data = [
+            {
+                "version_id": str(GlobalID(DatasetVersion.__name__, str(version.id))),
+                "description": version.description,
+                "metadata": version.metadata_,
+                "created_at": version.created_at.isoformat(),
+            }
+            async for version in await session.stream_scalars(stmt)
+        ]
+    next_cursor = data.pop()["version_id"] if len(data) == limit + 1 else None
+    return JSONResponse(content={"next_cursor": next_cursor, "data": data})
 
 
 async def post_datasets_upload(request: Request) -> Response:
@@ -518,50 +569,87 @@ async def _parse_form_data(
     )
 
 
-async def _get_dataset_download_csv(request: Request) -> Response:
-    encoded_dataset_id = request.path_params.get("datasetId")
-    if not encoded_dataset_id:
+async def get_dataset_csv(request: Request) -> Response:
+    """
+    summary: Download dataset examples as CSV text file
+    operationId: getDatasetCsv
+    tags:
+      - datasets
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        description: Dataset ID
+      - in: query
+        name: version
+        schema:
+          type: string
+        description: Dataset version ID. If omitted, returns the latest version.
+    responses:
+      200:
+        description: Success
+        content:
+          text/csv:
+            schema:
+              type: string
+              contentMediaType: text/csv
+              contentEncoding: gzip
+      404:
+        description: Dataset does not exist.
+      422:
+        description: Dataset ID or version ID is invalid.
+    """
+    if id_ := request.path_params.get("id"):
+        try:
+            dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id_), Dataset.__name__)
+        except ValueError:
+            return Response(
+                content=f"Invalid Dataset ID: {id_}",
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+    else:
         return Response(
             content="Missing Dataset ID",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
-    dataset_global_id = GlobalID.from_id(encoded_dataset_id)
-    if dataset_global_id.type_name != Dataset.__name__:
-        return Response(
-            content=f"Invalid Dataset ID: {encoded_dataset_id}",
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-        )
-    encoded_dataset_version_id = request.path_params.get("datasetVersionId")
-    dataset_version_global_id = (
-        GlobalID.from_id(encoded_dataset_version_id) if encoded_dataset_version_id else None
-    )
-    if dataset_version_global_id and dataset_version_global_id.type_name != DatasetVersion.__name__:
-        return Response(
-            content=f"Invalid Dataset Version ID: {encoded_dataset_version_id}",
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-        )
-    dataset_id = int(dataset_global_id.node_id)
+    dataset_version_id: Optional[int] = None
+    if version := request.query_params.get("version"):
+        try:
+            dataset_version_id = from_global_id_with_expected_type(
+                GlobalID.from_id(version),
+                DatasetVersion.__name__,
+            )
+        except ValueError:
+            return Response(
+                content=f"Invalid Dataset Version ID: {version}",
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            )
     mder = models.DatasetExampleRevision
     latest_version = (
         select(
             mder.dataset_example_id,
-            (func.rank().over(order_by=mder.dataset_example_id) - 1).label("example_index"),
             func.max(mder.dataset_version_id).label("dataset_version_id"),
         )
         .group_by(mder.dataset_example_id)
         .join(models.DatasetExample)
         .where(models.DatasetExample.dataset_id == dataset_id)
     )
-    if dataset_version_global_id:
-        max_dataset_version_id = int(dataset_version_global_id.node_id)
+    if dataset_version_id is not None:
+        max_dataset_version_id = (
+            select(models.DatasetVersion.id)
+            .where(models.DatasetVersion.id == dataset_version_id)
+            .where(models.DatasetVersion.dataset_id == dataset_id)
+        ).scalar_subquery()
         latest_version = latest_version.where(mder.dataset_version_id <= max_dataset_version_id)
     subq = latest_version.subquery("latest_version")
     stmt = (
         select(
+            mder.dataset_example_id,
             mder.input,
             mder.output,
             mder.metadata_,
-            subq.c.example_index,
         )
         .join(
             subq,
@@ -584,24 +672,16 @@ async def _get_dataset_download_csv(request: Request) -> Response:
             )
         examples = [
             {
-                **metadata,
-                **input,
-                **output,
-                "__example_index__": example_index,
+                "example_id": GlobalID(type_name=DatasetExample.__name__, node_id=str(example_id)),
+                **{f"input_{k}": v for k, v in input.items()},
+                **{f"output_{k}": v for k, v in output.items()},
+                **{f"metadata_{k}": v for k, v in metadata.items()},
             }
-            async for input, output, metadata, example_index in await session.stream(stmt)
+            async for example_id, input, output, metadata in await session.stream(stmt)
         ]
-    if not examples:
-        return Response(
-            content=f"Dataset has no examples: {dataset_name=}",
-            status_code=HTTP_404_NOT_FOUND,
-        )
     content = await run_in_threadpool(
         lambda records: gzip.compress(
-            pd.DataFrame.from_records(records, index="__example_index__")
-            .sort_index(axis=1)
-            .to_csv()
-            .encode()
+            pd.DataFrame.from_records(records).to_csv(index=False).encode()
         ),
         examples,
     )
