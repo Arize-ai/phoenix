@@ -14,4 +14,5 @@ V1_ROUTES = [
     Route("/v1/datasets/{id:str}", datasets.get_dataset_by_id, methods=["GET"]),
     Route("/v1/datasets/{id:str}/csv", datasets.get_dataset_csv, methods=["GET"]),
     Route("/v1/datasets/{id:str}/examples", list_dataset_examples, methods=["GET"]),
+    Route("/v1/datasets/{id:str}/versions", datasets.get_dataset_versions, methods=["GET"]),
 ]
