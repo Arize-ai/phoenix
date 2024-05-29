@@ -89,6 +89,7 @@ class Dataset(Node):
             .where(models.DatasetExample.dataset_id == self.id_attr)
             .group_by(models.DatasetExampleRevision.dataset_example_id)
         )
+        dataset_version_rowid: Optional[int] = None
         if dataset_version_id:
             dataset_version_rowid = from_global_id_with_expected_type(
                 global_id=dataset_version_id, expected_type_name="DatasetVersion"
@@ -130,6 +131,7 @@ class Dataset(Node):
                     output=revision.output,
                     metadata=revision.metadata_,
                     created_at=created_at,
+                    dataset_version_rowid=dataset_version_rowid,
                 )
                 async for revision, created_at in await session.stream(query)
             ]
