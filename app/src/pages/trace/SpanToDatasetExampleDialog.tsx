@@ -43,14 +43,14 @@ export function SpanToDatasetExampleDialog({
 }) {
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   const {
-    span: { example },
+    span: { revision },
     datasets,
   } = useLazyLoadQuery<SpanToDatasetExampleDialogQuery>(
     graphql`
       query SpanToDatasetExampleDialogQuery($spanId: GlobalID!) {
         span: node(id: $spanId) {
           ... on Span {
-            example: asExample {
+            revision: asExampleRevision {
               input
               output
               metadata
@@ -87,9 +87,9 @@ export function SpanToDatasetExampleDialog({
     formState: { isValid },
   } = useForm<ExampleToAdd>({
     defaultValues: {
-      input: JSON.stringify(example?.input, null, 2),
-      output: JSON.stringify(example?.output, null, 2),
-      metadata: JSON.stringify(example?.metadata, null, 2),
+      input: JSON.stringify(revision?.input, null, 2),
+      output: JSON.stringify(revision?.output, null, 2),
+      metadata: JSON.stringify(revision?.metadata, null, 2),
       datasetId: "",
     },
   });
