@@ -142,15 +142,14 @@ class BedrockModel(BaseModel):
         elif self.model_id.startswith("mistral"):
             return {
                 **{
-                    {
-                        "prompt": prompt,
-                        "max_tokens": self.max_tokens,
-                        "temperature": self.temperature,
-                        "stop": self.stop_sequences,
-                        "top_p": self.top_p,
-                        "top_k": self.top_k,
-                    }
-                }
+                    "prompt": prompt,
+                    "max_tokens": self.max_tokens,
+                    "temperature": self.temperature,
+                    "stop": self.stop_sequences,
+                    "top_p": self.top_p,
+                    "top_k": self.top_k,
+                },
+                **self.extra_parameters,
             }
         else:
             if not self.model_id.startswith("amazon"):
