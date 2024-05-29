@@ -503,7 +503,7 @@ function AddSpanToDatasetButton({ span }: { span: Span }) {
         }}
       />
     );
-  }, [span]);
+  }, [span, notifySuccess]);
   return (
     <>
       <Button
