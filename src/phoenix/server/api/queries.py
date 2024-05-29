@@ -22,6 +22,7 @@ from phoenix.server.api.input_types.Coordinates import (
 )
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset
+from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.Dimension import to_gql_dimension
 from phoenix.server.api.types.EmbeddingDimension import (
     DEFAULT_CLUSTER_SELECTION_EPSILON,
@@ -183,6 +184,30 @@ class Query:
                 created_at=dataset.created_at,
                 updated_at=dataset.updated_at,
                 metadata=dataset.metadata_,
+            )
+        elif type_name == "DatasetExample":
+            async with info.context.db() as session:
+                example_result = (
+                    await session.execute(
+                        select(models.DatasetExampleRevision, models.DatasetExample)
+                        .select_from(models.DatasetExampleRevision)
+                        .join(
+                            models.DatasetExample,
+                            onclause=models.DatasetExampleRevision.dataset_example_id
+                            == models.DatasetExample.id,
+                        )
+                        .where(models.DatasetExampleRevision.id == node_id)
+                    )
+                ).first()
+            if not example_result:
+                raise ValueError(f"Unknown dataset example: {id}")
+            revision, example = example_result
+            return DatasetExample(
+                id_attr=revision.id,
+                input=revision.input,
+                output=revision.output,
+                metadata=revision.metadata_,
+                created_at=example.created_at,
             )
         raise Exception(f"Unknown node type: {type_name}")
 
