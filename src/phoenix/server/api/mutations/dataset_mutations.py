@@ -5,7 +5,7 @@ import strawberry
 from openinference.semconv.trace import (
     SpanAttributes,
 )
-from sqlalchemy import insert, select
+from sqlalchemy import delete, insert, select
 from strawberry import UNSET
 from strawberry.types import Info
 
@@ -19,6 +19,7 @@ from phoenix.server.api.input_types.AddExamplesToDatasetInput import AddExamples
 from phoenix.server.api.input_types.AddSpansToDatasetInput import AddSpansToDatasetInput
 from phoenix.server.api.input_types.CreateDatasetInput import CreateDatasetInput
 from phoenix.server.api.input_types.DeleteDatasetExamplesInput import DeleteDatasetExamplesInput
+from phoenix.server.api.input_types.DeleteDatasetInput import DeleteDatasetInput
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
@@ -256,6 +257,38 @@ class DatasetMutationMixin:
                     )
                 ],
             )
+        return DatasetMutationPayload(
+            dataset=Dataset(
+                id_attr=dataset.id,
+                name=dataset.name,
+                description=dataset.description,
+                created_at=dataset.created_at,
+                updated_at=dataset.updated_at,
+                metadata=dataset.metadata_,
+            )
+        )
+
+    @strawberry.mutation
+    async def delete_dataset(
+        self,
+        info: Info[Context, None],
+        input: DeleteDatasetInput,
+    ) -> DatasetMutationPayload:
+        dataset_id = input.dataset_id
+        dataset_rowid = from_global_id_with_expected_type(
+            global_id=dataset_id, expected_type_name=Dataset.__name__
+        )
+
+        async with info.context.db() as session:
+            delete_result = await session.execute(
+                delete(models.Dataset)
+                .where(models.Dataset.id == dataset_rowid)
+                .returning(models.Dataset)
+            )
+            if not (datasets := delete_result.first()):
+                raise ValueError(f"Unknown dataset: {dataset_id}")
+
+        dataset = datasets[0]
         return DatasetMutationPayload(
             dataset=Dataset(
                 id_attr=dataset.id,
