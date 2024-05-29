@@ -110,6 +110,7 @@ type DatasetExample implements Node & Example {
   output: JSON!
   metadata: JSON!
   createdAt: DateTime!
+  revision(versionId: GlobalID = null): DatasetExampleRevision!
 }
 
 """A connection to a list of items."""
@@ -135,6 +136,16 @@ input DatasetExampleInput {
   output: JSON!
   metadata: JSON!
   spanId: GlobalID
+}
+
+type DatasetExampleRevision implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  input: JSON!
+  output: JSON!
+  metadata: JSON!
+  revisionKind: RevisionKind!
+  createdAt: DateTime!
 }
 
 type DatasetMutationPayload {
@@ -798,6 +809,12 @@ type Retrieval {
   queryId: ID!
   documentId: ID!
   relevance: Float
+}
+
+enum RevisionKind {
+  CREATE
+  PATCH
+  DELETE
 }
 
 enum ScalarDriftMetric {

@@ -6,7 +6,7 @@ from strawberry.relay import Node, NodeID
 from strawberry.scalars import JSON
 
 
-@strawberry.type
+@strawberry.enum
 class RevisionKind(Enum):
     CREATE = "CREATE"
     PATCH = "PATCH"
