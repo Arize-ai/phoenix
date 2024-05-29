@@ -92,10 +92,10 @@ class Dataset(Node):
             )
             query = query.where(models.DatasetExample.id <= dataset_example_id)
         async with info.context.db() as session:
-            examples = await session.stream(query)
+            examples = await session.stream_scalars(query)
             nodes = [
                 (
-                    GlobalID(type_name=DatasetExample.__name__, node_id=example.id),
+                    GlobalID(type_name=DatasetExample.__name__, node_id=str(example.id)),
                     DatasetExample(
                         id_attr=example.id,
                         created_at=example.created_at,

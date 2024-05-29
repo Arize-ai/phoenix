@@ -65,7 +65,7 @@ class DatasetExample(Node):
             id_attr=revision.id,
             input=revision.input,
             output=revision.output,
-            metadata=revision.metadata,
+            metadata=revision.metadata_,
             revision_kind=RevisionKind(revision.revision_kind),
             created_at=revision.created_at,
         )

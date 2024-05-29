@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<89add5f23fc190bb61721cb1bde36bc6>>
+ * @generated SignedSource<<c97b85e4fce42f41100c655ac77fce27>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -143,7 +143,7 @@ return {
                     "plural": true,
                     "selections": [
                       {
-                        "alias": null,
+                        "alias": "example",
                         "args": null,
                         "concreteType": "DatasetExample",
                         "kind": "LinkedField",
@@ -154,25 +154,35 @@ return {
                           {
                             "alias": null,
                             "args": null,
-                            "kind": "ScalarField",
-                            "name": "input",
+                            "concreteType": "DatasetExampleRevision",
+                            "kind": "LinkedField",
+                            "name": "revision",
+                            "plural": false,
+                            "selections": [
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "input",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "output",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "metadata",
+                                "storageKey": null
+                              }
+                            ],
                             "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "output",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "metadata",
-                            "storageKey": null
-                          },
-                          (v3/*: any*/)
+                          }
                         ],
                         "storageKey": null
                       },
@@ -181,6 +191,18 @@ return {
                         "args": null,
                         "kind": "ScalarField",
                         "name": "cursor",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "DatasetExample",
+                        "kind": "LinkedField",
+                        "name": "node",
+                        "plural": false,
+                        "selections": [
+                          (v3/*: any*/)
+                        ],
                         "storageKey": null
                       }
                     ],
@@ -233,16 +255,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "55aa4dc1a52aa3b5ceba99e7b66048f4",
+    "cacheID": "32a5fc724ab0c63345f57121fbaf5a37",
     "id": null,
     "metadata": {},
     "name": "DatasetExamplesTableQuery",
     "operationKind": "query",
-    "text": "query DatasetExamplesTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetExamplesTableFragment_2HEEH6\n    __isNode: __typename\n    id\n  }\n}\n\nfragment DatasetExamplesTableFragment_2HEEH6 on Dataset {\n  examples(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        input\n        output\n        metadata\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query DatasetExamplesTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetExamplesTableFragment_2HEEH6\n    __isNode: __typename\n    id\n  }\n}\n\nfragment DatasetExamplesTableFragment_2HEEH6 on Dataset {\n  examples(first: $first, after: $after) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n          metadata\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6f18c8e8350131a019ab46403e37f3df";
+(node as any).hash = "9f226f4647a9479d5e31641be42c7c70";
 
 export default node;

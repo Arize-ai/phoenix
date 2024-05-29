@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ad99eb749ff9b5170ab3dc64471b6649>>
+ * @generated SignedSource<<a0aaa452dfdba2b328077b49dce300ad>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,9 +14,11 @@ export type DatasetExamplePageQuery$variables = {
 };
 export type DatasetExamplePageQuery$data = {
   readonly example: {
-    readonly input?: any;
-    readonly metadata?: any;
-    readonly output?: any;
+    readonly revision?: {
+      readonly input: any;
+      readonly metadata: any;
+      readonly output: any;
+    };
   };
 };
 export type DatasetExamplePageQuery = {
@@ -45,22 +47,33 @@ v2 = {
     {
       "alias": null,
       "args": null,
-      "kind": "ScalarField",
-      "name": "input",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "output",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "metadata",
+      "concreteType": "DatasetExampleRevision",
+      "kind": "LinkedField",
+      "name": "revision",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "input",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "output",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "metadata",
+          "storageKey": null
+        }
+      ],
       "storageKey": null
     }
   ],
@@ -129,16 +142,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "14c3912558e81f4281842e0467d1ede3",
+    "cacheID": "209524144ea5be096a030c1c4ac98d5b",
     "id": null,
     "metadata": {},
     "name": "DatasetExamplePageQuery",
     "operationKind": "query",
-    "text": "query DatasetExamplePageQuery(\n  $exampleId: GlobalID!\n) {\n  example: node(id: $exampleId) {\n    __typename\n    ... on DatasetExample {\n      input\n      output\n      metadata\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query DatasetExamplePageQuery(\n  $exampleId: GlobalID!\n) {\n  example: node(id: $exampleId) {\n    __typename\n    ... on DatasetExample {\n      revision {\n        input\n        output\n        metadata\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "fd81e36b6dccd1d7955a559d4aa26b96";
+(node as any).hash = "848584de5ad47ce817ae579e8c9a0381";
 
 export default node;
