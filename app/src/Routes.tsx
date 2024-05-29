@@ -7,6 +7,7 @@ import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embed
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
 import {
   APIsPage,
+  DatasetExamplePage,
   datasetLoader,
   DatasetPage,
   DatasetsPage,
@@ -77,9 +78,7 @@ const router = createBrowserRouter(
         >
           <Route index element={<ProjectPage />} />
           <Route element={<ProjectPage />}>
-            <Route path="traces">
-              <Route path=":traceId" element={<TracePage />} />
-            </Route>
+            <Route path="traces/:traceId" element={<TracePage />} />
           </Route>
         </Route>
       </Route>
@@ -92,7 +91,9 @@ const router = createBrowserRouter(
             crumb: (data: datasetLoaderQuery$data) => data.dataset.name,
           }}
           element={<DatasetPage />}
-        />
+        >
+          <Route path="examples/:exampleId" element={<DatasetExamplePage />} />
+        </Route>
       </Route>
       <Route
         path="/apis"
