@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
+import { Link } from "@phoenix/components/Link";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TextCell } from "@phoenix/components/table/TextCell";
@@ -71,7 +72,10 @@ export function DatasetExamplesTable({
     {
       header: "id",
       accessorKey: "id",
-      cell: TextCell,
+      cell: ({ getValue, row }) => {
+        const exampleId = row.original.id;
+        return <Link to={`examples/${exampleId}`}>{getValue() as string}</Link>;
+      },
     },
     {
       header: "input",
