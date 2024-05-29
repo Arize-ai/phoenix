@@ -264,6 +264,33 @@ class Client(TraceDataExtractor):
                 },
             ).raise_for_status()
 
+    def get_dataset_versions(
+        self,
+        dataset_id: str,
+        /,
+        *,
+        limit: Optional[int] = 100,
+    ) -> pd.DataFrame:
+        """
+        Get dataset versions as pandas DataFrame.
+
+        Args:
+            dataset_id (str): dataset ID
+            limit (Optional[int]): maximum number of versions to return,
+                starting from the most recent version
+
+        Returns:
+            pandas DataFrame
+        """
+        url = urljoin(self._base_url, f"v1/datasets/{dataset_id}/versions")
+        response = httpx.get(url=url, params={"limit": limit})
+        response.raise_for_status()
+        if not (records := response.json()["data"]):
+            return pd.DataFrame()
+        df = pd.DataFrame.from_records(records, index="version_id")
+        df["created_at"] = pd.to_datetime(df.created_at)
+        return df
+
     def download_dataset_examples(
         self,
         dataset_id: str,
