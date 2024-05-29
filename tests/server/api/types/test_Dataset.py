@@ -6,7 +6,7 @@ from phoenix.db import models
 from strawberry.relay import GlobalID
 
 
-async def test_dataset_examples_resolver_returns_latest_revisions(
+async def test_dataset_examples_return_latest_revisions(
     test_client,
     dataset_with_patch_revision,
 ) -> None:
@@ -28,10 +28,12 @@ async def test_dataset_examples_resolver_returns_latest_revisions(
                 "edges": [
                     {
                         "node": {
-                            "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
-                            "input": {"input": "second-input"},
-                            "output": {"output": "second-output"},
-                            "metadata": {},
+                            "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
+                            "revision": {
+                                "input": {"input": "second-input"},
+                                "output": {"output": "second-output"},
+                                "metadata": {},
+                            },
                             "createdAt": "2020-01-01T00:00:00+00:00",
                         }
                     }
@@ -232,16 +234,18 @@ async def dataset_with_deletion(session):
 
 
 DATASET_EXAMPLES_QUERY = """
-query($datasetId: GlobalID!, $datasetVersionId: GlobalID) {
+query ($datasetId: GlobalID!, $datasetVersionId: GlobalID) {
   node(id: $datasetId) {
-    ...on Dataset {
+    ... on Dataset {
       examples(datasetVersionId: $datasetVersionId) {
         edges {
           node {
             id
-            input
-            output
-            metadata
+            revision {
+              input
+              output
+              metadata
+            }
             createdAt
           }
         }
