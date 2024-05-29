@@ -103,12 +103,9 @@ type DatasetEdge {
   node: Dataset!
 }
 
-type DatasetExample implements Node & Example {
+type DatasetExample implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
-  input: JSON!
-  output: JSON!
-  metadata: JSON!
   createdAt: DateTime!
   revision(versionId: GlobalID = null): DatasetExampleRevision!
 }

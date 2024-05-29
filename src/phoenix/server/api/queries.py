@@ -187,26 +187,13 @@ class Query:
             )
         elif type_name == "DatasetExample":
             async with info.context.db() as session:
-                example_result = (
-                    await session.execute(
-                        select(models.DatasetExampleRevision, models.DatasetExample)
-                        .select_from(models.DatasetExampleRevision)
-                        .join(
-                            models.DatasetExample,
-                            onclause=models.DatasetExampleRevision.dataset_example_id
-                            == models.DatasetExample.id,
-                        )
-                        .where(models.DatasetExampleRevision.id == node_id)
-                    )
-                ).first()
-            if not example_result:
+                example = await session.scalar(
+                    select(models.DatasetExample).where(models.DatasetExample.id == node_id)
+                )
+            if not example:
                 raise ValueError(f"Unknown dataset example: {id}")
-            revision, example = example_result
             return DatasetExample(
-                id_attr=revision.id,
-                input=revision.input,
-                output=revision.output,
-                metadata=revision.metadata_,
+                id_attr=example.id,
                 created_at=example.created_at,
             )
         raise Exception(f"Unknown node type: {type_name}")

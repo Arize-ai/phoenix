@@ -14,11 +14,9 @@ from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevisi
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
-from .ExampleInterface import Example
-
 
 @strawberry.type
-class DatasetExample(Node, Example):
+class DatasetExample(Node):
     id_attr: NodeID[int]
     created_at: datetime
     dataset_version_rowid: strawberry.Private[Optional[int]] = None
