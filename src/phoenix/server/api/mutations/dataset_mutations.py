@@ -315,6 +315,22 @@ class DatasetMutationMixin:
                 )
                 .returning(models.DatasetVersion.id)
             )
+
+            # If the examples already have a delete revision, skip the deletion
+            existing_delete_revisions = (
+                await session.scalars(
+                    select(models.DatasetExampleRevision).where(
+                        models.DatasetExampleRevision.dataset_example_id.in_(example_db_ids),
+                        models.DatasetExampleRevision.revision_kind == "DELETE",
+                    )
+                )
+            ).all()
+
+            if existing_delete_revisions:
+                raise ValueError(
+                    "Provided examples contain already deleted examples. Delete aborted."
+                )
+
             DatasetExampleRevision = models.DatasetExampleRevision
             await session.execute(
                 insert(DatasetExampleRevision),
