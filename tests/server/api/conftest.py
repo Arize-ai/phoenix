@@ -222,6 +222,7 @@ async def dataset_with_revisions(session):
         dataset_id=2,
         description="data gets added",
         metadata_={"info": "gotta get some test data somewhere"},
+        created_at=datetime.fromisoformat("2024-05-28T00:00:04+00:00"),
     )
     session.add(dataset_version_4)
     await session.flush()

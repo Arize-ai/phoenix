@@ -194,16 +194,16 @@ async def test_get_dataset_versions(test_client, dataset_with_revisions):
     assert response.status_code == 200
     assert response.headers.get("content-type") == "application/json"
     assert response.json() == {
-        "next_cursor": "RGF0YXNldFZlcnNpb246Nw==",
+        "next_cursor": f'{GlobalID("DatasetVersion", str(7))}',
         "data": [
             {
-                "version_id": "RGF0YXNldFZlcnNpb246OQ==",
+                "version_id": f'{GlobalID("DatasetVersion", str(9))}',
                 "description": "datum gets deleted",
                 "metadata": {},
                 "created_at": "2024-05-28T00:00:09+00:00",
             },
             {
-                "version_id": "RGF0YXNldFZlcnNpb246OA==",
+                "version_id": f'{GlobalID("DatasetVersion", str(8))}',
                 "description": "datum gets created",
                 "metadata": {},
                 "created_at": "2024-05-28T00:00:08+00:00",
@@ -215,33 +215,29 @@ async def test_get_dataset_versions(test_client, dataset_with_revisions):
 async def test_get_dataset_versions_with_cursor(test_client, dataset_with_revisions):
     dataset_global_id = GlobalID("Dataset", str(2))
     response = await test_client.get(
-        f"/v1/datasets/{dataset_global_id}/versions?limit=2&cursor=RGF0YXNldFZlcnNpb246Nw=="
+        f"/v1/datasets/{dataset_global_id}/versions?limit=2"
+        f'&cursor={GlobalID("DatasetVersion", str(4))}'
     )
     assert response.status_code == 200
     assert response.headers.get("content-type") == "application/json"
     assert response.json() == {
-        "next_cursor": "RGF0YXNldFZlcnNpb246NQ==",
+        "next_cursor": None,
         "data": [
             {
-                "created_at": "2024-05-28T00:00:07+00:00",
-                "description": "datum gets deleted",
-                "metadata": {},
-                "version_id": "RGF0YXNldFZlcnNpb246Nw==",
-            },
-            {
-                "created_at": "2024-05-28T00:00:06+00:00",
-                "description": "datum gets created",
-                "metadata": {},
-                "version_id": "RGF0YXNldFZlcnNpb246Ng==",
+                "version_id": f'{GlobalID("DatasetVersion", str(4))}',
+                "created_at": "2024-05-28T00:00:04+00:00",
+                "description": "data gets added",
+                "metadata": {"info": "gotta get some test data somewhere"},
             },
         ],
     }
 
 
-async def test_get_dataset_versions_with_invalid_cursor(test_client, dataset_with_revisions):
+async def test_get_dataset_versions_with_nonexistent_cursor(test_client, dataset_with_revisions):
     dataset_global_id = GlobalID("Dataset", str(2))
     response = await test_client.get(
-        f"/v1/datasets/{dataset_global_id}/versions?limit=1&cursor=RGF0YXNldFZlcnNpb246MQ=="
+        f"/v1/datasets/{dataset_global_id}/versions?limit=1"
+        f'&cursor={GlobalID("DatasetVersion", str(1))}'
     )
     assert response.status_code == 200
     assert response.headers.get("content-type") == "application/json"
