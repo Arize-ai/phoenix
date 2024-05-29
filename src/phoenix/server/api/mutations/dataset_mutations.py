@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any
 
 import strawberry
@@ -270,6 +271,7 @@ class DatasetMutationMixin:
     async def delete_dataset_examples(
         self, info: Info[Context, None], input: DeleteDatasetExamplesInput
     ) -> DatasetMutationPayload:
+        timestamp = datetime.now()
         example_db_ids = [
             from_global_id_with_expected_type(global_id, models.DatasetExample.__name__)
             for global_id in input.example_ids
@@ -285,31 +287,31 @@ class DatasetMutationMixin:
         dataset_version_metadata = input.dataset_version_metadata or {}
         async with info.context.db() as session:
             # Check if the examples are from a single dataset
-            dataset_ids = (
-                (
-                    await session.execute(
-                        select(models.DatasetExample.dataset_id)
-                        .where(models.DatasetExample.id.in_(example_db_ids))
-                        .distinct()
+            datasets = (
+                await session.scalars(
+                    select(models.Dataset)
+                    .join(
+                        models.DatasetExample, models.Dataset.id == models.DatasetExample.dataset_id
                     )
+                    .where(models.DatasetExample.id.in_(example_db_ids))
+                    .distinct()
+                    .limit(2)  # limit to 2 to check if there are more than 1 dataset
                 )
-                .scalars()
-                .all()
-            )
-            if len(dataset_ids) > 1:
+            ).all()
+            if len(datasets) > 1:
                 raise ValueError("Examples must be from the same dataset")
-            elif not dataset_ids:
+            elif not datasets:
                 raise ValueError("Examples not found")
 
-            # Get the dataset and raise an error if it doesn't exist
-            dataset_db_id = dataset_ids[0]
+            dataset = datasets[0]
 
             dataset_version_rowid = await session.scalar(
                 insert(models.DatasetVersion)
                 .values(
-                    dataset_id=dataset_db_id,
+                    dataset_id=dataset.id,
                     description=dataset_version_description,
                     metadata_=dataset_version_metadata,
+                    created_at=timestamp,
                 )
                 .returning(models.DatasetVersion.id)
             )
@@ -324,18 +326,11 @@ class DatasetMutationMixin:
                         DatasetExampleRevision.output.key: {},
                         DatasetExampleRevision.metadata_.key: {},
                         DatasetExampleRevision.revision_kind.key: "DELETE",
+                        DatasetExampleRevision.created_at.key: timestamp,
                     }
                     for dataset_example_rowid in example_db_ids
                 ],
             )
-
-            # Fetch the dataset to return
-            dataset = await session.scalar(
-                select(models.Dataset).where(models.Dataset.id == dataset_db_id)
-            )
-
-            if not dataset:
-                raise ValueError("Dataset not found")
 
             return DatasetMutationPayload(
                 dataset=Dataset(
