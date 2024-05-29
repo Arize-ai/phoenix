@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
+import { useNavigate } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -8,6 +9,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
+import { Link } from "@phoenix/components/Link";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TextCell } from "@phoenix/components/table/TextCell";
@@ -70,7 +72,10 @@ export function DatasetExamplesTable({
     {
       header: "id",
       accessorKey: "id",
-      cell: TextCell,
+      cell: ({ getValue, row }) => {
+        const exampleId = row.original.id;
+        return <Link to={`examples/${exampleId}`}>{getValue() as string}</Link>;
+      },
     },
     {
       header: "input",
@@ -111,6 +116,7 @@ export function DatasetExamplesTable({
     },
     [hasNext, isLoadingNext, loadNext]
   );
+  const navigate = useNavigate();
   return (
     <div
       css={css`
@@ -142,7 +148,12 @@ export function DatasetExamplesTable({
         ) : (
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id}>
+              <tr
+                key={row.id}
+                onClick={() => {
+                  navigate(`examples/${row.original.id}`);
+                }}
+              >
                 {row.getVisibleCells().map((cell) => {
                   return (
                     <td key={cell.id}>
