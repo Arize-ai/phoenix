@@ -175,6 +175,10 @@ type DatasetVersionEdge {
 """Date with time (isoformat)"""
 scalar DateTime
 
+input DeleteDatasetInput {
+  datasetId: GlobalID!
+}
+
 type Dimension implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
@@ -624,6 +628,7 @@ type Mutation {
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
   addExamplesToDataset(input: AddExamplesToDatasetInput!): DatasetMutationPayload!
+  deleteDataset(input: DeleteDatasetInput!): DatasetMutationPayload!
 
   """
   Given a list of event ids, export the corresponding data subset in Parquet format. File name is optional, but if specified, should be without file extension. By default the exported file name is current timestamp.
