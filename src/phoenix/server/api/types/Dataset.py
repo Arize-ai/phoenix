@@ -11,6 +11,7 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.DatasetExample import DatasetExample
+from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision, RevisionKind
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -98,7 +99,7 @@ class Dataset(Node):
             )
         latest_revisions_cte = latest_revisions.cte("latest_revisions")
         query = (
-            select(models.DatasetExampleRevision, models.DatasetExample.created_at)
+            select(models.DatasetExample, models.DatasetExampleRevision)
             .join(
                 latest_revisions_cte,
                 onclause=and_(
@@ -125,12 +126,16 @@ class Dataset(Node):
         async with info.context.db() as session:
             dataset_examples = [
                 DatasetExample(
-                    id_attr=revision.id,
-                    input=revision.input,
-                    output=revision.output,
-                    metadata=revision.metadata_,
-                    created_at=created_at,
+                    id_attr=example.id,
+                    created_at=example.created_at,
+                    revision=DatasetExampleRevision(
+                        input=revision.input,
+                        output=revision.output,
+                        metadata=revision.metadata_,
+                        revision_kind=RevisionKind(revision.revision_kind),
+                        created_at=revision.created_at,
+                    ),
                 )
-                async for revision, created_at in await session.stream(query)
+                async for example, revision in await session.stream(query)
             ]
         return connection_from_list(data=dataset_examples, args=args)

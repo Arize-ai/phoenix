@@ -88,6 +88,7 @@
     "watch": "./esbuild.config.mjs dev",
     "test": "jest --config ./jest.config.js",
     "dev": "pnpm run dev:server & pnpm run build:static && pnpm run watch",
+    "dev:ui": "pnpm run build:static && pnpm run watch",
     "dev:server:mnist": "python3 -m phoenix.server.main --umap_params 0,30,550 fixture fashion_mnist",
     "dev:server:mnist:single": "python3 -m phoenix.server.main fixture fashion_mnist --primary-only true",
     "dev:server:sentiment": "python3 -m phoenix.server.main fixture sentiment_classification_language_drift",
