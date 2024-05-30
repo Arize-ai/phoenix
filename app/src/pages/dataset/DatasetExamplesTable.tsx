@@ -42,11 +42,13 @@ export function DatasetExamplesTable({
         examples(first: $first, after: $after)
           @connection(key: "DatasetExamplesTable_examples") {
           edges {
-            node {
+            example: node {
               id
-              input
-              output
-              metadata
+              revision {
+                input
+                output
+                metadata
+              }
             }
           }
         }
@@ -57,12 +59,13 @@ export function DatasetExamplesTable({
   const tableData = useMemo(
     () =>
       data.examples.edges.map((edge) => {
-        const { id, input, output, metadata } = edge.node;
+        const example = edge.example;
+        const revision = example.revision;
         return {
-          id,
-          input: JSON.stringify(input),
-          output: JSON.stringify(output),
-          metadata: JSON.stringify(metadata),
+          id: example.id,
+          input: JSON.stringify(revision.input),
+          output: JSON.stringify(revision.output),
+          metadata: JSON.stringify(revision.metadata),
         };
       }),
     [data]

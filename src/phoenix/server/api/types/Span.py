@@ -20,7 +20,7 @@ from phoenix.server.api.helpers.dataset_helpers import (
 )
 from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
 from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluation
-from phoenix.server.api.types.ExampleInterface import Example
+from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
 from phoenix.server.api.types.MimeType import MimeType
 from phoenix.trace.attributes import get_attribute_value
 
@@ -111,7 +111,7 @@ class SpanEvent:
 
 
 @strawberry.type
-class SpanAsExample(Example): ...
+class SpanAsExampleRevision(ExampleRevision): ...
 
 
 @strawberry.type
@@ -204,9 +204,9 @@ class Span(Node):
         return [to_gql_span(span) for span in spans]
 
     @strawberry.field(
-        description="The span's attributes translated into an example for a dataset",
+        description="The span's attributes translated into an example revision for a dataset",
     )  # type: ignore
-    def as_example(self) -> SpanAsExample:
+    def as_example_revision(self) -> SpanAsExampleRevision:
         db_span = self.db_span
         attributes = db_span.attributes
         span_io = _SpanIO(
@@ -222,7 +222,7 @@ class Span(Node):
             llm_output_messages=get_attribute_value(attributes, LLM_OUTPUT_MESSAGES),
             retrieval_documents=get_attribute_value(attributes, RETRIEVAL_DOCUMENTS),
         )
-        return SpanAsExample(
+        return SpanAsExampleRevision(
             input=get_dataset_example_input(span_io),
             output=get_dataset_example_output(span_io),
             metadata=attributes,

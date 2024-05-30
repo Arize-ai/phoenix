@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1248d14e00521222137f28f24c2ef11b>>
+ * @generated SignedSource<<2064387de64b0332036735ddc22db5ae>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,11 +13,13 @@ import { FragmentRefs } from "relay-runtime";
 export type DatasetExamplesTableFragment$data = {
   readonly examples: {
     readonly edges: ReadonlyArray<{
-      readonly node: {
+      readonly example: {
         readonly id: string;
-        readonly input: any;
-        readonly metadata: any;
-        readonly output: any;
+        readonly revision: {
+          readonly input: any;
+          readonly metadata: any;
+          readonly output: any;
+        };
       };
     }>;
   };
@@ -101,7 +103,7 @@ return {
           "plural": true,
           "selections": [
             {
-              "alias": null,
+              "alias": "example",
               "args": null,
               "concreteType": "DatasetExample",
               "kind": "LinkedField",
@@ -112,29 +114,33 @@ return {
                 {
                   "alias": null,
                   "args": null,
-                  "kind": "ScalarField",
-                  "name": "input",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "output",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "metadata",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "__typename",
+                  "concreteType": "DatasetExampleRevision",
+                  "kind": "LinkedField",
+                  "name": "revision",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "input",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "output",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "metadata",
+                      "storageKey": null
+                    }
+                  ],
                   "storageKey": null
                 }
               ],
@@ -145,6 +151,24 @@ return {
               "args": null,
               "kind": "ScalarField",
               "name": "cursor",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "DatasetExample",
+              "kind": "LinkedField",
+              "name": "node",
+              "plural": false,
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "__typename",
+                  "storageKey": null
+                }
+              ],
               "storageKey": null
             }
           ],
@@ -185,6 +209,6 @@ return {
 };
 })();
 
-(node as any).hash = "6f18c8e8350131a019ab46403e37f3df";
+(node as any).hash = "9f226f4647a9479d5e31641be42c7c70";
 
 export default node;
