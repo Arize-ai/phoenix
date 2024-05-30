@@ -17,6 +17,16 @@ description: Guides on how to use traces
 * [How to create custom spans](manual-instrumentation/custom-spans.md)
 * [How to add custom metadata](customize-traces.md#adding-custom-metadata-to-spans)
 
+### [Customize Spans](./#customizing-spans)
+
+How to set custom attributes and semantic attributes to child spans and spans created by auto-instrumentors.
+
+* [Setting metadata](customize-spans.md#using\_metadata)
+* [Setting tags](customize-spans.md#specifying-tags)
+* [Setting a user](customize-spans.md#using\_user)
+* [Setting prompt template attributes](customize-spans.md#specifying-the-prompt-template)
+* [How to read attributes from context](customize-spans.md#using\_attributes)
+
 ## [Auto Instrumentation](./#auto-instrumentation)
 
 Use auto-instrumentation to export traces for common frameworks and libraries
@@ -53,8 +63,6 @@ Create and customize spans for your use-case
 * [How to record exceptions](manual-instrumentation/custom-spans.md#record-exceptions-in-spans)
 
 ### [Instrument: TypeScript](./#instrument-typescript)
-
-*
 
 ## [Querying Spans](extract-data-from-spans.md)
 

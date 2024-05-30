@@ -23,6 +23,7 @@
 * [How-to: Tracing](tracing/how-to-tracing/README.md)
   * [Tracing Core Concepts](tracing/how-to-tracing/tracing-core-concepts.md)
   * [Customize Traces](tracing/how-to-tracing/customize-traces.md)
+  * [Customize Spans](tracing/how-to-tracing/customize-spans.md)
   * [Auto Instrumentation](tracing/how-to-tracing/instrumentation/README.md)
     * [Auto Instrument: Python](tracing/how-to-tracing/instrumentation/auto-instrument-python/README.md)
       * [LlamaIndex](tracing/how-to-tracing/instrumentation/auto-instrument-python/llamaindex.md)
