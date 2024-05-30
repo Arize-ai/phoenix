@@ -31,7 +31,7 @@ export function DatasetExamplePage() {
       query DatasetExamplePageQuery($exampleId: GlobalID!) {
         example: node(id: $exampleId) {
           ... on DatasetExample {
-            revision {
+            latestRevision: revision {
               input
               output
               metadata
@@ -43,7 +43,7 @@ export function DatasetExamplePage() {
     { exampleId: exampleId as string }
   );
   const { input, output, metadata } = useMemo(() => {
-    const revision = data.example.revision;
+    const revision = data.example.latestRevision;
     return {
       input: JSON.stringify(revision?.input),
       output: JSON.stringify(revision?.output),

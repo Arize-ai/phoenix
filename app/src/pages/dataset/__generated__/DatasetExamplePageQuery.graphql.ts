@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a0aaa452dfdba2b328077b49dce300ad>>
+ * @generated SignedSource<<1603f54723deee980b6705470ce34c4f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,7 +14,7 @@ export type DatasetExamplePageQuery$variables = {
 };
 export type DatasetExamplePageQuery$data = {
   readonly example: {
-    readonly revision?: {
+    readonly latestRevision?: {
       readonly input: any;
       readonly metadata: any;
       readonly output: any;
@@ -45,7 +45,7 @@ v2 = {
   "kind": "InlineFragment",
   "selections": [
     {
-      "alias": null,
+      "alias": "latestRevision",
       "args": null,
       "concreteType": "DatasetExampleRevision",
       "kind": "LinkedField",
@@ -142,16 +142,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "209524144ea5be096a030c1c4ac98d5b",
+    "cacheID": "57efff08a8a2b555f02a8af5fcaea308",
     "id": null,
     "metadata": {},
     "name": "DatasetExamplePageQuery",
     "operationKind": "query",
-    "text": "query DatasetExamplePageQuery(\n  $exampleId: GlobalID!\n) {\n  example: node(id: $exampleId) {\n    __typename\n    ... on DatasetExample {\n      revision {\n        input\n        output\n        metadata\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query DatasetExamplePageQuery(\n  $exampleId: GlobalID!\n) {\n  example: node(id: $exampleId) {\n    __typename\n    ... on DatasetExample {\n      latestRevision: revision {\n        input\n        output\n        metadata\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "848584de5ad47ce817ae579e8c9a0381";
+(node as any).hash = "df42938b9353ee8729d3ff079d009fe3";
 
 export default node;
