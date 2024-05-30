@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Set, Union
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from sqlalchemy import select
+from sqlalchemy import and_, func, select
 from sqlalchemy.orm import contains_eager
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, GlobalID, Node
@@ -23,6 +23,7 @@ from phoenix.server.api.input_types.Coordinates import (
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
+from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision, RevisionKind
 from phoenix.server.api.types.Dimension import to_gql_dimension
 from phoenix.server.api.types.EmbeddingDimension import (
     DEFAULT_CLUSTER_SELECTION_EPSILON,
@@ -186,28 +187,44 @@ class Query:
                 metadata=dataset.metadata_,
             )
         elif type_name == "DatasetExample":
+            example_rowid = node_id
+            revision_rowid = (
+                select(func.max(models.DatasetExampleRevision.id))
+                .where(models.DatasetExampleRevision.dataset_example_id == example_rowid)
+                .scalar_subquery()
+            )
             async with info.context.db() as session:
                 example_result = (
                     await session.execute(
-                        select(models.DatasetExampleRevision, models.DatasetExample)
+                        select(models.DatasetExample, models.DatasetExampleRevision)
                         .select_from(models.DatasetExampleRevision)
                         .join(
                             models.DatasetExample,
                             onclause=models.DatasetExampleRevision.dataset_example_id
                             == models.DatasetExample.id,
                         )
-                        .where(models.DatasetExampleRevision.id == node_id)
+                        .where(
+                            and_(
+                                models.DatasetExample.id == example_rowid,
+                                models.DatasetExampleRevision.id == revision_rowid,
+                                models.DatasetExampleRevision.revision_kind != "DELETE",
+                            )
+                        )
                     )
                 ).first()
             if not example_result:
                 raise ValueError(f"Unknown dataset example: {id}")
-            revision, example = example_result
+            example, revision = example_result
             return DatasetExample(
-                id_attr=revision.id,
-                input=revision.input,
-                output=revision.output,
-                metadata=revision.metadata_,
+                id_attr=example.id,
                 created_at=example.created_at,
+                revision=DatasetExampleRevision(
+                    input=revision.input,
+                    output=revision.output,
+                    metadata=revision.metadata_,
+                    revision_kind=RevisionKind(revision.revision_kind),
+                    created_at=revision.created_at,
+                ),
             )
         raise Exception(f"Unknown node type: {type_name}")
 

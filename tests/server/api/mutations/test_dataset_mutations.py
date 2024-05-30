@@ -21,10 +21,12 @@ mutation ($datasetId: GlobalID!, $spanIds: [GlobalID!]!) {
       id
       examples {
         edges {
-          node {
-            input
-            output
-            metadata
+          example: node {
+            revision {
+              input
+              output
+              metadata
+            }
           }
         }
       }
@@ -55,41 +57,29 @@ mutation ($datasetId: GlobalID!, $spanIds: [GlobalID!]!) {
                 "examples": {
                     "edges": [
                         {
-                            "node": {
-                                "input": {"input": "chain-span-input-value"},
-                                "output": {"output": "chain-span-output-value"},
-                                "metadata": {
-                                    "input": {
-                                        "value": "chain-span-input-value",
-                                        "mime_type": "text/plain",
+                            "example": {
+                                "revision": {
+                                    "input": {"input": "chain-span-input-value"},
+                                    "output": {"output": "chain-span-output-value"},
+                                    "metadata": {
+                                        "input": {
+                                            "value": "chain-span-input-value",
+                                            "mime_type": "text/plain",
+                                        },
+                                        "output": {
+                                            "value": "chain-span-output-value",
+                                            "mime_type": "text/plain",
+                                        },
                                     },
-                                    "output": {
-                                        "value": "chain-span-output-value",
-                                        "mime_type": "text/plain",
-                                    },
-                                },
+                                }
                             }
                         },
                         {
-                            "node": {
-                                "input": {"input": "retriever-span-input"},
-                                "output": {
-                                    "retrieval_documents": [
-                                        {
-                                            "document": {
-                                                "content": "retrieved-document-content",
-                                                "score": 1,
-                                            }
-                                        }
-                                    ]
-                                },
-                                "metadata": {
-                                    "input": {
-                                        "value": "retriever-span-input",
-                                        "mime_type": "text/plain",
-                                    },
-                                    "retrieval": {
-                                        "documents": [
+                            "example": {
+                                "revision": {
+                                    "input": {"input": "retriever-span-input"},
+                                    "output": {
+                                        "retrieval_documents": [
                                             {
                                                 "document": {
                                                     "content": "retrieved-document-content",
@@ -98,38 +88,56 @@ mutation ($datasetId: GlobalID!, $spanIds: [GlobalID!]!) {
                                             }
                                         ]
                                     },
-                                },
+                                    "metadata": {
+                                        "input": {
+                                            "value": "retriever-span-input",
+                                            "mime_type": "text/plain",
+                                        },
+                                        "retrieval": {
+                                            "documents": [
+                                                {
+                                                    "document": {
+                                                        "content": "retrieved-document-content",
+                                                        "score": 1,
+                                                    }
+                                                }
+                                            ]
+                                        },
+                                    },
+                                }
                             }
                         },
                         {
-                            "node": {
-                                "input": {
-                                    "input_messages": [
-                                        {"content": "user-message-content", "role": "user"}
-                                    ]
-                                },
-                                "metadata": {
-                                    "llm": {
+                            "example": {
+                                "revision": {
+                                    "input": {
                                         "input_messages": [
                                             {"content": "user-message-content", "role": "user"}
-                                        ],
-                                        "invocation_parameters": {"temperature": 1},
+                                        ]
+                                    },
+                                    "metadata": {
+                                        "llm": {
+                                            "input_messages": [
+                                                {"content": "user-message-content", "role": "user"}
+                                            ],
+                                            "invocation_parameters": {"temperature": 1},
+                                            "output_messages": [
+                                                {
+                                                    "content": "assistant-message-content",
+                                                    "role": "assistant",
+                                                }
+                                            ],
+                                        }
+                                    },
+                                    "output": {
                                         "output_messages": [
                                             {
                                                 "content": "assistant-message-content",
                                                 "role": "assistant",
                                             }
-                                        ],
-                                    }
-                                },
-                                "output": {
-                                    "output_messages": [
-                                        {
-                                            "content": "assistant-message-content",
-                                            "role": "assistant",
-                                        }
-                                    ]
-                                },
+                                        ]
+                                    },
+                                }
                             }
                         },
                     ]

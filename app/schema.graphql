@@ -103,13 +103,11 @@ type DatasetEdge {
   node: Dataset!
 }
 
-type DatasetExample implements Node & Example {
+type DatasetExample implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
-  input: JSON!
-  output: JSON!
-  metadata: JSON!
   createdAt: DateTime!
+  revision: DatasetExampleRevision!
 }
 
 """A connection to a list of items."""
@@ -135,6 +133,14 @@ input DatasetExampleInput {
   output: JSON!
   metadata: JSON!
   spanId: GlobalID
+}
+
+type DatasetExampleRevision implements ExampleRevision {
+  input: JSON!
+  output: JSON!
+  metadata: JSON!
+  revisionKind: RevisionKind!
+  createdAt: DateTime!
 }
 
 type DatasetMutationPayload {
@@ -505,7 +511,7 @@ type EventMetadata {
   actualLabel: String
 }
 
-interface Example {
+interface ExampleRevision {
   input: JSON!
   output: JSON!
   metadata: JSON!
@@ -800,6 +806,12 @@ type Retrieval {
   relevance: Float
 }
 
+enum RevisionKind {
+  CREATE
+  PATCH
+  DELETE
+}
+
 enum ScalarDriftMetric {
   psi
   klDivergence
@@ -885,11 +897,13 @@ type Span implements Node {
   """All descendant spans (children, grandchildren, etc.)"""
   descendants: [Span!]!
 
-  """The span's attributes translated into an example for a dataset"""
-  asExample: SpanAsExample!
+  """
+  The span's attributes translated into an example revision for a dataset
+  """
+  asExampleRevision: SpanAsExampleRevision!
 }
 
-type SpanAsExample implements Example {
+type SpanAsExampleRevision implements ExampleRevision {
   input: JSON!
   output: JSON!
   metadata: JSON!
