@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Set, Union
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from sqlalchemy import select
+from sqlalchemy import and_, func, select
 from sqlalchemy.orm import contains_eager
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, GlobalID, Node
@@ -187,6 +187,12 @@ class Query:
                 metadata=dataset.metadata_,
             )
         elif type_name == "DatasetExample":
+            example_rowid = node_id
+            revision_rowid = (
+                select(func.max(models.DatasetExampleRevision.id))
+                .where(models.DatasetExampleRevision.dataset_example_id == example_rowid)
+                .scalar_subquery()
+            )
             async with info.context.db() as session:
                 example_result = (
                     await session.execute(
@@ -197,7 +203,13 @@ class Query:
                             onclause=models.DatasetExampleRevision.dataset_example_id
                             == models.DatasetExample.id,
                         )
-                        .where(models.DatasetExampleRevision.id == node_id)
+                        .where(
+                            and_(
+                                models.DatasetExample.id == example_rowid,
+                                models.DatasetExampleRevision.id == revision_rowid,
+                                models.DatasetExampleRevision.revision_kind != "DELETE",
+                            )
+                        )
                     )
                 ).first()
             if not example_result:
