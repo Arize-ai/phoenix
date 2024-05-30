@@ -181,15 +181,16 @@ def llm_classify(
         inference, explanation = _process_response(response)
         return inference, explanation, response, prompt
 
-    def _run_llm_classification_sync(prompt: str) -> ParsedLLMResponse:
+    def _run_llm_classification_sync(input_data: pd.Series) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
+            prompt = _map_template(input_data)
             response = verbose_model._generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
         inference, explanation = _process_response(response)
         return inference, explanation, response, prompt
 
-    fallback_return_value: ParsedLLMResponse = (None, None, "")
+    fallback_return_value: ParsedLLMResponse = (None, None, "", "")
 
     executor = get_executor_on_sync_context(
         _run_llm_classification_sync,
