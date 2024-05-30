@@ -45,9 +45,9 @@ export function DatasetExamplePage() {
   const { input, output, metadata } = useMemo(() => {
     const revision = data.example.revision;
     return {
-      input: JSON.stringify(revision!.input),
-      output: JSON.stringify(revision!.output),
-      metadata: JSON.stringify(revision!.metadata),
+      input: JSON.stringify(revision?.input, null, 2),
+      output: JSON.stringify(revision?.output, null, 2),
+      metadata: JSON.stringify(revision?.metadata, null, 2),
     };
   }, [data]);
   const navigate = useNavigate();
