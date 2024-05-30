@@ -1,6 +1,6 @@
 import gzip
+import inspect
 from io import BytesIO, StringIO
-from random import random
 
 import pandas as pd
 import pyarrow as pa
@@ -322,8 +322,8 @@ async def test_get_dataset_download_specific_version(test_client, dataset_with_r
     assert_frame_equal(actual, expected)
 
 
-async def test_post_dataset_upload_csv(test_client, session):
-    name = str(random())
+async def test_post_dataset_upload_csv_create_then_append(test_client, session):
+    name = inspect.stack()[0][3]
     file = gzip.compress(b"a,b,c,d,e,f\n1,2,3,4,5,6\n")
     response = await test_client.post(
         url="v1/datasets/upload?sync=true",
@@ -371,8 +371,8 @@ async def test_post_dataset_upload_csv(test_client, session):
     assert revisions[1].metadata_ == {"e": "55", "f": "66"}
 
 
-async def test_post_dataset_upload_pyarrow(test_client, session):
-    name = str(random())
+async def test_post_dataset_upload_pyarrow_create_then_append(test_client, session):
+    name = inspect.stack()[0][3]
     df = pd.read_csv(StringIO("a,b,c,d,e,f\n1,2,3,4,5,6\n"))
     table = pa.Table.from_pandas(df)
     sink = pa.BufferOutputStream()

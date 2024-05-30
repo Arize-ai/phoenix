@@ -10,6 +10,7 @@ from functools import partial
 from typing import (
     Any,
     Awaitable,
+    Callable,
     Coroutine,
     Dict,
     FrozenSet,
@@ -429,19 +430,22 @@ async def post_datasets_upload(request: Request) -> Response:
             content=str(e),
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
-    operation = partial(
-        add_dataset_examples,
-        examples=examples,
-        action=action,
-        name=name,
-        description=description,
-        input_keys=input_keys,
-        output_keys=output_keys,
-        metadata_keys=metadata_keys,
+    operation = cast(
+        Callable[[AsyncSession], Awaitable[DatasetExamplesAdditionEvent]],
+        partial(
+            add_dataset_examples,
+            examples=examples,
+            action=action,
+            name=name,
+            description=description,
+            input_keys=input_keys,
+            output_keys=output_keys,
+            metadata_keys=metadata_keys,
+        ),
     )
     if request.query_params.get("sync") == "true":
         async with request.app.state.db() as session:
-            dataset_id = cast(DatasetExamplesAdditionEvent, await operation(session)).dataset_id
+            dataset_id = (await operation(session)).dataset_id
         return JSONResponse(
             content={"dataset_id": str(GlobalID(Dataset.__name__, str(dataset_id)))}
         )
