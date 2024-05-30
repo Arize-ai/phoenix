@@ -897,7 +897,9 @@ type Span implements Node {
   """All descendant spans (children, grandchildren, etc.)"""
   descendants: [Span!]!
 
-  """The span's attributes translated into an example for a dataset"""
+  """
+  The span's attributes translated into an example revision for a dataset
+  """
   asExampleRevision: SpanAsExampleRevision!
 }
 

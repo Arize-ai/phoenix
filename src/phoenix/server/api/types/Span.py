@@ -204,7 +204,7 @@ class Span(Node):
         return [to_gql_span(span) for span in spans]
 
     @strawberry.field(
-        description="The span's attributes translated into an example for a dataset",
+        description="The span's attributes translated into an example revision for a dataset",
     )  # type: ignore
     def as_example_revision(self) -> SpanAsExampleRevision:
         db_span = self.db_span
