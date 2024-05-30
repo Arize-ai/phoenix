@@ -2,7 +2,7 @@ import base64
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, auto
-from typing import ClassVar, List, Optional, Tuple, Union
+from typing import Any, ClassVar, List, Optional, Tuple, Union
 
 from strawberry import UNSET
 from strawberry.relay.types import Connection, Edge, NodeType, PageInfo
@@ -254,7 +254,7 @@ def connection_from_list_slice(
 
 
 def connection_from_cursors_and_nodes(
-    cursors_and_nodes: List[Tuple[Cursor, NodeType]],
+    cursors_and_nodes: List[Tuple[Any, NodeType]],
     has_previous_page: bool,
     has_next_page: bool,
 ) -> Connection[NodeType]:
