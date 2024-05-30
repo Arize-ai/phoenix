@@ -19,6 +19,7 @@ from typing import (
 import pandas as pd
 from pandas import DataFrame
 from phoenix.evals.evaluators import LLMEvaluator
+from phoenix.evals.exceptions import PhoenixTemplateMappingError
 from phoenix.evals.executors import get_executor_on_sync_context
 from phoenix.evals.models import BaseModel, OpenAIModel, set_verbosity
 from phoenix.evals.templates import (
@@ -149,10 +150,19 @@ def llm_classify(
         printif(verbose, generation_info)
 
     def _map_template(data: pd.Series) -> str:
-        return eval_template.format(
-            variable_values={var: data[var] for var in eval_template.variables},
-            options=prompt_options,
-        )
+        try:
+            variables = {var: data[var] for var in eval_template.variables}
+            empty_keys = [k for k, v in variables.items() if v is None]
+            if empty_keys:
+                raise PhoenixTemplateMappingError(
+                    f"Missing template variables: {', '.join(empty_keys)}"
+                )
+            return eval_template.format(
+                variable_values=variables,
+                options=prompt_options,
+            )
+        except KeyError as exc:
+            raise PhoenixTemplateMappingError(f"Missing template variable: {exc}")
 
     def _process_response(response: str) -> Tuple[str, Optional[str]]:
         if not use_openai_function_call:
