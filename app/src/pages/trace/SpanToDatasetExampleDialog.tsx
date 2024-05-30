@@ -121,9 +121,9 @@ export function SpanToDatasetExampleDialog({
             datasetId: newExample.datasetId,
             examples: [
               {
-                input: newExample.input,
-                output: newExample.output,
-                metadata: newExample.metadata,
+                input: JSON.parse(newExample.input),
+                output: JSON.parse(newExample.output),
+                metadata: JSON.parse(newExample.metadata),
                 spanId,
               },
             ],
