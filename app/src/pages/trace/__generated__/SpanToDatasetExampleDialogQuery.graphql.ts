@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<338df044f8128e340b20618be5b0638e>>
+ * @generated SignedSource<<aaa2f564ab44b3aa4450db47422054db>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -22,7 +22,7 @@ export type SpanToDatasetExampleDialogQuery$data = {
     }>;
   };
   readonly span: {
-    readonly example?: {
+    readonly revision?: {
       readonly input: any;
       readonly metadata: any;
       readonly output: any;
@@ -53,11 +53,11 @@ v2 = {
   "kind": "InlineFragment",
   "selections": [
     {
-      "alias": "example",
+      "alias": "revision",
       "args": null,
-      "concreteType": "SpanAsExample",
+      "concreteType": "SpanAsExampleRevision",
       "kind": "LinkedField",
-      "name": "asExample",
+      "name": "asExampleRevision",
       "plural": false,
       "selections": [
         {
@@ -194,16 +194,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "92c7d774726ce530c29360bef748726c",
+    "cacheID": "43ec1db110dc70f18bedce946a9b1a00",
     "id": null,
     "metadata": {},
     "name": "SpanToDatasetExampleDialogQuery",
     "operationKind": "query",
-    "text": "query SpanToDatasetExampleDialogQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      example: asExample {\n        input\n        output\n        metadata\n      }\n    }\n    __isNode: __typename\n    id\n  }\n  datasets {\n    edges {\n      dataset: node {\n        id\n        name\n      }\n    }\n  }\n}\n"
+    "text": "query SpanToDatasetExampleDialogQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      revision: asExampleRevision {\n        input\n        output\n        metadata\n      }\n    }\n    __isNode: __typename\n    id\n  }\n  datasets {\n    edges {\n      dataset: node {\n        id\n        name\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3ea0179203f4d40fb27bd58d845d8fb1";
+(node as any).hash = "f875d6e38035278698a12e7271a897b7";
 
 export default node;

@@ -31,9 +31,11 @@ export function DatasetExamplePage() {
       query DatasetExamplePageQuery($exampleId: GlobalID!) {
         example: node(id: $exampleId) {
           ... on DatasetExample {
-            input
-            output
-            metadata
+            latestRevision: revision {
+              input
+              output
+              metadata
+            }
           }
         }
       }
@@ -41,11 +43,11 @@ export function DatasetExamplePage() {
     { exampleId: exampleId as string }
   );
   const { input, output, metadata } = useMemo(() => {
-    const example = data.example;
+    const revision = data.example.latestRevision;
     return {
-      input: JSON.stringify(example.input),
-      output: JSON.stringify(example.output),
-      metadata: JSON.stringify(example.metadata),
+      input: JSON.stringify(revision?.input),
+      output: JSON.stringify(revision?.output),
+      metadata: JSON.stringify(revision?.metadata),
     };
   }, [data]);
   const navigate = useNavigate();
