@@ -4,7 +4,6 @@ import asyncio
 import logging
 import signal
 import threading
-import traceback
 from contextlib import contextmanager
 from typing import (
     Any,
@@ -33,8 +32,7 @@ _unset = Unset()
 
 
 class Executor(Protocol):
-    def run(self, inputs: Sequence[Any]) -> List[Any]:
-        ...
+    def run(self, inputs: Sequence[Any]) -> List[Any]: ...
 
 
 class AsyncExecutor(Executor):
@@ -128,6 +126,7 @@ class AsyncExecutor(Executor):
                 continue
 
             index, payload = item
+
             try:
                 generate_task = asyncio.create_task(self.generate(payload))
                 termination_event_watcher = asyncio.create_task(termination_event.wait())
@@ -136,6 +135,7 @@ class AsyncExecutor(Executor):
                     timeout=120,
                     return_when=asyncio.FIRST_COMPLETED,
                 )
+
                 if generate_task in done:
                     outputs[index] = generate_task.result()
                     progress_bar.update()
@@ -157,16 +157,19 @@ class AsyncExecutor(Executor):
                     # task timeouts are requeued at base priority
                     await queue.put((self.base_priority, item))
             except Exception as exc:
+                if (exception_history := exceptions[index]) is None:
+                    exceptions[index] = [exc]
+                else:
+                    exception_history.append(exc)
                 is_phoenix_exception = isinstance(exc, PhoenixException)
-                if (retry_count := abs(priority)) <= self.max_retries and not is_phoenix_exception:
+                if (retry_count := abs(priority)) < self.max_retries and not is_phoenix_exception:
                     tqdm.write(
                         f"Exception in worker on attempt {retry_count + 1}: raised {repr(exc)}"
                     )
                     tqdm.write("Requeuing...")
                     await queue.put((priority - 1, item))
                 else:
-                    tqdm.write(f"Exception in worker: {traceback.format_exc()}")
-                    exceptions[index] = exc
+                    tqdm.write(f"Retries exhausted after {retry_count + 1} attempts: {exc}")
                     if self.exit_on_error:
                         termination_event.set()
                     else:
@@ -307,6 +310,10 @@ class SyncExecutor(Executor):
                             progress_bar.update()
                             break
                         except Exception as exc:
+                            if (exception_history := exceptions[index]) is None:
+                                exceptions[index] = [exc]
+                            else:
+                                exception_history.append(exc)
                             is_phoenix_exception = isinstance(exc, PhoenixException)
                             if attempt >= self.max_retries or is_phoenix_exception:
                                 raise exc
@@ -314,8 +321,7 @@ class SyncExecutor(Executor):
                                 tqdm.write(f"Exception in worker on attempt {attempt + 1}: {exc}")
                                 tqdm.write("Retrying...")
                 except Exception as exc:
-                    tqdm.write(f"Exception in worker: {exc}")
-                    exceptions[index] = exc
+                    tqdm.write(f"Retries exhausted after {attempt + 1} attempts: {exc}")
                     if self.exit_on_error:
                         return outputs, exceptions
                     else:
@@ -329,6 +335,7 @@ def get_executor_on_sync_context(
     run_sync: bool = False,
     concurrency: int = 3,
     tqdm_bar_format: Optional[str] = None,
+    max_retries: int = 10,
     exit_on_error: bool = True,
     fallback_return_value: Union[Unset, Any] = _unset,
 ) -> Executor:
@@ -343,6 +350,7 @@ def get_executor_on_sync_context(
             sync_fn,
             tqdm_bar_format=tqdm_bar_format,
             exit_on_error=exit_on_error,
+            max_retries=max_retries,
             fallback_return_value=fallback_return_value,
             termination_signal=None,
         )
@@ -351,6 +359,7 @@ def get_executor_on_sync_context(
         return SyncExecutor(
             sync_fn,
             tqdm_bar_format=tqdm_bar_format,
+            max_retries=max_retries,
             exit_on_error=exit_on_error,
             fallback_return_value=fallback_return_value,
         )
@@ -361,6 +370,7 @@ def get_executor_on_sync_context(
                 async_fn,
                 concurrency=concurrency,
                 tqdm_bar_format=tqdm_bar_format,
+                max_retries=max_retries,
                 exit_on_error=exit_on_error,
                 fallback_return_value=fallback_return_value,
             )
@@ -373,6 +383,7 @@ def get_executor_on_sync_context(
             return SyncExecutor(
                 sync_fn,
                 tqdm_bar_format=tqdm_bar_format,
+                max_retries=max_retries,
                 exit_on_error=exit_on_error,
                 fallback_return_value=fallback_return_value,
             )
@@ -381,6 +392,7 @@ def get_executor_on_sync_context(
             async_fn,
             concurrency=concurrency,
             tqdm_bar_format=tqdm_bar_format,
+            max_retries=max_retries,
             exit_on_error=exit_on_error,
             fallback_return_value=fallback_return_value,
         )

@@ -392,6 +392,7 @@ def test_llm_classify_shows_retry_info(openai_api_key: str, capfd: pytest.Captur
             template=RAG_RELEVANCY_PROMPT_TEMPLATE,
             model=model,
             rails=["relevant", "unrelated"],
+            max_retries=10,
         )
 
     out, _ = capfd.readouterr()
@@ -405,8 +406,8 @@ def test_llm_classify_shows_retry_info(openai_api_key: str, capfd: pytest.Captur
     assert "Exception in worker on attempt 8" in out, "Retry information should be printed"
     assert "Exception in worker on attempt 9" in out, "Retry information should be printed"
     assert "Exception in worker on attempt 10" in out, "Retry information should be printed"
-    assert "Exception in worker on attempt 11" in out, "Retry information should be printed"
-    assert "Exception in worker on attempt 12" not in out, "Maximum retries should not be exceeded"
+    assert "Exception in worker on attempt 11" not in out, "Maximum retires should not be exceeded"
+    assert "Retries exhausted after 11 attempts" in out, "Retry information should be printed"
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions", assert_all_called=False)

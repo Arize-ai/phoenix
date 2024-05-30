@@ -72,8 +72,16 @@ def test_async_executor_run_exits_early_on_error():
         dummy_fn, concurrency=1, max_retries=0, exit_on_error=True, fallback_return_value=52
     )
     inputs = [1, 2, 3, 4, 5]
-    outputs, _ = executor.run(inputs)
+    outputs, exceptions = executor.run(inputs)
     assert outputs == [0, 1, 52, 52, 52]
+    assert [len(excs) if excs else 0 for excs in exceptions] == [
+        0,
+        0,
+        1,
+        0,
+        0,
+    ], "one exception raised, then exits"
+    assert all(isinstance(exc, ValueError) for exc in exceptions[2])
 
 
 async def test_async_executor_can_continue_on_error():
@@ -83,11 +91,19 @@ async def test_async_executor_can_continue_on_error():
         return payload - 1
 
     executor = AsyncExecutor(
-        dummy_fn, concurrency=1, max_retries=0, exit_on_error=False, fallback_return_value=52
+        dummy_fn, concurrency=1, max_retries=1, exit_on_error=False, fallback_return_value=52
     )
     inputs = [1, 2, 3, 4, 5]
-    outputs, _ = await executor.execute(inputs)
-    assert outputs == [0, 1, 52, 3, 4]
+    outputs, exceptions = await executor.execute(inputs)
+    assert outputs == [0, 1, 52, 3, 4], "failed tasks use the fallback value"
+    assert [len(excs) if excs else 0 for excs in exceptions] == [
+        0,
+        0,
+        2,
+        0,
+        0,
+    ], "two exceptions due to retries"
+    assert all(isinstance(exc, ValueError) for exc in exceptions[2])
 
 
 @pytest.mark.skipif(platform.system() == "Windows", reason="SIGUSR1 not supported on Windows")
@@ -186,8 +202,16 @@ def test_sync_executor_run_exits_early_on_error():
 
     executor = SyncExecutor(dummy_fn, exit_on_error=True, fallback_return_value=52, max_retries=0)
     inputs = [1, 2, 3, 4, 5]
-    outputs, _ = executor.run(inputs)
+    outputs, exceptions = executor.run(inputs)
     assert outputs == [0, 1, 52, 52, 52]
+    assert [len(excs) if excs else 0 for excs in exceptions] == [
+        0,
+        0,
+        1,
+        0,
+        0,
+    ], "one exception raised, then exits"
+    assert all(isinstance(exc, ValueError) for exc in exceptions[2])
 
 
 def test_sync_executor_can_continue_on_error():
@@ -196,10 +220,18 @@ def test_sync_executor_can_continue_on_error():
             raise ValueError("test error")
         return payload - 1
 
-    executor = SyncExecutor(dummy_fn, exit_on_error=False, fallback_return_value=52, max_retries=0)
+    executor = SyncExecutor(dummy_fn, exit_on_error=False, fallback_return_value=52, max_retries=1)
     inputs = [1, 2, 3, 4, 5]
-    outputs, _ = executor.run(inputs)
+    outputs, exceptions = executor.run(inputs)
     assert outputs == [0, 1, 52, 3, 4]
+    assert [len(excs) if excs else 0 for excs in exceptions] == [
+        0,
+        0,
+        2,
+        0,
+        0,
+    ], "two exceptions due to retries"
+    assert all(isinstance(exc, ValueError) for exc in exceptions[2])
 
 
 @pytest.mark.skipif(platform.system() == "Windows", reason="SIGUSR1 not supported on Windows")

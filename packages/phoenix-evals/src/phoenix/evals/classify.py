@@ -64,6 +64,7 @@ def llm_classify(
     include_prompt: bool = False,
     include_response: bool = False,
     include_exceptions: bool = False,
+    max_retries: int = 10,
     run_sync: bool = False,
     concurrency: Optional[int] = None,
 ) -> pd.DataFrame:
@@ -107,6 +108,9 @@ def llm_classify(
 
         include_exceptions (bool, default=False): if True, includes a column named `exception` in
         the output dataframe containing any exceptions that occurred during the classification.
+
+        max_retries (int, optional): The maximum number of times to retry on exceptions. Defaults to
+        10.
 
         run_sync (bool, default=False): If True, forces synchronous request submission. Otherwise
         evaluations will be run asynchronously if possible.
@@ -208,6 +212,7 @@ def llm_classify(
         run_sync=run_sync,
         concurrency=concurrency,
         tqdm_bar_format=tqdm_bar_format,
+        max_retries=max_retries,
         exit_on_error=True,
         fallback_return_value=fallback_return_value,
     )
