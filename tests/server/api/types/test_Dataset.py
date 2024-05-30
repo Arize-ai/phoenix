@@ -81,7 +81,7 @@ async def test_dataset_examples_return_latest_revisions_up_to_dataset_version(
     }
 
 
-async def test_dataset_examples_resolver_excludes_deleted_examples(
+async def test_dataset_examples_exclude_deleted_examples(
     test_client, dataset_with_deletion
 ) -> None:
     response = await test_client.post(
