@@ -25,7 +25,6 @@ from phoenix.evals.templates import (
     ClassificationTemplate,
     PromptOptions,
     PromptTemplate,
-    map_template,
     normalize_classification_template,
 )
 from phoenix.evals.utils import (
@@ -63,6 +62,7 @@ def llm_classify(
     provide_explanation: bool = False,
     include_prompt: bool = False,
     include_response: bool = False,
+    include_exceptions: bool = False,
     run_sync: bool = False,
     concurrency: Optional[int] = None,
 ) -> pd.DataFrame:
@@ -104,6 +104,9 @@ def llm_classify(
         include_response (bool, default=False): If True, includes a column named `response` in the
         output dataframe containing the raw response from the LLM.
 
+        include_exceptions (bool, default=False): if True, includes a column named `exception` in
+        the output dataframe containing any exceptions that occurred during the classification.
+
         run_sync (bool, default=False): If True, forces synchronous request submission. Otherwise
         evaluations will be run asynchronously if possible.
 
@@ -137,7 +140,6 @@ def llm_classify(
     eval_template = normalize_classification_template(rails=rails, template=template)
 
     prompt_options = PromptOptions(provide_explanation=provide_explanation)
-    prompts = map_template(dataframe, eval_template, options=prompt_options)
 
     labels: Iterable[Optional[str]] = [None] * len(dataframe)
     explanations: Iterable[Optional[str]] = [None] * len(dataframe)
@@ -145,6 +147,12 @@ def llm_classify(
     printif(verbose, f"Using prompt:\n\n{eval_template.prompt(prompt_options)}")
     if generation_info := model.verbose_generation_info():
         printif(verbose, generation_info)
+
+    def _map_template(data: pd.Series) -> str:
+        return eval_template.format(
+            variable_values={var: data[var] for var in eval_template.variables},
+            options=prompt_options,
+        )
 
     def _process_response(response: str) -> Tuple[str, Optional[str]]:
         if not use_openai_function_call:
@@ -164,13 +172,14 @@ def llm_classify(
             unrailed_label, explanation = parse_openai_function_call(response)
         return snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
 
-    async def _run_llm_classification_async(prompt: str) -> ParsedLLMResponse:
+    async def _run_llm_classification_async(input_data: pd.Series) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
+            prompt = _map_template(input_data)
             response = await verbose_model._async_generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
         inference, explanation = _process_response(response)
-        return inference, explanation, response
+        return inference, explanation, response, prompt
 
     def _run_llm_classification_sync(prompt: str) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
@@ -178,7 +187,7 @@ def llm_classify(
                 prompt, instruction=system_instruction, **model_kwargs
             )
         inference, explanation = _process_response(response)
-        return inference, explanation, response
+        return inference, explanation, response, prompt
 
     fallback_return_value: ParsedLLMResponse = (None, None, "")
 
@@ -192,8 +201,8 @@ def llm_classify(
         fallback_return_value=fallback_return_value,
     )
 
-    results = executor.run(prompts.tolist())
-    labels, explanations, responses = zip(*results)
+    results, exceptions = executor.run([row_tuple[1] for row_tuple in dataframe.iterrows()])
+    labels, explanations, responses, prompts = zip(*results)
 
     return pd.DataFrame(
         data={
@@ -201,6 +210,7 @@ def llm_classify(
             **({"explanation": explanations} if provide_explanation else {}),
             **({"prompt": prompts} if include_prompt else {}),
             **({"response": responses} if include_response else {}),
+            **({"exception": exceptions} if include_exceptions else {}),
         },
         index=dataframe.index,
     )
@@ -301,7 +311,8 @@ def run_evals(
     eval_results: List[DefaultDict[Index, Dict[ColumnName, Union[Label, Explanation]]]] = [
         defaultdict(dict) for _ in range(len(evaluators))
     ]
-    for index, (label, score, explanation) in enumerate(executor.run(payloads)):
+    results, _ = executor.run(payloads)
+    for index, (label, score, explanation) in enumerate(results):
         evaluator_index = index // total_records
         row_index = index % total_records
         eval_results[evaluator_index][row_index]["label"] = label

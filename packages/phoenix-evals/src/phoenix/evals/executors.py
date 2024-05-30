@@ -33,7 +33,8 @@ _unset = Unset()
 
 
 class Executor(Protocol):
-    def run(self, inputs: Sequence[Any]) -> List[Any]: ...
+    def run(self, inputs: Sequence[Any]) -> List[Any]:
+        ...
 
 
 class AsyncExecutor(Executor):
@@ -104,7 +105,8 @@ class AsyncExecutor(Executor):
 
     async def consumer(
         self,
-        output: List[Any],
+        outputs: List[Any],
+        exceptions: List[Any],
         queue: asyncio.PriorityQueue[Tuple[int, Any]],
         done_producing: asyncio.Event,
         termination_event: asyncio.Event,
@@ -135,7 +137,7 @@ class AsyncExecutor(Executor):
                     return_when=asyncio.FIRST_COMPLETED,
                 )
                 if generate_task in done:
-                    output[index] = generate_task.result()
+                    outputs[index] = generate_task.result()
                     progress_bar.update()
                 elif termination_event.is_set():
                     # discard the pending task and remaining items in the queue
@@ -164,6 +166,7 @@ class AsyncExecutor(Executor):
                     await queue.put((priority - 1, item))
                 else:
                     tqdm.write(f"Exception in worker: {traceback.format_exc()}")
+                    exceptions[index] = exc
                     if self.exit_on_error:
                         termination_event.set()
                     else:
@@ -174,7 +177,7 @@ class AsyncExecutor(Executor):
                 if termination_event_watcher and not termination_event_watcher.done():
                     termination_event_watcher.cancel()
 
-    async def execute(self, inputs: Sequence[Any]) -> List[Any]:
+    async def execute(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[Any]]:
         termination_event = asyncio.Event()
 
         def termination_handler(signum: int, frame: Any) -> None:
@@ -183,6 +186,7 @@ class AsyncExecutor(Executor):
 
         original_handler = signal.signal(self.termination_signal, termination_handler)
         outputs = [self.fallback_return_value] * len(inputs)
+        exceptions = [None] * len(inputs)
         progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
         max_queue_size = 5 * self.concurrency  # limit the queue to bound memory usage
@@ -197,7 +201,9 @@ class AsyncExecutor(Executor):
         )
         consumers = [
             asyncio.create_task(
-                self.consumer(outputs, queue, done_producing, termination_event, progress_bar)
+                self.consumer(
+                    outputs, exceptions, queue, done_producing, termination_event, progress_bar
+                )
             )
             for _ in range(self.concurrency)
         ]
@@ -223,9 +229,9 @@ class AsyncExecutor(Executor):
 
         # reset the SIGTERM handler
         signal.signal(self.termination_signal, original_handler)  # reset the SIGTERM handler
-        return outputs
+        return outputs, exceptions
 
-    def run(self, inputs: Sequence[Any]) -> List[Any]:
+    def run(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[Any]]:
         return asyncio.run(self.execute(inputs))
 
 
@@ -284,16 +290,17 @@ class SyncExecutor(Executor):
         else:
             yield
 
-    def run(self, inputs: Sequence[Any]) -> List[Any]:
+    def run(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[Any]]:
         with self._executor_signal_handling(self.termination_signal):
             outputs = [self.fallback_return_value] * len(inputs)
+            exceptions: List[Any] = [None] * len(inputs)
             progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
             for index, input in enumerate(inputs):
                 try:
                     for attempt in range(self.max_retries + 1):
                         if self._TERMINATE:
-                            return outputs
+                            return outputs, exceptions
                         try:
                             result = self.generate(input)
                             outputs[index] = result
@@ -308,11 +315,12 @@ class SyncExecutor(Executor):
                                 tqdm.write("Retrying...")
                 except Exception as exc:
                     tqdm.write(f"Exception in worker: {exc}")
+                    exceptions[index] = exc
                     if self.exit_on_error:
-                        return outputs
+                        return outputs, exceptions
                     else:
                         progress_bar.update()
-        return outputs
+        return outputs, exceptions
 
 
 def get_executor_on_sync_context(
