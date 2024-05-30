@@ -34,7 +34,7 @@ Examples: TypeAlias = Iterable[Mapping[str, Any]]
 
 
 @dataclass(frozen=True)
-class DatasetExamplesAdditionEvent(DataManipulationEvent):
+class DatasetExampleAdditionEvent(DataManipulationEvent):
     dataset_id: DatasetId
 
 
@@ -155,7 +155,7 @@ async def add_dataset_examples(
     description: Optional[str] = None,
     metadata: Optional[Mapping[str, Any]] = None,
     action: DatasetAction = DatasetAction.CREATE,
-) -> Optional[DatasetExamplesAdditionEvent]:
+) -> Optional[DatasetExampleAdditionEvent]:
     keys = DatasetKeys(frozenset(input_keys), frozenset(output_keys), frozenset(metadata_keys))
     created_at = datetime.now(timezone.utc)
     dataset_id: Optional[DatasetId] = None
@@ -212,7 +212,7 @@ async def add_dataset_examples(
                 f"{dataset_example_id=}"
             )
             raise
-    return DatasetExamplesAdditionEvent(dataset_id=dataset_id)
+    return DatasetExampleAdditionEvent(dataset_id=dataset_id)
 
 
 @dataclass(frozen=True)

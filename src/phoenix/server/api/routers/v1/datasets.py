@@ -42,7 +42,7 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.db import models
 from phoenix.db.insertion.dataset import (
     DatasetAction,
-    DatasetExamplesAdditionEvent,
+    DatasetExampleAdditionEvent,
     add_dataset_examples,
 )
 from phoenix.server.api.types.Dataset import Dataset
@@ -431,7 +431,7 @@ async def post_datasets_upload(request: Request) -> Response:
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
     operation = cast(
-        Callable[[AsyncSession], Awaitable[DatasetExamplesAdditionEvent]],
+        Callable[[AsyncSession], Awaitable[DatasetExampleAdditionEvent]],
         partial(
             add_dataset_examples,
             examples=examples,
