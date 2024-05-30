@@ -63,9 +63,9 @@ export function DatasetExamplesTable({
         const revision = example.revision;
         return {
           id: example.id,
-          input: JSON.stringify(revision.input),
-          output: JSON.stringify(revision.output),
-          metadata: JSON.stringify(revision.metadata),
+          input: revision.input,
+          output: revision.output,
+          metadata: revision.metadata,
         };
       }),
     [data]
