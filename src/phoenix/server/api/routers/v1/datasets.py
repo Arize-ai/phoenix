@@ -9,13 +9,16 @@ from enum import Enum
 from functools import partial
 from typing import (
     Any,
+    Awaitable,
     Callable,
+    Coroutine,
     Dict,
     FrozenSet,
     Iterator,
     List,
     Optional,
     Tuple,
+    Union,
     cast,
 )
 
@@ -37,7 +40,11 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
-from phoenix.db.insertion.dataset import DatasetAction, add_dataset_examples
+from phoenix.db.insertion.dataset import (
+    DatasetAction,
+    DatasetExampleAdditionEvent,
+    add_dataset_examples,
+)
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
@@ -331,6 +338,12 @@ async def post_datasets_upload(request: Request) -> Response:
     operationId: uploadDataset
     tags:
       - datasets
+    parameters:
+      - in: query
+        name: sync
+        description: If true, fulfill request synchronously and return JSON containing dataset_id
+        schema:
+          type: boolean
     requestBody:
       content:
         multipart/form-data:
@@ -338,26 +351,32 @@ async def post_datasets_upload(request: Request) -> Response:
             type: object
             required:
               - name
-              - inputKeys
-              - outputKeys
+              - input_keys[]
+              - output_keys[]
               - file
             properties:
+              action:
+                type: string
+                enum: [create, append]
               name:
                 type: string
               description:
                 type: string
-              inputKeys:
+              input_keys[]:
                 type: array
                 items:
                   type: string
-              outputKeys:
+                uniqueItems: true
+              output_keys[]:
                 type: array
                 items:
                   type: string
-              metadataKeys:
+                uniqueItems: true
+              metadata_keys[]:
                 type: array
                 items:
                   type: string
+                uniqueItems: true
               file:
                 type: string
                 format: binary
@@ -396,16 +415,13 @@ async def post_datasets_upload(request: Request) -> Response:
                     )
         content = await file.read()
     try:
+        examples: Union[Examples, Awaitable[Examples]]
         content_type = FileContentType(file.content_type)
         if content_type is FileContentType.CSV:
-            get_examples, column_headers = await _process_csv(
-                content,
-                FileContentEncoding(file.headers.get("content-encoding")),
-            )
+            encoding = FileContentEncoding(file.headers.get("content-encoding"))
+            examples, column_headers = await _process_csv(content, encoding)
         elif content_type is FileContentType.PYARROW:
-            get_examples, column_headers = await _process_pyarrow(
-                content,
-            )
+            examples, column_headers = await _process_pyarrow(content)
         else:
             assert_never(content_type)
         _check_keys_exist(column_headers, input_keys, output_keys, metadata_keys)
@@ -414,22 +430,30 @@ async def post_datasets_upload(request: Request) -> Response:
             content=str(e),
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
-    try:
-        examples = run_in_threadpool(get_examples)
-        request.state.enqueue_operation(
-            partial(
-                add_dataset_examples,
-                examples=examples,
-                action=action,
-                name=name,
-                description=description,
-                input_keys=input_keys,
-                output_keys=output_keys,
-                metadata_keys=metadata_keys,
-            )
+    operation = cast(
+        Callable[[AsyncSession], Awaitable[DatasetExampleAdditionEvent]],
+        partial(
+            add_dataset_examples,
+            examples=examples,
+            action=action,
+            name=name,
+            description=description,
+            input_keys=input_keys,
+            output_keys=output_keys,
+            metadata_keys=metadata_keys,
+        ),
+    )
+    if request.query_params.get("sync") == "true":
+        async with request.app.state.db() as session:
+            dataset_id = (await operation(session)).dataset_id
+        return JSONResponse(
+            content={"dataset_id": str(GlobalID(Dataset.__name__, str(dataset_id)))}
         )
+    try:
+        request.state.enqueue_operation(operation)
     except QueueFull:
-        examples.close()
+        if isinstance(examples, Coroutine):
+            examples.close()
         return Response(status_code=HTTP_429_TOO_MANY_REQUESTS)
     return Response()
 
@@ -471,7 +495,7 @@ Examples: TypeAlias = Iterator[Dict[str, Any]]
 async def _process_csv(
     content: bytes,
     content_encoding: FileContentEncoding,
-) -> Tuple[Callable[[], Examples], FrozenSet[str]]:
+) -> Tuple[Examples, FrozenSet[str]]:
     if content_encoding is FileContentEncoding.GZIP:
         content = await run_in_threadpool(gzip.decompress, content)
     elif content_encoding is FileContentEncoding.DEFLATE:
@@ -485,16 +509,12 @@ async def _process_csv(
     if freq > 1:
         raise ValueError(f"Duplicated column header in CSV file: {header}")
     column_headers = frozenset(reader.fieldnames)
-
-    def get_examples() -> Iterator[Dict[str, Any]]:
-        yield from reader
-
-    return get_examples, column_headers
+    return reader, column_headers
 
 
 async def _process_pyarrow(
     content: bytes,
-) -> Tuple[Callable[[], Examples], FrozenSet[str]]:
+) -> Tuple[Awaitable[Examples], FrozenSet[str]]:
     try:
         reader = pa.ipc.open_stream(content)
     except pa.ArrowInvalid as e:
@@ -504,7 +524,7 @@ async def _process_pyarrow(
     def get_examples() -> Iterator[Dict[str, Any]]:
         yield from reader.read_pandas().to_dict(orient="records")
 
-    return get_examples, column_headers
+    return run_in_threadpool(get_examples), column_headers
 
 
 async def _check_table_exists(session: AsyncSession, name: str) -> bool:
@@ -526,7 +546,7 @@ def _check_keys_exist(
         ("output", output_keys),
         ("metadata", metadata_keys),
     ):
-        if diff := keys.difference(column_headers):
+        if keys and (diff := keys.difference(column_headers)):
             raise ValueError(f"{desc} keys not found in column headers: {diff}")
 
 
@@ -549,9 +569,9 @@ async def _parse_form_data(
     if not isinstance(file, UploadFile):
         raise ValueError("Malformed file in form data.")
     description = cast(Optional[str], form.get("description")) or file.filename
-    input_keys = frozenset(cast(List[str], form.getlist("input_keys[]")))
-    output_keys = frozenset(cast(List[str], form.getlist("output_keys[]")))
-    metadata_keys = frozenset(cast(List[str], form.getlist("metadata_keys[]")))
+    input_keys = frozenset(filter(bool, cast(List[str], form.getlist("input_keys[]"))))
+    output_keys = frozenset(filter(bool, cast(List[str], form.getlist("output_keys[]"))))
+    metadata_keys = frozenset(filter(bool, cast(List[str], form.getlist("metadata_keys[]"))))
     if overlap := input_keys.intersection(output_keys):
         raise ValueError(f"input_keys, output_keys have overlap: {overlap}")
     if overlap := input_keys.intersection(metadata_keys):
