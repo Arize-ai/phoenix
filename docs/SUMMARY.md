@@ -102,7 +102,7 @@
 
 * [Inferences and Schema](api/inference-and-schema.md)
 * [Session](api/session.md)
-* [Client & Get Spans](api/client.md)
+* [Client](api/client.md)
 * [Evals](api/evals.md)
 * [Models](api/evaluation-models.md)
 

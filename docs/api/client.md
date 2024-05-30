@@ -1,10 +1,10 @@
 ---
 description: >-
-  Descriptions of classes and methods related to Phoenix Client for
-  extracting/downloading data from the Phoenix server (either local or remote).
+  API reference for phoenix.Client, which helps you upload and download data to
+  and from local or remote Phoenix servers
 ---
 
-# Client & Get Spans
+# Client
 
 * [Usage](client.md#usage)
 
@@ -32,7 +32,7 @@ A client for making HTTP requests to the Phoenix server for extracting/downloadi
 
 ### Methods
 
-## _**get\_spans\_dataframe**_&#x20;
+## _**get\_spans\_dataframe**_
 
 \-> Optional\[pandas.DataFrame]
 
@@ -50,12 +50,9 @@ Returns spans in a pandas.dataframe. Filters can be applied. See [LLM Traces](..
 * **root\_spans\_only** (Optional\[bool]): Whether to return only root spans, i.e. spans without parents. Defaults to `False`.
 * **project\_name** (Optional\[str]): The name of the project to retrieve spans for. It can also be specified via an environment variable, or if left blank, defaults to the default project name.
 
+## _**query\_spans**_
 
-
-## _**query\_spans**_&#x20;
-
-\-> Optional\[Union\[pandas.DataFrame, List\[pandas.DataFrame]]\
-
+\-> Optional\[Union\[pandas.DataFrame, List\[pandas.DataFrame]]\\
 
 Extract values from spans in a pandas.dataframe. See [extract-data-from-spans.md](../tracing/how-to-tracing/extract-data-from-spans.md "mention")for more details.\
 \
@@ -67,9 +64,7 @@ Extract values from spans in a pandas.dataframe. See [extract-data-from-spans.md
 * **root\_spans\_only** (Optional\[bool]): Whether to return only root spans, i.e. spans without parents. Defaults to `False`.
 * **project\_name** (Optional\[str]): The name of the project to retrieve spans for. It can also be specified via an environment variable, or if left blank, defaults to the default project name.
 
-
-
-## _**get\_evaluations**_&#x20;
+## _**get\_evaluations**_
 
 \-> List\[Evaluations]
 
@@ -83,9 +78,7 @@ Extract evaluations if any. Otherwise returns empty List. See [llm-evaluations.m
 
 * **project\_name** (Optional\[str]): The name of the project to retrieve spans for. It can also be specified via an environment variable, or if left blank, defaults to the default project name.
 
-
-
-## _**get\_trace\_dataset**_&#x20;
+## _**get\_trace\_dataset**_
 
 \-> Optional\[TraceDataset]
 
@@ -99,14 +92,11 @@ Returns the trace dataset containing spans and evaluations.\
 
 * **project\_name** (Optional\[str]): The name of the project to retrieve spans for. It can also be specified via an environment variable, or if left blank, defaults to the default project name.
 
-
-
-## _**log\_evaluations**_&#x20;
+## _**log\_evaluations**_
 
 \-> None\
 \
-Send evaluations to Phoenix. See [#logging-multiple-evaluation-dataframes](../tracing/how-to-tracing/llm-evaluations.md#logging-multiple-evaluation-dataframes "mention")for usage.\
-
+Send evaluations to Phoenix. See [#logging-multiple-evaluation-dataframes](../tracing/how-to-tracing/llm-evaluations.md#logging-multiple-evaluation-dataframes "mention")for usage.\\
 
 **Parameters**
 
@@ -139,7 +129,7 @@ Get spans associated with calls to retrievers in a Retrieval Augmented Generatio
 
 ### Environment Variables
 
-Some settings of the Phoenix Client can be configured through the environment variables below.&#x20;
+Some settings of the Phoenix Client can be configured through the environment variables below.
 
 * `PHOENIX_COLLECTOR_ENDPOINT` The endpoint of the Phoenix collector.
   * This is usually the URL to a Phoenix server either hosted on the internet or running in the background on your machine.
