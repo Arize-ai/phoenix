@@ -44,15 +44,12 @@ export function DatasetExamplePage() {
   );
   const { input, output, metadata } = useMemo(() => {
     const revision = data.example.revision;
-    if (revision === undefined) {
-      throw new Error(`Invalid example node ID: ${exampleId}`);
-    }
     return {
-      input: JSON.stringify(revision.input),
-      output: JSON.stringify(revision.output),
-      metadata: JSON.stringify(revision.metadata),
+      input: JSON.stringify(revision!.input),
+      output: JSON.stringify(revision!.output),
+      metadata: JSON.stringify(revision!.metadata),
     };
-  }, [data, exampleId]);
+  }, [data]);
   const navigate = useNavigate();
   return (
     <DialogContainer
