@@ -2,8 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 import strawberry
-from aioitertools.itertools import islice
-from sqlalchemy import select
+from sqlalchemy import and_, func, select
 from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.scalars import JSON
@@ -12,11 +11,11 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.DatasetExample import DatasetExample
+from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision, RevisionKind
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     CursorString,
-    connection_from_cursors_and_nodes,
     connection_from_list,
 )
 
@@ -74,42 +73,69 @@ class Dataset(Node):
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
     ) -> Connection[DatasetExample]:
-        first = first if first is not None else 50
-        dataset_version_rowid = (
-            from_global_id_with_expected_type(
-                global_id=dataset_version_id, expected_type_name=DatasetVersion.__name__
-            )
-            if dataset_version_id
-            else None
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
         )
+        latest_revisions = (
+            select(
+                models.DatasetExampleRevision.dataset_example_id,
+                func.max(models.DatasetExampleRevision.dataset_version_id).label(
+                    "dataset_version_id"
+                ),
+            )
+            .join(models.DatasetExample)
+            .where(models.DatasetExample.dataset_id == self.id_attr)
+            .group_by(models.DatasetExampleRevision.dataset_example_id)
+        )
+        if dataset_version_id:
+            dataset_version_rowid = from_global_id_with_expected_type(
+                global_id=dataset_version_id, expected_type_name="DatasetVersion"
+            )
+            latest_revisions = latest_revisions.where(
+                models.DatasetExampleRevision.dataset_version_id <= dataset_version_rowid
+            )
+        latest_revisions_cte = latest_revisions.cte("latest_revisions")
         query = (
-            select(models.DatasetExample).limit(first + 1).order_by(models.DatasetExample.id.desc())
-        )
-        if after:
-            dataset_example_id = from_global_id_with_expected_type(
-                global_id=GlobalID.from_id(after),
-                expected_type_name=DatasetExample.__name__,
+            select(models.DatasetExample, models.DatasetExampleRevision)
+            .join(
+                latest_revisions_cte,
+                onclause=and_(
+                    (
+                        models.DatasetExampleRevision.dataset_example_id
+                        == latest_revisions_cte.c.dataset_example_id
+                    ),
+                    (
+                        models.DatasetExampleRevision.dataset_version_id
+                        == latest_revisions_cte.c.dataset_version_id
+                    ),
+                ),
             )
-            query = query.where(models.DatasetExample.id <= dataset_example_id)
+            .join(
+                models.DatasetExample,
+                onclause=models.DatasetExample.id
+                == models.DatasetExampleRevision.dataset_example_id,
+            )
+            .where(
+                models.DatasetExampleRevision.revision_kind != "DELETE",
+            )
+            .order_by(models.DatasetExampleRevision.dataset_example_id)
+        )
         async with info.context.db() as session:
-            examples = await session.stream_scalars(query)
-            nodes = [
-                (
-                    GlobalID(type_name=DatasetExample.__name__, node_id=str(example.id)),
-                    DatasetExample(
-                        id_attr=example.id,
-                        created_at=example.created_at,
-                        dataset_version_rowid=dataset_version_rowid,
+            dataset_examples = [
+                DatasetExample(
+                    id_attr=example.id,
+                    created_at=example.created_at,
+                    revision=DatasetExampleRevision(
+                        input=revision.input,
+                        output=revision.output,
+                        metadata=revision.metadata_,
+                        revision_kind=RevisionKind(revision.revision_kind),
+                        created_at=revision.created_at,
                     ),
                 )
-                async for example in islice(examples, first)
+                async for example, revision in await session.stream(query)
             ]
-            has_next_page: bool
-            try:
-                await examples.__anext__()
-                has_next_page = True
-            except StopAsyncIteration:
-                has_next_page = False
-        return connection_from_cursors_and_nodes(
-            nodes, has_previous_page=False, has_next_page=has_next_page
-        )
+        return connection_from_list(data=dataset_examples, args=args)

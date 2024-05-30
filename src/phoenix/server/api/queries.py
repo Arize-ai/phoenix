@@ -23,6 +23,7 @@ from phoenix.server.api.input_types.Coordinates import (
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
+from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision, RevisionKind
 from phoenix.server.api.types.Dimension import to_gql_dimension
 from phoenix.server.api.types.EmbeddingDimension import (
     DEFAULT_CLUSTER_SELECTION_EPSILON,
@@ -187,14 +188,31 @@ class Query:
             )
         elif type_name == "DatasetExample":
             async with info.context.db() as session:
-                example = await session.scalar(
-                    select(models.DatasetExample).where(models.DatasetExample.id == node_id)
-                )
-            if not example:
+                example_result = (
+                    await session.execute(
+                        select(models.DatasetExample, models.DatasetExampleRevision)
+                        .select_from(models.DatasetExampleRevision)
+                        .join(
+                            models.DatasetExample,
+                            onclause=models.DatasetExampleRevision.dataset_example_id
+                            == models.DatasetExample.id,
+                        )
+                        .where(models.DatasetExampleRevision.id == node_id)
+                    )
+                ).first()
+            if not example_result:
                 raise ValueError(f"Unknown dataset example: {id}")
+            example, revision = example_result
             return DatasetExample(
                 id_attr=example.id,
                 created_at=example.created_at,
+                revision=DatasetExampleRevision(
+                    input=revision.input,
+                    output=revision.output,
+                    metadata=revision.metadata_,
+                    revision_kind=RevisionKind(revision.revision_kind),
+                    created_at=revision.created_at,
+                ),
             )
         raise Exception(f"Unknown node type: {type_name}")
 
