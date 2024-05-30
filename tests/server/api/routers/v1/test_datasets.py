@@ -1,8 +1,13 @@
-from io import StringIO
+import gzip
+from io import BytesIO, StringIO
+from random import random
 
 import pandas as pd
+import pyarrow as pa
 import pytest
 from pandas.testing import assert_frame_equal
+from phoenix.db import models
+from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 
@@ -315,3 +320,111 @@ async def test_get_dataset_download_specific_version(test_client, dataset_with_r
         )
     ).sort_index(axis=1)
     assert_frame_equal(actual, expected)
+
+
+async def test_post_dataset_upload_csv(test_client, session):
+    name = str(random())
+    file = gzip.compress(b"a,b,c,d,e,f\n1,2,3,4,5,6\n")
+    response = await test_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["a", "b"],
+            "output_keys[]": ["c", "d"],
+            "metadata_keys[]": ["e", "f"],
+        },
+    )
+    assert response.status_code == 200
+    assert (dataset_id := response.json().get("dataset_id"))
+    del response, file
+    file = gzip.compress(b"a,b,c,d,e,f\n11,22,33,44,55,66\n")
+    response = await test_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "append",
+            "name": name,
+            "input_keys[]": ["a", "b"],
+            "output_keys[]": ["c", "d"],
+            "metadata_keys[]": ["e", "f"],
+        },
+    )
+    assert response.status_code == 200
+    assert dataset_id == response.json().get("dataset_id")
+    revisions = list(
+        await session.scalars(
+            select(models.DatasetExampleRevision)
+            .join(models.DatasetExample)
+            .join_from(models.DatasetExample, models.Dataset)
+            .where(models.Dataset.name == name)
+            .order_by(models.DatasetExample.id)
+        )
+    )
+    assert len(revisions) == 2
+    assert revisions[0].input == {"a": "1", "b": "2"}
+    assert revisions[0].output == {"c": "3", "d": "4"}
+    assert revisions[0].metadata_ == {"e": "5", "f": "6"}
+    assert revisions[1].input == {"a": "11", "b": "22"}
+    assert revisions[1].output == {"c": "33", "d": "44"}
+    assert revisions[1].metadata_ == {"e": "55", "f": "66"}
+
+
+async def test_post_dataset_upload_pyarrow(test_client, session):
+    name = str(random())
+    df = pd.read_csv(StringIO("a,b,c,d,e,f\n1,2,3,4,5,6\n"))
+    table = pa.Table.from_pandas(df)
+    sink = pa.BufferOutputStream()
+    with pa.ipc.new_stream(sink, table.schema) as writer:
+        writer.write_table(table)
+    file = BytesIO(sink.getvalue().to_pybytes())
+    response = await test_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "application/x-pandas-pyarrow", {})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["a", "b"],
+            "output_keys[]": ["c", "d"],
+            "metadata_keys[]": ["e", "f"],
+        },
+    )
+    assert response.status_code == 200
+    assert (dataset_id := response.json().get("dataset_id"))
+    del response, file, df, table, sink
+    df = pd.read_csv(StringIO("a,b,c,d,e,f\n11,22,33,44,55,66\n"))
+    table = pa.Table.from_pandas(df)
+    sink = pa.BufferOutputStream()
+    with pa.ipc.new_stream(sink, table.schema) as writer:
+        writer.write_table(table)
+    file = BytesIO(sink.getvalue().to_pybytes())
+    response = await test_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "application/x-pandas-pyarrow", {})},
+        data={
+            "action": "append",
+            "name": name,
+            "input_keys[]": ["a", "b"],
+            "output_keys[]": ["c", "d"],
+            "metadata_keys[]": ["e", "f"],
+        },
+    )
+    assert response.status_code == 200
+    assert dataset_id == response.json().get("dataset_id")
+    revisions = list(
+        await session.scalars(
+            select(models.DatasetExampleRevision)
+            .join(models.DatasetExample)
+            .join_from(models.DatasetExample, models.Dataset)
+            .where(models.Dataset.name == name)
+            .order_by(models.DatasetExample.id)
+        )
+    )
+    assert len(revisions) == 2
+    assert revisions[0].input == {"a": 1, "b": 2}
+    assert revisions[0].output == {"c": 3, "d": 4}
+    assert revisions[0].metadata_ == {"e": 5, "f": 6}
+    assert revisions[1].input == {"a": 11, "b": 22}
+    assert revisions[1].output == {"c": 33, "d": 44}
+    assert revisions[1].metadata_ == {"e": 55, "f": 66}

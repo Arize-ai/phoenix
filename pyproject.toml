@@ -57,6 +57,7 @@ dependencies = [
   "aioitertools",
   "sqlean.py>=3.45.1",
   "cachetools",
+  "python-multipart",
 ]
 dynamic = ["version"]
 
