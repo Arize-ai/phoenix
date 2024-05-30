@@ -59,6 +59,7 @@ function DatasetPageContent({
           </Flex>
           <Flex direction="row" gap="size-100">
             <ActionMenu
+              align="end"
               icon={<Icon svg={<Icons.DownloadOutline />} />}
               onAction={(action) => {
                 switch (action) {
