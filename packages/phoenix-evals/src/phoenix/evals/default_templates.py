@@ -623,6 +623,58 @@ LABEL: "frustrated" or "ok"
 
 USER_FRUSTRATION_PROMPT_RAILS_MAP = OrderedDict({True: "frustrated", False: "ok"})
 
+RUDE_PROMPT_BASE_TEMPLATE = """
+  You are given a conversation where a student is asking for help with a specific topic.
+  Please determine if the TUTOR is being rude to the STUDENT in the conversation below.
+
+  Here is the conversation:
+  [BEGIN DATA]
+  *****************
+  Conversation:
+  {conversation}
+  *****************
+  [END DATA]
+
+  Examine the conversation and determine whether or not the tutor was rude to the student.
+  Rudeness can range from midly rude to extremely rude. The tutor may make rude remarks such as:
+  dismissive comments, personal criticism and sarcastic remarks. The tutor may also make biased remarks such as:
+  stereotyping,lower expectations base on the student's background and assuming inability.
+
+  Your response must be a single word, either "Rude" or "Polite", and should not
+  contain any text or characters aside from those words. "Rude" means the tutor was rude
+  or dismissive as a result of the students questions and/or statements. "polite" means that the tutor was helpful and
+  supportive throughout the conversation with the student.
+"""
+
+RUDE_PROMPT_TEMPLATE_WITH_EXPLANATION = """
+  You are given a conversation where a student is asking for help with a specific topic.
+  Please determine if the TUTOR is being rude to the STUDENT in the conversation below.
+
+  Here is the conversation:
+  [BEGIN DATA]
+  *****************
+  Conversation:
+  {conversation}
+  *****************
+  [END DATA]
+
+  Your response must be a single word, either "Rude" or "Polite", and should not
+  contain any text or characters aside from those words. "Rude" means the tutor was rude
+  or dismissive as a result of the students questions and/or statements. "polite" means that the tutor was helpful and
+  supportive throughout the conversation with the student.
+
+  Rudeness can range from midly rude to extremely rude. The tutor may make rude remarks such as:
+  dismissive comments, personal criticism and sarcastic remarks. The tutor may also make biased remarks such as:
+  stereotyping,lower expectations base on the student's background and assuming inability.
+
+ Please read the conversation carefully, then write out in a step by step manner
+ an EXPLANATION to show how to determine if the answer is "Rude" or "Polite". Avoid simply
+ stating the correct answer at the outset. Your response LABEL should be a single word: either "Rude" or "Polite", and should not
+ contain any text or characters aside from those words.
+  """
+
+RUDE_PROMPT_RAILS_MAP = OrderedDict({True: "rude", False: "polite"})
+
 RAG_RELEVANCY_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
     template=RAG_RELEVANCY_PROMPT_BASE_TEMPLATE,
@@ -700,6 +752,12 @@ USER_FRUSTRATION_PROMPT_TEMPLATE = ClassificationTemplate(
     scores=[1, 0],
 )
 
+USER_RUDENESS_PROMPT_TEMPLATE = ClassificationTemplate(
+    rails=list(RUDE_PROMPT_RAILS_MAP.values()),
+    template=RUDE_PROMPT_BASE_TEMPLATE,
+    explanation_template=RUDE_PROMPT_TEMPLATE_WITH_EXPLANATION,
+    scores=[1, 0],
+)
 
 class EvalCriteria(Enum):
     RELEVANCE = RAG_RELEVANCY_PROMPT_TEMPLATE
@@ -713,3 +771,4 @@ class EvalCriteria(Enum):
     SQL_GEN_EVAL = SQL_GEN_EVAL_PROMPT_TEMPLATE
     CODE_FUNCTIONALITY = CODE_FUNCTIONALITY_PROMPT_TEMPLATE
     USER_FRUSTRATION = USER_FRUSTRATION_PROMPT_TEMPLATE
+    USER_RUDENESS = USER_RUDENESS_PROMPT_TEMPLATE
