@@ -43,7 +43,7 @@ async def test_dataset_examples_return_latest_revisions(
     }
 
 
-async def test_dataset_examples_resolver_returns_latest_revisions_up_to_dataset_version(
+async def test_dataset_examples_return_latest_revisions_up_to_dataset_version(
     test_client,
     dataset_with_patch_revision,
 ) -> None:
@@ -67,9 +67,11 @@ async def test_dataset_examples_resolver_returns_latest_revisions_up_to_dataset_
                     {
                         "node": {
                             "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
-                            "input": {"input": "first-input"},
-                            "output": {"output": "first-output"},
-                            "metadata": {},
+                            "revision": {
+                                "input": {"input": "first-input"},
+                                "output": {"output": "first-output"},
+                                "metadata": {},
+                            },
                             "createdAt": "2020-01-01T00:00:00+00:00",
                         }
                     }

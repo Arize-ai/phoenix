@@ -29,7 +29,7 @@ class DatasetExample(Node):
         maybe_version_rowid = (
             from_global_id_with_expected_type(version_id, DatasetVersion.__name__)
             if version_id is not None
-            else None
+            else self.dataset_version_rowid
         )
         version_rowid: ScalarSelect[int]
         if maybe_version_rowid is not None:
