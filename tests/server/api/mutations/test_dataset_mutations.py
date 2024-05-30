@@ -1,9 +1,12 @@
+import json
 import textwrap
 from datetime import datetime
 
 import pytest
+import pytz
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
+from phoenix.server.api.types.DatasetExample import DatasetExample
 from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
@@ -147,6 +150,123 @@ mutation ($datasetId: GlobalID!, $spanIds: [GlobalID!]!) {
     }
 
 
+async def test_patch_dataset_example(
+    test_client,
+    dataset_with_a_single_version,
+) -> None:
+    mutation = """
+mutation ($input: PatchDatasetExamplesInput!) {
+  patchDatasetExamples(input: $input) {
+    dataset {
+      examples {
+        edges {
+          example: node {
+            id
+            revision {
+              input
+              output
+              metadata
+            }
+          }
+        }
+      }
+    }
+  }
+}
+"""
+    response = await test_client.post(
+        "/graphql",
+        json={
+            "query": mutation,
+            "variables": {
+                "input": {
+                    "examplePatches": [
+                        {
+                            "exampleId": str(
+                                GlobalID(type_name=DatasetExample.__name__, node_id=str(1))
+                            ),
+                            "input": json.dumps({"input": "patched-input"}),
+                        }
+                    ]
+                }
+            },
+        },
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert (errors := response_json.get("errors")) is None, errors
+    assert response_json["data"]
+
+
+async def test_delete_a_dataset(
+    session,
+    test_client,
+    empty_dataset,
+):
+    dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
+    mutation = textwrap.dedent(
+        """
+        mutation ($datasetId: GlobalID!) {
+          deleteDataset(input: { datasetId: $datasetId }) {
+            dataset {
+              id
+            }
+          }
+        }
+        """
+    )
+
+    response = await test_client.post(
+        "/graphql",
+        json={
+            "query": mutation,
+            "variables": {
+                "datasetId": str(dataset_id),
+            },
+        },
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert (errors := response_json.get("errors")) is None, errors
+    assert response_json["data"]["deleteDataset"]["dataset"] == {
+        "id": str(dataset_id)
+    }, "deleted dataset is returned"
+    dataset = (await session.execute(select(models.Dataset).where(models.Dataset.id == 1))).first()
+    assert not dataset
+
+
+async def test_deleting_a_nonexistent_dataset_fails(
+    session,
+    test_client,
+):
+    dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
+    mutation = textwrap.dedent(
+        """
+        mutation ($datasetId: GlobalID!) {
+          deleteDataset(input: { datasetId: $datasetId }) {
+            dataset {
+              id
+            }
+          }
+        }
+        """
+    )
+
+    response = await test_client.post(
+        "/graphql",
+        json={
+            "query": mutation,
+            "variables": {
+                "datasetId": str(dataset_id),
+            },
+        },
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert (errors := response_json.get("errors")), "Dataset does not exist"
+    assert f"Unknown dataset: {dataset_id}" in errors[0]["message"]
+
+
 @pytest.fixture
 async def empty_dataset(session):
     """
@@ -261,70 +381,46 @@ async def spans(session):
     )
 
 
-async def test_delete_a_dataset(
-    session,
-    test_client,
-    empty_dataset,
-):
-    dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
-    mutation = textwrap.dedent(
-        """
-        mutation ($datasetId: GlobalID!) {
-          deleteDataset(input: { datasetId: $datasetId }) {
-            dataset {
-              id
-            }
-          }
-        }
-        """
-    )
+@pytest.fixture
+async def dataset_with_a_single_version(session):
+    """
+    A dataset with a single example and a single version.
+    """
 
-    response = await test_client.post(
-        "/graphql",
-        json={
-            "query": mutation,
-            "variables": {
-                "datasetId": str(dataset_id),
-            },
-        },
+    dataset = models.Dataset(
+        id=1,
+        name="dataset-name",
+        description=None,
+        metadata_={},
     )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert (errors := response_json.get("errors")) is None, errors
-    assert response_json["data"]["deleteDataset"]["dataset"] == {
-        "id": str(dataset_id)
-    }, "deleted dataset is returned"
-    dataset = (await session.execute(select(models.Dataset).where(models.Dataset.id == 1))).first()
-    assert not dataset
+    session.add(dataset)
+    await session.flush()
 
-
-async def test_deleting_a_nonexistent_dataset_fails(
-    session,
-    test_client,
-):
-    dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
-    mutation = textwrap.dedent(
-        """
-        mutation ($datasetId: GlobalID!) {
-          deleteDataset(input: { datasetId: $datasetId }) {
-            dataset {
-              id
-            }
-          }
-        }
-        """
+    dataset_example = models.DatasetExample(
+        id=1,
+        dataset_id=1,
+        created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
     )
+    session.add(dataset_example)
+    await session.flush()
 
-    response = await test_client.post(
-        "/graphql",
-        json={
-            "query": mutation,
-            "variables": {
-                "datasetId": str(dataset_id),
-            },
-        },
+    dataset_version_1 = models.DatasetVersion(
+        id=1,
+        dataset_id=1,
+        description=None,
+        metadata_={},
     )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert (errors := response_json.get("errors")), "Dataset does not exist"
-    assert f"Unknown dataset: {dataset_id}" in errors[0]["message"]
+    session.add(dataset_version_1)
+    await session.flush()
+
+    dataset_example_revision_1 = models.DatasetExampleRevision(
+        id=1,
+        dataset_example_id=1,
+        dataset_version_id=1,
+        input={"input": "first-input"},
+        output={"output": "first-output"},
+        metadata_={},
+        revision_kind="CREATE",
+    )
+    session.add(dataset_example_revision_1)
+    await session.flush()
