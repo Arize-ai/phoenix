@@ -15,8 +15,10 @@ import { Link } from "@phoenix/components";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import { DatasetsTable_datasets$key } from "./__generated__/DatasetsTable_datasets.graphql";
+import { DatasetActionMenu } from "./DatasetActionMenu";
 
 const PAGE_SIZE = 100;
 
@@ -28,32 +30,35 @@ export function DatasetsTable(props: DatasetsTableProps) {
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment(
-    graphql`
-      fragment DatasetsTable_datasets on Query
-      @refetchable(queryName: "DatasetsTableDatasetsQuery")
-      @argumentDefinitions(
-        after: { type: "String", defaultValue: null }
-        first: { type: "Int", defaultValue: 100 }
-      ) {
-        datasets(first: $first, after: $after)
-          @connection(key: "DatasetsTable_datasets") {
-          edges {
-            node {
-              id
-              name
-              description
-              createdAt
+  const notifySuccess = useNotifySuccess();
+  const notifyError = useNotifyError();
+  const { data, loadNext, hasNext, isLoadingNext, refetch } =
+    usePaginationFragment(
+      graphql`
+        fragment DatasetsTable_datasets on Query
+        @refetchable(queryName: "DatasetsTableDatasetsQuery")
+        @argumentDefinitions(
+          after: { type: "String", defaultValue: null }
+          first: { type: "Int", defaultValue: 100 }
+        ) {
+          datasets(first: $first, after: $after)
+            @connection(key: "DatasetsTable_datasets") {
+            edges {
+              node {
+                id
+                name
+                description
+                createdAt
+              }
             }
           }
         }
-      }
-    `,
-    props.query
-  );
+      `,
+      props.query
+    );
   const tableData = useMemo(
     () => data.datasets.edges.map((edge) => edge.node),
-    [data.datasets.edges]
+    [data]
   );
   const fetchMoreOnBottomReached = React.useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
@@ -93,6 +98,32 @@ export function DatasetsTable(props: DatasetsTableProps) {
         header: "created at",
         accessorKey: "createdAt",
         cell: TimestampCell,
+      },
+      {
+        header: "",
+        id: "actions",
+        size: 10,
+        cell: ({ row }) => {
+          return (
+            <DatasetActionMenu
+              datasetId={row.original.id}
+              datasetName={row.original.name}
+              onDatasetDelete={() => {
+                notifySuccess({
+                  title: "Dataset deleted",
+                  message: `${row.original.name} has been successfully deleted.`,
+                });
+                refetch({});
+              }}
+              onDatasetDeleteError={(error) => {
+                notifyError({
+                  title: "Dataset deletion failed",
+                  message: error.message,
+                });
+              }}
+            />
+          );
+        },
       },
     ],
     data: tableData,
