@@ -20,6 +20,7 @@ from phoenix.server.api.input_types.AddSpansToDatasetInput import AddSpansToData
 from phoenix.server.api.input_types.CreateDatasetInput import CreateDatasetInput
 from phoenix.server.api.input_types.DeleteDatasetExamplesInput import DeleteDatasetExamplesInput
 from phoenix.server.api.input_types.DeleteDatasetInput import DeleteDatasetInput
+from phoenix.server.api.input_types.PatchDatasetExamplesInput import PatchDatasetExamplesInput
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
@@ -299,6 +300,14 @@ class DatasetMutationMixin:
                 metadata=dataset.metadata_,
             )
         )
+
+    @strawberry.mutation
+    async def patch_dataset_examples(
+        self,
+        info: Info[Context, None],
+        input: PatchDatasetExamplesInput,
+    ) -> DatasetMutationPayload:
+        raise NotImplementedError
 
     @strawberry.mutation
     async def delete_dataset_examples(
