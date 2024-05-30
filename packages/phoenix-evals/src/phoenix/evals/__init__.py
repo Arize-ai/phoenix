@@ -20,6 +20,8 @@ from .default_templates import (
     TOXICITY_PROMPT_TEMPLATE,
     USER_FRUSTRATION_PROMPT_RAILS_MAP,
     USER_FRUSTRATION_PROMPT_TEMPLATE,
+    HALLUCINATION_SPAN_PROMPT_TEMPLATE,
+    QA_SPAN_PROMPT_TEMPLATE
 )
 from .evaluators import (
     HallucinationEvaluator,
@@ -88,4 +90,6 @@ __all__ = [
     "RelevanceEvaluator",
     "SummarizationEvaluator",
     "ToxicityEvaluator",
+    "HALLUCINATION_SPAN_PROMPT_TEMPLATE",
+    "QA_SPAN_PROMPT_TEMPLATE",
 ]
