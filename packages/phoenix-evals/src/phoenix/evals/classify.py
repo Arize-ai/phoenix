@@ -217,7 +217,7 @@ def llm_classify(
         fallback_return_value=fallback_return_value,
     )
 
-    results, exceptions = executor.run([row_tuple[1] for row_tuple in dataframe.iterrows()])
+    results, statuses = executor.run([row_tuple[1] for row_tuple in dataframe.iterrows()])
     labels, explanations, responses, prompts = zip(*results)
 
     return pd.DataFrame(
@@ -226,7 +226,7 @@ def llm_classify(
             **({"explanation": explanations} if provide_explanation else {}),
             **({"prompt": prompts} if include_prompt else {}),
             **({"response": responses} if include_response else {}),
-            **({"exception": exceptions} if include_exceptions else {}),
+            **({"exception": [s.exceptions for s in statuses]} if include_exceptions else {}),
         },
         index=dataframe.index,
     )

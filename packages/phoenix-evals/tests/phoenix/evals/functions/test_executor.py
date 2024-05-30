@@ -72,7 +72,8 @@ def test_async_executor_run_exits_early_on_error():
         dummy_fn, concurrency=1, max_retries=0, exit_on_error=True, fallback_return_value=52
     )
     inputs = [1, 2, 3, 4, 5]
-    outputs, exceptions = executor.run(inputs)
+    outputs, statuses = executor.run(inputs)
+    exceptions = [status.exceptions for status in statuses]
     assert outputs == [0, 1, 52, 52, 52]
     assert [len(excs) if excs else 0 for excs in exceptions] == [
         0,
@@ -94,7 +95,8 @@ async def test_async_executor_can_continue_on_error():
         dummy_fn, concurrency=1, max_retries=1, exit_on_error=False, fallback_return_value=52
     )
     inputs = [1, 2, 3, 4, 5]
-    outputs, exceptions = await executor.execute(inputs)
+    outputs, statuses = await executor.execute(inputs)
+    exceptions = [status.exceptions for status in statuses]
     assert outputs == [0, 1, 52, 3, 4], "failed tasks use the fallback value"
     assert [len(excs) if excs else 0 for excs in exceptions] == [
         0,
@@ -202,7 +204,8 @@ def test_sync_executor_run_exits_early_on_error():
 
     executor = SyncExecutor(dummy_fn, exit_on_error=True, fallback_return_value=52, max_retries=0)
     inputs = [1, 2, 3, 4, 5]
-    outputs, exceptions = executor.run(inputs)
+    outputs, statuses = executor.run(inputs)
+    exceptions = [status.exceptions for status in statuses]
     assert outputs == [0, 1, 52, 52, 52]
     assert [len(excs) if excs else 0 for excs in exceptions] == [
         0,
@@ -222,7 +225,8 @@ def test_sync_executor_can_continue_on_error():
 
     executor = SyncExecutor(dummy_fn, exit_on_error=False, fallback_return_value=52, max_retries=1)
     inputs = [1, 2, 3, 4, 5]
-    outputs, exceptions = executor.run(inputs)
+    outputs, statuses = executor.run(inputs)
+    exceptions = [status.exceptions for status in statuses]
     assert outputs == [0, 1, 52, 3, 4]
     assert [len(excs) if excs else 0 for excs in exceptions] == [
         0,
