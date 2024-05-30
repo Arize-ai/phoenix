@@ -24,7 +24,7 @@ async def test_async_executor_executes():
 
     executor = AsyncExecutor(dummy_fn, concurrency=10, max_retries=0)
     inputs = [1, 2, 3, 4, 5]
-    outputs = await executor.execute(inputs)
+    outputs, _ = await executor.execute(inputs)
     assert outputs == [0, 1, 2, 3, 4]
 
 
@@ -34,7 +34,7 @@ async def test_async_executor_executes_many_tasks():
 
     executor = AsyncExecutor(dummy_fn, concurrency=10, max_retries=0)
     inputs = [x for x in range(100)]
-    outputs = await executor.execute(inputs)
+    outputs, _ = await executor.execute(inputs)
     assert outputs == inputs
 
 
@@ -44,7 +44,7 @@ def test_async_executor_runs_synchronously():
 
     executor = AsyncExecutor(dummy_fn, concurrency=10, max_retries=0)
     inputs = [1, 2, 3, 4, 5]
-    outputs = executor.run(inputs)
+    outputs, _ = executor.run(inputs)
     assert outputs == [-1, 0, 1, 2, 3]
 
 
@@ -58,7 +58,7 @@ async def test_async_executor_execute_exits_early_on_error():
         dummy_fn, concurrency=1, max_retries=0, exit_on_error=True, fallback_return_value=52
     )
     inputs = [1, 2, 3, 4, 5]
-    outputs = await executor.execute(inputs)
+    outputs, _ = await executor.execute(inputs)
     assert outputs == [0, 1, 52, 52, 52]
 
 
@@ -72,7 +72,7 @@ def test_async_executor_run_exits_early_on_error():
         dummy_fn, concurrency=1, max_retries=0, exit_on_error=True, fallback_return_value=52
     )
     inputs = [1, 2, 3, 4, 5]
-    outputs = executor.run(inputs)
+    outputs, _ = executor.run(inputs)
     assert outputs == [0, 1, 52, 52, 52]
 
 
@@ -86,7 +86,7 @@ async def test_async_executor_can_continue_on_error():
         dummy_fn, concurrency=1, max_retries=0, exit_on_error=False, fallback_return_value=52
     )
     inputs = [1, 2, 3, 4, 5]
-    outputs = await executor.execute(inputs)
+    outputs, _ = await executor.execute(inputs)
     assert outputs == [0, 1, 52, 3, 4]
 
 
@@ -132,7 +132,7 @@ async def test_async_executor_sigint_handling():
     )
     task = asyncio.create_task(executor.execute(InterruptingIterator(sigint_index, result_length)))
 
-    results = await task
+    results, _ = await task
     assert len(results) == result_length
     assert results.count("test") > 100, "most inputs should not have been processed"
 
@@ -155,7 +155,7 @@ def test_sync_executor_runs_many_tasks():
 
     executor = SyncExecutor(dummy_fn, max_retries=0)
     inputs = [x for x in range(1000)]
-    outputs = executor.run(inputs)
+    outputs, _ = executor.run(inputs)
     assert outputs == inputs
 
 
@@ -174,7 +174,7 @@ def test_sync_executor_runs():
 
     executor = SyncExecutor(dummy_fn, max_retries=0)
     inputs = [1, 2, 3, 4, 5]
-    outputs = executor.run(inputs)
+    outputs, _ = executor.run(inputs)
     assert outputs == [-1, 0, 1, 2, 3]
 
 
@@ -186,7 +186,7 @@ def test_sync_executor_run_exits_early_on_error():
 
     executor = SyncExecutor(dummy_fn, exit_on_error=True, fallback_return_value=52, max_retries=0)
     inputs = [1, 2, 3, 4, 5]
-    outputs = executor.run(inputs)
+    outputs, _ = executor.run(inputs)
     assert outputs == [0, 1, 52, 52, 52]
 
 
@@ -198,7 +198,7 @@ def test_sync_executor_can_continue_on_error():
 
     executor = SyncExecutor(dummy_fn, exit_on_error=False, fallback_return_value=52, max_retries=0)
     inputs = [1, 2, 3, 4, 5]
-    outputs = executor.run(inputs)
+    outputs, _ = executor.run(inputs)
     assert outputs == [0, 1, 52, 3, 4]
 
 
@@ -241,7 +241,7 @@ def test_sync_executor_sigint_handling():
         fallback_return_value="test",
         termination_signal=signal.SIGUSR1,
     )
-    results = executor.run(InterruptingIterator(sigint_index, result_length))
+    results, _ = executor.run(InterruptingIterator(sigint_index, result_length))
     assert len(results) == result_length
     assert results.count("test") > 100, "most inputs should not have been processed"
 
@@ -255,7 +255,7 @@ def test_sync_executor_defaults_sigint_handling():
         max_retries=0,
         fallback_return_value="test",
     )
-    res = executor.run(["test"])
+    res, _ = executor.run(["test"])
     assert res[0] != signal.default_int_handler
 
 
@@ -269,7 +269,7 @@ def test_sync_executor_bypasses_sigint_handling_if_none():
         fallback_return_value="test",
         termination_signal=None,
     )
-    res = executor.run(["test"])
+    res, _ = executor.run(["test"])
     assert res[0] == signal.default_int_handler
 
 
