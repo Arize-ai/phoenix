@@ -34,7 +34,7 @@ pip install openinference-instrumentation
 ### Specifying a session
 
 {% hint style="warning" %}
-Sessions are not currently supported in Phoenix and only supported via the Arize OTel collector ([https://docs.arize.com/phoenix/api/session](https://docs.arize.com/phoenix/api/session))
+Sessions are not currently supported in Phoenix and only supported via the Arize OTel collector ([https://docs.arize.com/arize/large-language-models/sessions-and-users#what-are-sessions](https://docs.arize.com/arize/large-language-models/sessions-and-users#what-are-sessions)). Support for sessions in Phoenix is coming in an upcoming release.
 {% endhint %}
 
 {% tabs %}
