@@ -249,8 +249,16 @@ def llm_classify(
             **({"explanation": explanations} if provide_explanation else {}),
             **({"prompt": prompts} if include_prompt else {}),
             **({"response": responses} if include_response else {}),
-            **({"exceptions": all_exceptions} if include_exceptions else {}),
-            **({"execution_status": classification_statuses} if include_exceptions else {}),
+            **(
+                {"exceptions": [[repr(exc) for exc in excs] for excs in all_exceptions]}
+                if include_exceptions
+                else {}
+            ),
+            **(
+                {"execution_status": [status.value for status in classification_statuses]}
+                if include_exceptions
+                else {}
+            ),
         },
         index=dataframe.index,
     )
