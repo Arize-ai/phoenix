@@ -477,10 +477,10 @@ def test_classify_exits_on_missing_input(
     )
 
     assert classification_df["execution_status"].tolist() == [
-        ClassificationStatus.COMPLETED,
-        ClassificationStatus.COMPLETED,
-        ClassificationStatus.MISSING_INPUT,
-        ClassificationStatus.DID_NOT_RUN,
+        ClassificationStatus.COMPLETED.value,
+        ClassificationStatus.COMPLETED.value,
+        ClassificationStatus.MISSING_INPUT.value,
+        ClassificationStatus.DID_NOT_RUN.value,
     ]
 
     exceptions = classification_df["exceptions"].tolist()
@@ -525,10 +525,10 @@ def test_classify_skips_missing_input_with_when_exit_on_error_false(
     )
 
     assert classification_df["execution_status"].tolist() == [
-        ClassificationStatus.COMPLETED,
-        ClassificationStatus.COMPLETED,
-        ClassificationStatus.MISSING_INPUT,
-        ClassificationStatus.FAILED,
+        ClassificationStatus.COMPLETED.value,
+        ClassificationStatus.COMPLETED.value,
+        ClassificationStatus.MISSING_INPUT.value,
+        ClassificationStatus.FAILED.value,
     ]
 
     exceptions = classification_df["exceptions"].tolist()
