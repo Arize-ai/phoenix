@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.10.0...arize-phoenix-evals-v0.11.0) (2024-05-31)
+
+
+### Features
+
+* Allow skipping on template mapping errors, returning debug info ([#3350](https://github.com/Arize-ai/phoenix/issues/3350)) ([dc18123](https://github.com/Arize-ai/phoenix/commit/dc1812379c33fbb89537c6aed6361f808f29ec73))
+* Serializable execution details ([#3358](https://github.com/Arize-ai/phoenix/issues/3358)) ([fc74513](https://github.com/Arize-ai/phoenix/commit/fc7451372c9b938a27c7b36f7e32704f7b3a8e87))
+
 ## [0.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.9.2...arize-phoenix-evals-v0.10.0) (2024-05-29)
 
 
