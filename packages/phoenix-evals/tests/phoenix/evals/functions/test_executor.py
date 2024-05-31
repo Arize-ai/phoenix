@@ -140,9 +140,9 @@ async def test_async_executor_marks_completed_with_retries_status():
         dummy_fn, concurrency=1, max_retries=3, exit_on_error=False, fallback_return_value=52
     )
     inputs = [1, 2, 3, 4, 5]
-    outputs, statuses = await executor.execute(inputs)
+    outputs, execution_details = await executor.execute(inputs)
     assert outputs == [0, 1, 2, 3, 4], "input 3 should only fail twice"
-    assert [status.status for status in statuses] == [
+    assert [status.status for status in execution_details] == [
         Status.COMPLETED,
         Status.COMPLETED,
         Status.COMPLETED_WITH_RETRIES,
@@ -247,9 +247,9 @@ def test_sync_executor_run_exits_early_on_error():
 
     executor = SyncExecutor(dummy_fn, exit_on_error=True, fallback_return_value=52, max_retries=0)
     inputs = [1, 2, 3, 4, 5]
-    outputs, statuses = executor.run(inputs)
-    exceptions = [status.exceptions for status in statuses]
-    status_types = [status.status for status in statuses]
+    outputs, execution_details = executor.run(inputs)
+    exceptions = [status.exceptions for status in execution_details]
+    status_types = [status.status for status in execution_details]
     assert outputs == [0, 1, 52, 52, 52]
     assert [len(excs) if excs else 0 for excs in exceptions] == [
         0,
@@ -276,9 +276,9 @@ def test_sync_executor_can_continue_on_error():
 
     executor = SyncExecutor(dummy_fn, exit_on_error=False, fallback_return_value=52, max_retries=1)
     inputs = [1, 2, 3, 4, 5]
-    outputs, statuses = executor.run(inputs)
-    exceptions = [status.exceptions for status in statuses]
-    status_types = [status.status for status in statuses]
+    outputs, execution_details = executor.run(inputs)
+    exceptions = [status.exceptions for status in execution_details]
+    status_types = [status.status for status in execution_details]
     assert outputs == [0, 1, 52, 3, 4]
     assert [len(excs) if excs else 0 for excs in exceptions] == [
         0,
@@ -310,9 +310,9 @@ def test_sync_executor_marks_completed_with_retries_status():
 
     executor = SyncExecutor(dummy_fn, max_retries=3, exit_on_error=False, fallback_return_value=52)
     inputs = [1, 2, 3, 4, 5]
-    outputs, statuses = executor.run(inputs)
+    outputs, execution_details = executor.run(inputs)
     assert outputs == [0, 1, 2, 3, 4], "input 3 should only fail twice"
-    assert [status.status for status in statuses] == [
+    assert [status.status for status in execution_details] == [
         Status.COMPLETED,
         Status.COMPLETED,
         Status.COMPLETED_WITH_RETRIES,

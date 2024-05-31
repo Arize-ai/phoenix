@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
+from enum import Enum
 from itertools import product
 from typing import (
     Any,
@@ -20,7 +21,7 @@ import pandas as pd
 from pandas import DataFrame
 from phoenix.evals.evaluators import LLMEvaluator
 from phoenix.evals.exceptions import PhoenixTemplateMappingError
-from phoenix.evals.executors import get_executor_on_sync_context
+from phoenix.evals.executors import Status, get_executor_on_sync_context
 from phoenix.evals.models import BaseModel, OpenAIModel, set_verbosity
 from phoenix.evals.templates import (
     ClassificationTemplate,
@@ -52,6 +53,14 @@ Index: TypeAlias = int
 ParsedLLMResponse: TypeAlias = Tuple[Optional[str], Optional[str], str]
 
 
+class ClassificationStatus(Enum):
+    DID_NOT_RUN = Status.DID_NOT_RUN.value
+    COMPLETED = Status.COMPLETED.value
+    COMPLETED_WITH_RETRIES = Status.COMPLETED_WITH_RETRIES.value
+    FAILED = Status.FAILED.value
+    MISSING_INPUT = "MISSING INPUT"
+
+
 def llm_classify(
     dataframe: pd.DataFrame,
     model: BaseModel,
@@ -65,6 +74,7 @@ def llm_classify(
     include_response: bool = False,
     include_exceptions: bool = False,
     max_retries: int = 10,
+    exit_on_error: bool = True,
     run_sync: bool = False,
     concurrency: Optional[int] = None,
 ) -> pd.DataFrame:
@@ -106,11 +116,15 @@ def llm_classify(
         include_response (bool, default=False): If True, includes a column named `response` in the
         output dataframe containing the raw response from the LLM.
 
-        include_exceptions (bool, default=False): if True, includes a column named `exception` in
-        the output dataframe containing any exceptions that occurred during the classification.
+        include_exceptions (bool, default=False): if True, includes two columns named `exceptions`
+        and `execution_status` in the output dataframe containing details about execution errors
+        that may have occurred during the classification.
 
         max_retries (int, optional): The maximum number of times to retry on exceptions. Defaults to
         10.
+
+        exit_on_error (bool, default=True): If True, stops processing evals after all retries are
+        exhausted. If False, all evals are attempted before returning.
 
         run_sync (bool, default=False): If True, forces synchronous request submission. Otherwise
         evaluations will be run asynchronously if possible.
@@ -213,12 +227,20 @@ def llm_classify(
         concurrency=concurrency,
         tqdm_bar_format=tqdm_bar_format,
         max_retries=max_retries,
-        exit_on_error=True,
+        exit_on_error=exit_on_error,
         fallback_return_value=fallback_return_value,
     )
 
-    results, statuses = executor.run([row_tuple[1] for row_tuple in dataframe.iterrows()])
+    results, execution_details = executor.run([row_tuple[1] for row_tuple in dataframe.iterrows()])
     labels, explanations, responses, prompts = zip(*results)
+    all_exceptions = [s.exceptions for s in execution_details]
+    execution_statuses = [s.status for s in execution_details]
+    classification_statuses = []
+    for exceptions, status in zip(all_exceptions, execution_statuses):
+        if exceptions and isinstance(exceptions[-1], PhoenixTemplateMappingError):
+            classification_statuses.append(ClassificationStatus.MISSING_INPUT)
+        else:
+            classification_statuses.append(ClassificationStatus(status.value))
 
     return pd.DataFrame(
         data={
@@ -226,7 +248,8 @@ def llm_classify(
             **({"explanation": explanations} if provide_explanation else {}),
             **({"prompt": prompts} if include_prompt else {}),
             **({"response": responses} if include_response else {}),
-            **({"exception": [s.exceptions for s in statuses]} if include_exceptions else {}),
+            **({"exceptions": all_exceptions} if include_exceptions else {}),
+            **({"execution_status": classification_statuses} if include_exceptions else {}),
         },
         index=dataframe.index,
     )

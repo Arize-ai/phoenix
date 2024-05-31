@@ -32,26 +32,26 @@ class Unset:
 _unset = Unset()
 
 
-class Status(Enum):
+class ExecutionStatus(Enum):
     DID_NOT_RUN = "DID NOT RUN"
     COMPLETED = "COMPLETED"
     COMPLETED_WITH_RETRIES = "COMPLETED WITH RETRIES"
     FAILED = "FAILED"
 
 
-class ExecutionStatus:
+class ExecutionDetails:
     def __init__(self):
         self.exceptions = []
-        self.status = Status.DID_NOT_RUN
+        self.status = ExecutionStatus.DID_NOT_RUN
 
     def fail(self):
-        self.status = Status.FAILED
+        self.status = ExecutionStatus.FAILED
 
     def complete(self):
         if self.exceptions:
-            self.status = Status.COMPLETED_WITH_RETRIES
+            self.status = ExecutionStatus.COMPLETED_WITH_RETRIES
         else:
-            self.status = Status.COMPLETED
+            self.status = ExecutionStatus.COMPLETED
 
     def log_exception(self, exc: Exception):
         self.exceptions.append(exc)
@@ -130,7 +130,7 @@ class AsyncExecutor(Executor):
     async def consumer(
         self,
         outputs: List[Any],
-        statuses: List[ExecutionStatus],
+        execution_details: List[ExecutionDetails],
         queue: asyncio.PriorityQueue[Tuple[int, Any]],
         done_producing: asyncio.Event,
         termination_event: asyncio.Event,
@@ -164,7 +164,7 @@ class AsyncExecutor(Executor):
 
                 if generate_task in done:
                     outputs[index] = generate_task.result()
-                    statuses[index].complete()
+                    execution_details[index].complete()
                     progress_bar.update()
                 elif termination_event.is_set():
                     # discard the pending task and remaining items in the queue
@@ -184,7 +184,7 @@ class AsyncExecutor(Executor):
                     # task timeouts are requeued at base priority
                     await queue.put((self.base_priority, item))
             except Exception as exc:
-                statuses[index].log_exception(exc)
+                execution_details[index].log_exception(exc)
                 is_phoenix_exception = isinstance(exc, PhoenixException)
                 if (retry_count := abs(priority)) < self.max_retries and not is_phoenix_exception:
                     tqdm.write(
@@ -193,7 +193,7 @@ class AsyncExecutor(Executor):
                     tqdm.write("Requeuing...")
                     await queue.put((priority - 1, item))
                 else:
-                    statuses[index].fail()
+                    execution_details[index].fail()
                     tqdm.write(f"Retries exhausted after {retry_count + 1} attempts: {exc}")
                     if self.exit_on_error:
                         termination_event.set()
@@ -205,7 +205,7 @@ class AsyncExecutor(Executor):
                 if termination_event_watcher and not termination_event_watcher.done():
                     termination_event_watcher.cancel()
 
-    async def execute(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[Any]]:
+    async def execute(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[ExecutionDetails]]:
         termination_event = asyncio.Event()
 
         def termination_handler(signum: int, frame: Any) -> None:
@@ -214,7 +214,7 @@ class AsyncExecutor(Executor):
 
         original_handler = signal.signal(self.termination_signal, termination_handler)
         outputs = [self.fallback_return_value] * len(inputs)
-        statuses = [ExecutionStatus() for _ in range(len(inputs))]
+        execution_details = [ExecutionDetails() for _ in range(len(inputs))]
         progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
         max_queue_size = 5 * self.concurrency  # limit the queue to bound memory usage
@@ -230,7 +230,12 @@ class AsyncExecutor(Executor):
         consumers = [
             asyncio.create_task(
                 self.consumer(
-                    outputs, statuses, queue, done_producing, termination_event, progress_bar
+                    outputs,
+                    execution_details,
+                    queue,
+                    done_producing,
+                    termination_event,
+                    progress_bar,
                 )
             )
             for _ in range(self.concurrency)
@@ -257,7 +262,7 @@ class AsyncExecutor(Executor):
 
         # reset the SIGTERM handler
         signal.signal(self.termination_signal, original_handler)  # reset the SIGTERM handler
-        return outputs, statuses
+        return outputs, execution_details
 
     def run(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[Any]]:
         return asyncio.run(self.execute(inputs))
@@ -321,22 +326,24 @@ class SyncExecutor(Executor):
     def run(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[Any]]:
         with self._executor_signal_handling(self.termination_signal):
             outputs = [self.fallback_return_value] * len(inputs)
-            statuses: List[ExecutionStatus] = [ExecutionStatus() for _ in range(len(inputs))]
+            execution_details: List[ExecutionDetails] = [
+                ExecutionDetails() for _ in range(len(inputs))
+            ]
             progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
             for index, input in enumerate(inputs):
                 try:
                     for attempt in range(self.max_retries + 1):
                         if self._TERMINATE:
-                            return outputs, statuses
+                            return outputs, execution_details
                         try:
                             result = self.generate(input)
                             outputs[index] = result
-                            statuses[index].complete()
+                            execution_details[index].complete()
                             progress_bar.update()
                             break
                         except Exception as exc:
-                            statuses[index].log_exception(exc)
+                            execution_details[index].log_exception(exc)
                             is_phoenix_exception = isinstance(exc, PhoenixException)
                             if attempt >= self.max_retries or is_phoenix_exception:
                                 raise exc
@@ -344,13 +351,13 @@ class SyncExecutor(Executor):
                                 tqdm.write(f"Exception in worker on attempt {attempt + 1}: {exc}")
                                 tqdm.write("Retrying...")
                 except Exception as exc:
-                    statuses[index].fail()
+                    execution_details[index].fail()
                     tqdm.write(f"Retries exhausted after {attempt + 1} attempts: {exc}")
                     if self.exit_on_error:
-                        return outputs, statuses
+                        return outputs, execution_details
                     else:
                         progress_bar.update()
-        return outputs, statuses
+        return outputs, execution_details
 
 
 def get_executor_on_sync_context(
