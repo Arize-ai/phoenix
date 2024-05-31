@@ -113,7 +113,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
                   title: "Dataset deleted",
                   message: `${row.original.name} has been successfully deleted.`,
                 });
-                refetch({});
+                refetch({}, { fetchPolicy: "store-and-network" });
               }}
               onDatasetDeleteError={(error) => {
                 notifyError({
