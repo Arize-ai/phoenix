@@ -1,11 +1,11 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, Protocol
 
 import strawberry
 from openinference.semconv.trace import (
     SpanAttributes,
 )
-from sqlalchemy import delete, insert, select
+from sqlalchemy import and_, case, delete, func, insert, select
 from strawberry import UNSET
 from strawberry.types import Info
 
@@ -20,8 +20,12 @@ from phoenix.server.api.input_types.AddSpansToDatasetInput import AddSpansToData
 from phoenix.server.api.input_types.CreateDatasetInput import CreateDatasetInput
 from phoenix.server.api.input_types.DeleteDatasetExamplesInput import DeleteDatasetExamplesInput
 from phoenix.server.api.input_types.DeleteDatasetInput import DeleteDatasetInput
-from phoenix.server.api.input_types.PatchDatasetExamplesInput import PatchDatasetExamplesInput
+from phoenix.server.api.input_types.PatchDatasetExamplesInput import (
+    PatchDatasetExample,
+    PatchDatasetExamplesInput,
+)
 from phoenix.server.api.types.Dataset import Dataset
+from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 
@@ -307,7 +311,105 @@ class DatasetMutationMixin:
         info: Info[Context, None],
         input: PatchDatasetExamplesInput,
     ) -> DatasetMutationPayload:
-        raise NotImplementedError
+        if not (patches := input.example_patches):
+            raise ValueError("Must provide examples to patch.")
+        example_ids = [
+            from_global_id_with_expected_type(patch.example_id, DatasetExample.__name__)
+            for patch in patches
+        ]
+        if len(set(example_ids)) < len(example_ids):
+            raise ValueError("Cannot patch the same example more than once per mutation.")
+        version_description = input.dataset_version_description or None
+        version_metadata = input.dataset_version_metadata or {}
+        async with info.context.db() as session:
+            query_result = (
+                await session.execute(
+                    select(
+                        models.Dataset,
+                        func.count(func.distinct(models.DatasetExample.dataset_id)),
+                        func.count(func.distinct(models.DatasetExample.id)),
+                    )
+                    .join(
+                        models.DatasetExample,
+                        onclause=models.Dataset.id == models.DatasetExample.dataset_id,
+                    )
+                    .where(
+                        models.DatasetExample.id.in_(example_ids),
+                    ),
+                )
+            ).first()
+            if not query_result:
+                raise ValueError("Examples not found.")
+            dataset, dataset_count, example_count = query_result
+            if dataset_count > 1:
+                raise ValueError("Examples must come from the same dataset.")
+            if (num_missing_examples := len(example_ids) - example_count) > 0:
+                raise ValueError(f"{num_missing_examples} example(s) not found.")
+            latest_revisions_subquery = (
+                select(
+                    models.DatasetExampleRevision,
+                    func.row_number()
+                    .over(
+                        partition_by=models.DatasetExampleRevision.dataset_example_id,
+                        order_by=models.DatasetExampleRevision.id.desc(),
+                    )
+                    .label("row_number"),
+                )
+                .where(
+                    and_(
+                        models.DatasetExampleRevision.dataset_example_id.in_(example_ids),
+                        models.DatasetExampleRevision.revision_kind != "DELETE",
+                    )
+                )
+                .subquery()
+            )
+            latest_revisions = (
+                await session.execute(
+                    select(latest_revisions_subquery)
+                    .where(latest_revisions_subquery.c.row_number == 1)
+                    .order_by(
+                        case(
+                            *(
+                                (
+                                    latest_revisions_subquery.c.dataset_example_id == example_id,
+                                    index,
+                                )
+                                for index, example_id in enumerate(example_ids)
+                            ),
+                            else_=None,
+                        )
+                    )  # ensure the order of the revisions matches the order of the input patches
+                )
+            ).all()
+            if len(latest_revisions) < len(example_ids):
+                raise ValueError("Cannot patch deleted examples.")
+            version_rowid = await session.scalar(
+                insert(models.DatasetVersion)
+                .returning(models.DatasetVersion.id)
+                .values(
+                    dataset_id=dataset.id,
+                    description=version_description,
+                    metadata_=version_metadata,
+                )
+            )
+            assert version_rowid is not None
+            await session.execute(
+                insert(models.DatasetExampleRevision),
+                [
+                    _to_orm_revision(revision, patch, version_rowid)
+                    for revision, patch in zip(latest_revisions, patches)
+                ],
+            )
+        return DatasetMutationPayload(
+            dataset=Dataset(
+                id_attr=dataset.id,
+                name=dataset.name,
+                description=dataset.description,
+                metadata=dataset.metadata_,
+                created_at=dataset.created_at,
+                updated_at=dataset.updated_at,
+            )
+        )
 
     @strawberry.mutation
     async def delete_dataset_examples(
@@ -413,6 +515,41 @@ def _span_attribute(semconv: str) -> Any:
     for key in semconv.split("."):
         attribute_value = attribute_value[key]
     return attribute_value.label(semconv.replace(".", "_"))
+
+
+class HasRevisionAttributes(Protocol):
+    """
+    An interface with attributes related to dataset example revisions.
+    """
+
+    input: Any
+    output: Any
+    metadata: Any
+
+
+def _to_orm_revision(
+    latest_revision: HasRevisionAttributes, patch: PatchDatasetExample, version_rowid: int
+) -> Dict[str, Any]:
+    """
+    Converts a GraphQL PatchDatasetExample to a dictionary suitable for inserting into the
+    database using the sqlalchemy bulk insert API.
+    """
+
+    example_rowid = from_global_id_with_expected_type(
+        global_id=patch.example_id, expected_type_name=DatasetExample.__name__
+    )
+    db_rev = models.DatasetExampleRevision
+    return {
+        str(db_column.key): patch_value
+        for db_column, patch_value in (
+            (db_rev.dataset_example_id, example_rowid),
+            (db_rev.dataset_version_id, version_rowid),
+            (db_rev.input, patch.input or latest_revision.input),
+            (db_rev.output, patch.output or latest_revision.output),
+            (db_rev.metadata_, patch.metadata or latest_revision.metadata),
+            (db_rev.revision_kind, "PATCH"),
+        )
+    }
 
 
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE

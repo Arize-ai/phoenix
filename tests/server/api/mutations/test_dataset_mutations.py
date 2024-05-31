@@ -195,7 +195,28 @@ mutation ($input: PatchDatasetExamplesInput!) {
     assert response.status_code == 200
     response_json = response.json()
     assert (errors := response_json.get("errors")) is None, errors
-    assert response_json["data"]
+    assert response_json["data"] == {
+        "patchDatasetExamples": {
+            "dataset": {
+                "examples": {
+                    "edges": [
+                        {
+                            "example": {
+                                "id": str(
+                                    GlobalID(type_name=DatasetExample.__name__, node_id=str(1))
+                                ),
+                                "revision": {
+                                    "input": '{"input": "patched-input"}',
+                                    "output": {"output": "first-output"},
+                                    "metadata": {"metadata": "first-metadata"},
+                                },
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    }
 
 
 async def test_delete_a_dataset(
@@ -419,7 +440,7 @@ async def dataset_with_a_single_version(session):
         dataset_version_id=1,
         input={"input": "first-input"},
         output={"output": "first-output"},
-        metadata_={},
+        metadata_={"metadata": "first-metadata"},
         revision_kind="CREATE",
     )
     session.add(dataset_example_revision_1)
