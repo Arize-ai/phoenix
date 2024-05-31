@@ -408,7 +408,7 @@ def test_llm_classify_shows_retry_info(openai_api_key: str, capfd: pytest.Captur
     assert "Exception in worker on attempt 8" in out, "Retry information should be printed"
     assert "Exception in worker on attempt 9" in out, "Retry information should be printed"
     assert "Exception in worker on attempt 10" in out, "Retry information should be printed"
-    assert "Exception in worker on attempt 11" not in out, "Maximum retires should not be exceeded"
+    assert "Exception in worker on attempt 11" not in out, "Maximum retries should not be exceeded"
     assert "Retries exhausted after 11 attempts" in out, "Retry information should be printed"
 
 
@@ -425,7 +425,6 @@ def test_classify_tolerance_to_exceptions(
     queries = classification_dataframe["input"].tolist()
     for query, response in zip(queries, classification_responses):
         matcher = M(content__contains=query)
-        # Simulate an error on the second query
         if query == "What is C++?":
             response = httpx.Response(500, json={"error": "Internal Server Error"})
         else:
@@ -457,7 +456,6 @@ def test_classify_exits_on_missing_input(
     queries = classification_dataframe["input"].tolist()
     for query, response in zip(queries, classification_responses):
         matcher = M(content__contains=query)
-        # Simulate an error on the second query
         if query == "What is C++?":
             response = httpx.Response(500, json={"error": "Internal Server Error"})
         else:
@@ -507,7 +505,6 @@ def test_classify_skips_missing_input_with_when_exit_on_error_false(
     queries = classification_dataframe["input"].tolist()
     for query, response in zip(queries, classification_responses):
         matcher = M(content__contains=query)
-        # Simulate an error on the second query
         if query == "What is C++?":
             response = httpx.Response(500, json={"error": "Internal Server Error"})
         else:

@@ -21,7 +21,7 @@ import pandas as pd
 from pandas import DataFrame
 from phoenix.evals.evaluators import LLMEvaluator
 from phoenix.evals.exceptions import PhoenixTemplateMappingError
-from phoenix.evals.executors import Status, get_executor_on_sync_context
+from phoenix.evals.executors import ExecutionStatus, get_executor_on_sync_context
 from phoenix.evals.models import BaseModel, OpenAIModel, set_verbosity
 from phoenix.evals.templates import (
     ClassificationTemplate,
@@ -54,10 +54,10 @@ ParsedLLMResponse: TypeAlias = Tuple[Optional[str], Optional[str], str, str]
 
 
 class ClassificationStatus(Enum):
-    DID_NOT_RUN = Status.DID_NOT_RUN.value
-    COMPLETED = Status.COMPLETED.value
-    COMPLETED_WITH_RETRIES = Status.COMPLETED_WITH_RETRIES.value
-    FAILED = Status.FAILED.value
+    DID_NOT_RUN = ExecutionStatus.DID_NOT_RUN.value
+    COMPLETED = ExecutionStatus.COMPLETED.value
+    COMPLETED_WITH_RETRIES = ExecutionStatus.COMPLETED_WITH_RETRIES.value
+    FAILED = ExecutionStatus.FAILED.value
     MISSING_INPUT = "MISSING INPUT"
 
 
@@ -116,7 +116,7 @@ def llm_classify(
         include_response (bool, default=False): If True, includes a column named `response` in the
         output dataframe containing the raw response from the LLM.
 
-        include_exceptions (bool, default=False): if True, includes two columns named `exceptions`
+        include_exceptions (bool, default=False): If True, includes two columns named `exceptions`
         and `execution_status` in the output dataframe containing details about execution errors
         that may have occurred during the classification.
 
@@ -124,7 +124,8 @@ def llm_classify(
         10.
 
         exit_on_error (bool, default=True): If True, stops processing evals after all retries are
-        exhausted. If False, all evals are attempted before returning.
+        exhausted on a single eval attempt. If False, all evals are attempted before returning,
+        even if some fail.
 
         run_sync (bool, default=False): If True, forces synchronous request submission. Otherwise
         evaluations will be run asynchronously if possible.
@@ -233,8 +234,8 @@ def llm_classify(
 
     results, execution_details = executor.run([row_tuple[1] for row_tuple in dataframe.iterrows()])
     labels, explanations, responses, prompts = zip(*results)
-    all_exceptions = [s.exceptions for s in execution_details]
-    execution_statuses = [s.status for s in execution_details]
+    all_exceptions = [details.exceptions for details in execution_details]
+    execution_statuses = [details.status for details in execution_details]
     classification_statuses = []
     for exceptions, status in zip(all_exceptions, execution_statuses):
         if exceptions and isinstance(exceptions[-1], PhoenixTemplateMappingError):
