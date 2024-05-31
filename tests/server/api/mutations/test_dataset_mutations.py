@@ -252,6 +252,62 @@ class TestPatchDatasetExamples:
         ]["edges"]
         assert actual_patched_examples == expected_patched_examples
 
+    async def test_patch_dataset_examples(
+        self,
+        test_client,
+        dataset_with_revisions,
+    ) -> None:
+        mutation_input = {
+            "examplePatches": [
+                {
+                    "exampleId": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(1))),
+                    "input": {"input": "patched-example-1-input"},
+                },
+                {
+                    "exampleId": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(2))),
+                    "input": {"input": "patched-example-2-input"},
+                    "output": {"output": "patched-example-2-output"},
+                    "metadata": {"metadata": "patched-example-2-metadata"},
+                },
+            ]
+        }
+        expected_examples = [
+            {
+                "example": {
+                    "id": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(1))),
+                    "revision": {
+                        "input": {"input": "patched-example-1-input"},
+                        "output": {"output": "original-example-1-version-1-output"},
+                        "metadata": {"metadata": "original-example-1-version-1-metadata"},
+                    },
+                }
+            },
+            {
+                "example": {
+                    "id": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(2))),
+                    "revision": {
+                        "input": {"input": "patched-example-2-input"},
+                        "output": {"output": "patched-example-2-output"},
+                        "metadata": {"metadata": "patched-example-2-metadata"},
+                    },
+                }
+            },
+        ]
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": self.MUTATION,
+                "variables": {"input": mutation_input},
+            },
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json.get("errors") is None
+        actual_examples = response_json["data"]["patchDatasetExamples"]["dataset"]["examples"][
+            "edges"
+        ]
+        assert actual_examples == expected_examples
+
 
 async def test_delete_a_dataset(
     session,
@@ -451,7 +507,6 @@ async def dataset_with_a_single_version(session):
     await session.flush()
 
     dataset_example = models.DatasetExample(
-        dataset_id=1,
         created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
     )
     session.add(dataset_example)
@@ -475,3 +530,102 @@ async def dataset_with_a_single_version(session):
     )
     session.add(dataset_example_revision_1)
     await session.flush()
+
+
+@pytest.fixture
+async def dataset_with_revisions(session):
+    # insert dataset
+    dataset_id = await session.scalar(
+        insert(models.Dataset)
+        .returning(models.Dataset.id)
+        .values(
+            name="original-dataset-name",
+            description="original-dataset-description",
+            metadata_={},
+        )
+    )
+
+    # insert examples
+    example_id_1 = await session.scalar(
+        insert(models.DatasetExample)
+        .values(dataset_id=dataset_id)
+        .returning(models.DatasetExample.id)
+    )
+    example_id_2 = await session.scalar(
+        insert(models.DatasetExample)
+        .values(dataset_id=dataset_id)
+        .returning(models.DatasetExample.id)
+    )
+    example_id_3 = await session.scalar(
+        insert(models.DatasetExample)
+        .values(dataset_id=dataset_id)
+        .returning(models.DatasetExample.id)
+    )
+
+    # insert first version
+    version_id_1 = await session.scalar(
+        insert(models.DatasetVersion)
+        .returning(models.DatasetVersion.id)
+        .values(
+            dataset_id=dataset_id,
+            description="original-version-1-description",
+            metadata_={"metadata": "original-version-1-metadata"},
+            created_at=datetime.fromisoformat("2024-05-28T00:00:04+00:00"),
+        )
+    )
+
+    # insert revisions for first version
+    await session.execute(
+        insert(models.DatasetExampleRevision).values(
+            dataset_example_id=example_id_1,
+            dataset_version_id=version_id_1,
+            input={"input": "original-example-1-version-1-input"},
+            output={"output": "original-example-1-version-1-output"},
+            metadata_={"metadata": "original-example-1-version-1-metadata"},
+            revision_kind="CREATE",
+        )
+    )
+    await session.execute(
+        insert(models.DatasetExampleRevision).values(
+            dataset_example_id=example_id_2,
+            dataset_version_id=version_id_1,
+            input={"input": "original-example-2-version-1-input"},
+            output={"output": "original-example-2-version-1-output"},
+            metadata_={"metadata": "original-example-2-version-1-metadata"},
+            revision_kind="CREATE",
+        )
+    )
+    await session.execute(
+        insert(models.DatasetExampleRevision).values(
+            dataset_example_id=example_id_3,
+            dataset_version_id=version_id_1,
+            input={"input": "original-example-3-version-1-input"},
+            output={"output": "original-example-3-version-1-output"},
+            metadata_={"metadata": "original-example-3-version-1-metadata"},
+            revision_kind="CREATE",
+        )
+    )
+
+    # insert second version
+    version_id_2 = await session.scalar(
+        insert(models.DatasetVersion)
+        .returning(models.DatasetVersion.id)
+        .values(
+            dataset_id=dataset_id,
+            description="original-version-2-description",
+            metadata_={"metadata": "original-version-2-metadata"},
+            created_at=datetime.fromisoformat("2024-05-28T00:00:04+00:00"),
+        )
+    )
+
+    # insert revisions for second version
+    await session.execute(
+        insert(models.DatasetExampleRevision).values(
+            dataset_example_id=example_id_3,
+            dataset_version_id=version_id_2,
+            input={"input": "original-example-3-version-1-input"},
+            output={"output": "original-example-3-version-1-output"},
+            metadata_={"metadata": "original-example-3-version-1-metadata"},
+            revision_kind="DELETE",
+        )
+    )

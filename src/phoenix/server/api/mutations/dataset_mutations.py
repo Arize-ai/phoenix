@@ -332,12 +332,11 @@ class DatasetMutationMixin:
                     .where(
                         models.DatasetExample.id.in_(example_ids),
                     )
-                    .limit(2),
                 )
             ).all()
             if not datasets:
                 raise ValueError("No examples found.")
-            if len(datasets) > 1:
+            if len(set(ds.id for ds in datasets)) > 1:
                 raise ValueError("Examples must come from the same dataset.")
             dataset = datasets[0]
 
