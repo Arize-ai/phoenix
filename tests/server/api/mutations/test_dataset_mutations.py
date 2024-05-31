@@ -150,73 +150,66 @@ mutation ($datasetId: GlobalID!, $spanIds: [GlobalID!]!) {
     }
 
 
-async def test_patch_dataset_example(
-    test_client,
-    dataset_with_a_single_version,
-) -> None:
-    mutation = """
-mutation ($input: PatchDatasetExamplesInput!) {
-  patchDatasetExamples(input: $input) {
-    dataset {
-      examples {
-        edges {
-          example: node {
-            id
-            revision {
-              input
-              output
-              metadata
+class TestPatchDatasetExamples:
+    MUTATION = """
+      mutation ($input: PatchDatasetExamplesInput!) {
+        patchDatasetExamples(input: $input) {
+          dataset {
+            examples {
+              edges {
+                example: node {
+                  id
+                  revision {
+                    input
+                    output
+                    metadata
+                  }
+                }
+              }
             }
           }
         }
-      }
-    }
-  }
-}
-"""
-    response = await test_client.post(
-        "/graphql",
-        json={
-            "query": mutation,
-            "variables": {
-                "input": {
-                    "examplePatches": [
-                        {
-                            "exampleId": str(
-                                GlobalID(type_name=DatasetExample.__name__, node_id=str(1))
-                            ),
-                            "input": json.dumps({"input": "patched-input"}),
-                        }
-                    ]
+      }"""
+
+    async def test_patch_revision_input_but_keep_output_and_metadata_from_previous_revision(
+        self,
+        test_client,
+        dataset_with_a_single_version,
+    ) -> None:
+        mutation_input = {
+            "examplePatches": [
+                {
+                    "exampleId": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(1))),
+                    "input": json.dumps({"input": "patched-input"}),
                 }
-            },
-        },
-    )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert (errors := response_json.get("errors")) is None, errors
-    assert response_json["data"] == {
-        "patchDatasetExamples": {
-            "dataset": {
-                "examples": {
-                    "edges": [
-                        {
-                            "example": {
-                                "id": str(
-                                    GlobalID(type_name=DatasetExample.__name__, node_id=str(1))
-                                ),
-                                "revision": {
-                                    "input": '{"input": "patched-input"}',
-                                    "output": {"output": "first-output"},
-                                    "metadata": {"metadata": "first-metadata"},
-                                },
-                            }
-                        }
-                    ]
+            ]
+        }
+        expected_patched_examples = [
+            {
+                "example": {
+                    "id": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(1))),
+                    "revision": {
+                        "input": '{"input": "patched-input"}',
+                        "output": {"output": "first-output"},
+                        "metadata": {"metadata": "first-metadata"},
+                    },
                 }
             }
-        }
-    }
+        ]
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": self.MUTATION,
+                "variables": {"input": mutation_input},
+            },
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json.get("errors") is None
+        actual_patched_examples = response_json["data"]["patchDatasetExamples"]["dataset"][
+            "examples"
+        ]["edges"]
+        assert actual_patched_examples == expected_patched_examples
 
 
 async def test_delete_a_dataset(
