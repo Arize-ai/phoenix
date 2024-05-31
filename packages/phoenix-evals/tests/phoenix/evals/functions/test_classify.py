@@ -24,7 +24,7 @@ from phoenix.evals.default_templates import (
     TOXICITY_PROMPT_TEMPLATE,
 )
 from phoenix.evals.evaluators import LLMEvaluator
-from phoenix.evals.executors import Status
+from phoenix.evals.executors import ExecutionStatus
 from phoenix.evals.utils import _EXPLANATION, _FUNCTION_NAME, _RESPONSE
 from respx.patterns import M
 
@@ -1131,4 +1131,6 @@ def test_run_evals_with_empty_evaluators_returns_empty_list() -> None:
 
 
 def test_classification_status_is_superset_of_execution_status() -> None:
-    assert {item.value for item in ClassificationStatus}.issuperset({item.value for item in Status})
+    assert {item.value for item in ClassificationStatus}.issuperset(
+        {item.value for item in ExecutionStatus}
+    )

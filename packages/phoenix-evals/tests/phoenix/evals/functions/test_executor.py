@@ -11,7 +11,7 @@ import nest_asyncio
 import pytest
 from phoenix.evals.executors import (
     AsyncExecutor,
-    Status,
+    ExecutionStatus,
     SyncExecutor,
     get_executor_on_sync_context,
 )
@@ -85,11 +85,11 @@ def test_async_executor_run_exits_early_on_error():
         0,
     ], "one exception raised, then exits"
     assert status_types == [
-        Status.COMPLETED,
-        Status.COMPLETED,
-        Status.FAILED,
-        Status.DID_NOT_RUN,
-        Status.DID_NOT_RUN,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.FAILED,
+        ExecutionStatus.DID_NOT_RUN,
+        ExecutionStatus.DID_NOT_RUN,
     ]
     assert all(isinstance(exc, ValueError) for exc in exceptions[2])
 
@@ -116,11 +116,11 @@ async def test_async_executor_can_continue_on_error():
         0,
     ], "two exceptions due to retries"
     assert status_types == [
-        Status.COMPLETED,
-        Status.COMPLETED,
-        Status.FAILED,
-        Status.COMPLETED,
-        Status.COMPLETED,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.FAILED,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED,
     ]
     assert all(isinstance(exc, ValueError) for exc in exceptions[2])
 
@@ -143,11 +143,11 @@ async def test_async_executor_marks_completed_with_retries_status():
     outputs, execution_details = await executor.execute(inputs)
     assert outputs == [0, 1, 2, 3, 4], "input 3 should only fail twice"
     assert [status.status for status in execution_details] == [
-        Status.COMPLETED,
-        Status.COMPLETED,
-        Status.COMPLETED_WITH_RETRIES,
-        Status.COMPLETED,
-        Status.COMPLETED,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED_WITH_RETRIES,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED,
     ]
 
 
@@ -259,11 +259,11 @@ def test_sync_executor_run_exits_early_on_error():
         0,
     ], "one exception raised, then exits"
     assert status_types == [
-        Status.COMPLETED,
-        Status.COMPLETED,
-        Status.FAILED,
-        Status.DID_NOT_RUN,
-        Status.DID_NOT_RUN,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.FAILED,
+        ExecutionStatus.DID_NOT_RUN,
+        ExecutionStatus.DID_NOT_RUN,
     ]
     assert all(isinstance(exc, ValueError) for exc in exceptions[2])
 
@@ -288,11 +288,11 @@ def test_sync_executor_can_continue_on_error():
         0,
     ], "two exceptions due to retries"
     assert status_types == [
-        Status.COMPLETED,
-        Status.COMPLETED,
-        Status.FAILED,
-        Status.COMPLETED,
-        Status.COMPLETED,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.FAILED,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED,
     ]
     assert all(isinstance(exc, ValueError) for exc in exceptions[2])
 
@@ -313,11 +313,11 @@ def test_sync_executor_marks_completed_with_retries_status():
     outputs, execution_details = executor.run(inputs)
     assert outputs == [0, 1, 2, 3, 4], "input 3 should only fail twice"
     assert [status.status for status in execution_details] == [
-        Status.COMPLETED,
-        Status.COMPLETED,
-        Status.COMPLETED_WITH_RETRIES,
-        Status.COMPLETED,
-        Status.COMPLETED,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED_WITH_RETRIES,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED,
     ]
 
 
