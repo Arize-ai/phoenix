@@ -170,6 +170,48 @@ class TestPatchDatasetExamples:
         }
       }"""
 
+    async def test_patch_all_revision_fields(
+        self,
+        test_client,
+        dataset_with_a_single_version,
+    ) -> None:
+        mutation_input = {
+            "examplePatches": [
+                {
+                    "exampleId": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(1))),
+                    "input": {"input": "patched-input"},
+                    "output": {"output": "patched-output"},
+                    "metadata": {"metadata": "patched-metadata"},
+                }
+            ]
+        }
+        expected_patched_examples = [
+            {
+                "example": {
+                    "id": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(1))),
+                    "revision": {
+                        "input": {"input": "patched-input"},
+                        "output": {"output": "patched-output"},
+                        "metadata": {"metadata": "patched-metadata"},
+                    },
+                }
+            }
+        ]
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": self.MUTATION,
+                "variables": {"input": mutation_input},
+            },
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json.get("errors") is None
+        actual_patched_examples = response_json["data"]["patchDatasetExamples"]["dataset"][
+            "examples"
+        ]["edges"]
+        assert actual_patched_examples == expected_patched_examples
+
     async def test_patch_revision_input_but_keep_output_and_metadata_from_previous_revision(
         self,
         test_client,
