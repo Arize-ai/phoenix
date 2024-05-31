@@ -267,13 +267,21 @@ class LiteLLMModel(BaseEvalModel):
 
 You can choose among [multiple models](https://docs.litellm.ai/docs/providers) supported by LiteLLM. Make sure you have set the right environment variables set prior to initializing the model. For additional information about the environment variables for specific model providers visit: [LiteLLM provider specific params](https://docs.litellm.ai/docs/completion/input#provider-specific-params)
 
-Here is an example of how to initialize `LiteLLMModel` for model "gpt-3.5-turbo":
+Here is an example of how to initialize `LiteLLMModel` for llama3 using ollama.
 
 ```python
-model = LiteLLMModel(model_name="gpt-3.5-turbo", temperature=0.0)
-model("Hello world, this is a test if you are working?")
-# Output: 'Hello! Yes, I am here and ready to assist you. How can I help you today?'
+import os
+
+from phoenix.evals import LiteLLMModel
+
+os.environ["OLLAMA_API_BASE"] = "http://localhost:11434"
+
+model = LiteLLMModel(model="ollama/llama3")
 ```
+
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/local_llm.ipynb" %}
+How to use Ollama with LiteLLMModel
+{% endembed %}
 
 ## **Usage**
 
