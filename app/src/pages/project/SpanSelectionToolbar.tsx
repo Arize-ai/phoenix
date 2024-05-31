@@ -1,5 +1,6 @@
 import React, { ReactNode, Suspense, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
+import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
 import {
@@ -29,6 +30,7 @@ type SpanSelectionToolbarProps = {
 };
 
 export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
+  const navigate = useNavigate();
   const [dialog, setDialog] = useState<ReactNode>(null);
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
@@ -59,6 +61,13 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
           notifySuccess({
             title: "Examples added to dataset",
             message: `${selectedSpans.length} example${isPlural ? "s" : ""} have been added to the dataset.`,
+            action: {
+              text: "View dataset",
+              onClick: () => {
+                // Navigate to the dataset page
+                navigate(`/datasets/${datasetId}`);
+              },
+            },
           });
           // Clear the selection
           onClearSelection();
