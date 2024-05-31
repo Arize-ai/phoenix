@@ -69,6 +69,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
     selectedExamples,
     notifySuccess,
     isPlural,
+    onExamplesDeleted,
     onClearSelection,
     notifyError,
   ]);

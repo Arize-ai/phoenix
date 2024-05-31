@@ -85,16 +85,14 @@ export function DatasetExamplesTable({
         />
       ),
       cell: ({ row }) => (
-        <div className="px-1">
-          <IndeterminateCheckboxCell
-            {...{
-              checked: row.getIsSelected(),
-              disabled: !row.getCanSelect(),
-              indeterminate: row.getIsSomeSelected(),
-              onChange: row.getToggleSelectedHandler(),
-            }}
-          />
-        </div>
+        <IndeterminateCheckboxCell
+          {...{
+            checked: row.getIsSelected(),
+            disabled: !row.getCanSelect(),
+            indeterminate: row.getIsSomeSelected(),
+            onChange: row.getToggleSelectedHandler(),
+          }}
+        />
       ),
     },
     {
