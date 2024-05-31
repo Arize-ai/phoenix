@@ -44,6 +44,7 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
         }
       }
     `);
+
   const handleDelete = useCallback(() => {
     startTransition(() => {
       commitDelete({
@@ -55,13 +56,6 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
         },
         onError: (error) => {
           onDatasetDeleteError(error);
-        },
-        updater: (store) => {
-          // Invalidate the dataset in the store
-          const datasetNode = store.get(datasetId);
-          if (datasetNode) {
-            datasetNode.invalidateRecord();
-          }
         },
       });
     });

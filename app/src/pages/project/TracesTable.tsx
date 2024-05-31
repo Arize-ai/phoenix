@@ -305,6 +305,15 @@ export function TracesTable(props: TracesTableProps) {
     {
       id: "select",
       maxSize: 10,
+      header: ({ table }) => (
+        <IndeterminateCheckboxCell
+          {...{
+            checked: table.getIsAllRowsSelected(),
+            indeterminate: table.getIsSomeRowsSelected(),
+            onChange: table.getToggleAllRowsSelectedHandler(),
+          }}
+        />
+      ),
       cell: ({ row }) => (
         <IndeterminateCheckboxCell
           {...{
