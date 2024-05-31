@@ -50,7 +50,7 @@ Record: TypeAlias = Mapping[str, Any]
 Index: TypeAlias = int
 
 # snapped_response, explanation, response
-ParsedLLMResponse: TypeAlias = Tuple[Optional[str], Optional[str], str]
+ParsedLLMResponse: TypeAlias = Tuple[Optional[str], Optional[str], str, str]
 
 
 class ClassificationStatus(Enum):
@@ -167,7 +167,7 @@ def llm_classify(
     if generation_info := model.verbose_generation_info():
         printif(verbose, generation_info)
 
-    def _map_template(data: pd.Series) -> str:
+    def _map_template(data: pd.Series[Any]) -> str:
         try:
             variables = {var: data[var] for var in eval_template.variables}
             empty_keys = [k for k, v in variables.items() if v is None]
@@ -200,7 +200,7 @@ def llm_classify(
             unrailed_label, explanation = parse_openai_function_call(response)
         return snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
 
-    async def _run_llm_classification_async(input_data: pd.Series) -> ParsedLLMResponse:
+    async def _run_llm_classification_async(input_data: pd.Series[Any]) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
             prompt = _map_template(input_data)
             response = await verbose_model._async_generate(
@@ -209,7 +209,7 @@ def llm_classify(
         inference, explanation = _process_response(response)
         return inference, explanation, response, prompt
 
-    def _run_llm_classification_sync(input_data: pd.Series) -> ParsedLLMResponse:
+    def _run_llm_classification_sync(input_data: pd.Series[Any]) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
             prompt = _map_template(input_data)
             response = verbose_model._generate(

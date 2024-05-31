@@ -40,25 +40,25 @@ class ExecutionStatus(Enum):
 
 
 class ExecutionDetails:
-    def __init__(self):
-        self.exceptions = []
+    def __init__(self) -> None:
+        self.exceptions: List[Exception] = []
         self.status = ExecutionStatus.DID_NOT_RUN
 
-    def fail(self):
+    def fail(self) -> None:
         self.status = ExecutionStatus.FAILED
 
-    def complete(self):
+    def complete(self) -> None:
         if self.exceptions:
             self.status = ExecutionStatus.COMPLETED_WITH_RETRIES
         else:
             self.status = ExecutionStatus.COMPLETED
 
-    def log_exception(self, exc: Exception):
+    def log_exception(self, exc: Exception) -> None:
         self.exceptions.append(exc)
 
 
 class Executor(Protocol):
-    def run(self, inputs: Sequence[Any]) -> List[Any]: ...
+    def run(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[ExecutionDetails]]: ...
 
 
 class AsyncExecutor(Executor):
@@ -264,7 +264,7 @@ class AsyncExecutor(Executor):
         signal.signal(self.termination_signal, original_handler)  # reset the SIGTERM handler
         return outputs, execution_details
 
-    def run(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[Any]]:
+    def run(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[ExecutionDetails]]:
         return asyncio.run(self.execute(inputs))
 
 
