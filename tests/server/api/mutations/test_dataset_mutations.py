@@ -1,4 +1,3 @@
-import json
 import textwrap
 from datetime import datetime
 
@@ -180,7 +179,7 @@ class TestPatchDatasetExamples:
             "examplePatches": [
                 {
                     "exampleId": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(1))),
-                    "input": json.dumps({"input": "patched-input"}),
+                    "input": {"input": "patched-input"},
                 }
             ]
         }
@@ -189,7 +188,7 @@ class TestPatchDatasetExamples:
                 "example": {
                     "id": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(1))),
                     "revision": {
-                        "input": '{"input": "patched-input"}',
+                        "input": {"input": "patched-input"},
                         "output": {"output": "first-output"},
                         "metadata": {"metadata": "first-metadata"},
                     },
