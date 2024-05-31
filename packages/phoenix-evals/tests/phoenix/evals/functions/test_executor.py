@@ -11,6 +11,7 @@ import nest_asyncio
 import pytest
 from phoenix.evals.executors import (
     AsyncExecutor,
+    ExecutionStatus,
     SyncExecutor,
     get_executor_on_sync_context,
 )
@@ -24,7 +25,7 @@ async def test_async_executor_executes():
 
     executor = AsyncExecutor(dummy_fn, concurrency=10, max_retries=0)
     inputs = [1, 2, 3, 4, 5]
-    outputs = await executor.execute(inputs)
+    outputs, _ = await executor.execute(inputs)
     assert outputs == [0, 1, 2, 3, 4]
 
 
@@ -34,7 +35,7 @@ async def test_async_executor_executes_many_tasks():
 
     executor = AsyncExecutor(dummy_fn, concurrency=10, max_retries=0)
     inputs = [x for x in range(100)]
-    outputs = await executor.execute(inputs)
+    outputs, _ = await executor.execute(inputs)
     assert outputs == inputs
 
 
@@ -44,7 +45,7 @@ def test_async_executor_runs_synchronously():
 
     executor = AsyncExecutor(dummy_fn, concurrency=10, max_retries=0)
     inputs = [1, 2, 3, 4, 5]
-    outputs = executor.run(inputs)
+    outputs, _ = executor.run(inputs)
     assert outputs == [-1, 0, 1, 2, 3]
 
 
@@ -58,7 +59,7 @@ async def test_async_executor_execute_exits_early_on_error():
         dummy_fn, concurrency=1, max_retries=0, exit_on_error=True, fallback_return_value=52
     )
     inputs = [1, 2, 3, 4, 5]
-    outputs = await executor.execute(inputs)
+    outputs, _ = await executor.execute(inputs)
     assert outputs == [0, 1, 52, 52, 52]
 
 
@@ -72,8 +73,25 @@ def test_async_executor_run_exits_early_on_error():
         dummy_fn, concurrency=1, max_retries=0, exit_on_error=True, fallback_return_value=52
     )
     inputs = [1, 2, 3, 4, 5]
-    outputs = executor.run(inputs)
+    outputs, statuses = executor.run(inputs)
+    exceptions = [status.exceptions for status in statuses]
+    status_types = [status.status for status in statuses]
     assert outputs == [0, 1, 52, 52, 52]
+    assert [len(excs) if excs else 0 for excs in exceptions] == [
+        0,
+        0,
+        1,
+        0,
+        0,
+    ], "one exception raised, then exits"
+    assert status_types == [
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.FAILED,
+        ExecutionStatus.DID_NOT_RUN,
+        ExecutionStatus.DID_NOT_RUN,
+    ]
+    assert all(isinstance(exc, ValueError) for exc in exceptions[2])
 
 
 async def test_async_executor_can_continue_on_error():
@@ -83,11 +101,54 @@ async def test_async_executor_can_continue_on_error():
         return payload - 1
 
     executor = AsyncExecutor(
-        dummy_fn, concurrency=1, max_retries=0, exit_on_error=False, fallback_return_value=52
+        dummy_fn, concurrency=1, max_retries=1, exit_on_error=False, fallback_return_value=52
     )
     inputs = [1, 2, 3, 4, 5]
-    outputs = await executor.execute(inputs)
-    assert outputs == [0, 1, 52, 3, 4]
+    outputs, statuses = await executor.execute(inputs)
+    exceptions = [status.exceptions for status in statuses]
+    status_types = [status.status for status in statuses]
+    assert outputs == [0, 1, 52, 3, 4], "failed tasks use the fallback value"
+    assert [len(excs) if excs else 0 for excs in exceptions] == [
+        0,
+        0,
+        2,
+        0,
+        0,
+    ], "two exceptions due to retries"
+    assert status_types == [
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.FAILED,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED,
+    ]
+    assert all(isinstance(exc, ValueError) for exc in exceptions[2])
+
+
+async def test_async_executor_marks_completed_with_retries_status():
+    retry_counter = 0
+
+    async def dummy_fn(payload: int) -> int:
+        if payload == 3:
+            nonlocal retry_counter
+            if retry_counter < 2:
+                retry_counter += 1
+                raise ValueError("test error")
+        return payload - 1
+
+    executor = AsyncExecutor(
+        dummy_fn, concurrency=1, max_retries=3, exit_on_error=False, fallback_return_value=52
+    )
+    inputs = [1, 2, 3, 4, 5]
+    outputs, execution_details = await executor.execute(inputs)
+    assert outputs == [0, 1, 2, 3, 4], "input 3 should only fail twice"
+    assert [status.status for status in execution_details] == [
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED_WITH_RETRIES,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED,
+    ]
 
 
 @pytest.mark.skipif(platform.system() == "Windows", reason="SIGUSR1 not supported on Windows")
@@ -132,7 +193,7 @@ async def test_async_executor_sigint_handling():
     )
     task = asyncio.create_task(executor.execute(InterruptingIterator(sigint_index, result_length)))
 
-    results = await task
+    results, _ = await task
     assert len(results) == result_length
     assert results.count("test") > 100, "most inputs should not have been processed"
 
@@ -155,7 +216,7 @@ def test_sync_executor_runs_many_tasks():
 
     executor = SyncExecutor(dummy_fn, max_retries=0)
     inputs = [x for x in range(1000)]
-    outputs = executor.run(inputs)
+    outputs, _ = executor.run(inputs)
     assert outputs == inputs
 
 
@@ -174,7 +235,7 @@ def test_sync_executor_runs():
 
     executor = SyncExecutor(dummy_fn, max_retries=0)
     inputs = [1, 2, 3, 4, 5]
-    outputs = executor.run(inputs)
+    outputs, _ = executor.run(inputs)
     assert outputs == [-1, 0, 1, 2, 3]
 
 
@@ -186,8 +247,25 @@ def test_sync_executor_run_exits_early_on_error():
 
     executor = SyncExecutor(dummy_fn, exit_on_error=True, fallback_return_value=52, max_retries=0)
     inputs = [1, 2, 3, 4, 5]
-    outputs = executor.run(inputs)
+    outputs, execution_details = executor.run(inputs)
+    exceptions = [status.exceptions for status in execution_details]
+    status_types = [status.status for status in execution_details]
     assert outputs == [0, 1, 52, 52, 52]
+    assert [len(excs) if excs else 0 for excs in exceptions] == [
+        0,
+        0,
+        1,
+        0,
+        0,
+    ], "one exception raised, then exits"
+    assert status_types == [
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.FAILED,
+        ExecutionStatus.DID_NOT_RUN,
+        ExecutionStatus.DID_NOT_RUN,
+    ]
+    assert all(isinstance(exc, ValueError) for exc in exceptions[2])
 
 
 def test_sync_executor_can_continue_on_error():
@@ -196,10 +274,51 @@ def test_sync_executor_can_continue_on_error():
             raise ValueError("test error")
         return payload - 1
 
-    executor = SyncExecutor(dummy_fn, exit_on_error=False, fallback_return_value=52, max_retries=0)
+    executor = SyncExecutor(dummy_fn, exit_on_error=False, fallback_return_value=52, max_retries=1)
     inputs = [1, 2, 3, 4, 5]
-    outputs = executor.run(inputs)
+    outputs, execution_details = executor.run(inputs)
+    exceptions = [status.exceptions for status in execution_details]
+    status_types = [status.status for status in execution_details]
     assert outputs == [0, 1, 52, 3, 4]
+    assert [len(excs) if excs else 0 for excs in exceptions] == [
+        0,
+        0,
+        2,
+        0,
+        0,
+    ], "two exceptions due to retries"
+    assert status_types == [
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.FAILED,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED,
+    ]
+    assert all(isinstance(exc, ValueError) for exc in exceptions[2])
+
+
+def test_sync_executor_marks_completed_with_retries_status():
+    retry_counter = 0
+
+    def dummy_fn(payload: int) -> int:
+        if payload == 3:
+            nonlocal retry_counter
+            if retry_counter < 2:
+                retry_counter += 1
+                raise ValueError("test error")
+        return payload - 1
+
+    executor = SyncExecutor(dummy_fn, max_retries=3, exit_on_error=False, fallback_return_value=52)
+    inputs = [1, 2, 3, 4, 5]
+    outputs, execution_details = executor.run(inputs)
+    assert outputs == [0, 1, 2, 3, 4], "input 3 should only fail twice"
+    assert [status.status for status in execution_details] == [
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED_WITH_RETRIES,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED,
+    ]
 
 
 @pytest.mark.skipif(platform.system() == "Windows", reason="SIGUSR1 not supported on Windows")
@@ -241,7 +360,7 @@ def test_sync_executor_sigint_handling():
         fallback_return_value="test",
         termination_signal=signal.SIGUSR1,
     )
-    results = executor.run(InterruptingIterator(sigint_index, result_length))
+    results, _ = executor.run(InterruptingIterator(sigint_index, result_length))
     assert len(results) == result_length
     assert results.count("test") > 100, "most inputs should not have been processed"
 
@@ -255,7 +374,7 @@ def test_sync_executor_defaults_sigint_handling():
         max_retries=0,
         fallback_return_value="test",
     )
-    res = executor.run(["test"])
+    res, _ = executor.run(["test"])
     assert res[0] != signal.default_int_handler
 
 
@@ -269,7 +388,7 @@ def test_sync_executor_bypasses_sigint_handling_if_none():
         fallback_return_value="test",
         termination_signal=None,
     )
-    res = executor.run(["test"])
+    res, _ = executor.run(["test"])
     assert res[0] == signal.default_int_handler
 
 

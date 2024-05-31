@@ -16,6 +16,7 @@ from phoenix.evals import (
     llm_classify,
 )
 from phoenix.evals.classify import (
+    ClassificationStatus,
     run_evals,
 )
 from phoenix.evals.default_templates import (
@@ -23,6 +24,7 @@ from phoenix.evals.default_templates import (
     TOXICITY_PROMPT_TEMPLATE,
 )
 from phoenix.evals.evaluators import LLMEvaluator
+from phoenix.evals.executors import ExecutionStatus
 from phoenix.evals.utils import _EXPLANATION, _FUNCTION_NAME, _RESPONSE
 from respx.patterns import M
 
@@ -392,6 +394,7 @@ def test_llm_classify_shows_retry_info(openai_api_key: str, capfd: pytest.Captur
             template=RAG_RELEVANCY_PROMPT_TEMPLATE,
             model=model,
             rails=["relevant", "unrelated"],
+            max_retries=10,
         )
 
     out, _ = capfd.readouterr()
@@ -405,8 +408,8 @@ def test_llm_classify_shows_retry_info(openai_api_key: str, capfd: pytest.Captur
     assert "Exception in worker on attempt 8" in out, "Retry information should be printed"
     assert "Exception in worker on attempt 9" in out, "Retry information should be printed"
     assert "Exception in worker on attempt 10" in out, "Retry information should be printed"
-    assert "Exception in worker on attempt 11" in out, "Retry information should be printed"
-    assert "Exception in worker on attempt 12" not in out, "Maximum retries should not be exceeded"
+    assert "Exception in worker on attempt 11" not in out, "Maximum retries should not be exceeded"
+    assert "Retries exhausted after 11 attempts" in out, "Retry information should be printed"
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions", assert_all_called=False)
@@ -422,7 +425,6 @@ def test_classify_tolerance_to_exceptions(
     queries = classification_dataframe["input"].tolist()
     for query, response in zip(queries, classification_responses):
         matcher = M(content__contains=query)
-        # Simulate an error on the second query
         if query == "What is C++?":
             response = httpx.Response(500, json={"error": "Internal Server Error"})
         else:
@@ -438,6 +440,105 @@ def test_classify_tolerance_to_exceptions(
 
     assert classification_df is not None
     # Make sure there is a logger.error output
+    captured = capfd.readouterr()
+    assert "Exception in worker" in captured.out
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions", assert_all_called=False)
+def test_classify_exits_on_missing_input(
+    openai_api_key: str,
+    classification_dataframe: pd.DataFrame,
+    classification_responses: List[str],
+    classification_template: str,
+    respx_mock: respx.mock,
+):
+    model = OpenAIModel()
+    queries = classification_dataframe["input"].tolist()
+    for query, response in zip(queries, classification_responses):
+        matcher = M(content__contains=query)
+        if query == "What is C++?":
+            response = httpx.Response(500, json={"error": "Internal Server Error"})
+        else:
+            response = httpx.Response(200, json={"choices": [{"message": {"content": response}}]})
+        respx_mock.route(matcher).mock(return_value=response)
+
+    # remove an input to cause a template mapping exception
+    classification_dataframe["input"][2] = None
+
+    classification_df = llm_classify(
+        dataframe=classification_dataframe,
+        template=classification_template,
+        model=model,
+        rails=["relevant", "unrelated"],
+        include_exceptions=True,
+        max_retries=4,
+        exit_on_error=True,
+        run_sync=True,  # run synchronously to ensure ordering
+    )
+
+    assert classification_df["execution_status"].tolist() == [
+        ClassificationStatus.COMPLETED,
+        ClassificationStatus.COMPLETED,
+        ClassificationStatus.MISSING_INPUT,
+        ClassificationStatus.DID_NOT_RUN,
+    ]
+
+    exceptions = classification_df["exceptions"].tolist()
+    assert [len(excs) for excs in exceptions] == [
+        0,
+        0,
+        1,  # one failure due to missing input
+        0,  # never runs, so no exceptions
+    ]
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions", assert_all_called=False)
+def test_classify_skips_missing_input_with_when_exit_on_error_false(
+    openai_api_key: str,
+    classification_dataframe: pd.DataFrame,
+    classification_responses: List[str],
+    classification_template: str,
+    respx_mock: respx.mock,
+    capfd,
+):
+    model = OpenAIModel()
+    queries = classification_dataframe["input"].tolist()
+    for query, response in zip(queries, classification_responses):
+        matcher = M(content__contains=query)
+        if query == "What is C++?":
+            response = httpx.Response(500, json={"error": "Internal Server Error"})
+        else:
+            response = httpx.Response(200, json={"choices": [{"message": {"content": response}}]})
+        respx_mock.route(matcher).mock(return_value=response)
+
+    # remove an input to cause a template mapping exception
+    classification_dataframe["input"][2] = None
+
+    classification_df = llm_classify(
+        dataframe=classification_dataframe,
+        template=classification_template,
+        model=model,
+        rails=["relevant", "unrelated"],
+        include_exceptions=True,
+        max_retries=4,
+        exit_on_error=False,
+    )
+
+    assert classification_df["execution_status"].tolist() == [
+        ClassificationStatus.COMPLETED,
+        ClassificationStatus.COMPLETED,
+        ClassificationStatus.MISSING_INPUT,
+        ClassificationStatus.FAILED,
+    ]
+
+    exceptions = classification_df["exceptions"].tolist()
+    assert [len(excs) for excs in exceptions] == [
+        0,
+        0,
+        1,  # one failure due to missing input
+        5,  # first attempt + 4 retries
+    ]
+
     captured = capfd.readouterr()
     assert "Exception in worker" in captured.out
 
@@ -1027,3 +1128,9 @@ def test_run_evals_with_empty_evaluators_returns_empty_list() -> None:
         evaluators=[],
     )
     assert eval_dfs == []
+
+
+def test_classification_status_is_superset_of_execution_status() -> None:
+    assert {item.value for item in ClassificationStatus}.issuperset(
+        {item.value for item in ExecutionStatus}
+    )

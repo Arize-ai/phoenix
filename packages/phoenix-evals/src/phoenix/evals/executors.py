@@ -4,8 +4,8 @@ import asyncio
 import logging
 import signal
 import threading
-import traceback
 from contextlib import contextmanager
+from enum import Enum
 from typing import (
     Any,
     Callable,
@@ -32,8 +32,33 @@ class Unset:
 _unset = Unset()
 
 
+class ExecutionStatus(Enum):
+    DID_NOT_RUN = "DID NOT RUN"
+    COMPLETED = "COMPLETED"
+    COMPLETED_WITH_RETRIES = "COMPLETED WITH RETRIES"
+    FAILED = "FAILED"
+
+
+class ExecutionDetails:
+    def __init__(self) -> None:
+        self.exceptions: List[Exception] = []
+        self.status = ExecutionStatus.DID_NOT_RUN
+
+    def fail(self) -> None:
+        self.status = ExecutionStatus.FAILED
+
+    def complete(self) -> None:
+        if self.exceptions:
+            self.status = ExecutionStatus.COMPLETED_WITH_RETRIES
+        else:
+            self.status = ExecutionStatus.COMPLETED
+
+    def log_exception(self, exc: Exception) -> None:
+        self.exceptions.append(exc)
+
+
 class Executor(Protocol):
-    def run(self, inputs: Sequence[Any]) -> List[Any]: ...
+    def run(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[ExecutionDetails]]: ...
 
 
 class AsyncExecutor(Executor):
@@ -104,7 +129,8 @@ class AsyncExecutor(Executor):
 
     async def consumer(
         self,
-        output: List[Any],
+        outputs: List[Any],
+        execution_details: List[ExecutionDetails],
         queue: asyncio.PriorityQueue[Tuple[int, Any]],
         done_producing: asyncio.Event,
         termination_event: asyncio.Event,
@@ -126,6 +152,7 @@ class AsyncExecutor(Executor):
                 continue
 
             index, payload = item
+
             try:
                 generate_task = asyncio.create_task(self.generate(payload))
                 termination_event_watcher = asyncio.create_task(termination_event.wait())
@@ -134,8 +161,10 @@ class AsyncExecutor(Executor):
                     timeout=120,
                     return_when=asyncio.FIRST_COMPLETED,
                 )
+
                 if generate_task in done:
-                    output[index] = generate_task.result()
+                    outputs[index] = generate_task.result()
+                    execution_details[index].complete()
                     progress_bar.update()
                 elif termination_event.is_set():
                     # discard the pending task and remaining items in the queue
@@ -155,15 +184,17 @@ class AsyncExecutor(Executor):
                     # task timeouts are requeued at base priority
                     await queue.put((self.base_priority, item))
             except Exception as exc:
+                execution_details[index].log_exception(exc)
                 is_phoenix_exception = isinstance(exc, PhoenixException)
-                if (retry_count := abs(priority)) <= self.max_retries and not is_phoenix_exception:
+                if (retry_count := abs(priority)) < self.max_retries and not is_phoenix_exception:
                     tqdm.write(
                         f"Exception in worker on attempt {retry_count + 1}: raised {repr(exc)}"
                     )
                     tqdm.write("Requeuing...")
                     await queue.put((priority - 1, item))
                 else:
-                    tqdm.write(f"Exception in worker: {traceback.format_exc()}")
+                    execution_details[index].fail()
+                    tqdm.write(f"Retries exhausted after {retry_count + 1} attempts: {exc}")
                     if self.exit_on_error:
                         termination_event.set()
                     else:
@@ -174,7 +205,7 @@ class AsyncExecutor(Executor):
                 if termination_event_watcher and not termination_event_watcher.done():
                     termination_event_watcher.cancel()
 
-    async def execute(self, inputs: Sequence[Any]) -> List[Any]:
+    async def execute(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[ExecutionDetails]]:
         termination_event = asyncio.Event()
 
         def termination_handler(signum: int, frame: Any) -> None:
@@ -183,6 +214,7 @@ class AsyncExecutor(Executor):
 
         original_handler = signal.signal(self.termination_signal, termination_handler)
         outputs = [self.fallback_return_value] * len(inputs)
+        execution_details = [ExecutionDetails() for _ in range(len(inputs))]
         progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
         max_queue_size = 5 * self.concurrency  # limit the queue to bound memory usage
@@ -197,7 +229,14 @@ class AsyncExecutor(Executor):
         )
         consumers = [
             asyncio.create_task(
-                self.consumer(outputs, queue, done_producing, termination_event, progress_bar)
+                self.consumer(
+                    outputs,
+                    execution_details,
+                    queue,
+                    done_producing,
+                    termination_event,
+                    progress_bar,
+                )
             )
             for _ in range(self.concurrency)
         ]
@@ -223,9 +262,9 @@ class AsyncExecutor(Executor):
 
         # reset the SIGTERM handler
         signal.signal(self.termination_signal, original_handler)  # reset the SIGTERM handler
-        return outputs
+        return outputs, execution_details
 
-    def run(self, inputs: Sequence[Any]) -> List[Any]:
+    def run(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[ExecutionDetails]]:
         return asyncio.run(self.execute(inputs))
 
 
@@ -284,22 +323,27 @@ class SyncExecutor(Executor):
         else:
             yield
 
-    def run(self, inputs: Sequence[Any]) -> List[Any]:
+    def run(self, inputs: Sequence[Any]) -> Tuple[List[Any], List[Any]]:
         with self._executor_signal_handling(self.termination_signal):
             outputs = [self.fallback_return_value] * len(inputs)
+            execution_details: List[ExecutionDetails] = [
+                ExecutionDetails() for _ in range(len(inputs))
+            ]
             progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
             for index, input in enumerate(inputs):
                 try:
                     for attempt in range(self.max_retries + 1):
                         if self._TERMINATE:
-                            return outputs
+                            return outputs, execution_details
                         try:
                             result = self.generate(input)
                             outputs[index] = result
+                            execution_details[index].complete()
                             progress_bar.update()
                             break
                         except Exception as exc:
+                            execution_details[index].log_exception(exc)
                             is_phoenix_exception = isinstance(exc, PhoenixException)
                             if attempt >= self.max_retries or is_phoenix_exception:
                                 raise exc
@@ -307,12 +351,13 @@ class SyncExecutor(Executor):
                                 tqdm.write(f"Exception in worker on attempt {attempt + 1}: {exc}")
                                 tqdm.write("Retrying...")
                 except Exception as exc:
-                    tqdm.write(f"Exception in worker: {exc}")
+                    execution_details[index].fail()
+                    tqdm.write(f"Retries exhausted after {attempt + 1} attempts: {exc}")
                     if self.exit_on_error:
-                        return outputs
+                        return outputs, execution_details
                     else:
                         progress_bar.update()
-        return outputs
+        return outputs, execution_details
 
 
 def get_executor_on_sync_context(
@@ -321,6 +366,7 @@ def get_executor_on_sync_context(
     run_sync: bool = False,
     concurrency: int = 3,
     tqdm_bar_format: Optional[str] = None,
+    max_retries: int = 10,
     exit_on_error: bool = True,
     fallback_return_value: Union[Unset, Any] = _unset,
 ) -> Executor:
@@ -335,6 +381,7 @@ def get_executor_on_sync_context(
             sync_fn,
             tqdm_bar_format=tqdm_bar_format,
             exit_on_error=exit_on_error,
+            max_retries=max_retries,
             fallback_return_value=fallback_return_value,
             termination_signal=None,
         )
@@ -343,6 +390,7 @@ def get_executor_on_sync_context(
         return SyncExecutor(
             sync_fn,
             tqdm_bar_format=tqdm_bar_format,
+            max_retries=max_retries,
             exit_on_error=exit_on_error,
             fallback_return_value=fallback_return_value,
         )
@@ -353,6 +401,7 @@ def get_executor_on_sync_context(
                 async_fn,
                 concurrency=concurrency,
                 tqdm_bar_format=tqdm_bar_format,
+                max_retries=max_retries,
                 exit_on_error=exit_on_error,
                 fallback_return_value=fallback_return_value,
             )
@@ -365,6 +414,7 @@ def get_executor_on_sync_context(
             return SyncExecutor(
                 sync_fn,
                 tqdm_bar_format=tqdm_bar_format,
+                max_retries=max_retries,
                 exit_on_error=exit_on_error,
                 fallback_return_value=fallback_return_value,
             )
@@ -373,6 +423,7 @@ def get_executor_on_sync_context(
             async_fn,
             concurrency=concurrency,
             tqdm_bar_format=tqdm_bar_format,
+            max_retries=max_retries,
             exit_on_error=exit_on_error,
             fallback_return_value=fallback_return_value,
         )

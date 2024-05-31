@@ -133,5 +133,5 @@ def llm_generate(
         exit_on_error=True,
         fallback_return_value=fallback_return_value,
     )
-    results = executor.run(list(enumerate(prompts.tolist())))
+    results, _ = executor.run(list(enumerate(prompts.tolist())))
     return pd.DataFrame.from_records(results, index=dataframe.index)
