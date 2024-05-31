@@ -10,6 +10,7 @@ import {
 import { css } from "@emotion/react";
 
 import { Link } from "@phoenix/components/Link";
+import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TextCell } from "@phoenix/components/table/TextCell";
@@ -19,6 +20,7 @@ import type {
   datasetLoaderQuery,
   datasetLoaderQuery$data,
 } from "./__generated__/datasetLoaderQuery.graphql";
+import { ExampleSelectionToolbar } from "./ExampleSelectionToolbar";
 
 const PAGE_SIZE = 100;
 
@@ -28,34 +30,33 @@ export function DatasetExamplesTable({
   dataset: datasetLoaderQuery$data["dataset"];
 }) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
-    datasetLoaderQuery,
-    DatasetExamplesTableFragment$key
-  >(
-    graphql`
-      fragment DatasetExamplesTableFragment on Dataset
-      @refetchable(queryName: "DatasetExamplesTableQuery")
-      @argumentDefinitions(
-        after: { type: "String", defaultValue: null }
-        first: { type: "Int", defaultValue: 100 }
-      ) {
-        examples(first: $first, after: $after)
-          @connection(key: "DatasetExamplesTable_examples") {
-          edges {
-            example: node {
-              id
-              revision {
-                input
-                output
-                metadata
+  const [rowSelection, setRowSelection] = React.useState({});
+  const { data, loadNext, hasNext, isLoadingNext, refetch } =
+    usePaginationFragment<datasetLoaderQuery, DatasetExamplesTableFragment$key>(
+      graphql`
+        fragment DatasetExamplesTableFragment on Dataset
+        @refetchable(queryName: "DatasetExamplesTableQuery")
+        @argumentDefinitions(
+          after: { type: "String", defaultValue: null }
+          first: { type: "Int", defaultValue: 100 }
+        ) {
+          examples(first: $first, after: $after)
+            @connection(key: "DatasetExamplesTable_examples") {
+            edges {
+              example: node {
+                id
+                revision {
+                  input
+                  output
+                  metadata
+                }
               }
             }
           }
         }
-      }
-    `,
-    dataset
-  );
+      `,
+      dataset
+    );
   const tableData = useMemo(
     () =>
       data.examples.edges.map((edge) => {
@@ -72,6 +73,28 @@ export function DatasetExamplesTable({
   );
   type TableRow = (typeof tableData)[number];
   const columns: ColumnDef<TableRow>[] = [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <IndeterminateCheckboxCell
+          {...{
+            checked: table.getIsAllRowsSelected(),
+            indeterminate: table.getIsSomeRowsSelected(),
+            onChange: table.getToggleAllRowsSelectedHandler(),
+          }}
+        />
+      ),
+      cell: ({ row }) => (
+        <IndeterminateCheckboxCell
+          {...{
+            checked: row.getIsSelected(),
+            disabled: !row.getCanSelect(),
+            indeterminate: row.getIsSomeSelected(),
+            onChange: row.getToggleSelectedHandler(),
+          }}
+        />
+      ),
+    },
     {
       header: "id",
       accessorKey: "id",
@@ -99,10 +122,19 @@ export function DatasetExamplesTable({
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
+    state: {
+      rowSelection,
+    },
+    onRowSelectionChange: setRowSelection,
     getCoreRowModel: getCoreRowModel(),
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
+  const selectedRows = table.getSelectedRowModel().rows;
+  const selectedExamples = selectedRows.map((row) => row.original);
+  const clearSelection = useCallback(() => {
+    setRowSelection({});
+  }, [setRowSelection]);
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
@@ -172,6 +204,15 @@ export function DatasetExamplesTable({
           </tbody>
         )}
       </table>
+      {selectedRows.length ? (
+        <ExampleSelectionToolbar
+          selectedExamples={selectedExamples}
+          onClearSelection={clearSelection}
+          onExamplesDeleted={() => {
+            refetch({}, { fetchPolicy: "store-and-network" });
+          }}
+        />
+      ) : null}
     </div>
   );
 }
