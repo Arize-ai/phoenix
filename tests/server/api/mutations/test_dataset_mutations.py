@@ -443,7 +443,6 @@ async def dataset_with_a_single_version(session):
     """
 
     dataset = models.Dataset(
-        id=1,
         name="dataset-name",
         description=None,
         metadata_={},
@@ -452,7 +451,6 @@ async def dataset_with_a_single_version(session):
     await session.flush()
 
     dataset_example = models.DatasetExample(
-        id=1,
         dataset_id=1,
         created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
     )
@@ -460,16 +458,14 @@ async def dataset_with_a_single_version(session):
     await session.flush()
 
     dataset_version_1 = models.DatasetVersion(
-        id=1,
         dataset_id=1,
-        description=None,
-        metadata_={},
+        description="original-description",
+        metadata_={"metadata": "original-metadata"},
     )
     session.add(dataset_version_1)
     await session.flush()
 
     dataset_example_revision_1 = models.DatasetExampleRevision(
-        id=1,
         dataset_example_id=1,
         dataset_version_id=1,
         input={"input": "first-input"},
