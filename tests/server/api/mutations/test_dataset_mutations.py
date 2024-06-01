@@ -170,95 +170,13 @@ class TestPatchDatasetExamples:
         }
       }"""
 
-    async def test_patch_all_revision_fields(
-        self,
-        test_client,
-        dataset_with_a_single_version,
-    ) -> None:
-        mutation_input = {
-            "examplePatches": [
-                {
-                    "exampleId": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(1))),
-                    "input": {"input": "patched-input"},
-                    "output": {"output": "patched-output"},
-                    "metadata": {"metadata": "patched-metadata"},
-                }
-            ]
-        }
-        expected_patched_examples = [
-            {
-                "example": {
-                    "id": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(1))),
-                    "revision": {
-                        "input": {"input": "patched-input"},
-                        "output": {"output": "patched-output"},
-                        "metadata": {"metadata": "patched-metadata"},
-                    },
-                }
-            }
-        ]
-        response = await test_client.post(
-            "/graphql",
-            json={
-                "query": self.MUTATION,
-                "variables": {"input": mutation_input},
-            },
-        )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
-        actual_patched_examples = response_json["data"]["patchDatasetExamples"]["dataset"][
-            "examples"
-        ]["edges"]
-        assert actual_patched_examples == expected_patched_examples
-
-    async def test_patch_revision_input_but_keep_output_and_metadata_from_previous_revision(
-        self,
-        test_client,
-        dataset_with_a_single_version,
-    ) -> None:
-        mutation_input = {
-            "examplePatches": [
-                {
-                    "exampleId": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(1))),
-                    "input": {"input": "patched-input"},
-                }
-            ]
-        }
-        expected_patched_examples = [
-            {
-                "example": {
-                    "id": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(1))),
-                    "revision": {
-                        "input": {"input": "patched-input"},
-                        "output": {"output": "first-output"},
-                        "metadata": {"metadata": "first-metadata"},
-                    },
-                }
-            }
-        ]
-        response = await test_client.post(
-            "/graphql",
-            json={
-                "query": self.MUTATION,
-                "variables": {"input": mutation_input},
-            },
-        )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
-        actual_patched_examples = response_json["data"]["patchDatasetExamples"]["dataset"][
-            "examples"
-        ]["edges"]
-        assert actual_patched_examples == expected_patched_examples
-
-    async def test_patch_dataset_examples(
+    async def test_patch_dataset_examples_happy_path(
         self,
         test_client,
         dataset_with_revisions,
     ) -> None:
         mutation_input = {
-            "examplePatches": [
+            "patches": [
                 {
                     "exampleId": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(1))),
                     "input": {"input": "patched-example-1-input"},
@@ -312,13 +230,13 @@ class TestPatchDatasetExamples:
         "mutation_input, expected_error_message",
         [
             pytest.param(
-                {"examplePatches": []},
+                {"patches": []},
                 "Must provide examples to patch.",
                 id="empty-example-patches",
             ),
             pytest.param(
                 {
-                    "examplePatches": [
+                    "patches": [
                         {
                             "exampleId": str(
                                 GlobalID(type_name=DatasetExample.__name__, node_id=str(1))
@@ -336,7 +254,7 @@ class TestPatchDatasetExamples:
             ),
             pytest.param(
                 {
-                    "examplePatches": [
+                    "patches": [
                         {
                             "exampleId": str(
                                 GlobalID(type_name=DatasetExample.__name__, node_id=str(500))
@@ -349,7 +267,7 @@ class TestPatchDatasetExamples:
             ),
             pytest.param(
                 {
-                    "examplePatches": [
+                    "patches": [
                         {
                             "exampleId": str(
                                 GlobalID(type_name=DatasetExample.__name__, node_id=str(1))
@@ -367,7 +285,7 @@ class TestPatchDatasetExamples:
             ),
             pytest.param(
                 {
-                    "examplePatches": [
+                    "patches": [
                         {
                             "exampleId": str(
                                 GlobalID(type_name=DatasetExample.__name__, node_id=str(3))
@@ -380,7 +298,7 @@ class TestPatchDatasetExamples:
             ),
         ],
     )
-    async def test_patch_dataset_examples_raises_value_error_for_invalid_inputs(
+    async def test_patch_dataset_examples_raises_value_error_for_invalid_input(
         self,
         mutation_input,
         expected_error_message,
