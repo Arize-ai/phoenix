@@ -585,6 +585,11 @@ async def dataset_with_a_single_version(session):
 
 @pytest.fixture
 async def dataset_with_revisions(session):
+    """
+    A dataset with three examples and two versions. The first version creates
+    all three examples, and the second version deletes the third example.
+    """
+
     # insert dataset
     dataset_id = await session.scalar(
         insert(models.Dataset)
