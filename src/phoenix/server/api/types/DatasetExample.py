@@ -2,7 +2,8 @@ from datetime import datetime
 from typing import Optional
 
 import strawberry
-from strawberry.relay.types import Node, NodeID
+from sqlalchemy import and_, func, select
+from strawberry.relay.types import GlobalID, Node, NodeID
 from strawberry.types import Info
 
 from phoenix.db import models
@@ -14,17 +15,40 @@ from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevisi
 class DatasetExample(Node):
     id_attr: NodeID[int]
     created_at: datetime
-    revision: DatasetExampleRevision
-    db_revision: strawberry.Private[Optional[models.DatasetExampleRevision]] = None
+    cached_revision: strawberry.Private[Optional[DatasetExampleRevision]] = None
 
-    async def revision2(
+    @strawberry.field
+    async def revision(
         self,
         info: Info[Context, None],
+        version_id: Optional[GlobalID] = None,
     ) -> DatasetExampleRevision:
+        if version_id:
+            raise NotImplementedError
+        elif self.cached_revision:
+            return self.cached_revision
+        example_id = self.id_attr
+        latest_revision_id = (
+            select(func.max(models.DatasetExampleRevision.id))
+            .where(models.DatasetExampleRevision.dataset_example_id == example_id)
+            .scalar_subquery()
+        )
+        async with info.context.db() as session:
+            if (
+                revision := await session.scalar(
+                    select(models.DatasetExampleRevision).where(
+                        and_(
+                            models.DatasetExampleRevision.id == latest_revision_id,
+                            models.DatasetExampleRevision.revision_kind != "DELETE",
+                        )
+                    )
+                )
+            ) is None:
+                raise ValueError(f"Could not find revision for example: {example_id}")
         return DatasetExampleRevision(
-            input={},
-            output={},
-            metadata={},
-            revision_kind=RevisionKind.CREATE,
-            created_at=datetime.now(),
+            input=revision.input,
+            output=revision.output,
+            metadata=revision.metadata_,
+            revision_kind=RevisionKind(revision.revision_kind),
+            created_at=revision.created_at,
         )

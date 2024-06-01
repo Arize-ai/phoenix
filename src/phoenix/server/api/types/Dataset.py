@@ -136,14 +136,14 @@ class Dataset(Node):
             dataset_examples = [
                 DatasetExample(
                     id_attr=example.id,
-                    created_at=example.created_at,
-                    revision=DatasetExampleRevision(
+                    cached_revision=DatasetExampleRevision(
                         input=revision.input,
                         output=revision.output,
                         metadata=revision.metadata_,
                         revision_kind=RevisionKind(revision.revision_kind),
                         created_at=revision.created_at,
                     ),
+                    created_at=example.created_at,
                 )
                 async for example, revision in await session.stream(query)
             ]

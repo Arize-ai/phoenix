@@ -218,7 +218,7 @@ class Query:
             return DatasetExample(
                 id_attr=example.id,
                 created_at=example.created_at,
-                revision=DatasetExampleRevision(
+                cached_revision=DatasetExampleRevision(
                     input=revision.input,
                     output=revision.output,
                     metadata=revision.metadata_,
