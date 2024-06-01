@@ -24,26 +24,28 @@ class DatasetExample(Node):
     async def revision(
         self,
         info: Info[Context, None],
-        version_id: Optional[GlobalID] = UNSET,
+        dataset_version_id: Optional[GlobalID] = UNSET,
     ) -> DatasetExampleRevision:
-        if not version_id and self.cached_revision:
+        if not dataset_version_id and self.cached_revision:
             return self.cached_revision
 
-        example_rowid = self.id_attr
+        example_id = self.id_attr
         revision_id = select(func.max(models.DatasetExampleRevision.id)).where(
-            models.DatasetExampleRevision.dataset_example_id == example_rowid
+            models.DatasetExampleRevision.dataset_example_id == example_id
         )
-        if version_id:
-            version_rowid = from_global_id_with_expected_type(
-                global_id=version_id, expected_type_name=DatasetVersion.__name__
-            )
-            version_id_subquery = (
+        if dataset_version_id:
+            version_id = (
                 select(models.DatasetVersion.id)
-                .where(models.DatasetVersion.id == version_rowid)
+                .where(
+                    models.DatasetVersion.id
+                    == from_global_id_with_expected_type(
+                        global_id=dataset_version_id, expected_type_name=DatasetVersion.__name__
+                    )
+                )
                 .scalar_subquery()
             )
             revision_id = revision_id.where(
-                models.DatasetExampleRevision.dataset_version_id <= version_id_subquery
+                models.DatasetExampleRevision.dataset_version_id <= version_id
             )
 
         async with info.context.db() as session:
@@ -57,7 +59,7 @@ class DatasetExample(Node):
                     )
                 )
             ) is None:
-                raise ValueError(f"Could not find revision for example: {example_rowid}")
+                raise ValueError(f"Could not find revision for example: {example_id}")
         return DatasetExampleRevision(
             input=revision.input,
             output=revision.output,

@@ -60,12 +60,12 @@ class TestNodeInterface:
     ) -> None:
         example_id = str(GlobalID("DatasetExample", str(1)))
         mutation = """
-          query ($exampleId: GlobalID!, $versionId: GlobalID = null) {
+          query ($exampleId: GlobalID!, $datasetVersionId: GlobalID = null) {
             example: node(id: $exampleId) {
               ... on DatasetExample {
                 id
                 createdAt
-                revision(versionId: $versionId) {
+                revision(datasetVersionId: $datasetVersionId) {
                   input
                   output
                   metadata
@@ -81,7 +81,7 @@ class TestNodeInterface:
                 "query": mutation,
                 "variables": {
                     "exampleId": example_id,
-                    "versionId": str(GlobalID("DatasetVersion", str(1))),
+                    "datasetVersionId": str(GlobalID("DatasetVersion", str(1))),
                 },
             },
         )
@@ -107,12 +107,12 @@ class TestNodeInterface:
     ) -> None:
         example_id = str(GlobalID("DatasetExample", str(100)))
         mutation = """
-          query ($exampleId: GlobalID!, $versionId: GlobalID = null) {
+          query ($exampleId: GlobalID!, $datasetVersionId: GlobalID = null) {
             example: node(id: $exampleId) {
               ... on DatasetExample {
                 id
                 createdAt
-                revision(versionId: $versionId) {
+                revision(datasetVersionId: $datasetVersionId) {
                   input
                   output
                   metadata
@@ -128,7 +128,7 @@ class TestNodeInterface:
                 "query": mutation,
                 "variables": {
                     "exampleId": example_id,
-                    "versionId": str(GlobalID("DatasetVersion", str(1))),
+                    "datasetVersionId": str(GlobalID("DatasetVersion", str(1))),
                 },
             },
         )
@@ -179,14 +179,14 @@ class TestNodeInterface:
         dataset_with_patch_revision,
     ) -> None:
         query = """
-          query ($datasetId: GlobalID!, $versionId: GlobalID) {
+          query ($datasetId: GlobalID!, $datasetVersionId: GlobalID) {
             node(id: $datasetId) {
               ... on Dataset {
                 examples {
                   edges {
                     node {
                       id
-                      revision(versionId: $versionId) {
+                      revision(datasetVersionId: $datasetVersionId) {
                         input
                         output
                         metadata
@@ -205,7 +205,7 @@ class TestNodeInterface:
                 "query": query,
                 "variables": {
                     "datasetId": str(GlobalID("Dataset", str(1))),
-                    "versionId": str(GlobalID("DatasetVersion", str(1))),
+                    "datasetVersionId": str(GlobalID("DatasetVersion", str(1))),
                 },
             },
         )
