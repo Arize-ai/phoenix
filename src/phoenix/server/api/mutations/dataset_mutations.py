@@ -371,9 +371,9 @@ class DatasetMutationMixin:
                     )  # ensure the order of the revisions matches the order of the input patches
                 )
             ).all()
-
             if (num_missing_examples := len(example_ids) - len(previous_revisions)) > 0:
                 raise ValueError(f"{num_missing_examples} example(s) could not be found.")
+
             version_id = await session.scalar(
                 insert(models.DatasetVersion)
                 .returning(models.DatasetVersion.id)
