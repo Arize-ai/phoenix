@@ -162,6 +162,7 @@ class TestPatchDatasetExamples:
                     input
                     output
                     metadata
+                    revisionKind
                   }
                 }
               }
@@ -200,6 +201,7 @@ class TestPatchDatasetExamples:
                         "input": {"input": "patched-example-1-input"},
                         "output": {"output": "original-example-1-version-1-output"},
                         "metadata": {"metadata": "original-example-1-version-1-metadata"},
+                        "revisionKind": "PATCH",
                     },
                 }
             },
@@ -210,6 +212,7 @@ class TestPatchDatasetExamples:
                         "input": {"input": "patched-example-2-input"},
                         "output": {"output": "patched-example-2-output"},
                         "metadata": {"metadata": "patched-example-2-metadata"},
+                        "revisionKind": "PATCH",
                     },
                 }
             },
