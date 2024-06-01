@@ -170,7 +170,7 @@ class TestPatchDatasetExamples:
         }
       }"""
 
-    async def test_patch_dataset_examples_happy_path(
+    async def test_happy_path(
         self,
         test_client,
         dataset_with_revisions,
@@ -298,7 +298,7 @@ class TestPatchDatasetExamples:
             ),
         ],
     )
-    async def test_patch_dataset_examples_raises_value_error_for_invalid_input(
+    async def test_raises_value_error_for_invalid_input(
         self,
         mutation_input,
         expected_error_message,
