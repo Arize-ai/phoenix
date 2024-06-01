@@ -6,6 +6,54 @@ from phoenix.db import models
 from strawberry.relay import GlobalID
 
 
+class TestNodeInterface:
+    async def test_query_for_dataset_example_and_unspecified_version_returns_latest_revision(
+        self,
+        test_client,
+        dataset_with_patch_revision,
+    ) -> None:
+        example_id = str(GlobalID("DatasetExample", str(1)))
+        mutation = """
+          query ($exampleId: GlobalID!) {
+            example: node(id: $exampleId) {
+              ... on DatasetExample {
+                id
+                createdAt
+                revision {
+                  input
+                  output
+                  metadata
+                  revisionKind
+                }
+              }
+            }
+          }
+        """
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": mutation,
+                "variables": {
+                    "exampleId": example_id,
+                },
+            },
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json.get("errors") is None
+        actual_example = response_json["data"]["example"]
+        assert actual_example == {
+            "id": example_id,
+            "createdAt": "2020-01-01T00:00:00+00:00",
+            "revision": {
+                "input": {"input": "second-input"},
+                "output": {"output": "second-output"},
+                "metadata": {},
+                "revisionKind": "PATCH",
+            },
+        }
+
+
 async def test_dataset_examples_return_latest_revisions(
     test_client,
     dataset_with_patch_revision,
