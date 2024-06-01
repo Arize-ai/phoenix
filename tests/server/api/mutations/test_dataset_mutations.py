@@ -308,6 +308,98 @@ class TestPatchDatasetExamples:
         ]
         assert actual_examples == expected_examples
 
+    @pytest.mark.parametrize(
+        "mutation_input, expected_error_message",
+        [
+            pytest.param(
+                {"examplePatches": []},
+                "Must provide examples to patch.",
+                id="empty-example-patches",
+            ),
+            pytest.param(
+                {
+                    "examplePatches": [
+                        {
+                            "exampleId": str(
+                                GlobalID(type_name=DatasetExample.__name__, node_id=str(1))
+                            ),
+                        },
+                        {
+                            "exampleId": str(
+                                GlobalID(type_name=DatasetExample.__name__, node_id=str(1))
+                            ),
+                        },
+                    ]
+                },
+                "Cannot patch the same example more than once per mutation.",
+                id="same-example-patched-twice",
+            ),
+            pytest.param(
+                {
+                    "examplePatches": [
+                        {
+                            "exampleId": str(
+                                GlobalID(type_name=DatasetExample.__name__, node_id=str(500))
+                            ),
+                        },
+                    ]
+                },
+                "No examples found.",
+                id="invalid-example-id",
+            ),
+            pytest.param(
+                {
+                    "examplePatches": [
+                        {
+                            "exampleId": str(
+                                GlobalID(type_name=DatasetExample.__name__, node_id=str(1))
+                            ),
+                        },
+                        {
+                            "exampleId": str(
+                                GlobalID(type_name=DatasetExample.__name__, node_id=str(4))
+                            )
+                        },
+                    ]
+                },
+                "Examples must come from the same dataset.",
+                id="examples-from-different-datasets",
+            ),
+            pytest.param(
+                {
+                    "examplePatches": [
+                        {
+                            "exampleId": str(
+                                GlobalID(type_name=DatasetExample.__name__, node_id=str(3))
+                            ),
+                        },
+                    ]
+                },
+                "1 example(s) could not be found.",
+                id="deleted-example-id",
+            ),
+        ],
+    )
+    async def test_patch_dataset_examples_raises_value_error_for_invalid_inputs(
+        self,
+        mutation_input,
+        expected_error_message,
+        test_client,
+        dataset_with_revisions,
+        dataset_with_a_single_version,
+    ) -> None:
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": self.MUTATION,
+                "variables": {"input": mutation_input},
+            },
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert len(errors := response_json.get("errors")) == 1
+        assert errors[0]["message"] == expected_error_message
+
 
 async def test_delete_a_dataset(
     session,
@@ -498,38 +590,51 @@ async def dataset_with_a_single_version(session):
     A dataset with a single example and a single version.
     """
 
-    dataset = models.Dataset(
-        name="dataset-name",
-        description=None,
-        metadata_={},
+    # insert dataset
+    dataset_id = await session.scalar(
+        insert(models.Dataset)
+        .returning(models.Dataset.id)
+        .values(
+            name="dataset-name",
+            description=None,
+            metadata_={},
+        )
     )
-    session.add(dataset)
-    await session.flush()
 
-    dataset_example = models.DatasetExample(
-        created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+    # insert example
+    example_id = await session.scalar(
+        insert(models.DatasetExample)
+        .values(
+            dataset_id=dataset_id,
+            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+        )
+        .returning(models.DatasetExample.id)
     )
-    session.add(dataset_example)
-    await session.flush()
 
-    dataset_version_1 = models.DatasetVersion(
-        dataset_id=1,
-        description="original-description",
-        metadata_={"metadata": "original-metadata"},
+    # insert version
+    version_id = await session.scalar(
+        insert(models.DatasetVersion)
+        .returning(models.DatasetVersion.id)
+        .values(
+            dataset_id=dataset_id,
+            description="original-description",
+            metadata_={"metadata": "original-metadata"},
+        )
     )
-    session.add(dataset_version_1)
-    await session.flush()
 
-    dataset_example_revision_1 = models.DatasetExampleRevision(
-        dataset_example_id=1,
-        dataset_version_id=1,
-        input={"input": "first-input"},
-        output={"output": "first-output"},
-        metadata_={"metadata": "first-metadata"},
-        revision_kind="CREATE",
+    # insert revision
+    await session.scalar(
+        insert(models.DatasetExampleRevision)
+        .returning(models.DatasetExampleRevision.id)
+        .values(
+            dataset_example_id=example_id,
+            dataset_version_id=version_id,
+            input={"input": "first-input"},
+            output={"output": "first-output"},
+            metadata_={"metadata": "first-metadata"},
+            revision_kind="CREATE",
+        )
     )
-    session.add(dataset_example_revision_1)
-    await session.flush()
 
 
 @pytest.fixture

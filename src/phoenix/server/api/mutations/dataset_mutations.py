@@ -342,19 +342,19 @@ class DatasetMutationMixin:
 
             previous_revision_ids = (
                 select(func.max(models.DatasetExampleRevision.id))
-                .where(
-                    and_(
-                        models.DatasetExampleRevision.dataset_example_id.in_(example_ids),
-                        models.DatasetExampleRevision.revision_kind != "DELETE",
-                    )
-                )
+                .where(models.DatasetExampleRevision.dataset_example_id.in_(example_ids))
                 .group_by(models.DatasetExampleRevision.dataset_example_id)
                 .scalar_subquery()
             )
             previous_revisions = (
                 await session.scalars(
                     select(models.DatasetExampleRevision)
-                    .where(models.DatasetExampleRevision.id.in_(previous_revision_ids))
+                    .where(
+                        and_(
+                            models.DatasetExampleRevision.id.in_(previous_revision_ids),
+                            models.DatasetExampleRevision.revision_kind != "DELETE",
+                        )
+                    )
                     .order_by(
                         case(
                             *(
