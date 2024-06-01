@@ -7,7 +7,7 @@ from strawberry.relay import GlobalID
 
 
 class TestNodeInterface:
-    async def test_query_for_dataset_example_and_unspecified_version_returns_latest_revision(
+    async def test_dataset_example_and_unspecified_version_returns_latest_revision(
         self,
         test_client,
         dataset_with_patch_revision,
@@ -52,6 +52,42 @@ class TestNodeInterface:
                 "revisionKind": "PATCH",
             },
         }
+
+    async def test_deleted_dataset_example_returns_error(
+        self,
+        test_client,
+        dataset_with_deletion,
+    ) -> None:
+        example_id = str(GlobalID("DatasetExample", str(1)))
+        mutation = """
+          query ($exampleId: GlobalID!) {
+            example: node(id: $exampleId) {
+              ... on DatasetExample {
+                id
+                createdAt
+                revision {
+                  input
+                  output
+                  metadata
+                  revisionKind
+                }
+              }
+            }
+          }
+        """
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": mutation,
+                "variables": {
+                    "exampleId": example_id,
+                },
+            },
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert len(errors := response_json.get("errors")) == 1
+        assert errors[0]["message"] == f"Unknown dataset example: {example_id}"
 
 
 async def test_dataset_examples_return_latest_revisions(
