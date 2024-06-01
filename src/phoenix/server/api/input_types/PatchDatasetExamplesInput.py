@@ -7,7 +7,7 @@ from strawberry.scalars import JSON
 
 
 @strawberry.input
-class PatchDatasetExample:
+class DatasetExamplePatch:
     """
     Contains the information needed to apply a patch revision to a dataset example.
     """
@@ -24,6 +24,6 @@ class PatchDatasetExamplesInput:
     Input type to the patchDatasetExamples mutation.
     """
 
-    example_patches: List[PatchDatasetExample]
-    dataset_version_description: Optional[str] = UNSET
-    dataset_version_metadata: Optional[JSON] = UNSET
+    patches: List[DatasetExamplePatch]
+    version_description: Optional[str] = UNSET
+    version_metadata: Optional[JSON] = UNSET

@@ -135,6 +135,13 @@ input DatasetExampleInput {
   spanId: GlobalID
 }
 
+input DatasetExamplePatch {
+  exampleId: GlobalID!
+  input: JSON
+  output: JSON
+  metadata: JSON
+}
+
 type DatasetExampleRevision implements ExampleRevision {
   input: JSON!
   output: JSON!
@@ -685,17 +692,10 @@ type PageInfo {
   endCursor: String
 }
 
-input PatchDatasetExample {
-  exampleId: GlobalID!
-  input: JSON
-  output: JSON
-  metadata: JSON
-}
-
 input PatchDatasetExamplesInput {
-  examplePatches: [PatchDatasetExample!]!
-  datasetVersionDescription: String
-  datasetVersionMetadata: JSON
+  patches: [DatasetExamplePatch!]!
+  versionDescription: String
+  versionMetadata: JSON
 }
 
 enum PerformanceMetric {

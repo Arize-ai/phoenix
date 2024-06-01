@@ -21,7 +21,7 @@ from phoenix.server.api.input_types.CreateDatasetInput import CreateDatasetInput
 from phoenix.server.api.input_types.DeleteDatasetExamplesInput import DeleteDatasetExamplesInput
 from phoenix.server.api.input_types.DeleteDatasetInput import DeleteDatasetInput
 from phoenix.server.api.input_types.PatchDatasetExamplesInput import (
-    PatchDatasetExample,
+    DatasetExamplePatch,
     PatchDatasetExamplesInput,
 )
 from phoenix.server.api.types.Dataset import Dataset
@@ -311,7 +311,7 @@ class DatasetMutationMixin:
         info: Info[Context, None],
         input: PatchDatasetExamplesInput,
     ) -> DatasetMutationPayload:
-        if not (patches := input.example_patches):
+        if not (patches := input.patches):
             raise ValueError("Must provide examples to patch.")
         example_ids = [
             from_global_id_with_expected_type(patch.example_id, DatasetExample.__name__)
@@ -319,8 +319,8 @@ class DatasetMutationMixin:
         ]
         if len(set(example_ids)) < len(example_ids):
             raise ValueError("Cannot patch the same example more than once per mutation.")
-        version_description = input.dataset_version_description or None
-        version_metadata = input.dataset_version_metadata or {}
+        version_description = input.version_description or None
+        version_metadata = input.version_metadata or {}
         async with info.context.db() as session:
             datasets = (
                 await session.scalars(
@@ -518,7 +518,7 @@ def _span_attribute(semconv: str) -> Any:
 def _to_orm_revision(
     *,
     previous_revision: models.DatasetExampleRevision,
-    patch: PatchDatasetExample,
+    patch: DatasetExamplePatch,
     example_id: int,
     version_id: int,
 ) -> Dict[str, Any]:
