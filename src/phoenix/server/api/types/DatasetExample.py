@@ -14,8 +14,8 @@ from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevisi
 @strawberry.type
 class DatasetExample(Node):
     id_attr: NodeID[int]
-    created_at: datetime
     cached_revision: strawberry.Private[Optional[DatasetExampleRevision]] = None
+    created_at: datetime
 
     @strawberry.field
     async def revision(
