@@ -244,11 +244,13 @@ class TestPatchDatasetExamples:
                             "exampleId": str(
                                 GlobalID(type_name=DatasetExample.__name__, node_id=str(1))
                             ),
+                            "input": {"input": "value"},
                         },
                         {
                             "exampleId": str(
                                 GlobalID(type_name=DatasetExample.__name__, node_id=str(1))
                             ),
+                            "input": {"input": "value"},
                         },
                     ]
                 },
@@ -262,6 +264,7 @@ class TestPatchDatasetExamples:
                             "exampleId": str(
                                 GlobalID(type_name=DatasetExample.__name__, node_id=str(500))
                             ),
+                            "input": {"input": "value"},
                         },
                     ]
                 },
@@ -275,11 +278,13 @@ class TestPatchDatasetExamples:
                             "exampleId": str(
                                 GlobalID(type_name=DatasetExample.__name__, node_id=str(1))
                             ),
+                            "input": {"input": "value"},
                         },
                         {
                             "exampleId": str(
                                 GlobalID(type_name=DatasetExample.__name__, node_id=str(4))
-                            )
+                            ),
+                            "input": {"input": "value"},
                         },
                     ]
                 },
@@ -293,6 +298,7 @@ class TestPatchDatasetExamples:
                             "exampleId": str(
                                 GlobalID(type_name=DatasetExample.__name__, node_id=str(3))
                             ),
+                            "input": {"input": "value"},
                         },
                     ]
                 },
