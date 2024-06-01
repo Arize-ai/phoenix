@@ -262,6 +262,26 @@ class TestPatchDatasetExamples:
                     "patches": [
                         {
                             "exampleId": str(
+                                GlobalID(type_name=DatasetExample.__name__, node_id=str(1))
+                            ),
+                            "input": {"input": "value"},
+                        },
+                        {
+                            "exampleId": str(
+                                GlobalID(type_name=DatasetExample.__name__, node_id=str(1))
+                            ),
+                            "input": {"input": "value"},
+                        },
+                    ]
+                },
+                "Received a patch with no input, output, or metadata to update.",
+                id="found-patch-with-nothing-to-update",
+            ),
+            pytest.param(
+                {
+                    "patches": [
+                        {
+                            "exampleId": str(
                                 GlobalID(type_name=DatasetExample.__name__, node_id=str(500))
                             ),
                             "input": {"input": "value"},
