@@ -53,6 +53,53 @@ class TestNodeInterface:
             },
         }
 
+    async def test_dataset_example_with_version_returns_latest_revision_up_to_version(
+        self,
+        test_client,
+        dataset_with_patch_revision,
+    ) -> None:
+        example_id = str(GlobalID("DatasetExample", str(1)))
+        mutation = """
+          query ($exampleId: GlobalID!, $versionId: GlobalID = null) {
+            example: node(id: $exampleId) {
+              ... on DatasetExample {
+                id
+                createdAt
+                revision(versionId: $versionId) {
+                  input
+                  output
+                  metadata
+                  revisionKind
+                }
+              }
+            }
+          }
+        """
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": mutation,
+                "variables": {
+                    "exampleId": example_id,
+                    "versionId": str(GlobalID("DatasetVersion", str(1))),
+                },
+            },
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json.get("errors") is None
+        actual_example = response_json["data"]["example"]
+        assert actual_example == {
+            "id": example_id,
+            "createdAt": "2020-01-01T00:00:00+00:00",
+            "revision": {
+                "input": {"input": "first-input"},
+                "output": {"output": "first-output"},
+                "metadata": {},
+                "revisionKind": "CREATE",
+            },
+        }
+
     async def test_deleted_dataset_example_returns_error(
         self,
         test_client,
