@@ -173,7 +173,7 @@ class TestNodeInterface:
         assert len(errors := response_json.get("errors")) == 1
         assert errors[0]["message"] == f"Unknown dataset example: {example_id}"
 
-    async def test_dataset_examples_revision_resolver_returns_revisions_up_to_specified(
+    async def test_dataset_examples_revision_resolver_returns_revisions_up_to_specified_version(
         self,
         test_client,
         dataset_with_patch_revision,
