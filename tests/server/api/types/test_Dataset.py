@@ -100,6 +100,43 @@ class TestNodeInterface:
             },
         }
 
+    async def test_dataset_example_with_non_existent_version_returns_error(
+        self,
+        test_client,
+        dataset_with_patch_revision,
+    ) -> None:
+        example_id = str(GlobalID("DatasetExample", str(100)))
+        mutation = """
+          query ($exampleId: GlobalID!, $versionId: GlobalID = null) {
+            example: node(id: $exampleId) {
+              ... on DatasetExample {
+                id
+                createdAt
+                revision(versionId: $versionId) {
+                  input
+                  output
+                  metadata
+                  revisionKind
+                }
+              }
+            }
+          }
+        """
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": mutation,
+                "variables": {
+                    "exampleId": example_id,
+                    "versionId": str(GlobalID("DatasetVersion", str(1))),
+                },
+            },
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert len(errors := response_json.get("errors")) == 1
+        assert errors[0]["message"] == f"Unknown dataset example: {example_id}"
+
     async def test_deleted_dataset_example_returns_error(
         self,
         test_client,
