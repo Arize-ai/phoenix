@@ -173,6 +173,65 @@ class TestNodeInterface:
         assert len(errors := response_json.get("errors")) == 1
         assert errors[0]["message"] == f"Unknown dataset example: {example_id}"
 
+    async def test_dataset_examples_revision_resolver_returns_revisions_up_to_specified(
+        self,
+        test_client,
+        dataset_with_patch_revision,
+    ) -> None:
+        query = """
+          query ($datasetId: GlobalID!, $versionId: GlobalID) {
+            node(id: $datasetId) {
+              ... on Dataset {
+                examples {
+                  edges {
+                    node {
+                      id
+                      revision(versionId: $versionId) {
+                        input
+                        output
+                        metadata
+                      }
+                      createdAt
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": query,
+                "variables": {
+                    "datasetId": str(GlobalID("Dataset", str(1))),
+                    "versionId": str(GlobalID("DatasetVersion", str(1))),
+                },
+            },
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json.get("errors") is None
+        assert response_json["data"] == {
+            "node": {
+                "examples": {
+                    "edges": [
+                        {
+                            "node": {
+                                "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
+                                "revision": {
+                                    "input": {"input": "first-input"},
+                                    "output": {"output": "first-output"},
+                                    "metadata": {},
+                                },
+                                "createdAt": "2020-01-01T00:00:00+00:00",
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+
 
 async def test_dataset_examples_return_latest_revisions(
     test_client,
