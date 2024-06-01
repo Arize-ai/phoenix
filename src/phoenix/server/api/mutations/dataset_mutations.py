@@ -319,6 +319,8 @@ class DatasetMutationMixin:
         ]
         if len(set(example_ids)) < len(example_ids):
             raise ValueError("Cannot patch the same example more than once per mutation.")
+        if any(patch.is_empty() for patch in patches):
+            raise ValueError("Received one or more empty patches that contain no fields to update.")
         version_description = input.version_description or None
         version_metadata = input.version_metadata or {}
         async with info.context.db() as session:

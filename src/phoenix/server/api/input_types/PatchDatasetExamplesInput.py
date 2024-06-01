@@ -17,6 +17,12 @@ class DatasetExamplePatch:
     output: Optional[JSON] = UNSET
     metadata: Optional[JSON] = UNSET
 
+    def is_empty(self) -> bool:
+        """
+        Non-empty patches have at least one field set.
+        """
+        return all(field is UNSET for field in (self.input, self.output, self.metadata))
+
 
 @strawberry.input
 class PatchDatasetExamplesInput:
