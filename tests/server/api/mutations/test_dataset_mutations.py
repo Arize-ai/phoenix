@@ -175,6 +175,9 @@ class TestPatchDatasetExamples:
         test_client,
         dataset_with_revisions,
     ) -> None:
+        # todo: update this test case to verify that version description and
+        # metadata are updated once a versions resolver has been implemented
+        # https://github.com/Arize-ai/phoenix/issues/3359
         mutation_input = {
             "patches": [
                 {
