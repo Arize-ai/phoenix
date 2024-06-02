@@ -62,6 +62,4 @@ class DatasetExampleRevisionsDataLoader(DataLoader[Key, Result]):
                 ): DatasetExampleRevision.from_orm_revision(revision)
                 async for revision in revisions
             }
-        if len(results) < len(keys):
-            raise ValueError("Could not find dataset example revision.")
         return [results[key] for key in keys]
