@@ -27,7 +27,6 @@ class DatasetExampleRevisionsDataLoader(DataLoader[Key, Result]):
         self._db = db
 
     async def _load_fn(self, keys: List[Key]) -> List[Result]:
-        results: Dict[Key, Result] = {}
         example_and_version_ids = (
             (example_id, version_id) for example_id, version_id in keys if version_id is not None
         )
@@ -56,7 +55,7 @@ class DatasetExampleRevisionsDataLoader(DataLoader[Key, Result]):
                     )
                 )
             )
-            results = {
+            results: Dict[Key, Result] = {
                 (
                     revision.dataset_example_id,
                     revision.dataset_version_id,
