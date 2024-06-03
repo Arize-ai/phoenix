@@ -23,7 +23,6 @@ from phoenix.server.api.input_types.Coordinates import (
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
-from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision, RevisionKind
 from phoenix.server.api.types.Dimension import to_gql_dimension
 from phoenix.server.api.types.EmbeddingDimension import (
     DEFAULT_CLUSTER_SELECTION_EPSILON,
@@ -187,44 +186,33 @@ class Query:
                 metadata=dataset.metadata_,
             )
         elif type_name == "DatasetExample":
-            example_rowid = node_id
-            revision_rowid = (
+            example_id = node_id
+            latest_revision_id = (
                 select(func.max(models.DatasetExampleRevision.id))
-                .where(models.DatasetExampleRevision.dataset_example_id == example_rowid)
+                .where(models.DatasetExampleRevision.dataset_example_id == example_id)
                 .scalar_subquery()
             )
             async with info.context.db() as session:
-                example_result = (
-                    await session.execute(
-                        select(models.DatasetExample, models.DatasetExampleRevision)
-                        .select_from(models.DatasetExampleRevision)
-                        .join(
-                            models.DatasetExample,
-                            onclause=models.DatasetExampleRevision.dataset_example_id
-                            == models.DatasetExample.id,
-                        )
-                        .where(
-                            and_(
-                                models.DatasetExample.id == example_rowid,
-                                models.DatasetExampleRevision.id == revision_rowid,
-                                models.DatasetExampleRevision.revision_kind != "DELETE",
-                            )
+                example = await session.scalar(
+                    select(models.DatasetExample)
+                    .join(
+                        models.DatasetExampleRevision,
+                        onclause=models.DatasetExampleRevision.dataset_example_id
+                        == models.DatasetExample.id,
+                    )
+                    .where(
+                        and_(
+                            models.DatasetExample.id == example_id,
+                            models.DatasetExampleRevision.id == latest_revision_id,
+                            models.DatasetExampleRevision.revision_kind != "DELETE",
                         )
                     )
-                ).first()
-            if not example_result:
-                raise ValueError(f"Unknown dataset example: {id}")
-            example, revision = example_result
+                )
+            if not example:
+                raise ValueError(f"Unknown dataset example: {example_id}")
             return DatasetExample(
                 id_attr=example.id,
                 created_at=example.created_at,
-                cached_revision=DatasetExampleRevision(
-                    input=revision.input,
-                    output=revision.output,
-                    metadata=revision.metadata_,
-                    revision_kind=RevisionKind(revision.revision_kind),
-                    created_at=revision.created_at,
-                ),
             )
         raise Exception(f"Unknown node type: {type_name}")
 
