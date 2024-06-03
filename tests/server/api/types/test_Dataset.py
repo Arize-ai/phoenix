@@ -100,6 +100,53 @@ class TestNodeInterface:
             },
         }
 
+    async def test_dataset_example_with_version_returns_latest_revision_up_to_version_with_hole(
+        self,
+        test_client,
+        dataset_with_three_versions,
+    ) -> None:
+        example_id = str(GlobalID("DatasetExample", str(1)))
+        mutation = """
+          query ($exampleId: GlobalID!, $datasetVersionId: GlobalID = null) {
+            example: node(id: $exampleId) {
+              ... on DatasetExample {
+                id
+                createdAt
+                revision(datasetVersionId: $datasetVersionId) {
+                  input
+                  output
+                  metadata
+                  revisionKind
+                }
+              }
+            }
+          }
+        """
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": mutation,
+                "variables": {
+                    "exampleId": example_id,
+                    "datasetVersionId": str(GlobalID("DatasetVersion", str(2))),
+                },
+            },
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json.get("errors") is None
+        actual_example = response_json["data"]["example"]
+        assert actual_example == {
+            "id": example_id,
+            "createdAt": "2020-01-01T00:00:00+00:00",
+            "revision": {
+                "input": {"input": "first-input"},
+                "output": {"output": "first-output"},
+                "metadata": {},
+                "revisionKind": "CREATE",
+            },
+        }
+
     async def test_dataset_example_with_non_existent_version_returns_error(
         self,
         test_client,
@@ -308,6 +355,44 @@ async def test_dataset_examples_return_latest_revisions_up_to_dataset_version(
     }
 
 
+async def test_dataset_examples_return_latest_revisions_up_to_dataset_version_even_if_example_is_not_explicitly_edited_in_that_version(  # noqa: E501
+    test_client,
+    dataset_with_three_versions,
+) -> None:
+    response = await test_client.post(
+        "/graphql",
+        json={
+            "query": DATASET_EXAMPLES_QUERY,
+            "variables": {
+                "datasetId": str(GlobalID("Dataset", str(1))),
+                "datasetVersionId": str(GlobalID("DatasetVersion", str(2))),
+            },
+        },
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert (errors := response_json.get("errors")) is None, errors
+    assert response_json["data"] == {
+        "node": {
+            "examples": {
+                "edges": [
+                    {
+                        "node": {
+                            "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
+                            "revision": {
+                                "input": {"input": "first-input"},
+                                "output": {"output": "first-output"},
+                                "metadata": {},
+                            },
+                            "createdAt": "2020-01-01T00:00:00+00:00",
+                        }
+                    }
+                ]
+            }
+        }
+    }
+
+
 async def test_dataset_examples_exclude_deleted_examples(
     test_client, dataset_with_deletion
 ) -> None:
@@ -391,6 +476,83 @@ async def dataset_with_patch_revision(session):
         revision_kind="PATCH",
     )
     session.add(dataset_example_revision_2)
+    await session.flush()
+
+
+@pytest.fixture
+async def dataset_with_three_versions(session):
+    """
+    A dataset with a single example and three versions. In the first version,
+    the dataset example is created. The second version has no associated
+    revisions. In the third version, the dataset example is patched.
+    """
+
+    dataset = models.Dataset(
+        id=1,
+        name="dataset-name",
+        description=None,
+        metadata_={},
+    )
+    session.add(dataset)
+    await session.flush()
+
+    dataset_example = models.DatasetExample(
+        id=1,
+        dataset_id=1,
+        created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+    )
+    session.add(dataset_example)
+    await session.flush()
+
+    dataset_version_1 = models.DatasetVersion(
+        id=1,
+        dataset_id=1,
+        description=None,
+        metadata_={},
+    )
+    session.add(dataset_version_1)
+    await session.flush()
+
+    dataset_example_revision_1 = models.DatasetExampleRevision(
+        id=1,
+        dataset_example_id=1,
+        dataset_version_id=1,
+        input={"input": "first-input"},
+        output={"output": "first-output"},
+        metadata_={},
+        revision_kind="CREATE",
+    )
+    session.add(dataset_example_revision_1)
+    await session.flush()
+
+    dataset_version_2 = models.DatasetVersion(
+        id=2,
+        dataset_id=1,
+        description=None,
+        metadata_={},
+    )
+    session.add(dataset_version_2)
+    await session.flush()
+
+    dataset_version_3 = models.DatasetVersion(
+        id=3,
+        dataset_id=1,
+        description=None,
+        metadata_={},
+    )
+    session.add(dataset_version_3)
+    await session.flush()
+
+    dataset_example_revision_3 = models.DatasetExampleRevision(
+        id=3,
+        dataset_example_id=1,
+        dataset_version_id=3,
+        input={"input": "third-input"},
+        output={"output": "third-output"},
+        metadata_={},
+        revision_kind="PATCH",
+    )
+    session.add(dataset_example_revision_3)
     await session.flush()
 
 

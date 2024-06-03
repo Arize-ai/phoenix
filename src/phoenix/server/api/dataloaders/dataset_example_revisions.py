@@ -1,13 +1,12 @@
 from typing import (
     AsyncContextManager,
     Callable,
-    Dict,
     List,
     Optional,
     Tuple,
 )
 
-from sqlalchemy import and_, func, or_, select, tuple_
+from sqlalchemy import Integer, func, literal, or_, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
@@ -27,44 +26,51 @@ class DatasetExampleRevisionsDataLoader(DataLoader[Key, Result]):
         self._db = db
 
     async def _load_fn(self, keys: List[Key]) -> List[Result]:
-        example_and_version_ids = (
-            (example_id, version_id) for example_id, version_id in keys if version_id is not None
-        )
-        example_ids_without_version = (
-            example_id for example_id, version_id in keys if version_id is None
-        )
-        latest_revision_ids = (
-            select(func.max(models.DatasetExampleRevision.id))
+        keys_subquery = union_all(
+            *(
+                select(
+                    literal(example_id, Integer).label("example_id"),
+                    literal(version_id, Integer).label("version_id"),
+                )
+                for example_id, version_id in keys
+            )
+        ).subquery()
+        latest_revision_ids_per_key = (
+            select(
+                keys_subquery.c.example_id,
+                keys_subquery.c.version_id,
+                func.max(models.DatasetExampleRevision.id).label("revision_id"),
+            )
+            .join(
+                models.DatasetExampleRevision,
+                onclause=keys_subquery.c.example_id
+                == models.DatasetExampleRevision.dataset_example_id,
+            )
             .where(
-                models.DatasetExampleRevision.dataset_example_id.in_(example_ids_without_version)
-            )
-            .group_by(models.DatasetExampleRevision.dataset_example_id)
-        ).scalar_subquery()
-        is_latest_revision_for_example = models.DatasetExampleRevision.id.in_(latest_revision_ids)
-        query = select(
-            models.DatasetExampleRevision,
-            is_latest_revision_for_example,
-        ).where(
-            and_(
                 or_(
-                    tuple_(
-                        models.DatasetExampleRevision.dataset_example_id,
-                        models.DatasetExampleRevision.dataset_version_id,
-                    ).in_(example_and_version_ids),
-                    is_latest_revision_for_example,
-                ),
-                models.DatasetExampleRevision.revision_kind != "DELETE",
+                    keys_subquery.c.version_id.is_(None),
+                    models.DatasetExampleRevision.dataset_version_id <= keys_subquery.c.version_id,
+                )
             )
+            .group_by(keys_subquery.c.example_id, keys_subquery.c.version_id)
+        ).subquery()
+        query = (
+            select(
+                latest_revision_ids_per_key.c.example_id,
+                latest_revision_ids_per_key.c.version_id,
+                models.DatasetExampleRevision,
+            )
+            .select_from(latest_revision_ids_per_key)
+            .join(
+                models.DatasetExampleRevision,
+                onclause=latest_revision_ids_per_key.c.revision_id
+                == models.DatasetExampleRevision.id,
+            )
+            .where(models.DatasetExampleRevision.revision_kind != "DELETE")
         )
-        results: Dict[Key, Result] = {}
         async with self._db() as session:
-            for (
-                revision,
-                is_latest_revision,
-            ) in await session.execute(query):
-                orm_revision = DatasetExampleRevision.from_orm_revision(revision)
-                results[(revision.dataset_example_id, revision.dataset_version_id)] = orm_revision
-                if is_latest_revision:
-                    results[(revision.dataset_example_id, None)] = orm_revision
-
+            results = {
+                (example_id, version_id): DatasetExampleRevision.from_orm_revision(revision)
+                async for example_id, version_id, revision in await session.stream(query)
+            }
         return [results[key] for key in keys]
