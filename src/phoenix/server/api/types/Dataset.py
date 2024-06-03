@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 import strawberry
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, desc, func, select
 from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.scalars import JSON
@@ -10,6 +10,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision, RevisionKind
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -18,6 +19,7 @@ from phoenix.server.api.types.pagination import (
     CursorString,
     connection_from_list,
 )
+from phoenix.server.api.types.SortDir import SortDir
 
 from .DatasetVersion import DatasetVersion
 
@@ -39,6 +41,7 @@ class Dataset(Node):
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        sort: Optional[DatasetVersionSort] = UNSET,
     ) -> Connection[DatasetVersion]:
         args = ConnectionArgs(
             first=first,
@@ -47,11 +50,17 @@ class Dataset(Node):
             before=before if isinstance(before, CursorString) else None,
         )
         async with info.context.db() as session:
-            versions = await session.scalars(
-                select(models.DatasetVersion)
-                .filter_by(dataset_id=self.id_attr)
-                .order_by(models.DatasetVersion.created_at.desc())
-            )
+            stmt = select(models.DatasetVersion).filter_by(dataset_id=self.id_attr)
+            if sort:
+                # For now assume the the column names match 1:1 with the enum values
+                sort_col = getattr(models.DatasetVersion, sort.col.value)
+                sort_expr = sort_col
+                if sort.dir is SortDir.desc:
+                    sort_expr = desc(sort_col)
+                stmt = stmt.order_by(sort_expr)
+            else:
+                stmt = stmt.order_by(models.DatasetVersion.created_at.desc())
+            versions = await session.scalars(stmt)
         data = [
             DatasetVersion(
                 id_attr=version.id,
