@@ -81,7 +81,7 @@ type Dataset implements Node {
   metadata: JSON!
   createdAt: DateTime!
   updatedAt: DateTime!
-  versions(first: Int = 50, last: Int, after: String, before: String): DatasetVersionConnection!
+  versions(first: Int = 50, last: Int, after: String, before: String, sort: DatasetVersionSort): DatasetVersionConnection!
   examples(datasetVersionId: GlobalID, first: Int = 50, last: Int, after: String, before: String): DatasetExampleConnection!
 }
 
@@ -160,6 +160,10 @@ type DatasetVersion implements Node {
   createdAt: DateTime!
 }
 
+enum DatasetVersionColumn {
+  createdAt
+}
+
 """A connection to a list of items."""
 type DatasetVersionConnection {
   """Pagination data for this connection"""
@@ -176,6 +180,12 @@ type DatasetVersionEdge {
 
   """The item at the end of the edge"""
   node: DatasetVersion!
+}
+
+"""The sort key adn direction for dataset version connections"""
+input DatasetVersionSort {
+  col: DatasetVersionColumn!
+  dir: SortDir!
 }
 
 """Date with time (isoformat)"""
