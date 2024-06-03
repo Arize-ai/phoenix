@@ -337,8 +337,9 @@ async def test_post_dataset_upload_csv_create_then_append(test_client, session):
         },
     )
     assert response.status_code == 200
-    assert (dataset_id := response.json().get("dataset_id"))
-    del response, file
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+    del response, file, data
     file = gzip.compress(b"a,b,c,d,e,f\n11,22,33,44,55,66\n")
     response = await test_client.post(
         url="v1/datasets/upload?sync=true",
@@ -352,7 +353,8 @@ async def test_post_dataset_upload_csv_create_then_append(test_client, session):
         },
     )
     assert response.status_code == 200
-    assert dataset_id == response.json().get("dataset_id")
+    assert (data := response.json().get("data"))
+    assert dataset_id == data.get("dataset_id")
     revisions = list(
         await session.scalars(
             select(models.DatasetExampleRevision)
@@ -391,8 +393,9 @@ async def test_post_dataset_upload_pyarrow_create_then_append(test_client, sessi
         },
     )
     assert response.status_code == 200
-    assert (dataset_id := response.json().get("dataset_id"))
-    del response, file, df, table, sink
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+    del response, file, data, df, table, sink
     df = pd.read_csv(StringIO("a,b,c,d,e,f\n11,22,33,44,55,66\n"))
     table = pa.Table.from_pandas(df)
     sink = pa.BufferOutputStream()
@@ -411,7 +414,8 @@ async def test_post_dataset_upload_pyarrow_create_then_append(test_client, sessi
         },
     )
     assert response.status_code == 200
-    assert dataset_id == response.json().get("dataset_id")
+    assert (data := response.json().get("data"))
+    assert dataset_id == data.get("dataset_id")
     revisions = list(
         await session.scalars(
             select(models.DatasetExampleRevision)
