@@ -13,16 +13,25 @@ import {
 } from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
+import { DatasetProvider } from "@phoenix/contexts/DatasetContext";
 
 import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
 import { DatasetExamplesTable } from "./DatasetExamplesTable";
+import { LatestVersionLabel } from "./LatestVersionLabel";
 
 export function DatasetPage() {
   const loaderData = useLoaderData() as datasetLoaderQuery$data;
+  const latestVersion = loaderData.dataset.latestVersions?.edges[0].version;
+
+  if (!latestVersion) {
+    throw new Error("No latest version found for dataset");
+  }
   return (
-    <Suspense fallback={<Loading />}>
-      <DatasetPageContent dataset={loaderData["dataset"]} />
-    </Suspense>
+    <DatasetProvider latestVersion={latestVersion}>
+      <Suspense fallback={<Loading />}>
+        <DatasetPageContent dataset={loaderData["dataset"]} />
+      </Suspense>
+    </DatasetProvider>
   );
 }
 
@@ -52,9 +61,12 @@ function DatasetPageContent({
           alignItems="center"
         >
           <Flex direction="column" justifyContent="space-between">
-            <Text elementType="h1" textSize="xlarge" weight="heavy">
-              {dataset.name}
-            </Text>
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <Text elementType="h1" textSize="xlarge" weight="heavy">
+                {dataset.name}
+              </Text>
+              <LatestVersionLabel />
+            </Flex>
             <Text color="text-700">{dataset.description || "--"}</Text>
           </Flex>
           <Flex direction="row" gap="size-100">
