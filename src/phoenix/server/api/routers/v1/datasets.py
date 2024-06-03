@@ -447,7 +447,7 @@ async def post_datasets_upload(request: Request) -> Response:
         async with request.app.state.db() as session:
             dataset_id = (await operation(session)).dataset_id
         return JSONResponse(
-            content={"dataset_id": str(GlobalID(Dataset.__name__, str(dataset_id)))}
+            content={"data": {"dataset_id": str(GlobalID(Dataset.__name__, str(dataset_id)))}}
         )
     try:
         request.state.enqueue_operation(operation)
