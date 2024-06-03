@@ -91,7 +91,7 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
         .then((res) => {
           onDatasetCreated({
             name: data.name,
-            id: res["dataset_id"],
+            id: res["data"]["dataset_id"],
           });
         });
     },
