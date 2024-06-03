@@ -209,7 +209,7 @@ class Query:
                     )
                 )
             if not example:
-                raise ValueError(f"Unknown dataset example: {example_id}")
+                raise ValueError(f"Unknown dataset example: {id}")
             return DatasetExample(
                 id_attr=example.id,
                 created_at=example.created_at,

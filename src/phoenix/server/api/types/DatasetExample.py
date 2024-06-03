@@ -15,8 +15,8 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 @strawberry.type
 class DatasetExample(Node):
     id_attr: NodeID[int]
-    cached_revision: strawberry.Private[Optional[DatasetExampleRevision]] = None
     created_at: datetime
+    version_id: strawberry.Private[Optional[int]] = None
 
     @strawberry.field
     async def revision(
@@ -24,17 +24,14 @@ class DatasetExample(Node):
         info: Info[Context, None],
         dataset_version_id: Optional[GlobalID] = UNSET,
     ) -> DatasetExampleRevision:
-        if not dataset_version_id and self.cached_revision:
-            return self.cached_revision
-
         example_id = self.id_attr
-        version_id = (
-            from_global_id_with_expected_type(
+        version_id: Optional[int] = None
+        if dataset_version_id:
+            version_id = from_global_id_with_expected_type(
                 global_id=dataset_version_id, expected_type_name=DatasetVersion.__name__
             )
-            if dataset_version_id
-            else None
-        )
+        elif self.version_id is not None:
+            version_id = self.version_id
         return await info.context.data_loaders.dataset_example_revisions.load(
             (example_id, version_id)
         )
