@@ -116,9 +116,10 @@ def llm_classify(
         include_response (bool, default=False): If True, includes a column named `response` in the
         output dataframe containing the raw response from the LLM.
 
-        include_exceptions (bool, default=False): If True, includes two columns named `exceptions`
-        and `execution_status` in the output dataframe containing details about execution errors
-        that may have occurred during the classification.
+        include_exceptions (bool, default=False): If True, includes three additional columns in the
+        output dataframe: `exceptions`, `execution_status`, and `execution_seconds` containing
+        details about execution errors that may have occurred during the classification as well
+        as the total runtime of each classification (in seconds).
 
         max_retries (int, optional): The maximum number of times to retry on exceptions. Defaults to
         10.
@@ -236,6 +237,7 @@ def llm_classify(
     labels, explanations, responses, prompts = zip(*results)
     all_exceptions = [details.exceptions for details in execution_details]
     execution_statuses = [details.status for details in execution_details]
+    execution_times = [details.execution_seconds for details in execution_details]
     classification_statuses = []
     for exceptions, status in zip(all_exceptions, execution_statuses):
         if exceptions and isinstance(exceptions[-1], PhoenixTemplateMappingError):
@@ -256,6 +258,11 @@ def llm_classify(
             ),
             **(
                 {"execution_status": [status.value for status in classification_statuses]}
+                if include_exceptions
+                else {}
+            ),
+            **(
+                {"execution_seconds": [runtime for runtime in execution_times]}
                 if include_exceptions
                 else {}
             ),
