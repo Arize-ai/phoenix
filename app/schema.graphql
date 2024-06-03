@@ -182,7 +182,7 @@ type DatasetVersionEdge {
   node: DatasetVersion!
 }
 
-"""The sort key adn direction for dataset version connections"""
+"""The sort key and direction for dataset version connections"""
 input DatasetVersionSort {
   col: DatasetVersionColumn!
   dir: SortDir!
