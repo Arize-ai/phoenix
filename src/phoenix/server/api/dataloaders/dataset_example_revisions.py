@@ -70,7 +70,7 @@ class DatasetExampleRevisionsDataLoader(DataLoader[Key, Result]):
         )
         async with self._db() as session:
             results = {
-                (example_id, version_id): DatasetExampleRevision.from_orm_revision(revision)
+                (example_id, version_id): revision
                 async for example_id, version_id, revision in await session.stream(query)
             }
-        return [results[key] for key in keys]
+        return [DatasetExampleRevision.from_orm_revision(results[key]) for key in keys]
