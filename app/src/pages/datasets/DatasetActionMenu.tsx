@@ -44,6 +44,7 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
         }
       }
     `);
+
   const handleDelete = useCallback(() => {
     startTransition(() => {
       commitDelete({

@@ -3,11 +3,14 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 
 import {
-  Button,
+  ActionMenu,
   Dialog,
   DialogContainer,
   Flex,
   Heading,
+  Icon,
+  Icons,
+  Item,
   View,
 } from "@arizeai/components";
 
@@ -16,6 +19,7 @@ import { CreateDatasetForm } from "@phoenix/components/dataset/CreateDatasetForm
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import { DatasetsPageQuery } from "./__generated__/DatasetsPageQuery.graphql";
+import { DatasetFromCSVForm } from "./DatasetFromCSVForm";
 import { DatasetsTable } from "./DatasetsTable";
 
 export function DatasetsPage() {
@@ -54,7 +58,7 @@ export function DatasetsPageContent() {
       >
         <Flex direction="row" justifyContent="space-between">
           <Heading level={1}>Datasets</Heading>
-          <CreateDatasetButton onDatasetCreated={onDatasetCreated} />
+          <CreateDatasetActionMenu onDatasetCreated={onDatasetCreated} />
         </Flex>
       </View>
       <DatasetsTable query={data} />
@@ -62,10 +66,18 @@ export function DatasetsPageContent() {
   );
 }
 
-type CreateDatasetButtonProps = {
+type CreateDatasetActionMenu = {
   onDatasetCreated: () => void;
 };
-function CreateDatasetButton({ onDatasetCreated }: CreateDatasetButtonProps) {
+
+enum CreateDatasetAction {
+  NEW = "newDataset",
+  FROM_CSV = "datasetFromCSV",
+}
+
+function CreateDatasetActionMenu({
+  onDatasetCreated,
+}: CreateDatasetActionMenu) {
   const navigate = useNavigate();
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
@@ -98,11 +110,54 @@ function CreateDatasetButton({ onDatasetCreated }: CreateDatasetButtonProps) {
       </Dialog>
     );
   };
+  const onCreateDatasetFromCSV = () => {
+    setDialog(
+      <Dialog size="M" title="New Dataset from CSV">
+        <DatasetFromCSVForm
+          onDatasetCreated={(newDataset) => {
+            notifySuccess({
+              title: "Dataset created",
+              message: `${newDataset.name} has been successfully created.`,
+              action: {
+                text: "Go to Dataset",
+                onClick: () => {
+                  navigate(`/datasets/${newDataset.id}`);
+                },
+              },
+            });
+            setDialog(null);
+            onDatasetCreated();
+          }}
+          onDatasetCreateError={(error) => {
+            notifyError({
+              title: "Dataset creation failed",
+              message: error.message,
+            });
+          }}
+        />
+      </Dialog>
+    );
+  };
   return (
     <>
-      <Button variant="default" onClick={onCreateDataset}>
-        Create Dataset
-      </Button>
+      <ActionMenu
+        buttonText="Create Dataset"
+        align="end"
+        icon={<Icon svg={<Icons.DatabaseOutline />} />}
+        onAction={(action) => {
+          switch (action) {
+            case CreateDatasetAction.NEW:
+              onCreateDataset();
+              break;
+            case CreateDatasetAction.FROM_CSV:
+              onCreateDatasetFromCSV();
+              break;
+          }
+        }}
+      >
+        <Item key={CreateDatasetAction.NEW}>New Dataset</Item>
+        <Item key={CreateDatasetAction.FROM_CSV}>Dataset from CSV</Item>
+      </ActionMenu>
       <DialogContainer
         type="modal"
         isDismissable
