@@ -107,6 +107,7 @@ async def test_async_executor_can_continue_on_error():
     outputs, statuses = await executor.execute(inputs)
     exceptions = [status.exceptions for status in statuses]
     status_types = [status.status for status in statuses]
+    execution_times = [status.execution_seconds for status in statuses]
     assert outputs == [0, 1, 52, 3, 4], "failed tasks use the fallback value"
     assert [len(excs) if excs else 0 for excs in exceptions] == [
         0,
@@ -122,6 +123,8 @@ async def test_async_executor_can_continue_on_error():
         ExecutionStatus.COMPLETED,
         ExecutionStatus.COMPLETED,
     ]
+    assert len(execution_times) == 5
+    assert all(isinstance(runtime, float) for runtime in execution_times)
     assert all(isinstance(exc, ValueError) for exc in exceptions[2])
 
 
@@ -279,6 +282,7 @@ def test_sync_executor_can_continue_on_error():
     outputs, execution_details = executor.run(inputs)
     exceptions = [status.exceptions for status in execution_details]
     status_types = [status.status for status in execution_details]
+    execution_times = [status.execution_seconds for status in execution_details]
     assert outputs == [0, 1, 52, 3, 4]
     assert [len(excs) if excs else 0 for excs in exceptions] == [
         0,
@@ -294,6 +298,8 @@ def test_sync_executor_can_continue_on_error():
         ExecutionStatus.COMPLETED,
         ExecutionStatus.COMPLETED,
     ]
+    assert len(execution_times) == 5
+    assert all(isinstance(runtime, float) for runtime in execution_times)
     assert all(isinstance(exc, ValueError) for exc in exceptions[2])
 
 

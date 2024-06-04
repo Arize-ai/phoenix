@@ -538,6 +538,9 @@ def test_classify_skips_missing_input_with_when_exit_on_error_false(
         1,  # one failure due to missing input
         5,  # first attempt + 4 retries
     ]
+    execution_times = classification_df["execution_seconds"].tolist()
+    assert len(execution_times) == 4
+    assert all(isinstance(runtime, float) for runtime in execution_times)
 
     captured = capfd.readouterr()
     assert "Exception in worker" in captured.out
