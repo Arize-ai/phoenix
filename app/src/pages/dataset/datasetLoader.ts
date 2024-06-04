@@ -20,6 +20,18 @@ export async function datasetLoader(args: LoaderFunctionArgs) {
             id
             name
             description
+            latestVersions: versions(
+              first: 1
+              sort: { col: createdAt, dir: desc }
+            ) {
+              edges {
+                version: node {
+                  id
+                  description
+                  createdAt
+                }
+              }
+            }
             ...DatasetExamplesTableFragment
           }
         }

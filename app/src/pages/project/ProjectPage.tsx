@@ -28,6 +28,9 @@ const mainCSS = css`
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    div[role="tablist"] {
+      flex: none;
+    }
     .ac-tabs__pane-container {
       flex: 1 1 auto;
       display: flex;

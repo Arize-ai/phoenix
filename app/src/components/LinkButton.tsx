@@ -8,8 +8,6 @@ const linkButtonCSS = css`
   align-items: center;
   background: none;
   color: var(--ac-global-color-primary);
-
-  background: none;
   border: none;
   padding: 0;
   font: inherit;
