@@ -84,7 +84,6 @@ dev = [
   "google-cloud-aiplatform>=1.3",
   "anthropic",
   "prometheus_client",
-  "respx",
 ]
 evals = [
   "arize-phoenix-evals>=0.3.0",
