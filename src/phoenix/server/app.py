@@ -58,6 +58,7 @@ from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
     CacheForDataLoaders,
+    DatasetExampleRevisionsDataLoader,
     DocumentEvaluationsDataLoader,
     DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
@@ -185,6 +186,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
             export_path=self.export_path,
             streaming_last_updated_at=self.streaming_last_updated_at,
             data_loaders=DataLoaders(
+                dataset_example_revisions=DatasetExampleRevisionsDataLoader(self.db),
                 document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
                     self.db,
                     cache_map=self.cache_for_dataloaders.document_evaluation_summary
