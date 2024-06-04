@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+import React, { Suspense, useMemo } from "react";
 import { Outlet, useLoaderData } from "react-router";
 import { css } from "@emotion/react";
 
@@ -21,11 +21,14 @@ import { DatasetExamplesTable } from "./DatasetExamplesTable";
 
 export function DatasetPage() {
   const loaderData = useLoaderData() as datasetLoaderQuery$data;
-  const latestVersion = loaderData.dataset.latestVersions?.edges[0].version;
+  const latestVersion = useMemo(() => {
+    const versions = loaderData.dataset.latestVersions;
+    if (versions?.edges && versions.edges.length) {
+      return versions.edges[0].version;
+    }
+    return null;
+  }, [loaderData]);
 
-  if (!latestVersion) {
-    throw new Error("No latest version found for dataset");
-  }
   return (
     <DatasetProvider
       datasetId={loaderData.dataset.id}
@@ -65,7 +68,8 @@ function DatasetPageContent({
         >
           <Flex direction="column" justifyContent="space-between">
             <Flex direction="row" gap="size-200" alignItems="center">
-              <Icon svg={<Icons.DatabaseOutline />} />
+              {/* TODO(datasets): Add an icon here to make the UI cohesive */}
+              {/* <Icon svg={<Icons.DatabaseOutline />} /> */}
               <Flex direction="column">
                 <Text elementType="h1" textSize="xlarge" weight="heavy">
                   {dataset.name}

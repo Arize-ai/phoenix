@@ -9,6 +9,8 @@ import {
   Form,
   Icon,
   Icons,
+  TabPane,
+  Tabs,
   TextField,
   View,
 } from "@arizeai/components";
@@ -16,10 +18,12 @@ import {
 import { CopyToClipboardButton } from "@phoenix/components";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 
+/**
+ * A Dropdown that displays how to code against a dataset
+ */
 export function DatasetCodeDropdown() {
   const datasetId = useDatasetContext((state) => state.datasetId);
   const version = useDatasetContext((state) => state.latestVersion);
-
   return (
     <div
       css={css`
@@ -36,18 +40,38 @@ export function DatasetCodeDropdown() {
           Code
         </DropdownButton>
         <DropdownMenu>
-          <View padding="size-200">
-            <Form>
-              <Flex direction="row" gap="size-100" alignItems="end">
-                <TextField label="Dataset ID" value={datasetId} />
-                <CopyToClipboardButton text={datasetId} size="normal" />
-              </Flex>
-              <Flex direction="row" gap="size-100" alignItems="end">
-                <TextField label="Version ID" value={version.id} />
-                <CopyToClipboardButton text={version.id} size="normal" />
-              </Flex>
-            </Form>
-          </View>
+          <Tabs>
+            <TabPane name="Info">
+              <View padding="size-200">
+                <Form>
+                  <Flex direction="row" gap="size-100" alignItems="end">
+                    <TextField
+                      label="Dataset ID"
+                      isReadOnly
+                      value={datasetId}
+                    />
+                    <CopyToClipboardButton text={datasetId} size="normal" />
+                  </Flex>
+                  <Flex direction="row" gap="size-100" alignItems="end">
+                    <TextField
+                      label="Version ID"
+                      isReadOnly
+                      value={version?.id || "No Versions"}
+                      validationState={!version ? "invalid" : "valid"}
+                    />
+                    <CopyToClipboardButton
+                      text={version?.id || "No Versions"}
+                      disabled={!version}
+                      size="normal"
+                    />
+                  </Flex>
+                </Form>
+              </View>
+            </TabPane>
+            <TabPane name="Python" hidden>
+              Coming Soon
+            </TabPane>
+          </Tabs>
         </DropdownMenu>
       </DropdownTrigger>
     </div>

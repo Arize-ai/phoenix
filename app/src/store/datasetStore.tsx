@@ -22,7 +22,7 @@ export interface DatasetStoreProps {
    * Tracks the latest version of the dataset
    * so that the UI stays consistent with any edits
    */
-  latestVersion: DatasetVersion;
+  latestVersion: DatasetVersion | null;
   /**
    * Track if the latest version is being refreshed
    */
@@ -63,7 +63,7 @@ async function fetchLatestVersion({
   datasetId,
 }: {
   datasetId: string;
-}): Promise<DatasetVersion> {
+}): Promise<DatasetVersion | null> {
   const data = await fetchQuery<datasetStore_latestVersionQuery>(
     RelayEnvironment,
     graphql`
@@ -91,10 +91,8 @@ async function fetchLatestVersion({
       datasetId,
     }
   ).toPromise();
-  const latestVersion = data?.dataset.latestVersions?.edges[0].version;
-  if (!latestVersion) {
-    // TODO: display this error
-    throw new Error("No latest version found for dataset");
-  }
+  const versions = data?.dataset.latestVersions?.edges;
+  const latestVersion =
+    (versions && versions.length && versions[0].version) || null;
   return latestVersion;
 }

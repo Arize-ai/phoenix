@@ -18,9 +18,12 @@ const SHOW_COPIED_TIMEOUT_MS = 2000;
 export function CopyToClipboardButton({
   text,
   size = "compact",
+  disabled = false,
 }: {
   text: string;
+
   size?: ButtonProps["size"];
+  disabled?: boolean;
 }) {
   const [isCopied, setIsCopied] = useState(false);
 
@@ -36,6 +39,7 @@ export function CopyToClipboardButton({
       <TooltipTrigger delay={0} offset={5}>
         <Button
           variant="default"
+          disabled={disabled}
           icon={
             <Icon
               svg={isCopied ? <Icons.Checkmark /> : <Icons.ClipboardCopy />}
