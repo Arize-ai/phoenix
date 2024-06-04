@@ -1,5 +1,11 @@
+import { graphql } from "react-relay";
+import { fetchQuery } from "react-relay";
 import { create, StateCreator } from "zustand";
 import { devtools } from "zustand/middleware";
+
+import RelayEnvironment from "@phoenix/RelayEnvironment";
+
+import { datasetStore_latestVersionQuery } from "./__generated__/datasetStore_latestVersionQuery.graphql";
 
 interface DatasetVersion {
   id: string;
@@ -8,6 +14,10 @@ interface DatasetVersion {
 }
 
 export interface DatasetStoreProps {
+  /**
+   * The dataset currently loaded in the store
+   */
+  datasetId: string;
   /**
    * Tracks the latest version of the dataset
    * so that the UI stays consistent with any edits
@@ -19,6 +29,11 @@ export interface DatasetStoreProps {
   isRefreshingLatestVersion: boolean;
 }
 
+export type InitialDatasetStoreProps = Pick<
+  DatasetStoreProps,
+  "latestVersion" | "datasetId"
+>;
+
 export interface DatasetStoreState extends DatasetStoreProps {
   /**
    * Refreshes the latest version of the dataset
@@ -26,20 +41,60 @@ export interface DatasetStoreState extends DatasetStoreProps {
   refreshLatestVersion: () => void;
 }
 
-export const createDatasetStore = (
-  initialProps: Pick<DatasetStoreProps, "latestVersion">
-) => {
-  const datasetStore: StateCreator<DatasetStoreState> = (set) => ({
+export const createDatasetStore = (initialProps: InitialDatasetStoreProps) => {
+  const datasetStore: StateCreator<DatasetStoreState> = (set, get) => ({
     ...initialProps,
     isRefreshingLatestVersion: false,
-    refreshLatestVersion: () => {
+    refreshLatestVersion: async () => {
+      const dataset = get();
       set({ isRefreshingLatestVersion: true });
-      setTimeout(() => {
-        set({ isRefreshingLatestVersion: false });
-      }, 1000);
+      const newVersion = await fetchLatestVersion({
+        datasetId: dataset.datasetId,
+      });
+      set({ latestVersion: newVersion, isRefreshingLatestVersion: false });
     },
   });
   return create<DatasetStoreState>()(devtools(datasetStore));
 };
 
 export type DatasetStore = ReturnType<typeof createDatasetStore>;
+
+async function fetchLatestVersion({
+  datasetId,
+}: {
+  datasetId: string;
+}): Promise<DatasetVersion> {
+  const data = await fetchQuery<datasetStore_latestVersionQuery>(
+    RelayEnvironment,
+    graphql`
+      query datasetStore_latestVersionQuery($datasetId: GlobalID!) {
+        dataset: node(id: $datasetId) {
+          id
+          ... on Dataset {
+            latestVersions: versions(
+              first: 1
+              sort: { col: createdAt, dir: desc }
+            ) {
+              edges {
+                version: node {
+                  id
+                  description
+                  createdAt
+                }
+              }
+            }
+          }
+        }
+      }
+    `,
+    {
+      datasetId,
+    }
+  ).toPromise();
+  const latestVersion = data?.dataset.latestVersions?.edges[0].version;
+  if (!latestVersion) {
+    // TODO: display this error
+    throw new Error("No latest version found for dataset");
+  }
+  return latestVersion;
+}

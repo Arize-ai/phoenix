@@ -9,8 +9,8 @@ import { useZustand } from "use-zustand";
 import {
   createDatasetStore,
   DatasetStore,
-  DatasetStoreProps,
   DatasetStoreState,
+  InitialDatasetStoreProps,
 } from "@phoenix/store/datasetStore";
 
 export const DatasetContext = createContext<DatasetStore | null>(null);
@@ -18,7 +18,7 @@ export const DatasetContext = createContext<DatasetStore | null>(null);
 export function DatasetProvider({
   children,
   ...props
-}: PropsWithChildren<Pick<DatasetStoreProps, "latestVersion">>) {
+}: PropsWithChildren<InitialDatasetStoreProps>) {
   const storeRef = useRef<DatasetStore>();
   if (!storeRef.current) {
     storeRef.current = createDatasetStore(props);

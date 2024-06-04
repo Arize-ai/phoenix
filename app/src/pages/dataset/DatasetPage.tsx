@@ -16,8 +16,8 @@ import { Loading } from "@phoenix/components";
 import { DatasetProvider } from "@phoenix/contexts/DatasetContext";
 
 import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
+import { DatasetCodeDropdown } from "./DatasetCodeDropdown";
 import { DatasetExamplesTable } from "./DatasetExamplesTable";
-import { LatestVersionLabel } from "./LatestVersionLabel";
 
 export function DatasetPage() {
   const loaderData = useLoaderData() as datasetLoaderQuery$data;
@@ -27,7 +27,10 @@ export function DatasetPage() {
     throw new Error("No latest version found for dataset");
   }
   return (
-    <DatasetProvider latestVersion={latestVersion}>
+    <DatasetProvider
+      datasetId={loaderData.dataset.id}
+      latestVersion={latestVersion}
+    >
       <Suspense fallback={<Loading />}>
         <DatasetPageContent dataset={loaderData["dataset"]} />
       </Suspense>
@@ -61,13 +64,15 @@ function DatasetPageContent({
           alignItems="center"
         >
           <Flex direction="column" justifyContent="space-between">
-            <Flex direction="row" gap="size-100" alignItems="center">
-              <Text elementType="h1" textSize="xlarge" weight="heavy">
-                {dataset.name}
-              </Text>
-              <LatestVersionLabel />
+            <Flex direction="row" gap="size-200" alignItems="center">
+              <Icon svg={<Icons.DatabaseOutline />} />
+              <Flex direction="column">
+                <Text elementType="h1" textSize="xlarge" weight="heavy">
+                  {dataset.name}
+                </Text>
+                <Text color="text-700">{dataset.description || "--"}</Text>
+              </Flex>
             </Flex>
-            <Text color="text-700">{dataset.description || "--"}</Text>
           </Flex>
           <Flex direction="row" gap="size-100">
             <ActionMenu
@@ -83,6 +88,7 @@ function DatasetPageContent({
             >
               <Item key="csv">Download CSV</Item>
             </ActionMenu>
+            <DatasetCodeDropdown />
           </Flex>
         </Flex>
       </View>
