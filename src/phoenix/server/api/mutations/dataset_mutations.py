@@ -342,18 +342,18 @@ class DatasetMutationMixin:
                 raise ValueError("Examples must come from the same dataset.")
             dataset = datasets[0]
 
-            previous_revision_ids = (
+            revision_ids = (
                 select(func.max(models.DatasetExampleRevision.id))
                 .where(models.DatasetExampleRevision.dataset_example_id.in_(example_ids))
                 .group_by(models.DatasetExampleRevision.dataset_example_id)
                 .scalar_subquery()
             )
-            previous_revisions = (
+            revisions = (
                 await session.scalars(
                     select(models.DatasetExampleRevision)
                     .where(
                         and_(
-                            models.DatasetExampleRevision.id.in_(previous_revision_ids),
+                            models.DatasetExampleRevision.id.in_(revision_ids),
                             models.DatasetExampleRevision.revision_kind != "DELETE",
                         )
                     )
@@ -371,7 +371,7 @@ class DatasetMutationMixin:
                     )  # ensure the order of the revisions matches the order of the input patches
                 )
             ).all()
-            if (num_missing_examples := len(example_ids) - len(previous_revisions)) > 0:
+            if (num_missing_examples := len(example_ids) - len(revisions)) > 0:
                 raise ValueError(f"{num_missing_examples} example(s) could not be found.")
 
             version_id = await session.scalar(
@@ -389,14 +389,12 @@ class DatasetMutationMixin:
                 insert(models.DatasetExampleRevision),
                 [
                     _to_orm_revision(
-                        previous_revision=previous_revision,
+                        existing_revision=revision,
                         patch=patch,
                         example_id=example_id,
                         version_id=version_id,
                     )
-                    for previous_revision, patch, example_id in zip(
-                        previous_revisions, patches, example_ids
-                    )
+                    for revision, patch, example_id in zip(revisions, patches, example_ids)
                 ],
             )
 
@@ -519,13 +517,13 @@ def _span_attribute(semconv: str) -> Any:
 
 def _to_orm_revision(
     *,
-    previous_revision: models.DatasetExampleRevision,
+    existing_revision: models.DatasetExampleRevision,
     patch: DatasetExamplePatch,
     example_id: int,
     version_id: int,
 ) -> Dict[str, Any]:
     """
-    Creates a new revision from a previous revision and a patch. The output is a
+    Creates a new revision from an existing revision and a patch. The output is a
     dictionary suitable for insertion into the database using the sqlalchemy
     bulk insertion API.
     """
@@ -536,9 +534,9 @@ def _to_orm_revision(
         for db_column, patch_value in (
             (db_rev.dataset_example_id, example_id),
             (db_rev.dataset_version_id, version_id),
-            (db_rev.input, patch.input or previous_revision.input),
-            (db_rev.output, patch.output or previous_revision.output),
-            (db_rev.metadata_, patch.metadata or previous_revision.metadata_),
+            (db_rev.input, patch.input or existing_revision.input),
+            (db_rev.output, patch.output or existing_revision.output),
+            (db_rev.metadata_, patch.metadata or existing_revision.metadata_),
             (db_rev.revision_kind, "PATCH"),
         )
     }
