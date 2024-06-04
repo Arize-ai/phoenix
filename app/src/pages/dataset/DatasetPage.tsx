@@ -8,6 +8,8 @@ import {
   Icon,
   Icons,
   Item,
+  TabPane,
+  Tabs,
   Text,
   View,
 } from "@arizeai/components";
@@ -41,24 +43,43 @@ export function DatasetPage() {
   );
 }
 
+const mainCSS = css`
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  .ac-tabs {
+    flex: 1 1 auto;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    .ac-tabs__pane-container {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      div[role="tabpanel"]:not([hidden]) {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+    }
+  }
+`;
+
 function DatasetPageContent({
   dataset,
 }: {
   dataset: datasetLoaderQuery$data["dataset"];
 }) {
   return (
-    <div
-      css={css`
-        display: flex;
-        flex-direction: column;
-        flex: 1 1 auto;
-        overflow: hidden;
-      `}
-    >
+    <main css={mainCSS}>
       <View
-        padding="size-200"
-        borderBottomWidth="thin"
-        borderBottomColor="dark"
+        paddingStart="size-200"
+        paddingEnd="size-200"
+        paddingTop="size-200"
+        paddingBottom="size-50"
         flex="none"
       >
         <Flex
@@ -96,10 +117,19 @@ function DatasetPageContent({
           </Flex>
         </Flex>
       </View>
-      <DatasetExamplesTable dataset={dataset} />
+      <Tabs>
+        <TabPane name="Experiments" hidden>
+          <View padding="size-200">
+            <Text>Experiments</Text>
+          </View>
+        </TabPane>
+        <TabPane name="Examples">
+          <DatasetExamplesTable dataset={dataset} />
+        </TabPane>
+      </Tabs>
       <Suspense>
         <Outlet />
       </Suspense>
-    </div>
+    </main>
   );
 }
