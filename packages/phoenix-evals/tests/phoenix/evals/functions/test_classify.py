@@ -135,7 +135,7 @@ def test_llm_classify(
     expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(
-        result,
+        result[["label"]],
         pd.DataFrame(
             data={"label": expected_labels},
         ),
@@ -224,7 +224,7 @@ def test_llm_classify_with_async(
     expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(
-        result,
+        result[["label"]],
         pd.DataFrame(
             data={"label": expected_labels},
         ),
@@ -258,7 +258,7 @@ def test_llm_classify_with_fn_call(
 
     expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
-    assert_frame_equal(result, pd.DataFrame(data={"label": expected_labels}))
+    assert_frame_equal(result[["label"]], pd.DataFrame(data={"label": expected_labels}))
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
@@ -290,7 +290,7 @@ def test_classify_fn_call_no_explain(
     expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(
-        result,
+        result[["label", "explanation"]],
         pd.DataFrame(data={"label": expected_labels, "explanation": [None, None, None, None]}),
     )
 
@@ -328,7 +328,7 @@ def test_classify_fn_call_explain(
     expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(
-        result,
+        result[["label", "explanation"]],
         pd.DataFrame(data={"label": expected_labels, "explanation": ["0", "1", "2", "3"]}),
     )
 
@@ -470,7 +470,6 @@ def test_classify_exits_on_missing_input(
         template=classification_template,
         model=model,
         rails=["relevant", "unrelated"],
-        include_exceptions=True,
         max_retries=4,
         exit_on_error=True,
         run_sync=True,  # run synchronously to ensure ordering
@@ -519,7 +518,6 @@ def test_classify_skips_missing_input_with_when_exit_on_error_false(
         template=classification_template,
         model=model,
         rails=["relevant", "unrelated"],
-        include_exceptions=True,
         max_retries=4,
         exit_on_error=False,
     )

@@ -116,11 +116,6 @@ def llm_classify(
         include_response (bool, default=False): If True, includes a column named `response` in the
         output dataframe containing the raw response from the LLM.
 
-        include_exceptions (bool, default=False): If True, includes three additional columns in the
-        output dataframe: `exceptions`, `execution_status`, and `execution_seconds` containing
-        details about execution errors that may have occurred during the classification as well
-        as the total runtime of each classification (in seconds).
-
         max_retries (int, optional): The maximum number of times to retry on exceptions. Defaults to
         10.
 
@@ -141,7 +136,10 @@ def llm_classify(
         `explanation` is added to contain the explanation for each label. The dataframe has
         the same length and index as the input dataframe. The classification label values are
         from the entries in the rails argument or "NOT_PARSABLE" if the model's output could
-        not be parsed.
+        not be parsed. The output dataframe also includes three additional columns in the
+        output dataframe: `exceptions`, `execution_status`, and `execution_seconds` containing
+        details about execution errors that may have occurred during the classification as well
+        as the total runtime of each classification (in seconds).
     """
     concurrency = concurrency or model.default_concurrency
     # clients need to be reloaded to ensure that async evals work properly
@@ -251,21 +249,9 @@ def llm_classify(
             **({"explanation": explanations} if provide_explanation else {}),
             **({"prompt": prompts} if include_prompt else {}),
             **({"response": responses} if include_response else {}),
-            **(
-                {"exceptions": [[repr(exc) for exc in excs] for excs in all_exceptions]}
-                if include_exceptions
-                else {}
-            ),
-            **(
-                {"execution_status": [status.value for status in classification_statuses]}
-                if include_exceptions
-                else {}
-            ),
-            **(
-                {"execution_seconds": [runtime for runtime in execution_times]}
-                if include_exceptions
-                else {}
-            ),
+            **({"exceptions": [[repr(exc) for exc in excs] for excs in all_exceptions]}),
+            **({"execution_status": [status.value for status in classification_statuses]}),
+            **({"execution_seconds": [runtime for runtime in execution_times]}),
         },
         index=dataframe.index,
     )
