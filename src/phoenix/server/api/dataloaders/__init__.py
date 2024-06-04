@@ -8,6 +8,7 @@ from phoenix.db.insertion.evaluation import (
 )
 from phoenix.db.insertion.span import ClearProjectSpansEvent, SpanInsertionEvent
 
+from .dataset_example_revisions import DatasetExampleRevisionsDataLoader
 from .document_evaluation_summaries import (
     DocumentEvaluationSummaryCache,
     DocumentEvaluationSummaryDataLoader,
@@ -25,6 +26,7 @@ from .trace_evaluations import TraceEvaluationsDataLoader
 
 __all__ = [
     "CacheForDataLoaders",
+    "DatasetExampleRevisionsDataLoader",
     "DocumentEvaluationSummaryDataLoader",
     "DocumentEvaluationsDataLoader",
     "DocumentRetrievalMetricsDataLoader",
