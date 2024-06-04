@@ -4,6 +4,7 @@ from typing import (
     List,
     Optional,
     Tuple,
+    Union,
 )
 
 from sqlalchemy import Integer, case, func, literal, or_, select, union_all
@@ -25,7 +26,7 @@ class DatasetExampleRevisionsDataLoader(DataLoader[Key, Result]):
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[Result]:
+    async def _load_fn(self, keys: List[Key]) -> List[Union[Result, ValueError]]:
         # sqlalchemy has limited SQLite support for VALUES, so use UNION ALL instead.
         # For details, see https://github.com/sqlalchemy/sqlalchemy/issues/7228
         keys_subquery = union_all(
@@ -87,7 +88,7 @@ class DatasetExampleRevisionsDataLoader(DataLoader[Key, Result]):
         )
         async with self._db() as session:
             results = {
-                (example_id, version_id): revision
+                (example_id, version_id): DatasetExampleRevision.from_orm_revision(revision)
                 async for (
                     example_id,
                     version_id,
@@ -96,6 +97,4 @@ class DatasetExampleRevisionsDataLoader(DataLoader[Key, Result]):
                 ) in await session.stream(query)
                 if is_valid_version
             }
-        if len(results) < len(keys):
-            raise ValueError("Could not find revision.")
-        return [DatasetExampleRevision.from_orm_revision(results[key]) for key in keys]
+        return [results.get(key, ValueError("Could not find revision.")) for key in keys]
