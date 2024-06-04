@@ -6,12 +6,10 @@ from .default_templates import (
     CODE_READABILITY_PROMPT_TEMPLATE,
     HALLUCINATION_PROMPT_RAILS_MAP,
     HALLUCINATION_PROMPT_TEMPLATE,
-    HALLUCINATION_SPAN_PROMPT_TEMPLATE,
     HUMAN_VS_AI_PROMPT_RAILS_MAP,
     HUMAN_VS_AI_PROMPT_TEMPLATE,
     QA_PROMPT_RAILS_MAP,
     QA_PROMPT_TEMPLATE,
-    QA_SPAN_PROMPT_TEMPLATE,
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     REFERENCE_LINK_CORRECTNESS_PROMPT_RAILS_MAP,
@@ -42,6 +40,10 @@ from .models import (
     VertexAIModel,
 )
 from .retrievals import compute_precisions_at_k
+from .span_templates import (
+    HALLUCINATION_SPAN_PROMPT_TEMPLATE,
+    QA_SPAN_PROMPT_TEMPLATE,
+)
 from .templates import (
     ClassificationTemplate,
     PromptTemplate,
