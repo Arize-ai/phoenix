@@ -20,6 +20,7 @@ import { CopyToClipboardButton } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 
 import type { DatasetExamplePageQuery } from "./__generated__/DatasetExamplePageQuery.graphql";
+import { EditDatasetExampleButton } from "./EditDatasetExampleButton";
 
 /**
  * A page that shows the details of a dataset example.
@@ -31,6 +32,7 @@ export function DatasetExamplePage() {
       query DatasetExamplePageQuery($exampleId: GlobalID!) {
         example: node(id: $exampleId) {
           ... on DatasetExample {
+            id
             latestRevision: revision {
               input
               output
@@ -42,7 +44,7 @@ export function DatasetExamplePage() {
     `,
     { exampleId: exampleId as string }
   );
-  const { input, output, metadata } = useMemo(() => {
+  const revision = useMemo(() => {
     const revision = data.example.latestRevision;
     return {
       input: JSON.stringify(revision?.input),
@@ -50,6 +52,7 @@ export function DatasetExamplePage() {
       metadata: JSON.stringify(revision?.metadata),
     };
   }, [data]);
+  const { input, output, metadata } = revision;
   const navigate = useNavigate();
   return (
     <DialogContainer
@@ -57,7 +60,16 @@ export function DatasetExamplePage() {
       isDismissable
       onDismiss={() => navigate(`/datasets/${datasetId}`)}
     >
-      <Dialog size="XL" title={`Example: ${datasetId}`}>
+      <Dialog
+        size="XL"
+        title={`Example: ${exampleId}`}
+        extra={
+          <EditDatasetExampleButton
+            exampleId={exampleId as string}
+            currentRevision={revision}
+          />
+        }
+      >
         <div
           css={css`
             overflow-y: auto;

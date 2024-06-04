@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { css } from "@emotion/react";
@@ -41,7 +41,7 @@ export function SpanToDatasetExampleDialog({
   spanId: string;
   onCompleted: () => void;
 }) {
-  const [submitError, setSubmitError] = React.useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const {
     span: { revision },
     datasets,
