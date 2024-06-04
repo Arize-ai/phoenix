@@ -295,7 +295,7 @@ async def test_dataset_examples_return_latest_revisions(
     )
     assert response.status_code == 200
     response_json = response.json()
-    assert (errors := response_json.get("errors")) is None, errors
+    assert response_json.get("errors") is None
     assert response_json["data"] == {
         "node": {
             "examples": {
@@ -333,7 +333,7 @@ async def test_dataset_examples_return_latest_revisions_up_to_dataset_version(
     )
     assert response.status_code == 200
     response_json = response.json()
-    assert (errors := response_json.get("errors")) is None, errors
+    assert response_json.get("errors") is None
     assert response_json["data"] == {
         "node": {
             "examples": {
@@ -371,7 +371,7 @@ async def test_dataset_examples_return_latest_revisions_up_to_dataset_version_ev
     )
     assert response.status_code == 200
     response_json = response.json()
-    assert (errors := response_json.get("errors")) is None, errors
+    assert response_json.get("errors") is None
     assert response_json["data"] == {
         "node": {
             "examples": {
@@ -407,7 +407,7 @@ async def test_dataset_examples_exclude_deleted_examples(
     )
     assert response.status_code == 200
     response_json = response.json()
-    assert (errors := response_json.get("errors")) is None, errors
+    assert response_json.get("errors") is None
     assert response_json["data"] == {"node": {"examples": {"edges": []}}}
 
 
