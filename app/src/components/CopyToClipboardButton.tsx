@@ -3,6 +3,7 @@ import copy from "copy-to-clipboard";
 
 import {
   Button,
+  ButtonProps,
   Icon,
   Icons,
   Tooltip,
@@ -14,7 +15,16 @@ const SHOW_COPIED_TIMEOUT_MS = 2000;
 /**
  * An Icon button that copies the given text to the clipboard when clicked.
  */
-export function CopyToClipboardButton({ text }: { text: string }) {
+export function CopyToClipboardButton({
+  text,
+  size = "compact",
+  disabled = false,
+}: {
+  text: string;
+
+  size?: ButtonProps["size"];
+  disabled?: boolean;
+}) {
   const [isCopied, setIsCopied] = useState(false);
 
   const onClick = useCallback(() => {
@@ -29,12 +39,13 @@ export function CopyToClipboardButton({ text }: { text: string }) {
       <TooltipTrigger delay={0} offset={5}>
         <Button
           variant="default"
+          disabled={disabled}
           icon={
             <Icon
               svg={isCopied ? <Icons.Checkmark /> : <Icons.ClipboardCopy />}
             />
           }
-          size="compact"
+          size={size}
           onClick={onClick}
         />
         <Tooltip>Copy</Tooltip>
