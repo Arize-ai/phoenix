@@ -4,6 +4,7 @@ import asyncio
 import logging
 import signal
 import threading
+import time
 from contextlib import contextmanager
 from enum import Enum
 from typing import (
@@ -43,6 +44,7 @@ class ExecutionDetails:
     def __init__(self) -> None:
         self.exceptions: List[Exception] = []
         self.status = ExecutionStatus.DID_NOT_RUN
+        self.execution_seconds: float = 0
 
     def fail(self) -> None:
         self.status = ExecutionStatus.FAILED
@@ -55,6 +57,9 @@ class ExecutionDetails:
 
     def log_exception(self, exc: Exception) -> None:
         self.exceptions.append(exc)
+
+    def log_runtime(self, start_time: float) -> None:
+        self.execution_seconds += time.time() - start_time
 
 
 class Executor(Protocol):
@@ -154,6 +159,7 @@ class AsyncExecutor(Executor):
             index, payload = item
 
             try:
+                task_start_time = time.time()
                 generate_task = asyncio.create_task(self.generate(payload))
                 termination_event_watcher = asyncio.create_task(termination_event.wait())
                 done, pending = await asyncio.wait(
@@ -165,6 +171,7 @@ class AsyncExecutor(Executor):
                 if generate_task in done:
                     outputs[index] = generate_task.result()
                     execution_details[index].complete()
+                    execution_details[index].log_runtime(task_start_time)
                     progress_bar.update()
                 elif termination_event.is_set():
                     # discard the pending task and remaining items in the queue
@@ -181,10 +188,12 @@ class AsyncExecutor(Executor):
                     continue
                 else:
                     tqdm.write("Worker timeout, requeuing")
-                    # task timeouts are requeued at base priority
-                    await queue.put((self.base_priority, item))
+                    # task timeouts are requeued at the same priority
+                    await queue.put((priority, item))
+                    execution_details[index].log_runtime(task_start_time)
             except Exception as exc:
                 execution_details[index].log_exception(exc)
+                execution_details[index].log_runtime(task_start_time)
                 is_phoenix_exception = isinstance(exc, PhoenixException)
                 if (retry_count := abs(priority)) < self.max_retries and not is_phoenix_exception:
                     tqdm.write(
@@ -332,6 +341,7 @@ class SyncExecutor(Executor):
             progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
             for index, input in enumerate(inputs):
+                task_start_time = time.time()
                 try:
                     for attempt in range(self.max_retries + 1):
                         if self._TERMINATE:
@@ -357,6 +367,8 @@ class SyncExecutor(Executor):
                         return outputs, execution_details
                     else:
                         progress_bar.update()
+                finally:
+                    execution_details[index].log_runtime(task_start_time)
         return outputs, execution_details
 
 
