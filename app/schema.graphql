@@ -135,6 +135,13 @@ input DatasetExampleInput {
   spanId: GlobalID
 }
 
+input DatasetExamplePatch {
+  exampleId: GlobalID!
+  input: JSON
+  output: JSON
+  metadata: JSON
+}
+
 type DatasetExampleRevision implements ExampleRevision {
   input: JSON!
   output: JSON!
@@ -651,6 +658,7 @@ type Mutation {
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
   addExamplesToDataset(input: AddExamplesToDatasetInput!): DatasetMutationPayload!
   deleteDataset(input: DeleteDatasetInput!): DatasetMutationPayload!
+  patchDatasetExamples(input: PatchDatasetExamplesInput!): DatasetMutationPayload!
   deleteDatasetExamples(input: DeleteDatasetExamplesInput!): DatasetMutationPayload!
 
   """
@@ -692,6 +700,12 @@ type PageInfo {
 
   """When paginating forwards, the cursor to continue."""
   endCursor: String
+}
+
+input PatchDatasetExamplesInput {
+  patches: [DatasetExamplePatch!]!
+  versionDescription: String
+  versionMetadata: JSON
 }
 
 enum PerformanceMetric {
