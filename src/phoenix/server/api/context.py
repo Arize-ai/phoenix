@@ -12,6 +12,7 @@ from typing_extensions import TypeAlias
 from phoenix.core.model_schema import Model
 from phoenix.server.api.dataloaders import (
     CacheForDataLoaders,
+    DatasetExampleRevisionsDataLoader,
     DocumentEvaluationsDataLoader,
     DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
@@ -28,6 +29,7 @@ from phoenix.server.api.dataloaders import (
 
 @dataclass
 class DataLoaders:
+    dataset_example_revisions: DatasetExampleRevisionsDataLoader
     document_evaluation_summaries: DocumentEvaluationSummaryDataLoader
     document_evaluations: DocumentEvaluationsDataLoader
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader

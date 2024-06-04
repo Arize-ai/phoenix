@@ -107,7 +107,7 @@ type DatasetExample implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   createdAt: DateTime!
-  revision: DatasetExampleRevision!
+  revision(datasetVersionId: GlobalID): DatasetExampleRevision!
 }
 
 """A connection to a list of items."""

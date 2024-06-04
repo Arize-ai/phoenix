@@ -51,7 +51,7 @@ mutation ($datasetId: GlobalID!, $spanIds: [GlobalID!]!) {
     )
     assert response.status_code == 200
     response_json = response.json()
-    assert (errors := response_json.get("errors")) is None, errors
+    assert response_json.get("errors") is None
     assert response_json["data"] == {
         "addSpansToDataset": {
             "dataset": {
