@@ -36,7 +36,10 @@ HALLUCINATION_SPAN_PROMPT_BASE_TEMPLATE = """
 
         {user_message}
         ************
-        [AI Assistant Answer]: {output} ************ [END DATA]
+        [AI Assistant Answer]:
+        {output}
+        ************
+        [END DATA]
     """
 
 HALLUCINATION_SPAN_PROMPT_TEMPLATE_WITH_EXPLANATION = """
