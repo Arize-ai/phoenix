@@ -6,33 +6,34 @@ from phoenix.db import models
 from strawberry.relay import GlobalID
 
 
-class TestNodeInterface:
+class TestDatasetExampleNodeInterface:
+    QUERY = """
+      query ($exampleId: GlobalID!, $datasetVersionId: GlobalID = null) {
+        example: node(id: $exampleId) {
+          ... on DatasetExample {
+            id
+            createdAt
+            revision(datasetVersionId: $datasetVersionId) {
+              input
+              output
+              metadata
+              revisionKind
+            }
+          }
+        }
+      }
+    """
+
     async def test_dataset_example_and_unspecified_version_returns_latest_revision(
         self,
         test_client,
         dataset_with_patch_revision,
     ) -> None:
         example_id = str(GlobalID("DatasetExample", str(1)))
-        mutation = """
-          query ($exampleId: GlobalID!) {
-            example: node(id: $exampleId) {
-              ... on DatasetExample {
-                id
-                createdAt
-                revision {
-                  input
-                  output
-                  metadata
-                  revisionKind
-                }
-              }
-            }
-          }
-        """
         response = await test_client.post(
             "/graphql",
             json={
-                "query": mutation,
+                "query": self.QUERY,
                 "variables": {
                     "exampleId": example_id,
                 },
@@ -53,32 +54,16 @@ class TestNodeInterface:
             },
         }
 
-    async def test_dataset_example_with_version_returns_latest_revision_up_to_version(
+    async def test_dataset_example_with_version_returns_latest_revision_up_to_specified_version(
         self,
         test_client,
         dataset_with_patch_revision,
     ) -> None:
         example_id = str(GlobalID("DatasetExample", str(1)))
-        mutation = """
-          query ($exampleId: GlobalID!, $datasetVersionId: GlobalID = null) {
-            example: node(id: $exampleId) {
-              ... on DatasetExample {
-                id
-                createdAt
-                revision(datasetVersionId: $datasetVersionId) {
-                  input
-                  output
-                  metadata
-                  revisionKind
-                }
-              }
-            }
-          }
-        """
         response = await test_client.post(
             "/graphql",
             json={
-                "query": mutation,
+                "query": self.QUERY,
                 "variables": {
                     "exampleId": example_id,
                     "datasetVersionId": str(GlobalID("DatasetVersion", str(1))),
@@ -106,26 +91,10 @@ class TestNodeInterface:
         dataset_with_three_versions,
     ) -> None:
         example_id = str(GlobalID("DatasetExample", str(1)))
-        mutation = """
-          query ($exampleId: GlobalID!, $datasetVersionId: GlobalID = null) {
-            example: node(id: $exampleId) {
-              ... on DatasetExample {
-                id
-                createdAt
-                revision(datasetVersionId: $datasetVersionId) {
-                  input
-                  output
-                  metadata
-                  revisionKind
-                }
-              }
-            }
-          }
-        """
         response = await test_client.post(
             "/graphql",
             json={
-                "query": mutation,
+                "query": self.QUERY,
                 "variables": {
                     "exampleId": example_id,
                     "datasetVersionId": str(GlobalID("DatasetVersion", str(2))),
@@ -153,26 +122,10 @@ class TestNodeInterface:
         dataset_with_patch_revision,
     ) -> None:
         example_id = str(GlobalID("DatasetExample", str(1)))
-        mutation = """
-          query ($exampleId: GlobalID!, $datasetVersionId: GlobalID = null) {
-            example: node(id: $exampleId) {
-              ... on DatasetExample {
-                id
-                createdAt
-                revision(datasetVersionId: $datasetVersionId) {
-                  input
-                  output
-                  metadata
-                  revisionKind
-                }
-              }
-            }
-          }
-        """
         response = await test_client.post(
             "/graphql",
             json={
-                "query": mutation,
+                "query": self.QUERY,
                 "variables": {
                     "exampleId": example_id,
                     "datasetVersionId": str(GlobalID("DatasetVersion", str(100))),
@@ -190,26 +143,10 @@ class TestNodeInterface:
         dataset_with_deletion,
     ) -> None:
         example_id = str(GlobalID("DatasetExample", str(1)))
-        mutation = """
-          query ($exampleId: GlobalID!) {
-            example: node(id: $exampleId) {
-              ... on DatasetExample {
-                id
-                createdAt
-                revision {
-                  input
-                  output
-                  metadata
-                  revisionKind
-                }
-              }
-            }
-          }
-        """
         response = await test_client.post(
             "/graphql",
             json={
-                "query": mutation,
+                "query": self.QUERY,
                 "variables": {
                     "exampleId": example_id,
                 },
@@ -220,36 +157,89 @@ class TestNodeInterface:
         assert len(errors := response_json.get("errors")) == 1
         assert errors[0]["message"] == f"Unknown dataset example: {example_id}"
 
-    async def test_dataset_examples_revision_resolver_returns_revisions_up_to_specified_version(
-        self,
-        test_client,
-        dataset_with_patch_revision,
-    ) -> None:
-        query = """
-          query ($datasetId: GlobalID!, $datasetVersionId: GlobalID) {
-            node(id: $datasetId) {
-              ... on Dataset {
-                examples {
-                  edges {
-                    node {
-                      id
-                      revision(datasetVersionId: $datasetVersionId) {
-                        input
-                        output
-                        metadata
-                      }
-                      createdAt
-                    }
+
+class TestDatasetExamplesResolver:
+    QUERY = """
+      query ($datasetId: GlobalID!, $datasetVersionId: GlobalID = null, $revisionDatasetVersionId: GlobalID = null) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            examples(datasetVersionId: $datasetVersionId) {
+              edges {
+                node {
+                  id
+                  revision(datasetVersionId: $revisionDatasetVersionId) {
+                    input
+                    output
+                    metadata
                   }
+                  createdAt
                 }
               }
             }
           }
-        """
+        }
+      }
+    """  # noqa: E501
+
+    async def test_version_return_latest_revisions_when_no_version_is_specified(
+        self,
+        test_client,
+        dataset_with_patch_revision,
+    ) -> None:
         response = await test_client.post(
             "/graphql",
             json={
-                "query": query,
+                "query": self.QUERY,
+                "variables": {
+                    "datasetId": str(GlobalID("Dataset", str(1))),
+                },
+            },
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json.get("errors") is None
+        assert response_json["data"] == {
+            "node": {
+                "examples": {
+                    "edges": [
+                        {
+                            "node": {
+                                "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
+                                "revision": {
+                                    "input": {"input": "second-input"},
+                                    "output": {"output": "second-output"},
+                                    "metadata": {},
+                                },
+                                "createdAt": "2020-01-01T00:00:00+00:00",
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+
+    async def test_excludes_deleted_examples(self, test_client, dataset_with_deletion) -> None:
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": self.QUERY,
+                "variables": {
+                    "datasetId": str(GlobalID("Dataset", str(1))),
+                },
+            },
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json.get("errors") is None
+        assert response_json["data"] == {"node": {"examples": {"edges": []}}}
+
+    async def test_dataset_examples_return_latest_revisions_up_to_specified_version(
+        self, test_client, dataset_with_patch_revision
+    ) -> None:
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": self.QUERY,
                 "variables": {
                     "datasetId": str(GlobalID("Dataset", str(1))),
                     "datasetVersionId": str(GlobalID("DatasetVersion", str(1))),
@@ -279,136 +269,80 @@ class TestNodeInterface:
             }
         }
 
-
-async def test_dataset_examples_return_latest_revisions(
-    test_client,
-    dataset_with_patch_revision,
-) -> None:
-    response = await test_client.post(
-        "/graphql",
-        json={
-            "query": DATASET_EXAMPLES_QUERY,
-            "variables": {
-                "datasetId": str(GlobalID("Dataset", str(1))),
+    async def test_returns_latest_revisions_up_to_specified_version_even_if_example_is_not_edited_in_that_version(  # noqa: E501
+        self, test_client, dataset_with_three_versions
+    ) -> None:
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": self.QUERY,
+                "variables": {
+                    "datasetId": str(GlobalID("Dataset", str(1))),
+                    "datasetVersionId": str(GlobalID("DatasetVersion", str(2))),
+                },
             },
-        },
-    )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json.get("errors") is None
-    assert response_json["data"] == {
-        "node": {
-            "examples": {
-                "edges": [
-                    {
-                        "node": {
-                            "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
-                            "revision": {
-                                "input": {"input": "second-input"},
-                                "output": {"output": "second-output"},
-                                "metadata": {},
-                            },
-                            "createdAt": "2020-01-01T00:00:00+00:00",
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json.get("errors") is None
+        assert response_json["data"] == {
+            "node": {
+                "examples": {
+                    "edges": [
+                        {
+                            "node": {
+                                "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
+                                "revision": {
+                                    "input": {"input": "first-input"},
+                                    "output": {"output": "first-output"},
+                                    "metadata": {},
+                                },
+                                "createdAt": "2020-01-01T00:00:00+00:00",
+                            }
                         }
-                    }
-                ]
+                    ]
+                }
             }
         }
-    }
 
-
-async def test_dataset_examples_return_latest_revisions_up_to_dataset_version(
-    test_client,
-    dataset_with_patch_revision,
-) -> None:
-    response = await test_client.post(
-        "/graphql",
-        json={
-            "query": DATASET_EXAMPLES_QUERY,
-            "variables": {
-                "datasetId": str(GlobalID("Dataset", str(1))),
-                "datasetVersionId": str(GlobalID("DatasetVersion", str(1))),
+    async def test_version_id_on_revision_resolver_takes_precedence(
+        self,
+        test_client,
+        dataset_with_patch_revision,
+    ) -> None:
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": self.QUERY,
+                "variables": {
+                    "datasetId": str(GlobalID("Dataset", str(1))),
+                    "datasetVersionId": str(GlobalID("DatasetVersion", str(2))),
+                    "revisionDatasetVersionId": str(GlobalID("DatasetVersion", str(1))),
+                },
             },
-        },
-    )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json.get("errors") is None
-    assert response_json["data"] == {
-        "node": {
-            "examples": {
-                "edges": [
-                    {
-                        "node": {
-                            "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
-                            "revision": {
-                                "input": {"input": "first-input"},
-                                "output": {"output": "first-output"},
-                                "metadata": {},
-                            },
-                            "createdAt": "2020-01-01T00:00:00+00:00",
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json.get("errors") is None
+        assert response_json["data"] == {
+            "node": {
+                "examples": {
+                    "edges": [
+                        {
+                            "node": {
+                                "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
+                                "revision": {
+                                    "input": {"input": "first-input"},
+                                    "output": {"output": "first-output"},
+                                    "metadata": {},
+                                },
+                                "createdAt": "2020-01-01T00:00:00+00:00",
+                            }
                         }
-                    }
-                ]
+                    ]
+                }
             }
         }
-    }
-
-
-async def test_dataset_examples_return_latest_revisions_up_to_dataset_version_even_if_example_is_not_explicitly_edited_in_that_version(  # noqa: E501
-    test_client,
-    dataset_with_three_versions,
-) -> None:
-    response = await test_client.post(
-        "/graphql",
-        json={
-            "query": DATASET_EXAMPLES_QUERY,
-            "variables": {
-                "datasetId": str(GlobalID("Dataset", str(1))),
-                "datasetVersionId": str(GlobalID("DatasetVersion", str(2))),
-            },
-        },
-    )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json.get("errors") is None
-    assert response_json["data"] == {
-        "node": {
-            "examples": {
-                "edges": [
-                    {
-                        "node": {
-                            "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
-                            "revision": {
-                                "input": {"input": "first-input"},
-                                "output": {"output": "first-output"},
-                                "metadata": {},
-                            },
-                            "createdAt": "2020-01-01T00:00:00+00:00",
-                        }
-                    }
-                ]
-            }
-        }
-    }
-
-
-async def test_dataset_examples_exclude_deleted_examples(
-    test_client, dataset_with_deletion
-) -> None:
-    response = await test_client.post(
-        "/graphql",
-        json={
-            "query": DATASET_EXAMPLES_QUERY,
-            "variables": {
-                "datasetId": str(GlobalID("Dataset", str(1))),
-            },
-        },
-    )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json.get("errors") is None
-    assert response_json["data"] == {"node": {"examples": {"edges": []}}}
 
 
 @pytest.fixture
@@ -622,26 +556,3 @@ async def dataset_with_deletion(session):
     )
     session.add(dataset_example_revision_2)
     await session.flush()
-
-
-DATASET_EXAMPLES_QUERY = """
-query ($datasetId: GlobalID!, $datasetVersionId: GlobalID) {
-  node(id: $datasetId) {
-    ... on Dataset {
-      examples(datasetVersionId: $datasetVersionId) {
-        edges {
-          node {
-            id
-            revision {
-              input
-              output
-              metadata
-            }
-            createdAt
-          }
-        }
-      }
-    }
-  }
-}
-"""
