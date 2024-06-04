@@ -13,6 +13,7 @@ import {
 } from "@arizeai/components";
 
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 
 interface SelectedExample {
   id: string;
@@ -25,6 +26,9 @@ type ExampleSelectionToolbarProps = {
 };
 
 export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
+  const refreshLatestVersion = useDatasetContext(
+    (state) => state.refreshLatestVersion
+  );
   const { selectedExamples, onExamplesDeleted, onClearSelection } = props;
   const [dialog, setDialog] = useState<ReactNode>(null);
   const notifySuccess = useNotifySuccess();
@@ -56,6 +60,8 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
         // Clear the selection
         onExamplesDeleted();
         onClearSelection();
+        // Notify the dataset store to refresh the latest version
+        refreshLatestVersion();
       },
       onError: (error) => {
         notifyError({

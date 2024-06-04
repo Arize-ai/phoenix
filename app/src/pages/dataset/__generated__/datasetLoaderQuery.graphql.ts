@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<08189ae3ae7f21bf8536ad613be79728>>
+ * @generated SignedSource<<1afb055cb8c1a73e4e8bca27c3ddcda1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,6 +17,15 @@ export type datasetLoaderQuery$data = {
   readonly dataset: {
     readonly description?: string | null;
     readonly id: string;
+    readonly latestVersions?: {
+      readonly edges: ReadonlyArray<{
+        readonly version: {
+          readonly createdAt: string;
+          readonly description: string | null;
+          readonly id: string;
+        };
+      }>;
+    };
     readonly name?: string;
     readonly " $fragmentSpreads": FragmentRefs<"DatasetExamplesTableFragment">;
   };
@@ -63,13 +72,69 @@ v4 = {
   "storageKey": null
 },
 v5 = {
+  "alias": "latestVersions",
+  "args": [
+    {
+      "kind": "Literal",
+      "name": "first",
+      "value": 1
+    },
+    {
+      "kind": "Literal",
+      "name": "sort",
+      "value": {
+        "col": "createdAt",
+        "dir": "desc"
+      }
+    }
+  ],
+  "concreteType": "DatasetVersionConnection",
+  "kind": "LinkedField",
+  "name": "versions",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "DatasetVersionEdge",
+      "kind": "LinkedField",
+      "name": "edges",
+      "plural": true,
+      "selections": [
+        {
+          "alias": "version",
+          "args": null,
+          "concreteType": "DatasetVersion",
+          "kind": "LinkedField",
+          "name": "node",
+          "plural": false,
+          "selections": [
+            (v2/*: any*/),
+            (v4/*: any*/),
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "createdAt",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    }
+  ],
+  "storageKey": "versions(first:1,sort:{\"col\":\"createdAt\",\"dir\":\"desc\"})"
+},
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v6 = [
+v7 = [
   {
     "kind": "Literal",
     "name": "first",
@@ -97,6 +162,7 @@ return {
             "selections": [
               (v3/*: any*/),
               (v4/*: any*/),
+              (v5/*: any*/),
               {
                 "args": null,
                 "kind": "FragmentSpread",
@@ -127,16 +193,17 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v5/*: any*/),
+          (v6/*: any*/),
           (v2/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               (v3/*: any*/),
               (v4/*: any*/),
+              (v5/*: any*/),
               {
                 "alias": null,
-                "args": (v6/*: any*/),
+                "args": (v7/*: any*/),
                 "concreteType": "DatasetExampleConnection",
                 "kind": "LinkedField",
                 "name": "examples",
@@ -209,7 +276,7 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v5/*: any*/)
+                          (v6/*: any*/)
                         ],
                         "storageKey": null
                       }
@@ -246,7 +313,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v6/*: any*/),
+                "args": (v7/*: any*/),
                 "filters": null,
                 "handle": "connection",
                 "key": "DatasetExamplesTable_examples",
@@ -263,16 +330,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5f1165f47174db5ef8ed27af6c08f89d",
+    "cacheID": "799c51f07adb820197b82b1f348701b5",
     "id": null,
     "metadata": {},
     "name": "datasetLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      description\n      ...DatasetExamplesTableFragment\n    }\n  }\n}\n\nfragment DatasetExamplesTableFragment on Dataset {\n  examples(first: 100) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n          metadata\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query datasetLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      description\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n            description\n            createdAt\n          }\n        }\n      }\n      ...DatasetExamplesTableFragment\n    }\n  }\n}\n\nfragment DatasetExamplesTableFragment on Dataset {\n  examples(first: 100) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n          metadata\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "98101306fedeef8919ca1609bb8ed054";
+(node as any).hash = "809c21f871888f5399c1583c519ee027";
 
 export default node;
