@@ -187,6 +187,45 @@ def upgrade() -> None:
             nullable=True,
         ),
     )
+    op.create_table(
+        "experiment_evaluations",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column(
+            "experiment_run_id",
+            sa.Integer,
+            sa.ForeignKey("experiment_runs.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "name",
+            sa.String,
+            nullable=False,
+        ),
+        sa.Column(
+            "label",
+            sa.String,
+            nullable=True,
+        ),
+        sa.Column(
+            "score",
+            sa.Float,
+            nullable=True,
+        ),
+        sa.Column(
+            "explanation",
+            sa.String,
+            nullable=True,
+        ),
+        sa.Column(
+            "error",
+            sa.String,
+            nullable=True,
+        ),
+        sa.Column("metadata", JSON_, nullable=False),
+        sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=False),
+        sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=False),
+    )
 
 
 def downgrade() -> None:
@@ -196,3 +235,4 @@ def downgrade() -> None:
     op.drop_table("dataset_example_revisions")
     op.drop_table("experiments")
     op.drop_table("experiment_runs")
+    op.drop_table("experiment_evaluations")

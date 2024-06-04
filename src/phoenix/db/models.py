@@ -525,3 +525,20 @@ class ExperimentRun(Base):
     completion_token_count: Mapped[Optional[int]]
     error: Mapped[Optional[str]]
     trace_rowid: Mapped[Optional[int]]
+
+
+class ExperimentEvaluations(Base):
+    __tablename__ = "experiment_evaluations"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    experiment_run_id: Mapped[int] = mapped_column(
+        ForeignKey("experiment_runs.id", ondelete="CASCADE"),
+        index=True,
+    )
+    name: Mapped[str]
+    label: Mapped[Optional[str]]
+    score: Mapped[Optional[float]]
+    explanation: Mapped[Optional[str]]
+    error: Mapped[Optional[str]]
+    metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
+    end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
