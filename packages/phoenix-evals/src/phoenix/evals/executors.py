@@ -3,8 +3,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import signal
-import time
 import threading
+import time
 from contextlib import contextmanager
 from enum import Enum
 from typing import (
@@ -57,7 +57,7 @@ class ExecutionDetails:
 
     def log_exception(self, exc: Exception) -> None:
         self.exceptions.append(exc)
-    
+
     def log_runtime(self, start_time: float) -> None:
         self.execution_seconds += time.time() - start_time
 
