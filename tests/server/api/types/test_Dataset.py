@@ -152,7 +152,7 @@ class TestNodeInterface:
         test_client,
         dataset_with_patch_revision,
     ) -> None:
-        example_id = str(GlobalID("DatasetExample", str(100)))
+        example_id = str(GlobalID("DatasetExample", str(1)))
         mutation = """
           query ($exampleId: GlobalID!, $datasetVersionId: GlobalID = null) {
             example: node(id: $exampleId) {
@@ -175,14 +175,14 @@ class TestNodeInterface:
                 "query": mutation,
                 "variables": {
                     "exampleId": example_id,
-                    "datasetVersionId": str(GlobalID("DatasetVersion", str(1))),
+                    "datasetVersionId": str(GlobalID("DatasetVersion", str(100))),
                 },
             },
         )
         assert response.status_code == 200
         response_json = response.json()
         assert len(errors := response_json.get("errors")) == 1
-        assert errors[0]["message"] == f"Unknown dataset example: {example_id}"
+        assert errors[0]["message"] == "Could not find revision."
 
     async def test_deleted_dataset_example_returns_error(
         self,

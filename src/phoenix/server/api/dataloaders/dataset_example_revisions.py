@@ -6,7 +6,7 @@ from typing import (
     Tuple,
 )
 
-from sqlalchemy import Integer, func, literal, or_, select, union_all
+from sqlalchemy import Integer, case, func, literal, or_, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
@@ -35,12 +35,13 @@ class DatasetExampleRevisionsDataLoader(DataLoader[Key, Result]):
                 for example_id, version_id in keys
             )
         ).subquery()
-        latest_revision_ids_per_key = (
+        revision_ids = (
             select(
                 keys_subquery.c.example_id,
                 keys_subquery.c.version_id,
                 func.max(models.DatasetExampleRevision.id).label("revision_id"),
             )
+            .select_from(keys_subquery)
             .join(
                 models.DatasetExampleRevision,
                 onclause=keys_subquery.c.example_id
@@ -56,21 +57,43 @@ class DatasetExampleRevisionsDataLoader(DataLoader[Key, Result]):
         ).subquery()
         query = (
             select(
-                latest_revision_ids_per_key.c.example_id,
-                latest_revision_ids_per_key.c.version_id,
+                revision_ids.c.example_id,
+                revision_ids.c.version_id,
+                case(
+                    (
+                        or_(
+                            revision_ids.c.version_id.is_(None),
+                            models.DatasetVersion.id.is_not(None),
+                        ),
+                        True,
+                    ),
+                    else_=False,
+                ).label("is_valid_version"),  # check that non-null versions exist
                 models.DatasetExampleRevision,
             )
-            .select_from(latest_revision_ids_per_key)
+            .select_from(revision_ids)
             .join(
                 models.DatasetExampleRevision,
-                onclause=latest_revision_ids_per_key.c.revision_id
-                == models.DatasetExampleRevision.id,
+                onclause=revision_ids.c.revision_id == models.DatasetExampleRevision.id,
+            )
+            .join(
+                models.DatasetVersion,
+                onclause=revision_ids.c.version_id == models.DatasetVersion.id,
+                isouter=True,  # keep rows where the version id is null
             )
             .where(models.DatasetExampleRevision.revision_kind != "DELETE")
         )
         async with self._db() as session:
             results = {
                 (example_id, version_id): revision
-                async for example_id, version_id, revision in await session.stream(query)
+                async for (
+                    example_id,
+                    version_id,
+                    is_valid_version,
+                    revision,
+                ) in await session.stream(query)
+                if is_valid_version
             }
+        if len(results) < len(keys):
+            raise ValueError("Could not find revision.")
         return [DatasetExampleRevision.from_orm_revision(results[key]) for key in keys]
