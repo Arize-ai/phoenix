@@ -121,6 +121,31 @@ def upgrade() -> None:
             "dataset_version_id",
         ),
     )
+    op.create_table(
+        "experiments",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column(
+            "dataset_id",
+            sa.Integer,
+            sa.ForeignKey("datasets.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "dataset_version_id",
+            sa.Integer,
+            sa.ForeignKey("dataset_versions.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column("metadata", JSON_, nullable=False),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+    )
 
 
 def downgrade() -> None:
@@ -128,3 +153,4 @@ def downgrade() -> None:
     op.drop_table("dataset_versions")
     op.drop_table("dataset_examples")
     op.drop_table("dataset_example_revisions")
+    op.drop_table("experiments")
