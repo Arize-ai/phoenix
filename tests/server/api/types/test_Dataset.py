@@ -24,7 +24,7 @@ class TestDatasetExampleNodeInterface:
       }
     """
 
-    async def test_dataset_example_and_unspecified_version_returns_latest_revision(
+    async def test_unspecified_version_returns_latest_revision(
         self,
         test_client,
         dataset_with_patch_revision,
@@ -54,7 +54,7 @@ class TestDatasetExampleNodeInterface:
             },
         }
 
-    async def test_dataset_example_with_version_returns_latest_revision_up_to_specified_version(
+    async def test_returns_latest_revision_up_to_specified_version(
         self,
         test_client,
         dataset_with_patch_revision,
@@ -85,7 +85,7 @@ class TestDatasetExampleNodeInterface:
             },
         }
 
-    async def test_dataset_example_with_version_returns_latest_revision_up_to_version_with_hole(
+    async def test_returns_latest_revision_up_to_version_even_if_version_does_not_change_example(
         self,
         test_client,
         dataset_with_three_versions,
@@ -116,7 +116,7 @@ class TestDatasetExampleNodeInterface:
             },
         }
 
-    async def test_dataset_example_with_non_existent_version_returns_error(
+    async def test_non_existent_version_id_returns_error(
         self,
         test_client,
         dataset_with_patch_revision,
@@ -128,7 +128,7 @@ class TestDatasetExampleNodeInterface:
                 "query": self.QUERY,
                 "variables": {
                     "exampleId": example_id,
-                    "datasetVersionId": str(GlobalID("DatasetVersion", str(100))),
+                    "datasetVersionId": str(GlobalID("DatasetVersion", str(100))),  # doesn't exist
                 },
             },
         )
@@ -181,7 +181,7 @@ class TestDatasetExamplesResolver:
       }
     """  # noqa: E501
 
-    async def test_version_return_latest_revisions_when_no_version_is_specified(
+    async def test_returns_latest_revisions_when_no_version_is_specified(
         self,
         test_client,
         dataset_with_patch_revision,
@@ -233,7 +233,7 @@ class TestDatasetExamplesResolver:
         assert response_json.get("errors") is None
         assert response_json["data"] == {"node": {"examples": {"edges": []}}}
 
-    async def test_dataset_examples_return_latest_revisions_up_to_specified_version(
+    async def test_returns_latest_revisions_up_to_specified_version(
         self, test_client, dataset_with_patch_revision
     ) -> None:
         response = await test_client.post(
@@ -269,7 +269,7 @@ class TestDatasetExamplesResolver:
             }
         }
 
-    async def test_returns_latest_revisions_up_to_specified_version_even_if_example_is_not_edited_in_that_version(  # noqa: E501
+    async def test_returns_latest_revisions_up_to_version_even_if_version_does_not_change_example(
         self, test_client, dataset_with_three_versions
     ) -> None:
         response = await test_client.post(
@@ -278,7 +278,9 @@ class TestDatasetExamplesResolver:
                 "query": self.QUERY,
                 "variables": {
                     "datasetId": str(GlobalID("Dataset", str(1))),
-                    "datasetVersionId": str(GlobalID("DatasetVersion", str(2))),
+                    "datasetVersionId": str(
+                        GlobalID("DatasetVersion", str(2))
+                    ),  # example is not changed in this version
                 },
             },
         )
