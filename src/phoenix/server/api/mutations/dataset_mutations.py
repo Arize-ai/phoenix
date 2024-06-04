@@ -521,14 +521,17 @@ def _to_orm_revision(
     """
 
     db_rev = models.DatasetExampleRevision
+    input = patch.input if isinstance(patch.input, dict) else existing_revision.input
+    output = patch.output if isinstance(patch.output, dict) else existing_revision.output
+    metadata = patch.metadata if isinstance(patch.metadata, dict) else existing_revision.metadata_
     return {
         str(db_column.key): patch_value
         for db_column, patch_value in (
             (db_rev.dataset_example_id, example_id),
             (db_rev.dataset_version_id, version_id),
-            (db_rev.input, patch.input or existing_revision.input),
-            (db_rev.output, patch.output or existing_revision.output),
-            (db_rev.metadata_, patch.metadata or existing_revision.metadata_),
+            (db_rev.input, input),
+            (db_rev.output, output),
+            (db_rev.metadata_, metadata),
             (db_rev.revision_kind, "PATCH"),
         )
     }
