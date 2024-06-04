@@ -57,7 +57,7 @@ export function DatasetExamplePage() {
       isDismissable
       onDismiss={() => navigate(`/datasets/${datasetId}`)}
     >
-      <Dialog size="fullscreen" title={`Example: ${datasetId}`}>
+      <Dialog size="XL" title={`Example: ${datasetId}`}>
         <div
           css={css`
             overflow-y: auto;
