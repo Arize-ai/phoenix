@@ -1,11 +1,11 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict
 
 import strawberry
 from openinference.semconv.trace import (
     SpanAttributes,
 )
-from sqlalchemy import delete, insert, select
+from sqlalchemy import and_, delete, distinct, func, insert, select
 from strawberry import UNSET
 from strawberry.types import Info
 
@@ -20,7 +20,12 @@ from phoenix.server.api.input_types.AddSpansToDatasetInput import AddSpansToData
 from phoenix.server.api.input_types.CreateDatasetInput import CreateDatasetInput
 from phoenix.server.api.input_types.DeleteDatasetExamplesInput import DeleteDatasetExamplesInput
 from phoenix.server.api.input_types.DeleteDatasetInput import DeleteDatasetInput
+from phoenix.server.api.input_types.PatchDatasetExamplesInput import (
+    DatasetExamplePatch,
+    PatchDatasetExamplesInput,
+)
 from phoenix.server.api.types.Dataset import Dataset
+from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 
@@ -301,6 +306,102 @@ class DatasetMutationMixin:
         )
 
     @strawberry.mutation
+    async def patch_dataset_examples(
+        self,
+        info: Info[Context, None],
+        input: PatchDatasetExamplesInput,
+    ) -> DatasetMutationPayload:
+        if not (patches := sorted(input.patches, key=lambda patch: patch.example_id)):
+            raise ValueError("Must provide examples to patch.")
+        example_ids = [
+            from_global_id_with_expected_type(patch.example_id, DatasetExample.__name__)
+            for patch in patches
+        ]
+        if len(set(example_ids)) < len(example_ids):
+            raise ValueError("Cannot patch the same example more than once per mutation.")
+        if any(patch.is_empty() for patch in patches):
+            raise ValueError("Received one or more empty patches that contain no fields to update.")
+        version_description = input.version_description or None
+        version_metadata = input.version_metadata or {}
+        async with info.context.db() as session:
+            datasets = (
+                await session.scalars(
+                    select(models.Dataset)
+                    .where(
+                        models.Dataset.id.in_(
+                            select(distinct(models.DatasetExample.dataset_id))
+                            .where(models.DatasetExample.id.in_(example_ids))
+                            .scalar_subquery()
+                        )
+                    )
+                    .limit(2)
+                )
+            ).all()
+            if not datasets:
+                raise ValueError("No examples found.")
+            if len(set(ds.id for ds in datasets)) > 1:
+                raise ValueError("Examples must come from the same dataset.")
+            dataset = datasets[0]
+
+            revision_ids = (
+                select(func.max(models.DatasetExampleRevision.id))
+                .where(models.DatasetExampleRevision.dataset_example_id.in_(example_ids))
+                .group_by(models.DatasetExampleRevision.dataset_example_id)
+                .scalar_subquery()
+            )
+            revisions = (
+                await session.scalars(
+                    select(models.DatasetExampleRevision)
+                    .where(
+                        and_(
+                            models.DatasetExampleRevision.id.in_(revision_ids),
+                            models.DatasetExampleRevision.revision_kind != "DELETE",
+                        )
+                    )
+                    .order_by(
+                        models.DatasetExampleRevision.dataset_example_id
+                    )  # ensure the order of the revisions matches the order of the input patches
+                )
+            ).all()
+            if (num_missing_examples := len(example_ids) - len(revisions)) > 0:
+                raise ValueError(f"{num_missing_examples} example(s) could not be found.")
+
+            version_id = await session.scalar(
+                insert(models.DatasetVersion)
+                .returning(models.DatasetVersion.id)
+                .values(
+                    dataset_id=dataset.id,
+                    description=version_description,
+                    metadata_=version_metadata,
+                )
+            )
+            assert version_id is not None
+
+            await session.execute(
+                insert(models.DatasetExampleRevision),
+                [
+                    _to_orm_revision(
+                        existing_revision=revision,
+                        patch=patch,
+                        example_id=example_id,
+                        version_id=version_id,
+                    )
+                    for revision, patch, example_id in zip(revisions, patches, example_ids)
+                ],
+            )
+
+        return DatasetMutationPayload(
+            dataset=Dataset(
+                id_attr=dataset.id,
+                name=dataset.name,
+                description=dataset.description,
+                metadata=dataset.metadata_,
+                created_at=dataset.created_at,
+                updated_at=dataset.updated_at,
+            )
+        )
+
+    @strawberry.mutation
     async def delete_dataset_examples(
         self, info: Info[Context, None], input: DeleteDatasetExamplesInput
     ) -> DatasetMutationPayload:
@@ -404,6 +505,36 @@ def _span_attribute(semconv: str) -> Any:
     for key in semconv.split("."):
         attribute_value = attribute_value[key]
     return attribute_value.label(semconv.replace(".", "_"))
+
+
+def _to_orm_revision(
+    *,
+    existing_revision: models.DatasetExampleRevision,
+    patch: DatasetExamplePatch,
+    example_id: int,
+    version_id: int,
+) -> Dict[str, Any]:
+    """
+    Creates a new revision from an existing revision and a patch. The output is a
+    dictionary suitable for insertion into the database using the sqlalchemy
+    bulk insertion API.
+    """
+
+    db_rev = models.DatasetExampleRevision
+    input = patch.input if isinstance(patch.input, dict) else existing_revision.input
+    output = patch.output if isinstance(patch.output, dict) else existing_revision.output
+    metadata = patch.metadata if isinstance(patch.metadata, dict) else existing_revision.metadata_
+    return {
+        str(db_column.key): patch_value
+        for db_column, patch_value in (
+            (db_rev.dataset_example_id, example_id),
+            (db_rev.dataset_version_id, version_id),
+            (db_rev.input, input),
+            (db_rev.output, output),
+            (db_rev.metadata_, metadata),
+            (db_rev.revision_kind, "PATCH"),
+        )
+    }
 
 
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
