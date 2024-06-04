@@ -505,3 +505,23 @@ class Experiment(Base):
     )
     metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+
+class ExperimentRun(Base):
+    __tablename__ = "experiment_runs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    experiment_id: Mapped[int] = mapped_column(
+        ForeignKey("experiments.id", ondelete="CASCADE"),
+        index=True,
+    )
+    dataset_example_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_examples.id", ondelete="CASCADE"),
+        index=True,
+    )
+    output: Mapped[Dict[str, Any]]
+    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
+    end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
+    prompt_token_count: Mapped[Optional[int]]
+    completion_token_count: Mapped[Optional[int]]
+    error: Mapped[Optional[str]]
+    trace_rowid: Mapped[Optional[int]]

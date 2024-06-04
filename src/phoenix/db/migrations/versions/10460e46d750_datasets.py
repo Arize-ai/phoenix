@@ -146,6 +146,47 @@ def upgrade() -> None:
             server_default=sa.func.now(),
         ),
     )
+    op.create_table(
+        "experiment_runs",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column(
+            "experiment_id",
+            sa.Integer,
+            sa.ForeignKey("experiments.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "dataset_example_id",
+            sa.Integer,
+            sa.ForeignKey("dataset_examples.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column("output", JSON_, nullable=False),
+        sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=False),
+        sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=False),
+        sa.Column(
+            "prompt_token_count",
+            sa.Integer,
+            nullable=True,
+        ),
+        sa.Column(
+            "completion_token_count",
+            sa.Integer,
+            nullable=True,
+        ),
+        sa.Column(
+            "error",
+            sa.String,
+            nullable=True,
+        ),
+        sa.Column(
+            "trace_rowid",
+            sa.Integer,
+            nullable=True,
+        ),
+    )
 
 
 def downgrade() -> None:
@@ -154,3 +195,4 @@ def downgrade() -> None:
     op.drop_table("dataset_examples")
     op.drop_table("dataset_example_revisions")
     op.drop_table("experiments")
+    op.drop_table("experiment_runs")
