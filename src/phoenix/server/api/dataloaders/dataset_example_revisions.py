@@ -26,9 +26,7 @@ class DatasetExampleRevisionsDataLoader(DataLoader[Key, Result]):
         self._db = db
 
     async def _load_fn(self, keys: List[Key]) -> List[Result]:
-        # sqlalchemy does not currently support CTEs defined using VALUES for
-        # SQLite, so use UNION ALL instead.
-        #
+        # sqlalchemy has limited SQLite support for VALUES, so use UNION ALL instead.
         # For details, see https://github.com/sqlalchemy/sqlalchemy/issues/7228
         keys_subquery = union_all(
             *(
