@@ -189,7 +189,7 @@ class AsyncExecutor(Executor):
                 else:
                     tqdm.write("Worker timeout, requeuing")
                     # task timeouts are requeued at the same priority
-                    await queue.put((self.priority, item))
+                    await queue.put((priority, item))
                     execution_details[index].log_runtime(task_start_time)
             except Exception as exc:
                 execution_details[index].log_exception(exc)
