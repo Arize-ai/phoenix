@@ -5,7 +5,7 @@ import strawberry
 from openinference.semconv.trace import (
     SpanAttributes,
 )
-from sqlalchemy import and_, case, delete, func, insert, select
+from sqlalchemy import and_, case, delete, distinct, func, insert, select
 from strawberry import UNSET
 from strawberry.types import Info
 
@@ -327,13 +327,14 @@ class DatasetMutationMixin:
             datasets = (
                 await session.scalars(
                     select(models.Dataset)
-                    .join(
-                        models.DatasetExample,
-                        onclause=models.Dataset.id == models.DatasetExample.dataset_id,
-                    )
                     .where(
-                        models.DatasetExample.id.in_(example_ids),
+                        models.Dataset.id.in_(
+                            select(distinct(models.DatasetExample.dataset_id))
+                            .where(models.DatasetExample.id.in_(example_ids))
+                            .scalar_subquery()
+                        )
                     )
+                    .limit(2)
                 )
             ).all()
             if not datasets:
