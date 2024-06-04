@@ -7,7 +7,7 @@ from typing import (
     Union,
 )
 
-from sqlalchemy import Integer, case, func, literal, or_, select, union_all
+from sqlalchemy import Integer, case, func, literal, or_, select, union
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
@@ -29,7 +29,7 @@ class DatasetExampleRevisionsDataLoader(DataLoader[Key, Result]):
     async def _load_fn(self, keys: List[Key]) -> List[Union[Result, ValueError]]:
         # sqlalchemy has limited SQLite support for VALUES, so use UNION ALL instead.
         # For details, see https://github.com/sqlalchemy/sqlalchemy/issues/7228
-        keys_subquery = union_all(
+        keys_subquery = union(
             *(
                 select(
                     literal(example_id, Integer).label("example_id"),
