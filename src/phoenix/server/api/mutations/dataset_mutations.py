@@ -5,7 +5,7 @@ import strawberry
 from openinference.semconv.trace import (
     SpanAttributes,
 )
-from sqlalchemy import and_, case, delete, distinct, func, insert, select
+from sqlalchemy import and_, delete, distinct, func, insert, select
 from strawberry import UNSET
 from strawberry.types import Info
 
@@ -311,7 +311,7 @@ class DatasetMutationMixin:
         info: Info[Context, None],
         input: PatchDatasetExamplesInput,
     ) -> DatasetMutationPayload:
-        if not (patches := input.patches):
+        if not (patches := sorted(input.patches, key=lambda patch: patch.example_id)):
             raise ValueError("Must provide examples to patch.")
         example_ids = [
             from_global_id_with_expected_type(patch.example_id, DatasetExample.__name__)
@@ -359,16 +359,7 @@ class DatasetMutationMixin:
                         )
                     )
                     .order_by(
-                        case(
-                            *(
-                                (
-                                    models.DatasetExampleRevision.dataset_example_id == example_id,
-                                    index,
-                                )
-                                for index, example_id in enumerate(example_ids)
-                            ),
-                            else_=None,
-                        )
+                        models.DatasetExampleRevision.dataset_example_id
                     )  # ensure the order of the revisions matches the order of the input patches
                 )
             ).all()
