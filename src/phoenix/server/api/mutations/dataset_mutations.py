@@ -316,11 +316,12 @@ class DatasetMutationMixin:
         by_numeric_id = [
             (
                 from_global_id_with_expected_type(patch.example_id, DatasetExample.__name__),
+                index,
                 patch,
             )
-            for patch in patches
+            for index, patch in enumerate(patches)
         ]
-        example_ids, patches = map(list, zip(*sorted(by_numeric_id)))
+        example_ids, _, patches = map(list, zip(*sorted(by_numeric_id)))
         if len(set(example_ids)) < len(example_ids):
             raise ValueError("Cannot patch the same example more than once per mutation.")
         if any(patch.is_empty() for patch in patches):
