@@ -517,7 +517,7 @@ query ($projectId: GlobalID!, $after: String = null, $before: String = null, $fi
     )
     assert response.status_code == 200
     response_json = response.json()
-    assert (errors := response_json.get("errors")) is None, errors
+    assert response_json.get("errors") is None
     spans = response_json["data"]["node"]["spans"]
     page_info = spans["pageInfo"]
     assert Cursor.from_string(page_info["startCursor"]) == start_cursor

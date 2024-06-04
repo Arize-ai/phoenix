@@ -12,7 +12,7 @@ from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
 from phoenix.server.api.types.DatasetExample import DatasetExample
-from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision, RevisionKind
+from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -20,8 +20,6 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.SortDir import SortDir
-
-from .DatasetVersion import DatasetVersion
 
 
 @strawberry.type
@@ -88,47 +86,41 @@ class Dataset(Node):
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        latest_revisions = (
-            select(
-                models.DatasetExampleRevision.dataset_example_id,
-                func.max(models.DatasetExampleRevision.dataset_version_id).label(
-                    "dataset_version_id"
-                ),
+        dataset_id = self.id_attr
+        version_id = (
+            from_global_id_with_expected_type(
+                global_id=dataset_version_id, expected_type_name=DatasetVersion.__name__
             )
+            if dataset_version_id
+            else None
+        )
+        revision_ids = (
+            select(func.max(models.DatasetExampleRevision.id))
             .join(models.DatasetExample)
-            .where(models.DatasetExample.dataset_id == self.id_attr)
+            .where(models.DatasetExample.dataset_id == dataset_id)
             .group_by(models.DatasetExampleRevision.dataset_example_id)
         )
-        if dataset_version_id:
-            dataset_version_rowid = from_global_id_with_expected_type(
-                global_id=dataset_version_id, expected_type_name="DatasetVersion"
+        if version_id:
+            version_id_subquery = (
+                select(models.DatasetVersion.id)
+                .where(models.DatasetVersion.id == version_id)
+                .scalar_subquery()
             )
-            latest_revisions = latest_revisions.where(
-                models.DatasetExampleRevision.dataset_version_id <= dataset_version_rowid
+            revision_ids = revision_ids.where(
+                models.DatasetExampleRevision.dataset_version_id <= version_id_subquery
             )
-        latest_revisions_cte = latest_revisions.cte("latest_revisions")
         query = (
-            select(models.DatasetExample, models.DatasetExampleRevision)
+            select(models.DatasetExample)
             .join(
-                latest_revisions_cte,
-                onclause=and_(
-                    (
-                        models.DatasetExampleRevision.dataset_example_id
-                        == latest_revisions_cte.c.dataset_example_id
-                    ),
-                    (
-                        models.DatasetExampleRevision.dataset_version_id
-                        == latest_revisions_cte.c.dataset_version_id
-                    ),
-                ),
-            )
-            .join(
-                models.DatasetExample,
+                models.DatasetExampleRevision,
                 onclause=models.DatasetExample.id
                 == models.DatasetExampleRevision.dataset_example_id,
             )
             .where(
-                models.DatasetExampleRevision.revision_kind != "DELETE",
+                and_(
+                    models.DatasetExampleRevision.id.in_(revision_ids),
+                    models.DatasetExampleRevision.revision_kind != "DELETE",
+                )
             )
             .order_by(models.DatasetExampleRevision.dataset_example_id)
         )
@@ -136,15 +128,9 @@ class Dataset(Node):
             dataset_examples = [
                 DatasetExample(
                     id_attr=example.id,
+                    version_id=version_id,
                     created_at=example.created_at,
-                    revision=DatasetExampleRevision(
-                        input=revision.input,
-                        output=revision.output,
-                        metadata=revision.metadata_,
-                        revision_kind=RevisionKind(revision.revision_kind),
-                        created_at=revision.created_at,
-                    ),
                 )
-                async for example, revision in await session.stream(query)
+                async for example in await session.stream_scalars(query)
             ]
         return connection_from_list(data=dataset_examples, args=args)
