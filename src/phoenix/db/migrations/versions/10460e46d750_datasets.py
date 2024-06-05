@@ -138,6 +138,11 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
+        sa.Column(
+            "description",
+            sa.String,
+            nullable=True,
+        ),
         sa.Column("metadata", JSON_, nullable=False),
         sa.Column(
             "created_at",
