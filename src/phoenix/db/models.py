@@ -490,3 +490,61 @@ class DatasetExampleRevision(Base):
             "dataset_version_id",
         ),
     )
+
+
+class Experiment(Base):
+    __tablename__ = "experiments"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    dataset_id: Mapped[int] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"),
+        index=True,
+    )
+    dataset_version_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_versions.id", ondelete="CASCADE"),
+        index=True,
+    )
+    metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+
+class ExperimentRun(Base):
+    __tablename__ = "experiment_runs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    experiment_id: Mapped[int] = mapped_column(
+        ForeignKey("experiments.id", ondelete="CASCADE"),
+        index=True,
+    )
+    dataset_example_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_examples.id", ondelete="CASCADE"),
+        index=True,
+    )
+    trace_rowid: Mapped[int] = mapped_column(
+        ForeignKey("traces.id"),
+        index=True,
+    )
+    output: Mapped[Dict[str, Any]]
+    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
+    end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
+    prompt_token_count: Mapped[Optional[int]]
+    completion_token_count: Mapped[Optional[int]]
+    error: Mapped[Optional[str]]
+
+
+class ExperimentEvaluation(Base):
+    __tablename__ = "experiment_evaluations"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    experiment_run_id: Mapped[int] = mapped_column(
+        ForeignKey("experiment_runs.id", ondelete="CASCADE"),
+        index=True,
+    )
+    name: Mapped[str]
+    label: Mapped[Optional[str]]
+    score: Mapped[Optional[float]]
+    explanation: Mapped[Optional[str]]
+    error: Mapped[Optional[str]]
+    metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
+    end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
