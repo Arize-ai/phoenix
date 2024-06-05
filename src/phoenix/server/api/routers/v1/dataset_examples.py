@@ -8,8 +8,49 @@ from phoenix.db.models import Dataset, DatasetExample, DatasetExampleRevision, D
 
 
 async def list_dataset_examples(request: Request) -> Response:
+    """
+    summary: Get dataset examples by dataset ID
+    operationId: getDatasetExamples
+    tags:
+      - datasets
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        description: Dataset ID
+      - in: query
+        name: version-id
+        schema:
+          type: string
+        description: Dataset version ID. If omitted, returns the latest version.
+    responses:
+      200:
+        description: Success
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      example_id:
+                        type: string
+                      input:
+                        type: object
+                      output:
+                        type: object
+                      metadata:
+                        type: object
+      404:
+        description: Dataset does not exist.
+    """
     dataset_id = GlobalID.from_id(request.path_params["id"])
-    raw_version_id = request.query_params.get("version")
+    raw_version_id = request.query_params.get("version-id")
     version_id = GlobalID.from_id(raw_version_id) if raw_version_id else None
 
     if (dataset_type := dataset_id.type_name) != "Dataset":
