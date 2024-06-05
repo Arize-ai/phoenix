@@ -19,7 +19,7 @@ async def test_get_dataset_examples_404s_with_nonexistent_version_id(test_client
     global_id = GlobalID("Dataset", str(0))
     version_id = GlobalID("DatasetVersion", str(99))
     response = await test_client.get(
-        f"/v1/datasets/{global_id}/examples", params={"version": str(version_id)}
+        f"/v1/datasets/{global_id}/examples", params={"version-id": str(version_id)}
     )
     assert response.status_code == 404
     assert response.content.decode() == f"No dataset version with id {version_id} can be found."
@@ -31,7 +31,7 @@ async def test_get_dataset_examples_404s_with_invalid_version_global_id(
     global_id = GlobalID("Dataset", str(0))
     version_id = GlobalID("InvalidDatasetVersion", str(0))
     response = await test_client.get(
-        f"/v1/datasets/{global_id}/examples", params={"version": str(version_id)}
+        f"/v1/datasets/{global_id}/examples", params={"version-id": str(version_id)}
     )
     assert response.status_code == 404
     assert "refers to a InvalidDatasetVersion" in response.content.decode()
@@ -63,7 +63,7 @@ async def test_list_simple_dataset_examples_at_each_version(test_client, simple_
 
     # one example is created in version 0
     response = await test_client.get(
-        f"/v1/datasets/{global_id}/examples", params={"version": str(v0)}
+        f"/v1/datasets/{global_id}/examples", params={"version-id": str(v0)}
     )
     assert response.status_code == 200
     result = response.json()
@@ -86,7 +86,7 @@ async def test_list_empty_dataset_examples_at_each_version(test_client, empty_da
 
     # two examples are created in version 1
     response = await test_client.get(
-        f"/v1/datasets/{global_id}/examples", params={"version": str(v1)}
+        f"/v1/datasets/{global_id}/examples", params={"version-id": str(v1)}
     )
     assert response.status_code == 200
     result = response.json()
@@ -94,7 +94,7 @@ async def test_list_empty_dataset_examples_at_each_version(test_client, empty_da
 
     # two examples are patched in version 2
     response = await test_client.get(
-        f"/v1/datasets/{global_id}/examples", params={"version": str(v2)}
+        f"/v1/datasets/{global_id}/examples", params={"version-id": str(v2)}
     )
     assert response.status_code == 200
     result = response.json()
@@ -102,7 +102,7 @@ async def test_list_empty_dataset_examples_at_each_version(test_client, empty_da
 
     # two examples are deleted in version 3
     response = await test_client.get(
-        f"/v1/datasets/{global_id}/examples", params={"version": str(v3)}
+        f"/v1/datasets/{global_id}/examples", params={"version-id": str(v3)}
     )
     assert response.status_code == 200
     result = response.json()
@@ -154,7 +154,7 @@ async def test_list_dataset_with_revisions_examples_at_each_version(
 
     # two examples are created in version 4
     response = await test_client.get(
-        f"/v1/datasets/{global_id}/examples", params={"version": str(v4)}
+        f"/v1/datasets/{global_id}/examples", params={"version-id": str(v4)}
     )
     assert response.status_code == 200
     result = response.json()
@@ -162,7 +162,7 @@ async def test_list_dataset_with_revisions_examples_at_each_version(
 
     # two examples are patched in version 5
     response = await test_client.get(
-        f"/v1/datasets/{global_id}/examples", params={"version": str(v5)}
+        f"/v1/datasets/{global_id}/examples", params={"version-id": str(v5)}
     )
     assert response.status_code == 200
     result = response.json()
@@ -170,7 +170,7 @@ async def test_list_dataset_with_revisions_examples_at_each_version(
 
     # one example is added in version 6
     response = await test_client.get(
-        f"/v1/datasets/{global_id}/examples", params={"version": str(v6)}
+        f"/v1/datasets/{global_id}/examples", params={"version-id": str(v6)}
     )
     assert response.status_code == 200
     result = response.json()
@@ -178,7 +178,7 @@ async def test_list_dataset_with_revisions_examples_at_each_version(
 
     # one example is deleted in version 7
     response = await test_client.get(
-        f"/v1/datasets/{global_id}/examples", params={"version": str(v7)}
+        f"/v1/datasets/{global_id}/examples", params={"version-id": str(v7)}
     )
     assert response.status_code == 200
     result = response.json()
@@ -186,7 +186,7 @@ async def test_list_dataset_with_revisions_examples_at_each_version(
 
     # one example is added in version 8
     response = await test_client.get(
-        f"/v1/datasets/{global_id}/examples", params={"version": str(v8)}
+        f"/v1/datasets/{global_id}/examples", params={"version-id": str(v8)}
     )
     assert response.status_code == 200
     result = response.json()
@@ -194,7 +194,7 @@ async def test_list_dataset_with_revisions_examples_at_each_version(
 
     # one example is deleted in version 9
     response = await test_client.get(
-        f"/v1/datasets/{global_id}/examples", params={"version": str(v9)}
+        f"/v1/datasets/{global_id}/examples", params={"version-id": str(v9)}
     )
     assert response.status_code == 200
     result = response.json()
