@@ -505,6 +505,9 @@ class Experiment(Base):
     )
     metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
 
 
 class ExperimentRun(Base):
