@@ -121,10 +121,127 @@ def upgrade() -> None:
             "dataset_version_id",
         ),
     )
+    op.create_table(
+        "experiments",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column(
+            "dataset_id",
+            sa.Integer,
+            sa.ForeignKey("datasets.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "dataset_version_id",
+            sa.Integer,
+            sa.ForeignKey("dataset_versions.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column("metadata", JSON_, nullable=False),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
+        ),
+    )
+    op.create_table(
+        "experiment_runs",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column(
+            "experiment_id",
+            sa.Integer,
+            sa.ForeignKey("experiments.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "dataset_example_id",
+            sa.Integer,
+            sa.ForeignKey("dataset_examples.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "trace_rowid",
+            sa.Integer,
+            sa.ForeignKey("traces.id"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column("output", JSON_, nullable=False),
+        sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=False),
+        sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=False),
+        sa.Column(
+            "prompt_token_count",
+            sa.Integer,
+            nullable=True,
+        ),
+        sa.Column(
+            "completion_token_count",
+            sa.Integer,
+            nullable=True,
+        ),
+        sa.Column(
+            "error",
+            sa.String,
+            nullable=True,
+        ),
+    )
+    op.create_table(
+        "experiment_evaluations",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column(
+            "experiment_run_id",
+            sa.Integer,
+            sa.ForeignKey("experiment_runs.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "name",
+            sa.String,
+            nullable=False,
+        ),
+        sa.Column(
+            "label",
+            sa.String,
+            nullable=True,
+        ),
+        sa.Column(
+            "score",
+            sa.Float,
+            nullable=True,
+        ),
+        sa.Column(
+            "explanation",
+            sa.String,
+            nullable=True,
+        ),
+        sa.Column(
+            "error",
+            sa.String,
+            nullable=True,
+        ),
+        sa.Column("metadata", JSON_, nullable=False),
+        sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=False),
+        sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=False),
+    )
 
 
 def downgrade() -> None:
-    op.drop_table("datasets")
-    op.drop_table("dataset_versions")
-    op.drop_table("dataset_examples")
+    op.drop_table("experiment_evaluations")
+    op.drop_table("experiment_runs")
+    op.drop_table("experiments")
     op.drop_table("dataset_example_revisions")
+    op.drop_table("dataset_examples")
+    op.drop_table("dataset_versions")
+    op.drop_table("datasets")
