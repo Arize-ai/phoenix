@@ -530,7 +530,7 @@ class ExperimentRun(Base):
     error: Mapped[Optional[str]]
 
 
-class ExperimentEvaluations(Base):
+class ExperimentEvaluation(Base):
     __tablename__ = "experiment_evaluations"
     id: Mapped[int] = mapped_column(primary_key=True)
     experiment_run_id: Mapped[int] = mapped_column(
