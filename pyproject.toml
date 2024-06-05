@@ -91,9 +91,7 @@ experimental = [
   "tenacity",
 ]
 llama-index = [
-  "llama-index==0.10.3",  # always pin to a version that keeps our notebooks working
-  "llama-index-callbacks-arize-phoenix>=0.1.2",
-  "openinference-instrumentation-llama-index>=1.2.0",
+  "llama-index==0.10.43",  # always pin to a version that keeps our notebooks working
 ]
 pg = [
   "asyncpg",
