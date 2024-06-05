@@ -238,10 +238,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("datasets")
-    op.drop_table("dataset_versions")
-    op.drop_table("dataset_examples")
-    op.drop_table("dataset_example_revisions")
-    op.drop_table("experiments")
-    op.drop_table("experiment_runs")
     op.drop_table("experiment_evaluations")
+    op.drop_table("experiment_runs")
+    op.drop_table("experiments")
+    op.drop_table("dataset_example_revisions")
+    op.drop_table("dataset_examples")
+    op.drop_table("dataset_versions")
+    op.drop_table("datasets")
