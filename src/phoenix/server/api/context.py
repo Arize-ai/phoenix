@@ -13,6 +13,7 @@ from phoenix.core.model_schema import Model
 from phoenix.server.api.dataloaders import (
     CacheForDataLoaders,
     DatasetExampleRevisionsDataLoader,
+    DatasetExampleSpansDataLoader,
     DocumentEvaluationsDataLoader,
     DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
@@ -30,6 +31,7 @@ from phoenix.server.api.dataloaders import (
 @dataclass
 class DataLoaders:
     dataset_example_revisions: DatasetExampleRevisionsDataLoader
+    dataset_example_spans: DatasetExampleSpansDataLoader
     document_evaluation_summaries: DocumentEvaluationSummaryDataLoader
     document_evaluations: DocumentEvaluationsDataLoader
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader

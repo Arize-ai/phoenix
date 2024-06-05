@@ -42,4 +42,4 @@ class DatasetExample(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[Span]:
-        raise NotImplementedError("DatasetExample span resolver not implemented")
+        return await info.context.data_loaders.dataset_example_spans.load(self.id_attr)
