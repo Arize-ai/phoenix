@@ -163,6 +163,13 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
+        sa.Column(
+            "trace_rowid",
+            sa.Integer,
+            sa.ForeignKey("traces.id"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("output", JSON_, nullable=False),
         sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=False),
@@ -179,11 +186,6 @@ def upgrade() -> None:
         sa.Column(
             "error",
             sa.String,
-            nullable=True,
-        ),
-        sa.Column(
-            "trace_rowid",
-            sa.Integer,
             nullable=True,
         ),
     )
