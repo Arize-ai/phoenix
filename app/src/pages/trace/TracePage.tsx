@@ -1057,7 +1057,10 @@ function EmbeddingSpanInfo(props: {
 }
 
 function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
-  const { spanAttributes } = props;
+  const { span, spanAttributes } = props;
+  const { input, output } = span;
+  const inputIsText = input?.mimeType === "text";
+  const outputIsText = output?.mimeType === "text";
   const toolAttributes = useMemo<AttributeTool>(
     () => spanAttributes[SemanticAttributePrefixes.tool] || {},
     [spanAttributes]
@@ -1071,6 +1074,40 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
   const toolParameters = toolAttributes[ToolAttributePostfixes.parameters];
   return (
     <Flex direction="column" gap="size-200">
+      {input && input.value != null ? (
+        <MarkdownDisplayProvider>
+          <Card
+            title="Input"
+            {...defaultCardProps}
+            extra={
+              <Flex direction="row" gap="size-100">
+                {inputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
+                <CopyToClipboardButton text={input.value} />
+              </Flex>
+            }
+          >
+            <CodeBlock {...input} />
+          </Card>
+        </MarkdownDisplayProvider>
+      ) : null}
+      {output && output.value != null ? (
+        <MarkdownDisplayProvider>
+          <Card
+            title="Output"
+            {...defaultCardProps}
+            backgroundColor="green-100"
+            borderColor="green-700"
+            extra={
+              <Flex direction="row" gap="size-100">
+                {outputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
+                <CopyToClipboardButton text={output.value} />
+              </Flex>
+            }
+          >
+            <CodeBlock {...output} />
+          </Card>
+        </MarkdownDisplayProvider>
+      ) : null}
       <Card
         title={"Tool" + (typeof toolName === "string" ? `: ${toolName}` : "")}
         {...defaultCardProps}
