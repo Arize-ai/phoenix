@@ -25,7 +25,6 @@ from llama_index.core import (
     VectorStoreIndex,
     load_index_from_storage,
 )
-from llama_index.core.callbacks import CallbackManager, LlamaDebugHandler
 from llama_index.core.indices.query.query_transform import HyDEQueryTransform
 from llama_index.core.indices.query.query_transform.base import StepDecomposeQueryTransform
 from llama_index.core.node_parser import SimpleNodeParser
@@ -204,11 +203,8 @@ def plot_graphs(all_data: Dict, save_dir: str = "./", show: bool = True, remove_
 def get_transformation_query_engine(index, name, k, llama_index_model):
     if name == "original":
         # query cosine similarity to nodes engine
-        llama_debug = LlamaDebugHandler(print_trace_on_end=True)
-        callback_manager = CallbackManager([llama_debug])
         service_context = ServiceContext.from_defaults(
             llm=OpenAI(temperature=float(0.6), model=llama_index_model),
-            callback_manager=callback_manager,
         )
         query_engine = index.as_query_engine(
             similarity_top_k=k,
@@ -243,11 +239,8 @@ def get_transformation_query_engine(index, name, k, llama_index_model):
     elif name == "hyde_rerank":
         cohere_rerank = CohereRerank(api_key=cohere.api_key, top_n=k)
 
-        llama_debug = LlamaDebugHandler(print_trace_on_end=True)
-        callback_manager = CallbackManager([llama_debug])
         service_context = ServiceContext.from_defaults(
             llm=OpenAI(temperature=0.6, model=llama_index_model),
-            callback_manager=callback_manager,
         )
         query_engine = index.as_query_engine(
             similarity_top_k=k * 2,
