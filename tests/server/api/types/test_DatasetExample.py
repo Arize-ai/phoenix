@@ -75,7 +75,6 @@ async def test_dataset_example_span_resolver(
             "query": query,
             "variables": {
                 "exampleId": example_id,
-                "datasetVersionId": str(GlobalID("DatasetVersion", str(2))),
             },
         },
     )
