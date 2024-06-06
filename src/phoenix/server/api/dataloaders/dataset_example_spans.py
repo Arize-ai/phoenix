@@ -7,7 +7,7 @@ from typing import (
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, load_only
+from sqlalchemy.orm import joinedload
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
@@ -28,13 +28,17 @@ class DatasetExampleSpansDataLoader(DataLoader[Key, Result]):
         example_ids = keys
         async with self._db() as session:
             spans = {
-                example.id: span if (span := example.span) else None
-                async for example in await session.stream_scalars(
-                    select(models.DatasetExample)
-                    .options(
-                        load_only(models.DatasetExample.id), joinedload(models.DatasetExample.span)
-                    )
+                example_id: span
+                async for example_id, span in await session.stream(
+                    select(models.DatasetExample.id, models.Span)
+                    .select_from(models.DatasetExample)
+                    .join(models.Span, models.DatasetExample.span_rowid == models.Span.id)
                     .where(models.DatasetExample.id.in_(example_ids))
+                    .options(
+                        joinedload(models.Span.trace, innerjoin=True).load_only(
+                            models.Trace.trace_id
+                        )
+                    )
                 )
             }
         return [
