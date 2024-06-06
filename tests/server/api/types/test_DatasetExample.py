@@ -13,6 +13,10 @@ from strawberry.relay import GlobalID
         pytest.param(
             str(GlobalID("DatasetExample", str(1))),
             {
+                "context": {
+                    "spanId": "c0055a08295841ab946f2a16e5089fad",
+                    "traceId": "0f5bb2e69a0640de87b9d424622b9f13",
+                },
                 "name": "query",
                 "spanKind": "chain",
                 "startTime": "2023-12-11T17:43:23.306838+00:00",
@@ -38,28 +42,32 @@ async def test_dataset_example_span_resolver(
     example_id, expected_span, test_client, dataset_with_span_and_nonspan_examples
 ):
     query = """
-        query ($exampleId: GlobalID!) {
+      query ($exampleId: GlobalID!) {
         example: node(id: $exampleId) {
-            ... on DatasetExample {
+          ... on DatasetExample {
             id
             span {
+              context {
+                spanId
+                traceId
+              }
+              name
+              spanKind
+              startTime
+              endTime
+              attributes
+              events {
                 name
-                spanKind
-                startTime
-                endTime
-                attributes
-                events {
-                name
-                }
-                statusCode
-                statusMessage
-                cumulativeTokenCountPrompt
-                cumulativeTokenCountCompletion
-                cumulativeTokenCountTotal
+              }
+              statusCode
+              statusMessage
+              cumulativeTokenCountPrompt
+              cumulativeTokenCountCompletion
+              cumulativeTokenCountTotal
             }
-            }
+          }
         }
-        }
+      }
     """
     response = await test_client.post(
         "/graphql",
