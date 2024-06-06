@@ -1,3 +1,4 @@
+from sqlalchemy import select
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
@@ -5,14 +6,22 @@ from phoenix.db import models
 
 
 async def create_experiment(request: Request) -> Response:
-    dataset_id = request.path_params.get("dataset-id")
+    dataset_id = int(request.path_params.get("dataset_id"))
     payload = await request.json()
-    dataset_version_id = payload.get("version_id")
+    dataset_version_id = payload.get("version-id")
     metadata = payload.get("metadata", {})
     async with request.app.state.db() as session:
+        if dataset_version_id is None:
+            dataset_version = await session.execute(
+                select(models.DatasetVersion)
+                .where(models.DatasetVersion.dataset_id == dataset_id)
+                .order_by(models.DatasetVersion.id.desc())
+            )
+            dataset_version = dataset_version.scalar()
+            dataset_version_id = dataset_version.id
         experiment = models.Experiment(
             dataset_id=dataset_id,
-            dataset_version_id=dataset_version_id,
+            dataset_version_id=int(dataset_version_id),
             metadata_=metadata,
             status="IN PROGRESS",
         )

@@ -24,10 +24,10 @@ def _phoenix_client():
 
 def run_experiment(dataset_id, callable):
     sync_client, async_client = _phoenix_client()
-    datasets_response = sync_client.get(f"v1/datasets/{dataset_id}/examples")
+    datasets_response = sync_client.get(f"/v1/datasets/{dataset_id}/examples")
     dataset = datasets_response.json()
 
-    experiment_response = sync_client.post(f"v1/datasets/{dataset_id}/experiments")
+    experiment_response = sync_client.post(f"/v1/datasets/{dataset_id}/experiments")
     experiment_id = experiment_response.json()["id"]
 
     rate_limiter = RateLimiter(rate_limit_error=PhoenixRateLimitError)
@@ -92,7 +92,7 @@ def run_experiment(dataset_id, callable):
     )
 
     results, execution_details = executor.run(dataset)
-    sync_client.post(f"v1/datasets/{dataset_id}/experiments/{experiment_id}/complete")
+    sync_client.post(f"/v1/datasets/{dataset_id}/experiments/{experiment_id}/complete")
     return dataset_id, experiment_id
 
 
@@ -103,7 +103,7 @@ def experiment_evals(dataset_id, experiment_id, experiment_evaluator):
 
     sync_client, async_client = _phoenix_client()
 
-    dataset = sync_client.get(f"v1/datasets/{dataset_id}").json()
+    dataset = sync_client.get(f"/v1/datasets/{dataset_id}").json()
     experiment_data = sync_client.get(
         "/v1/datasets/{dataset_id:str}/experiments/{experiment_id:str}/runs"
     ).json()
