@@ -141,7 +141,7 @@ async def dataset_with_span_and_nonspan_examples(session):
         insert(models.DatasetExample)
         .values(
             dataset_id=dataset_id,
-            span_rowid=span_rowid,
+            span_rowid=span_rowid,  # this example comes from a span
         )
         .returning(models.DatasetExample.id)
     )
@@ -165,9 +165,9 @@ async def dataset_with_span_and_nonspan_examples(session):
         insert(models.DatasetExampleRevision).values(
             dataset_example_id=example_1_id,
             dataset_version_id=version_id,
-            input={"input": "example-1-revision-1-input"},
-            output={"output": "example-1-revision-1-output"},
-            metadata_={"metadata": "example-1-revision-1-metadata"},
+            input={"input": "example-1-version-1-input"},
+            output={"output": "example-1-version-1-output"},
+            metadata_={"metadata": "example-1-version-1-metadata"},
             revision_kind="CREATE",
         )
     )
@@ -175,9 +175,9 @@ async def dataset_with_span_and_nonspan_examples(session):
         insert(models.DatasetExampleRevision).values(
             dataset_example_id=example_2_id,
             dataset_version_id=version_id,
-            input={"input": "example-2-revision-1-input"},
-            output={"output": "example-2-revision-1-output"},
-            metadata_={"metadata": "example-2-revision-1-metadata"},
+            input={"input": "example-2-version-1-input"},
+            output={"output": "example-2-version-1-output"},
+            metadata_={"metadata": "example-2-version-1-metadata"},
             revision_kind="CREATE",
         )
     )
