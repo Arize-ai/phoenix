@@ -50,7 +50,7 @@ function NotFoundContent() {
         <h1>Server disconnected</h1>
       </Flex>
       <p>
-        We are unable to reach the phoenix server. Please ensure that phoenix is
+        We are unable to reach the Phoenix server. Please ensure that Phoenix is
         running and try again.
       </p>
     </>
