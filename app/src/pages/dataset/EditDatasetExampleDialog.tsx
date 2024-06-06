@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
+import { graphql, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
 import {
@@ -10,15 +10,27 @@ import {
   CardProps,
   Dialog,
   Flex,
-  Item,
-  Picker,
+  TextArea,
   View,
 } from "@arizeai/components";
 
 import { JSONEditor } from "@phoenix/components/code";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
-import { SpanToDatasetExampleDialogQuery } from "./__generated__/SpanToDatasetExampleDialogQuery.graphql";
+import { EditDatasetExampleDialogMutation } from "./__generated__/EditDatasetExampleDialogMutation.graphql";
+
+type DatasetExamplePatch = {
+  input: string;
+  output: string;
+  metadata: string;
+  description?: string;
+};
+
+export type EditDatasetExampleDialogProps = {
+  exampleId: string;
+  currentRevision: DatasetExamplePatch;
+  onCompleted: () => void;
+};
 
 const defaultCardProps: Partial<CardProps> = {
   backgroundColor: "light",
@@ -27,106 +39,60 @@ const defaultCardProps: Partial<CardProps> = {
   bodyStyle: { padding: 0 },
 };
 
-type ExampleToAdd = {
-  input: string;
-  output: string;
-  metadata: string;
-  datasetId: string;
-};
-
-export function SpanToDatasetExampleDialog({
-  spanId,
-  onCompleted,
-}: {
-  spanId: string;
-  onCompleted: () => void;
-}) {
+export function EditDatasetExampleDialog(props: EditDatasetExampleDialogProps) {
+  const { exampleId, onCompleted } = props;
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const {
-    span: { revision },
-    datasets,
-  } = useLazyLoadQuery<SpanToDatasetExampleDialogQuery>(
+  const [commit, isCommitting] = useMutation<EditDatasetExampleDialogMutation>(
     graphql`
-      query SpanToDatasetExampleDialogQuery($spanId: GlobalID!) {
-        span: node(id: $spanId) {
-          ... on Span {
-            revision: asExampleRevision {
-              input
-              output
-              metadata
-            }
-          }
-        }
-        datasets {
-          edges {
-            dataset: node {
-              id
-              name
-            }
-          }
+      mutation EditDatasetExampleDialogMutation(
+        $input: PatchDatasetExamplesInput!
+      ) {
+        patchDatasetExamples(input: $input) {
+          __typename
         }
       }
-    `,
-    { spanId }
+    `
   );
-  const [commit, isCommitting] = useMutation(graphql`
-    mutation SpanToDatasetExampleDialogAddExampleToDatasetMutation(
-      $input: AddExamplesToDatasetInput!
-    ) {
-      addExamplesToDataset(input: $input) {
-        dataset {
-          id
-        }
-      }
-    }
-  `);
   const {
     control,
     setError,
     handleSubmit,
     formState: { isValid },
-  } = useForm<ExampleToAdd>({
-    defaultValues: {
-      input: JSON.stringify(revision?.input, null, 2),
-      output: JSON.stringify(revision?.output, null, 2),
-      metadata: JSON.stringify(revision?.metadata, null, 2),
-      datasetId: "",
-    },
+  } = useForm<DatasetExamplePatch>({
+    defaultValues: props.currentRevision,
   });
 
   const onSubmit = useCallback(
-    (newExample: ExampleToAdd) => {
+    (updatedExample: DatasetExamplePatch) => {
       setSubmitError(null);
-      if (!isJSONObjectString(newExample?.input)) {
+      if (!isJSONObjectString(updatedExample?.input)) {
         return setError("input", {
           message: "Input must be a valid JSON object",
         });
       }
-      if (!isJSONObjectString(newExample?.output)) {
+      if (!isJSONObjectString(updatedExample?.output)) {
         return setError("output", {
           message: "Output must be a valid JSON object",
         });
       }
-      if (!isJSONObjectString(newExample?.metadata)) {
+      if (!isJSONObjectString(updatedExample?.metadata)) {
         return setError("metadata", {
           message: "Metadata must be a valid JSON object",
         });
       }
-      if (!newExample?.datasetId) {
-        return setError("datasetId", { message: "Dataset is required" });
-      }
+
       commit({
         variables: {
           input: {
-            datasetId: newExample.datasetId,
-            examples: [
+            patches: [
               {
-                input: JSON.parse(newExample.input),
-                output: JSON.parse(newExample.output),
-                metadata: JSON.parse(newExample.metadata),
-                spanId,
+                exampleId,
+                input: JSON.parse(updatedExample.input),
+                output: JSON.parse(updatedExample.output),
+                metadata: JSON.parse(updatedExample.metadata),
               },
             ],
+            versionDescription: updatedExample.description,
           },
         },
         onCompleted: () => {
@@ -137,12 +103,12 @@ export function SpanToDatasetExampleDialog({
         },
       });
     },
-    [commit, setError, spanId, onCompleted]
+    [commit, exampleId, setError, onCompleted]
   );
   return (
     <Dialog
       size="fullscreen"
-      title="Add Example to Dataset"
+      title={`Edit Example: ${exampleId}`}
       extra={
         <Button
           variant="primary"
@@ -151,7 +117,7 @@ export function SpanToDatasetExampleDialog({
           loading={isCommitting}
           onClick={handleSubmit(onSubmit)}
         >
-          Add Example
+          Save Changes
         </Button>
       }
     >
@@ -175,34 +141,7 @@ export function SpanToDatasetExampleDialog({
               {submitError ? (
                 <Alert variant="danger">{submitError}</Alert>
               ) : null}
-              <Controller
-                control={control}
-                name="datasetId"
-                render={({
-                  field: { onChange, onBlur },
-                  fieldState: { invalid, error },
-                }) => (
-                  <Picker
-                    label="dataset"
-                    data-testid="dataset-picker"
-                    className="dataset-picker"
-                    width="100%"
-                    aria-label={`The dataset to add the example to`}
-                    onSelectionChange={(key) => {
-                      onChange(key);
-                    }}
-                    placeholder="Select a dataset"
-                    onBlur={onBlur}
-                    isRequired
-                    validationState={invalid ? "invalid" : "valid"}
-                    errorMessage={error?.message}
-                  >
-                    {datasets.edges.map(({ dataset }) => (
-                      <Item key={dataset.id}>{dataset.name}</Item>
-                    ))}
-                  </Picker>
-                )}
-              />
+
               <Controller
                 control={control}
                 name={"input"}
@@ -278,6 +217,25 @@ export function SpanToDatasetExampleDialog({
                       onBlur={onBlur}
                     />
                   </Card>
+                )}
+              />
+              <Controller
+                control={control}
+                name={"description"}
+                render={({
+                  field: { onChange, onBlur, value },
+                  fieldState: { invalid, error },
+                }) => (
+                  <TextArea
+                    label="Revision Description"
+                    value={value}
+                    onChange={onChange}
+                    onBlur={onBlur}
+                    errorMessage={error?.message}
+                    validationState={invalid ? "invalid" : "valid"}
+                    placeholder="A description of the changes made in this revision. Will be displayed in the version history."
+                    height={100}
+                  />
                 )}
               />
             </Flex>
