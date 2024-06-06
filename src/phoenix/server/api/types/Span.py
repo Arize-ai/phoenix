@@ -2,7 +2,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any, List, Mapping, Optional, Sized, cast
+from typing import Any, List, Mapping, Optional, Sized, cast
 
 import numpy as np
 import strawberry
@@ -13,6 +13,7 @@ from strawberry.types import Info
 
 import phoenix.trace.schemas as trace_schema
 from phoenix.db import models
+from phoenix.server.api.context import Context
 from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
     get_dataset_example_output,
@@ -22,9 +23,6 @@ from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluati
 from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
 from phoenix.server.api.types.MimeType import MimeType
 from phoenix.trace.attributes import get_attribute_value
-
-if TYPE_CHECKING:
-    from phoenix.server.api.context import Context
 
 EMBEDDING_EMBEDDINGS = SpanAttributes.EMBEDDING_EMBEDDINGS
 EMBEDDING_VECTOR = EmbeddingAttributes.EMBEDDING_VECTOR
@@ -166,7 +164,7 @@ class Span(Node):
         "an LLM, an evaluation may assess the helpfulness of its response with "
         "respect to its input."
     )  # type: ignore
-    async def span_evaluations(self, info: Info["Context", None]) -> List[SpanEvaluation]:
+    async def span_evaluations(self, info: Info[Context, None]) -> List[SpanEvaluation]:
         return await info.context.data_loaders.span_evaluations.load(self.id_attr)
 
     @strawberry.field(
@@ -177,7 +175,7 @@ class Span(Node):
         "a list, and each evaluation is identified by its document's (zero-based) "
         "index in that list."
     )  # type: ignore
-    async def document_evaluations(self, info: Info["Context", None]) -> List[DocumentEvaluation]:
+    async def document_evaluations(self, info: Info[Context, None]) -> List[DocumentEvaluation]:
         return await info.context.data_loaders.document_evaluations.load(self.id_attr)
 
     @strawberry.field(
@@ -185,7 +183,7 @@ class Span(Node):
     )  # type: ignore
     async def document_retrieval_metrics(
         self,
-        info: Info["Context", None],
+        info: Info[Context, None],
         evaluation_name: Optional[str] = UNSET,
     ) -> List[DocumentRetrievalMetrics]:
         if not self.num_documents:
@@ -199,7 +197,7 @@ class Span(Node):
     )  # type: ignore
     async def descendants(
         self,
-        info: Info["Context", None],
+        info: Info[Context, None],
     ) -> List["Span"]:
         span_id = str(self.context.span_id)
         spans = await info.context.data_loaders.span_descendants.load(span_id)

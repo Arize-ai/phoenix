@@ -10,7 +10,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.Span import Span
+from phoenix.server.api.types.Span import Span, to_gql_span
 
 
 @strawberry.type
@@ -42,4 +42,8 @@ class DatasetExample(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[Span]:
-        return await info.context.data_loaders.dataset_example_spans.load(self.id_attr)
+        return (
+            to_gql_span(span)
+            if (span := await info.context.data_loaders.dataset_example_spans.load(self.id_attr))
+            else None
+        )

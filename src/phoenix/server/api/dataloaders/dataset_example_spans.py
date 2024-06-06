@@ -12,11 +12,10 @@ from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.server.api.types.Span import Span, to_gql_span
 
 ExampleID: TypeAlias = int
 Key: TypeAlias = ExampleID
-Result: TypeAlias = Optional[Span]
+Result: TypeAlias = Optional[models.Span]
 
 
 class DatasetExampleSpansDataLoader(DataLoader[Key, Result]):
@@ -41,7 +40,4 @@ class DatasetExampleSpansDataLoader(DataLoader[Key, Result]):
                     )
                 )
             }
-        return [
-            to_gql_span(span) if (span := spans.get(example_id)) else None
-            for example_id in example_ids
-        ]
+        return [spans.get(example_id) for example_id in example_ids]
