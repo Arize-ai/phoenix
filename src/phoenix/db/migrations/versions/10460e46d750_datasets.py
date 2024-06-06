@@ -147,9 +147,8 @@ def upgrade() -> None:
         sa.Column(
             "status",
             sa.String,
-            sa.CheckConstraint("status_code IN ('IN PROGRESS', 'COMPLETE')", "valid_status"),
+            sa.CheckConstraint("status IN ('IN PROGRESS', 'COMPLETE')", "valid_status"),
             nullable=False,
-            default="IN PROGRESS",
             server_default="IN PROGRESS",
         ),
         sa.Column(

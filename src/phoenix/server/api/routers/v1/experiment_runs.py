@@ -1,6 +1,6 @@
 from sqlalchemy import select
-from starlette.requests import JSONResponse, Request
-from starlette.responses import Response
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
 
 from phoenix.db import models
 
