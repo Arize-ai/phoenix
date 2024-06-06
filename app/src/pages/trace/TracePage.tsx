@@ -1065,13 +1065,14 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
     () => spanAttributes[SemanticAttributePrefixes.tool] || {},
     [spanAttributes]
   );
+  const hasToolAttributes = Object.keys(toolAttributes).length > 0;
   const toolName = toolAttributes[ToolAttributePostfixes.name];
   const toolDescription = toolAttributes[ToolAttributePostfixes.description];
   const toolParameters = toolAttributes[ToolAttributePostfixes.parameters];
   if (
     (!input || input.value == null) &&
     (!output || output.value == null) &&
-    !toolAttributes
+    !hasToolAttributes
   ) {
     return null;
   }
@@ -1111,7 +1112,7 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
           </Card>
         </MarkdownDisplayProvider>
       ) : null}
-      {toolAttributes ? (
+      {hasToolAttributes ? (
         <Card
           title={"Tool" + (typeof toolName === "string" ? `: ${toolName}` : "")}
           {...defaultCardProps}
