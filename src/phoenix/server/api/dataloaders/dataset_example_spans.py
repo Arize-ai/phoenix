@@ -1,7 +1,6 @@
 from typing import (
     AsyncContextManager,
     Callable,
-    Dict,
     List,
     Optional,
 )
@@ -28,14 +27,17 @@ class DatasetExampleSpansDataLoader(DataLoader[Key, Result]):
     async def _load_fn(self, keys: List[Key]) -> List[Result]:
         example_ids = keys
         async with self._db() as session:
-            results: Dict[Key, Span] = {}
-            for example in await session.scalars(
-                select(models.DatasetExample)
-                .options(
-                    load_only(models.DatasetExample.id), joinedload(models.DatasetExample.span)
+            spans = {
+                example.id: span if (span := example.span) else None
+                async for example in await session.stream_scalars(
+                    select(models.DatasetExample)
+                    .options(
+                        load_only(models.DatasetExample.id), joinedload(models.DatasetExample.span)
+                    )
+                    .where(models.DatasetExample.id.in_(example_ids))
                 )
-                .where(models.DatasetExample.id.in_(example_ids))
-            ):
-                if span := example.span:
-                    results[example.id] = to_gql_span(span)
-            return [results.get(example_id) for example_id in example_ids]
+            }
+        return [
+            to_gql_span(span) if (span := spans.get(example_id)) else None
+            for example_id in example_ids
+        ]
