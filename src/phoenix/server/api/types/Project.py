@@ -170,7 +170,7 @@ class Project(Node):
             select(models.Span)
             .join(models.Trace)
             .where(models.Trace.project_rowid == self.id_attr)
-            .options(contains_eager(models.Span.trace))
+            .options(contains_eager(models.Span.trace).load_only(models.Trace.trace_id))
         )
         if time_range:
             stmt = stmt.where(
