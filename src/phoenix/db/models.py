@@ -205,6 +205,7 @@ class Span(Base):
 
     trace: Mapped["Trace"] = relationship("Trace", back_populates="spans")
     document_annotations: Mapped[List["DocumentAnnotation"]] = relationship(back_populates="span")
+    dataset_examples: Mapped[List["DatasetExample"]] = relationship(back_populates="span")
 
     __table_args__ = (
         UniqueConstraint(
@@ -459,8 +460,14 @@ class DatasetExample(Base):
         ForeignKey("datasets.id", ondelete="CASCADE"),
         index=True,
     )
-    span_rowid: Mapped[Optional[int]]
+    span_rowid: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("spans.id"),
+        index=True,
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+    span: Mapped[Optional[Span]] = relationship(back_populates="dataset_examples")
 
 
 class DatasetExampleRevision(Base):

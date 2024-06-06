@@ -249,7 +249,7 @@ def to_gql_span(span: models.Span) -> Span:
         end_time=span.end_time,
         latency_ms=span.latency_ms,
         context=SpanContext(
-            trace_id=cast(ID, span.trace.trace_id),
+            trace_id=cast(ID, span.trace_rowid),
             span_id=cast(ID, span.span_id),
         ),
         attributes=json.dumps(_hide_embedding_vectors(span.attributes), cls=_JSONEncoder),

@@ -160,63 +160,78 @@ class TestDatasetExampleNodeInterface:
         assert errors[0]["message"] == f"Unknown dataset example: {example_id}"
 
 
-class TestDatasetExampleSpanResolver:
-    QUERY = """
-      query ($exampleId: GlobalID!) {
+@pytest.mark.parametrize(
+    "example_id, expected_span",
+    [
+        pytest.param(
+            str(GlobalID("DatasetExample", str(1))),
+            {
+                "name": "query",
+                "spanKind": "chain",
+                "startTime": "2023-12-11T17:43:23.306838+00:00",
+                "endTime": "2023-12-11T17:43:25.534589+00:00",
+                "attributes": '{"openinference": {"span": {"kind": "CHAIN"}}}',
+                "events": [],
+                "statusCode": "OK",
+                "statusMessage": "",
+                "cumulativeTokenCountPrompt": 1,
+                "cumulativeTokenCountCompletion": 1,
+                "cumulativeTokenCountTotal": 2,
+            },
+            id="returns-span-when-exists",
+        ),
+        pytest.param(
+            str(GlobalID("DatasetExample", str(2))),
+            None,
+            id="returns-none-when-span-does-not-exist",
+        ),
+    ],
+)
+async def test_dataset_example_span_resolver(
+    example_id, expected_span, test_client, dataset_with_span_and_nonspan_examples
+):
+    query = """
+        query ($exampleId: GlobalID!) {
         example: node(id: $exampleId) {
-          ... on DatasetExample {
+            ... on DatasetExample {
             id
             span {
-              name
-              spanKind
-              startTime
-              endTime
-              attributes
-              events {
                 name
-              }
-              statusCode
-              statusMessage
-              cumulativeTokenCountPrompt
-              cumulativeTokenCountCompletion
-              cumulativeTokenCountTotal
+                spanKind
+                startTime
+                endTime
+                attributes
+                events {
+                name
+                }
+                statusCode
+                statusMessage
+                cumulativeTokenCountPrompt
+                cumulativeTokenCountCompletion
+                cumulativeTokenCountTotal
             }
-          }
+            }
         }
-      }
+        }
     """
-
-    async def test_returns_span_when_exists(
-        self, test_client, dataset_with_span_and_nonspan_examples
-    ):
-        example_id = str(GlobalID("DatasetExample", str(1)))
-        response = await test_client.post(
-            "/graphql",
-            json={
-                "query": self.QUERY,
-                "variables": {
-                    "exampleId": example_id,
-                    "datasetVersionId": str(GlobalID("DatasetVersion", str(2))),
-                },
+    response = await test_client.post(
+        "/graphql",
+        json={
+            "query": query,
+            "variables": {
+                "exampleId": example_id,
+                "datasetVersionId": str(GlobalID("DatasetVersion", str(2))),
             },
-        )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
-        actual_example = response_json["data"]["example"]
-        assert actual_example == {
-            "id": example_id,
-            "createdAt": "2020-01-01T00:00:00+00:00",
-            "revision": {
-                "input": {"input": "first-input"},
-                "output": {"output": "first-output"},
-                "metadata": {},
-                "revisionKind": "CREATE",
-            },
-        }
-
-    async def test_returns_none_when_does_not_exist(self):
-        assert False
+        },
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json.get("errors") is None
+    actual_example = response_json["data"]["example"]
+    assert actual_example == {
+        "id": example_id,
+        "span": expected_span,
+    }
 
 
 class TestDatasetExamplesResolver:
@@ -651,17 +666,13 @@ async def dataset_with_span_and_nonspan_examples(session):
             end_time=datetime.fromisoformat("2023-12-11T17:43:25.534589+00:00"),
             attributes={
                 "openinference": {"span": {"kind": "CHAIN"}},
-                "output": {
-                    "value": "To use the SDK to upload a ranking model, you can follow the documentation provided by the SDK. The documentation will guide you through the necessary steps to upload the model and integrate it into your system. Make sure to carefully follow the instructions to ensure a successful upload and integration process."  # noqa: E501
-                },
-                "input": {"value": "How do I use the SDK to upload a ranking model?"},
             },
             events=[],
             status_code="OK",
             status_message="",
             cumulative_error_count=0,
-            cumulative_llm_token_count_prompt=240,
-            cumulative_llm_token_count_completion=56,
+            cumulative_llm_token_count_prompt=1,
+            cumulative_llm_token_count_completion=1,
         )
         .returning(models.Span.id)
     )
