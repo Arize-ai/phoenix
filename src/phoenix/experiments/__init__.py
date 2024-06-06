@@ -8,9 +8,9 @@ from phoenix.config import (
     get_env_host,
     get_env_port,
 )
-from phoenix.exceptions import PhoenixRateLimitError
 from phoenix.evals.executors import get_executor_on_sync_context
 from phoenix.evals.models.rate_limiters import RateLimiter
+from phoenix.exceptions import PhoenixRateLimitError
 
 
 def _phoenix_client():
