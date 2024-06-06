@@ -1059,6 +1059,8 @@ function EmbeddingSpanInfo(props: {
 function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
   const { span, spanAttributes } = props;
   const { input, output } = span;
+  const hasInput = typeof input?.value == "string";
+  const hasOutput = typeof output?.value == "string";
   const inputIsText = input?.mimeType === "text";
   const outputIsText = output?.mimeType === "text";
   const toolAttributes = useMemo<AttributeTool>(
@@ -1069,16 +1071,12 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
   const toolName = toolAttributes[ToolAttributePostfixes.name];
   const toolDescription = toolAttributes[ToolAttributePostfixes.description];
   const toolParameters = toolAttributes[ToolAttributePostfixes.parameters];
-  if (
-    (!input || input.value == null) &&
-    (!output || output.value == null) &&
-    !hasToolAttributes
-  ) {
+  if (!hasInput && !hasOutput && !hasToolAttributes) {
     return null;
   }
   return (
     <Flex direction="column" gap="size-200">
-      {input && input.value != null ? (
+      {hasInput ? (
         <MarkdownDisplayProvider>
           <Card
             title="Input"
@@ -1094,7 +1092,7 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
           </Card>
         </MarkdownDisplayProvider>
       ) : null}
-      {output && output.value != null ? (
+      {hasOutput ? (
         <MarkdownDisplayProvider>
           <Card
             title="Output"
