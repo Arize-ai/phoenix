@@ -40,6 +40,10 @@ from .models import (
     VertexAIModel,
 )
 from .retrievals import compute_precisions_at_k
+from .span_templates import (
+    HALLUCINATION_SPAN_PROMPT_TEMPLATE,
+    QA_SPAN_PROMPT_TEMPLATE,
+)
 from .templates import (
     ClassificationTemplate,
     PromptTemplate,
@@ -88,4 +92,6 @@ __all__ = [
     "RelevanceEvaluator",
     "SummarizationEvaluator",
     "ToxicityEvaluator",
+    "HALLUCINATION_SPAN_PROMPT_TEMPLATE",
+    "QA_SPAN_PROMPT_TEMPLATE",
 ]

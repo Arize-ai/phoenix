@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from enum import Enum
 
+from phoenix.evals.span_templates import HALLUCINATION_SPAN_PROMPT_TEMPLATE, QA_SPAN_PROMPT_TEMPLATE
 from phoenix.evals.templates import ClassificationTemplate
 
 RAG_RELEVANCY_PROMPT_RAILS_MAP = OrderedDict({True: "relevant", False: "unrelated"})
@@ -713,3 +714,5 @@ class EvalCriteria(Enum):
     SQL_GEN_EVAL = SQL_GEN_EVAL_PROMPT_TEMPLATE
     CODE_FUNCTIONALITY = CODE_FUNCTIONALITY_PROMPT_TEMPLATE
     USER_FRUSTRATION = USER_FRUSTRATION_PROMPT_TEMPLATE
+    HALLUCINATION_SPAN_LEVEL = HALLUCINATION_SPAN_PROMPT_TEMPLATE
+    QA_SPAN_LEVEL = QA_SPAN_PROMPT_TEMPLATE
