@@ -26,7 +26,7 @@ async def create_experiment(request: Request) -> Response:
             status="IN PROGRESS",
         )
         session.add(experiment)
-        await session.commit()
+        await session.flush()
         experiment_payload = {
             "id": experiment.id,
             "dataset_id": experiment.dataset_id,
@@ -44,7 +44,7 @@ async def complete_experiment(request: Request) -> Response:
         if experiment is None:
             return Response(status_code=404)
         experiment.status = "COMPLETE"
-        await session.commit()
+        await session.flush()
         experiment_payload = {
             "id": experiment.id,
             "dataset_id": experiment.dataset_id,

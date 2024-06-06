@@ -31,7 +31,7 @@ async def create_experiment_run(request: Request) -> Response:
             error=error,
         )
         session.add(experiment_run)
-        await session.commit()
+        await session.flush()
         run_payload = {
             "id": experiment_run.id,
             "experiment_id": experiment_run.experiment_id,

@@ -28,7 +28,7 @@ async def create_experiment_evaluation(request: Request) -> Response:
             end_time=end_time,
         )
         session.add(experiment_evaluation)
-        await session.commit()
+        await session.flush()
         eval_payload = {
             "id": experiment_evaluation.id,
             "experiment_run_id": experiment_evaluation.experiment_run_id,
