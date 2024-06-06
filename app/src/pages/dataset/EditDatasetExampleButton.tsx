@@ -7,11 +7,9 @@ import {
   EditDatasetExampleDialogProps,
 } from "./EditDatasetExampleDialog";
 
-type EditDatasetExampleButtonProps = Omit<
-  EditDatasetExampleDialogProps,
-  "onCompleted"
->;
+type EditDatasetExampleButtonProps = EditDatasetExampleDialogProps;
 export function EditDatasetExampleButton(props: EditDatasetExampleButtonProps) {
+  const { onCompleted, ...dialogProps } = props;
   const [dialog, setDialog] = useState<ReactNode>(null);
   return (
     <>
@@ -22,9 +20,10 @@ export function EditDatasetExampleButton(props: EditDatasetExampleButtonProps) {
         onClick={() =>
           setDialog(
             <EditDatasetExampleDialog
-              {...props}
+              {...dialogProps}
               onCompleted={() => {
                 setDialog(null);
+                onCompleted();
               }}
             />
           )

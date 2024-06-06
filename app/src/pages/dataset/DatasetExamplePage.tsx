@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate, useParams } from "react-router";
 import { json } from "@codemirror/lang-json";
@@ -27,6 +27,7 @@ import { EditDatasetExampleButton } from "./EditDatasetExampleButton";
  */
 export function DatasetExamplePage() {
   const { datasetId, exampleId } = useParams();
+  const [fetchKey, setFetchKey] = useState(0);
   const data = useLazyLoadQuery<DatasetExamplePageQuery>(
     graphql`
       query DatasetExamplePageQuery($exampleId: GlobalID!) {
@@ -42,14 +43,15 @@ export function DatasetExamplePage() {
         }
       }
     `,
-    { exampleId: exampleId as string }
+    { exampleId: exampleId as string },
+    { fetchKey, fetchPolicy: "store-and-network" }
   );
   const revision = useMemo(() => {
     const revision = data.example.latestRevision;
     return {
-      input: JSON.stringify(revision?.input),
-      output: JSON.stringify(revision?.output),
-      metadata: JSON.stringify(revision?.metadata),
+      input: JSON.stringify(revision?.input, null, 2),
+      output: JSON.stringify(revision?.output, null, 2),
+      metadata: JSON.stringify(revision?.metadata, null, 2),
     };
   }, [data]);
   const { input, output, metadata } = revision;
@@ -67,6 +69,9 @@ export function DatasetExamplePage() {
           <EditDatasetExampleButton
             exampleId={exampleId as string}
             currentRevision={revision}
+            onCompleted={() => {
+              setFetchKey((key) => key + 1);
+            }}
           />
         }
       >
