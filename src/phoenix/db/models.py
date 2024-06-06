@@ -328,6 +328,7 @@ class TraceAnnotation(Base):
     trace_rowid: Mapped[int] = mapped_column(
         ForeignKey("traces.id", ondelete="CASCADE"),
         index=True,
+        nullable=True,
     )
     name: Mapped[str]
     label: Mapped[Optional[str]] = mapped_column(String, index=True)

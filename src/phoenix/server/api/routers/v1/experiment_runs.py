@@ -9,7 +9,7 @@ async def create_experiment_run(request: Request) -> Response:
     experiment_id = request.path_params.get("experiment-id")
     payload = await request.json()
     dataset_example_id = payload.get("dataset_example_id")
-    trace_rowid = payload.get("trace_rowid")
+    trace_rowid = payload.get("trace_rowid", None)
     output = payload.get("output")
     start_time = payload.get("start_time")
     end_time = payload.get("end_time")

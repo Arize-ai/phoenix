@@ -187,7 +187,7 @@ def upgrade() -> None:
             "trace_rowid",
             sa.Integer,
             sa.ForeignKey("traces.id"),
-            nullable=False,
+            nullable=True,
             index=True,
         ),
         sa.Column("output", JSON_, nullable=False),

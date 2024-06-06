@@ -82,7 +82,9 @@ def run_experiment(dataset_id, callable):
         if exc:
             experiment_payload["error"] = repr(error)
 
-        sync_client.post(f"/v1/datasets/{dataset_id}/experiments/{experiment_id}/runs")
+        sync_client.post(
+            f"/v1/datasets/{dataset_id}/experiments/{experiment_id}/runs", json=experiment_payload
+        )
 
     executor = get_executor_on_sync_context(
         sync_run_experiment,
@@ -90,3 +92,96 @@ def run_experiment(dataset_id, callable):
     )
 
     results, execution_details = executor.run(dataset)
+    sync_client.post(f"v1/datasets/{dataset_id}/experiments/{experiment_id}/complete")
+    return dataset_id, experiment_id
+
+
+def experiment_evals(dataset_id, experiment_id, experiment_evaluator):
+    # I don't think we should explicitly need to pass a dataset id
+    # But since the eventual route for even reading an experiment requires the dataset_id
+    # In the path params, we still need to ask for it, which is awkward
+
+    sync_client, async_client = _phoenix_client()
+
+    dataset = sync_client.get(f"v1/datasets/{dataset_id}").json()
+    experiment_data = sync_client.get(
+        "/v1/datasets/{dataset_id:str}/experiments/{experiment_id:str}/runs"
+    ).json()
+
+    rate_limiter = RateLimiter(rate_limit_error=PhoenixRateLimitError)
+
+    @rate_limiter.limit
+    def sync_run_eval(input):
+        example, experiment_run = input
+        start_time = datetime.now()
+        exc = None
+        try:
+            if asyncio.iscoroutinefunction(experiment_evaluator):
+                raise RuntimeError("Evaluator is async but running in sync context")
+            else:
+                eval = experiment_evaluator(
+                    example["input"], example["output"], experiment_run["output"]
+                )
+        except Exception as exc:
+            error = exc
+        finally:
+            end_time = datetime.now()
+
+        eval_payload = {
+            "name": "test eval",
+            "label": "test label",
+            "score": float(eval),
+            "explanation": "test explanation",
+            "start_time": start_time.isoformat(),
+            "end_time": end_time.isoformat(),
+        }
+        if exc:
+            eval_payload["error"] = repr(error)
+
+        return sync_client.post(
+            f"/v1/datasets/{dataset_id}/experiments/{experiment_id}/runs/{experiment_run["id"]}/evaluations",
+            json=eval_payload,
+        )
+
+    @rate_limiter.alimit
+    async def async_run_eval(input):
+        example, experiment_run = input
+        start_time = datetime.now()
+        exc = None
+        try:
+            if asyncio.iscoroutinefunction(experiment_evaluator):
+                eval = await experiment_evaluator(
+                    example["input"], example["output"], experiment_run["output"]
+                )
+            else:
+                eval = experiment_evaluator(
+                    example["input"], example["output"], experiment_run["output"]
+                )
+        except Exception as exc:
+            error = exc
+        finally:
+            end_time = datetime.now()
+
+        eval_payload = {
+            "name": "test eval",
+            "label": "test label",
+            "score": float(eval),
+            "explanation": "test explanation",
+            "start_time": start_time.isoformat(),
+            "end_time": end_time.isoformat(),
+        }
+        if exc:
+            eval_payload["error"] = repr(error)
+
+        return sync_client.post(
+            f"/v1/datasets/{dataset_id}/experiments/{experiment_id}/runs/{experiment_run["id"]}/evaluations",
+            json=eval_payload,
+        )
+
+    executor = get_executor_on_sync_context(
+        sync_run_eval,
+        async_run_eval,
+    )
+
+    results, execution_details = executor.run(list(zip(dataset, experiment_data)))
+    return results

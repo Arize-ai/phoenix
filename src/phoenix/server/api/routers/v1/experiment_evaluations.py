@@ -7,8 +7,8 @@ from phoenix.db import models
 async def create_experiment_evaluation(request: Request) -> Response:
     experiment_run_id = request.path_params.get("run_id")
     payload = await request.json()
-    name = payload.get("name")
-    label = payload.get("label")
+    name = payload.get("name", "")
+    label = payload.get("label", "")
     score = payload.get("score")
     explanation = payload.get("explanation")
     error = payload.get("error")
