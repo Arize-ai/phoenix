@@ -1065,13 +1065,16 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
     () => spanAttributes[SemanticAttributePrefixes.tool] || {},
     [spanAttributes]
   );
-  const hasToolAttributes = Object.keys(toolAttributes).length > 0;
-  if (!hasToolAttributes) {
-    return null;
-  }
   const toolName = toolAttributes[ToolAttributePostfixes.name];
   const toolDescription = toolAttributes[ToolAttributePostfixes.description];
   const toolParameters = toolAttributes[ToolAttributePostfixes.parameters];
+  if (
+    (!input || input.value == null) &&
+    (!output || output.value == null) &&
+    !toolAttributes
+  ) {
+    return null;
+  }
   return (
     <Flex direction="column" gap="size-200">
       {input && input.value != null ? (
@@ -1108,50 +1111,52 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
           </Card>
         </MarkdownDisplayProvider>
       ) : null}
-      <Card
-        title={"Tool" + (typeof toolName === "string" ? `: ${toolName}` : "")}
-        {...defaultCardProps}
-      >
-        <Flex direction="column">
-          {toolDescription != null ? (
-            <View
-              paddingStart="size-200"
-              paddingEnd="size-200"
-              paddingTop="size-100"
-              paddingBottom="size-100"
-              borderBottomColor="dark"
-              borderBottomWidth="thin"
-              backgroundColor="light"
-            >
-              <Flex direction="column" alignItems="start" gap="size-50">
-                <Text color="text-700" fontStyle="italic">
-                  Description
-                </Text>
-                <Text>{toolDescription as string}</Text>
-              </Flex>
-            </View>
-          ) : null}
-          {toolParameters != null ? (
-            <View
-              paddingStart="size-200"
-              paddingEnd="size-200"
-              paddingTop="size-100"
-              paddingBottom="size-100"
-              borderBottomColor="dark"
-              borderBottomWidth="thin"
-            >
-              <Flex direction="column" alignItems="start" width="100%">
-                <Text color="text-700" fontStyle="italic">
-                  Parameters
-                </Text>
-                <JSONBlock>
-                  {JSON.stringify(toolParameters) as string}
-                </JSONBlock>
-              </Flex>
-            </View>
-          ) : null}
-        </Flex>
-      </Card>
+      {toolAttributes ? (
+        <Card
+          title={"Tool" + (typeof toolName === "string" ? `: ${toolName}` : "")}
+          {...defaultCardProps}
+        >
+          <Flex direction="column">
+            {toolDescription != null ? (
+              <View
+                paddingStart="size-200"
+                paddingEnd="size-200"
+                paddingTop="size-100"
+                paddingBottom="size-100"
+                borderBottomColor="dark"
+                borderBottomWidth="thin"
+                backgroundColor="light"
+              >
+                <Flex direction="column" alignItems="start" gap="size-50">
+                  <Text color="text-700" fontStyle="italic">
+                    Description
+                  </Text>
+                  <Text>{toolDescription as string}</Text>
+                </Flex>
+              </View>
+            ) : null}
+            {toolParameters != null ? (
+              <View
+                paddingStart="size-200"
+                paddingEnd="size-200"
+                paddingTop="size-100"
+                paddingBottom="size-100"
+                borderBottomColor="dark"
+                borderBottomWidth="thin"
+              >
+                <Flex direction="column" alignItems="start" width="100%">
+                  <Text color="text-700" fontStyle="italic">
+                    Parameters
+                  </Text>
+                  <JSONBlock>
+                    {JSON.stringify(toolParameters) as string}
+                  </JSONBlock>
+                </Flex>
+              </View>
+            ) : null}
+          </Flex>
+        </Card>
+      ) : null}
     </Flex>
   );
 }
