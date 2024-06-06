@@ -145,6 +145,14 @@ def upgrade() -> None:
         ),
         sa.Column("metadata", JSON_, nullable=False),
         sa.Column(
+            "status",
+            sa.String,
+            sa.CheckConstraint("status_code IN ('IN PROGRESS', 'COMPLETE')", "valid_status"),
+            nullable=False,
+            default="IN PROGRESS",
+            server_default="IN PROGRESS",
+        ),
+        sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
             nullable=False,
