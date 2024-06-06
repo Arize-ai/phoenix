@@ -1,5 +1,5 @@
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import JSONResponse, Response
 
 from phoenix.db import models
 
@@ -18,7 +18,14 @@ async def create_experiment(request: Request) -> Response:
         )
         session.add(experiment)
         await session.commit()
-        return Response(status_code=200)
+        experiment_payload = {
+            "id": experiment.id,
+            "dataset_id": experiment.dataset_id,
+            "dataset_version_id": experiment.dataset_version_id,
+            "metadata": experiment.metadata_,
+            "status": experiment.status,
+        }
+        return JSONResponse(content=experiment_payload, status_code=200)
 
 
 async def complete_experiment(request: Request) -> Response:
@@ -29,4 +36,11 @@ async def complete_experiment(request: Request) -> Response:
             return Response(status_code=404)
         experiment.status = "COMPLETE"
         await session.commit()
-        return Response(status_code=200)
+        experiment_payload = {
+            "id": experiment.id,
+            "dataset_id": experiment.dataset_id,
+            "dataset_version_id": experiment.dataset_version_id,
+            "metadata": experiment.metadata_,
+            "status": experiment.status,
+        }
+        return JSONResponse(content=experiment_payload, status_code=200)

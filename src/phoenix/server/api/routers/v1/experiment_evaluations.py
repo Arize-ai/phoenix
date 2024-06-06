@@ -1,5 +1,5 @@
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import JSONResponse, Response
 
 from phoenix.db import models
 
@@ -16,7 +16,7 @@ async def create_experiment_evaluation(request: Request) -> Response:
     start_time = payload.get("start_time")
     end_time = payload.get("end_time")
     async with request.app.state.db() as session:
-        experiment_run = models.ExperimentEvaluation(
+        experiment_evaluation = models.ExperimentEvaluation(
             experiment_run_id=experiment_run_id,
             name=name,
             label=label,
@@ -27,6 +27,18 @@ async def create_experiment_evaluation(request: Request) -> Response:
             start_time=start_time,
             end_time=end_time,
         )
-        session.add(experiment_run)
+        session.add(experiment_evaluation)
         await session.commit()
-        return Response(status_code=200)
+        eval_payload = {
+            "id": experiment_evaluation.id,
+            "experiment_run_id": experiment_evaluation.experiment_run_id,
+            "name": experiment_evaluation.name,
+            "label": experiment_evaluation.label,
+            "score": experiment_evaluation.score,
+            "explanation": experiment_evaluation.explanation,
+            "error": experiment_evaluation.error,
+            "metadata": experiment_evaluation.metadata_,
+            "start_time": experiment_evaluation.start_time,
+            "end_time": experiment_evaluation.end_time,
+        }
+        return JSONResponse(content=eval_payload, status_code=200)

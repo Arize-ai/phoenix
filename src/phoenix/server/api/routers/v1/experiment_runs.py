@@ -32,7 +32,16 @@ async def create_experiment_run(request: Request) -> Response:
         )
         session.add(experiment_run)
         await session.commit()
-        return Response(status_code=200)
+        run_payload = {
+            "id": experiment_run.id,
+            "experiment_id": experiment_run.experiment_id,
+            "output": experiment_run.output,
+            "trace_rowid": experiment_run.trace_rowid,
+            "start_time": experiment_run.start_time,
+            "end_time": experiment_run.end_time,
+            "error": experiment_run.error,
+        }
+        return JSONResponse(content=run_payload, status_code=200)
 
 
 async def get_experiment_runs(request: Request) -> Response:
@@ -57,4 +66,4 @@ async def get_experiment_runs(request: Request) -> Response:
                     "error": run.error,
                 }
             )
-        return JSONResponse(status_code=200, content=experiment_runs)
+        return JSONResponse(content=experiment_runs, status_code=200)
