@@ -1059,8 +1059,8 @@ function EmbeddingSpanInfo(props: {
 function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
   const { span, spanAttributes } = props;
   const { input, output } = span;
-  const hasInput = typeof input?.value == "string";
-  const hasOutput = typeof output?.value == "string";
+  const hasInput = typeof input?.value === "string";
+  const hasOutput = typeof output?.value === "string";
   const inputIsText = input?.mimeType === "text";
   const outputIsText = output?.mimeType === "text";
   const toolAttributes = useMemo<AttributeTool>(
