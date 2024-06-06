@@ -50,9 +50,8 @@ function NotFoundContent() {
         <h1>Server disconnected</h1>
       </Flex>
       <p>
-        We are unable to reach the phoenix server. This is most likely due to
-        the notebook runtime being no longer active. Please restart phoenix by
-        re-running the initialization cell.
+        We are unable to reach the Phoenix server. Please ensure that Phoenix is
+        running and try again.
       </p>
     </>
   );
