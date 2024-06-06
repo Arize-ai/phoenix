@@ -144,7 +144,11 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
                   onCreateNewDataset={() => {
                     setIsDatasetPopoverOpen(false);
                     setDialog(
-                      <Dialog title="New Dataset">
+                      <Dialog
+                        title="New Dataset"
+                        isDismissable
+                        onDismiss={() => setDialog(null)}
+                      >
                         <CreateDatasetForm
                           onDatasetCreateError={() => {
                             notifyError({
