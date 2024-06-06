@@ -22,12 +22,15 @@ def _phoenix_client():
     return sync_client, async_client
 
 
-def run_experiment(dataset_id, callable):
+def run_experiment(dataset_id, callable, dataset_version_id=None):
     sync_client, async_client = _phoenix_client()
-    datasets_response = sync_client.get(f"/v1/datasets/{dataset_id}/examples")
+    version_param = f"?version-id={dataset_version_id}" if dataset_version_id else ""
+    datasets_response = sync_client.get(f"/v1/datasets/{dataset_id}/examples" + version_param)
     dataset = datasets_response.json()
 
-    experiment_response = sync_client.post(f"/v1/datasets/{dataset_id}/experiments")
+    experiment_response = sync_client.post(
+        f"/v1/datasets/{dataset_id}/experiments", json={"version-id": dataset_version_id}
+    )
     experiment_id = experiment_response.json()["id"]
 
     rate_limiter = RateLimiter(rate_limit_error=PhoenixRateLimitError)
@@ -103,7 +106,11 @@ def experiment_evals(dataset_id, experiment_id, experiment_evaluator):
 
     sync_client, async_client = _phoenix_client()
 
-    dataset = sync_client.get(f"/v1/datasets/{dataset_id}").json()
+    experiment = sync_client.get(f"/v1/datasets/{dataset_id}/experiments/{experiment_id}").json()
+    dataset_version_id = experiment["dataset_version_id"]
+    dataset_examples = sync_client.get(
+        f"/v1/datasets/{dataset_id}/examples?version-id={dataset_version_id}"
+    ).json()
     experiment_data = sync_client.get(
         "/v1/datasets/{dataset_id:str}/experiments/{experiment_id:str}/runs"
     ).json()
@@ -183,5 +190,5 @@ def experiment_evals(dataset_id, experiment_id, experiment_evaluator):
         async_run_eval,
     )
 
-    results, execution_details = executor.run(list(zip(dataset, experiment_data)))
+    results, execution_details = executor.run(list(zip(dataset_examples, experiment_data)))
     return results
