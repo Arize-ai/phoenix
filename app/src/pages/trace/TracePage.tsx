@@ -1057,64 +1057,105 @@ function EmbeddingSpanInfo(props: {
 }
 
 function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
-  const { spanAttributes } = props;
+  const { span, spanAttributes } = props;
+  const { input, output } = span;
+  const hasInput = typeof input?.value === "string";
+  const hasOutput = typeof output?.value === "string";
+  const inputIsText = input?.mimeType === "text";
+  const outputIsText = output?.mimeType === "text";
   const toolAttributes = useMemo<AttributeTool>(
     () => spanAttributes[SemanticAttributePrefixes.tool] || {},
     [spanAttributes]
   );
   const hasToolAttributes = Object.keys(toolAttributes).length > 0;
-  if (!hasToolAttributes) {
-    return null;
-  }
   const toolName = toolAttributes[ToolAttributePostfixes.name];
   const toolDescription = toolAttributes[ToolAttributePostfixes.description];
   const toolParameters = toolAttributes[ToolAttributePostfixes.parameters];
+  if (!hasInput && !hasOutput && !hasToolAttributes) {
+    return null;
+  }
   return (
     <Flex direction="column" gap="size-200">
-      <Card
-        title={"Tool" + (typeof toolName === "string" ? `: ${toolName}` : "")}
-        {...defaultCardProps}
-      >
-        <Flex direction="column">
-          {toolDescription != null ? (
-            <View
-              paddingStart="size-200"
-              paddingEnd="size-200"
-              paddingTop="size-100"
-              paddingBottom="size-100"
-              borderBottomColor="dark"
-              borderBottomWidth="thin"
-              backgroundColor="light"
-            >
-              <Flex direction="column" alignItems="start" gap="size-50">
-                <Text color="text-700" fontStyle="italic">
-                  Description
-                </Text>
-                <Text>{toolDescription as string}</Text>
+      {hasInput ? (
+        <MarkdownDisplayProvider>
+          <Card
+            title="Input"
+            {...defaultCardProps}
+            extra={
+              <Flex direction="row" gap="size-100">
+                {inputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
+                <CopyToClipboardButton text={input.value} />
               </Flex>
-            </View>
-          ) : null}
-          {toolParameters != null ? (
-            <View
-              paddingStart="size-200"
-              paddingEnd="size-200"
-              paddingTop="size-100"
-              paddingBottom="size-100"
-              borderBottomColor="dark"
-              borderBottomWidth="thin"
-            >
-              <Flex direction="column" alignItems="start" width="100%">
-                <Text color="text-700" fontStyle="italic">
-                  Parameters
-                </Text>
-                <JSONBlock>
-                  {JSON.stringify(toolParameters) as string}
-                </JSONBlock>
+            }
+          >
+            <CodeBlock {...input} />
+          </Card>
+        </MarkdownDisplayProvider>
+      ) : null}
+      {hasOutput ? (
+        <MarkdownDisplayProvider>
+          <Card
+            title="Output"
+            {...defaultCardProps}
+            backgroundColor="green-100"
+            borderColor="green-700"
+            extra={
+              <Flex direction="row" gap="size-100">
+                {outputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
+                <CopyToClipboardButton text={output.value} />
               </Flex>
-            </View>
-          ) : null}
-        </Flex>
-      </Card>
+            }
+          >
+            <CodeBlock {...output} />
+          </Card>
+        </MarkdownDisplayProvider>
+      ) : null}
+      {hasToolAttributes ? (
+        <Card
+          title={"Tool" + (typeof toolName === "string" ? `: ${toolName}` : "")}
+          {...defaultCardProps}
+        >
+          <Flex direction="column">
+            {toolDescription != null ? (
+              <View
+                paddingStart="size-200"
+                paddingEnd="size-200"
+                paddingTop="size-100"
+                paddingBottom="size-100"
+                borderBottomColor="dark"
+                borderBottomWidth="thin"
+                backgroundColor="light"
+              >
+                <Flex direction="column" alignItems="start" gap="size-50">
+                  <Text color="text-700" fontStyle="italic">
+                    Description
+                  </Text>
+                  <Text>{toolDescription as string}</Text>
+                </Flex>
+              </View>
+            ) : null}
+            {toolParameters != null ? (
+              <View
+                paddingStart="size-200"
+                paddingEnd="size-200"
+                paddingTop="size-100"
+                paddingBottom="size-100"
+                borderBottomColor="dark"
+                borderBottomWidth="thin"
+              >
+                <Flex direction="column" alignItems="start" width="100%">
+                  <Text color="text-700" fontStyle="italic">
+                    Parameters
+                  </Text>
+                  <JSONBlock>
+                    {JSON.stringify(toolParameters) as string}
+                  </JSONBlock>
+                </Flex>
+              </View>
+            ) : null}
+          </Flex>
+        </Card>
+      ) : null}
     </Flex>
   );
 }
