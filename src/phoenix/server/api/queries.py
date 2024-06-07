@@ -227,7 +227,7 @@ class Query:
                 description=experiment.description,
                 created_at=experiment.created_at,
                 updated_at=experiment.updated_at,
-                metadata=experiment.metadata,
+                metadata=experiment.metadata_,
             )
         raise Exception(f"Unknown node type: {type_name}")
 
