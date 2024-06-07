@@ -68,6 +68,7 @@ from phoenix.server.api.dataloaders import (
     RecordCountDataLoader,
     SpanDescendantsDataLoader,
     SpanEvaluationsDataLoader,
+    SpanProjectsDataLoader,
     TokenCountDataLoader,
     TraceEvaluationsDataLoader,
 )
@@ -221,6 +222,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
                 ),
                 span_descendants=SpanDescendantsDataLoader(self.db),
                 span_evaluations=SpanEvaluationsDataLoader(self.db),
+                span_projects=SpanProjectsDataLoader(self.db),
                 token_counts=TokenCountDataLoader(
                     self.db,
                     cache_map=self.cache_for_dataloaders.token_count
