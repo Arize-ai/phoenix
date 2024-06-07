@@ -33,7 +33,9 @@ async def create_experiment(request: Request) -> Response:
             )
 
     async with request.app.state.db() as session:
-        dataset = await session.execute(select(models.Dataset).where(models.Dataset.id == dataset_id))
+        dataset = await session.execute(
+            select(models.Dataset).where(models.Dataset.id == dataset_id)
+        )
         if not dataset.scalar():
             return Response(
                 content=f"Dataset with ID {dataset_globalid} does not exist",
@@ -55,7 +57,7 @@ async def create_experiment(request: Request) -> Response:
             dataset_version_id = dataset_version.id
             dataset_version_globalid = GlobalID("DatasetVersion", str(dataset_version_id))
         experiment = models.Experiment(
-            dataset_id=dataset_id,
+            dataset_id=int(dataset_id),
             dataset_version_id=int(dataset_version_id),
             metadata_=metadata,
         )
@@ -69,7 +71,7 @@ async def create_experiment(request: Request) -> Response:
             "dataset_version_id": str(dataset_version_globalid),
             "metadata": experiment.metadata_,
             "created_at": experiment.created_at.isoformat(),
-            "updated_at": experiment.updated_at.isoformat()
+            "updated_at": experiment.updated_at.isoformat(),
         }
         return JSONResponse(content=experiment_payload, status_code=200)
 

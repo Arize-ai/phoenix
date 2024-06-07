@@ -40,7 +40,7 @@ V1_ROUTES = [
     ),
     Route(
         "/v1/datasets/{dataset_id:str}/experiments/{experiment_id:str}/runs",
-        experiment_runs.get_experiment_runs,
+        experiment_runs.list_experiment_runs,
         methods=["GET"],
     ),
     Route(
