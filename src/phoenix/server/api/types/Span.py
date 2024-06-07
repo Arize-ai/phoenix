@@ -241,9 +241,8 @@ class Span(Node):
     ]:  # use lazy types to avoid circular import: https://strawberry.rocks/docs/types/lazy
         from phoenix.server.api.types.Project import to_gql_project
 
-        project = await info.context.data_loaders.span_projects.load(
-            self.db_span.trace.project_rowid
-        )
+        span_id = self.id_attr
+        project = await info.context.data_loaders.span_projects.load(span_id)
         return to_gql_project(project)
 
 
