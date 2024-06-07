@@ -161,7 +161,7 @@ class Dataset(Node):
                     description=experiment.description,
                     created_at=experiment.created_at,
                     updated_at=experiment.updated_at,
-                    metadata=experiment.metadata,
+                    metadata=experiment.metadata_,
                 )
                 async for experiment in await session.stream_scalars(query)
             ]
