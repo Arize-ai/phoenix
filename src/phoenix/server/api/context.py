@@ -22,6 +22,7 @@ from phoenix.server.api.dataloaders import (
     RecordCountDataLoader,
     SpanDescendantsDataLoader,
     SpanEvaluationsDataLoader,
+    SpanProjectsDataLoader,
     TokenCountDataLoader,
     TraceEvaluationsDataLoader,
 )
@@ -39,6 +40,7 @@ class DataLoaders:
     record_counts: RecordCountDataLoader
     span_descendants: SpanDescendantsDataLoader
     span_evaluations: SpanEvaluationsDataLoader
+    span_projects: SpanProjectsDataLoader
     token_counts: TokenCountDataLoader
     trace_evaluations: TraceEvaluationsDataLoader
 

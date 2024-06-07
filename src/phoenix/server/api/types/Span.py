@@ -2,7 +2,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, List, Mapping, Optional, Sized, cast
+from typing import TYPE_CHECKING, Any, List, Mapping, Optional, Sized, cast
 
 import numpy as np
 import strawberry
@@ -10,6 +10,7 @@ from openinference.semconv.trace import EmbeddingAttributes, SpanAttributes
 from strawberry import ID, UNSET
 from strawberry.relay import Node, NodeID
 from strawberry.types import Info
+from typing_extensions import Annotated
 
 import phoenix.trace.schemas as trace_schema
 from phoenix.db import models
@@ -23,6 +24,9 @@ from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluati
 from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
 from phoenix.server.api.types.MimeType import MimeType
 from phoenix.trace.attributes import get_attribute_value
+
+if TYPE_CHECKING:
+    from phoenix.server.api.types.Project import Project
 
 EMBEDDING_EMBEDDINGS = SpanAttributes.EMBEDDING_EMBEDDINGS
 EMBEDDING_VECTOR = EmbeddingAttributes.EMBEDDING_VECTOR
@@ -227,6 +231,19 @@ class Span(Node):
             output=get_dataset_example_output(span_io),
             metadata=attributes,
         )
+
+    @strawberry.field(description="The project that this span belongs to.")  # type: ignore
+    async def project(
+        self,
+        info: Info[Context, None],
+    ) -> Annotated[
+        "Project", strawberry.lazy("phoenix.server.api.types.Project")
+    ]:  # use lazy types to avoid circular import: https://strawberry.rocks/docs/types/lazy
+        from phoenix.server.api.types.Project import to_gql_project
+
+        span_id = self.id_attr
+        project = await info.context.data_loaders.span_projects.load(span_id)
+        return to_gql_project(project)
 
 
 def to_gql_span(span: models.Span) -> Span:
