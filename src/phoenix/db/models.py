@@ -506,10 +506,6 @@ class Experiment(Base):
     )
     description: Mapped[Optional[str]]
     metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
-    status: Mapped[str] = mapped_column(
-        CheckConstraint("status IN ('IN PROGRESS', 'COMPLETE')", name="valid_status"),
-        default="IN PROGRESS",
-    )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
