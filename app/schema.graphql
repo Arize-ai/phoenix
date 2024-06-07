@@ -953,6 +953,9 @@ type Span implements Node {
   The span's attributes translated into an example revision for a dataset
   """
   asExampleRevision: SpanAsExampleRevision!
+
+  """The project that this span belongs to."""
+  project: Project!
 }
 
 type SpanAsExampleRevision implements ExampleRevision {
