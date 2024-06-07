@@ -22,6 +22,7 @@ from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalM
 from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluation
 from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
 from phoenix.server.api.types.MimeType import MimeType
+from phoenix.server.api.types.Project import Project
 from phoenix.trace.attributes import get_attribute_value
 
 EMBEDDING_EMBEDDINGS = SpanAttributes.EMBEDDING_EMBEDDINGS
@@ -227,6 +228,10 @@ class Span(Node):
             output=get_dataset_example_output(span_io),
             metadata=attributes,
         )
+
+    @strawberry.field(description="The project that this span belongs to.")  # type: ignore
+    def project(self) -> Project:
+        raise NotImplementedError("project resolver on Span not implemented yet.")
 
 
 def to_gql_span(span: models.Span) -> Span:
