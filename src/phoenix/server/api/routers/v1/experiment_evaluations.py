@@ -10,7 +10,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
 async def create_experiment_evaluation(request: Request) -> Response:
-    experiment_run_globalid = GlobalID.from_id(request.path_params.get("run_id"))
+    experiment_run_globalid = GlobalID.from_id(request.path_params["run_id"])
     try:
         experiment_run_id = from_global_id_with_expected_type(
             experiment_run_globalid, "ExperimentRun"
