@@ -1,7 +1,6 @@
 import atexit
 import logging
 import os
-import warnings
 from argparse import ArgumentParser
 from pathlib import Path
 from threading import Thread
@@ -124,7 +123,6 @@ if __name__ == "__main__":
     parser.add_argument("--no-internet", action="store_true")
     parser.add_argument("--umap_params", type=str, required=False, default=DEFAULT_UMAP_PARAMS_STR)
     parser.add_argument("--debug", action="store_false")
-    parser.add_argument("--enable-prometheus", type=bool, default=False)
     subparsers = parser.add_subparsers(dest="command", required=True)
     serve_parser = subparsers.add_parser("serve")
     datasets_parser = subparsers.add_parser("datasets")
@@ -226,15 +224,7 @@ if __name__ == "__main__":
     )
     read_only = args.read_only
     logger.info(f"Server umap params: {umap_params}")
-    if enable_prometheus := (get_env_enable_prometheus() or args.enable_prometheus):
-        if args.enable_prometheus:
-            warnings.warn(
-                "The --enable-prometheus command line argument is being deprecated "
-                "and will be removed in an upcoming release. "
-                "Please set the PHOENIX_ENABLE_PROMETHEUS environment variable to TRUE.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+    if enable_prometheus := get_env_enable_prometheus():
         from phoenix.server.prometheus import start_prometheus
 
         start_prometheus()
