@@ -13,6 +13,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
+from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -134,3 +135,34 @@ class Dataset(Node):
                 async for example in await session.stream_scalars(query)
             ]
         return connection_from_list(data=dataset_examples, args=args)
+
+    @strawberry.field
+    async def experiments(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[Experiment]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        dataset_id = self.id_attr
+        query = select(models.Experiment).where(models.Experiment.dataset_id == dataset_id)
+
+        async with info.context.db() as session:
+            experiments = [
+                Experiment(
+                    id_attr=experiment.id,
+                    description=experiment.description,
+                    created_at=experiment.created_at,
+                    updated_at=experiment.updated_at,
+                    metadata=experiment.metadata_,
+                )
+                async for experiment in await session.stream_scalars(query)
+            ]
+        return connection_from_list(data=experiments, args=args)
