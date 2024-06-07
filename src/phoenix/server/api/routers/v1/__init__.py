@@ -29,9 +29,9 @@ V1_ROUTES = [
         methods=["POST"],
     ),
     Route(
-        "/v1/datasets/{dataset_id:str}/experiments/{experiment_id:str}/complete",
-        experiments.complete_experiment,
-        methods=["POST"],
+        "/v1/experiments/{experiment_id:str}",
+        experiments.read_experiment,
+        methods=["GET"],
     ),
     Route(
         "/v1/datasets/{dataset_id:str}/experiments/{experiment_id:str}/runs",

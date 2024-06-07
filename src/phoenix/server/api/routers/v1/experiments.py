@@ -68,5 +68,41 @@ async def create_experiment(request: Request) -> Response:
             "dataset_id": str(dataset_globalid),
             "dataset_version_id": str(dataset_version_globalid),
             "metadata": experiment.metadata_,
+            "created_at": experiment.created_at.isoformat(),
+            "updated_at": experiment.updated_at.isoformat()
+        }
+        return JSONResponse(content=experiment_payload, status_code=200)
+
+
+async def read_experiment(request: Request) -> Response:
+    experiment_globalid = GlobalID.from_id(request.path_params["experiment_id"])
+    try:
+        experiment_id = from_global_id_with_expected_type(experiment_globalid, "Experiment")
+    except ValueError:
+        return Response(
+            content="Experiment with ID {experiment_globalid} does not exist",
+            status_code=HTTP_404_NOT_FOUND,
+        )
+
+    async with request.app.state.db() as session:
+        experiment = await session.execute(
+            select(models.Experiment).where(models.Experiment.id == experiment_id)
+        )
+        experiment = experiment.scalar()
+        if not experiment:
+            return Response(
+                content=f"Experiment with ID {experiment_globalid} does not exist",
+                status_code=HTTP_404_NOT_FOUND,
+            )
+
+        dataset_globalid = GlobalID("Dataset", str(experiment.dataset_id))
+        dataset_version_globalid = GlobalID("DatasetVersion", str(experiment.dataset_version_id))
+        experiment_payload = {
+            "id": str(experiment_globalid),
+            "dataset_id": str(dataset_globalid),
+            "dataset_version_id": str(dataset_version_globalid),
+            "metadata": experiment.metadata_,
+            "created_at": experiment.created_at.isoformat(),
+            "updated_at": experiment.updated_at.isoformat(),
         }
         return JSONResponse(content=experiment_payload, status_code=200)
