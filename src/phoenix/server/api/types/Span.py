@@ -233,12 +233,18 @@ class Span(Node):
         )
 
     @strawberry.field(description="The project that this span belongs to.")  # type: ignore
-    def project(
+    async def project(
         self,
+        info: Info[Context, None],
     ) -> Annotated[
         "Project", strawberry.lazy("phoenix.server.api.types.Project")
     ]:  # use lazy types to avoid circular import: https://strawberry.rocks/docs/types/lazy
-        raise NotImplementedError("project resolver on Span not implemented yet.")
+        from phoenix.server.api.types.Project import to_gql_project
+
+        project = await info.context.data_loaders.span_projects.load(
+            self.db_span.trace.project_rowid
+        )
+        return to_gql_project(project)
 
 
 def to_gql_span(span: models.Span) -> Span:

@@ -357,3 +357,10 @@ class Project(Node):
                 is_valid=False,
                 error_message=e.msg,
             )
+
+
+def to_gql_project(project: models.Project) -> Project:
+    """
+    Converts an ORM project to a GraphQL Project.
+    """
+    raise NotImplementedError("to_gql_project is not implemented yet")
