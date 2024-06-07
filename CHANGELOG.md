@@ -1,5 +1,26 @@
 # Changelog
 
+## [4.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.2.4...arize-phoenix-v4.3.0) (2024-06-07)
+
+
+### Features
+
+* Adds timing info to llm_classify ([#3377](https://github.com/Arize-ai/phoenix/issues/3377)) ([3e2785f](https://github.com/Arize-ai/phoenix/commit/3e2785f7d53dd628e7027fe988ae066fa1be0da1))
+* Serializable execution details ([#3358](https://github.com/Arize-ai/phoenix/issues/3358)) ([fc74513](https://github.com/Arize-ai/phoenix/commit/fc7451372c9b938a27c7b36f7e32704f7b3a8e87))
+* **ui:** display input and output for tool spans (if available) ([#3396](https://github.com/Arize-ai/phoenix/issues/3396)) ([73312dc](https://github.com/Arize-ai/phoenix/commit/73312dc9f85aefba7f9d0c5105f0efd75327f0c1))
+
+
+### Bug Fixes
+
+* add separate package installations to notebooks ([#3393](https://github.com/Arize-ai/phoenix/issues/3393)) ([914e3fe](https://github.com/Arize-ai/phoenix/commit/914e3feceaf08d3f208669dfb5697feb4f51ac3a))
+* filter out undefined ([#3383](https://github.com/Arize-ai/phoenix/issues/3383)) ([e3a2d31](https://github.com/Arize-ai/phoenix/commit/e3a2d316956df40a6b7634427175dc20284e20ef))
+* percentage sign for alembic configparser ([#3403](https://github.com/Arize-ai/phoenix/issues/3403)) ([87bcd59](https://github.com/Arize-ai/phoenix/commit/87bcd5951f1a9ed98c415c40f4f83560610f56f2))
+
+
+### Documentation
+
+* minimum working example with a local llm ([#3348](https://github.com/Arize-ai/phoenix/issues/3348)) ([e4c657c](https://github.com/Arize-ai/phoenix/commit/e4c657cce7e5492e314dfdd7cc6cca54da68b7f6))
+
 ## [4.2.4](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.2.3...arize-phoenix-v4.2.4) (2024-05-28)
 
 
