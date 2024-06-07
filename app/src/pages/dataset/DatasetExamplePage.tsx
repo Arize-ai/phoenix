@@ -8,6 +8,7 @@ import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
 import {
+  Button,
   Card,
   CardProps,
   Dialog,
@@ -39,6 +40,14 @@ export function DatasetExamplePage() {
               output
               metadata
             }
+            span {
+              context {
+                traceId
+              }
+              project {
+                id
+              }
+            }
           }
         }
       }
@@ -54,6 +63,16 @@ export function DatasetExamplePage() {
       metadata: JSON.stringify(revision?.metadata, null, 2),
     };
   }, [data]);
+  const sourceSpanInfo = useMemo(() => {
+    const sourceSpan = data.example.span;
+    if (!sourceSpan) {
+      return null;
+    }
+    return {
+      traceId: sourceSpan.context.traceId,
+      projectId: sourceSpan.project.id,
+    };
+  }, [data]);
   const { input, output, metadata } = revision;
   const navigate = useNavigate();
   return (
@@ -66,13 +85,28 @@ export function DatasetExamplePage() {
         size="XL"
         title={`Example: ${exampleId}`}
         extra={
-          <EditDatasetExampleButton
-            exampleId={exampleId as string}
-            currentRevision={revision}
-            onCompleted={() => {
-              setFetchKey((key) => key + 1);
-            }}
-          />
+          <Flex direction="row" gap="size-100">
+            {sourceSpanInfo ? (
+              <Button
+                variant="default"
+                size="compact"
+                onClick={() => {
+                  navigate(
+                    `/projects/${sourceSpanInfo.projectId}/traces/${sourceSpanInfo.traceId}`
+                  );
+                }}
+              >
+                View Source Span
+              </Button>
+            ) : null}
+            <EditDatasetExampleButton
+              exampleId={exampleId as string}
+              currentRevision={revision}
+              onCompleted={() => {
+                setFetchKey((key) => key + 1);
+              }}
+            />
+          </Flex>
         }
       >
         <div

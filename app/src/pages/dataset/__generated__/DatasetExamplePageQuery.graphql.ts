@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f015cbabef07d6563a8392f9a4696372>>
+ * @generated SignedSource<<97a611dd309043306668dba8975e2e44>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,6 +20,14 @@ export type DatasetExamplePageQuery$data = {
       readonly metadata: any;
       readonly output: any;
     };
+    readonly span?: {
+      readonly context: {
+        readonly traceId: string;
+      };
+      readonly project: {
+        readonly id: string;
+      };
+    } | null;
   };
 };
 export type DatasetExamplePageQuery = {
@@ -80,6 +88,47 @@ v3 = {
     }
   ],
   "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "Span",
+  "kind": "LinkedField",
+  "name": "span",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "SpanContext",
+      "kind": "LinkedField",
+      "name": "context",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "traceId",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "Project",
+      "kind": "LinkedField",
+      "name": "project",
+      "plural": false,
+      "selections": [
+        (v2/*: any*/)
+      ],
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -100,7 +149,8 @@ return {
             "kind": "InlineFragment",
             "selections": [
               (v2/*: any*/),
-              (v3/*: any*/)
+              (v3/*: any*/),
+              (v4/*: any*/)
             ],
             "type": "DatasetExample",
             "abstractKey": null
@@ -141,7 +191,8 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
-              (v3/*: any*/)
+              (v3/*: any*/),
+              (v4/*: any*/)
             ],
             "type": "DatasetExample",
             "abstractKey": null
@@ -152,16 +203,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "93fbebc2d9ffcd7cf2d9c97a29b81abf",
+    "cacheID": "6791821dcb3e6b94d51eea4152148b79",
     "id": null,
     "metadata": {},
     "name": "DatasetExamplePageQuery",
     "operationKind": "query",
-    "text": "query DatasetExamplePageQuery(\n  $exampleId: GlobalID!\n) {\n  example: node(id: $exampleId) {\n    __typename\n    ... on DatasetExample {\n      id\n      latestRevision: revision {\n        input\n        output\n        metadata\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query DatasetExamplePageQuery(\n  $exampleId: GlobalID!\n) {\n  example: node(id: $exampleId) {\n    __typename\n    ... on DatasetExample {\n      id\n      latestRevision: revision {\n        input\n        output\n        metadata\n      }\n      span {\n        context {\n          traceId\n        }\n        project {\n          id\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "04e6568e5b36514aee41eb38d5c66166";
+(node as any).hash = "92fb7507b7ebdb125d72e1c74b1efc4b";
 
 export default node;
