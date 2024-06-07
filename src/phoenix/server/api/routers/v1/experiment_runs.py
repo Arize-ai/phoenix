@@ -11,7 +11,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
 async def create_experiment_run(request: Request) -> Response:
-    experiment_globalid = GlobalID.from_id(request.path_params.get("experiment_id"))
+    experiment_globalid = GlobalID.from_id(request.path_params["experiment_id"])
     try:
         experiment_id = from_global_id_with_expected_type(experiment_globalid, "Experiment")
     except ValueError:
@@ -67,7 +67,7 @@ async def create_experiment_run(request: Request) -> Response:
 
 
 async def list_experiment_runs(request: Request) -> Response:
-    experiment_globalid = GlobalID.from_id(request.path_params.get("experiment_id"))
+    experiment_globalid = GlobalID.from_id(request.path_params["experiment_id"])
     try:
         experiment_id = from_global_id_with_expected_type(experiment_globalid, "Experiment")
     except ValueError:
