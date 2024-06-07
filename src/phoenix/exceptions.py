@@ -8,7 +8,3 @@ class PhoenixEvaluationNameIsMissing(PhoenixException):
 
 class PhoenixMigrationError(PhoenixException):
     pass
-
-
-class PhoenixRateLimitError(PhoenixException):
-    pass
