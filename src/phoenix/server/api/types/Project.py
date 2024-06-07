@@ -363,4 +363,9 @@ def to_gql_project(project: models.Project) -> Project:
     """
     Converts an ORM project to a GraphQL Project.
     """
-    raise NotImplementedError("to_gql_project is not implemented yet")
+    return Project(
+        id_attr=project.id,
+        name=project.name,
+        gradient_start_color=project.gradient_start_color,
+        gradient_end_color=project.gradient_end_color,
+    )
