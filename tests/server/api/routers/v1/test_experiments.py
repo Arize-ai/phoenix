@@ -31,6 +31,10 @@ async def test_experiments_api(session, test_client, simple_dataset):
         )
     ).json()
 
+    # experiments can be read using the GET /experiments route
+    experiment = (await test_client.get(f"/v1/experiments/{experiment_globalid}")).json()
+    assert experiment
+
     # create experiment runs for each dataset example
     run_payload = {
         "dataset_example_id": str(dataset_examples[0]["id"]),
@@ -46,6 +50,11 @@ async def test_experiments_api(session, test_client, simple_dataset):
             json=run_payload,
         )
     ).json()
+
+    # experiment runs can be listed for evaluations
+    experiment_runs = (await test_client.get(f"/v1/experiments/{experiment_globalid}/runs")).json()
+    assert experiment_runs
+    assert len(experiment_runs) == 1
 
     # each experiment run can be evaluated
     evaluation_payload = {

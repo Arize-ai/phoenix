@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from sqlalchemy import select
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.status import HTTP_404_NOT_FOUND
@@ -66,29 +67,38 @@ async def create_experiment_run(request: Request) -> Response:
 
 
 async def list_experiment_runs(request: Request) -> Response:
-    experiment_id = request.path_params.get("experiment-id")
+    experiment_globalid = GlobalID.from_id(request.path_params.get("experiment_id"))
+    try:
+        experiment_id = from_global_id_with_expected_type(experiment_globalid, "Experiment")
+    except ValueError:
+        return Response(
+            content=f"Experiment with ID {experiment_globalid} does not exist",
+            status_code=HTTP_404_NOT_FOUND,
+        )
+
     async with request.app.state.db() as session:
         experiment_runs = await session.execute(
-            session.query(models.ExperimentRun)
-            .filter(models.ExperimentRun.experiment_id == experiment_id)
+            select(models.ExperimentRun)
+            .where(models.ExperimentRun.experiment_id == experiment_id)
             # order by dataset_exaple_id to be consistent with `list_dataset_examples`
             .order_by(models.ExperimentRun.dataset_example_id.asc())
         )
         experiment_runs = experiment_runs.scalars().all()
         runs = []
         for run in experiment_runs:
+            run_gid = GlobalID("ExperimentRun", str(run.id))
             experiment_gid = GlobalID("Experiment", str(run.experiment_id))
             example_gid = GlobalID("DatasetExample", str(run.dataset_example_id))
             runs.append(
                 {
-                    "id": run.id,
+                    "id": str(run_gid),
                     "experiment_id": str(experiment_gid),
                     "dataset_example_id": str(example_gid),
                     "output": run.output,
-                    "trace_rowid": run.trace_rowid,
-                    "start_time": run.start_time,
-                    "end_time": run.end_time,
+                    "trace_id": run.trace_id,
+                    "start_time": run.start_time.isoformat(),
+                    "end_time": run.end_time.isoformat(),
                     "error": run.error,
                 }
             )
-        return JSONResponse(content=experiment_runs, status_code=200)
+        return JSONResponse(content=runs, status_code=200)
