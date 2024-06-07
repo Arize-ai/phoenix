@@ -31,6 +31,7 @@ from phoenix.server.api.types.EmbeddingDimension import (
     to_gql_embedding_dimension,
 )
 from phoenix.server.api.types.Event import create_event_id, unpack_event_id
+from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
 from phoenix.server.api.types.Model import Model
@@ -41,7 +42,7 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.Project import Project
-from phoenix.server.api.types.Span import to_gql_span
+from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.Trace import Trace
 
 
@@ -152,7 +153,7 @@ class Query:
             if id_attr is None:
                 raise ValueError(f"Unknown trace: {id}")
             return Trace(id_attr=id_attr)
-        elif type_name == "Span":
+        elif type_name == Span.__name__:
             span_stmt = (
                 select(models.Span)
                 .join(models.Trace)
@@ -164,7 +165,7 @@ class Query:
             if span is None:
                 raise ValueError(f"Unknown span: {id}")
             return to_gql_span(span)
-        elif type_name == "Dataset":
+        elif type_name == Dataset.__name__:
             dataset_stmt = select(
                 models.Dataset.id,
                 models.Dataset.name,
@@ -185,7 +186,7 @@ class Query:
                 updated_at=dataset.updated_at,
                 metadata=dataset.metadata_,
             )
-        elif type_name == "DatasetExample":
+        elif type_name == DatasetExample.__name__:
             example_id = node_id
             latest_revision_id = (
                 select(func.max(models.DatasetExampleRevision.id))
@@ -213,6 +214,20 @@ class Query:
             return DatasetExample(
                 id_attr=example.id,
                 created_at=example.created_at,
+            )
+        elif type_name == Experiment.__name__:
+            async with info.context.db() as session:
+                experiment = await session.scalar(
+                    select(models.Experiment).where(models.Experiment.id == node_id)
+                )
+            if not experiment:
+                raise ValueError(f"Unknown experiment: {id}")
+            return Experiment(
+                id_attr=experiment.id,
+                description=experiment.description,
+                created_at=experiment.created_at,
+                updated_at=experiment.updated_at,
+                metadata=experiment.metadata,
             )
         raise Exception(f"Unknown node type: {type_name}")
 
