@@ -37,7 +37,7 @@ def migrate(url: URL, error_queue: Optional["Queue[Exception]"] = None) -> None:
         # Explicitly set the migration directory
         scripts_location = str(Path(__file__).parent.resolve() / "migrations")
         alembic_cfg.set_main_option("script_location", scripts_location)
-        alembic_cfg.set_main_option("sqlalchemy.url", str(url))
+        alembic_cfg.set_main_option("sqlalchemy.url", str(url).replace("%", "%%"))
         command.upgrade(alembic_cfg, "head")
         printif(log_migrations, "---------------------------")
         printif(log_migrations, "✅ Migrations complete.")
