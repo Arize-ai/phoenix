@@ -42,6 +42,7 @@ export function DatasetExamplePage() {
             }
             span {
               context {
+                spanId
                 traceId
               }
               project {
@@ -69,6 +70,7 @@ export function DatasetExamplePage() {
       return null;
     }
     return {
+      spanId: sourceSpan.context.spanId,
       traceId: sourceSpan.context.traceId,
       projectId: sourceSpan.project.id,
     };
@@ -92,7 +94,7 @@ export function DatasetExamplePage() {
                 size="compact"
                 onClick={() => {
                   navigate(
-                    `/projects/${sourceSpanInfo.projectId}/traces/${sourceSpanInfo.traceId}`
+                    `/projects/${sourceSpanInfo.projectId}/traces/${sourceSpanInfo.traceId}?selectedSpanId=${sourceSpanInfo.spanId}`
                   );
                 }}
               >

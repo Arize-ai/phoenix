@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<97a611dd309043306668dba8975e2e44>>
+ * @generated SignedSource<<ab33c07e04924aeeb778efcfc7881453>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -22,6 +22,7 @@ export type DatasetExamplePageQuery$data = {
     };
     readonly span?: {
       readonly context: {
+        readonly spanId: string;
         readonly traceId: string;
       };
       readonly project: {
@@ -105,6 +106,13 @@ v4 = {
       "name": "context",
       "plural": false,
       "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "spanId",
+          "storageKey": null
+        },
         {
           "alias": null,
           "args": null,
@@ -203,16 +211,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6791821dcb3e6b94d51eea4152148b79",
+    "cacheID": "299278b16a4091954c6c6f2a031d5afc",
     "id": null,
     "metadata": {},
     "name": "DatasetExamplePageQuery",
     "operationKind": "query",
-    "text": "query DatasetExamplePageQuery(\n  $exampleId: GlobalID!\n) {\n  example: node(id: $exampleId) {\n    __typename\n    ... on DatasetExample {\n      id\n      latestRevision: revision {\n        input\n        output\n        metadata\n      }\n      span {\n        context {\n          traceId\n        }\n        project {\n          id\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query DatasetExamplePageQuery(\n  $exampleId: GlobalID!\n) {\n  example: node(id: $exampleId) {\n    __typename\n    ... on DatasetExample {\n      id\n      latestRevision: revision {\n        input\n        output\n        metadata\n      }\n      span {\n        context {\n          spanId\n          traceId\n        }\n        project {\n          id\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "92fb7507b7ebdb125d72e1c74b1efc4b";
+(node as any).hash = "f0613202340b813419eeee55397308ae";
 
 export default node;
