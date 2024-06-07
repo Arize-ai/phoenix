@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.status import HTTP_404_NOT_FOUND
@@ -37,8 +39,8 @@ async def create_experiment_evaluation(request: Request) -> Response:
             explanation=explanation,
             error=error,
             metadata_=metadata,
-            start_time=start_time,
-            end_time=end_time,
+            start_time=datetime.fromisoformat(start_time),
+            end_time=datetime.fromisoformat(end_time),
         )
         session.add(experiment_evaluation)
         await session.flush()
@@ -52,7 +54,7 @@ async def create_experiment_evaluation(request: Request) -> Response:
             "explanation": experiment_evaluation.explanation,
             "error": experiment_evaluation.error,
             "metadata": experiment_evaluation.metadata_,
-            "start_time": experiment_evaluation.start_time,
-            "end_time": experiment_evaluation.end_time,
+            "start_time": experiment_evaluation.start_time.isoformat(),
+            "end_time": experiment_evaluation.end_time.isoformat(),
         }
         return JSONResponse(content=eval_payload, status_code=200)

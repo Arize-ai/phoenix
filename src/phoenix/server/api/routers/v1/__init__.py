@@ -34,17 +34,17 @@ V1_ROUTES = [
         methods=["GET"],
     ),
     Route(
-        "/v1/datasets/{dataset_id:str}/experiments/{experiment_id:str}/runs",
+        "/v1/experiments/{experiment_id:str}/runs",
         experiment_runs.create_experiment_run,
         methods=["POST"],
     ),
     Route(
-        "/v1/datasets/{dataset_id:str}/experiments/{experiment_id:str}/runs",
+        "/v1/experiments/{experiment_id:str}/runs",
         experiment_runs.list_experiment_runs,
         methods=["GET"],
     ),
     Route(
-        "/v1/datasets/{ds_id:str}/experiments/{exp_id:str}/runs/{run_id:str}/evaluations",
+        "/v1/experiments/{exp_id:str}/runs/{run_id:str}/evaluations",
         experiment_evaluations.create_experiment_evaluation,
         methods=["POST"],
     ),

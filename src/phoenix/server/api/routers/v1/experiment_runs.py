@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.status import HTTP_404_NOT_FOUND
@@ -8,7 +10,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
 async def create_experiment_run(request: Request) -> Response:
-    experiment_globalid = GlobalID.from_id(request.path_params.get("experiment-id"))
+    experiment_globalid = GlobalID.from_id(request.path_params.get("experiment_id"))
     try:
         experiment_id = from_global_id_with_expected_type(experiment_globalid, "Experiment")
     except ValueError:
@@ -30,7 +32,7 @@ async def create_experiment_run(request: Request) -> Response:
             status_code=HTTP_404_NOT_FOUND,
         )
 
-    trace_rowid = payload.get("trace_rowid", None)
+    trace_id = payload.get("trace_id", None)
     output = payload.get("output")
     start_time = payload.get("start_time")
     end_time = payload.get("end_time")
@@ -40,23 +42,24 @@ async def create_experiment_run(request: Request) -> Response:
         experiment_run = models.ExperimentRun(
             experiment_id=int(experiment_id),
             dataset_example_id=int(dataset_example_id),
-            trace_rowid=trace_rowid,
+            trace_id=trace_id,
             output=output,
-            start_time=start_time,
-            end_time=end_time,
+            start_time=datetime.fromisoformat(start_time),
+            end_time=datetime.fromisoformat(end_time),
             error=error,
         )
         session.add(experiment_run)
         await session.flush()
 
+        run_globalid = GlobalID("ExperimentRun", str(experiment_run.id))
         run_payload = {
-            "id": experiment_run.id,
+            "id": str(run_globalid),
             "experiment_id": str(experiment_globalid),
             "dataset_example_id": str(dataset_example_globalid),
             "output": experiment_run.output,
-            "trace_rowid": experiment_run.trace_rowid,
-            "start_time": experiment_run.start_time,
-            "end_time": experiment_run.end_time,
+            "trace_id": experiment_run.trace_id,
+            "start_time": experiment_run.start_time.isoformat(),
+            "end_time": experiment_run.end_time.isoformat(),
             "error": experiment_run.error,
         }
         return JSONResponse(content=run_payload, status_code=200)
