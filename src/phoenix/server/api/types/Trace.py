@@ -41,7 +41,7 @@ class Trace(Node):
             select(models.Span)
             .join(models.Trace)
             .where(models.Trace.id == self.id_attr)
-            .options(contains_eager(models.Span.trace))
+            .options(contains_eager(models.Span.trace).load_only(models.Trace.trace_id))
             # Sort descending because the root span tends to show up later
             # in the ingestion process.
             .order_by(desc(models.Span.id))

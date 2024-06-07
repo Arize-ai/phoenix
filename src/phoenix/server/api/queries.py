@@ -5,7 +5,7 @@ import numpy as np
 import numpy.typing as npt
 import strawberry
 from sqlalchemy import and_, func, select
-from sqlalchemy.orm import contains_eager
+from sqlalchemy.orm import joinedload
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, GlobalID, Node
 from strawberry.types import Info
@@ -156,8 +156,9 @@ class Query:
         elif type_name == Span.__name__:
             span_stmt = (
                 select(models.Span)
-                .join(models.Trace)
-                .options(contains_eager(models.Span.trace))
+                .options(
+                    joinedload(models.Span.trace, innerjoin=True).load_only(models.Trace.trace_id)
+                )
                 .where(models.Span.id == node_id)
             )
             async with info.context.db() as session:
