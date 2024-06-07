@@ -15,24 +15,16 @@ input AddSpansToDatasetInput {
 union Bin = NominalBin | IntervalBin | MissingValueBin
 
 type Cluster {
-  """
-  The ID of the cluster
-  """
+  """The ID of the cluster"""
   id: ID!
 
-  """
-  The event IDs of the points in the cluster
-  """
+  """The event IDs of the points in the cluster"""
   eventIds: [ID!]!
 
-  """
-  Ratio of primary points over reference points
-  """
+  """Ratio of primary points over reference points"""
   driftRatio: Float
 
-  """
-  Ratio of primary points over corpus points
-  """
+  """Ratio of primary points over corpus points"""
   primaryToCorpusRatio: Float
 
   """
@@ -82,103 +74,58 @@ type DataQualityTimeSeries implements TimeSeries {
 }
 
 type Dataset implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   name: String!
   description: String
   metadata: JSON!
   createdAt: DateTime!
   updatedAt: DateTime!
-  versions(
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-    sort: DatasetVersionSort
-  ): DatasetVersionConnection!
-  examples(
-    datasetVersionId: GlobalID
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-  ): DatasetExampleConnection!
-  experiments(
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-  ): ExperimentConnection!
+  versions(first: Int = 50, last: Int, after: String, before: String, sort: DatasetVersionSort): DatasetVersionConnection!
+  examples(datasetVersionId: GlobalID, first: Int = 50, last: Int, after: String, before: String): DatasetExampleConnection!
+  experiments(first: Int = 50, last: Int, after: String, before: String): ExperimentConnection!
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type DatasetConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [DatasetEdge!]!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type DatasetEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: Dataset!
 }
 
 type DatasetExample implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   createdAt: DateTime!
   revision(datasetVersionId: GlobalID): DatasetExampleRevision!
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type DatasetExampleConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [DatasetExampleEdge!]!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type DatasetExampleEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: DatasetExample!
 }
 
@@ -204,47 +151,6 @@ type DatasetExampleRevision implements ExampleRevision {
   createdAt: DateTime!
 }
 
-type Experiment implements Node {
-  """
-  The Globally Unique ID of this object
-  """
-  id: GlobalID!
-  description: String
-  metadata: JSON!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-}
-
-"""
-A connection to a list of items.
-"""
-type ExperimentConnection {
-  """
-  Pagination data for this connection
-  """
-  pageInfo: PageInfo!
-
-  """
-  Contains the nodes in this connection
-  """
-  edges: [ExperimentEdge!]!
-}
-
-"""
-An edge in a connection.
-"""
-type ExperimentEdge {
-  """
-  A cursor for use in pagination
-  """
-  cursor: String!
-
-  """
-  The item at the end of the edge
-  """
-  node: Experiment!
-}
-
 type DatasetMutationPayload {
   dataset: Dataset!
 }
@@ -255,9 +161,7 @@ type DatasetValues {
 }
 
 type DatasetVersion implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   description: String
   metadata: JSON!
@@ -268,47 +172,31 @@ enum DatasetVersionColumn {
   createdAt
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type DatasetVersionConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [DatasetVersionEdge!]!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type DatasetVersionEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: DatasetVersion!
 }
 
-"""
-The sort key and direction for dataset version connections
-"""
+"""The sort key and direction for dataset version connections"""
 input DatasetVersionSort {
   col: DatasetVersionColumn!
   dir: SortDir!
 }
 
-"""
-Date with time (isoformat)
-"""
+"""Date with time (isoformat)"""
 scalar DateTime
 
 input DeleteDatasetExamplesInput {
@@ -322,14 +210,10 @@ input DeleteDatasetInput {
 }
 
 type Dimension implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: GlobalID!
 
-  """
-  The name of the dimension (a.k.a. the column name)
-  """
+  """The name of the dimension (a.k.a. the column name)"""
   name: String!
 
   """
@@ -337,23 +221,17 @@ type Dimension implements Node {
   """
   type: DimensionType!
 
-  """
-  The data type of the column. Categorical or numeric.
-  """
+  """The data type of the column. Categorical or numeric."""
   dataType: DimensionDataType!
 
-  """
-  Whether the dimension data is continuous or discrete.
-  """
+  """Whether the dimension data is continuous or discrete."""
   shape: DimensionShape!
   driftMetric(metric: ScalarDriftMetric!, timeRange: TimeRange): Float
   dataQualityMetric(
     metric: DataQualityMetric!
     timeRange: TimeRange
 
-    """
-    The inferences (primary or reference) to query
-    """
+    """The inferences (primary or reference) to query"""
     inferencesRole: InferencesRole = primary
   ): Float
 
@@ -370,20 +248,14 @@ type Dimension implements Node {
     timeRange: TimeRange!
     granularity: Granularity!
 
-    """
-    The inferences (primary or reference) to query
-    """
+    """The inferences (primary or reference) to query"""
     inferencesRole: InferencesRole = primary
   ): DataQualityTimeSeries!
 
   """
   The time series of the specified metric for data within a time range. Data points are generated starting at the end time and are separated by the sampling interval. Each data point is labeled by the end instant and contains data from their respective evaluation windows.
   """
-  driftTimeSeries(
-    metric: ScalarDriftMetric!
-    timeRange: TimeRange!
-    granularity: Granularity!
-  ): DriftTimeSeries!
+  driftTimeSeries(metric: ScalarDriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
 
   """
   The segments across both inference sets and returns the counts per segment
@@ -391,18 +263,12 @@ type Dimension implements Node {
   segmentsComparison(primaryTimeRange: TimeRange): Segments!
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type DimensionConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [DimensionEdge!]!
 }
 
@@ -411,18 +277,12 @@ enum DimensionDataType {
   numeric
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type DimensionEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: Dimension!
 }
 
@@ -452,21 +312,15 @@ enum DimensionType {
 type DimensionWithValue {
   dimension: Dimension!
 
-  """
-  The string representation of the dimension's value
-  """
+  """The string representation of the dimension's value"""
   value: String
 }
 
 type DocumentEvaluation implements Evaluation {
-  """
-  Name of the evaluation, e.g. 'helpfulness' or 'relevance'.
-  """
+  """Name of the evaluation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
 
-  """
-  Result of the evaluation in the form of a numeric score.
-  """
+  """Result of the evaluation in the form of a numeric score."""
   score: Float
 
   """
@@ -532,9 +386,7 @@ type DriftTimeSeries implements TimeSeries {
 }
 
 type EmbeddingDimension implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   name: String!
 
@@ -556,99 +408,61 @@ type EmbeddingDimension implements Node {
     timeRange: TimeRange!
     granularity: Granularity!
 
-    """
-    The dataset (primary or reference) to query
-    """
+    """The dataset (primary or reference) to query"""
     inferencesRole: InferencesRole = primary
   ): DataQualityTimeSeries!
 
   """
-  Computes a drift time-series between the primary and reference datasets. The output drift time-series contains one data point for each whole hour in the input time range (inclusive of the time range start and exclusive of the time range end). Each data point contains the drift metric value between all reference data and the primary data within the evaluation window ending at the corresponding time. Returns None if no reference dataset exists or if the input time range is invalid.
+  Computes a drift time-series between the primary and reference datasets. The output drift time-series contains one data point for each whole hour in the input time range (inclusive of the time range start and exclusive of the time range end). Each data point contains the drift metric value between all reference data and the primary data within the evaluation window ending at the corresponding time. Returns None if no reference dataset exists or if the input time range is invalid.           
   """
-  driftTimeSeries(
-    metric: VectorDriftMetric!
-    timeRange: TimeRange!
-    granularity: Granularity!
-  ): DriftTimeSeries!
+  driftTimeSeries(metric: VectorDriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
 
   """
-  Computes a retrieval metric between the primary and corpus datasets. The output time-series contains one data point for each whole hour in the input time range (inclusive of the time range start and exclusive of the time range end). Each data point contains the metric value between all corpus data and the primary data within the evaluation window ending at the corresponding time. Returns None if no corpus dataset exists or if the input time range is invalid.
+  Computes a retrieval metric between the primary and corpus datasets. The output time-series contains one data point for each whole hour in the input time range (inclusive of the time range start and exclusive of the time range end). Each data point contains the metric value between all corpus data and the primary data within the evaluation window ending at the corresponding time. Returns None if no corpus dataset exists or if the input time range is invalid.           
   """
-  retrievalMetricTimeSeries(
-    metric: VectorDriftMetric!
-    timeRange: TimeRange!
-    granularity: Granularity!
-  ): DriftTimeSeries!
+  retrievalMetricTimeSeries(metric: VectorDriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
   UMAPPoints(
-    """
-    The time range of the primary dataset to generate the UMAP points for
-    """
+    """The time range of the primary dataset to generate the UMAP points for"""
     timeRange: TimeRange!
 
-    """
-    UMAP target dimension hyperparameter. Must be 2 or 3
-    """
+    """UMAP target dimension hyperparameter. Must be 2 or 3"""
     nComponents: Int = 3
 
-    """
-    UMAP minimum distance hyperparameter
-    """
+    """UMAP minimum distance hyperparameter"""
     minDist: Float! = 0
 
-    """
-    UMAP N neighbors hyperparameter
-    """
+    """UMAP N neighbors hyperparameter"""
     nNeighbors: Int! = 30
 
-    """
-    UMAP N samples
-    """
+    """UMAP N samples"""
     nSamples: Int! = 500
 
-    """
-    HDBSCAN minimum cluster size
-    """
+    """HDBSCAN minimum cluster size"""
     minClusterSize: Int! = 10
 
-    """
-    HDBSCAN minimum samples
-    """
+    """HDBSCAN minimum samples"""
     clusterMinSamples: Int! = 1
 
-    """
-    HDBSCAN cluster selection epsilon
-    """
+    """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
   ): UMAPPoints!
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type EmbeddingDimensionConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [EmbeddingDimensionEdge!]!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type EmbeddingDimensionEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: EmbeddingDimension!
 }
 
@@ -669,14 +483,10 @@ input EvalResultKey {
 }
 
 interface Evaluation {
-  """
-  Name of the evaluation, e.g. 'helpfulness' or 'relevance'.
-  """
+  """Name of the evaluation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
 
-  """
-  Result of the evaluation in the form of a numeric score.
-  """
+  """Result of the evaluation in the form of a numeric score."""
   score: Float
 
   """
@@ -704,14 +514,10 @@ type Event {
   eventMetadata: EventMetadata!
   dimensions: [DimensionWithValue!]!
 
-  """
-  The prompt and response pair associated with the event
-  """
+  """The prompt and response pair associated with the event"""
   promptAndResponse: PromptResponse
 
-  """
-  The text of the document if the event is a retrieved document record
-  """
+  """The text of the document if the event is a retrieved document record"""
   documentText: String
 }
 
@@ -729,30 +535,50 @@ interface ExampleRevision {
   metadata: JSON!
 }
 
+type Experiment implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  description: String
+  metadata: JSON!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""A connection to a list of items."""
+type ExperimentConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ExperimentEdge!]!
+}
+
+"""An edge in a connection."""
+type ExperimentEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Experiment!
+}
+
 type ExportedFile {
-  """
-  File name without the file extension.
-  """
+  """File name without the file extension."""
   fileName: String!
 }
 
 type Functionality {
-  """
-  Model inferences are available for analysis
-  """
+  """Model inferences are available for analysis"""
   modelInferences: Boolean!
 
-  """
-  Generative tracing records are available for analysis
-  """
+  """Generative tracing records are available for analysis"""
   tracing: Boolean!
 }
 
 """
 The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
 """
-scalar GlobalID
-  @specifiedBy(url: "https://relay.dev/graphql/objectidentification.htm")
+scalar GlobalID @specifiedBy(url: "https://relay.dev/graphql/objectidentification.htm")
 
 """
 Granularity specifies the distance between points in a time-series and the duration of time (i.e. evaluation window) by which data is aggregated for  each data point. By convention all time intervals are right-open intervals, i.e. the end instant of the evaluation window is excluded from the interval. As a matter of standardization, each point in a time-series aggregates data  corresponding to an interval of time (i.e. the evaluation window) ending at the point's timestamp, and each time-series enumerates its points starting from the end instant of the TimeRange.
@@ -770,24 +596,16 @@ input Granularity {
 }
 
 type Inferences {
-  """
-  The start bookend of the data
-  """
+  """The start bookend of the data"""
   startTime: DateTime!
 
-  """
-  The end bookend of the data
-  """
+  """The end bookend of the data"""
   endTime: DateTime!
 
-  """
-  The record count of the data
-  """
+  """The record count of the data"""
   recordCount: Int!
 
-  """
-  Returns a human friendly name for the inferences.
-  """
+  """Returns a human friendly name for the inferences."""
   name: String!
   events(eventIds: [ID!]!, dimensions: [DimensionInput!]): [Event!]!
 }
@@ -815,10 +633,7 @@ type IntervalBin {
 """
 The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
 """
-scalar JSON
-  @specifiedBy(
-    url: "http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf"
-  )
+scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf")
 
 type LabelFraction {
   label: String!
@@ -835,35 +650,19 @@ type MissingValueBin {
 }
 
 type Model {
-  dimensions(
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-    include: DimensionFilter
-    exclude: DimensionFilter
-  ): DimensionConnection!
+  dimensions(first: Int = 50, last: Int, after: String, before: String, include: DimensionFilter, exclude: DimensionFilter): DimensionConnection!
   primaryInferences: Inferences!
   referenceInferences: Inferences
   corpusInferences: Inferences
-  embeddingDimensions(
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-  ): EmbeddingDimensionConnection!
+  embeddingDimensions(first: Int = 50, last: Int, after: String, before: String): EmbeddingDimensionConnection!
 
-  """
-  Returns exported file names sorted by descending modification time.
-  """
+  """Returns exported file names sorted by descending modification time."""
   exportedFiles: [ExportedFile!]!
   performanceMetric(
     metric: PerformanceMetricInput!
     timeRange: TimeRange
 
-    """
-    The inferences (primary or reference) to query
-    """
+    """The inferences (primary or reference) to query"""
     inferencesRole: InferencesRole = primary
   ): Float
 
@@ -875,9 +674,7 @@ type Model {
     timeRange: TimeRange!
     granularity: Granularity!
 
-    """
-    The inferences (primary or reference) to query
-    """
+    """The inferences (primary or reference) to query"""
     inferencesRole: InferencesRole = primary
   ): PerformanceTimeSeries!
 }
@@ -887,16 +684,10 @@ type Mutation {
   clearProject(id: GlobalID!): Query!
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
-  addExamplesToDataset(
-    input: AddExamplesToDatasetInput!
-  ): DatasetMutationPayload!
+  addExamplesToDataset(input: AddExamplesToDatasetInput!): DatasetMutationPayload!
   deleteDataset(input: DeleteDatasetInput!): DatasetMutationPayload!
-  patchDatasetExamples(
-    input: PatchDatasetExamplesInput!
-  ): DatasetMutationPayload!
-  deleteDatasetExamples(
-    input: DeleteDatasetExamplesInput!
-  ): DatasetMutationPayload!
+  patchDatasetExamples(input: PatchDatasetExamplesInput!): DatasetMutationPayload!
+  deleteDatasetExamples(input: DeleteDatasetExamplesInput!): DatasetMutationPayload!
 
   """
   Given a list of event ids, export the corresponding data subset in Parquet format. File name is optional, but if specified, should be without file extension. By default the exported file name is current timestamp.
@@ -909,13 +700,9 @@ type Mutation {
   exportClusters(clusters: [ClusterInput!]!, fileName: String): ExportedFile!
 }
 
-"""
-An object with a Globally Unique ID
-"""
+"""An object with a Globally Unique ID"""
 interface Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: GlobalID!
 }
 
@@ -928,28 +715,18 @@ type NumericRange {
   end: Float!
 }
 
-"""
-Information to aid in pagination.
-"""
+"""Information to aid in pagination."""
 type PageInfo {
-  """
-  When paginating forwards, are there more items?
-  """
+  """When paginating forwards, are there more items?"""
   hasNextPage: Boolean!
 
-  """
-  When paginating backwards, are there more items?
-  """
+  """When paginating backwards, are there more items?"""
   hasPreviousPage: Boolean!
 
-  """
-  When paginating backwards, the cursor to continue.
-  """
+  """When paginating backwards, the cursor to continue."""
   startCursor: String
 
-  """
-  When paginating forwards, the cursor to continue.
-  """
+  """When paginating forwards, the cursor to continue."""
   endCursor: String
 }
 
@@ -985,9 +762,7 @@ type Point3D {
 }
 
 type Project implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   name: String!
   gradientStartColor: String!
@@ -1000,22 +775,9 @@ type Project implements Node {
   tokenCountPrompt(timeRange: TimeRange, filterCondition: String): Int!
   tokenCountCompletion(timeRange: TimeRange, filterCondition: String): Int!
   latencyMsQuantile(probability: Float!, timeRange: TimeRange): Float
-  spanLatencyMsQuantile(
-    probability: Float!
-    timeRange: TimeRange
-    filterCondition: String
-  ): Float
+  spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String): Float
   trace(traceId: ID!): Trace
-  spans(
-    timeRange: TimeRange
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-    sort: SpanSort
-    rootSpansOnly: Boolean
-    filterCondition: String
-  ): SpanConnection!
+  spans(timeRange: TimeRange, first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String): SpanConnection!
 
   """
   Names of all available evaluations for traces. (The list contains no duplicates.)
@@ -1027,116 +789,65 @@ type Project implements Node {
   """
   spanEvaluationNames: [String!]!
 
-  """
-  Names of available document evaluations.
-  """
+  """Names of available document evaluations."""
   documentEvaluationNames(spanId: ID): [String!]!
-  traceEvaluationSummary(
-    evaluationName: String!
-    timeRange: TimeRange
-  ): EvaluationSummary
-  spanEvaluationSummary(
-    evaluationName: String!
-    timeRange: TimeRange
-    filterCondition: String
-  ): EvaluationSummary
-  documentEvaluationSummary(
-    evaluationName: String!
-    timeRange: TimeRange
-    filterCondition: String
-  ): DocumentEvaluationSummary
+  traceEvaluationSummary(evaluationName: String!, timeRange: TimeRange): EvaluationSummary
+  spanEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): EvaluationSummary
+  documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type ProjectConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [ProjectEdge!]!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type ProjectEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: Project!
 }
 
 type PromptResponse {
-  """
-  The prompt submitted to the LLM
-  """
+  """The prompt submitted to the LLM"""
   prompt: String
 
-  """
-  The response generated by the LLM
-  """
+  """The response generated by the LLM"""
   response: String
 }
 
 type Query {
-  projects(
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-  ): ProjectConnection!
-  datasets(
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-  ): DatasetConnection!
+  projects(first: Int = 50, last: Int, after: String, before: String): ProjectConnection!
+  datasets(first: Int = 50, last: Int, after: String, before: String): DatasetConnection!
   functionality: Functionality!
   model: Model!
   node(id: GlobalID!): Node!
   clusters(clusters: [ClusterInput!]!): [Cluster!]!
   hdbscanClustering(
-    """
-    Event ID of the coordinates
-    """
+    """Event ID of the coordinates"""
     eventIds: [ID!]!
 
-    """
-    Point coordinates. Must be either 2D or 3D.
-    """
+    """Point coordinates. Must be either 2D or 3D."""
     coordinates2d: [InputCoordinate2D!]
 
-    """
-    Point coordinates. Must be either 2D or 3D.
-    """
+    """Point coordinates. Must be either 2D or 3D."""
     coordinates3d: [InputCoordinate3D!]
 
-    """
-    HDBSCAN minimum cluster size
-    """
+    """HDBSCAN minimum cluster size"""
     minClusterSize: Int! = 10
 
-    """
-    HDBSCAN minimum samples
-    """
+    """HDBSCAN minimum samples"""
     clusterMinSamples: Int! = 1
 
-    """
-    HDBSCAN cluster selection epsilon
-    """
+    """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
 }
@@ -1175,9 +886,7 @@ enum SortDir {
 }
 
 type Span implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   name: String!
   statusCode: SpanStatusCode!
@@ -1186,21 +895,15 @@ type Span implements Node {
   endTime: DateTime
   latencyMs: Float
 
-  """
-  the parent span ID. If null, it is a root span
-  """
+  """the parent span ID. If null, it is a root span"""
   parentId: ID
   spanKind: SpanKind!
   context: SpanContext!
 
-  """
-  Span attributes as a JSON string
-  """
+  """Span attributes as a JSON string"""
   attributes: String!
 
-  """
-  Metadata as a JSON string
-  """
+  """Metadata as a JSON string"""
   metadata: String
   numDocuments: Int
   tokenCountTotal: Int
@@ -1240,14 +943,10 @@ type Span implements Node {
   """
   documentEvaluations: [DocumentEvaluation!]!
 
-  """
-  Retrieval metrics: NDCG@K, Precision@K, Reciprocal Rank, etc.
-  """
+  """Retrieval metrics: NDCG@K, Precision@K, Reciprocal Rank, etc."""
   documentRetrievalMetrics(evaluationName: String): [DocumentRetrievalMetrics!]!
 
-  """
-  All descendant spans (children, grandchildren, etc.)
-  """
+  """All descendant spans (children, grandchildren, etc.)"""
   descendants: [Span!]!
 
   """
@@ -1274,18 +973,12 @@ enum SpanColumn {
   cumulativeTokenCountCompletion
 }
 
-"""
-A connection to a list of items.
-"""
+"""A connection to a list of items."""
 type SpanConnection {
-  """
-  Pagination data for this connection
-  """
+  """Pagination data for this connection"""
   pageInfo: PageInfo!
 
-  """
-  Contains the nodes in this connection
-  """
+  """Contains the nodes in this connection"""
   edges: [SpanEdge!]!
 }
 
@@ -1294,30 +987,20 @@ type SpanContext {
   spanId: ID!
 }
 
-"""
-An edge in a connection.
-"""
+"""An edge in a connection."""
 type SpanEdge {
-  """
-  A cursor for use in pagination
-  """
+  """A cursor for use in pagination"""
   cursor: String!
 
-  """
-  The item at the end of the edge
-  """
+  """The item at the end of the edge"""
   node: Span!
 }
 
 type SpanEvaluation implements Evaluation {
-  """
-  Name of the evaluation, e.g. 'helpfulness' or 'relevance'.
-  """
+  """Name of the evaluation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
 
-  """
-  Result of the evaluation in the form of a numeric score.
-  """
+  """Result of the evaluation in the form of a numeric score."""
   score: Float
 
   """
@@ -1341,9 +1024,7 @@ type SpanIOValue {
   mimeType: MimeType!
   value: String!
 
-  """
-  Truncate value up to `chars` characters, appending '...' if truncated.
-  """
+  """Truncate value up to `chars` characters, appending '...' if truncated."""
   truncatedValue(chars: Int! = 100): String!
 }
 
@@ -1374,14 +1055,10 @@ enum SpanStatusCode {
 }
 
 input TimeRange {
-  """
-  The start of the time range
-  """
+  """The start of the time range"""
   start: DateTime!
 
-  """
-  The end of the time range. Right exclusive.
-  """
+  """The end of the time range. Right exclusive."""
   end: DateTime!
 }
 
@@ -1395,32 +1072,19 @@ type TimeSeriesDataPoint {
 }
 
 type Trace implements Node {
-  """
-  The Globally Unique ID of this object
-  """
+  """The Globally Unique ID of this object"""
   id: GlobalID!
-  spans(
-    first: Int = 50
-    last: Int
-    after: String
-    before: String
-  ): SpanConnection!
+  spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
 
-  """
-  Evaluations associated with the trace
-  """
+  """Evaluations associated with the trace"""
   traceEvaluations: [TraceEvaluation!]!
 }
 
 type TraceEvaluation implements Evaluation {
-  """
-  Name of the evaluation, e.g. 'helpfulness' or 'relevance'.
-  """
+  """Name of the evaluation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
 
-  """
-  Result of the evaluation in the form of a numeric score.
-  """
+  """Result of the evaluation in the form of a numeric score."""
   score: Float
 
   """
@@ -1437,9 +1101,7 @@ type TraceEvaluation implements Evaluation {
 type UMAPPoint {
   id: GlobalID!
 
-  """
-  The ID of the event that the point is a projection of
-  """
+  """The ID of the event that the point is a projection of"""
   eventId: ID!
   coordinates: Point2DPoint3D!
   embeddingMetadata: EmbeddingMetadata!
