@@ -72,7 +72,9 @@ def upgrade() -> None:
         sa.Column(
             "span_rowid",
             sa.Integer,
+            sa.ForeignKey("spans.id"),
             nullable=True,
+            index=True,
         ),
         sa.Column(
             "created_at",
