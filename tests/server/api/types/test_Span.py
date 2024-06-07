@@ -2,11 +2,45 @@ from datetime import datetime
 
 import pytest
 from phoenix.db import models
+from phoenix.server.api.types.Project import Project
+from phoenix.server.api.types.Span import Span
 from sqlalchemy import insert
+from strawberry.relay import GlobalID
 
 
-def test_project_resolver_returns_correct_project(project_with_a_single_trace_and_span) -> None:
-    assert False
+async def test_project_resolver_returns_correct_project(
+    test_client, project_with_a_single_trace_and_span
+) -> None:
+    query = """
+      query ($spanId: GlobalID!) {
+        span: node(id: $spanId) {
+          ... on Span {
+            project {
+              id
+              name
+            }
+          }
+        }
+      }
+    """
+    span_id = str(GlobalID(Span.__name__, str(1)))
+    response = await test_client.post(
+        "/graphql",
+        json={
+            "query": query,
+            "variables": {
+                "spanId": span_id,
+            },
+        },
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json.get("errors") is None
+    actual_project = response_json["data"]["span"]["project"]
+    assert actual_project == {
+        "id": str(GlobalID(Project.__name__, str(1))),
+        "name": "project-name",
+    }
 
 
 @pytest.fixture
