@@ -83,6 +83,7 @@ type Dataset implements Node {
   updatedAt: DateTime!
   versions(first: Int = 50, last: Int, after: String, before: String, sort: DatasetVersionSort): DatasetVersionConnection!
   examples(datasetVersionId: GlobalID, first: Int = 50, last: Int, after: String, before: String): DatasetExampleConnection!
+  experiments(first: Int = 50, last: Int, after: String, before: String): ExperimentConnection!
 }
 
 """A connection to a list of items."""
@@ -532,6 +533,33 @@ interface ExampleRevision {
   input: JSON!
   output: JSON!
   metadata: JSON!
+}
+
+type Experiment implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  description: String
+  metadata: JSON!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""A connection to a list of items."""
+type ExperimentConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ExperimentEdge!]!
+}
+
+"""An edge in a connection."""
+type ExperimentEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Experiment!
 }
 
 type ExportedFile {
