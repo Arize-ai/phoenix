@@ -1,18 +1,13 @@
 import datetime
 
-from phoenix.db import models
-from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 
-async def test_experiments_api(session, test_client, simple_dataset):
+async def test_experiments_api(test_client, simple_dataset):
     """
     A simple test of the expected flow for the experiments API
     """
-
-    dataset = (await session.execute(select(models.Dataset))).one()
-    dataset_id = dataset[0].id
-    dataset_globalid = GlobalID("Dataset", str(dataset_id))
+    dataset_globalid = GlobalID("Dataset", "0")
 
     # first, create an experiment associated with a dataset
     experiment = (

@@ -41,8 +41,8 @@ async def create_experiment_run(request: Request) -> Response:
 
     async with request.app.state.db() as session:
         experiment_run = models.ExperimentRun(
-            experiment_id=int(experiment_id),
-            dataset_example_id=int(dataset_example_id),
+            experiment_id=experiment_id,
+            dataset_example_id=dataset_example_id,
             trace_id=trace_id,
             output=output,
             start_time=datetime.fromisoformat(start_time),

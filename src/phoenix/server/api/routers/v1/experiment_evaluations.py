@@ -32,7 +32,7 @@ async def create_experiment_evaluation(request: Request) -> Response:
     end_time = payload.get("end_time")
     async with request.app.state.db() as session:
         experiment_evaluation = models.ExperimentEvaluation(
-            experiment_run_id=int(experiment_run_id),
+            experiment_run_id=experiment_run_id,
             name=name,
             label=label,
             score=score,

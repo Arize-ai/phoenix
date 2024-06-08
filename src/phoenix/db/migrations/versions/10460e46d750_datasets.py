@@ -178,7 +178,7 @@ def upgrade() -> None:
         sa.Column(
             "trace_id",
             sa.String,
-            index=True,
+            nullable=True,
         ),
         sa.Column("output", JSON_, nullable=False),
         sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=False),

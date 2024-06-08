@@ -1,7 +1,7 @@
-from sqlalchemy import select
+from sqlalchemy import func, insert, select
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
-from starlette.status import HTTP_404_NOT_FOUND
+from starlette.status import HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -33,38 +33,52 @@ async def create_experiment(request: Request) -> Response:
             )
 
     async with request.app.state.db() as session:
-        dataset = await session.execute(
-            select(models.Dataset).where(models.Dataset.id == dataset_id)
-        )
-        if not dataset.scalar():
-            return Response(
-                content=f"Dataset with ID {dataset_globalid} does not exist",
-                status_code=HTTP_404_NOT_FOUND,
-            )
+        dataset_id_stmt = select(models.Dataset.id).where(models.Dataset.id == dataset_id)
 
         if dataset_version_globalid is None:
-            dataset_version_result = await session.execute(
-                select(models.DatasetVersion)
-                .where(models.DatasetVersion.dataset_id == dataset_id)
-                .order_by(models.DatasetVersion.id.desc())
+            dataset_version_id_stmt = select(func.max(models.DatasetVersion.id)).where(
+                models.DatasetVersion.dataset_id == dataset_id
             )
-            dataset_version = dataset_version_result.scalar()
-            if not dataset_version:
+        else:
+            dataset_version_id_stmt = select(models.DatasetVersion.id).where(
+                models.DatasetVersion.id == dataset_version_id
+            )
+        try:
+            experiment = (
+                await session.execute(
+                    insert(models.Experiment)
+                    .values(
+                        dataset_id=dataset_id,
+                        dataset_version_id=dataset_version_id_stmt.scalar_subquery(),
+                        metadata_=metadata,
+                    )
+                    .returning(models.Experiment)
+                )
+            ).scalar()
+        except Exception:
+            resolved_dataset_id = (await session.execute(dataset_id_stmt)).first()
+            if not resolved_dataset_id:
+                return Response(
+                    content=f"Dataset with ID {dataset_globalid} does not exist",
+                    status_code=HTTP_404_NOT_FOUND,
+                )
+
+            resolved_dataset_version_id = (await session.execute(dataset_version_id_stmt)).first()
+            if not resolved_dataset_version_id:
                 return Response(
                     content=f"Dataset {dataset_globalid} does not have any versions",
                     status_code=HTTP_404_NOT_FOUND,
                 )
-            dataset_version_id = dataset_version.id
-            dataset_version_globalid = GlobalID("DatasetVersion", str(dataset_version_id))
-        experiment = models.Experiment(
-            dataset_id=int(dataset_id),
-            dataset_version_id=int(dataset_version_id),
-            metadata_=metadata,
-        )
-        session.add(experiment)
-        await session.flush()
+            return Response(
+                content="Cannot create experiment",
+                status_code=HTTP_400_BAD_REQUEST,
+            )
 
         experiment_globalid = GlobalID("Experiment", str(experiment.id))
+        if dataset_version_globalid is None:
+            dataset_version_globalid = GlobalID(
+                "DatasetVersion", str(experiment.dataset_version_id)
+            )
         experiment_payload = {
             "id": str(experiment_globalid),
             "dataset_id": str(dataset_globalid),
