@@ -294,7 +294,7 @@ dependencies = [
 ]
 
 [tool.hatch.envs.openapi.scripts]
-build = 'python -m phoenix.server.api.openapi.main > openapi.yaml'
+build = 'python -m phoenix.server.api.openapi.main > schemas/openapi.yaml'
 
 [tool.hatch.envs.proto]
 detached = true
