@@ -33,8 +33,6 @@ async def create_experiment(request: Request) -> Response:
             )
 
     async with request.app.state.db() as session:
-        dataset_id_stmt = select(models.Dataset.id).where(models.Dataset.id == dataset_id)
-
         if dataset_version_globalid is None:
             dataset_version_id_stmt = select(func.max(models.DatasetVersion.id)).where(
                 models.DatasetVersion.dataset_id == dataset_id
@@ -56,6 +54,7 @@ async def create_experiment(request: Request) -> Response:
                 )
             ).scalar()
         except Exception:
+            dataset_id_stmt = select(models.Dataset.id).where(models.Dataset.id == dataset_id)
             resolved_dataset_id = (await session.execute(dataset_id_stmt)).first()
             if not resolved_dataset_id:
                 return Response(

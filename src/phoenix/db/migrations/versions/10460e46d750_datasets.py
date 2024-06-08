@@ -224,10 +224,15 @@ def upgrade() -> None:
         sa.Column(
             "score",
             sa.Float,
-            nullable=True,
+            nullable=False,
         ),
         sa.Column(
             "explanation",
+            sa.String,
+            nullable=True,
+        ),
+        sa.Column(
+            "trace_id",
             sa.String,
             nullable=True,
         ),

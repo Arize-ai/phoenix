@@ -547,8 +547,9 @@ class ExperimentEvaluation(Base):
     )
     name: Mapped[str]
     label: Mapped[Optional[str]]
-    score: Mapped[Optional[float]]
+    score: Mapped[float]
     explanation: Mapped[Optional[str]]
+    trace_id: Mapped[Optional[str]]
     error: Mapped[Optional[str]]
     metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
