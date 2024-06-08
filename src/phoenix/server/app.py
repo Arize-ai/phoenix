@@ -72,7 +72,7 @@ from phoenix.server.api.dataloaders import (
     TokenCountDataLoader,
     TraceEvaluationsDataLoader,
 )
-from phoenix.server.api.openapi_schemas import openapi_schema_generator
+from phoenix.server.api.openapi import OPENAPI_SCHEMA_GENERATOR
 from phoenix.server.api.routers.v1 import V1_ROUTES
 from phoenix.server.api.schema import schema
 from phoenix.server.grpc_server import GrpcServer
@@ -300,7 +300,7 @@ async def check_healthz(_: Request) -> PlainTextResponse:
 
 
 async def openapi_schema(request: Request) -> Response:
-    return openapi_schema_generator.OpenAPIResponse(request=request)
+    return OPENAPI_SCHEMA_GENERATOR.OpenAPIResponse(request=request)
 
 
 async def api_docs(request: Request) -> Response:
