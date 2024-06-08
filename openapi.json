@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.0",
+  "penapi": "3.0.0",
   "info": {
     "title": "Arize-Phoenix API",
     "version": "1.0"
