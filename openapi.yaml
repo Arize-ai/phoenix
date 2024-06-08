@@ -1,0 +1,405 @@
+info:
+  title: Arize-Phoenix API
+  version: '1.0'
+openapi: 3.0.0
+paths:
+  /v1/datasets:
+    get:
+      operationId: listDatasets
+      parameters:
+      - description: Cursor for pagination
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: limit
+        required: false
+        schema:
+          default: 10
+          type: integer
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    items:
+                      properties:
+                        created_at:
+                          format: date-time
+                          type: string
+                        description:
+                          type: string
+                        id:
+                          type: string
+                        metadata:
+                          type: object
+                        name:
+                          type: string
+                        updated_at:
+                          format: date-time
+                          type: string
+                      type: object
+                    type: array
+                  next_cursor:
+                    type: string
+                type: object
+          description: A paginated list of datasets
+        404:
+          description: No datasets found
+      summary: List datasets with cursor-based pagination
+      tags:
+      - datasets
+  /v1/datasets/upload:
+    post:
+      operationId: uploadDataset
+      parameters:
+      - description: If true, fulfill request synchronously and return JSON containing
+          dataset_id
+        in: query
+        name: sync
+        schema:
+          type: boolean
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              properties:
+                action:
+                  enum:
+                  - create
+                  - append
+                  type: string
+                description:
+                  type: string
+                file:
+                  format: binary
+                  type: string
+                input_keys[]:
+                  items:
+                    type: string
+                  type: array
+                  uniqueItems: true
+                metadata_keys[]:
+                  items:
+                    type: string
+                  type: array
+                  uniqueItems: true
+                name:
+                  type: string
+                output_keys[]:
+                  items:
+                    type: string
+                  type: array
+                  uniqueItems: true
+              required:
+              - name
+              - input_keys[]
+              - output_keys[]
+              - file
+              type: object
+      responses:
+        200:
+          description: Success
+        403:
+          description: Forbidden
+        422:
+          description: Request body is invalid
+      summary: Upload CSV or PyArrow file as dataset
+      tags:
+      - datasets
+  /v1/datasets/{id}:
+    get:
+      operationId: getDatasetById
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                properties:
+                  created_at:
+                    format: date-time
+                    type: string
+                  description:
+                    type: string
+                  example_count:
+                    type: integer
+                  id:
+                    type: string
+                  metadata:
+                    type: object
+                  name:
+                    type: string
+                  updated_at:
+                    format: date-time
+                    type: string
+                type: object
+          description: Success
+        404:
+          description: Dataset not found
+      summary: Get dataset by ID
+      tags:
+      - datasets
+  /v1/datasets/{id}/csv:
+    get:
+      operationId: getDatasetCsv
+      parameters:
+      - description: Dataset ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - description: Dataset version ID. If omitted, returns the latest version.
+        in: query
+        name: version
+        schema:
+          type: string
+      responses:
+        200:
+          content:
+            text/csv:
+              schema:
+                contentEncoding: gzip
+                contentMediaType: text/csv
+                type: string
+          description: Success
+        404:
+          description: Dataset does not exist.
+        422:
+          description: Dataset ID or version ID is invalid.
+      summary: Download dataset examples as CSV text file
+      tags:
+      - datasets
+  /v1/datasets/{id}/examples:
+    get:
+      operationId: getDatasetExamples
+      parameters:
+      - description: Dataset ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - description: Dataset version ID. If omitted, returns the latest version.
+        in: query
+        name: version-id
+        schema:
+          type: string
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    items:
+                      properties:
+                        example_id:
+                          type: string
+                        input:
+                          type: object
+                        metadata:
+                          type: object
+                        output:
+                          type: object
+                      type: object
+                    type: array
+                type: object
+          description: Success
+        404:
+          description: Dataset does not exist.
+      summary: Get dataset examples by dataset ID
+      tags:
+      - datasets
+  /v1/datasets/{id}/versions:
+    get:
+      operationId: getDatasetVersionsByDatasetId
+      parameters:
+      - description: Dataset ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - description: Cursor for pagination.
+        in: query
+        name: cursor
+        schema:
+          type: string
+      - description: Maximum number versions to return.
+        in: query
+        name: limit
+        schema:
+          default: 10
+          type: integer
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    items:
+                      properties:
+                        created_at:
+                          format: date-time
+                          type: string
+                        description:
+                          type: string
+                        metadata:
+                          type: object
+                        version_id:
+                          type: string
+                      type: object
+                    type: array
+                  next_cursor:
+                    type: string
+                type: object
+          description: Success
+        422:
+          description: Dataset ID, cursor or limit is invalid.
+      summary: Get dataset versions (sorted from latest to oldest)
+      tags:
+      - datasets
+  /v1/evaluations:
+    get:
+      operationId: getEvaluation
+      parameters:
+      - description: The project name to get evaluations from
+        in: query
+        name: project-name
+        schema:
+          default: default
+          type: string
+      responses:
+        200:
+          description: Success
+        404:
+          description: Not found
+      summary: Get evaluations from Phoenix
+      tags:
+      - evaluations
+    post:
+      operationId: addEvaluations
+      parameters:
+      - description: The project name to add the evaluation to
+        in: query
+        name: project-name
+        schema:
+          default: default
+          type: string
+      requestBody:
+        content:
+          application/x-pandas-arrow:
+            schema:
+              format: binary
+              type: string
+          application/x-protobuf:
+            schema:
+              format: binary
+              type: string
+        required: true
+      responses:
+        200:
+          description: Success
+        403:
+          description: Forbidden
+        415:
+          description: Unsupported content type, only gzipped protobuf and pandas-arrow
+            are supported
+        422:
+          description: Request body is invalid
+      summary: Add evaluations to a span, trace, or document
+      tags:
+      - evaluations
+  /v1/spans:
+    post:
+      operationId: querySpans
+      parameters:
+      - description: The project name to get evaluations from
+        in: query
+        name: project-name
+        schema:
+          default: default
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                end_time:
+                  format: date-time
+                  nullable: true
+                  type: string
+                limit:
+                  default: 1000
+                  nullable: true
+                  type: integer
+                queries:
+                  items:
+                    properties:
+                      concat:
+                        type: object
+                      explode:
+                        type: object
+                      filter:
+                        type: object
+                      index:
+                        type: object
+                      rename:
+                        type: object
+                      select:
+                        type: object
+                    type: object
+                  type: array
+                root_spans_only:
+                  nullable: true
+                  type: boolean
+                start_time:
+                  format: date-time
+                  type: string
+              type: object
+        required: true
+      responses:
+        200:
+          description: Success
+        404:
+          description: Not found
+        422:
+          description: Request body is invalid
+      summary: Query spans using query DSL
+      tags:
+      - spans
+  /v1/traces:
+    post:
+      operationId: addTraces
+      requestBody:
+        content:
+          application/x-protobuf:
+            schema:
+              format: binary
+              type: string
+        required: true
+      responses:
+        200:
+          description: Success
+        403:
+          description: Forbidden
+        415:
+          description: Unsupported content type, only gzipped protobuf
+        422:
+          description: Request body is invalid
+      summary: Send traces to Phoenix
+      tags:
+      - traces
+

@@ -288,8 +288,13 @@ dependencies = [
 [tool.hatch.envs.gql.scripts]
 build = 'strawberry export-schema phoenix.server.api.schema:schema > app/schema.graphql'
 
+[tool.hatch.envs.openapi]
+dependencies = [
+  "pyyaml",
+]
+
 [tool.hatch.envs.openapi.scripts]
-build = 'python -m phoenix.server.api.openapi.main > openapi.json'
+build = 'python -m phoenix.server.api.openapi.main > openapi.yaml'
 
 [tool.hatch.envs.proto]
 detached = true
