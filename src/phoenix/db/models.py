@@ -529,10 +529,7 @@ class ExperimentRun(Base):
         ForeignKey("dataset_examples.id", ondelete="CASCADE"),
         index=True,
     )
-    trace_rowid: Mapped[int] = mapped_column(
-        ForeignKey("traces.id"),
-        index=True,
-    )
+    trace_id: Mapped[Optional[str]]
     output: Mapped[Dict[str, Any]]
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
