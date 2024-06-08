@@ -109,10 +109,17 @@ _FLOAT_NAMES: typing.Mapping[str, sqlalchemy.SQLColumnExpression[typing.Any]] = 
         "cumulative_llm_token_count_total": models.Span.cumulative_llm_token_count_total,
     }
 )
+_DATETIME_NAMES: typing.Mapping[str, sqlalchemy.SQLColumnExpression[typing.Any]] = MappingProxyType(
+    {
+        "start_time": models.Span.start_time,
+        "end_time": models.Span.end_time,
+    }
+)
 _NAMES: typing.Mapping[str, sqlalchemy.SQLColumnExpression[typing.Any]] = MappingProxyType(
     {
         **_STRING_NAMES,
         **_FLOAT_NAMES,
+        **_DATETIME_NAMES,
         "attributes": models.Span.attributes,
         "events": models.Span.events,
     }
@@ -403,6 +410,7 @@ class _ProjectionTranslator(ast.NodeTransformer):
                 reserved_keywords,
                 _STRING_NAMES.keys(),
                 _FLOAT_NAMES.keys(),
+                _DATETIME_NAMES.keys(),
             )
         )
 
