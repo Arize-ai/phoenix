@@ -407,3 +407,126 @@ async def dataset_with_revisions(session):
     )
     session.add(example_7_revision_9)
     await session.flush()
+
+
+@pytest.fixture
+def dataset_with_one_experiment(session, empty_dataset):
+    experiment = models.Experiment(
+        id=0,
+        dataset_id=1,
+        dataset_version_id=1,
+        metadata_={"info": "a test experiment"},
+    )
+    session.add(experiment)
+    session.flush()
+
+    experiment_run_0 = models.ExperimentRun(
+        id=0,
+        experiment_id=0,
+        dataset_example_id=1,
+        output={"out": "barr"},
+        start_time=datetime.now().isoformat(),
+        end_time=datetime.now().isoformat(),
+        error=None,
+    )
+    session.add(experiment_run_0)
+    session.flush()
+
+    experiment_run_1 = models.ExperimentRun(
+        id=1,
+        experiment_id=0,
+        dataset_example_id=2,
+        output={"out": "barbarr"},
+        start_time=datetime.now().isoformat(),
+        end_time=datetime.now().isoformat(),
+        error=None,
+    )
+    session.add(experiment_run_1)
+    session.flush()
+
+    experiment_evaluation_0 = models.ExperimentEvaluation(
+        id=0,
+        experiment_run_id=0,
+        name="test",
+        label="test",
+        score=0.8,
+        explanation="test",
+        error=None,
+        metadata_={"info": "a test evaluation"},
+        start_time=datetime.now().isoformat(),
+        end_time=datetime.now().isoformat(),
+    )
+    session.add(experiment_evaluation_0)
+    session.flush()
+
+    experiment_evaluation_1 = models.ExperimentEvaluation(
+        id=1,
+        experiment_run_id=1,
+        name="test",
+        label="test",
+        score=0.9,
+        explanation="test",
+        error=None,
+        metadata_={"info": "a test evaluation"},
+        start_time=datetime.now().isoformat(),
+        end_time=datetime.now().isoformat(),
+    )
+    session.add(experiment_evaluation_1)
+    session.flush()
+
+
+@pytest.fixture
+def dataset_with_two_experiments(session, dataset_with_one_experiment):
+    experiment_run_2 = models.ExperimentRun(
+        id=2,
+        experiment_id=0,
+        dataset_example_id=1,
+        output={"out": "bar"},
+        start_time=datetime.now().isoformat(),
+        end_time=datetime.now().isoformat(),
+        error=None,
+    )
+    session.add(experiment_run_2)
+    session.flush()
+
+    experiment_run_3 = models.ExperimentRun(
+        id=3,
+        experiment_id=0,
+        dataset_example_id=2,
+        output={},
+        start_time=datetime.now().isoformat(),
+        end_time=datetime.now().isoformat(),
+        error="something funny happened",
+    )
+    session.add(experiment_run_3)
+    session.flush()
+
+    experiment_evaluation_2 = models.ExperimentEvaluation(
+        id=2,
+        experiment_run_id=2,
+        name="second experiment",
+        label="test2",
+        score=1,
+        explanation="test",
+        error=None,
+        metadata_={"info": "a test evaluation"},
+        start_time=datetime.now().isoformat(),
+        end_time=datetime.now().isoformat(),
+    )
+    session.add(experiment_evaluation_2)
+    session.flush()
+
+    experiment_evaluation_3 = models.ExperimentEvaluation(
+        id=3,
+        experiment_run_id=3,
+        name="experiment",
+        label="test2",
+        score=0,
+        explanation="test",
+        error=None,
+        metadata_={"info": "a test evaluation"},
+        start_time=datetime.now().isoformat(),
+        end_time=datetime.now().isoformat(),
+    )
+    session.add(experiment_evaluation_3)
+    session.flush()
