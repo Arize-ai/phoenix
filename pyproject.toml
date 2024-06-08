@@ -289,7 +289,7 @@ dependencies = [
 build = 'strawberry export-schema phoenix.server.api.schema:schema > app/schema.graphql'
 
 [tool.hatch.envs.openapi.scripts]
-build = 'python -m phoenix.server.api.openapi.export > openapi.json'
+build = 'python -m phoenix.server.api.openapi.main > openapi.json'
 
 [tool.hatch.envs.proto]
 detached = true
