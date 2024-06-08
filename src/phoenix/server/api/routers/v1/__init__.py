@@ -1,6 +1,14 @@
 from starlette.routing import Route
 
-from . import datasets, evaluations, spans, traces
+from . import (
+    datasets,
+    evaluations,
+    experiment_evaluations,
+    experiment_runs,
+    experiments,
+    spans,
+    traces,
+)
 from .dataset_examples import list_dataset_examples
 
 V1_ROUTES = [
@@ -15,4 +23,29 @@ V1_ROUTES = [
     Route("/v1/datasets/{id:str}/csv", datasets.get_dataset_csv, methods=["GET"]),
     Route("/v1/datasets/{id:str}/examples", list_dataset_examples, methods=["GET"]),
     Route("/v1/datasets/{id:str}/versions", datasets.get_dataset_versions, methods=["GET"]),
+    Route(
+        "/v1/datasets/{dataset_id:str}/experiments",
+        experiments.create_experiment,
+        methods=["POST"],
+    ),
+    Route(
+        "/v1/experiments/{experiment_id:str}",
+        experiments.read_experiment,
+        methods=["GET"],
+    ),
+    Route(
+        "/v1/experiments/{experiment_id:str}/runs",
+        experiment_runs.create_experiment_run,
+        methods=["POST"],
+    ),
+    Route(
+        "/v1/experiments/{experiment_id:str}/runs",
+        experiment_runs.list_experiment_runs,
+        methods=["GET"],
+    ),
+    Route(
+        "/v1/experiments/{exp_id:str}/runs/{run_id:str}/evaluations",
+        experiment_evaluations.create_experiment_evaluation,
+        methods=["POST"],
+    ),
 ]
