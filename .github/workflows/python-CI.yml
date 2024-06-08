@@ -91,6 +91,10 @@ jobs:
               run: |
                   hatch run gql:build
                   git diff --exit-code
+            - name: Export OpenAPI schema
+              run: |
+                  hatch run openapi:build
+                  git diff --exit-code
             - name: Check notebooks have cleaned output and metadata
               run: |
                   hatch run notebooks:clean
