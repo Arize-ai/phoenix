@@ -33,7 +33,6 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import FileResponse, PlainTextResponse, Response
 from starlette.routing import Mount, Route
-from starlette.schemas import SchemaGenerator
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 from starlette.types import Scope, StatefulLifespan
@@ -73,6 +72,7 @@ from phoenix.server.api.dataloaders import (
     TokenCountDataLoader,
     TraceEvaluationsDataLoader,
 )
+from phoenix.server.api.openapi.schema import OPENAPI_SCHEMA_GENERATOR
 from phoenix.server.api.routers.v1 import V1_ROUTES
 from phoenix.server.api.schema import schema
 from phoenix.server.grpc_server import GrpcServer
@@ -86,10 +86,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
-
-schemas = SchemaGenerator(
-    {"openapi": "3.0.0", "info": {"title": "ArizePhoenix API", "version": "1.0"}}
-)
 
 
 class AppConfig(NamedTuple):
@@ -304,7 +300,7 @@ async def check_healthz(_: Request) -> PlainTextResponse:
 
 
 async def openapi_schema(request: Request) -> Response:
-    return schemas.OpenAPIResponse(request=request)
+    return OPENAPI_SCHEMA_GENERATOR.OpenAPIResponse(request=request)
 
 
 async def api_docs(request: Request) -> Response:
