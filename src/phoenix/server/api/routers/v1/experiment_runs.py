@@ -22,7 +22,7 @@ async def create_experiment_run(request: Request) -> Response:
 
     payload = await request.json()
 
-    dataset_example_globalid = GlobalID.from_id(payload.get("dataset_example_id"))
+    dataset_example_globalid = GlobalID.from_id(payload["dataset_example_id"])
     try:
         dataset_example_id = from_global_id_with_expected_type(
             dataset_example_globalid, "DatasetExample"
@@ -34,10 +34,10 @@ async def create_experiment_run(request: Request) -> Response:
         )
 
     trace_id = payload.get("trace_id", None)
-    output = payload.get("output")
-    start_time = payload.get("start_time")
-    end_time = payload.get("end_time")
-    error = payload.get("error")
+    output = payload["output"]
+    start_time = payload["start_time"]
+    end_time = payload["end_time"]
+    error = payload["error"]
 
     async with request.app.state.db() as session:
         experiment_run = models.ExperimentRun(

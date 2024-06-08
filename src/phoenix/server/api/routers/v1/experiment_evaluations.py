@@ -22,14 +22,14 @@ async def create_experiment_evaluation(request: Request) -> Response:
         )
 
     payload = await request.json()
-    name = payload.get("name")
-    label = payload.get("label")
-    score = payload.get("score")
-    explanation = payload.get("explanation")
-    error = payload.get("error")
+    name = payload["name"]
+    label = payload["label"]
+    score = payload["score"]
+    explanation = payload["explanation"]
+    error = payload["error"]
     metadata = payload.get("metadata", {})
-    start_time = payload.get("start_time")
-    end_time = payload.get("end_time")
+    start_time = payload["start_time"]
+    end_time = payload["end_time"]
     async with request.app.state.db() as session:
         experiment_evaluation = models.ExperimentEvaluation(
             experiment_run_id=experiment_run_id,
