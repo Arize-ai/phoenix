@@ -3,6 +3,7 @@ from datetime import datetime
 import pytest
 import pytz
 from phoenix.db import models
+from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
 
@@ -392,6 +393,53 @@ class TestDatasetExamplesResolver:
         }
 
 
+class TestDatasetExperimentCountResolver:
+    QUERY = """
+      query ($datasetId: GlobalID!, $datasetVersionId: GlobalID = null) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            experimentCount(datasetVersionId: $datasetVersionId)
+          }
+        }
+      }
+    """  # noqa: E501
+
+    async def test_experiment_count_uses_all_versions_when_no_version_is_specified(
+        self, test_client, dataset_with_deletion
+    ) -> None:
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": self.QUERY,
+                "variables": {
+                    "datasetId": str(GlobalID("Dataset", str(1))),
+                },
+            },
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json.get("errors") is None
+        assert response_json["data"] == {"node": {"experimentCount": 2}}
+
+    async def test_experiment_count_uses_specified_version(
+        self, test_client, dataset_with_deletion
+    ) -> None:
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": self.QUERY,
+                "variables": {
+                    "datasetId": str(GlobalID("Dataset", str(1))),
+                    "datasetVersionId": str(GlobalID("DatasetVersion", str(1))),
+                },
+            },
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json.get("errors") is None
+        assert response_json["data"] == {"node": {"experimentCount": 1}}
+
+
 @pytest.fixture
 async def dataset_with_patch_revision(session):
     """
@@ -603,3 +651,11 @@ async def dataset_with_deletion(session):
     )
     session.add(dataset_example_revision_2)
     await session.flush()
+
+    await session.execute(
+        insert(models.Experiment).returning(models.Experiment.id),
+        [
+            {"dataset_id": 1, "dataset_version_id": 1, "metadata_": {}},
+            {"dataset_id": 1, "dataset_version_id": 2, "metadata_": {}},
+        ],
+    )
