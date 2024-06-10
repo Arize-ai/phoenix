@@ -69,7 +69,16 @@ px.launch_app()
 ```
 
 ```python
-set_global_handler("arize_phoenix")
+from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+endpoint = "http://127.0.0.1:6006/v1/traces"
+tracer_provider = TracerProvider()
+tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
+
+LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
 
 For this tutorial we will be using OpenAI for creating synthetic data as well as for evaluation.
