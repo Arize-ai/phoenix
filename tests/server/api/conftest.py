@@ -483,10 +483,11 @@ async def dataset_with_experiments_and_runs(session, dataset_with_experiments_wi
 
 @pytest.fixture
 async def dataset_with_experiments_runs_and_evals(session, dataset_with_experiments_and_runs):
-    experiment_evaluation_0 = models.ExperimentEvaluation(
+    experiment_evaluation_0 = models.ExperimentAnnotation(
         id=0,
         experiment_run_id=0,
         name="test",
+        annotator_kind="LLM",
         label="test",
         score=0.8,
         explanation="test",
@@ -498,10 +499,11 @@ async def dataset_with_experiments_runs_and_evals(session, dataset_with_experime
     session.add(experiment_evaluation_0)
     await session.flush()
 
-    experiment_evaluation_1 = models.ExperimentEvaluation(
+    experiment_evaluation_1 = models.ExperimentAnnotation(
         id=1,
         experiment_run_id=1,
         name="test",
+        annotator_kind="LLM",
         label="test",
         score=0.9,
         explanation="test",
@@ -513,10 +515,11 @@ async def dataset_with_experiments_runs_and_evals(session, dataset_with_experime
     session.add(experiment_evaluation_1)
     await session.flush()
 
-    experiment_evaluation_2 = models.ExperimentEvaluation(
+    experiment_evaluation_2 = models.ExperimentAnnotation(
         id=2,
         experiment_run_id=2,
         name="second experiment",
+        annotator_kind="LLM",
         label="test2",
         score=1,
         explanation="test",
@@ -528,10 +531,11 @@ async def dataset_with_experiments_runs_and_evals(session, dataset_with_experime
     session.add(experiment_evaluation_2)
     await session.flush()
 
-    experiment_evaluation_3 = models.ExperimentEvaluation(
+    experiment_evaluation_3 = models.ExperimentAnnotation(
         id=3,
         experiment_run_id=3,
         name="experiment",
+        annotator_kind="LLM",
         label="test2",
         score=None,
         explanation="test",

@@ -202,7 +202,7 @@ def upgrade() -> None:
         ),
     )
     op.create_table(
-        "experiment_evaluations",
+        "experiment_annotations",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column(
             "experiment_run_id",
@@ -214,6 +214,15 @@ def upgrade() -> None:
         sa.Column(
             "name",
             sa.String,
+            nullable=False,
+        ),
+        sa.Column(
+            "annotator_kind",
+            sa.String,
+            sa.CheckConstraint(
+                "annotator_kind IN ('LLM', 'CODE', 'HUMAN')",
+                name="valid_annotator_kind",
+            ),
             nullable=False,
         ),
         sa.Column(
@@ -248,7 +257,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("experiment_evaluations")
+    op.drop_table("experiment_annotations")
     op.drop_table("experiment_runs")
     op.drop_table("experiments")
     op.drop_table("dataset_example_revisions")
