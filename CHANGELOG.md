@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.3.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.3.0...arize-phoenix-v4.3.1) (2024-06-10)
+
+
+### Bug Fixes
+
+* add support for querying datetimes ([#3441](https://github.com/Arize-ai/phoenix/issues/3441)) ([2f329a1](https://github.com/Arize-ai/phoenix/commit/2f329a1415009301aa9ea10de947acd435756646))
+
 ## [4.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.2.4...arize-phoenix-v4.3.0) (2024-06-07)
 
 
