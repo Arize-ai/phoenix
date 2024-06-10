@@ -228,7 +228,9 @@ class TestDatasetExamplesResolver:
     """  # noqa: E501
 
     async def test_returns_latest_revisions_when_no_version_is_specified(
-        self, test_client, dataset_with_patch_revision
+        self,
+        test_client,
+        dataset_with_patch_revision,
     ) -> None:
         response = await test_client.post(
             "/graphql",
@@ -364,7 +366,9 @@ class TestDatasetExamplesResolver:
         }
 
     async def test_version_id_on_revision_resolver_takes_precedence(
-        self, test_client, dataset_with_patch_revision
+        self,
+        test_client,
+        dataset_with_patch_revision,
     ) -> None:
         response = await test_client.post(
             "/graphql",
