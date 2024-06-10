@@ -535,13 +535,7 @@ async def dataset_with_patch_revision(session) -> DatasetFixture:
     datasets = list(
         await session.scalars(
             insert(models.Dataset).returning(models.Dataset),
-            [
-                {
-                    "id": 1,
-                    "name": "dataset-name",
-                    "metadata_": {},
-                }
-            ],
+            [{"name": "dataset-name", "metadata_": {}}],
         )
     )
 
