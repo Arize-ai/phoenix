@@ -72,7 +72,10 @@ class Dataset(Node):
         ]
         return connection_from_list(data=data, args=args)
 
-    @strawberry.field
+    @strawberry.field(
+        description="Number of examples in a specific version if version is specified, or for the "
+        "latest version if version is not specified."
+    )  # type: ignore
     async def example_count(
         self,
         info: Info[Context, None],
@@ -103,13 +106,13 @@ class Dataset(Node):
             revision_ids = revision_ids.where(
                 models.DatasetExampleRevision.dataset_version_id <= version_id_subquery
             )
-        query = (
+        stmt = (
             select(count(models.DatasetExampleRevision.id))
             .where(models.DatasetExampleRevision.id.in_(revision_ids))
             .where(models.DatasetExampleRevision.revision_kind != "DELETE")
         )
         async with info.context.db() as session:
-            return cast(Optional[int], await session.scalar(query)) or 0
+            return cast(Optional[int], await session.scalar(stmt)) or 0
 
     @strawberry.field
     async def examples(
