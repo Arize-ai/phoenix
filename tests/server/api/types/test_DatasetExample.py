@@ -278,12 +278,12 @@ async def dataset_with_example_and_experiment(session) -> None:
         .values(
             dataset_id=dataset_id,
             dataset_version_id=version_id,
-            description="experiment-description",
-            metadata_={"metadata": "experiment-metadata"},
+            description="experiment-1-description",
+            metadata_={"metadata": "experiment-1-metadata"},
         )
     )
 
-    # insert an experiment run
+    # insert an experiment run on the example
     await session.execute(
         insert(models.ExperimentRun).values(
             experiment_id=experiment_id,
@@ -291,5 +291,15 @@ async def dataset_with_example_and_experiment(session) -> None:
             output={"output": "experiment-run-output"},
             start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
             end_time=datetime(year=2020, month=1, day=1, hour=0, minute=1, tzinfo=pytz.utc),
+        )
+    )
+
+    # insert an unused experiment
+    await session.execute(
+        insert(models.Experiment).values(
+            dataset_id=dataset_id,
+            dataset_version_id=version_id,
+            description="experiment-2-description",
+            metadata_={"metadata": "experiment-2-metadata"},
         )
     )
