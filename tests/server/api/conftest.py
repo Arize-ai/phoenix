@@ -421,7 +421,7 @@ async def dataset_with_experiments_without_runs(session, empty_dataset):
     await session.flush()
 
     experiment_1 = models.Experiment(
-        id=0,
+        id=1,
         dataset_id=1,
         dataset_version_id=2,
         metadata_={"info": "a second test experiment"},
