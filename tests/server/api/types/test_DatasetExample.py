@@ -88,6 +88,39 @@ async def test_dataset_example_span_resolver(
     }
 
 
+async def test_dataset_example_experiments_resolver(test_client) -> None:
+    query = """
+      query ($exampleId: GlobalID!) {
+        example: node(id: $exampleId) {
+          ... on DatasetExample {
+            experiments {
+              edges {
+                experiment: node {
+                  id
+                  description
+                  metadata
+                  createdAt
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+    response = await test_client.post(
+        "/graphql",
+        json={
+            "query": query,
+            "variables": {
+                "exampleId": str(GlobalID("DatasetExample", str(1))),
+            },
+        },
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json.get("errors") is None
+
+
 @pytest.fixture
 async def dataset_with_span_and_nonspan_examples(session):
     """
