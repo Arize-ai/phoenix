@@ -82,11 +82,12 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
     },
     [
       commitSpansToDataset,
-      isPlural,
-      notifyError,
-      notifySuccess,
       selectedSpans,
+      notifySuccess,
+      isPlural,
       onClearSelection,
+      navigate,
+      notifyError,
     ]
   );
   return (
