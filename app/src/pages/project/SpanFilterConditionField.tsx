@@ -171,6 +171,18 @@ function filterConditionCompletions(context: CompletionContext) {
         apply: "evals['Hallucination'].label == 'hallucinated'",
         detail: "macro",
       },
+      {
+        label: "Metadata",
+        type: "text",
+        apply: "metadata['topic'] == 'dashboard'",
+        detail: "macro",
+      },
+      {
+        label: "Substring",
+        type: "text",
+        apply: "'gpt' in llm.model_name",
+        detail: "macro",
+      },
     ],
   };
 }
@@ -394,6 +406,18 @@ function FilterConditionBuilder(props: {
           key="eval_score"
           label="filter by evaluation score"
           initialSnippet="evals['Hallucination'].score < 1"
+          onAddFilterConditionSnippet={onAddFilterConditionSnippet}
+        />
+        <FilterConditionSnippet
+          key="metadata"
+          label="filter by metadata"
+          initialSnippet="metadata['topic'] == 'dashboard'"
+          onAddFilterConditionSnippet={onAddFilterConditionSnippet}
+        />
+        <FilterConditionSnippet
+          key="substring"
+          label="filter by substring"
+          initialSnippet="'gpt' in llm.model_name"
           onAddFilterConditionSnippet={onAddFilterConditionSnippet}
         />
       </Form>
