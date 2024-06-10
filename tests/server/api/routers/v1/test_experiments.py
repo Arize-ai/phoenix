@@ -5,8 +5,9 @@ from strawberry.relay import GlobalID
 
 async def test_experiments_api(test_client, simple_dataset):
     """
-    A simple test of the expected flow for the experiments API
+    A simple test of the expected flow for the experiments API flow
     """
+
     dataset_globalid = GlobalID("Dataset", "0")
 
     # first, create an experiment associated with a dataset
@@ -69,3 +70,45 @@ async def test_experiments_api(test_client, simple_dataset):
         )
     ).json()
     assert experiment_evaluation
+
+
+async def test_experiment_404s_with_missing_dataset(test_client, simple_dataset):
+    incorrect_dataset_globalid = GlobalID("Dataset", "1")
+    response = await test_client.post(
+        f"/v1/datasets/{incorrect_dataset_globalid}/experiments", json={"version-id": None}
+    )
+    assert response.status_code == 404
+
+
+async def test_experiment_404s_with_missing_version(test_client, simple_dataset):
+    correct_dataset_globalid = GlobalID("Dataset", "0")
+    incorrect_version_globalid = GlobalID("DatasetVersion", "9000")
+    response = await test_client.post(
+        f"/v1/datasets/{correct_dataset_globalid}/experiments",
+        json={"version-id": str(incorrect_version_globalid)},
+    )
+    assert response.status_code == 404
+
+
+async def test_reading_experiments(test_client, dataset_with_experiments_without_runs):
+    experiment_globalid = GlobalID("Experiment", "0")
+    dataset_globalid = GlobalID("Dataset", "1")
+    dataset_version_globalid = GlobalID("DatasetVersion", "1")
+    response = await test_client.get(f"/v1/experiments/{experiment_globalid}")
+    assert response.status_code == 200
+    experiment = response.json()
+    assert "created_at" in experiment
+    assert "updated_at" in experiment
+    expected = {
+        "id": str(experiment_globalid),
+        "dataset_id": str(dataset_globalid),
+        "dataset_version_id": str(dataset_version_globalid),
+        "metadata": {"info": "a test experiment"},
+    }
+    assert all(experiment[key] == value for key, value in expected.items())
+
+
+async def test_reading_experiment_404s_with_missing_experiment(test_client):
+    incorrect_experiment_globalid = GlobalID("Experiment", "9000")
+    response = await test_client.get(f"/v1/experiments/{incorrect_experiment_globalid}")
+    assert response.status_code == 404
