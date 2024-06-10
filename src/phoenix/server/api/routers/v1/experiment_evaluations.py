@@ -31,9 +31,10 @@ async def create_experiment_evaluation(request: Request) -> Response:
     start_time = payload["start_time"]
     end_time = payload["end_time"]
     async with request.app.state.db() as session:
-        experiment_evaluation = models.ExperimentEvaluation(
+        experiment_evaluation = models.ExperimentAnnotation(
             experiment_run_id=experiment_run_id,
             name=name,
+            annotator_kind="LLM",
             label=label,
             score=score,
             explanation=explanation,
