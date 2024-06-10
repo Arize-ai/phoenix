@@ -15,9 +15,14 @@ import {
 } from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
-import { DatasetProvider } from "@phoenix/contexts/DatasetContext";
+import { useNotifySuccess } from "@phoenix/contexts";
+import {
+  DatasetProvider,
+  useDatasetContext,
+} from "@phoenix/contexts/DatasetContext";
 
 import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
+import { AddDatasetExampleButton } from "./AddDatasetExampleButton";
 import { DatasetCodeDropdown } from "./DatasetCodeDropdown";
 import { DatasetExamplesTable } from "./DatasetExamplesTable";
 
@@ -76,6 +81,10 @@ function DatasetPageContent({
 }: {
   dataset: datasetLoaderQuery$data["dataset"];
 }) {
+  const refreshLatestVersion = useDatasetContext(
+    (state) => state.refreshLatestVersion
+  );
+  const notifySuccess = useNotifySuccess();
   return (
     <main css={mainCSS}>
       <View
@@ -117,6 +126,17 @@ function DatasetPageContent({
               <Item key="csv">Download CSV</Item>
             </ActionMenu>
             <DatasetCodeDropdown />
+            <AddDatasetExampleButton
+              datasetId={dataset.id}
+              onAddExampleCompleted={() => {
+                notifySuccess({
+                  title: "Example added",
+                  message:
+                    "The example has been added successfully and the version has been updated.",
+                });
+                refreshLatestVersion();
+              }}
+            />
           </Flex>
         </Flex>
       </View>
