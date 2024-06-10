@@ -18,4 +18,13 @@ class Experiment(Node):
 
 
 def to_gql_experiment(experiment: models.Experiment) -> Experiment:
-    raise NotImplementedError("implement to_gql_experiment")
+    """
+    Converts an ORM experiment to a GraphQL Experiment.
+    """
+    return Experiment(
+        id_attr=experiment.id,
+        description=experiment.description,
+        metadata=experiment.metadata_,
+        created_at=experiment.created_at,
+        updated_at=experiment.updated_at,
+    )
