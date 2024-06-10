@@ -1,18 +1,10 @@
 from datetime import datetime
-from typing import List, NamedTuple
 
 import pytest
 import pytz
 from phoenix.db import models
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
-
-
-class DatasetFixture(NamedTuple):
-    datasets: List[models.Dataset]
-    dataset_versions: List[models.DatasetVersion]
-    dataset_examples: List[models.DatasetExample]
-    dataset_example_revisions: List[models.DatasetExampleRevision]
 
 
 class TestDatasetExampleNodeInterface:
@@ -36,12 +28,12 @@ class TestDatasetExampleNodeInterface:
     async def test_unspecified_version_returns_latest_revision(
         self,
         test_client,
-        dataset_with_patch_revision: DatasetFixture,
+        dataset_with_patch_revision,
     ) -> None:
         example_id = str(
             GlobalID(
                 "DatasetExample",
-                str(dataset_with_patch_revision.dataset_examples[0].id),
+                str(1),
             )
         )
         response = await test_client.post(
@@ -241,18 +233,14 @@ class TestDatasetExamplesResolver:
     """  # noqa: E501
 
     async def test_returns_latest_revisions_when_no_version_is_specified(
-        self,
-        test_client,
-        dataset_with_patch_revision: DatasetFixture,
+        self, test_client, dataset_with_patch_revision
     ) -> None:
         response = await test_client.post(
             "/graphql",
             json={
                 "query": self.QUERY,
                 "variables": {
-                    "datasetId": str(
-                        GlobalID("Dataset", str(dataset_with_patch_revision.datasets[0].id))
-                    ),
+                    "datasetId": str(GlobalID("Dataset", str(1))),
                 },
             },
         )
@@ -262,12 +250,7 @@ class TestDatasetExamplesResolver:
         edges = [
             {
                 "node": {
-                    "id": str(
-                        GlobalID(
-                            type_name="DatasetExample",
-                            node_id=str(dataset_with_patch_revision.dataset_examples[1].id),
-                        )
-                    ),
+                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
                     "revision": {
                         "input": {"input": "second-input"},
                         "output": {"output": "second-output"},
@@ -278,12 +261,7 @@ class TestDatasetExamplesResolver:
             },
             {
                 "node": {
-                    "id": str(
-                        GlobalID(
-                            type_name="DatasetExample",
-                            node_id=str(dataset_with_patch_revision.dataset_examples[0].id),
-                        )
-                    ),
+                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
                     "revision": {
                         "input": {"input": "second-input"},
                         "output": {"output": "second-output"},
@@ -311,24 +289,15 @@ class TestDatasetExamplesResolver:
         assert response_json["data"] == {"node": {"examples": {"edges": []}}}
 
     async def test_returns_latest_revisions_up_to_specified_version(
-        self,
-        test_client,
-        dataset_with_patch_revision: DatasetFixture,
+        self, test_client, dataset_with_patch_revision
     ) -> None:
         response = await test_client.post(
             "/graphql",
             json={
                 "query": self.QUERY,
                 "variables": {
-                    "datasetId": str(
-                        GlobalID("Dataset", str(dataset_with_patch_revision.datasets[0].id))
-                    ),
-                    "datasetVersionId": str(
-                        GlobalID(
-                            "DatasetVersion",
-                            str(dataset_with_patch_revision.dataset_versions[0].id),
-                        )
-                    ),
+                    "datasetId": str(GlobalID("Dataset", str(1))),
+                    "datasetVersionId": str(GlobalID("DatasetVersion", str(1))),
                 },
             },
         )
@@ -338,12 +307,7 @@ class TestDatasetExamplesResolver:
         edges = [
             {
                 "node": {
-                    "id": str(
-                        GlobalID(
-                            type_name="DatasetExample",
-                            node_id=str(dataset_with_patch_revision.dataset_examples[1].id),
-                        )
-                    ),
+                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
                     "revision": {
                         "input": {"input": "first-input"},
                         "output": {"output": "first-output"},
@@ -354,12 +318,7 @@ class TestDatasetExamplesResolver:
             },
             {
                 "node": {
-                    "id": str(
-                        GlobalID(
-                            type_name="DatasetExample",
-                            node_id=str(dataset_with_patch_revision.dataset_examples[0].id),
-                        )
-                    ),
+                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
                     "revision": {
                         "input": {"input": "first-input"},
                         "output": {"output": "first-output"},
@@ -410,30 +369,16 @@ class TestDatasetExamplesResolver:
         }
 
     async def test_version_id_on_revision_resolver_takes_precedence(
-        self,
-        test_client,
-        dataset_with_patch_revision: DatasetFixture,
+        self, test_client, dataset_with_patch_revision
     ) -> None:
         response = await test_client.post(
             "/graphql",
             json={
                 "query": self.QUERY,
                 "variables": {
-                    "datasetId": str(
-                        GlobalID("Dataset", str(dataset_with_patch_revision.datasets[0].id))
-                    ),
-                    "datasetVersionId": str(
-                        GlobalID(
-                            "DatasetVersion",
-                            str(dataset_with_patch_revision.dataset_versions[1].id),
-                        )
-                    ),
-                    "revisionDatasetVersionId": str(
-                        GlobalID(
-                            "DatasetVersion",
-                            str(dataset_with_patch_revision.dataset_versions[0].id),
-                        )
-                    ),
+                    "datasetId": str(GlobalID("Dataset", str(1))),
+                    "datasetVersionId": str(GlobalID("DatasetVersion", str(2))),
+                    "revisionDatasetVersionId": str(GlobalID("DatasetVersion", str(1))),
                 },
             },
         )
@@ -443,12 +388,7 @@ class TestDatasetExamplesResolver:
         edges = [
             {
                 "node": {
-                    "id": str(
-                        GlobalID(
-                            type_name="DatasetExample",
-                            node_id=str(dataset_with_patch_revision.dataset_examples[1].id),
-                        )
-                    ),
+                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
                     "revision": {
                         "input": {"input": "first-input"},
                         "output": {"output": "first-output"},
@@ -459,12 +399,7 @@ class TestDatasetExamplesResolver:
             },
             {
                 "node": {
-                    "id": str(
-                        GlobalID(
-                            type_name="DatasetExample",
-                            node_id=str(dataset_with_patch_revision.dataset_examples[0].id),
-                        )
-                    ),
+                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
                     "revision": {
                         "input": {"input": "first-input"},
                         "output": {"output": "first-output"},
@@ -525,7 +460,7 @@ class TestDatasetExperimentCountResolver:
 
 
 @pytest.fixture
-async def dataset_with_patch_revision(session) -> DatasetFixture:
+async def dataset_with_patch_revision(session):
     """
     A dataset with a single example and two versions. In the first version, the
     dataset example is created. In the second version, the dataset example is
@@ -569,51 +504,42 @@ async def dataset_with_patch_revision(session) -> DatasetFixture:
         )
     )
 
-    dataset_example_revisions = list(
-        await session.scalars(
-            insert(models.DatasetExampleRevision).returning(models.DatasetExampleRevision),
-            [
-                {
-                    "dataset_example_id": dataset_examples[0].id,
-                    "dataset_version_id": dataset_versions[0].id,
-                    "input": {"input": "first-input"},
-                    "output": {"output": "first-output"},
-                    "metadata_": {},
-                    "revision_kind": "CREATE",
-                },
-                {
-                    "dataset_example_id": dataset_examples[1].id,
-                    "dataset_version_id": dataset_versions[0].id,
-                    "input": {"input": "first-input"},
-                    "output": {"output": "first-output"},
-                    "metadata_": {},
-                    "revision_kind": "CREATE",
-                },
-                {
-                    "dataset_example_id": dataset_examples[0].id,
-                    "dataset_version_id": dataset_versions[1].id,
-                    "input": {"input": "second-input"},
-                    "output": {"output": "second-output"},
-                    "metadata_": {},
-                    "revision_kind": "PATCH",
-                },
-                {
-                    "dataset_example_id": dataset_examples[1].id,
-                    "dataset_version_id": dataset_versions[1].id,
-                    "input": {"input": "second-input"},
-                    "output": {"output": "second-output"},
-                    "metadata_": {},
-                    "revision_kind": "PATCH",
-                },
-            ],
-        )
-    )
-
-    return DatasetFixture(
-        datasets=datasets,
-        dataset_versions=dataset_versions,
-        dataset_examples=dataset_examples,
-        dataset_example_revisions=dataset_example_revisions,
+    await session.scalars(
+        insert(models.DatasetExampleRevision).returning(models.DatasetExampleRevision),
+        [
+            {
+                "dataset_example_id": dataset_examples[0].id,
+                "dataset_version_id": dataset_versions[0].id,
+                "input": {"input": "first-input"},
+                "output": {"output": "first-output"},
+                "metadata_": {},
+                "revision_kind": "CREATE",
+            },
+            {
+                "dataset_example_id": dataset_examples[1].id,
+                "dataset_version_id": dataset_versions[0].id,
+                "input": {"input": "first-input"},
+                "output": {"output": "first-output"},
+                "metadata_": {},
+                "revision_kind": "CREATE",
+            },
+            {
+                "dataset_example_id": dataset_examples[0].id,
+                "dataset_version_id": dataset_versions[1].id,
+                "input": {"input": "second-input"},
+                "output": {"output": "second-output"},
+                "metadata_": {},
+                "revision_kind": "PATCH",
+            },
+            {
+                "dataset_example_id": dataset_examples[1].id,
+                "dataset_version_id": dataset_versions[1].id,
+                "input": {"input": "second-input"},
+                "output": {"output": "second-output"},
+                "metadata_": {},
+                "revision_kind": "PATCH",
+            },
+        ],
     )
 
 
