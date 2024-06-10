@@ -83,9 +83,7 @@ class DatasetExample(Node):
             .order_by(models.Experiment.id.asc())
         )
         async with info.context.db() as session:
-            db_experiments = [
-                experiment async for experiment in await session.stream_scalars(query)
-            ]
+            experiments = (await session.scalars(query)).all()
         return connection_from_list(
-            [to_gql_experiment(experiment) for experiment in db_experiments], args
+            [to_gql_experiment(experiment) for experiment in experiments], args
         )
