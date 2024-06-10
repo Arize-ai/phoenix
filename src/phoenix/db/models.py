@@ -557,3 +557,17 @@ class ExperimentAnnotation(Base):
     metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
+
+
+class ExperimentAnnotationCorrection(Base):
+    __tablename__ = "experiment_annotation_corrections"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    experiment_annotation_id: Mapped[int] = mapped_column(
+        ForeignKey("experiment_annotations.id", ondelete="CASCADE"),
+        index=True,
+    )
+    label: Mapped[Optional[str]]
+    score: Mapped[Optional[float]]
+    explanation: Mapped[Optional[str]]
+    metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
