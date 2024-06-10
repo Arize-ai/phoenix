@@ -5,7 +5,46 @@
 For LlamaIndex, tracing instrumentation is added via a callback. This callback is what is used to create spans and send them to the Phoenix collector.
 
 {% tabs %}
-{% tab title="One-Click" %}
+{% tab title="Instrumentation (>=0.10.43)" %}
+Phoenix supports LlamaIndex's latest [instrumentation](https://docs.llamaindex.ai/en/stable/module\_guides/observability/instrumentation/) paradigm.
+
+To get started, pip install the following.
+
+{% code overflow="wrap" %}
+```
+pip install "llama-index-core>=0.10.43" "openinference-instrumentation-llama-index>=2" "opentelemetry-proto>=1.12.0" opentelemetry-exporter-otlp opentelemetry-sdk
+```
+{% endcode %}
+
+Use the following code snippet to activate the instrumentation.
+
+Note that the `endpoint` variable below should the address of the Phoenix receiver.
+
+```python
+from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk import trace as trace_sdk
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+endpoint = "http://127.0.0.1:6006/v1/traces"  # Phoenix receiver address
+
+tracer_provider = trace_sdk.TracerProvider()
+tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
+
+LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
+```
+
+Note that the legacy One-Click system of spans can still be used instead by setting `use_legacy_callback_handler=True` as shown below.
+
+```python
+LlamaIndexInstrumentor().instrument(
+    tracer_provider=tracer_provider,
+    use_legacy_callback_handler=True,
+)
+```
+{% endtab %}
+
+{% tab title="Legacy One-Click (<0.10.43)" %}
 {% hint style="info" %}
 Using phoenix as a callback requires an install of \`llama-index-callbacks-arize-phoenix>0.1.3'
 {% endhint %}
@@ -34,7 +73,7 @@ set_global_handler("arize_phoenix")
 ```
 {% endtab %}
 
-{% tab title="One-Click Legacy (<v0.10)" %}
+{% tab title="Legacy (<v0.10)" %}
 If you are using an older version of llamaIndex (pre-0.10), you can still use phoenix. You will have to be using `arize-phoenix>3.0.0` and downgrade `openinference-instrumentation-llama-index<1.0.0`
 
 ```python
