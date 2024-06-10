@@ -80,6 +80,7 @@ class DatasetExample(Node):
             select(models.Experiment)
             .join(models.ExperimentRun, models.Experiment.id == models.ExperimentRun.experiment_id)
             .where(models.ExperimentRun.dataset_example_id == example_id)
+            .order_by(models.Experiment.id.asc())
         )
         async with info.context.db() as session:
             db_experiments = [
