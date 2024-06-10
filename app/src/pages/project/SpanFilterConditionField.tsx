@@ -171,6 +171,18 @@ function filterConditionCompletions(context: CompletionContext) {
         apply: "evals['Hallucination'].label == 'hallucinated'",
         detail: "macro",
       },
+      {
+        label: "Metadata",
+        type: "text",
+        apply: "metadata['topic'] == 'agent'",
+        detail: "macro",
+      },
+      {
+        label: "Substring",
+        type: "text",
+        apply: "'agent' in input.value",
+        detail: "macro",
+      },
     ],
   };
 }
@@ -394,6 +406,18 @@ function FilterConditionBuilder(props: {
           key="eval_score"
           label="filter by evaluation score"
           initialSnippet="evals['Hallucination'].score < 1"
+          onAddFilterConditionSnippet={onAddFilterConditionSnippet}
+        />
+        <FilterConditionSnippet
+          key="metadata"
+          label="filter by metadata"
+          initialSnippet="metadata['topic'] == 'agent'"
+          onAddFilterConditionSnippet={onAddFilterConditionSnippet}
+        />
+        <FilterConditionSnippet
+          key="substring"
+          label="filter by substring"
+          initialSnippet="'agent' in input.value"
           onAddFilterConditionSnippet={onAddFilterConditionSnippet}
         />
       </Form>
