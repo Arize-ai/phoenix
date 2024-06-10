@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a976a86d56f174f296e829c1fdf78f6d>>
+ * @generated SignedSource<<b97a6f01fe673585b3792f3f539f06a2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,6 +16,8 @@ export type DatasetsTable_datasets$data = {
       readonly node: {
         readonly createdAt: string;
         readonly description: string | null;
+        readonly exampleCount: number;
+        readonly experimentCount: number;
         readonly id: string;
         readonly name: string;
       };
@@ -126,6 +128,20 @@ return {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
+                  "name": "exampleCount",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "experimentCount",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
                   "name": "__typename",
                   "storageKey": null
                 }
@@ -176,6 +192,6 @@ return {
 };
 })();
 
-(node as any).hash = "ad1e98c5dbe71121a5497604634b0d82";
+(node as any).hash = "a46b79378a5c19b993545c42e96ee4e4";
 
 export default node;
