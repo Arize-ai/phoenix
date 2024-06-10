@@ -34,10 +34,10 @@ async def create_experiment(request: Request) -> Response:
             )
 
     async with request.app.state.db() as session:
-        dataset = await session.execute(
-            select(models.Dataset).where(models.Dataset.id == dataset_id)
-        )
-        if not dataset.scalar():
+        result = (
+            await session.execute(select(models.Dataset.id).where(models.Dataset.id == dataset_id))
+        ).scalar()
+        if result is None:
             return Response(
                 content=f"Dataset with ID {dataset_globalid} does not exist",
                 status_code=HTTP_404_NOT_FOUND,
