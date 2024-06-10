@@ -120,7 +120,7 @@ type DatasetExample implements Node {
   createdAt: DateTime!
   revision(datasetVersionId: GlobalID): DatasetExampleRevision!
   span: Span
-  experiments: ExperimentConnection!
+  experiments(first: Int = 50, last: Int, after: String, before: String): ExperimentConnection!
 }
 
 """A connection to a list of items."""
