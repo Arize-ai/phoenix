@@ -76,7 +76,7 @@ class DatasetExample(Node):
             select(models.Experiment)
             .join(models.ExperimentRun, models.Experiment.id == models.ExperimentRun.experiment_id)
             .where(models.ExperimentRun.dataset_example_id == example_id)
-            .order_by(models.Experiment.id.asc())
+            .order_by(models.Experiment.id.desc())
         )
         async with info.context.db() as session:
             experiments = (await session.scalars(query)).all()
