@@ -538,14 +538,17 @@ class ExperimentRun(Base):
     error: Mapped[Optional[str]]
 
 
-class ExperimentEvaluation(Base):
-    __tablename__ = "experiment_evaluations"
+class ExperimentAnnotation(Base):
+    __tablename__ = "experiment_annotations"
     id: Mapped[int] = mapped_column(primary_key=True)
     experiment_run_id: Mapped[int] = mapped_column(
         ForeignKey("experiment_runs.id", ondelete="CASCADE"),
         index=True,
     )
     name: Mapped[str]
+    annotator_kind: Mapped[str] = mapped_column(
+        CheckConstraint("annotator_kind IN ('LLM', 'HUMAN')", name="valid_annotator_kind"),
+    )
     label: Mapped[Optional[str]]
     score: Mapped[Optional[float]]
     explanation: Mapped[Optional[str]]
