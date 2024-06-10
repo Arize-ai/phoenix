@@ -3,12 +3,13 @@ from typing import Optional
 
 import strawberry
 from strawberry import UNSET
-from strawberry.relay.types import GlobalID, Node, NodeID
+from strawberry.relay.types import Connection, GlobalID, Node, NodeID
 from strawberry.types import Info
 
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
+from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span, to_gql_span
 
@@ -47,3 +48,7 @@ class DatasetExample(Node):
             if (span := await info.context.data_loaders.dataset_example_spans.load(self.id_attr))
             else None
         )
+
+    @strawberry.field
+    async def experiments(self, info: Info[Context, None]) -> Connection[Experiment]:
+        raise NotImplementedError("experiments resolver on DatasetExample not implemented")
