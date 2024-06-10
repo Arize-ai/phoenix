@@ -1,6 +1,7 @@
 from datetime import datetime
 
 import pytest
+import pytz
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from sqlalchemy import insert
@@ -85,6 +86,55 @@ async def test_dataset_example_span_resolver(
     assert actual_example == {
         "id": example_id,
         "span": expected_span,
+    }
+
+
+async def test_dataset_example_experiments_resolver_returns_relevant_experiments(
+    test_client, dataset_with_example_and_experiment
+) -> None:
+    query = """
+      query ($exampleId: GlobalID!) {
+        example: node(id: $exampleId) {
+          ... on DatasetExample {
+            experiments {
+              edges {
+                experiment: node {
+                  id
+                  description
+                  metadata
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+    response = await test_client.post(
+        "/graphql",
+        json={
+            "query": query,
+            "variables": {
+                "exampleId": str(GlobalID("DatasetExample", str(1))),
+            },
+        },
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json.get("errors") is None
+    assert response_json["data"] == {
+        "example": {
+            "experiments": {
+                "edges": [
+                    {
+                        "experiment": {
+                            "id": str(GlobalID("Experiment", str(1))),
+                            "description": "experiment-1-description",
+                            "metadata": {"metadata": "experiment-1-metadata"},
+                        }
+                    }
+                ]
+            }
+        }
     }
 
 
@@ -179,5 +229,91 @@ async def dataset_with_span_and_nonspan_examples(session):
             output={"output": "example-2-version-1-output"},
             metadata_={"metadata": "example-2-version-1-metadata"},
             revision_kind="CREATE",
+        )
+    )
+
+
+@pytest.fixture
+async def dataset_with_example_and_experiment(session) -> None:
+    """
+    A dataset with a single example and two experiments, one that uses the
+    example and one that does not.
+    """
+
+    # insert dataset
+    dataset_id = await session.scalar(
+        insert(models.Dataset)
+        .returning(models.Dataset.id)
+        .values(
+            name="dataset-name",
+            description=None,
+            metadata_={},
+        )
+    )
+
+    # insert example
+    example_id = await session.scalar(
+        insert(models.DatasetExample)
+        .values(
+            dataset_id=dataset_id,
+        )
+        .returning(models.DatasetExample.id)
+    )
+
+    # insert version
+    version_id = await session.scalar(
+        insert(models.DatasetVersion)
+        .returning(models.DatasetVersion.id)
+        .values(
+            dataset_id=dataset_id,
+            description="original-description",
+            metadata_={"metadata": "original-metadata"},
+        )
+    )
+
+    # insert revision
+    await session.scalar(
+        insert(models.DatasetExampleRevision)
+        .returning(models.DatasetExampleRevision.id)
+        .values(
+            dataset_example_id=example_id,
+            dataset_version_id=version_id,
+            input={"input": "first-input"},
+            output={"output": "first-output"},
+            metadata_={"metadata": "first-metadata"},
+            revision_kind="CREATE",
+        )
+    )
+
+    # insert an experiment
+    experiment_id = await session.scalar(
+        insert(models.Experiment)
+        .returning(models.Experiment.id)
+        .values(
+            dataset_id=dataset_id,
+            dataset_version_id=version_id,
+            description="experiment-1-description",
+            metadata_={"metadata": "experiment-1-metadata"},
+        )
+    )
+
+    # insert an experiment run on the example
+    await session.execute(
+        insert(models.ExperimentRun).values(
+            experiment_id=experiment_id,
+            dataset_example_id=example_id,
+            output={"output": "experiment-run-output"},
+            start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            end_time=datetime(year=2020, month=1, day=1, hour=0, minute=1, tzinfo=pytz.utc),
+        )
+    )
+
+    # insert an unused experiment
+    await session.execute(
+        insert(models.Experiment).values(
+            dataset_id=dataset_id,
+            dataset_version_id=version_id,
+            description="experiment-2-description",
+            metadata_={"metadata": "experiment-2-metadata"},
         )
     )
