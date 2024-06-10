@@ -410,7 +410,7 @@ async def dataset_with_revisions(session):
 
 
 @pytest.fixture
-def dataset_with_one_experiment(session, empty_dataset):
+def dataset_with_experiments(session, empty_dataset):
     experiment = models.Experiment(
         id=0,
         dataset_id=1,
@@ -444,6 +444,33 @@ def dataset_with_one_experiment(session, empty_dataset):
     session.add(experiment_run_1)
     session.flush()
 
+    experiment_run_2 = models.ExperimentRun(
+        id=2,
+        experiment_id=0,
+        dataset_example_id=1,
+        output={"out": "bar"},
+        start_time=datetime.now().isoformat(),
+        end_time=datetime.now().isoformat(),
+        error=None,
+    )
+    session.add(experiment_run_2)
+    session.flush()
+
+    experiment_run_3 = models.ExperimentRun(
+        id=3,
+        experiment_id=0,
+        dataset_example_id=2,
+        output=None,
+        start_time=datetime.now().isoformat(),
+        end_time=datetime.now().isoformat(),
+        error="something funny happened",
+    )
+    session.add(experiment_run_3)
+    session.flush()
+
+
+@pytest.fixture
+def dataset_with_experiments_and_evals(session, dataset_with_experiments):
     experiment_evaluation_0 = models.ExperimentEvaluation(
         id=0,
         experiment_run_id=0,
@@ -474,33 +501,6 @@ def dataset_with_one_experiment(session, empty_dataset):
     session.add(experiment_evaluation_1)
     session.flush()
 
-
-@pytest.fixture
-def dataset_with_two_experiments(session, dataset_with_one_experiment):
-    experiment_run_2 = models.ExperimentRun(
-        id=2,
-        experiment_id=0,
-        dataset_example_id=1,
-        output={"out": "bar"},
-        start_time=datetime.now().isoformat(),
-        end_time=datetime.now().isoformat(),
-        error=None,
-    )
-    session.add(experiment_run_2)
-    session.flush()
-
-    experiment_run_3 = models.ExperimentRun(
-        id=3,
-        experiment_id=0,
-        dataset_example_id=2,
-        output={},
-        start_time=datetime.now().isoformat(),
-        end_time=datetime.now().isoformat(),
-        error="something funny happened",
-    )
-    session.add(experiment_run_3)
-    session.flush()
-
     experiment_evaluation_2 = models.ExperimentEvaluation(
         id=2,
         experiment_run_id=2,
@@ -521,9 +521,9 @@ def dataset_with_two_experiments(session, dataset_with_one_experiment):
         experiment_run_id=3,
         name="experiment",
         label="test2",
-        score=0,
+        score=None,
         explanation="test",
-        error=None,
+        error="something funnier happened",
         metadata_={"info": "a test evaluation"},
         start_time=datetime.now().isoformat(),
         end_time=datetime.now().isoformat(),
