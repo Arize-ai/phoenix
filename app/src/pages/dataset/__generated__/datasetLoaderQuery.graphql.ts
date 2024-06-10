@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1afb055cb8c1a73e4e8bca27c3ddcda1>>
+ * @generated SignedSource<<fabe76ed6403adef46e65d6f320eff90>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -314,7 +314,9 @@ return {
               {
                 "alias": null,
                 "args": (v7/*: any*/),
-                "filters": null,
+                "filters": [
+                  "datasetVersionId"
+                ],
                 "handle": "connection",
                 "key": "DatasetExamplesTable_examples",
                 "kind": "LinkedHandle",

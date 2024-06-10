@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2064387de64b0332036735ddc22db5ae>>
+ * @generated SignedSource<<1616577e8f0df4ab8fac1dbfe6ecf02b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -50,6 +50,11 @@ return {
       "name": "after"
     },
     {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "datasetVersionId"
+    },
+    {
       "defaultValue": 100,
       "kind": "LocalArgument",
       "name": "first"
@@ -88,7 +93,13 @@ return {
   "selections": [
     {
       "alias": "examples",
-      "args": null,
+      "args": [
+        {
+          "kind": "Variable",
+          "name": "datasetVersionId",
+          "variableName": "datasetVersionId"
+        }
+      ],
       "concreteType": "DatasetExampleConnection",
       "kind": "LinkedField",
       "name": "__DatasetExamplesTable_examples_connection",
@@ -209,6 +220,6 @@ return {
 };
 })();
 
-(node as any).hash = "9f226f4647a9479d5e31641be42c7c70";
+(node as any).hash = "91b6607bb20de7df49dd270acaa5ab1a";
 
 export default node;
