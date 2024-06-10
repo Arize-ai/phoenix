@@ -89,7 +89,7 @@ async def test_dataset_example_span_resolver(
     }
 
 
-async def test_dataset_example_experiments_resolver(
+async def test_dataset_example_experiments_resolver_returns_relevant_experiments(
     test_client, dataset_with_example_and_experiment
 ) -> None:
     query = """
@@ -236,7 +236,8 @@ async def dataset_with_span_and_nonspan_examples(session):
 @pytest.fixture
 async def dataset_with_example_and_experiment(session) -> None:
     """
-    A dataset with a single example and a single version.
+    A dataset with a single example and two experiments, one that uses the
+    example and one that does not.
     """
 
     # insert dataset
@@ -255,7 +256,6 @@ async def dataset_with_example_and_experiment(session) -> None:
         insert(models.DatasetExample)
         .values(
             dataset_id=dataset_id,
-            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
         )
         .returning(models.DatasetExample.id)
     )
