@@ -50,8 +50,7 @@ Now that phoenix is up and running, you can now run a [LlamaIndex](../tracing/ho
 To use llama-index's one click, you must install the small integration first:
 
 ```bash
-pip install 'llama-index-callbacks-arize-phoenix>1.3.0'
-pip install 'llama-index>=0.10.3'
+pip install 'llama-index>=0.10.44'
 ```
 
 ```python
@@ -71,10 +70,17 @@ os.environ["OPENAI_API_KEY"] = "YOUR_OPENAI_API_KEY"
 # To view traces in Phoenix, you will first have to start a Phoenix server. You can do this by running the following:
 session = px.launch_app()
 
+# Once you have started a Phoenix server, you can start your LlamaIndex application and configure it to send traces to Phoenix.
+from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace import SpanLimits, TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
-# Once you have started a Phoenix server, you can start your LlamaIndex application and configure it to send traces to Phoenix. To do this, you will have to add configure Phoenix as the global handler
-set_global_handler("arize_phoenix")
+endpoint = "http://127.0.0.1:6006/v1/traces"
+tracer_provider = TracerProvider(span_limits=SpanLimits(max_attributes=100_000))
+tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
 
+LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
 
 # LlamaIndex application initialization may vary
 # depending on your application
