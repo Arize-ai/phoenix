@@ -174,13 +174,13 @@ function filterConditionCompletions(context: CompletionContext) {
       {
         label: "Metadata",
         type: "text",
-        apply: "metadata['topic'] == 'dashboard'",
+        apply: "metadata['topic'] == 'agent'",
         detail: "macro",
       },
       {
         label: "Substring",
         type: "text",
-        apply: "'gpt' in llm.model_name",
+        apply: "'agent' in input.value",
         detail: "macro",
       },
     ],
@@ -411,13 +411,13 @@ function FilterConditionBuilder(props: {
         <FilterConditionSnippet
           key="metadata"
           label="filter by metadata"
-          initialSnippet="metadata['topic'] == 'dashboard'"
+          initialSnippet="metadata['topic'] == 'agent'"
           onAddFilterConditionSnippet={onAddFilterConditionSnippet}
         />
         <FilterConditionSnippet
           key="substring"
           label="filter by substring"
-          initialSnippet="'gpt' in llm.model_name"
+          initialSnippet="'agent' in input.value"
           onAddFilterConditionSnippet={onAddFilterConditionSnippet}
         />
       </Form>
