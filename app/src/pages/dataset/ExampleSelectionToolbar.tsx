@@ -77,6 +77,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
     isPlural,
     onExamplesDeleted,
     onClearSelection,
+    refreshLatestVersion,
     notifyError,
   ]);
   return (
