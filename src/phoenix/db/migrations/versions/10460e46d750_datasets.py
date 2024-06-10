@@ -182,7 +182,7 @@ def upgrade() -> None:
             sa.String,
             nullable=True,
         ),
-        sa.Column("output", JSON_, nullable=False),
+        sa.Column("output", JSON_, nullable=True),
         sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column(
@@ -228,6 +228,11 @@ def upgrade() -> None:
         ),
         sa.Column(
             "explanation",
+            sa.String,
+            nullable=True,
+        ),
+        sa.Column(
+            "trace_id",
             sa.String,
             nullable=True,
         ),

@@ -37,7 +37,7 @@ async def create_experiment_run(request: Request) -> Response:
     output = payload["output"]
     start_time = payload["start_time"]
     end_time = payload["end_time"]
-    error = payload["error"]
+    error = payload.get("error")
 
     async with request.app.state.db() as session:
         experiment_run = models.ExperimentRun(
