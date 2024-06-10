@@ -20,9 +20,10 @@ async def create_experiment(request: Request) -> Response:
 
     payload = await request.json()
     metadata = payload.get("metadata", {})
-    dataset_version_globalid = payload.get("version-id")
-    if dataset_version_globalid is not None:
+    dataset_version_globalid_str = payload.get("version-id")
+    if dataset_version_globalid_str is not None:
         try:
+            dataset_version_globalid = GlobalID.from_id(dataset_version_globalid_str)
             dataset_version_id = from_global_id_with_expected_type(
                 dataset_version_globalid, "DatasetVersion"
             )
@@ -33,48 +34,50 @@ async def create_experiment(request: Request) -> Response:
             )
 
     async with request.app.state.db() as session:
-        if dataset_version_globalid is None:
-            dataset_version_id_stmt = select(func.max(models.DatasetVersion.id)).where(
-                models.DatasetVersion.dataset_id == dataset_id
+        dataset = await session.execute(
+            select(models.Dataset).where(models.Dataset.id == dataset_id)
+        )
+        if not dataset.scalar():
+            return Response(
+                content=f"Dataset with ID {dataset_globalid} does not exist",
+                status_code=HTTP_404_NOT_FOUND,
             )
-        else:
-            dataset_version_id_stmt = select(models.DatasetVersion.id).where(
-                models.DatasetVersion.id == dataset_version_id
-            )
-        try:
-            experiment = (
-                await session.execute(
-                    insert(models.Experiment)
-                    .values(
-                        dataset_id=dataset_id,
-                        dataset_version_id=dataset_version_id_stmt.scalar_subquery(),
-                        metadata_=metadata,
-                    )
-                    .returning(models.Experiment)
-                )
-            ).scalar()
-        except Exception:
-            dataset_id_stmt = select(models.Dataset.id).where(models.Dataset.id == dataset_id)
-            resolved_dataset_id = (await session.execute(dataset_id_stmt)).first()
-            if not resolved_dataset_id:
-                return Response(
-                    content=f"Dataset with ID {dataset_globalid} does not exist",
-                    status_code=HTTP_404_NOT_FOUND,
-                )
 
-            resolved_dataset_version_id = (await session.execute(dataset_version_id_stmt)).first()
-            if not resolved_dataset_version_id:
+        if dataset_version_globalid_str is None:
+            dataset_version_result = await session.execute(
+                select(models.DatasetVersion)
+                .where(models.DatasetVersion.dataset_id == dataset_id)
+                .order_by(models.DatasetVersion.id.desc())
+            )
+            dataset_version = dataset_version_result.scalar()
+            if not dataset_version:
                 return Response(
                     content=f"Dataset {dataset_globalid} does not have any versions",
                     status_code=HTTP_404_NOT_FOUND,
                 )
-            return Response(
-                content="Cannot create experiment",
-                status_code=HTTP_400_BAD_REQUEST,
+            dataset_version_id = dataset_version.id
+            dataset_version_globalid = GlobalID("DatasetVersion", str(dataset_version_id))
+        else:
+            dataset_version = await session.execute(
+                select(models.DatasetVersion).where(models.DatasetVersion.id == dataset_version_id)
             )
+            dataset_version = dataset_version.scalar()
+            if not dataset_version:
+                return Response(
+                    content=f"DatasetVersion with ID {dataset_version_globalid} does not exist",
+                    status_code=HTTP_404_NOT_FOUND,
+                )
+
+        experiment = models.Experiment(
+            dataset_id=int(dataset_id),
+            dataset_version_id=int(dataset_version_id),
+            metadata_=metadata,
+        )
+        session.add(experiment)
+        await session.flush()
 
         experiment_globalid = GlobalID("Experiment", str(experiment.id))
-        if dataset_version_globalid is None:
+        if dataset_version_globalid_str is None:
             dataset_version_globalid = GlobalID(
                 "DatasetVersion", str(experiment.dataset_version_id)
             )

@@ -5,8 +5,9 @@ from strawberry.relay import GlobalID
 
 async def test_experiments_api(test_client, simple_dataset):
     """
-    A simple test of the expected flow for the experiments API
+    A simple test of the expected flow for the experiments API flow
     """
+
     dataset_globalid = GlobalID("Dataset", "0")
 
     # first, create an experiment associated with a dataset
@@ -69,3 +70,21 @@ async def test_experiments_api(test_client, simple_dataset):
         )
     ).json()
     assert experiment_evaluation
+
+
+async def test_experiment_404s_with_missing_dataset(test_client, simple_dataset):
+    incorrect_dataset_globalid = GlobalID("Dataset", "1")
+    response = await test_client.post(
+        f"/v1/datasets/{incorrect_dataset_globalid}/experiments", json={"version-id": None}
+    )
+    assert response.status_code == 404
+
+
+async def test_experiment_404s_with_missing_version(test_client, simple_dataset):
+    correct_dataset_globalid = GlobalID("Dataset", "0")
+    incorrect_version_globalid = GlobalID("DatasetVersion", "9000")
+    response = await test_client.post(
+        f"/v1/datasets/{correct_dataset_globalid}/experiments",
+        json={"version-id": str(incorrect_version_globalid)},
+    )
+    assert response.status_code == 404
