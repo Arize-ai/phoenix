@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2d4f0c8e277402639a53c398d8c224bb>>
+ * @generated SignedSource<<6b6f9ad85344d5390904fa1dfc3a9288>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -105,6 +105,20 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "exampleCount",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "experimentCount",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "__typename",
                     "storageKey": null
                   }
@@ -161,12 +175,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3de98dd7b53adacb7b23d86a5bae81a6",
+    "cacheID": "5f2e582963a3b67b4649a768186767b4",
     "id": null,
     "metadata": {},
     "name": "DatasetsPageQuery",
     "operationKind": "query",
-    "text": "query DatasetsPageQuery {\n  ...DatasetsTable_datasets\n}\n\nfragment DatasetsTable_datasets on Query {\n  datasets(first: 100) {\n    edges {\n      node {\n        id\n        name\n        description\n        createdAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query DatasetsPageQuery {\n  ...DatasetsTable_datasets\n}\n\nfragment DatasetsTable_datasets on Query {\n  datasets(first: 100) {\n    edges {\n      node {\n        id\n        name\n        description\n        createdAt\n        exampleCount\n        experimentCount\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
