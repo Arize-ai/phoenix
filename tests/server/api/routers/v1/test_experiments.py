@@ -88,3 +88,27 @@ async def test_experiment_404s_with_missing_version(test_client, simple_dataset)
         json={"version-id": str(incorrect_version_globalid)},
     )
     assert response.status_code == 404
+
+
+async def test_reading_experiments(test_client, dataset_with_experiments):
+    experiment_globalid = GlobalID("Experiment", "0")
+    dataset_globalid = GlobalID("Dataset", "1")
+    dataset_version_globalid = GlobalID("DatasetVersion", "1")
+    response = await test_client.get(f"/v1/experiments/{experiment_globalid}")
+    assert response.status_code == 200
+    experiment = response.json()
+    assert "created_at" in experiment
+    assert "updated_at" in experiment
+    expected = {
+        "id": str(experiment_globalid),
+        "dataset_id": str(dataset_globalid),
+        "dataset_version_id": str(dataset_version_globalid),
+        "metadata": {"info": "a test experiment"},
+    }
+    assert all(experiment[key] == value for key, value in expected.items())
+
+
+async def test_reading_experiment_404s_with_missing_experiment(test_client):
+    incorrect_experiment_globalid = GlobalID("Experiment", "9000")
+    response = await test_client.get(f"/v1/experiments/{incorrect_experiment_globalid}")
+    assert response.status_code == 404

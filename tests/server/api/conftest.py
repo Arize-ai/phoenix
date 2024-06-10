@@ -410,67 +410,79 @@ async def dataset_with_revisions(session):
 
 
 @pytest.fixture
-def dataset_with_experiments(session, empty_dataset):
-    experiment = models.Experiment(
+async def dataset_with_experiments_without_runs(session, empty_dataset):
+    experiment_0 = models.Experiment(
         id=0,
         dataset_id=1,
         dataset_version_id=1,
         metadata_={"info": "a test experiment"},
     )
-    session.add(experiment)
-    session.flush()
+    session.add(experiment_0)
+    await session.flush()
 
+    experiment_1 = models.Experiment(
+        id=0,
+        dataset_id=1,
+        dataset_version_id=2,
+        metadata_={"info": "a second test experiment"},
+    )
+    session.add(experiment_1)
+    await session.flush()
+
+
+@pytest.fixture
+async def dataset_with_experiments_and_runs(session, dataset_with_experiments_without_runs):
     experiment_run_0 = models.ExperimentRun(
         id=0,
         experiment_id=0,
         dataset_example_id=1,
         output={"out": "barr"},
-        start_time=datetime.now().isoformat(),
-        end_time=datetime.now().isoformat(),
+        start_time=datetime.now(),
+        end_time=datetime.now(),
         error=None,
     )
     session.add(experiment_run_0)
-    session.flush()
+    await session.flush()
 
     experiment_run_1 = models.ExperimentRun(
         id=1,
         experiment_id=0,
         dataset_example_id=2,
         output={"out": "barbarr"},
-        start_time=datetime.now().isoformat(),
-        end_time=datetime.now().isoformat(),
+        start_time=datetime.now(),
+        end_time=datetime.now(),
         error=None,
     )
     session.add(experiment_run_1)
-    session.flush()
+    await session.flush()
 
     experiment_run_2 = models.ExperimentRun(
         id=2,
-        experiment_id=0,
+        experiment_id=1,
         dataset_example_id=1,
         output={"out": "bar"},
-        start_time=datetime.now().isoformat(),
-        end_time=datetime.now().isoformat(),
+        start_time=datetime.now(),
+        end_time=datetime.now(),
         error=None,
     )
     session.add(experiment_run_2)
-    session.flush()
+    await session.flush()
 
     experiment_run_3 = models.ExperimentRun(
         id=3,
-        experiment_id=0,
+        experiment_id=1,
         dataset_example_id=2,
         output=None,
-        start_time=datetime.now().isoformat(),
-        end_time=datetime.now().isoformat(),
+        start_time=datetime.now(),
+        end_time=datetime.now(),
         error="something funny happened",
     )
     session.add(experiment_run_3)
-    session.flush()
+    await session.flush()
 
 
 @pytest.fixture
-def dataset_with_experiments_and_evals(session, dataset_with_experiments):
+async def dataset_with_experiments_runs_and_evals(session, dataset_with_experiments_and_runs):
     experiment_evaluation_0 = models.ExperimentEvaluation(
         id=0,
         experiment_run_id=0,
@@ -480,11 +492,11 @@ def dataset_with_experiments_and_evals(session, dataset_with_experiments):
         explanation="test",
         error=None,
         metadata_={"info": "a test evaluation"},
-        start_time=datetime.now().isoformat(),
-        end_time=datetime.now().isoformat(),
+        start_time=datetime.now(),
+        end_time=datetime.now(),
     )
     session.add(experiment_evaluation_0)
-    session.flush()
+    await session.flush()
 
     experiment_evaluation_1 = models.ExperimentEvaluation(
         id=1,
@@ -495,11 +507,11 @@ def dataset_with_experiments_and_evals(session, dataset_with_experiments):
         explanation="test",
         error=None,
         metadata_={"info": "a test evaluation"},
-        start_time=datetime.now().isoformat(),
-        end_time=datetime.now().isoformat(),
+        start_time=datetime.now(),
+        end_time=datetime.now(),
     )
     session.add(experiment_evaluation_1)
-    session.flush()
+    await session.flush()
 
     experiment_evaluation_2 = models.ExperimentEvaluation(
         id=2,
@@ -510,11 +522,11 @@ def dataset_with_experiments_and_evals(session, dataset_with_experiments):
         explanation="test",
         error=None,
         metadata_={"info": "a test evaluation"},
-        start_time=datetime.now().isoformat(),
-        end_time=datetime.now().isoformat(),
+        start_time=datetime.now(),
+        end_time=datetime.now(),
     )
     session.add(experiment_evaluation_2)
-    session.flush()
+    await session.flush()
 
     experiment_evaluation_3 = models.ExperimentEvaluation(
         id=3,
@@ -525,8 +537,8 @@ def dataset_with_experiments_and_evals(session, dataset_with_experiments):
         explanation="test",
         error="something funnier happened",
         metadata_={"info": "a test evaluation"},
-        start_time=datetime.now().isoformat(),
-        end_time=datetime.now().isoformat(),
+        start_time=datetime.now(),
+        end_time=datetime.now(),
     )
     session.add(experiment_evaluation_3)
-    session.flush()
+    await session.flush()

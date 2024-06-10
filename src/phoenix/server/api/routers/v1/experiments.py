@@ -1,7 +1,7 @@
-from sqlalchemy import func, insert, select
+from sqlalchemy import select
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
-from starlette.status import HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
+from starlette.status import HTTP_404_NOT_FOUND
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
