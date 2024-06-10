@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<72712eca29f1b4fd93d3f03a9afe5561>>
+ * @generated SignedSource<<9874853cb9af7310fa4b566736d77a55>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -125,6 +125,20 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "exampleCount",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "experimentCount",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "__typename",
                     "storageKey": null
                   }
@@ -181,16 +195,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "512ed87e227e4cac925edbba551f90b2",
+    "cacheID": "0f35826a5d3b16dd6ff8a383ce59352c",
     "id": null,
     "metadata": {},
     "name": "DatasetsTableDatasetsQuery",
     "operationKind": "query",
-    "text": "query DatasetsTableDatasetsQuery(\n  $after: String = null\n  $first: Int = 100\n) {\n  ...DatasetsTable_datasets_2HEEH6\n}\n\nfragment DatasetsTable_datasets_2HEEH6 on Query {\n  datasets(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        name\n        description\n        createdAt\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query DatasetsTableDatasetsQuery(\n  $after: String = null\n  $first: Int = 100\n) {\n  ...DatasetsTable_datasets_2HEEH6\n}\n\nfragment DatasetsTable_datasets_2HEEH6 on Query {\n  datasets(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        name\n        description\n        createdAt\n        exampleCount\n        experimentCount\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ad1e98c5dbe71121a5497604634b0d82";
+(node as any).hash = "a46b79378a5c19b993545c42e96ee4e4";
 
 export default node;

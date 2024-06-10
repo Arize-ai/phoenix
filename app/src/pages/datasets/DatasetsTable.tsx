@@ -49,6 +49,8 @@ export function DatasetsTable(props: DatasetsTableProps) {
                 name
                 description
                 createdAt
+                exampleCount
+                experimentCount
               }
             }
           }
@@ -96,9 +98,12 @@ export function DatasetsTable(props: DatasetsTableProps) {
         accessorKey: "description",
       },
       {
-        header: "created at",
-        accessorKey: "createdAt",
-        cell: TimestampCell,
+        header: "example count",
+        accessorKey: "exampleCount",
+      },
+      {
+        header: "experiment count",
+        accessorKey: "experimentCount",
       },
       {
         header: "",
