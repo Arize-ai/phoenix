@@ -102,7 +102,6 @@ async def test_dataset_example_experiments_resolver(
                   id
                   description
                   metadata
-                  createdAt
                 }
               }
             }
@@ -122,6 +121,21 @@ async def test_dataset_example_experiments_resolver(
     assert response.status_code == 200
     response_json = response.json()
     assert response_json.get("errors") is None
+    assert response_json["data"] == {
+        "example": {
+            "experiments": {
+                "edges": [
+                    {
+                        "experiment": {
+                            "id": str(GlobalID("Experiment", str(1))),
+                            "description": "experiment-1-description",
+                            "metadata": {"metadata": "experiment-1-metadata"},
+                        }
+                    }
+                ]
+            }
+        }
+    }
 
 
 @pytest.fixture
