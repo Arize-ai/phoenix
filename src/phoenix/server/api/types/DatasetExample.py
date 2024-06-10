@@ -2,15 +2,22 @@ from datetime import datetime
 from typing import Optional
 
 import strawberry
+from sqlalchemy import select
 from strawberry import UNSET
 from strawberry.relay.types import Connection, GlobalID, Node, NodeID
 from strawberry.types import Info
 
+from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.api.types.Experiment import Experiment
+from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.pagination import (
+    ConnectionArgs,
+    CursorString,
+    connection_from_list,
+)
 from phoenix.server.api.types.Span import Span, to_gql_span
 
 
@@ -50,5 +57,34 @@ class DatasetExample(Node):
         )
 
     @strawberry.field
-    async def experiments(self, info: Info[Context, None]) -> Connection[Experiment]:
-        raise NotImplementedError("experiments resolver on DatasetExample not implemented")
+    async def experiments(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[Experiment]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        example_id = (
+            select(models.DatasetExample.id)
+            .where(models.DatasetExample.id == self.id_attr)
+            .scalar_subquery()
+        )
+        query = (
+            select(models.Experiment)
+            .join(models.ExperimentRun, models.Experiment.id == models.ExperimentRun.experiment_id)
+            .where(models.ExperimentRun.dataset_example_id == example_id)
+        )
+        async with info.context.db() as session:
+            db_experiments = [
+                experiment async for experiment in await session.stream_scalars(query)
+            ]
+        return connection_from_list(
+            [to_gql_experiment(experiment) for experiment in db_experiments], args
+        )
