@@ -167,7 +167,7 @@ class Dataset(Node):
                     models.DatasetExampleRevision.revision_kind != "DELETE",
                 )
             )
-            .order_by(models.DatasetExampleRevision.dataset_example_id)
+            .order_by(models.DatasetExampleRevision.dataset_example_id.desc())
         )
         async with info.context.db() as session:
             dataset_examples = [

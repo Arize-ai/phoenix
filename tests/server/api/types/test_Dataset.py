@@ -1,10 +1,18 @@
 from datetime import datetime
+from typing import List, NamedTuple
 
 import pytest
 import pytz
 from phoenix.db import models
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
+
+
+class DatasetFixture(NamedTuple):
+    datasets: List[models.Dataset]
+    dataset_versions: List[models.DatasetVersion]
+    dataset_examples: List[models.DatasetExample]
+    dataset_example_revisions: List[models.DatasetExampleRevision]
 
 
 class TestDatasetExampleNodeInterface:
@@ -28,9 +36,14 @@ class TestDatasetExampleNodeInterface:
     async def test_unspecified_version_returns_latest_revision(
         self,
         test_client,
-        dataset_with_patch_revision,
+        dataset_with_patch_revision: DatasetFixture,
     ) -> None:
-        example_id = str(GlobalID("DatasetExample", str(1)))
+        example_id = str(
+            GlobalID(
+                "DatasetExample",
+                str(dataset_with_patch_revision.dataset_examples[0].id),
+            )
+        )
         response = await test_client.post(
             "/graphql",
             json={
@@ -230,39 +243,57 @@ class TestDatasetExamplesResolver:
     async def test_returns_latest_revisions_when_no_version_is_specified(
         self,
         test_client,
-        dataset_with_patch_revision,
+        dataset_with_patch_revision: DatasetFixture,
     ) -> None:
         response = await test_client.post(
             "/graphql",
             json={
                 "query": self.QUERY,
                 "variables": {
-                    "datasetId": str(GlobalID("Dataset", str(1))),
+                    "datasetId": str(
+                        GlobalID("Dataset", str(dataset_with_patch_revision.datasets[0].id))
+                    ),
                 },
             },
         )
         assert response.status_code == 200
         response_json = response.json()
         assert response_json.get("errors") is None
-        assert response_json["data"] == {
-            "node": {
-                "examples": {
-                    "edges": [
-                        {
-                            "node": {
-                                "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
-                                "revision": {
-                                    "input": {"input": "second-input"},
-                                    "output": {"output": "second-output"},
-                                    "metadata": {},
-                                },
-                                "createdAt": "2020-01-01T00:00:00+00:00",
-                            }
-                        }
-                    ]
+        edges = [
+            {
+                "node": {
+                    "id": str(
+                        GlobalID(
+                            type_name="DatasetExample",
+                            node_id=str(dataset_with_patch_revision.dataset_examples[1].id),
+                        )
+                    ),
+                    "revision": {
+                        "input": {"input": "second-input"},
+                        "output": {"output": "second-output"},
+                        "metadata": {},
+                    },
+                    "createdAt": "2020-01-01T01:00:00+00:00",
                 }
-            }
-        }
+            },
+            {
+                "node": {
+                    "id": str(
+                        GlobalID(
+                            type_name="DatasetExample",
+                            node_id=str(dataset_with_patch_revision.dataset_examples[0].id),
+                        )
+                    ),
+                    "revision": {
+                        "input": {"input": "second-input"},
+                        "output": {"output": "second-output"},
+                        "metadata": {},
+                    },
+                    "createdAt": "2020-01-01T00:00:00+00:00",
+                }
+            },
+        ]
+        assert response_json["data"] == {"node": {"examples": {"edges": edges}}}
 
     async def test_excludes_deleted_examples(self, test_client, dataset_with_deletion) -> None:
         response = await test_client.post(
@@ -280,40 +311,65 @@ class TestDatasetExamplesResolver:
         assert response_json["data"] == {"node": {"examples": {"edges": []}}}
 
     async def test_returns_latest_revisions_up_to_specified_version(
-        self, test_client, dataset_with_patch_revision
+        self,
+        test_client,
+        dataset_with_patch_revision: DatasetFixture,
     ) -> None:
         response = await test_client.post(
             "/graphql",
             json={
                 "query": self.QUERY,
                 "variables": {
-                    "datasetId": str(GlobalID("Dataset", str(1))),
-                    "datasetVersionId": str(GlobalID("DatasetVersion", str(1))),
+                    "datasetId": str(
+                        GlobalID("Dataset", str(dataset_with_patch_revision.datasets[0].id))
+                    ),
+                    "datasetVersionId": str(
+                        GlobalID(
+                            "DatasetVersion",
+                            str(dataset_with_patch_revision.dataset_versions[0].id),
+                        )
+                    ),
                 },
             },
         )
         assert response.status_code == 200
         response_json = response.json()
         assert response_json.get("errors") is None
-        assert response_json["data"] == {
-            "node": {
-                "examples": {
-                    "edges": [
-                        {
-                            "node": {
-                                "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
-                                "revision": {
-                                    "input": {"input": "first-input"},
-                                    "output": {"output": "first-output"},
-                                    "metadata": {},
-                                },
-                                "createdAt": "2020-01-01T00:00:00+00:00",
-                            }
-                        }
-                    ]
+        edges = [
+            {
+                "node": {
+                    "id": str(
+                        GlobalID(
+                            type_name="DatasetExample",
+                            node_id=str(dataset_with_patch_revision.dataset_examples[1].id),
+                        )
+                    ),
+                    "revision": {
+                        "input": {"input": "first-input"},
+                        "output": {"output": "first-output"},
+                        "metadata": {},
+                    },
+                    "createdAt": "2020-01-01T01:00:00+00:00",
                 }
-            }
-        }
+            },
+            {
+                "node": {
+                    "id": str(
+                        GlobalID(
+                            type_name="DatasetExample",
+                            node_id=str(dataset_with_patch_revision.dataset_examples[0].id),
+                        )
+                    ),
+                    "revision": {
+                        "input": {"input": "first-input"},
+                        "output": {"output": "first-output"},
+                        "metadata": {},
+                    },
+                    "createdAt": "2020-01-01T00:00:00+00:00",
+                }
+            },
+        ]
+        assert response_json["data"] == {"node": {"examples": {"edges": edges}}}
 
     async def test_returns_latest_revisions_up_to_version_even_if_version_does_not_change_example(
         self, test_client, dataset_with_three_versions
@@ -356,41 +412,69 @@ class TestDatasetExamplesResolver:
     async def test_version_id_on_revision_resolver_takes_precedence(
         self,
         test_client,
-        dataset_with_patch_revision,
+        dataset_with_patch_revision: DatasetFixture,
     ) -> None:
         response = await test_client.post(
             "/graphql",
             json={
                 "query": self.QUERY,
                 "variables": {
-                    "datasetId": str(GlobalID("Dataset", str(1))),
-                    "datasetVersionId": str(GlobalID("DatasetVersion", str(2))),
-                    "revisionDatasetVersionId": str(GlobalID("DatasetVersion", str(1))),
+                    "datasetId": str(
+                        GlobalID("Dataset", str(dataset_with_patch_revision.datasets[0].id))
+                    ),
+                    "datasetVersionId": str(
+                        GlobalID(
+                            "DatasetVersion",
+                            str(dataset_with_patch_revision.dataset_versions[1].id),
+                        )
+                    ),
+                    "revisionDatasetVersionId": str(
+                        GlobalID(
+                            "DatasetVersion",
+                            str(dataset_with_patch_revision.dataset_versions[0].id),
+                        )
+                    ),
                 },
             },
         )
         assert response.status_code == 200
         response_json = response.json()
         assert response_json.get("errors") is None
-        assert response_json["data"] == {
-            "node": {
-                "examples": {
-                    "edges": [
-                        {
-                            "node": {
-                                "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
-                                "revision": {
-                                    "input": {"input": "first-input"},
-                                    "output": {"output": "first-output"},
-                                    "metadata": {},
-                                },
-                                "createdAt": "2020-01-01T00:00:00+00:00",
-                            }
-                        }
-                    ]
+        edges = [
+            {
+                "node": {
+                    "id": str(
+                        GlobalID(
+                            type_name="DatasetExample",
+                            node_id=str(dataset_with_patch_revision.dataset_examples[1].id),
+                        )
+                    ),
+                    "revision": {
+                        "input": {"input": "first-input"},
+                        "output": {"output": "first-output"},
+                        "metadata": {},
+                    },
+                    "createdAt": "2020-01-01T01:00:00+00:00",
                 }
-            }
-        }
+            },
+            {
+                "node": {
+                    "id": str(
+                        GlobalID(
+                            type_name="DatasetExample",
+                            node_id=str(dataset_with_patch_revision.dataset_examples[0].id),
+                        )
+                    ),
+                    "revision": {
+                        "input": {"input": "first-input"},
+                        "output": {"output": "first-output"},
+                        "metadata": {},
+                    },
+                    "createdAt": "2020-01-01T00:00:00+00:00",
+                }
+            },
+        ]
+        assert response_json["data"] == {"node": {"examples": {"edges": edges}}}
 
 
 class TestDatasetExperimentCountResolver:
@@ -441,71 +525,102 @@ class TestDatasetExperimentCountResolver:
 
 
 @pytest.fixture
-async def dataset_with_patch_revision(session):
+async def dataset_with_patch_revision(session) -> DatasetFixture:
     """
     A dataset with a single example and two versions. In the first version, the
     dataset example is created. In the second version, the dataset example is
     patched.
     """
 
-    dataset = models.Dataset(
-        id=1,
-        name="dataset-name",
-        description=None,
-        metadata_={},
+    datasets = list(
+        await session.scalars(
+            insert(models.Dataset).returning(models.Dataset),
+            [
+                {
+                    "id": 1,
+                    "name": "dataset-name",
+                    "metadata_": {},
+                }
+            ],
+        )
     )
-    session.add(dataset)
-    await session.flush()
 
-    dataset_example = models.DatasetExample(
-        id=1,
-        dataset_id=1,
-        created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+    dataset_versions = list(
+        await session.scalars(
+            insert(models.DatasetVersion).returning(models.DatasetVersion),
+            [
+                {"dataset_id": datasets[0].id, "metadata_": {}},
+                {"dataset_id": datasets[0].id, "metadata_": {}},
+            ],
+        )
     )
-    session.add(dataset_example)
-    await session.flush()
 
-    dataset_version_1 = models.DatasetVersion(
-        id=1,
-        dataset_id=1,
-        description=None,
-        metadata_={},
+    dataset_examples = list(
+        await session.scalars(
+            insert(models.DatasetExample).returning(models.DatasetExample),
+            [
+                {
+                    "dataset_id": datasets[0].id,
+                    "created_at": datetime(
+                        year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                    ),
+                },
+                {
+                    "dataset_id": datasets[0].id,
+                    "created_at": datetime(
+                        year=2020, month=1, day=1, hour=1, minute=0, tzinfo=pytz.utc
+                    ),
+                },
+            ],
+        )
     )
-    session.add(dataset_version_1)
-    await session.flush()
 
-    dataset_example_revision_1 = models.DatasetExampleRevision(
-        id=1,
-        dataset_example_id=1,
-        dataset_version_id=1,
-        input={"input": "first-input"},
-        output={"output": "first-output"},
-        metadata_={},
-        revision_kind="CREATE",
+    dataset_example_revisions = list(
+        await session.scalars(
+            insert(models.DatasetExampleRevision).returning(models.DatasetExampleRevision),
+            [
+                {
+                    "dataset_example_id": dataset_examples[0].id,
+                    "dataset_version_id": dataset_versions[0].id,
+                    "input": {"input": "first-input"},
+                    "output": {"output": "first-output"},
+                    "metadata_": {},
+                    "revision_kind": "CREATE",
+                },
+                {
+                    "dataset_example_id": dataset_examples[1].id,
+                    "dataset_version_id": dataset_versions[0].id,
+                    "input": {"input": "first-input"},
+                    "output": {"output": "first-output"},
+                    "metadata_": {},
+                    "revision_kind": "CREATE",
+                },
+                {
+                    "dataset_example_id": dataset_examples[0].id,
+                    "dataset_version_id": dataset_versions[1].id,
+                    "input": {"input": "second-input"},
+                    "output": {"output": "second-output"},
+                    "metadata_": {},
+                    "revision_kind": "PATCH",
+                },
+                {
+                    "dataset_example_id": dataset_examples[1].id,
+                    "dataset_version_id": dataset_versions[1].id,
+                    "input": {"input": "second-input"},
+                    "output": {"output": "second-output"},
+                    "metadata_": {},
+                    "revision_kind": "PATCH",
+                },
+            ],
+        )
     )
-    session.add(dataset_example_revision_1)
-    await session.flush()
 
-    dataset_version_2 = models.DatasetVersion(
-        id=2,
-        dataset_id=1,
-        description=None,
-        metadata_={},
+    return DatasetFixture(
+        datasets=datasets,
+        dataset_versions=dataset_versions,
+        dataset_examples=dataset_examples,
+        dataset_example_revisions=dataset_example_revisions,
     )
-    session.add(dataset_version_2)
-    await session.flush()
-
-    dataset_example_revision_2 = models.DatasetExampleRevision(
-        id=2,
-        dataset_example_id=1,
-        dataset_version_id=2,
-        input={"input": "second-input"},
-        output={"output": "second-output"},
-        metadata_={},
-        revision_kind="PATCH",
-    )
-    session.add(dataset_example_revision_2)
-    await session.flush()
 
 
 @pytest.fixture

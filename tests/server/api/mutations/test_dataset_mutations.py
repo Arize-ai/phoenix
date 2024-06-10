@@ -61,17 +61,32 @@ mutation ($datasetId: GlobalID!, $spanIds: [GlobalID!]!) {
                         {
                             "example": {
                                 "revision": {
-                                    "input": {"input": "chain-span-input-value"},
-                                    "output": {"output": "chain-span-output-value"},
+                                    "input": {
+                                        "input_messages": [
+                                            {"content": "user-message-content", "role": "user"}
+                                        ]
+                                    },
                                     "metadata": {
-                                        "input": {
-                                            "value": "chain-span-input-value",
-                                            "mime_type": "text/plain",
-                                        },
-                                        "output": {
-                                            "value": "chain-span-output-value",
-                                            "mime_type": "text/plain",
-                                        },
+                                        "llm": {
+                                            "input_messages": [
+                                                {"content": "user-message-content", "role": "user"}
+                                            ],
+                                            "invocation_parameters": {"temperature": 1},
+                                            "output_messages": [
+                                                {
+                                                    "content": "assistant-message-content",
+                                                    "role": "assistant",
+                                                }
+                                            ],
+                                        }
+                                    },
+                                    "output": {
+                                        "output_messages": [
+                                            {
+                                                "content": "assistant-message-content",
+                                                "role": "assistant",
+                                            }
+                                        ]
                                     },
                                 }
                             }
@@ -112,32 +127,17 @@ mutation ($datasetId: GlobalID!, $spanIds: [GlobalID!]!) {
                         {
                             "example": {
                                 "revision": {
-                                    "input": {
-                                        "input_messages": [
-                                            {"content": "user-message-content", "role": "user"}
-                                        ]
-                                    },
+                                    "input": {"input": "chain-span-input-value"},
+                                    "output": {"output": "chain-span-output-value"},
                                     "metadata": {
-                                        "llm": {
-                                            "input_messages": [
-                                                {"content": "user-message-content", "role": "user"}
-                                            ],
-                                            "invocation_parameters": {"temperature": 1},
-                                            "output_messages": [
-                                                {
-                                                    "content": "assistant-message-content",
-                                                    "role": "assistant",
-                                                }
-                                            ],
-                                        }
-                                    },
-                                    "output": {
-                                        "output_messages": [
-                                            {
-                                                "content": "assistant-message-content",
-                                                "role": "assistant",
-                                            }
-                                        ]
+                                        "input": {
+                                            "value": "chain-span-input-value",
+                                            "mime_type": "text/plain",
+                                        },
+                                        "output": {
+                                            "value": "chain-span-output-value",
+                                            "mime_type": "text/plain",
+                                        },
                                     },
                                 }
                             }
@@ -196,22 +196,22 @@ class TestPatchDatasetExamples:
         expected_examples = [
             {
                 "example": {
-                    "id": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(1))),
+                    "id": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(2))),
                     "revision": {
-                        "input": {"input": "patched-example-1-input"},
-                        "output": {"output": "original-example-1-version-1-output"},
-                        "metadata": {"metadata": "original-example-1-version-1-metadata"},
+                        "input": {"input": "patched-example-2-input"},
+                        "output": {"output": "patched-example-2-output"},
+                        "metadata": {"metadata": "patched-example-2-metadata"},
                         "revisionKind": "PATCH",
                     },
                 }
             },
             {
                 "example": {
-                    "id": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(2))),
+                    "id": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(1))),
                     "revision": {
-                        "input": {"input": "patched-example-2-input"},
-                        "output": {"output": "patched-example-2-output"},
-                        "metadata": {"metadata": "patched-example-2-metadata"},
+                        "input": {"input": "patched-example-1-input"},
+                        "output": {"output": "original-example-1-version-1-output"},
+                        "metadata": {"metadata": "original-example-1-version-1-metadata"},
                         "revisionKind": "PATCH",
                     },
                 }
