@@ -182,7 +182,7 @@ def upgrade() -> None:
             sa.String,
             nullable=True,
         ),
-        sa.Column("output", JSON_, nullable=False),
+        sa.Column("output", JSON_, nullable=True),
         sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column(
@@ -224,7 +224,7 @@ def upgrade() -> None:
         sa.Column(
             "score",
             sa.Float,
-            nullable=False,
+            nullable=True,
         ),
         sa.Column(
             "explanation",

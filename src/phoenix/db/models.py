@@ -530,7 +530,7 @@ class ExperimentRun(Base):
         index=True,
     )
     trace_id: Mapped[Optional[str]]
-    output: Mapped[Dict[str, Any]]
+    output: Mapped[Optional[Dict[str, Any]]]
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     prompt_token_count: Mapped[Optional[int]]
@@ -547,7 +547,7 @@ class ExperimentEvaluation(Base):
     )
     name: Mapped[str]
     label: Mapped[Optional[str]]
-    score: Mapped[float]
+    score: Mapped[Optional[float]]
     explanation: Mapped[Optional[str]]
     trace_id: Mapped[Optional[str]]
     error: Mapped[Optional[str]]
