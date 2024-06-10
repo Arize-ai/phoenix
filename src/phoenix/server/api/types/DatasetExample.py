@@ -71,11 +71,7 @@ class DatasetExample(Node):
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        example_id = (
-            select(models.DatasetExample.id)
-            .where(models.DatasetExample.id == self.id_attr)
-            .scalar_subquery()
-        )
+        example_id = self.id_attr
         query = (
             select(models.Experiment)
             .join(models.ExperimentRun, models.Experiment.id == models.ExperimentRun.experiment_id)
