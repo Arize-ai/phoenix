@@ -220,7 +220,7 @@ def upgrade() -> None:
             "annotator_kind",
             sa.String,
             sa.CheckConstraint(
-                "annotator_kind IN ('LLM', 'HUMAN')",
+                "annotator_kind IN ('LLM', 'CODE', 'HUMAN')",
                 name="valid_annotator_kind",
             ),
             nullable=False,

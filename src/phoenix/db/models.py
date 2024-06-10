@@ -547,7 +547,7 @@ class ExperimentAnnotation(Base):
     )
     name: Mapped[str]
     annotator_kind: Mapped[str] = mapped_column(
-        CheckConstraint("annotator_kind IN ('LLM', 'HUMAN')", name="valid_annotator_kind"),
+        CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
     )
     label: Mapped[Optional[str]]
     score: Mapped[Optional[float]]
