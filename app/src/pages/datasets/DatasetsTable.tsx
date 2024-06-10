@@ -14,7 +14,6 @@ import { Icon, Icons, Text } from "@arizeai/components";
 import { Link } from "@phoenix/components";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
-import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import { DatasetsTable_datasets$key } from "./__generated__/DatasetsTable_datasets.graphql";
