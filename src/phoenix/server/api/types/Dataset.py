@@ -180,6 +180,31 @@ class Dataset(Node):
             ]
         return connection_from_list(data=dataset_examples, args=args)
 
+    @strawberry.field(
+        description="Number of experiments for a specific version if version is specified, "
+        "or for all versions if version is not specified."
+    )  # type: ignore
+    async def experiment_count(
+        self,
+        info: Info[Context, None],
+        dataset_version_id: Optional[GlobalID] = UNSET,
+    ) -> int:
+        stmt = select(count(models.Experiment.id)).where(
+            models.Experiment.dataset_id == self.id_attr
+        )
+        version_id = (
+            from_global_id_with_expected_type(
+                global_id=dataset_version_id,
+                expected_type_name=DatasetVersion.__name__,
+            )
+            if dataset_version_id
+            else None
+        )
+        if version_id is not None:
+            stmt = stmt.where(models.Experiment.dataset_version_id == version_id)
+        async with info.context.db() as session:
+            return (await session.scalar(stmt)) or 0
+
     @strawberry.field
     async def experiments(
         self,
