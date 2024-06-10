@@ -1,4 +1,10 @@
-import React, { useCallback, useMemo, useRef } from "react";
+import React, {
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {
@@ -14,12 +20,11 @@ import { IndeterminateCheckboxCell } from "@phoenix/components/table/Indetermina
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TextCell } from "@phoenix/components/table/TextCell";
+import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 
 import type { DatasetExamplesTableFragment$key } from "./__generated__/DatasetExamplesTableFragment.graphql";
-import type {
-  datasetLoaderQuery,
-  datasetLoaderQuery$data,
-} from "./__generated__/datasetLoaderQuery.graphql";
+import { DatasetExamplesTableQuery } from "./__generated__/DatasetExamplesTableQuery.graphql";
+import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
 import { ExampleSelectionToolbar } from "./ExampleSelectionToolbar";
 
 const PAGE_SIZE = 100;
@@ -29,19 +34,27 @@ export function DatasetExamplesTable({
 }: {
   dataset: datasetLoaderQuery$data["dataset"];
 }) {
+  const latestVersion = useDatasetContext((state) => state.latestVersion);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = React.useState({});
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
-    usePaginationFragment<datasetLoaderQuery, DatasetExamplesTableFragment$key>(
+    usePaginationFragment<
+      DatasetExamplesTableQuery,
+      DatasetExamplesTableFragment$key
+    >(
       graphql`
         fragment DatasetExamplesTableFragment on Dataset
         @refetchable(queryName: "DatasetExamplesTableQuery")
         @argumentDefinitions(
+          datasetVersionId: { type: "GlobalID" }
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 100 }
         ) {
-          examples(first: $first, after: $after)
-            @connection(key: "DatasetExamplesTable_examples") {
+          examples(
+            datasetVersionId: $datasetVersionId
+            first: $first
+            after: $after
+          ) @connection(key: "DatasetExamplesTable_examples") {
             edges {
               example: node {
                 id
@@ -57,6 +70,17 @@ export function DatasetExamplesTable({
       `,
       dataset
     );
+
+  // Refetch the data when the dataset version changes
+  useEffect(() => {
+    startTransition(() => {
+      refetch(
+        { datasetVersionId: latestVersion?.id || null },
+        { fetchPolicy: "store-and-network" }
+      );
+    });
+  }, [latestVersion, refetch]);
+
   const tableData = useMemo(
     () =>
       data.examples.edges.map((edge) => {

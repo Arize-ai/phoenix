@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c97b85e4fce42f41100c655ac77fce27>>
+ * @generated SignedSource<<80db4139f7b5c5069ec7aac19738b665>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,6 +12,7 @@ import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DatasetExamplesTableQuery$variables = {
   after?: string | null;
+  datasetVersionId?: string | null;
   first?: number | null;
   id: string;
 };
@@ -31,6 +32,11 @@ var v0 = [
     "defaultValue": null,
     "kind": "LocalArgument",
     "name": "after"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "datasetVersionId"
   },
   {
     "defaultValue": 100,
@@ -55,6 +61,11 @@ v2 = [
     "kind": "Variable",
     "name": "after",
     "variableName": "after"
+  },
+  {
+    "kind": "Variable",
+    "name": "datasetVersionId",
+    "variableName": "datasetVersionId"
   },
   {
     "kind": "Variable",
@@ -239,7 +250,9 @@ return {
               {
                 "alias": null,
                 "args": (v2/*: any*/),
-                "filters": null,
+                "filters": [
+                  "datasetVersionId"
+                ],
                 "handle": "connection",
                 "key": "DatasetExamplesTable_examples",
                 "kind": "LinkedHandle",
@@ -255,16 +268,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "32a5fc724ab0c63345f57121fbaf5a37",
+    "cacheID": "4a3154eccd462f767224853865f98468",
     "id": null,
     "metadata": {},
     "name": "DatasetExamplesTableQuery",
     "operationKind": "query",
-    "text": "query DatasetExamplesTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetExamplesTableFragment_2HEEH6\n    __isNode: __typename\n    id\n  }\n}\n\nfragment DatasetExamplesTableFragment_2HEEH6 on Dataset {\n  examples(first: $first, after: $after) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n          metadata\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query DatasetExamplesTableQuery(\n  $after: String = null\n  $datasetVersionId: GlobalID\n  $first: Int = 100\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetExamplesTableFragment_4a6F8Z\n    __isNode: __typename\n    id\n  }\n}\n\nfragment DatasetExamplesTableFragment_4a6F8Z on Dataset {\n  examples(datasetVersionId: $datasetVersionId, first: $first, after: $after) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n          metadata\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9f226f4647a9479d5e31641be42c7c70";
+(node as any).hash = "91b6607bb20de7df49dd270acaa5ab1a";
 
 export default node;
