@@ -251,7 +251,7 @@ class TestDatasetExamplesResolver:
                         "output": {"output": "second-output"},
                         "metadata": {},
                     },
-                    "createdAt": "2020-01-01T01:00:00+00:00",
+                    "createdAt": "2020-02-02T00:00:00+00:00",
                 }
             },
             {
@@ -308,7 +308,7 @@ class TestDatasetExamplesResolver:
                         "output": {"output": "first-output"},
                         "metadata": {},
                     },
-                    "createdAt": "2020-01-01T01:00:00+00:00",
+                    "createdAt": "2020-02-02T00:00:00+00:00",
                 }
             },
             {
@@ -389,7 +389,7 @@ class TestDatasetExamplesResolver:
                         "output": {"output": "first-output"},
                         "metadata": {},
                     },
-                    "createdAt": "2020-01-01T01:00:00+00:00",
+                    "createdAt": "2020-02-02T00:00:00+00:00",
                 }
             },
             {
@@ -492,7 +492,7 @@ async def dataset_with_patch_revision(session):
                 {
                     "dataset_id": datasets[0].id,
                     "created_at": datetime(
-                        year=2020, month=1, day=1, hour=1, minute=0, tzinfo=pytz.utc
+                        year=2020, month=2, day=2, hour=0, minute=0, tzinfo=pytz.utc
                     ),
                 },
             ],
