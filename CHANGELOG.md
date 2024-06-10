@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.3.1...arize-phoenix-v4.4.0) (2024-06-10)
+
+
+### Features
+
+* **ui:** add filter snippets for metadata and substring search ([#3451](https://github.com/Arize-ai/phoenix/issues/3451)) ([2c37be4](https://github.com/Arize-ai/phoenix/commit/2c37be41c4cc20fdf6d3d2c3e66e64d146307cc9))
+
 ## [4.3.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.3.0...arize-phoenix-v4.3.1) (2024-06-10)
 
 
