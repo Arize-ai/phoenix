@@ -90,7 +90,7 @@ async def test_experiment_404s_with_missing_version(test_client, simple_dataset)
     assert response.status_code == 404
 
 
-async def test_reading_experiments(test_client, dataset_with_experiments):
+async def test_reading_experiments(test_client, dataset_with_experiments_without_runs):
     experiment_globalid = GlobalID("Experiment", "0")
     dataset_globalid = GlobalID("Dataset", "1")
     dataset_version_globalid = GlobalID("DatasetVersion", "1")
