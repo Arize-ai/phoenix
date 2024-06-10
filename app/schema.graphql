@@ -82,6 +82,7 @@ type Dataset implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   versions(first: Int = 50, last: Int, after: String, before: String, sort: DatasetVersionSort): DatasetVersionConnection!
+  exampleCount(datasetVersionId: GlobalID): Int!
   examples(datasetVersionId: GlobalID, first: Int = 50, last: Int, after: String, before: String): DatasetExampleConnection!
   experiments(first: Int = 50, last: Int, after: String, before: String): ExperimentConnection!
 }

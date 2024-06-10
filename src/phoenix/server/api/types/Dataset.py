@@ -1,8 +1,9 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, cast
 
 import strawberry
 from sqlalchemy import and_, desc, func, select
+from sqlalchemy.sql.functions import count
 from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.scalars import JSON
@@ -72,6 +73,45 @@ class Dataset(Node):
         return connection_from_list(data=data, args=args)
 
     @strawberry.field
+    async def example_count(
+        self,
+        info: Info[Context, None],
+        dataset_version_id: Optional[GlobalID] = UNSET,
+    ) -> int:
+        dataset_id = self.id_attr
+        version_id = (
+            from_global_id_with_expected_type(
+                global_id=dataset_version_id,
+                expected_type_name=DatasetVersion.__name__,
+            )
+            if dataset_version_id
+            else None
+        )
+        revision_ids = (
+            select(func.max(models.DatasetExampleRevision.id))
+            .join(models.DatasetExample)
+            .where(models.DatasetExample.dataset_id == dataset_id)
+            .group_by(models.DatasetExampleRevision.dataset_example_id)
+        )
+        if version_id:
+            version_id_subquery = (
+                select(models.DatasetVersion.id)
+                .where(models.DatasetVersion.dataset_id == dataset_id)
+                .where(models.DatasetVersion.id == version_id)
+                .scalar_subquery()
+            )
+            revision_ids = revision_ids.where(
+                models.DatasetExampleRevision.dataset_version_id <= version_id_subquery
+            )
+        query = (
+            select(count(models.DatasetExampleRevision.id))
+            .where(models.DatasetExampleRevision.id.in_(revision_ids))
+            .where(models.DatasetExampleRevision.revision_kind != "DELETE")
+        )
+        async with info.context.db() as session:
+            return cast(Optional[int], await session.scalar(query)) or 0
+
+    @strawberry.field
     async def examples(
         self,
         info: Info[Context, None],
@@ -104,6 +144,7 @@ class Dataset(Node):
         if version_id:
             version_id_subquery = (
                 select(models.DatasetVersion.id)
+                .where(models.DatasetVersion.dataset_id == dataset_id)
                 .where(models.DatasetVersion.id == version_id)
                 .scalar_subquery()
             )
