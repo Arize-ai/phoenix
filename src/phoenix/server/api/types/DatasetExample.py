@@ -2,14 +2,22 @@ from datetime import datetime
 from typing import Optional
 
 import strawberry
+from sqlalchemy import select
 from strawberry import UNSET
-from strawberry.relay.types import GlobalID, Node, NodeID
+from strawberry.relay.types import Connection, GlobalID, Node, NodeID
 from strawberry.types import Info
 
+from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
+from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.pagination import (
+    ConnectionArgs,
+    CursorString,
+    connection_from_list,
+)
 from phoenix.server.api.types.Span import Span, to_gql_span
 
 
@@ -46,4 +54,32 @@ class DatasetExample(Node):
             to_gql_span(span)
             if (span := await info.context.data_loaders.dataset_example_spans.load(self.id_attr))
             else None
+        )
+
+    @strawberry.field
+    async def experiments(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[Experiment]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        example_id = self.id_attr
+        query = (
+            select(models.Experiment)
+            .join(models.ExperimentRun, models.Experiment.id == models.ExperimentRun.experiment_id)
+            .where(models.ExperimentRun.dataset_example_id == example_id)
+            .order_by(models.Experiment.id.desc())
+        )
+        async with info.context.db() as session:
+            experiments = (await session.scalars(query)).all()
+        return connection_from_list(
+            [to_gql_experiment(experiment) for experiment in experiments], args
         )
