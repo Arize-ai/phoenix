@@ -25,6 +25,7 @@ import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery
 import { AddDatasetExampleButton } from "./AddDatasetExampleButton";
 import { DatasetCodeDropdown } from "./DatasetCodeDropdown";
 import { DatasetExamplesTable } from "./DatasetExamplesTable";
+import { DatasetHistoryButton } from "./DatasetHistoryButton";
 
 export function DatasetPage() {
   const loaderData = useLoaderData() as datasetLoaderQuery$data;
@@ -125,6 +126,7 @@ function DatasetPageContent({
             >
               <Item key="csv">Download CSV</Item>
             </ActionMenu>
+            <DatasetHistoryButton datasetId={dataset.id} />
             <DatasetCodeDropdown />
             <AddDatasetExampleButton
               datasetId={dataset.id}
