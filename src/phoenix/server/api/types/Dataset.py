@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, cast
+from typing import Optional
 
 import strawberry
 from sqlalchemy import and_, desc, func, select
@@ -73,7 +73,7 @@ class Dataset(Node):
         return connection_from_list(data=data, args=args)
 
     @strawberry.field(
-        description="Number of examples in a specific version if version is specified, or for the "
+        description="Number of examples in a specific version if version is specified, or in the "
         "latest version if version is not specified."
     )  # type: ignore
     async def example_count(
@@ -112,7 +112,7 @@ class Dataset(Node):
             .where(models.DatasetExampleRevision.revision_kind != "DELETE")
         )
         async with info.context.db() as session:
-            return cast(Optional[int], await session.scalar(stmt)) or 0
+            return (await session.scalar(stmt)) or 0
 
     @strawberry.field
     async def examples(

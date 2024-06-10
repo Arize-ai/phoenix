@@ -84,7 +84,7 @@ type Dataset implements Node {
   versions(first: Int = 50, last: Int, after: String, before: String, sort: DatasetVersionSort): DatasetVersionConnection!
 
   """
-  Number of examples in a specific version if version is specified, or for the latest version if version is not specified.
+  Number of examples in a specific version if version is specified, or in the latest version if version is not specified.
   """
   exampleCount(datasetVersionId: GlobalID): Int!
   examples(datasetVersionId: GlobalID, first: Int = 50, last: Int, after: String, before: String): DatasetExampleConnection!

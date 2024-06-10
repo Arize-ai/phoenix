@@ -169,26 +169,9 @@ class TestDatasetExampleCountResolver:
       }
     """  # noqa: E501
 
-    async def test_returns_latest_revisions_when_no_version_is_specified(
-        self,
-        test_client,
-        dataset_with_patch_revision,
+    async def test_count_uses_latest_version_when_no_version_is_specified(
+        self, test_client, dataset_with_deletion
     ) -> None:
-        response = await test_client.post(
-            "/graphql",
-            json={
-                "query": self.QUERY,
-                "variables": {
-                    "datasetId": str(GlobalID("Dataset", str(1))),
-                },
-            },
-        )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
-        assert response_json["data"] == {"node": {"exampleCount": 1}}
-
-    async def test_excludes_deleted_examples(self, test_client, dataset_with_deletion) -> None:
         response = await test_client.post(
             "/graphql",
             json={
@@ -203,9 +186,7 @@ class TestDatasetExampleCountResolver:
         assert response_json.get("errors") is None
         assert response_json["data"] == {"node": {"exampleCount": 0}}
 
-    async def test_returns_latest_revisions_up_to_specified_version(
-        self, test_client, dataset_with_deletion
-    ) -> None:
+    async def test_count_uses_specified_version(self, test_client, dataset_with_deletion) -> None:
         response = await test_client.post(
             "/graphql",
             json={
