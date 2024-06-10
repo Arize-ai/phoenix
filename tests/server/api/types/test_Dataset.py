@@ -30,12 +30,7 @@ class TestDatasetExampleNodeInterface:
         test_client,
         dataset_with_patch_revision,
     ) -> None:
-        example_id = str(
-            GlobalID(
-                "DatasetExample",
-                str(1),
-            )
-        )
+        example_id = str(GlobalID("DatasetExample", str(1)))
         response = await test_client.post(
             "/graphql",
             json={
