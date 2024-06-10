@@ -88,6 +88,11 @@ type Dataset implements Node {
   """
   exampleCount(datasetVersionId: GlobalID): Int!
   examples(datasetVersionId: GlobalID, first: Int = 50, last: Int, after: String, before: String): DatasetExampleConnection!
+
+  """
+  Number of experiments for a specific version if version is specified, or for all versions if version is not specified.
+  """
+  experimentCount(datasetVersionId: GlobalID): Int!
   experiments(first: Int = 50, last: Int, after: String, before: String): ExperimentConnection!
 }
 
