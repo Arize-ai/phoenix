@@ -4,8 +4,6 @@ import { createBrowserRouter } from "react-router-dom";
 
 import { datasetLoaderQuery$data } from "./pages/dataset/__generated__/datasetLoaderQuery.graphql";
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
-import { examplesLoader, ExamplesPage } from "./pages/examples";
-import { experimentsLoader, ExperimentsPage } from "./pages/experiments";
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
 import {
   APIsPage,
@@ -18,6 +16,10 @@ import {
   EmbeddingPage,
   ErrorElement,
   ExamplePage,
+  examplesLoader,
+  ExamplesPage,
+  experimentsLoader,
+  ExperimentsPage,
   homeLoader,
   Layout,
   ModelPage,

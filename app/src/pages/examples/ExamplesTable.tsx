@@ -22,11 +22,10 @@ import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 
-import { ExampleSelectionToolbar } from "../dataset/ExampleSelectionToolbar";
-
 import { examplesLoaderQuery$data } from "./__generated__/examplesLoaderQuery.graphql";
 import type { ExamplesTableFragment$key } from "./__generated__/ExamplesTableFragment.graphql";
 import { ExamplesTableQuery } from "./__generated__/ExamplesTableQuery.graphql";
+import { ExampleSelectionToolbar } from "./ExampleSelectionToolbar";
 
 const PAGE_SIZE = 100;
 
