@@ -124,6 +124,33 @@ class TestPatchDatasetMutation:
             }
         }
 
+    async def test_updating_a_single_field_leaves_remaining_fields_unchannged(
+        self, test_client, dataset_with_a_single_version
+    ):
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": self.MUTATION,
+                "variables": {
+                    "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
+                    "description": "patched-dataset-description",
+                },
+            },
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json.get("errors") is None
+        assert response_json["data"] == {
+            "patchDataset": {
+                "dataset": {
+                    "id": str(GlobalID(type_name="Dataset", node_id=str(1))),
+                    "name": "dataset-name",
+                    "description": "patched-dataset-description",
+                    "metadata": {"dataset-metadata-key": "dataset-metadata-value"},
+                }
+            }
+        }
+
 
 async def test_add_span_to_dataset(
     test_client,
