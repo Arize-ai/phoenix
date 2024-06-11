@@ -77,6 +77,14 @@ class DatasetMutationMixin:
             )
 
     @strawberry.mutation
+    async def patch_dataset(
+        self,
+        info: Info[Context, None],
+        input: CreateDatasetInput,
+    ) -> DatasetMutationPayload:
+        raise NotImplementedError("patchDataset mutation not implemented")
+
+    @strawberry.mutation
     async def add_spans_to_dataset(
         self,
         info: Info[Context, None],
