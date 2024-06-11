@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 import strawberry
+from sqlalchemy import select
 from strawberry import UNSET
 from strawberry.relay import Connection, Node, NodeID
 from strawberry.scalars import JSON
@@ -9,10 +10,14 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
+from phoenix.server.api.types.ExperimentRunAnnotation import (
+    ExperimentRunAnnotation,
+    to_gql_experiment_run_annotation,
+)
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     CursorString,
+    connection_from_list,
 )
 
 
@@ -40,8 +45,18 @@ class ExperimentRun(Node):
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        assert args
-        raise NotImplementedError("annotations resolver on ExperimentRun is not implemented yet")
+        run_id = self.id_attr
+        async with info.context.db() as session:
+            annotations = (
+                await session.scalars(
+                    select(models.ExperimentAnnotation)
+                    .where(models.ExperimentAnnotation.experiment_run_id == run_id)
+                    .order_by(models.ExperimentAnnotation.id.desc())
+                )
+            ).all()
+        return connection_from_list(
+            [to_gql_experiment_run_annotation(annotation) for annotation in annotations], args
+        )
 
 
 def to_gql_experiment_run(run: models.ExperimentRun) -> ExperimentRun:
