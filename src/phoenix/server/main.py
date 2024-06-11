@@ -6,6 +6,7 @@ from pathlib import Path
 from threading import Thread
 from time import sleep, time
 from typing import List, Optional
+from urllib.parse import urljoin
 
 import pkg_resources
 from uvicorn import Config, Server
@@ -67,10 +68,10 @@ _WELCOME_MESSAGE = """
 |  https://docs.arize.com/phoenix
 |
 |  🚀 Phoenix Server 🚀
-|  Phoenix UI: http://{host}:{port}/{root_path}
+|  Phoenix UI: {ui_path}
 |  Log traces:
-|    - gRPC: http://{host}:{grpc_port}
-|    - HTTP: http://{host}:{port}/{root_path}/v1/traces
+|    - gRPC: {grpc_path}
+|    - HTTP: {http_path}
 |  Storage: {storage}
 """
 
@@ -247,15 +248,15 @@ if __name__ == "__main__":
 
     # Print information about the server
     phoenix_version = pkg_resources.get_distribution("arize-phoenix").version
-    config = {
-        "version": phoenix_version,
-        "host": display_host,
-        "port": port,
-        "root_path": host_root_path.strip("/"),
-        "grpc_port": get_env_grpc_port(),
-        "storage": get_printable_db_url(db_connection_str),
-    }
-    print(_WELCOME_MESSAGE.format(**config))
+    print(
+        _WELCOME_MESSAGE.format(
+            version=phoenix_version,
+            ui_path=urljoin(f"http://{host}:{port}", host_root_path),
+            grpc_path=f"http://{host}:{get_env_grpc_port()}",
+            http_path=urljoin(f"http://{host}:{port}/{host_root_path}", "/v1/traces"),
+            storage=get_printable_db_url(db_connection_str),
+        )
+    )
 
     # Start the server
     server.run()
