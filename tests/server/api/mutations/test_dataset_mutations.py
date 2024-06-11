@@ -54,9 +54,9 @@ async def test_dataset_crud_operations(test_client):
 
     # patch dataset
     patch_dataset_mutation = """
-      mutation ($name: String!, $description: String!, $metadata: JSON!) {
+      mutation ($datasetId: GlobalID!, $name: String!, $description: String!, $metadata: JSON!) {
         patchDataset(
-          input: {name: $name, description: $description, metadata: $metadata}
+          input: {datasetId: $datasetId, name: $name, description: $description, metadata: $metadata}
         ) {
           dataset {
             id
@@ -66,12 +66,13 @@ async def test_dataset_crud_operations(test_client):
           }
         }
       }
-    """
+    """  # noqa: E501
     response = await test_client.post(
         "/graphql",
         json={
             "query": patch_dataset_mutation,
             "variables": {
+                "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
                 "name": "patched-dataset-name",
                 "description": "patched-dataset-description",
                 "metadata": json.dumps({"patched-metadata-key": "patched-metadata-value"}),

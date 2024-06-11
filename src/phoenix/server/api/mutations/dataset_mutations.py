@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from typing import Any, Dict
 
@@ -5,7 +6,7 @@ import strawberry
 from openinference.semconv.trace import (
     SpanAttributes,
 )
-from sqlalchemy import and_, delete, distinct, func, insert, select
+from sqlalchemy import and_, delete, distinct, func, insert, select, update
 from strawberry import UNSET
 from strawberry.types import Info
 
@@ -24,6 +25,7 @@ from phoenix.server.api.input_types.PatchDatasetExamplesInput import (
     DatasetExamplePatch,
     PatchDatasetExamplesInput,
 )
+from phoenix.server.api.input_types.PatchDatasetInput import PatchDatasetInput
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -80,9 +82,29 @@ class DatasetMutationMixin:
     async def patch_dataset(
         self,
         info: Info[Context, None],
-        input: CreateDatasetInput,
+        input: PatchDatasetInput,
     ) -> DatasetMutationPayload:
-        raise NotImplementedError("patchDataset mutation not implemented")
+        dataset_id = from_global_id_with_expected_type(
+            global_id=input.dataset_id, expected_type_name=Dataset.__name__
+        )
+        input_metadata = json.loads(input.metadata) if isinstance(input.metadata, str) else None
+        patch = {
+            column.key: patch_value
+            for column, patch_value, column_is_nullable in (
+                (models.Dataset.name, input.name, False),
+                (models.Dataset.description, input.description, True),
+                (models.Dataset.metadata_, input_metadata, False),
+            )
+            if patch_value is not UNSET and (patch_value is not None or column_is_nullable)
+        }
+        async with info.context.db() as session:
+            await session.scalar(
+                update(models.Dataset)
+                .where(models.Dataset.id == dataset_id)
+                .returning(models.Dataset)
+                .values(**patch)
+            )
+        raise NotImplementedError("patch_dataset return type unimplemented")
 
     @strawberry.mutation
     async def add_spans_to_dataset(
