@@ -26,4 +26,18 @@ class ExperimentRunAnnotation(Node):
 def to_gql_experiment_run_annotation(
     annotation: models.ExperimentAnnotation,
 ) -> ExperimentRunAnnotation:
-    raise NotImplementedError("to_gql_experiment_run_annotation is not implemented yet")
+    """
+    Converts an ORM experiment run annotation to a GraphQL ExperimentRunAnnotation.
+    """
+    return ExperimentRunAnnotation(
+        id_attr=annotation.id,
+        name=annotation.name,
+        annotator_kind=AnnotatorKind(annotation.annotator_kind),
+        label=annotation.label,
+        score=annotation.score,
+        explanation=annotation.explanation,
+        error=annotation.error,
+        metadata=annotation.metadata_,
+        start_time=annotation.start_time,
+        end_time=annotation.end_time,
+    )

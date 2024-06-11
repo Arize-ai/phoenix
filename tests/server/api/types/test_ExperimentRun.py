@@ -17,6 +17,7 @@ async def test_annotations_resolver_returns_annotations_for_run(
             annotations {
               edges {
                 annotation: node {
+                  id
                   name
                   annotatorKind
                   label
@@ -44,8 +45,31 @@ async def test_annotations_resolver_returns_annotations_for_run(
     )
     assert response.status_code == 200
     response_json = response.json()
-    assert response_json["errors"] is None
-    assert response_json["data"]
+    assert response_json.get("errors") is None
+    assert response_json["data"] == {
+        "run": {
+            "annotations": {
+                "edges": [
+                    {
+                        "annotation": {
+                            "id": str(
+                                GlobalID(type_name="ExperimentRunAnnotation", node_id=str(1))
+                            ),
+                            "name": "annotation-name",
+                            "annotatorKind": "LLM",
+                            "label": "annotation-label",
+                            "score": 0.2,
+                            "explanation": "annotation-explanation",
+                            "error": "annotation-error",
+                            "metadata": {"annotation-metadata-key": "annotation-metadata-value"},
+                            "startTime": "2020-01-01T00:00:00+00:00",
+                            "endTime": "2020-01-01T00:01:00+00:00",
+                        }
+                    }
+                ]
+            }
+        }
+    }
 
 
 @pytest.fixture
