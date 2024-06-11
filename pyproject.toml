@@ -58,6 +58,7 @@ dependencies = [
   "sqlean.py>=3.45.1",
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
+  "arize-phoenix-evals>=0.3.0",
 ]
 dynamic = ["version"]
 
@@ -85,12 +86,8 @@ dev = [
   "anthropic",
   "prometheus_client",
 ]
-evals = [
-  "arize-phoenix-evals>=0.3.0",
-]
-experimental = [
-  "tenacity",
-]
+evals = []
+experimental = []
 llama-index = [
   "llama-index==0.10.3",  # always pin to a version that keeps our notebooks working
   "llama-index-callbacks-arize-phoenix>=0.1.2",
