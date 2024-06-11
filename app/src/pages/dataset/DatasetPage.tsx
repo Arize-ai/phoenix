@@ -1,5 +1,5 @@
-import React, { Suspense, useMemo } from "react";
-import { Outlet, useLoaderData } from "react-router";
+import React, { Suspense, useCallback, useMemo } from "react";
+import { Outlet, useLoaderData, useLocation, useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
 import {
@@ -24,8 +24,6 @@ import {
 import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
 import { AddDatasetExampleButton } from "./AddDatasetExampleButton";
 import { DatasetCodeDropdown } from "./DatasetCodeDropdown";
-import { DatasetExamplesTable } from "./DatasetExamplesTable";
-import { DatasetExperimentsTable } from "./DatasetExperimentsTable";
 import { DatasetHistoryButton } from "./DatasetHistoryButton";
 
 export function DatasetPage() {
@@ -83,10 +81,27 @@ function DatasetPageContent({
 }: {
   dataset: datasetLoaderQuery$data["dataset"];
 }) {
+  const datasetId = dataset.id;
   const refreshLatestVersion = useDatasetContext(
     (state) => state.refreshLatestVersion
   );
   const notifySuccess = useNotifySuccess();
+
+  const navigate = useNavigate();
+  const onTabChange = useCallback(
+    (tabIndex: number) => {
+      if (tabIndex === 0) {
+        navigate(`/datasets/${datasetId}/experiments`);
+      } else if (tabIndex === 1) {
+        navigate(`/datasets/${datasetId}/examples`);
+      }
+    },
+    [navigate, datasetId]
+  );
+
+  // Set the initial tab
+  const location = useLocation();
+  const initialIndex = location.pathname.includes("examples") ? 1 : 0;
   return (
     <main css={mainCSS}>
       <View
@@ -143,17 +158,18 @@ function DatasetPageContent({
           </Flex>
         </Flex>
       </View>
-      <Tabs>
+      <Tabs onChange={onTabChange} defaultIndex={initialIndex}>
         <TabPane name="Experiments">
-          <DatasetExperimentsTable dataset={dataset} />
+          <Suspense>
+            <Outlet />
+          </Suspense>
         </TabPane>
         <TabPane name="Examples">
-          <DatasetExamplesTable dataset={dataset} />
+          <Suspense>
+            <Outlet />
+          </Suspense>
         </TabPane>
       </Tabs>
-      <Suspense>
-        <Outlet />
-      </Suspense>
     </main>
   );
 }
