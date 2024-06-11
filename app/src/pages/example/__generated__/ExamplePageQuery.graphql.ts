@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ab33c07e04924aeeb778efcfc7881453>>
+ * @generated SignedSource<<3af7507a276f6da53e0f3f244151387f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,10 +9,10 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Query } from 'relay-runtime';
-export type DatasetExamplePageQuery$variables = {
+export type ExamplePageQuery$variables = {
   exampleId: string;
 };
-export type DatasetExamplePageQuery$data = {
+export type ExamplePageQuery$data = {
   readonly example: {
     readonly id?: string;
     readonly latestRevision?: {
@@ -31,9 +31,9 @@ export type DatasetExamplePageQuery$data = {
     } | null;
   };
 };
-export type DatasetExamplePageQuery = {
-  response: DatasetExamplePageQuery$data;
-  variables: DatasetExamplePageQuery$variables;
+export type ExamplePageQuery = {
+  response: ExamplePageQuery$data;
+  variables: ExamplePageQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -143,7 +143,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "DatasetExamplePageQuery",
+    "name": "ExamplePageQuery",
     "selections": [
       {
         "alias": "example",
@@ -174,7 +174,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "DatasetExamplePageQuery",
+    "name": "ExamplePageQuery",
     "selections": [
       {
         "alias": "example",
@@ -211,16 +211,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "299278b16a4091954c6c6f2a031d5afc",
+    "cacheID": "743afe0e0f38292bdb483bc6e7a9eff6",
     "id": null,
     "metadata": {},
-    "name": "DatasetExamplePageQuery",
+    "name": "ExamplePageQuery",
     "operationKind": "query",
-    "text": "query DatasetExamplePageQuery(\n  $exampleId: GlobalID!\n) {\n  example: node(id: $exampleId) {\n    __typename\n    ... on DatasetExample {\n      id\n      latestRevision: revision {\n        input\n        output\n        metadata\n      }\n      span {\n        context {\n          spanId\n          traceId\n        }\n        project {\n          id\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query ExamplePageQuery(\n  $exampleId: GlobalID!\n) {\n  example: node(id: $exampleId) {\n    __typename\n    ... on DatasetExample {\n      id\n      latestRevision: revision {\n        input\n        output\n        metadata\n      }\n      span {\n        context {\n          spanId\n          traceId\n        }\n        project {\n          id\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f0613202340b813419eeee55397308ae";
+(node as any).hash = "9101cceb913f7b2087a0c735a4a79f7e";
 
 export default node;

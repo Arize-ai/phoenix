@@ -65,7 +65,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
               text: "View dataset",
               onClick: () => {
                 // Navigate to the dataset page
-                navigate(`/datasets/${datasetId}`);
+                navigate(`/datasets/${datasetId}/examples`);
               },
             },
           });
