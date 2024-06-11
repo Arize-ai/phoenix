@@ -54,7 +54,27 @@ async def test_runs_resolver_returns_runs_for_experiment(
                             "endTime": "2020-01-01T00:00:00+00:00",
                             "error": None,
                         }
-                    }
+                    },
+                    {
+                        "run": {
+                            "id": str(GlobalID(type_name="ExperimentRun", node_id=str(2))),
+                            "traceId": "trace-id",
+                            "output": {"run-2-output-key": "run-2-output-value"},
+                            "startTime": "2020-01-01T00:00:00+00:00",
+                            "endTime": "2020-01-01T00:00:00+00:00",
+                            "error": None,
+                        }
+                    },
+                    {
+                        "run": {
+                            "id": str(GlobalID(type_name="ExperimentRun", node_id=str(3))),
+                            "traceId": None,
+                            "output": {"run-3-output-key": "run-3-output-value"},
+                            "startTime": "2020-01-01T00:00:00+00:00",
+                            "endTime": "2020-01-01T00:00:00+00:00",
+                            "error": None,
+                        }
+                    },
                 ]
             }
         }
@@ -66,6 +86,23 @@ async def dataset_with_experiment_and_run(session):
     """
     A dataset with a single example and a single version.
     """
+
+    # insert project
+    project_id = await session.scalar(
+        insert(models.Project).values(name="project-name").returning(models.Project.id)
+    )
+
+    # insert trace
+    await session.scalar(
+        insert(models.Trace)
+        .values(
+            trace_id="trace-id",
+            project_rowid=project_id,
+            start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+            end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
+        )
+        .returning(models.Trace.id)
+    )
 
     # insert dataset
     dataset_id = await session.scalar(
@@ -125,7 +162,7 @@ async def dataset_with_experiment_and_run(session):
         )
     )
 
-    # insert experiment run
+    # insert experiment run without associated trace
     await session.scalar(
         insert(models.ExperimentRun)
         .returning(models.ExperimentRun.id)
@@ -133,6 +170,34 @@ async def dataset_with_experiment_and_run(session):
             experiment_id=experiment_id,
             dataset_example_id=example_id,
             output={"run-1-output-key": "run-1-output-value"},
+            start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+        )
+    )
+
+    # insert experiment run with associated trace
+    await session.scalar(
+        insert(models.ExperimentRun)
+        .returning(models.ExperimentRun.id)
+        .values(
+            experiment_id=experiment_id,
+            dataset_example_id=example_id,
+            output={"run-2-output-key": "run-2-output-value"},
+            trace_id="trace-id",
+            start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+        )
+    )
+
+    # insert experiment run with non-existent trace
+    await session.scalar(
+        insert(models.ExperimentRun)
+        .returning(models.ExperimentRun.id)
+        .values(
+            experiment_id=experiment_id,
+            dataset_example_id=example_id,
+            output={"run-3-output-key": "run-3-output-value"},
+            trace_id="non-existent-trace-id",
             start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
             end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
         )
