@@ -88,7 +88,7 @@ async def test_dataset_crud_operations(test_client):
                 "id": str(GlobalID(type_name="Dataset", node_id=str(1))),
                 "name": "patched-dataset-name",
                 "description": "patched-dataset-description",
-                "metadata": json.dumps({"patched-metadata-key": "patched-metadata-value"}),
+                "metadata": {"patched-metadata-key": "patched-metadata-value"},
             }
         }
     }

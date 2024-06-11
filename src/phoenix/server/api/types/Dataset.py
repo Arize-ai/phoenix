@@ -238,4 +238,14 @@ class Dataset(Node):
 
 
 def to_gql_dataset(dataset: models.Dataset) -> Dataset:
-    raise NotImplementedError("to_gql_dataset not implemented")
+    """
+    Converts an ORM dataset to a GraphQL dataset.
+    """
+    return Dataset(
+        id_attr=dataset.id,
+        name=dataset.name,
+        description=dataset.description,
+        metadata=dataset.metadata_,
+        created_at=dataset.created_at,
+        updated_at=dataset.updated_at,
+    )
