@@ -572,12 +572,6 @@ async def _parse_form_data(
     input_keys = frozenset(filter(bool, cast(List[str], form.getlist("input_keys[]"))))
     output_keys = frozenset(filter(bool, cast(List[str], form.getlist("output_keys[]"))))
     metadata_keys = frozenset(filter(bool, cast(List[str], form.getlist("metadata_keys[]"))))
-    if overlap := input_keys.intersection(output_keys):
-        raise ValueError(f"input_keys, output_keys have overlap: {overlap}")
-    if overlap := input_keys.intersection(metadata_keys):
-        raise ValueError(f"input_keys and metadata_keys have overlap: {overlap}")
-    if overlap := output_keys.intersection(metadata_keys):
-        raise ValueError(f"output_keys and metadata_keys have overlap: {overlap}")
     return (
         action,
         name,
