@@ -49,34 +49,17 @@ class DatasetMutationMixin:
         description = input.description if input.description is not UNSET else None
         metadata = input.metadata or {}
         async with info.context.db() as session:
-            result = await session.execute(
+            dataset = await session.scalar(
                 insert(models.Dataset)
                 .values(
                     name=name,
                     description=description,
                     metadata_=metadata,
                 )
-                .returning(
-                    models.Dataset.id,
-                    models.Dataset.name,
-                    models.Dataset.description,
-                    models.Dataset.created_at,
-                    models.Dataset.updated_at,
-                    models.Dataset.metadata_,
-                )
+                .returning(models.Dataset)
             )
-            if not (row := result.fetchone()):
-                raise ValueError("Failed to create dataset")
-            return DatasetMutationPayload(
-                dataset=Dataset(
-                    id_attr=row.id,
-                    name=row.name,
-                    description=row.description,
-                    created_at=row.created_at,
-                    updated_at=row.updated_at,
-                    metadata=row.metadata_,
-                )
-            )
+            assert dataset is not None
+        return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
     @strawberry.mutation
     async def patch_dataset(
