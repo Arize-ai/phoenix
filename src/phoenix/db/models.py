@@ -156,7 +156,7 @@ class Trace(Base):
         cascade="all, delete-orphan",
         uselist=True,
     )
-    experiment_runs: Mapped["ExperimentRun"] = relationship(
+    experiment_runs: Mapped[List["ExperimentRun"]] = relationship(
         primaryjoin="foreign(ExperimentRun.trace_id) == remote(Trace.trace_id)",
         back_populates="trace",
     )
