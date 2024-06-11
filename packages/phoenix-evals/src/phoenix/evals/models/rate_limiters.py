@@ -2,7 +2,7 @@ import asyncio
 import time
 from functools import wraps
 from math import exp
-from typing import Any, Callable, Coroutine, Optional, Tuple, Type, TypeVar
+from typing import Any, Callable, Coroutine, Optional, Tuple, Type, TypeVar, Union
 
 from phoenix.evals.exceptions import PhoenixException
 from phoenix.evals.utils import printif
@@ -11,6 +11,7 @@ from typing_extensions import ParamSpec
 ParameterSpec = ParamSpec("ParameterSpec")
 GenericType = TypeVar("GenericType")
 AsyncCallable = Callable[ParameterSpec, Coroutine[Any, Any, GenericType]]
+ExceptionType = Type[BaseException]
 
 
 class UnavailableTokensError(PhoenixException):
@@ -139,7 +140,7 @@ class RateLimitError(PhoenixException): ...
 class RateLimiter:
     def __init__(
         self,
-        rate_limit_error: Optional[Type[BaseException]] = None,
+        rate_limit_error: Optional[Union[Type[BaseException], Tuple[Type[BaseException], ...]]] = None,
         max_rate_limit_retries: int = 3,
         initial_per_second_request_rate: float = 1,
         maximum_per_second_request_rate: float = 50,
@@ -150,7 +151,13 @@ class RateLimiter:
         verbose: bool = False,
     ) -> None:
         self._rate_limit_error: Tuple[Type[BaseException], ...]
-        self._rate_limit_error = (rate_limit_error,) if rate_limit_error is not None else tuple()
+        
+        if isinstance(rate_limit_error, tuple):
+            self._rate_limit_error = rate_limit_error
+        elif rate_limit_error is not None:
+            self._rate_limit_error = (rate_limit_error,)
+        else:
+            self._rate_limit_error = tuple()
 
         self._max_rate_limit_retries = max_rate_limit_retries
         self._throttler = AdaptiveTokenBucket(
