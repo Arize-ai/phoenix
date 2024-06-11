@@ -1,7 +1,19 @@
 import asyncio
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Callable, Coroutine, Dict, List, Optional, Protocol, Tuple, Type, Union
+from typing import (
+    Any,
+    Callable,
+    Coroutine,
+    Dict,
+    List,
+    Optional,
+    Protocol,
+    Tuple,
+    Type,
+    TypedDict,
+    Union,
+)
 
 import httpx
 
@@ -20,13 +32,18 @@ ExperimentCoroutineFn = Callable[[JSONSerializable], Coroutine[Any, Any, JSONSer
 
 class ExampleProtocol(Protocol):
     @property
+    def id(self) -> str: ...
+
+    @property
     def input(self) -> JSONSerializable: ...
 
 
-@dataclass
 class DatasetProtocol(Protocol):
-    id: str
-    version_id: str
+    @property
+    def id(self) -> str: ...
+
+    @property
+    def version_id(self) -> str: ...
 
     def examples(self) -> List[ExampleProtocol]: ...
 
@@ -36,6 +53,14 @@ class Experiment:
     id: str
     dataset_id: str
     dataset_version_id: str
+
+
+class ExperimentPayload(TypedDict):
+    dataset_example_id: str
+    output: JSONSerializable
+    start_time: str
+    end_time: str
+    error: Optional[str]
 
 
 def _phoenix_client() -> httpx.Client:
@@ -61,10 +86,10 @@ def run_experiment(
     rate_limiter = RateLimiter(rate_limit_error=rate_limit_errors)
 
     @rate_limiter.limit
-    def sync_run_experiment(example: ExampleProtocol) -> None:
+    def sync_run_experiment(example: ExampleProtocol) -> ExperimentPayload:
         start_time = datetime.now()
         output = None
-        exc = None
+        error: Optional[Exception] = None
         try:
             if asyncio.iscoroutinefunction(task):
                 raise RuntimeError("Task is async but running in sync context")
@@ -75,22 +100,26 @@ def run_experiment(
         finally:
             end_time = datetime.now()
 
-        experiment_payload = {
-            "dataset_example_id": example.id,
-            "output": output,
-            "start_time": start_time.isoformat(),
-            "end_time": end_time.isoformat(),
-        }
-        if exc:
+        assert isinstance(
+            output, (dict, list, str, int, float, bool, type(None))
+        ), "Output must be JSON serializable"
+        experiment_payload = ExperimentPayload(
+            dataset_example_id=example.id,
+            output=output,
+            start_time=start_time.isoformat(),
+            end_time=end_time.isoformat(),
+            error=None,
+        )
+        if error:
             experiment_payload["error"] = repr(error)
 
         return experiment_payload
 
     @rate_limiter.alimit
-    async def async_run_experiment(example: ExampleProtocol) -> None:
+    async def async_run_experiment(example: ExampleProtocol) -> ExperimentPayload:
         start_time = datetime.now()
         output = None
-        exc = None
+        error = None
         try:
             if asyncio.iscoroutinefunction(task):
                 output = await task(example.input)
@@ -101,13 +130,17 @@ def run_experiment(
         finally:
             end_time = datetime.now()
 
-        experiment_payload = {
-            "dataset_example_id": example.id,
-            "output": output,
-            "start_time": start_time.isoformat(),
-            "end_time": end_time.isoformat(),
-        }
-        if exc:
+        assert isinstance(
+            output, (dict, list, str, int, float, bool, type(None))
+        ), "Output must be JSON serializable"
+        experiment_payload = ExperimentPayload(
+            dataset_example_id=example.id,
+            output=output,
+            start_time=start_time.isoformat(),
+            end_time=end_time.isoformat(),
+            error=None,
+        )
+        if error:
             experiment_payload["error"] = repr(error)
 
         return experiment_payload
