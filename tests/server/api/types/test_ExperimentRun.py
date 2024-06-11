@@ -98,23 +98,6 @@ async def experiment_run_with_annotations(session):
     An experiment run with two annotations.
     """
 
-    # insert project
-    project_id = await session.scalar(
-        insert(models.Project).values(name="project-name").returning(models.Project.id)
-    )
-
-    # insert trace
-    await session.scalar(
-        insert(models.Trace)
-        .values(
-            trace_id="trace-id",
-            project_rowid=project_id,
-            start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
-            end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
-        )
-        .returning(models.Trace.id)
-    )
-
     # insert dataset
     dataset_id = await session.scalar(
         insert(models.Dataset)
@@ -144,20 +127,6 @@ async def experiment_run_with_annotations(session):
             dataset_id=dataset_id,
             description="original-description",
             metadata_={"metadata": "original-metadata"},
-        )
-    )
-
-    # insert revision
-    await session.scalar(
-        insert(models.DatasetExampleRevision)
-        .returning(models.DatasetExampleRevision.id)
-        .values(
-            dataset_example_id=example_id,
-            dataset_version_id=version_id,
-            input={"input": "first-input"},
-            output={"output": "first-output"},
-            metadata_={"metadata": "first-metadata"},
-            revision_kind="CREATE",
         )
     )
 
