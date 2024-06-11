@@ -1,9 +1,17 @@
+import asyncio
 import contextlib
 from typing import AsyncContextManager, AsyncGenerator, AsyncIterator, Callable
 
+import httpx
 import pytest
+from httpx import Request, Response
+from phoenix.config import EXPORT_DIR
+from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import models
 from phoenix.db.engines import aio_sqlite_engine
+from phoenix.inferences.inferences import EMPTY_INFERENCES
+from phoenix.pointcloud.umap_parameters import get_umap_parameters
+from phoenix.server.app import SessionFactory, create_app
 from psycopg import Connection
 from pytest_postgresql import factories
 from sqlalchemy import make_url
@@ -143,3 +151,58 @@ async def postgres_session(
 async def project(session: AsyncSession) -> None:
     project = models.Project(name="test_project")
     session.add(project)
+
+
+@pytest.fixture
+async def test_client(dialect, db):
+    factory = SessionFactory(session_factory=db, dialect=dialect)
+    app = create_app(
+        db=factory,
+        model=create_model_from_inferences(EMPTY_INFERENCES, None),
+        export_path=EXPORT_DIR,
+        umap_params=get_umap_parameters(None),
+        serve_ui=False,
+    )
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        yield client
+
+
+@pytest.fixture
+def sync_test_client(dialect, db):
+    factory = SessionFactory(session_factory=db, dialect=dialect)
+    app = create_app(
+        db=factory,
+        model=create_model_from_inferences(EMPTY_INFERENCES, None),
+        export_path=EXPORT_DIR,
+        umap_params=get_umap_parameters(None),
+        serve_ui=False,
+    )
+
+    class SyncTransport(httpx.BaseTransport):
+        def __init__(self, app, asgi_transport):
+            self.app = app
+            self.asgi_transport = asgi_transport
+
+        def handle_request(self, request: Request) -> Response:
+            response = asyncio.run(self.asgi_transport.handle_async_request(request))
+
+            async def read_stream():
+                content = b""
+                async for chunk in response.stream:
+                    content += chunk
+                return content
+
+            content = asyncio.run(read_stream())
+            return Response(
+                status_code=response.status_code,
+                headers=response.headers,
+                content=content,
+                request=request,
+            )
+
+    asgi_transport = httpx.ASGITransport(app=app)
+    transport = SyncTransport(app, asgi_transport=asgi_transport)
+    client = httpx.Client(transport=transport, base_url="http://test")
+    return client
