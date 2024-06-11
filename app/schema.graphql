@@ -695,7 +695,7 @@ type Mutation {
   deleteProject(id: GlobalID!): Query!
   clearProject(id: GlobalID!): Query!
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
-  patchDataset(input: CreateDatasetInput!): DatasetMutationPayload!
+  patchDataset(input: PatchDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
   addExamplesToDataset(input: AddExamplesToDatasetInput!): DatasetMutationPayload!
   deleteDataset(input: DeleteDatasetInput!): DatasetMutationPayload!
@@ -747,6 +747,13 @@ input PatchDatasetExamplesInput {
   patches: [DatasetExamplePatch!]!
   versionDescription: String
   versionMetadata: JSON
+}
+
+input PatchDatasetInput {
+  datasetId: GlobalID!
+  name: String
+  description: String
+  metadata: JSON
 }
 
 enum PerformanceMetric {
