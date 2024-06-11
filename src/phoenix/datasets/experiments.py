@@ -108,10 +108,8 @@ def run_experiment(
             output=output,
             start_time=start_time.isoformat(),
             end_time=end_time.isoformat(),
-            error=None,
+            error=repr(error) if error else None,
         )
-        if error:
-            experiment_payload["error"] = repr(error)
 
         return experiment_payload
 
@@ -138,10 +136,8 @@ def run_experiment(
             output=output,
             start_time=start_time.isoformat(),
             end_time=end_time.isoformat(),
-            error=None,
+            error=error=repr(error) if error else None,
         )
-        if error:
-            experiment_payload["error"] = repr(error)
 
         return experiment_payload
 
@@ -150,11 +146,13 @@ def run_experiment(
         async_run_experiment,
         max_retries=0,
         exit_on_error=False,
+        fallback_return_value=None,
     )
 
     experiment_payloads, _execution_details = executor.run(dataset.examples())
     for payload in experiment_payloads:
-        client.post(f"/v1/experiments/{experiment_id}/runs", json=payload)
+        if payload is not None:
+            client.post(f"/v1/experiments/{experiment_id}/runs", json=payload)
     return Experiment(
         id=experiment_id, dataset_id=dataset.id, dataset_version_id=dataset.version_id
     )
