@@ -235,3 +235,7 @@ class Dataset(Node):
                 async for experiment in await session.stream_scalars(query)
             ]
         return connection_from_list(data=experiments, args=args)
+
+
+def to_gql_dataset(dataset: models.Dataset) -> Dataset:
+    raise NotImplementedError("to_gql_dataset not implemented")
