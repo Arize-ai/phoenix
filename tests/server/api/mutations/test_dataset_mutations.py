@@ -159,25 +159,25 @@ async def test_add_span_to_dataset(
 ) -> None:
     dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
     mutation = """
-mutation ($datasetId: GlobalID!, $spanIds: [GlobalID!]!) {
-  addSpansToDataset(input: {datasetId: $datasetId, spanIds: $spanIds}) {
-    dataset {
-      id
-      examples {
-        edges {
-          example: node {
-            revision {
-              input
-              output
-              metadata
+      mutation ($datasetId: GlobalID!, $spanIds: [GlobalID!]!) {
+        addSpansToDataset(input: {datasetId: $datasetId, spanIds: $spanIds}) {
+          dataset {
+            id
+            examples {
+              edges {
+                example: node {
+                  revision {
+                    input
+                    output
+                    metadata
+                  }
+                }
+              }
             }
           }
         }
       }
-    }
-  }
-}
-"""
+    """
     response = await test_client.post(
         "/graphql",
         json={
