@@ -39,7 +39,24 @@ async def test_experiment(test_client, dataset_with_experiment_and_run):
     )
     assert response.status_code == 200
     response_json = response.json()
-    assert response_json.get("errors") is None
+    assert response_json["data"] == {
+        "experiment": {
+            "runs": {
+                "edges": [
+                    {
+                        "run": {
+                            "id": str(GlobalID(type_name="ExperimentRun", node_id=str(1))),
+                            "traceId": None,
+                            "output": {"run-1-output-key": "run-1-output-value"},
+                            "startTime": "2020-01-01T00:00:00+00:00",
+                            "endTime": "2020-01-01T00:00:00+00:00",
+                            "error": None,
+                        }
+                    }
+                ]
+            }
+        }
+    }
 
 
 @pytest.fixture

@@ -3,6 +3,7 @@ from typing import Optional
 
 import strawberry
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 from strawberry import UNSET
 from strawberry.relay import Connection, Node, NodeID
 from strawberry.scalars import JSON
@@ -45,8 +46,10 @@ class Experiment(Node):
         async with info.context.db() as session:
             runs = (
                 await session.scalars(
-                    select(models.ExperimentRun).where(
-                        models.ExperimentRun.experiment_id == experiment_id
+                    select(models.ExperimentRun)
+                    .where(models.ExperimentRun.experiment_id == experiment_id)
+                    .options(
+                        joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id)
                     )
                 )
             ).all()
