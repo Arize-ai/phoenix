@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.4.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.4.0...arize-phoenix-v4.4.1) (2024-06-11)
+
+
+### Bug Fixes
+
+* ensure welcome message urls are valid ([#3458](https://github.com/Arize-ai/phoenix/issues/3458)) ([3218e33](https://github.com/Arize-ai/phoenix/commit/3218e33d7d87ae6e06bd7573b3e2c5312531f256))
+
 ## [4.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.3.1...arize-phoenix-v4.4.0) (2024-06-10)
 
 
