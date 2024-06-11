@@ -2,11 +2,10 @@ import atexit
 import logging
 import os
 from argparse import ArgumentParser
-from pathlib import Path
+from pathlib import Path, PosixPath
 from threading import Thread
 from time import sleep, time
 from typing import List, Optional
-from urllib.parse import urljoin
 
 import pkg_resources
 from uvicorn import Config, Server
@@ -251,9 +250,9 @@ if __name__ == "__main__":
     print(
         _WELCOME_MESSAGE.format(
             version=phoenix_version,
-            ui_path=urljoin(f"http://{host}:{port}", host_root_path),
+            ui_path=PosixPath(f"http://{host}:{port}", host_root_path),
             grpc_path=f"http://{host}:{get_env_grpc_port()}",
-            http_path=urljoin(f"http://{host}:{port}/{host_root_path}", "/v1/traces"),
+            http_path=PosixPath(f"http://{host}:{port}", host_root_path, "v1/traces"),
             storage=get_printable_db_url(db_connection_str),
         )
     )
