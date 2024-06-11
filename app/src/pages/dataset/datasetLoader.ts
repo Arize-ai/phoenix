@@ -33,6 +33,7 @@ export async function datasetLoader(args: LoaderFunctionArgs) {
               }
             }
             ...DatasetExamplesTableFragment
+            ...DatasetExperimentsTableFragment
           }
         }
       }

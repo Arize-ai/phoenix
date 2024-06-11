@@ -25,6 +25,7 @@ import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery
 import { AddDatasetExampleButton } from "./AddDatasetExampleButton";
 import { DatasetCodeDropdown } from "./DatasetCodeDropdown";
 import { DatasetExamplesTable } from "./DatasetExamplesTable";
+import { DatasetExperimentsTable } from "./DatasetExperimentsTable";
 import { DatasetHistoryButton } from "./DatasetHistoryButton";
 
 export function DatasetPage() {
@@ -143,10 +144,8 @@ function DatasetPageContent({
         </Flex>
       </View>
       <Tabs>
-        <TabPane name="Experiments" hidden>
-          <View padding="size-200">
-            <Text>Experiments</Text>
-          </View>
+        <TabPane name="Experiments">
+          <DatasetExperimentsTable dataset={dataset} />
         </TabPane>
         <TabPane name="Examples">
           <DatasetExamplesTable dataset={dataset} />
