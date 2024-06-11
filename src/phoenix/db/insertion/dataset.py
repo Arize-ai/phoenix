@@ -222,15 +222,7 @@ class DatasetKeys:
     metadata: FrozenSet[str]
 
     def __iter__(self) -> Iterator[str]:
-        return chain(self.input, self.output, self.metadata)
-
-    def __post_init__(self) -> None:
-        if overlap := self.input.intersection(self.output):
-            raise ValueError(f"input_keys and output_keys have overlap: {overlap}")
-        if overlap := self.input.intersection(self.metadata):
-            raise ValueError(f"input_keys and metadata_keys have overlap: {overlap}")
-        if overlap := self.output.intersection(self.metadata):
-            raise ValueError(f"output_keys and metadata_keys have overlap: {overlap}")
+        yield from sorted(set(chain(self.input, self.output, self.metadata)))
 
     def check_differences(self, column_headers_set: FrozenSet[str]) -> None:
         for category, keys in (

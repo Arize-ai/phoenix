@@ -331,9 +331,9 @@ async def test_post_dataset_upload_csv_create_then_append(test_client, session):
         data={
             "action": "create",
             "name": name,
-            "input_keys[]": ["a", "b"],
-            "output_keys[]": ["c", "d"],
-            "metadata_keys[]": ["e", "f"],
+            "input_keys[]": ["a", "b", "c"],
+            "output_keys[]": ["b", "c", "d"],
+            "metadata_keys[]": ["c", "d", "e"],
         },
     )
     assert response.status_code == 200
@@ -347,9 +347,9 @@ async def test_post_dataset_upload_csv_create_then_append(test_client, session):
         data={
             "action": "append",
             "name": name,
-            "input_keys[]": ["a", "b"],
-            "output_keys[]": ["c", "d"],
-            "metadata_keys[]": ["e", "f"],
+            "input_keys[]": ["a", "b", "c"],
+            "output_keys[]": ["b", "c", "d"],
+            "metadata_keys[]": ["c", "d", "e"],
         },
     )
     assert response.status_code == 200
@@ -365,12 +365,12 @@ async def test_post_dataset_upload_csv_create_then_append(test_client, session):
         )
     )
     assert len(revisions) == 2
-    assert revisions[0].input == {"a": "1", "b": "2"}
-    assert revisions[0].output == {"c": "3", "d": "4"}
-    assert revisions[0].metadata_ == {"e": "5", "f": "6"}
-    assert revisions[1].input == {"a": "11", "b": "22"}
-    assert revisions[1].output == {"c": "33", "d": "44"}
-    assert revisions[1].metadata_ == {"e": "55", "f": "66"}
+    assert revisions[0].input == {"a": "1", "b": "2", "c": "3"}
+    assert revisions[0].output == {"b": "2", "c": "3", "d": "4"}
+    assert revisions[0].metadata_ == {"c": "3", "d": "4", "e": "5"}
+    assert revisions[1].input == {"a": "11", "b": "22", "c": "33"}
+    assert revisions[1].output == {"b": "22", "c": "33", "d": "44"}
+    assert revisions[1].metadata_ == {"c": "33", "d": "44", "e": "55"}
 
 
 async def test_post_dataset_upload_pyarrow_create_then_append(test_client, session):
@@ -387,9 +387,9 @@ async def test_post_dataset_upload_pyarrow_create_then_append(test_client, sessi
         data={
             "action": "create",
             "name": name,
-            "input_keys[]": ["a", "b"],
-            "output_keys[]": ["c", "d"],
-            "metadata_keys[]": ["e", "f"],
+            "input_keys[]": ["a", "b", "c"],
+            "output_keys[]": ["b", "c", "d"],
+            "metadata_keys[]": ["c", "d", "e"],
         },
     )
     assert response.status_code == 200
@@ -408,9 +408,9 @@ async def test_post_dataset_upload_pyarrow_create_then_append(test_client, sessi
         data={
             "action": "append",
             "name": name,
-            "input_keys[]": ["a", "b"],
-            "output_keys[]": ["c", "d"],
-            "metadata_keys[]": ["e", "f"],
+            "input_keys[]": ["a", "b", "c"],
+            "output_keys[]": ["b", "c", "d"],
+            "metadata_keys[]": ["c", "d", "e"],
         },
     )
     assert response.status_code == 200
@@ -426,9 +426,9 @@ async def test_post_dataset_upload_pyarrow_create_then_append(test_client, sessi
         )
     )
     assert len(revisions) == 2
-    assert revisions[0].input == {"a": 1, "b": 2}
-    assert revisions[0].output == {"c": 3, "d": 4}
-    assert revisions[0].metadata_ == {"e": 5, "f": 6}
-    assert revisions[1].input == {"a": 11, "b": 22}
-    assert revisions[1].output == {"c": 33, "d": 44}
-    assert revisions[1].metadata_ == {"e": 55, "f": 66}
+    assert revisions[0].input == {"a": 1, "b": 2, "c": 3}
+    assert revisions[0].output == {"b": 2, "c": 3, "d": 4}
+    assert revisions[0].metadata_ == {"c": 3, "d": 4, "e": 5}
+    assert revisions[1].input == {"a": 11, "b": 22, "c": 33}
+    assert revisions[1].output == {"b": 22, "c": 33, "d": 44}
+    assert revisions[1].metadata_ == {"c": 33, "d": 44, "e": 55}
