@@ -21,7 +21,7 @@ from phoenix.server.api.input_types.Coordinates import (
     InputCoordinate3D,
 )
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
-from phoenix.server.api.types.Dataset import Dataset
+from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.Dimension import to_gql_dimension
 from phoenix.server.api.types.EmbeddingDimension import (
@@ -93,18 +93,9 @@ class Query:
         )
         async with info.context.db() as session:
             datasets = await session.scalars(select(models.Dataset))
-        data = [
-            Dataset(
-                id_attr=dataset.id,
-                name=dataset.name,
-                description=dataset.description,
-                created_at=dataset.created_at,
-                updated_at=dataset.updated_at,
-                metadata=dataset.metadata_,
-            )
-            for dataset in datasets
-        ]
-        return connection_from_list(data=data, args=args)
+        return connection_from_list(
+            data=[to_gql_dataset(dataset) for dataset in datasets], args=args
+        )
 
     @strawberry.field
     async def functionality(self, info: Info[Context, None]) -> "Functionality":
@@ -167,26 +158,11 @@ class Query:
                 raise ValueError(f"Unknown span: {id}")
             return to_gql_span(span)
         elif type_name == Dataset.__name__:
-            dataset_stmt = select(
-                models.Dataset.id,
-                models.Dataset.name,
-                models.Dataset.description,
-                models.Dataset.created_at,
-                models.Dataset.updated_at,
-                models.Dataset.metadata_,
-            ).where(models.Dataset.id == node_id)
+            dataset_stmt = select(models.Dataset).where(models.Dataset.id == node_id)
             async with info.context.db() as session:
-                dataset = (await session.execute(dataset_stmt)).first()
-            if dataset is None:
-                raise ValueError(f"Unknown dataset: {id}")
-            return Dataset(
-                id_attr=dataset.id,
-                name=dataset.name,
-                description=dataset.description,
-                created_at=dataset.created_at,
-                updated_at=dataset.updated_at,
-                metadata=dataset.metadata_,
-            )
+                if (dataset := await session.scalar(dataset_stmt)) is None:
+                    raise ValueError(f"Unknown dataset: {id}")
+            return to_gql_dataset(dataset)
         elif type_name == DatasetExample.__name__:
             example_id = node_id
             latest_revision_id = (

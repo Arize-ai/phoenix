@@ -235,3 +235,17 @@ class Dataset(Node):
                 async for experiment in await session.stream_scalars(query)
             ]
         return connection_from_list(data=experiments, args=args)
+
+
+def to_gql_dataset(dataset: models.Dataset) -> Dataset:
+    """
+    Converts an ORM dataset to a GraphQL dataset.
+    """
+    return Dataset(
+        id_attr=dataset.id,
+        name=dataset.name,
+        description=dataset.description,
+        metadata=dataset.metadata_,
+        created_at=dataset.created_at,
+        updated_at=dataset.updated_at,
+    )
