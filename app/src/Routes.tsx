@@ -4,10 +4,11 @@ import { createBrowserRouter } from "react-router-dom";
 
 import { datasetLoaderQuery$data } from "./pages/dataset/__generated__/datasetLoaderQuery.graphql";
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
+import { examplesLoader, ExamplesPage } from "./pages/examples";
+import { experimentsLoader, ExperimentsPage } from "./pages/experiments";
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
 import {
   APIsPage,
-  DatasetExamplePage,
   datasetLoader,
   DatasetPage,
   DatasetsPage,
@@ -16,6 +17,7 @@ import {
   embeddingLoader,
   EmbeddingPage,
   ErrorElement,
+  ExamplePage,
   homeLoader,
   Layout,
   ModelPage,
@@ -92,7 +94,23 @@ const router = createBrowserRouter(
           }}
           element={<DatasetPage />}
         >
-          <Route path="examples/:exampleId" element={<DatasetExamplePage />} />
+          <Route
+            index
+            element={<ExperimentsPage />}
+            loader={experimentsLoader}
+          />
+          <Route
+            path="experiments"
+            element={<ExperimentsPage />}
+            loader={experimentsLoader}
+          />
+          <Route
+            path="examples"
+            element={<ExamplesPage />}
+            loader={examplesLoader}
+          >
+            <Route path=":exampleId" element={<ExamplePage />} />
+          </Route>
         </Route>
       </Route>
       <Route

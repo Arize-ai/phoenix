@@ -17,18 +17,18 @@ import {
 import { JSONEditor } from "@phoenix/components/code";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
-import { EditDatasetExampleDialogMutation } from "./__generated__/EditDatasetExampleDialogMutation.graphql";
+import { EditExampleDialogMutation } from "./__generated__/EditExampleDialogMutation.graphql";
 
-type DatasetExamplePatch = {
+type ExamplePatch = {
   input: string;
   output: string;
   metadata: string;
   description?: string;
 };
 
-export type EditDatasetExampleDialogProps = {
+export type EditExampleDialogProps = {
   exampleId: string;
-  currentRevision: DatasetExamplePatch;
+  currentRevision: ExamplePatch;
   onCompleted: () => void;
 };
 
@@ -39,31 +39,27 @@ const defaultCardProps: Partial<CardProps> = {
   bodyStyle: { padding: 0 },
 };
 
-export function EditDatasetExampleDialog(props: EditDatasetExampleDialogProps) {
+export function EditExampleDialog(props: EditExampleDialogProps) {
   const { exampleId, onCompleted } = props;
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [commit, isCommitting] = useMutation<EditDatasetExampleDialogMutation>(
-    graphql`
-      mutation EditDatasetExampleDialogMutation(
-        $input: PatchDatasetExamplesInput!
-      ) {
-        patchDatasetExamples(input: $input) {
-          __typename
-        }
+  const [commit, isCommitting] = useMutation<EditExampleDialogMutation>(graphql`
+    mutation EditExampleDialogMutation($input: PatchDatasetExamplesInput!) {
+      patchDatasetExamples(input: $input) {
+        __typename
       }
-    `
-  );
+    }
+  `);
   const {
     control,
     setError,
     handleSubmit,
     formState: { isValid },
-  } = useForm<DatasetExamplePatch>({
+  } = useForm<ExamplePatch>({
     defaultValues: props.currentRevision,
   });
 
   const onSubmit = useCallback(
-    (updatedExample: DatasetExamplePatch) => {
+    (updatedExample: ExamplePatch) => {
       setSubmitError(null);
       if (!isJSONObjectString(updatedExample?.input)) {
         return setError("input", {

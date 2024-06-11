@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<85f8cd17d4d969e99a0ce88dbad4d27f>>
+ * @generated SignedSource<<a846d19aaf7f4801d88e115d6bac11e3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,17 +20,17 @@ export type DatasetExamplePatch = {
   metadata?: any | null;
   output?: any | null;
 };
-export type EditDatasetExampleDialogMutation$variables = {
+export type EditExampleDialogMutation$variables = {
   input: PatchDatasetExamplesInput;
 };
-export type EditDatasetExampleDialogMutation$data = {
+export type EditExampleDialogMutation$data = {
   readonly patchDatasetExamples: {
     readonly __typename: "DatasetMutationPayload";
   };
 };
-export type EditDatasetExampleDialogMutation = {
-  response: EditDatasetExampleDialogMutation$data;
-  variables: EditDatasetExampleDialogMutation$variables;
+export type EditExampleDialogMutation = {
+  response: EditExampleDialogMutation$data;
+  variables: EditExampleDialogMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -72,7 +72,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "EditDatasetExampleDialogMutation",
+    "name": "EditExampleDialogMutation",
     "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -81,20 +81,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "EditDatasetExampleDialogMutation",
+    "name": "EditExampleDialogMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "5b7537a09214878e93804f19af2a3701",
+    "cacheID": "7217082d3d3796ecb60481d17133c351",
     "id": null,
     "metadata": {},
-    "name": "EditDatasetExampleDialogMutation",
+    "name": "EditExampleDialogMutation",
     "operationKind": "mutation",
-    "text": "mutation EditDatasetExampleDialogMutation(\n  $input: PatchDatasetExamplesInput!\n) {\n  patchDatasetExamples(input: $input) {\n    __typename\n  }\n}\n"
+    "text": "mutation EditExampleDialogMutation(\n  $input: PatchDatasetExamplesInput!\n) {\n  patchDatasetExamples(input: $input) {\n    __typename\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e8c0c5c882dad5264f4f7ddcbe1777e1";
+(node as any).hash = "a5e0e601ed24ffaa37a99ba358f960d3";
 
 export default node;

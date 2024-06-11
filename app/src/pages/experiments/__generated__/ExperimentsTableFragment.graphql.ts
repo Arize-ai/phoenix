@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1616577e8f0df4ab8fac1dbfe6ecf02b>>
+ * @generated SignedSource<<409b22183c1a5e0dce67467eb8215455>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,30 +10,28 @@
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type DatasetExamplesTableFragment$data = {
-  readonly examples: {
+export type ExperimentsTableFragment$data = {
+  readonly experiments: {
     readonly edges: ReadonlyArray<{
-      readonly example: {
+      readonly experiment: {
+        readonly createdAt: string;
+        readonly description: string | null;
         readonly id: string;
-        readonly revision: {
-          readonly input: any;
-          readonly metadata: any;
-          readonly output: any;
-        };
+        readonly metadata: any;
       };
     }>;
   };
   readonly id: string;
-  readonly " $fragmentType": "DatasetExamplesTableFragment";
+  readonly " $fragmentType": "ExperimentsTableFragment";
 };
-export type DatasetExamplesTableFragment$key = {
-  readonly " $data"?: DatasetExamplesTableFragment$data;
-  readonly " $fragmentSpreads": FragmentRefs<"DatasetExamplesTableFragment">;
+export type ExperimentsTableFragment$key = {
+  readonly " $data"?: ExperimentsTableFragment$data;
+  readonly " $fragmentSpreads": FragmentRefs<"ExperimentsTableFragment">;
 };
 
 const node: ReaderFragment = (function(){
 var v0 = [
-  "examples"
+  "experiments"
 ],
 v1 = {
   "alias": null,
@@ -48,11 +46,6 @@ return {
       "defaultValue": null,
       "kind": "LocalArgument",
       "name": "after"
-    },
-    {
-      "defaultValue": null,
-      "kind": "LocalArgument",
-      "name": "datasetVersionId"
     },
     {
       "defaultValue": 100,
@@ -82,41 +75,35 @@ return {
       "fragmentPathInResult": [
         "node"
       ],
-      "operation": require('./DatasetExamplesTableQuery.graphql'),
+      "operation": require('./ExperimentsTableQuery.graphql'),
       "identifierInfo": {
         "identifierField": "id",
         "identifierQueryVariableName": "id"
       }
     }
   },
-  "name": "DatasetExamplesTableFragment",
+  "name": "ExperimentsTableFragment",
   "selections": [
     {
-      "alias": "examples",
-      "args": [
-        {
-          "kind": "Variable",
-          "name": "datasetVersionId",
-          "variableName": "datasetVersionId"
-        }
-      ],
-      "concreteType": "DatasetExampleConnection",
+      "alias": "experiments",
+      "args": null,
+      "concreteType": "ExperimentConnection",
       "kind": "LinkedField",
-      "name": "__DatasetExamplesTable_examples_connection",
+      "name": "__ExperimentsTable_experiments_connection",
       "plural": false,
       "selections": [
         {
           "alias": null,
           "args": null,
-          "concreteType": "DatasetExampleEdge",
+          "concreteType": "ExperimentEdge",
           "kind": "LinkedField",
           "name": "edges",
           "plural": true,
           "selections": [
             {
-              "alias": "example",
+              "alias": "experiment",
               "args": null,
-              "concreteType": "DatasetExample",
+              "concreteType": "Experiment",
               "kind": "LinkedField",
               "name": "node",
               "plural": false,
@@ -125,33 +112,22 @@ return {
                 {
                   "alias": null,
                   "args": null,
-                  "concreteType": "DatasetExampleRevision",
-                  "kind": "LinkedField",
-                  "name": "revision",
-                  "plural": false,
-                  "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "input",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "output",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "metadata",
-                      "storageKey": null
-                    }
-                  ],
+                  "kind": "ScalarField",
+                  "name": "description",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "createdAt",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "metadata",
                   "storageKey": null
                 }
               ],
@@ -167,7 +143,7 @@ return {
             {
               "alias": null,
               "args": null,
-              "concreteType": "DatasetExample",
+              "concreteType": "Experiment",
               "kind": "LinkedField",
               "name": "node",
               "plural": false,
@@ -220,6 +196,6 @@ return {
 };
 })();
 
-(node as any).hash = "91b6607bb20de7df49dd270acaa5ab1a";
+(node as any).hash = "2b1de639b7e4ce002a0eab37585d3b1e";
 
 export default node;
