@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from typing import Any, Dict
 
@@ -5,7 +6,7 @@ import strawberry
 from openinference.semconv.trace import (
     SpanAttributes,
 )
-from sqlalchemy import and_, delete, distinct, func, insert, select
+from sqlalchemy import and_, delete, distinct, func, insert, select, update
 from strawberry import UNSET
 from strawberry.types import Info
 
@@ -24,7 +25,8 @@ from phoenix.server.api.input_types.PatchDatasetExamplesInput import (
     DatasetExamplePatch,
     PatchDatasetExamplesInput,
 )
-from phoenix.server.api.types.Dataset import Dataset
+from phoenix.server.api.input_types.PatchDatasetInput import PatchDatasetInput
+from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
@@ -47,34 +49,46 @@ class DatasetMutationMixin:
         description = input.description if input.description is not UNSET else None
         metadata = input.metadata or {}
         async with info.context.db() as session:
-            result = await session.execute(
+            dataset = await session.scalar(
                 insert(models.Dataset)
                 .values(
                     name=name,
                     description=description,
                     metadata_=metadata,
                 )
-                .returning(
-                    models.Dataset.id,
-                    models.Dataset.name,
-                    models.Dataset.description,
-                    models.Dataset.created_at,
-                    models.Dataset.updated_at,
-                    models.Dataset.metadata_,
-                )
+                .returning(models.Dataset)
             )
-            if not (row := result.fetchone()):
-                raise ValueError("Failed to create dataset")
-            return DatasetMutationPayload(
-                dataset=Dataset(
-                    id_attr=row.id,
-                    name=row.name,
-                    description=row.description,
-                    created_at=row.created_at,
-                    updated_at=row.updated_at,
-                    metadata=row.metadata_,
-                )
+            assert dataset is not None
+        return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
+
+    @strawberry.mutation
+    async def patch_dataset(
+        self,
+        info: Info[Context, None],
+        input: PatchDatasetInput,
+    ) -> DatasetMutationPayload:
+        dataset_id = from_global_id_with_expected_type(
+            global_id=input.dataset_id, expected_type_name=Dataset.__name__
+        )
+        input_metadata = json.loads(input.metadata) if isinstance(input.metadata, str) else None
+        patch = {
+            column.key: patch_value
+            for column, patch_value, column_is_nullable in (
+                (models.Dataset.name, input.name, False),
+                (models.Dataset.description, input.description, True),
+                (models.Dataset.metadata_, input_metadata, False),
             )
+            if patch_value is not UNSET and (patch_value is not None or column_is_nullable)
+        }
+        async with info.context.db() as session:
+            dataset = await session.scalar(
+                update(models.Dataset)
+                .where(models.Dataset.id == dataset_id)
+                .returning(models.Dataset)
+                .values(**patch)
+            )
+            assert dataset is not None
+        return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
     @strawberry.mutation
     async def add_spans_to_dataset(
@@ -168,16 +182,7 @@ class DatasetMutationMixin:
                     for dataset_example_rowid, span in zip(dataset_example_rowids, spans)
                 ],
             )
-        return DatasetMutationPayload(
-            dataset=Dataset(
-                id_attr=dataset.id,
-                name=dataset.name,
-                description=dataset.description,
-                created_at=dataset.created_at,
-                updated_at=dataset.updated_at,
-                metadata=dataset.metadata_,
-            )
-        )
+        return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
     @strawberry.mutation
     async def add_examples_to_dataset(
@@ -262,16 +267,7 @@ class DatasetMutationMixin:
                     )
                 ],
             )
-        return DatasetMutationPayload(
-            dataset=Dataset(
-                id_attr=dataset.id,
-                name=dataset.name,
-                description=dataset.description,
-                created_at=dataset.created_at,
-                updated_at=dataset.updated_at,
-                metadata=dataset.metadata_,
-            )
-        )
+        return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
     @strawberry.mutation
     async def delete_dataset(
@@ -294,16 +290,7 @@ class DatasetMutationMixin:
                 raise ValueError(f"Unknown dataset: {dataset_id}")
 
         dataset = datasets[0]
-        return DatasetMutationPayload(
-            dataset=Dataset(
-                id_attr=dataset.id,
-                name=dataset.name,
-                description=dataset.description,
-                created_at=dataset.created_at,
-                updated_at=dataset.updated_at,
-                metadata=dataset.metadata_,
-            )
-        )
+        return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
     @strawberry.mutation
     async def patch_dataset_examples(
@@ -395,16 +382,7 @@ class DatasetMutationMixin:
                 ],
             )
 
-        return DatasetMutationPayload(
-            dataset=Dataset(
-                id_attr=dataset.id,
-                name=dataset.name,
-                description=dataset.description,
-                metadata=dataset.metadata_,
-                created_at=dataset.created_at,
-                updated_at=dataset.updated_at,
-            )
-        )
+        return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
     @strawberry.mutation
     async def delete_dataset_examples(
@@ -487,16 +465,7 @@ class DatasetMutationMixin:
                 ],
             )
 
-            return DatasetMutationPayload(
-                dataset=Dataset(
-                    id_attr=dataset.id,
-                    name=dataset.name,
-                    description=dataset.description,
-                    created_at=dataset.created_at,
-                    updated_at=dataset.updated_at,
-                    metadata=dataset.metadata_,
-                )
-            )
+            return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
 
 def _span_attribute(semconv: str) -> Any:

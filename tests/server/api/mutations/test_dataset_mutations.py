@@ -1,3 +1,4 @@
+import json
 import textwrap
 from datetime import datetime
 
@@ -10,6 +11,147 @@ from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
 
+async def test_create_dataset(test_client):
+    create_dataset_mutation = """
+      mutation ($name: String!, $description: String!, $metadata: JSON!) {
+        createDataset(
+          input: {name: $name, description: $description, metadata: $metadata}
+        ) {
+          dataset {
+            id
+            name
+            description
+            metadata
+          }
+        }
+      }
+    """
+    response = await test_client.post(
+        "/graphql",
+        json={
+            "query": create_dataset_mutation,
+            "variables": {
+                "name": "original-dataset-name",
+                "description": "original-dataset-description",
+                "metadata": json.dumps({"original-metadata-key": "original-metadata-value"}),
+            },
+        },
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json.get("errors") is None
+    assert response_json["data"] == {
+        "createDataset": {
+            "dataset": {
+                "id": str(GlobalID(type_name="Dataset", node_id=str(1))),
+                "name": "original-dataset-name",
+                "description": "original-dataset-description",
+                "metadata": json.dumps({"original-metadata-key": "original-metadata-value"}),
+            }
+        }
+    }
+
+
+class TestPatchDatasetMutation:
+    MUTATION = """
+      mutation ($datasetId: GlobalID!, $name: String, $description: String, $metadata: JSON) {
+        patchDataset(
+          input: {datasetId: $datasetId, name: $name, description: $description, metadata: $metadata}
+        ) {
+          dataset {
+            id
+            name
+            description
+            metadata
+          }
+        }
+      }
+    """  # noqa: E501
+
+    async def test_patch_all_dataset_fields(self, test_client, dataset_with_a_single_version):
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": self.MUTATION,
+                "variables": {
+                    "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
+                    "name": "patched-dataset-name",
+                    "description": "patched-dataset-description",
+                    "metadata": json.dumps({"patched-metadata-key": "patched-metadata-value"}),
+                },
+            },
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json.get("errors") is None
+        assert response_json["data"] == {
+            "patchDataset": {
+                "dataset": {
+                    "id": str(GlobalID(type_name="Dataset", node_id=str(1))),
+                    "name": "patched-dataset-name",
+                    "description": "patched-dataset-description",
+                    "metadata": {"patched-metadata-key": "patched-metadata-value"},
+                }
+            }
+        }
+
+    async def test_only_description_field_can_be_set_to_null(
+        self, test_client, dataset_with_a_single_version
+    ):
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": self.MUTATION,
+                "variables": {
+                    "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
+                    "name": None,
+                    "description": None,
+                    "metadata": None,
+                },
+            },
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json.get("errors") is None
+        assert response_json["data"] == {
+            "patchDataset": {
+                "dataset": {
+                    "id": str(GlobalID(type_name="Dataset", node_id=str(1))),
+                    "name": "dataset-name",
+                    "description": None,
+                    "metadata": {"dataset-metadata-key": "dataset-metadata-value"},
+                }
+            }
+        }
+
+    async def test_updating_a_single_field_leaves_remaining_fields_unchannged(
+        self, test_client, dataset_with_a_single_version
+    ):
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": self.MUTATION,
+                "variables": {
+                    "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
+                    "description": "patched-dataset-description",
+                },
+            },
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json.get("errors") is None
+        assert response_json["data"] == {
+            "patchDataset": {
+                "dataset": {
+                    "id": str(GlobalID(type_name="Dataset", node_id=str(1))),
+                    "name": "dataset-name",
+                    "description": "patched-dataset-description",
+                    "metadata": {"dataset-metadata-key": "dataset-metadata-value"},
+                }
+            }
+        }
+
+
 async def test_add_span_to_dataset(
     test_client,
     empty_dataset,
@@ -17,25 +159,25 @@ async def test_add_span_to_dataset(
 ) -> None:
     dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
     mutation = """
-mutation ($datasetId: GlobalID!, $spanIds: [GlobalID!]!) {
-  addSpansToDataset(input: {datasetId: $datasetId, spanIds: $spanIds}) {
-    dataset {
-      id
-      examples {
-        edges {
-          example: node {
-            revision {
-              input
-              output
-              metadata
+      mutation ($datasetId: GlobalID!, $spanIds: [GlobalID!]!) {
+        addSpansToDataset(input: {datasetId: $datasetId, spanIds: $spanIds}) {
+          dataset {
+            id
+            examples {
+              edges {
+                example: node {
+                  revision {
+                    input
+                    output
+                    metadata
+                  }
+                }
+              }
             }
           }
         }
       }
-    }
-  }
-}
-"""
+    """
     response = await test_client.post(
         "/graphql",
         json={
@@ -545,8 +687,8 @@ async def dataset_with_a_single_version(session):
         .returning(models.Dataset.id)
         .values(
             name="dataset-name",
-            description=None,
-            metadata_={},
+            description="dataset-description",
+            metadata_={"dataset-metadata-key": "dataset-metadata-value"},
         )
     )
 
