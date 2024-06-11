@@ -7,9 +7,7 @@ from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
 
-async def test_runs_resolver_returns_runs_for_experiment(
-    test_client, dataset_with_experiment_and_run
-):
+async def test_runs_resolver_returns_runs_for_experiment(test_client, dataset_with_experiment_runs):
     query = """
       query ($experimentId: GlobalID!) {
         experiment: node(id: $experimentId) {
@@ -82,9 +80,11 @@ async def test_runs_resolver_returns_runs_for_experiment(
 
 
 @pytest.fixture
-async def dataset_with_experiment_and_run(session):
+async def dataset_with_experiment_runs(session):
     """
-    A dataset with a single example and a single version.
+    A dataset with an associated experiment with three runs: one that has no
+    associated trace, one that has an associated trace, and one that has a
+    non-existent trace.
     """
 
     # insert project
