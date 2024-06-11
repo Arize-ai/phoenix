@@ -54,7 +54,7 @@ async def test_create_dataset(test_client):
 
 class TestPatchDatasetMutation:
     MUTATION = """
-        mutation ($datasetId: GlobalID!, $name: String!, $description: String!, $metadata: JSON!) {
+        mutation ($datasetId: GlobalID!, $name: String, $description: String, $metadata: JSON) {
             patchDataset(
             input: {datasetId: $datasetId, name: $name, description: $description, metadata: $metadata}
             ) {
@@ -68,7 +68,7 @@ class TestPatchDatasetMutation:
         }
         """  # noqa: E501
 
-    async def test_dataset_patch(self, test_client, dataset_with_a_single_version):
+    async def test_patch_all_dataset_fields(self, test_client, dataset_with_a_single_version):
         response = await test_client.post(
             "/graphql",
             json={
@@ -91,6 +91,35 @@ class TestPatchDatasetMutation:
                     "name": "patched-dataset-name",
                     "description": "patched-dataset-description",
                     "metadata": {"patched-metadata-key": "patched-metadata-value"},
+                }
+            }
+        }
+
+    async def test_only_description_field_can_be_set_to_null(
+        self, test_client, dataset_with_a_single_version
+    ):
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": self.MUTATION,
+                "variables": {
+                    "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
+                    "name": None,
+                    "description": None,
+                    "metadata": None,
+                },
+            },
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json.get("errors") is None
+        assert response_json["data"] == {
+            "patchDataset": {
+                "dataset": {
+                    "id": str(GlobalID(type_name="Dataset", node_id=str(1))),
+                    "name": "dataset-name",
+                    "description": None,
+                    "metadata": {"dataset-metadata-key": "dataset-metadata-value"},
                 }
             }
         }
@@ -631,8 +660,8 @@ async def dataset_with_a_single_version(session):
         .returning(models.Dataset.id)
         .values(
             name="dataset-name",
-            description=None,
-            metadata_={},
+            description="dataset-description",
+            metadata_={"dataset-metadata-key": "dataset-metadata-value"},
         )
     )
 
