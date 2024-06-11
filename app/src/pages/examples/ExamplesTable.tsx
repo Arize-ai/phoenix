@@ -22,29 +22,26 @@ import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 
-import type { DatasetExamplesTableFragment$key } from "./__generated__/DatasetExamplesTableFragment.graphql";
-import { DatasetExamplesTableQuery } from "./__generated__/DatasetExamplesTableQuery.graphql";
-import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
+import { examplesLoaderQuery$data } from "./__generated__/examplesLoaderQuery.graphql";
+import type { ExamplesTableFragment$key } from "./__generated__/ExamplesTableFragment.graphql";
+import { ExamplesTableQuery } from "./__generated__/ExamplesTableQuery.graphql";
 import { ExampleSelectionToolbar } from "./ExampleSelectionToolbar";
 
 const PAGE_SIZE = 100;
 
-export function DatasetExamplesTable({
+export function ExamplesTable({
   dataset,
 }: {
-  dataset: datasetLoaderQuery$data["dataset"];
+  dataset: examplesLoaderQuery$data["dataset"];
 }) {
   const latestVersion = useDatasetContext((state) => state.latestVersion);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = React.useState({});
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
-    usePaginationFragment<
-      DatasetExamplesTableQuery,
-      DatasetExamplesTableFragment$key
-    >(
+    usePaginationFragment<ExamplesTableQuery, ExamplesTableFragment$key>(
       graphql`
-        fragment DatasetExamplesTableFragment on Dataset
-        @refetchable(queryName: "DatasetExamplesTableQuery")
+        fragment ExamplesTableFragment on Dataset
+        @refetchable(queryName: "ExamplesTableQuery")
         @argumentDefinitions(
           datasetVersionId: { type: "GlobalID" }
           after: { type: "String", defaultValue: null }
@@ -54,7 +51,7 @@ export function DatasetExamplesTable({
             datasetVersionId: $datasetVersionId
             first: $first
             after: $after
-          ) @connection(key: "DatasetExamplesTable_examples") {
+          ) @connection(key: "ExamplesTable_examples") {
             edges {
               example: node {
                 id
@@ -124,7 +121,7 @@ export function DatasetExamplesTable({
       accessorKey: "id",
       cell: ({ getValue, row }) => {
         const exampleId = row.original.id;
-        return <Link to={`examples/${exampleId}`}>{getValue() as string}</Link>;
+        return <Link to={`${exampleId}`}>{getValue() as string}</Link>;
       },
     },
     {
@@ -210,7 +207,7 @@ export function DatasetExamplesTable({
               <tr
                 key={row.id}
                 onClick={() => {
-                  navigate(`examples/${row.original.id}`);
+                  navigate(`${row.original.id}`);
                 }}
               >
                 {row.getVisibleCells().map((cell) => {

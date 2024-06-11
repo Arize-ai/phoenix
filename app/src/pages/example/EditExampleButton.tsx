@@ -2,13 +2,10 @@ import React, { ReactNode, useState } from "react";
 
 import { Button, DialogContainer, Icon, Icons } from "@arizeai/components";
 
-import {
-  EditDatasetExampleDialog,
-  EditDatasetExampleDialogProps,
-} from "./EditDatasetExampleDialog";
+import { EditExampleDialog, EditExampleDialogProps } from "./EditExampleDialog";
 
-type EditDatasetExampleButtonProps = EditDatasetExampleDialogProps;
-export function EditDatasetExampleButton(props: EditDatasetExampleButtonProps) {
+type EditExampleButtonProps = EditExampleDialogProps;
+export function EditExampleButton(props: EditExampleButtonProps) {
   const { onCompleted, ...dialogProps } = props;
   const [dialog, setDialog] = useState<ReactNode>(null);
   return (
@@ -19,7 +16,7 @@ export function EditDatasetExampleButton(props: EditDatasetExampleButtonProps) {
         icon={<Icon svg={<Icons.EditOutline />} />}
         onClick={() =>
           setDialog(
-            <EditDatasetExampleDialog
+            <EditExampleDialog
               {...dialogProps}
               onCompleted={() => {
                 setDialog(null);
