@@ -182,16 +182,7 @@ class DatasetMutationMixin:
                     for dataset_example_rowid, span in zip(dataset_example_rowids, spans)
                 ],
             )
-        return DatasetMutationPayload(
-            dataset=Dataset(
-                id_attr=dataset.id,
-                name=dataset.name,
-                description=dataset.description,
-                created_at=dataset.created_at,
-                updated_at=dataset.updated_at,
-                metadata=dataset.metadata_,
-            )
-        )
+        return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
     @strawberry.mutation
     async def add_examples_to_dataset(
