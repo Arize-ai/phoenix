@@ -20,18 +20,18 @@ import {
 import { CopyToClipboardButton } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 
-import type { DatasetExamplePageQuery } from "./__generated__/DatasetExamplePageQuery.graphql";
-import { EditDatasetExampleButton } from "./EditDatasetExampleButton";
+import type { ExamplePageQuery } from "./__generated__/ExamplePageQuery.graphql";
+import { EditExampleButton } from "./EditExampleButton";
 
 /**
  * A page that shows the details of a dataset example.
  */
-export function DatasetExamplePage() {
+export function ExamplePage() {
   const { datasetId, exampleId } = useParams();
   const [fetchKey, setFetchKey] = useState(0);
-  const data = useLazyLoadQuery<DatasetExamplePageQuery>(
+  const data = useLazyLoadQuery<ExamplePageQuery>(
     graphql`
-      query DatasetExamplePageQuery($exampleId: GlobalID!) {
+      query ExamplePageQuery($exampleId: GlobalID!) {
         example: node(id: $exampleId) {
           ... on DatasetExample {
             id
@@ -81,7 +81,7 @@ export function DatasetExamplePage() {
     <DialogContainer
       type="slideOver"
       isDismissable
-      onDismiss={() => navigate(`/datasets/${datasetId}`)}
+      onDismiss={() => navigate(`/datasets/${datasetId}/examples`)}
     >
       <Dialog
         size="XL"
@@ -101,7 +101,7 @@ export function DatasetExamplePage() {
                 View Source Span
               </Button>
             ) : null}
-            <EditDatasetExampleButton
+            <EditExampleButton
               exampleId={exampleId as string}
               currentRevision={revision}
               onCompleted={() => {

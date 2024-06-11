@@ -14,9 +14,9 @@ import { IndeterminateCheckboxCell } from "@phoenix/components/table/Indetermina
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 
-import type { DatasetExperimentsTableFragment$key } from "./__generated__/DatasetExperimentsTableFragment.graphql";
-import { DatasetExperimentsTableQuery } from "./__generated__/DatasetExperimentsTableQuery.graphql";
-import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
+import { experimentsLoaderQuery$data } from "./__generated__/experimentsLoaderQuery.graphql";
+import type { ExperimentsTableFragment$key } from "./__generated__/ExperimentsTableFragment.graphql";
+import { ExperimentsTableQuery } from "./__generated__/ExperimentsTableQuery.graphql";
 
 const PAGE_SIZE = 100;
 
@@ -39,25 +39,25 @@ export function ExperimentsTableEmpty() {
   );
 }
 
-export function DatasetExperimentsTable({
+export function ExperimentsTable({
   dataset,
 }: {
-  dataset: datasetLoaderQuery$data["dataset"];
+  dataset: experimentsLoaderQuery$data["dataset"];
 }) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
-    DatasetExperimentsTableQuery,
-    DatasetExperimentsTableFragment$key
+    ExperimentsTableQuery,
+    ExperimentsTableFragment$key
   >(
     graphql`
-      fragment DatasetExperimentsTableFragment on Dataset
-      @refetchable(queryName: "DatasetExperimentsTableQuery")
+      fragment ExperimentsTableFragment on Dataset
+      @refetchable(queryName: "ExperimentsTableQuery")
       @argumentDefinitions(
         after: { type: "String", defaultValue: null }
         first: { type: "Int", defaultValue: 100 }
       ) {
         experiments(first: $first, after: $after)
-          @connection(key: "DatasetExperimentsTable_experiments") {
+          @connection(key: "ExperimentsTable_experiments") {
           edges {
             experiment: node {
               id

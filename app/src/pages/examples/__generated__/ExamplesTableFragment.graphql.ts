@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1616577e8f0df4ab8fac1dbfe6ecf02b>>
+ * @generated SignedSource<<6ccee1668a4ef88e564552bbcb051b6a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type DatasetExamplesTableFragment$data = {
+export type ExamplesTableFragment$data = {
   readonly examples: {
     readonly edges: ReadonlyArray<{
       readonly example: {
@@ -24,11 +24,11 @@ export type DatasetExamplesTableFragment$data = {
     }>;
   };
   readonly id: string;
-  readonly " $fragmentType": "DatasetExamplesTableFragment";
+  readonly " $fragmentType": "ExamplesTableFragment";
 };
-export type DatasetExamplesTableFragment$key = {
-  readonly " $data"?: DatasetExamplesTableFragment$data;
-  readonly " $fragmentSpreads": FragmentRefs<"DatasetExamplesTableFragment">;
+export type ExamplesTableFragment$key = {
+  readonly " $data"?: ExamplesTableFragment$data;
+  readonly " $fragmentSpreads": FragmentRefs<"ExamplesTableFragment">;
 };
 
 const node: ReaderFragment = (function(){
@@ -82,14 +82,14 @@ return {
       "fragmentPathInResult": [
         "node"
       ],
-      "operation": require('./DatasetExamplesTableQuery.graphql'),
+      "operation": require('./ExamplesTableQuery.graphql'),
       "identifierInfo": {
         "identifierField": "id",
         "identifierQueryVariableName": "id"
       }
     }
   },
-  "name": "DatasetExamplesTableFragment",
+  "name": "ExamplesTableFragment",
   "selections": [
     {
       "alias": "examples",
@@ -102,7 +102,7 @@ return {
       ],
       "concreteType": "DatasetExampleConnection",
       "kind": "LinkedField",
-      "name": "__DatasetExamplesTable_examples_connection",
+      "name": "__ExamplesTable_examples_connection",
       "plural": false,
       "selections": [
         {
@@ -220,6 +220,6 @@ return {
 };
 })();
 
-(node as any).hash = "91b6607bb20de7df49dd270acaa5ab1a";
+(node as any).hash = "e04e697cdb44ab2dd115f4562211f6a4";
 
 export default node;

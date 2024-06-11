@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<75d490bb9b51eda771a7a004d1bb7b9a>>
+ * @generated SignedSource<<409b22183c1a5e0dce67467eb8215455>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type DatasetExperimentsTableFragment$data = {
+export type ExperimentsTableFragment$data = {
   readonly experiments: {
     readonly edges: ReadonlyArray<{
       readonly experiment: {
@@ -22,11 +22,11 @@ export type DatasetExperimentsTableFragment$data = {
     }>;
   };
   readonly id: string;
-  readonly " $fragmentType": "DatasetExperimentsTableFragment";
+  readonly " $fragmentType": "ExperimentsTableFragment";
 };
-export type DatasetExperimentsTableFragment$key = {
-  readonly " $data"?: DatasetExperimentsTableFragment$data;
-  readonly " $fragmentSpreads": FragmentRefs<"DatasetExperimentsTableFragment">;
+export type ExperimentsTableFragment$key = {
+  readonly " $data"?: ExperimentsTableFragment$data;
+  readonly " $fragmentSpreads": FragmentRefs<"ExperimentsTableFragment">;
 };
 
 const node: ReaderFragment = (function(){
@@ -75,21 +75,21 @@ return {
       "fragmentPathInResult": [
         "node"
       ],
-      "operation": require('./DatasetExperimentsTableQuery.graphql'),
+      "operation": require('./ExperimentsTableQuery.graphql'),
       "identifierInfo": {
         "identifierField": "id",
         "identifierQueryVariableName": "id"
       }
     }
   },
-  "name": "DatasetExperimentsTableFragment",
+  "name": "ExperimentsTableFragment",
   "selections": [
     {
       "alias": "experiments",
       "args": null,
       "concreteType": "ExperimentConnection",
       "kind": "LinkedField",
-      "name": "__DatasetExperimentsTable_experiments_connection",
+      "name": "__ExperimentsTable_experiments_connection",
       "plural": false,
       "selections": [
         {
@@ -196,6 +196,6 @@ return {
 };
 })();
 
-(node as any).hash = "ce88ea0f64db4ff5075dd9d33883ce3a";
+(node as any).hash = "2b1de639b7e4ce002a0eab37585d3b1e";
 
 export default node;
