@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fabe76ed6403adef46e65d6f320eff90>>
+ * @generated SignedSource<<2ebe4417dce7427a6d0c9008a70a138c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -27,7 +27,7 @@ export type datasetLoaderQuery$data = {
       }>;
     };
     readonly name?: string;
-    readonly " $fragmentSpreads": FragmentRefs<"DatasetExamplesTableFragment">;
+    readonly " $fragmentSpreads": FragmentRefs<"DatasetExamplesTableFragment" | "DatasetExperimentsTableFragment">;
   };
 };
 export type datasetLoaderQuery = {
@@ -72,6 +72,13 @@ v4 = {
   "storageKey": null
 },
 v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "createdAt",
+  "storageKey": null
+},
+v6 = {
   "alias": "latestVersions",
   "args": [
     {
@@ -111,13 +118,7 @@ v5 = {
           "selections": [
             (v2/*: any*/),
             (v4/*: any*/),
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "createdAt",
-              "storageKey": null
-            }
+            (v5/*: any*/)
           ],
           "storageKey": null
         }
@@ -127,20 +128,62 @@ v5 = {
   ],
   "storageKey": "versions(first:1,sort:{\"col\":\"createdAt\",\"dir\":\"desc\"})"
 },
-v6 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v7 = [
+v8 = [
   {
     "kind": "Literal",
     "name": "first",
     "value": 100
   }
-];
+],
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "metadata",
+  "storageKey": null
+},
+v10 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "cursor",
+  "storageKey": null
+},
+v11 = [
+  (v7/*: any*/)
+],
+v12 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "PageInfo",
+  "kind": "LinkedField",
+  "name": "pageInfo",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "endCursor",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "hasNextPage",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -162,11 +205,16 @@ return {
             "selections": [
               (v3/*: any*/),
               (v4/*: any*/),
-              (v5/*: any*/),
+              (v6/*: any*/),
               {
                 "args": null,
                 "kind": "FragmentSpread",
                 "name": "DatasetExamplesTableFragment"
+              },
+              {
+                "args": null,
+                "kind": "FragmentSpread",
+                "name": "DatasetExperimentsTableFragment"
               }
             ],
             "type": "Dataset",
@@ -193,17 +241,17 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v6/*: any*/),
+          (v7/*: any*/),
           (v2/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               (v3/*: any*/),
               (v4/*: any*/),
-              (v5/*: any*/),
+              (v6/*: any*/),
               {
                 "alias": null,
-                "args": (v7/*: any*/),
+                "args": (v8/*: any*/),
                 "concreteType": "DatasetExampleConnection",
                 "kind": "LinkedField",
                 "name": "examples",
@@ -248,26 +296,14 @@ return {
                                 "name": "output",
                                 "storageKey": null
                               },
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "metadata",
-                                "storageKey": null
-                              }
+                              (v9/*: any*/)
                             ],
                             "storageKey": null
                           }
                         ],
                         "storageKey": null
                       },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "cursor",
-                        "storageKey": null
-                      },
+                      (v10/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -275,45 +311,19 @@ return {
                         "kind": "LinkedField",
                         "name": "node",
                         "plural": false,
-                        "selections": [
-                          (v6/*: any*/)
-                        ],
+                        "selections": (v11/*: any*/),
                         "storageKey": null
                       }
                     ],
                     "storageKey": null
                   },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "PageInfo",
-                    "kind": "LinkedField",
-                    "name": "pageInfo",
-                    "plural": false,
-                    "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "endCursor",
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "hasNextPage",
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  }
+                  (v12/*: any*/)
                 ],
                 "storageKey": "examples(first:100)"
               },
               {
                 "alias": null,
-                "args": (v7/*: any*/),
+                "args": (v8/*: any*/),
                 "filters": [
                   "datasetVersionId"
                 ],
@@ -321,6 +331,64 @@ return {
                 "key": "DatasetExamplesTable_examples",
                 "kind": "LinkedHandle",
                 "name": "examples"
+              },
+              {
+                "alias": null,
+                "args": (v8/*: any*/),
+                "concreteType": "ExperimentConnection",
+                "kind": "LinkedField",
+                "name": "experiments",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "ExperimentEdge",
+                    "kind": "LinkedField",
+                    "name": "edges",
+                    "plural": true,
+                    "selections": [
+                      {
+                        "alias": "experiment",
+                        "args": null,
+                        "concreteType": "Experiment",
+                        "kind": "LinkedField",
+                        "name": "node",
+                        "plural": false,
+                        "selections": [
+                          (v2/*: any*/),
+                          (v4/*: any*/),
+                          (v5/*: any*/),
+                          (v9/*: any*/)
+                        ],
+                        "storageKey": null
+                      },
+                      (v10/*: any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "Experiment",
+                        "kind": "LinkedField",
+                        "name": "node",
+                        "plural": false,
+                        "selections": (v11/*: any*/),
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  },
+                  (v12/*: any*/)
+                ],
+                "storageKey": "experiments(first:100)"
+              },
+              {
+                "alias": null,
+                "args": (v8/*: any*/),
+                "filters": null,
+                "handle": "connection",
+                "key": "DatasetExperimentsTable_experiments",
+                "kind": "LinkedHandle",
+                "name": "experiments"
               }
             ],
             "type": "Dataset",
@@ -332,16 +400,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "799c51f07adb820197b82b1f348701b5",
+    "cacheID": "19560b6abda8a29ba56658cec2089f72",
     "id": null,
     "metadata": {},
     "name": "datasetLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      description\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n            description\n            createdAt\n          }\n        }\n      }\n      ...DatasetExamplesTableFragment\n    }\n  }\n}\n\nfragment DatasetExamplesTableFragment on Dataset {\n  examples(first: 100) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n          metadata\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query datasetLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      description\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n            description\n            createdAt\n          }\n        }\n      }\n      ...DatasetExamplesTableFragment\n      ...DatasetExperimentsTableFragment\n    }\n  }\n}\n\nfragment DatasetExamplesTableFragment on Dataset {\n  examples(first: 100) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n          metadata\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetExperimentsTableFragment on Dataset {\n  experiments(first: 100) {\n    edges {\n      experiment: node {\n        id\n        description\n        createdAt\n        metadata\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "809c21f871888f5399c1583c519ee027";
+(node as any).hash = "1702fb612b4e93576fbc49b4bf6ec95c";
 
 export default node;
