@@ -53,19 +53,39 @@ async def test_annotations_resolver_returns_annotations_for_run(
                     {
                         "annotation": {
                             "id": str(
-                                GlobalID(type_name="ExperimentRunAnnotation", node_id=str(1))
+                                GlobalID(type_name="ExperimentRunAnnotation", node_id=str(2))
                             ),
-                            "name": "annotation-name",
+                            "name": "annotation-2-name",
                             "annotatorKind": "LLM",
-                            "label": "annotation-label",
+                            "label": "annotation-2-label",
                             "score": 0.2,
-                            "explanation": "annotation-explanation",
-                            "error": "annotation-error",
-                            "metadata": {"annotation-metadata-key": "annotation-metadata-value"},
+                            "explanation": "annotation-2-explanation",
+                            "error": "annotation-2-error",
+                            "metadata": {
+                                "annotation-2-metadata-key": "annotation-2-metadata-value"
+                            },
                             "startTime": "2020-01-01T00:00:00+00:00",
                             "endTime": "2020-01-01T00:01:00+00:00",
                         }
-                    }
+                    },
+                    {
+                        "annotation": {
+                            "id": str(
+                                GlobalID(type_name="ExperimentRunAnnotation", node_id=str(1))
+                            ),
+                            "name": "annotation-1-name",
+                            "annotatorKind": "LLM",
+                            "label": "annotation-1-label",
+                            "score": 0.2,
+                            "explanation": "annotation-1-explanation",
+                            "error": "annotation-1-error",
+                            "metadata": {
+                                "annotation-1-metadata-key": "annotation-1-metadata-value"
+                            },
+                            "startTime": "2020-01-01T00:00:00+00:00",
+                            "endTime": "2020-01-01T00:01:00+00:00",
+                        }
+                    },
                 ]
             }
         }
@@ -75,7 +95,7 @@ async def test_annotations_resolver_returns_annotations_for_run(
 @pytest.fixture
 async def experiment_run_with_annotations(session):
     """
-    An experiment run with an annotation.
+    An experiment run with two annotations.
     """
 
     # insert project
@@ -166,20 +186,38 @@ async def experiment_run_with_annotations(session):
         )
     )
 
-    # insert annotation
+    # insert annotations
     await session.scalar(
         insert(models.ExperimentAnnotation)
         .returning(models.ExperimentAnnotation.id)
         .values(
             experiment_run_id=run_id,
-            name="annotation-name",
+            name="annotation-1-name",
             annotator_kind="LLM",
-            label="annotation-label",
+            label="annotation-1-label",
             score=0.2,
-            explanation="annotation-explanation",
+            explanation="annotation-1-explanation",
             trace_id=None,
-            error="annotation-error",
-            metadata_={"annotation-metadata-key": "annotation-metadata-value"},
+            error="annotation-1-error",
+            metadata_={"annotation-1-metadata-key": "annotation-1-metadata-value"},
+            start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            end_time=datetime(year=2020, month=1, day=1, hour=0, minute=1, tzinfo=pytz.utc),
+        )
+    )
+
+    await session.scalar(
+        insert(models.ExperimentAnnotation)
+        .returning(models.ExperimentAnnotation.id)
+        .values(
+            experiment_run_id=run_id,
+            name="annotation-2-name",
+            annotator_kind="LLM",
+            label="annotation-2-label",
+            score=0.2,
+            explanation="annotation-2-explanation",
+            trace_id=None,
+            error="annotation-2-error",
+            metadata_={"annotation-2-metadata-key": "annotation-2-metadata-value"},
             start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
             end_time=datetime(year=2020, month=1, day=1, hour=0, minute=1, tzinfo=pytz.utc),
         )
