@@ -156,6 +156,10 @@ class Trace(Base):
         cascade="all, delete-orphan",
         uselist=True,
     )
+    experiment_runs: Mapped[List["ExperimentRun"]] = relationship(
+        primaryjoin="foreign(ExperimentRun.trace_id) == remote(Trace.trace_id)",
+        back_populates="trace",
+    )
     __table_args__ = (
         UniqueConstraint(
             "trace_id",
@@ -536,6 +540,11 @@ class ExperimentRun(Base):
     prompt_token_count: Mapped[Optional[int]]
     completion_token_count: Mapped[Optional[int]]
     error: Mapped[Optional[str]]
+
+    trace: Mapped["Trace"] = relationship(
+        primaryjoin="foreign(ExperimentRun.trace_id) == remote(Trace.trace_id)",
+        back_populates="experiment_runs",
+    )
 
 
 class ExperimentAnnotation(Base):
