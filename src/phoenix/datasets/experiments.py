@@ -14,6 +14,8 @@ from phoenix.evals.executors import get_executor_on_sync_context
 from phoenix.evals.models.rate_limiters import RateLimiter
 
 JSONSerializable = Union[Dict[str, Any], List[Any], str, int, float, bool, None]
+ExperimentCallable = Callable[[JSONSerializable], JSONSerializable]
+ExperimentCoroutineFn = Callable[[JSONSerializable], Coroutine[Any, Any, JSONSerializable]]
 
 
 class ExampleProtocol(Protocol):
@@ -34,10 +36,6 @@ class Experiment:
     id: str
     dataset_id: str
     dataset_version_id: str
-
-
-ExperimentCallable = Callable[[DatasetProtocol], JSONSerializable]
-ExperimentCoroutineFn = Callable[[DatasetProtocol], Coroutine[Any, Any, JSONSerializable]]
 
 
 def _phoenix_client() -> httpx.Client:
@@ -68,17 +66,17 @@ def run_experiment(
         output = None
         exc = None
         try:
-            if asyncio.iscoroutinefunction(callable):
-                raise RuntimeError("Callable is async but running in sync context")
+            if asyncio.iscoroutinefunction(task):
+                raise RuntimeError("Task is async but running in sync context")
             else:
-                output = callable(example.input)
+                output = task(example.input)
         except Exception as exc:
             error = exc
         finally:
             end_time = datetime.now()
 
         experiment_payload = {
-            "dataset_example_id": example["id"],
+            "dataset_example_id": example.id,
             "output": output,
             "start_time": start_time.isoformat(),
             "end_time": end_time.isoformat(),
@@ -86,7 +84,7 @@ def run_experiment(
         if exc:
             experiment_payload["error"] = repr(error)
 
-        client.post(f"/v1/experiments/{experiment_id}/runs", json=experiment_payload)
+        return experiment_payload
 
     @rate_limiter.alimit
     async def async_run_experiment(example: ExampleProtocol) -> None:
@@ -94,17 +92,17 @@ def run_experiment(
         output = None
         exc = None
         try:
-            if asyncio.iscoroutinefunction(callable):
-                output = await callable(example.input)
+            if asyncio.iscoroutinefunction(task):
+                output = await task(example.input)
             else:
-                output = callable(example.input)
+                output = task(example.input)
         except Exception as exc:
             error = exc
         finally:
             end_time = datetime.now()
 
         experiment_payload = {
-            "dataset_example_id": example["id"],
+            "dataset_example_id": example.id,
             "output": output,
             "start_time": start_time.isoformat(),
             "end_time": end_time.isoformat(),
@@ -112,7 +110,7 @@ def run_experiment(
         if exc:
             experiment_payload["error"] = repr(error)
 
-        client.post(f"/v1/experiments/{experiment_id}/runs", json=experiment_payload)
+        return experiment_payload
 
     executor = get_executor_on_sync_context(
         sync_run_experiment,
@@ -121,7 +119,9 @@ def run_experiment(
         exit_on_error=False,
     )
 
-    _results, _execution_details = executor.run(dataset.examples())
+    experiment_payloads, _execution_details = executor.run(dataset.examples())
+    for payload in experiment_payloads:
+        client.post(f"/v1/experiments/{experiment_id}/runs", json=payload)
     return Experiment(
         id=experiment_id, dataset_id=dataset.id, dataset_version_id=dataset.version_id
     )
