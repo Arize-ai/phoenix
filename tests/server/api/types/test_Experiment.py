@@ -7,7 +7,9 @@ from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
 
-async def test_experiment(test_client, dataset_with_experiment_and_run):
+async def test_runs_resolver_returns_runs_for_experiment(
+    test_client, dataset_with_experiment_and_run
+):
     query = """
       query ($experimentId: GlobalID!) {
         experiment: node(id: $experimentId) {
