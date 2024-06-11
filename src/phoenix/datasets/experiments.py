@@ -136,7 +136,7 @@ def run_experiment(
             output=output,
             start_time=start_time.isoformat(),
             end_time=end_time.isoformat(),
-            error=error=repr(error) if error else None,
+            error=repr(error) if error else None,
         )
 
         return experiment_payload
