@@ -554,6 +554,7 @@ type Experiment implements Node {
   metadata: JSON!
   createdAt: DateTime!
   updatedAt: DateTime!
+  runs(first: Int = 50, last: Int, after: String, before: String): ExperimentRunConnection!
 }
 
 """A connection to a list of items."""
@@ -572,6 +573,34 @@ type ExperimentEdge {
 
   """The item at the end of the edge"""
   node: Experiment!
+}
+
+type ExperimentRun implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  traceId: GlobalID!
+  output: JSON
+  startTime: DateTime!
+  endTime: DateTime!
+  error: String
+}
+
+"""A connection to a list of items."""
+type ExperimentRunConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ExperimentRunEdge!]!
+}
+
+"""An edge in a connection."""
+type ExperimentRunEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ExperimentRun!
 }
 
 type ExportedFile {

@@ -3,7 +3,7 @@ from typing import Optional
 
 import strawberry
 from strawberry import UNSET
-from strawberry.relay import Node, NodeID
+from strawberry.relay import Connection, Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
 
@@ -23,6 +23,7 @@ class Experiment(Node):
     created_at: datetime
     updated_at: datetime
 
+    @strawberry.field
     def runs(
         self,
         info: Info[Context, None],
@@ -30,7 +31,7 @@ class Experiment(Node):
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
-    ) -> ExperimentRun:
+    ) -> Connection[ExperimentRun]:
         # async with info.context.db() as session:
         raise NotImplementedError("runs resolver on Experiment not yet implemented")
 
