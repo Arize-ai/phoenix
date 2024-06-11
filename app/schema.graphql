@@ -12,6 +12,12 @@ input AddSpansToDatasetInput {
   datasetVersionMetadata: JSON
 }
 
+enum AnnotatorKind {
+  LLM
+  HUMAN
+  CODE
+}
+
 union Bin = NominalBin | IntervalBin | MissingValueBin
 
 type Cluster {
@@ -583,6 +589,39 @@ type ExperimentRun implements Node {
   startTime: DateTime!
   endTime: DateTime!
   error: String
+  annotations(first: Int = 50, last: Int, after: String, before: String): ExperimentRunAnnotationConnection!
+}
+
+type ExperimentRunAnnotation implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  name: String!
+  annotatorKind: AnnotatorKind!
+  label: String
+  score: Float
+  explanation: String
+  error: String
+  metadata: JSON!
+  startTime: DateTime!
+  endTime: DateTime!
+}
+
+"""A connection to a list of items."""
+type ExperimentRunAnnotationConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ExperimentRunAnnotationEdge!]!
+}
+
+"""An edge in a connection."""
+type ExperimentRunAnnotationEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ExperimentRunAnnotation!
 }
 
 """A connection to a list of items."""
