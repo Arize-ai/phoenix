@@ -54,19 +54,19 @@ async def test_create_dataset(test_client):
 
 class TestPatchDatasetMutation:
     MUTATION = """
-        mutation ($datasetId: GlobalID!, $name: String, $description: String, $metadata: JSON) {
-            patchDataset(
-            input: {datasetId: $datasetId, name: $name, description: $description, metadata: $metadata}
-            ) {
-            dataset {
-                id
-                name
-                description
-                metadata
-            }
-            }
+      mutation ($datasetId: GlobalID!, $name: String, $description: String, $metadata: JSON) {
+        patchDataset(
+          input: {datasetId: $datasetId, name: $name, description: $description, metadata: $metadata}
+        ) {
+          dataset {
+            id
+            name
+            description
+            metadata
+          }
         }
-        """  # noqa: E501
+      }
+    """  # noqa: E501
 
     async def test_patch_all_dataset_fields(self, test_client, dataset_with_a_single_version):
         response = await test_client.post(
