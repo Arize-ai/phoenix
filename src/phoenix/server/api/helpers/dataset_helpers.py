@@ -146,7 +146,7 @@ def _get_message(message: Mapping[str, Any]) -> Dict[str, Any]:
     function_call_arguments = get_attribute_value(message, MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON)
     function_call = (
         {"name": function_call_name, "arguments": function_call_arguments}
-        if function_call_name is not None and function_call_arguments is not None
+        if function_call_name is not None or function_call_arguments is not None
         else None
     )
     tool_calls = [
