@@ -16,7 +16,7 @@
     "@codemirror/view": "^6.23.1",
     "@react-three/drei": "^9.96.2",
     "@react-three/fiber": "8.0.12",
-    "@tanstack/react-table": "^8.11.7",
+    "@tanstack/react-table": "^8.17.3",
     "@uiw/codemirror-theme-nord": "^4.21.21",
     "@uiw/react-codemirror": "^4.21.21",
     "copy-to-clipboard": "^3.3.3",

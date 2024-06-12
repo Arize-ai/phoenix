@@ -1,5 +1,6 @@
 /* eslint-disable react/prop-types */
 import React, {
+  Fragment,
   startTransition,
   useCallback,
   useEffect,
@@ -271,7 +272,7 @@ export function TracesTable(props: TracesTableProps) {
             })}
             {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
               return (
-                <>
+                <Fragment key="doc-evals">
                   <RetrievalEvaluationLabel
                     key="ndcg"
                     name={retrievalMetric.evaluationName}
@@ -290,7 +291,7 @@ export function TracesTable(props: TracesTableProps) {
                     metric="hit"
                     score={retrievalMetric.hit}
                   />
-                </>
+                </Fragment>
               );
             })}
             {hasNoEvaluations ? "--" : null}
@@ -499,9 +500,10 @@ export function TracesTable(props: TracesTableProps) {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
+    getRowId: (row) => row.id,
   });
   const rows = table.getRowModel().rows;
-  const selectedRows = table.getSelectedRowModel().rows;
+  const selectedRows = table.getSelectedRowModel().flatRows;
   const selectedSpans = selectedRows.map((row) => row.original);
   const clearSelection = useCallback(() => {
     setRowSelection({});
