@@ -411,6 +411,120 @@ class TestDatasetExamplesResolver:
         assert response_json["data"] == {"node": {"examples": {"edges": edges}}}
 
 
+class TestVersionsResolver:
+    QUERY = """
+      query compare($datasetId: GlobalID!, $dir: SortDir!, $col: DatasetVersionColumn!) {
+        dataset: node(id: $datasetId) {
+          ... on Dataset {
+            versions(sort: {dir: $dir, col: $col}) {
+              edges {
+                version: node {
+                  id
+                  description
+                  metadata
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+
+    async def test_versions_returned_in_ascending_order(
+        self, test_client, dataset_with_three_versions
+    ):
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": self.QUERY,
+                "variables": {
+                    "datasetId": str(GlobalID("Dataset", str(1))),
+                    "dir": "asc",
+                    "col": "createdAt",
+                },
+            },
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json.get("errors") is None
+        assert response_json["data"] == {
+            "dataset": {
+                "versions": {
+                    "edges": [
+                        {
+                            "version": {
+                                "id": str(GlobalID("DatasetVersion", str(1))),
+                                "description": None,
+                                "metadata": {},
+                            }
+                        },
+                        {
+                            "version": {
+                                "id": str(GlobalID("DatasetVersion", str(2))),
+                                "description": None,
+                                "metadata": {},
+                            }
+                        },
+                        {
+                            "version": {
+                                "id": str(GlobalID("DatasetVersion", str(3))),
+                                "description": None,
+                                "metadata": {},
+                            }
+                        },
+                    ]
+                }
+            }
+        }
+
+    async def test_versions_returned_in_descending_order(
+        self, test_client, dataset_with_three_versions
+    ):
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": self.QUERY,
+                "variables": {
+                    "datasetId": str(GlobalID("Dataset", str(1))),
+                    "dir": "desc",
+                    "col": "createdAt",
+                },
+            },
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json.get("errors") is None
+        assert response_json["data"] == {
+            "dataset": {
+                "versions": {
+                    "edges": [
+                        {
+                            "version": {
+                                "id": str(GlobalID("DatasetVersion", str(3))),
+                                "description": None,
+                                "metadata": {},
+                            }
+                        },
+                        {
+                            "version": {
+                                "id": str(GlobalID("DatasetVersion", str(2))),
+                                "description": None,
+                                "metadata": {},
+                            }
+                        },
+                        {
+                            "version": {
+                                "id": str(GlobalID("DatasetVersion", str(1))),
+                                "description": None,
+                                "metadata": {},
+                            }
+                        },
+                    ]
+                }
+            }
+        }
+
+
 class TestDatasetExperimentCountResolver:
     QUERY = """
       query ($datasetId: GlobalID!, $datasetVersionId: GlobalID = null) {
@@ -572,6 +686,7 @@ async def dataset_with_three_versions(session):
         dataset_id=1,
         description=None,
         metadata_={},
+        created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
     )
     session.add(dataset_version_1)
     await session.flush()
@@ -593,6 +708,9 @@ async def dataset_with_three_versions(session):
         dataset_id=1,
         description=None,
         metadata_={},
+        created_at=datetime(
+            year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+        ),  # same created_at as version 1
     )
     session.add(dataset_version_2)
     await session.flush()
@@ -602,6 +720,9 @@ async def dataset_with_three_versions(session):
         dataset_id=1,
         description=None,
         metadata_={},
+        created_at=datetime(
+            year=2020, month=1, day=1, hour=0, minute=1, tzinfo=pytz.utc
+        ),  # created one minute after version 2
     )
     session.add(dataset_version_3)
     await session.flush()

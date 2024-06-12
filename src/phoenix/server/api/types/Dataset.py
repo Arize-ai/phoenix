@@ -65,7 +65,7 @@ class Dataset(Node):
             DatasetVersion(
                 id_attr=version.id,
                 description=version.description,
-                metadata=version.metadata,
+                metadata=version.metadata_,
                 created_at=version.created_at,
             )
             for version in versions
