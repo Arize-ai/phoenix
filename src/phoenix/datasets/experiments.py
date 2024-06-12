@@ -28,8 +28,8 @@ from phoenix.evals.executors import get_executor_on_sync_context
 from phoenix.evals.models.rate_limiters import RateLimiter
 
 JSONSerializable = Union[Dict[str, Any], List[Any], str, int, float, bool, None]
-ExperimentCallable = Callable[[JSONSerializable], JSONSerializable]
-ExperimentCoroutineFn = Callable[[JSONSerializable], Coroutine[Any, Any, JSONSerializable]]
+ExperimentTask = Callable[[JSONSerializable], JSONSerializable]
+AsyncExperimentTask = Callable[[JSONSerializable], Coroutine[Any, Any, JSONSerializable]]
 
 
 class ExampleProtocol(Protocol):
@@ -75,7 +75,7 @@ def _phoenix_client() -> httpx.Client:
 
 def run_experiment(
     dataset: DatasetProtocol,
-    task: Union[ExperimentCallable, ExperimentCoroutineFn],
+    task: Union[ExperimentTask, AsyncExperimentTask],
     rate_limit_errors: Optional[Union[Type[BaseException], Tuple[Type[BaseException], ...]]] = None,
 ) -> Experiment:
     client = _phoenix_client()
