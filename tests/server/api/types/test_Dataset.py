@@ -413,6 +413,102 @@ class TestDatasetExamplesResolver:
         assert response_json["data"] == {"node": {"examples": {"edges": edges}}}
 
 
+@pytest.mark.parametrize(
+    "sort_direction, expected_versions",
+    [
+        pytest.param(
+            "asc",
+            [
+                {
+                    "version": {
+                        "id": str(GlobalID("DatasetVersion", str(1))),
+                        "description": "version-1-description",
+                        "metadata": {"version-1-metadata-key": "version-1-metadata-value"},
+                    }
+                },
+                {
+                    "version": {
+                        "id": str(GlobalID("DatasetVersion", str(2))),
+                        "description": "version-2-description",
+                        "metadata": {"version-2-metadata-key": "version-2-metadata-value"},
+                    }
+                },
+                {
+                    "version": {
+                        "id": str(GlobalID("DatasetVersion", str(3))),
+                        "description": "version-3-description",
+                        "metadata": {"version-3-metadata-key": "version-3-metadata-value"},
+                    }
+                },
+            ],
+            id="ascending",
+        ),
+        pytest.param(
+            "desc",
+            [
+                {
+                    "version": {
+                        "id": str(GlobalID("DatasetVersion", str(3))),
+                        "description": "version-3-description",
+                        "metadata": {"version-3-metadata-key": "version-3-metadata-value"},
+                    }
+                },
+                {
+                    "version": {
+                        "id": str(GlobalID("DatasetVersion", str(2))),
+                        "description": "version-2-description",
+                        "metadata": {"version-2-metadata-key": "version-2-metadata-value"},
+                    }
+                },
+                {
+                    "version": {
+                        "id": str(GlobalID("DatasetVersion", str(1))),
+                        "description": "version-1-description",
+                        "metadata": {"version-1-metadata-key": "version-1-metadata-value"},
+                    }
+                },
+            ],
+            id="descending",
+        ),
+    ],
+)
+async def test_versions_resolver_returns_versions_in_correct_order(
+    sort_direction, expected_versions, test_client, dataset_with_three_versions
+):
+    query = """
+      query ($datasetId: GlobalID!, $dir: SortDir!, $col: DatasetVersionColumn!) {
+        dataset: node(id: $datasetId) {
+          ... on Dataset {
+            versions(sort: {dir: $dir, col: $col}) {
+              edges {
+                version: node {
+                  id
+                  description
+                  metadata
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+    response = await test_client.post(
+        "/graphql",
+        json={
+            "query": query,
+            "variables": {
+                "datasetId": str(GlobalID("Dataset", str(1))),
+                "dir": sort_direction,
+                "col": "createdAt",
+            },
+        },
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json.get("errors") is None
+    assert response_json["data"] == {"dataset": {"versions": {"edges": expected_versions}}}
+
+
 class TestDatasetExperimentCountResolver:
     QUERY = """
       query ($datasetId: GlobalID!, $datasetVersionId: GlobalID = null) {
@@ -612,8 +708,9 @@ async def dataset_with_three_versions(session):
     dataset_version_1 = models.DatasetVersion(
         id=1,
         dataset_id=1,
-        description=None,
-        metadata_={},
+        description="version-1-description",
+        metadata_={"version-1-metadata-key": "version-1-metadata-value"},
+        created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
     )
     session.add(dataset_version_1)
     await session.flush()
@@ -633,8 +730,11 @@ async def dataset_with_three_versions(session):
     dataset_version_2 = models.DatasetVersion(
         id=2,
         dataset_id=1,
-        description=None,
-        metadata_={},
+        description="version-2-description",
+        metadata_={"version-2-metadata-key": "version-2-metadata-value"},
+        created_at=datetime(
+            year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+        ),  # same created_at as version 1
     )
     session.add(dataset_version_2)
     await session.flush()
@@ -642,8 +742,11 @@ async def dataset_with_three_versions(session):
     dataset_version_3 = models.DatasetVersion(
         id=3,
         dataset_id=1,
-        description=None,
-        metadata_={},
+        description="version-3-description",
+        metadata_={"version-3-metadata-key": "version-3-metadata-value"},
+        created_at=datetime(
+            year=2020, month=1, day=1, hour=0, minute=1, tzinfo=pytz.utc
+        ),  # created one minute after version 2
     )
     session.add(dataset_version_3)
     await session.flush()
