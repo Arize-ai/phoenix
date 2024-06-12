@@ -1,5 +1,6 @@
 /* eslint-disable react/prop-types */
 import React, {
+  Fragment,
   startTransition,
   useCallback,
   useEffect,
@@ -271,7 +272,7 @@ export function TracesTable(props: TracesTableProps) {
             })}
             {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
               return (
-                <>
+                <Fragment key="doc-evals">
                   <RetrievalEvaluationLabel
                     key="ndcg"
                     name={retrievalMetric.evaluationName}
@@ -290,7 +291,7 @@ export function TracesTable(props: TracesTableProps) {
                     metric="hit"
                     score={retrievalMetric.hit}
                   />
-                </>
+                </Fragment>
               );
             })}
             {hasNoEvaluations ? "--" : null}
@@ -506,6 +507,7 @@ export function TracesTable(props: TracesTableProps) {
   const clearSelection = useCallback(() => {
     setRowSelection({});
   }, [setRowSelection]);
+  console.log(rowSelection);
   const isEmpty = rows.length === 0;
   const computedColumns = table.getAllColumns().filter((column) => {
     // Filter out columns that are eval groupings
