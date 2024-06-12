@@ -117,7 +117,7 @@ export function ExamplesTable({
       ),
     },
     {
-      header: "id",
+      header: "example id",
       accessorKey: "id",
       cell: ({ getValue, row }) => {
         const exampleId = row.original.id;
