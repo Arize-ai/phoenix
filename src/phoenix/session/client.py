@@ -18,7 +18,7 @@ from typing import (
     Union,
     cast,
 )
-from urllib.parse import urljoin
+from urllib.parse import quote, urljoin
 
 import httpx
 import pandas as pd
@@ -39,6 +39,7 @@ from phoenix.config import (
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.insertion.dataset import DatasetKeys
 from phoenix.session.data_extractor import DEFAULT_SPAN_LIMIT, TraceDataExtractor
+from phoenix.session.datasets import Dataset, Example
 from phoenix.trace import Evaluations, TraceDataset
 from phoenix.trace.dsl import SpanQuery
 from phoenix.trace.otel import encode_span_to_otlp
@@ -263,6 +264,27 @@ class Client(TraceDataExtractor):
                     "content-encoding": "gzip",
                 },
             ).raise_for_status()
+
+    def get_dataset(self, dataset_id: str, version_id: Optional[str] = None) -> Dataset:
+        response = self._client.get(
+            urljoin(self._base_url, f"/v1/datasets/{quote(dataset_id)}/examples"),
+            params={"version-id": version_id} if version_id else None,
+        )
+        examples = [
+            Example(
+                id=example["id"],
+                input=example["input"],
+                output=example["output"],
+                metadata=example["metadata"],
+                updated_at=datetime.fromisoformat(example["updated_at"]),
+            )
+            for example in response.json()
+        ]
+        return Dataset(
+            id=dataset_id,
+            version_id=version_id,
+            examples=examples,
+        )
 
     def get_dataset_versions(
         self,
