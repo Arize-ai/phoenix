@@ -156,7 +156,7 @@ def _get_message(message: Mapping[str, Any]) -> Dict[str, Any]:
                 "arguments": get_attribute_value(tool_call, TOOL_CALL_FUNCTION_ARGUMENTS_JSON),
             }
         }
-        for tool_call in get_attribute_value(message, MESSAGE_TOOL_CALLS) or []
+        for tool_call in get_attribute_value(message, MESSAGE_TOOL_CALLS) or ()
     ]
     return {
         "role": get_attribute_value(message, MESSAGE_ROLE),
