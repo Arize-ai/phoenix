@@ -14,8 +14,14 @@ async def test_experiment_resolver_returns_sequence_number(
     interlaced_experiments: List[int],
 ):
     query = """
-      query ($experimentId: GlobalID!) {
-        experiment: node(id: $experimentId) {
+      query ($experimentId1: GlobalID!, $experimentId2: GlobalID!) {
+        experiment1: node(id: $experimentId1) {
+          ... on Experiment {
+            sequenceNumber
+            id
+          }
+        }
+        experiment2: node(id: $experimentId2) {
           ... on Experiment {
             sequenceNumber
             id
@@ -23,15 +29,21 @@ async def test_experiment_resolver_returns_sequence_number(
         }
       }
     """
-    node_id = str(interlaced_experiments[4])
-    experiment_id = str(GlobalID(type_name=Experiment.__name__, node_id=node_id))
-    variables = {"experimentId": experiment_id}
+    variables = {
+        "experimentId1": str(
+            GlobalID(type_name=Experiment.__name__, node_id=str(interlaced_experiments[5]))
+        ),
+        "experimentId2": str(
+            GlobalID(type_name=Experiment.__name__, node_id=str(interlaced_experiments[6]))
+        ),
+    }
     response = await test_client.post("/graphql", json={"query": query, "variables": variables})
     assert response.status_code == 200
     response_json = response.json()
     assert response_json.get("errors") is None
     assert response_json["data"] == {
-        "experiment": {"sequenceNumber": 2, "id": str(GlobalID(Experiment.__name__, str(5)))}
+        "experiment1": {"sequenceNumber": 2, "id": str(GlobalID(Experiment.__name__, str(6)))},
+        "experiment2": {"sequenceNumber": 3, "id": str(GlobalID(Experiment.__name__, str(7)))},
     }
 
 
@@ -134,7 +146,7 @@ async def interlaced_experiments(session) -> List[int]:
                     "dataset_version_id": dataset_version_ids[dataset_id],
                     "metadata_": {},
                 }
-                for _ in range(3)
+                for _ in range(4)
                 for dataset_id in dataset_ids
             ],
         )
