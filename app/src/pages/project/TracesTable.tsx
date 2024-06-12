@@ -500,14 +500,14 @@ export function TracesTable(props: TracesTableProps) {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
+    getRowId: (row) => row.id,
   });
   const rows = table.getRowModel().rows;
-  const selectedRows = table.getSelectedRowModel().rows;
+  const selectedRows = table.getSelectedRowModel().flatRows;
   const selectedSpans = selectedRows.map((row) => row.original);
   const clearSelection = useCallback(() => {
     setRowSelection({});
   }, [setRowSelection]);
-  console.log(rowSelection);
   const isEmpty = rows.length === 0;
   const computedColumns = table.getAllColumns().filter((column) => {
     // Filter out columns that are eval groupings
