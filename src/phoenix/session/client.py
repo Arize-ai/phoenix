@@ -266,9 +266,15 @@ class Client(TraceDataExtractor):
             ).raise_for_status()
 
     def get_dataset(self, dataset_id: str, version_id: Optional[str] = None) -> Dataset:
+        if version_id is None:
+            response = self._client.get(
+                urljoin(self._base_url, f"/v1/datasets/{quote(dataset_id)}/versions"),
+                params={"limit": 1},
+            )
+            version_id = response.json()["data"][0]["version_id"]
         response = self._client.get(
             urljoin(self._base_url, f"/v1/datasets/{quote(dataset_id)}/examples"),
-            params={"version-id": version_id} if version_id else None,
+            params={"version-id": version_id},
         )
         examples = [
             Example(
