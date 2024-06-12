@@ -35,12 +35,11 @@ class Experiment(Node):
         self,
         info: Info[Context, None],
     ) -> int:
-        if self.ordinality is not None:
-            return self.ordinality
-        return cast(
-            int,
-            await info.context.data_loaders.experiment_sequence_number.load(self.id_attr),
-        )
+        if self.ordinality is None:
+            self.ordinality = await info.context.data_loaders.experiment_sequence_number.load(
+                self.id_attr
+            )
+        return cast(int, self.ordinality)
 
     @strawberry.field
     async def runs(
