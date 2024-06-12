@@ -1,4 +1,5 @@
 import asyncio
+import functools
 from dataclasses import dataclass
 from datetime import datetime
 from typing import (
@@ -13,6 +14,7 @@ from typing import (
     Type,
     TypedDict,
     Union,
+    cast,
 )
 
 import httpx
@@ -83,9 +85,15 @@ def run_experiment(
     )
     experiment_id = experiment_response.json()["id"]
 
-    rate_limiter = RateLimiter(rate_limit_error=rate_limit_errors)
+    errors: Tuple[Optional[Type[BaseException]], ...]
+    if not hasattr(rate_limit_errors, "__iter__"):
+        errors = (rate_limit_errors,)
+    else:
+        rate_limit_errors = cast(Tuple[Type[BaseException], ...], rate_limit_errors)
+        errors = rate_limit_errors
 
-    @rate_limiter.limit
+    rate_limiters = [RateLimiter(rate_limit_error=rate_limit_error) for rate_limit_error in errors]
+
     def sync_run_experiment(example: ExampleProtocol) -> ExperimentPayload:
         start_time = datetime.now()
         output = None
@@ -113,7 +121,6 @@ def run_experiment(
 
         return experiment_payload
 
-    @rate_limiter.alimit
     async def async_run_experiment(example: ExampleProtocol) -> ExperimentPayload:
         start_time = datetime.now()
         output = None
@@ -141,9 +148,16 @@ def run_experiment(
 
         return experiment_payload
 
+    rate_limited_sync_run_experiment = functools.reduce(
+        lambda fn, limiter: limiter.limit(fn), rate_limiters, sync_run_experiment
+    )
+    rate_limited_async_run_experiment = functools.reduce(
+        lambda fn, limiter: limiter.alimit(fn), rate_limiters, async_run_experiment
+    )
+
     executor = get_executor_on_sync_context(
-        sync_run_experiment,
-        async_run_experiment,
+        rate_limited_sync_run_experiment,
+        rate_limited_async_run_experiment,
         max_retries=0,
         exit_on_error=False,
         fallback_return_value=None,
