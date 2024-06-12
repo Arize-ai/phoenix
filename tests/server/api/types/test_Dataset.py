@@ -411,8 +411,69 @@ class TestDatasetExamplesResolver:
         assert response_json["data"] == {"node": {"examples": {"edges": edges}}}
 
 
-class TestVersionsResolver:
-    QUERY = """
+@pytest.mark.parametrize(
+    "sort_direction, expected_versions",
+    [
+        pytest.param(
+            "asc",
+            [
+                {
+                    "version": {
+                        "id": str(GlobalID("DatasetVersion", str(1))),
+                        "description": None,
+                        "metadata": {},
+                    }
+                },
+                {
+                    "version": {
+                        "id": str(GlobalID("DatasetVersion", str(2))),
+                        "description": None,
+                        "metadata": {},
+                    }
+                },
+                {
+                    "version": {
+                        "id": str(GlobalID("DatasetVersion", str(3))),
+                        "description": None,
+                        "metadata": {},
+                    }
+                },
+            ],
+            id="ascending",
+        ),
+        pytest.param(
+            "desc",
+            [
+                {
+                    "version": {
+                        "id": str(GlobalID("DatasetVersion", str(3))),
+                        "description": None,
+                        "metadata": {},
+                    }
+                },
+                {
+                    "version": {
+                        "id": str(GlobalID("DatasetVersion", str(2))),
+                        "description": None,
+                        "metadata": {},
+                    }
+                },
+                {
+                    "version": {
+                        "id": str(GlobalID("DatasetVersion", str(1))),
+                        "description": None,
+                        "metadata": {},
+                    }
+                },
+            ],
+            id="descending",
+        ),
+    ],
+)
+async def test_versions_resolver_returns_versions_in_correct_order(
+    sort_direction, expected_versions, test_client, dataset_with_three_versions
+):
+    query = """
       query compare($datasetId: GlobalID!, $dir: SortDir!, $col: DatasetVersionColumn!) {
         dataset: node(id: $datasetId) {
           ... on Dataset {
@@ -429,100 +490,21 @@ class TestVersionsResolver:
         }
       }
     """
-
-    async def test_versions_returned_in_ascending_order(
-        self, test_client, dataset_with_three_versions
-    ):
-        response = await test_client.post(
-            "/graphql",
-            json={
-                "query": self.QUERY,
-                "variables": {
-                    "datasetId": str(GlobalID("Dataset", str(1))),
-                    "dir": "asc",
-                    "col": "createdAt",
-                },
+    response = await test_client.post(
+        "/graphql",
+        json={
+            "query": query,
+            "variables": {
+                "datasetId": str(GlobalID("Dataset", str(1))),
+                "dir": sort_direction,
+                "col": "createdAt",
             },
-        )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
-        assert response_json["data"] == {
-            "dataset": {
-                "versions": {
-                    "edges": [
-                        {
-                            "version": {
-                                "id": str(GlobalID("DatasetVersion", str(1))),
-                                "description": None,
-                                "metadata": {},
-                            }
-                        },
-                        {
-                            "version": {
-                                "id": str(GlobalID("DatasetVersion", str(2))),
-                                "description": None,
-                                "metadata": {},
-                            }
-                        },
-                        {
-                            "version": {
-                                "id": str(GlobalID("DatasetVersion", str(3))),
-                                "description": None,
-                                "metadata": {},
-                            }
-                        },
-                    ]
-                }
-            }
-        }
-
-    async def test_versions_returned_in_descending_order(
-        self, test_client, dataset_with_three_versions
-    ):
-        response = await test_client.post(
-            "/graphql",
-            json={
-                "query": self.QUERY,
-                "variables": {
-                    "datasetId": str(GlobalID("Dataset", str(1))),
-                    "dir": "desc",
-                    "col": "createdAt",
-                },
-            },
-        )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
-        assert response_json["data"] == {
-            "dataset": {
-                "versions": {
-                    "edges": [
-                        {
-                            "version": {
-                                "id": str(GlobalID("DatasetVersion", str(3))),
-                                "description": None,
-                                "metadata": {},
-                            }
-                        },
-                        {
-                            "version": {
-                                "id": str(GlobalID("DatasetVersion", str(2))),
-                                "description": None,
-                                "metadata": {},
-                            }
-                        },
-                        {
-                            "version": {
-                                "id": str(GlobalID("DatasetVersion", str(1))),
-                                "description": None,
-                                "metadata": {},
-                            }
-                        },
-                    ]
-                }
-            }
-        }
+        },
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json.get("errors") is None
+    assert response_json["data"] == {"dataset": {"versions": {"edges": expected_versions}}}
 
 
 class TestDatasetExperimentCountResolver:
