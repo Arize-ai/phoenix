@@ -75,9 +75,9 @@ async def test_runs_resolver_returns_runs_for_experiment(test_client, dataset_wi
                 "edges": [
                     {
                         "run": {
-                            "id": str(GlobalID(type_name="ExperimentRun", node_id=str(1))),
+                            "id": str(GlobalID(type_name="ExperimentRun", node_id=str(3))),
                             "traceId": None,
-                            "output": {"run-1-output-key": "run-1-output-value"},
+                            "output": {"run-3-output-key": "run-3-output-value"},
                             "startTime": "2020-01-01T00:00:00+00:00",
                             "endTime": "2020-01-01T00:00:00+00:00",
                             "error": None,
@@ -95,9 +95,9 @@ async def test_runs_resolver_returns_runs_for_experiment(test_client, dataset_wi
                     },
                     {
                         "run": {
-                            "id": str(GlobalID(type_name="ExperimentRun", node_id=str(3))),
+                            "id": str(GlobalID(type_name="ExperimentRun", node_id=str(1))),
                             "traceId": None,
-                            "output": {"run-3-output-key": "run-3-output-value"},
+                            "output": {"run-1-output-key": "run-1-output-value"},
                             "startTime": "2020-01-01T00:00:00+00:00",
                             "endTime": "2020-01-01T00:00:00+00:00",
                             "error": None,
