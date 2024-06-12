@@ -63,6 +63,7 @@ class Experiment(Node):
                 await session.scalars(
                     select(models.ExperimentRun)
                     .where(models.ExperimentRun.experiment_id == experiment_id)
+                    .order_by(models.ExperimentRun.id.desc())
                     .options(
                         joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id)
                     )
