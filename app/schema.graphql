@@ -560,6 +560,9 @@ type Experiment implements Node {
   metadata: JSON!
   createdAt: DateTime!
   updatedAt: DateTime!
+
+  """Sequence number (1-based) of experiments belonging to the same dataset"""
+  sequenceNumber: Int!
   runs(first: Int = 50, last: Int, after: String, before: String): ExperimentRunConnection!
 }
 

@@ -1,14 +1,16 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Callable, Optional
+from typing import Callable, List, Optional
 from unittest.mock import Mock
 
 import pytest
 from phoenix.core.model_schema import Model
 from phoenix.core.model_schema_adapter import create_model_from_inferences
+from phoenix.db import models
 from phoenix.inferences.inferences import Inferences
 from phoenix.server.api.context import Context
 from phoenix.server.api.schema import Query
+from sqlalchemy import insert
 from strawberry.schema import Schema as StrawberrySchema
 from strawberry.types.info import Info
 
@@ -55,3 +57,33 @@ def context_factory() -> Callable[[Inferences, Optional[Inferences]], Context]:
 @pytest.fixture
 def strawberry_schema() -> StrawberrySchema:
     return StrawberrySchema(Query)
+
+
+@pytest.fixture
+async def interlaced_experiments(session) -> List[int]:
+    dataset_ids = list(
+        await session.scalars(
+            insert(models.Dataset).returning(models.Dataset.id),
+            [{"name": f"{i}", "metadata_": {}} for i in range(3)],
+        )
+    )
+    dataset_version_ids = list(
+        await session.scalars(
+            insert(models.DatasetVersion).returning(models.DatasetVersion.dataset_id),
+            [{"dataset_id": dataset_id, "metadata_": {}} for dataset_id in dataset_ids],
+        )
+    )
+    return list(
+        await session.scalars(
+            insert(models.Experiment).returning(models.Experiment.id),
+            [
+                {
+                    "dataset_id": dataset_id,
+                    "dataset_version_id": dataset_version_ids[i],
+                    "metadata_": {},
+                }
+                for _ in range(4)
+                for i, dataset_id in enumerate(dataset_ids)
+            ],
+        )
+    )
