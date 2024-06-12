@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 @dataclass(frozen=True)
@@ -15,5 +15,5 @@ class Example:
 @dataclass(frozen=True)
 class Dataset:
     id: str
+    version_id: str
     examples: List[Example]
-    version_id: Optional[str] = None
