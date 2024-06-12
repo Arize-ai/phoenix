@@ -55,9 +55,9 @@ class Dataset(Node):
                 # For now assume the the column names match 1:1 with the enum values
                 sort_col = getattr(models.DatasetVersion, sort.col.value)
                 if sort.dir is SortDir.desc:
-                    stmt = stmt.order_by(sort_col.desc()).order_by(models.DatasetVersion.id.desc())
+                    stmt = stmt.order_by(sort_col.desc(), models.DatasetVersion.id.desc())
                 else:
-                    stmt = stmt.order_by(sort_col.asc()).order_by(models.DatasetVersion.id.asc())
+                    stmt = stmt.order_by(sort_col.asc(), models.DatasetVersion.id.asc())
             else:
                 stmt = stmt.order_by(models.DatasetVersion.created_at.desc())
             versions = await session.scalars(stmt)
