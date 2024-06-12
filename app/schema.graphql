@@ -49,6 +49,11 @@ input ClusterInput {
   id: ID
 }
 
+type CompareExperimentsPayload {
+  examples: [DatasetExample!]!
+  experimentRuns: [ExperimentRun!]!
+}
+
 input CreateDatasetInput {
   name: String!
   description: String
@@ -100,6 +105,7 @@ type Dataset implements Node {
   """
   experimentCount(datasetVersionId: GlobalID): Int!
   experiments(first: Int = 50, last: Int, after: String, before: String): ExperimentConnection!
+  compareExperiments(experimentIds: [GlobalID!]!): CompareExperimentsPayload!
 }
 
 enum DatasetColumn {

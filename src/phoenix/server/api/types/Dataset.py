@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import AsyncIterable, Optional, Tuple, cast
+from typing import AsyncIterable, List, Optional, Tuple, cast
 
 import strawberry
 from sqlalchemy import and_, func, select
@@ -15,6 +15,7 @@ from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
+from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -22,6 +23,12 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.SortDir import SortDir
+
+
+@strawberry.type
+class CompareExperimentsPayload:
+    examples: List[DatasetExample]
+    experiment_runs: List[ExperimentRun]
 
 
 @strawberry.type
@@ -236,6 +243,14 @@ class Dataset(Node):
                 )
             ]
         return connection_from_list(data=experiments, args=args)
+
+    @strawberry.field
+    def compare_experiments(
+        self,
+        info: Info[Context, None],
+        experimentIds: List[GlobalID],
+    ) -> CompareExperimentsPayload:
+        raise NotImplementedError("compare_experiments is not implemented yet")
 
 
 def to_gql_dataset(dataset: models.Dataset) -> Dataset:
