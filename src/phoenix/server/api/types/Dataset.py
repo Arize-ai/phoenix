@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import AsyncIterable, Optional, Tuple, cast
 
 import strawberry
 from sqlalchemy import and_, desc, func, select
@@ -14,7 +14,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.api.types.Experiment import Experiment
+from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -221,18 +221,21 @@ class Dataset(Node):
             before=before if isinstance(before, CursorString) else None,
         )
         dataset_id = self.id_attr
-        query = select(models.Experiment).where(models.Experiment.dataset_id == dataset_id)
-
+        query = (
+            select(
+                (func.row_number().over(order_by=models.Experiment.id)).label("ordinality"),
+                models.Experiment,
+            )
+            .where(models.Experiment.dataset_id == dataset_id)
+            .order_by(models.Experiment.id.desc())
+        )
         async with info.context.db() as session:
             experiments = [
-                Experiment(
-                    id_attr=experiment.id,
-                    description=experiment.description,
-                    created_at=experiment.created_at,
-                    updated_at=experiment.updated_at,
-                    metadata=experiment.metadata_,
+                to_gql_experiment(experiment, ordinality)
+                async for ordinality, experiment in cast(
+                    AsyncIterable[Tuple[int, models.Experiment]],
+                    await session.stream(query),
                 )
-                async for experiment in await session.stream_scalars(query)
             ]
         return connection_from_list(data=experiments, args=args)
 

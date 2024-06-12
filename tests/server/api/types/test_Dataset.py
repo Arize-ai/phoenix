@@ -3,6 +3,7 @@ from datetime import datetime
 import pytest
 import pytz
 from phoenix.db import models
+from phoenix.server.api.types.Experiment import Experiment
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
@@ -458,6 +459,45 @@ class TestDatasetExperimentCountResolver:
         assert response_json["data"] == {"node": {"experimentCount": 1}}
 
 
+class TestDatasetExperimentsResolver:
+    QUERY = """
+      query ($datasetId: GlobalID!) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            experiments {
+              edges {
+                node {
+                  sequenceNumber
+                  id
+                }
+              }
+            }
+          }
+        }
+      }
+    """  # noqa: E501
+
+    async def test_experiments_have_sequence_number(
+        self,
+        test_client,
+        dataset_with_interlaced_experiments,
+    ) -> None:
+        variables = {"datasetId": str(GlobalID("Dataset", str(2)))}
+        response = await test_client.post(
+            "/graphql",
+            json={"query": self.QUERY, "variables": variables},
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json.get("errors") is None
+        edges = [
+            {"node": {"sequenceNumber": 3, "id": str(GlobalID(Experiment.__name__, str(8)))}},
+            {"node": {"sequenceNumber": 2, "id": str(GlobalID(Experiment.__name__, str(5)))}},
+            {"node": {"sequenceNumber": 1, "id": str(GlobalID(Experiment.__name__, str(2)))}},
+        ]
+        assert response_json["data"] == {"node": {"experiments": {"edges": edges}}}
+
+
 @pytest.fixture
 async def dataset_with_patch_revision(session):
     """
@@ -691,5 +731,37 @@ async def dataset_with_deletion(session):
         [
             {"dataset_id": 1, "dataset_version_id": 1, "metadata_": {}},
             {"dataset_id": 1, "dataset_version_id": 2, "metadata_": {}},
+        ],
+    )
+
+
+@pytest.fixture
+async def dataset_with_interlaced_experiments(session):
+    dataset_ids = list(
+        await session.scalars(
+            insert(models.Dataset).returning(models.Dataset.id),
+            [{"name": f"{i}", "metadata_": {}} for i in range(3)],
+        )
+    )
+    dataset_version_ids = {
+        dataset_id: dataset_version_id
+        for dataset_id, dataset_version_id in await session.execute(
+            insert(models.DatasetVersion).returning(
+                models.DatasetVersion.dataset_id,
+                models.DatasetVersion.id,
+            ),
+            [{"dataset_id": dataset_id, "metadata_": {}} for dataset_id in dataset_ids],
+        )
+    }
+    await session.scalars(
+        insert(models.Experiment).returning(models.Experiment.id),
+        [
+            {
+                "dataset_id": dataset_id,
+                "dataset_version_id": dataset_version_ids[dataset_id],
+                "metadata_": {},
+            }
+            for _ in range(3)
+            for dataset_id in dataset_ids
         ],
     )

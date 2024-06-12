@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f639e5750f51621aadf434d361c2a37e>>
+ * @generated SignedSource<<2a1fce90fe0a9afae7645fdb9a0ea483>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -155,6 +155,13 @@ return {
                             "alias": null,
                             "args": null,
                             "kind": "ScalarField",
+                            "name": "sequenceNumber",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
                             "name": "description",
                             "storageKey": null
                           },
@@ -244,16 +251,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "67ba628a231bc283ac6637dd6cfe0734",
+    "cacheID": "a414c3220a7eaad09bb2d4a2a91b8bee",
     "id": null,
     "metadata": {},
     "name": "ExperimentsTableQuery",
     "operationKind": "query",
-    "text": "query ExperimentsTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExperimentsTableFragment_2HEEH6\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ExperimentsTableFragment_2HEEH6 on Dataset {\n  experiments(first: $first, after: $after) {\n    edges {\n      experiment: node {\n        id\n        description\n        createdAt\n        metadata\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ExperimentsTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExperimentsTableFragment_2HEEH6\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ExperimentsTableFragment_2HEEH6 on Dataset {\n  experiments(first: $first, after: $after) {\n    edges {\n      experiment: node {\n        id\n        sequenceNumber\n        description\n        createdAt\n        metadata\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2b1de639b7e4ce002a0eab37585d3b1e";
+(node as any).hash = "d376c68cfc6b9cb90260e59eec37e7cb";
 
 export default node;

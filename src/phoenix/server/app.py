@@ -72,6 +72,9 @@ from phoenix.server.api.dataloaders import (
     TokenCountDataLoader,
     TraceEvaluationsDataLoader,
 )
+from phoenix.server.api.dataloaders.experiment_sequence_number import (
+    ExperimentSequenceNumberDataLoader,
+)
 from phoenix.server.api.openapi.schema import OPENAPI_SCHEMA_GENERATOR
 from phoenix.server.api.routers.v1 import V1_ROUTES
 from phoenix.server.api.schema import schema
@@ -200,6 +203,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
                     if self.cache_for_dataloaders
                     else None,
                 ),
+                experiment_sequence_number=ExperimentSequenceNumberDataLoader(self.db),
                 latency_ms_quantile=LatencyMsQuantileDataLoader(
                     self.db,
                     cache_map=self.cache_for_dataloaders.latency_ms_quantile

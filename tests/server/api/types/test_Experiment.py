@@ -1,10 +1,38 @@
 from datetime import datetime
+from typing import List
 
 import pytest
 import pytz
 from phoenix.db import models
+from phoenix.server.api.types.Experiment import Experiment
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
+
+
+async def test_experiment_resolver_returns_sequence_number(
+    test_client,
+    dataset_with_interlaced_experiments,
+):
+    query = """
+      query ($experimentId: GlobalID!) {
+        experiment: node(id: $experimentId) {
+          ... on Experiment {
+            sequenceNumber
+            id
+          }
+        }
+      }
+    """
+    node_id = str(dataset_with_interlaced_experiments[8])
+    experiment_id = str(GlobalID(type_name=Experiment.__name__, node_id=node_id))
+    variables = {"experimentId": experiment_id}
+    response = await test_client.post("/graphql", json={"query": query, "variables": variables})
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json.get("errors") is None
+    assert response_json["data"] == {
+        "experiment": {"sequenceNumber": 3, "id": str(GlobalID(Experiment.__name__, str(9)))}
+    }
 
 
 async def test_runs_resolver_returns_runs_for_experiment(test_client, dataset_with_experiment_runs):
@@ -77,6 +105,40 @@ async def test_runs_resolver_returns_runs_for_experiment(test_client, dataset_wi
             }
         }
     }
+
+
+@pytest.fixture
+async def dataset_with_interlaced_experiments(session) -> List[int]:
+    dataset_ids = list(
+        await session.scalars(
+            insert(models.Dataset).returning(models.Dataset.id),
+            [{"name": f"{i}", "metadata_": {}} for i in range(3)],
+        )
+    )
+    dataset_version_ids = {
+        dataset_id: dataset_version_id
+        for dataset_id, dataset_version_id in await session.execute(
+            insert(models.DatasetVersion).returning(
+                models.DatasetVersion.dataset_id,
+                models.DatasetVersion.id,
+            ),
+            [{"dataset_id": dataset_id, "metadata_": {}} for dataset_id in dataset_ids],
+        )
+    }
+    return list(
+        await session.scalars(
+            insert(models.Experiment).returning(models.Experiment.id),
+            [
+                {
+                    "dataset_id": dataset_id,
+                    "dataset_version_id": dataset_version_ids[dataset_id],
+                    "metadata_": {},
+                }
+                for _ in range(3)
+                for dataset_id in dataset_ids
+            ],
+        )
+    )
 
 
 @pytest.fixture

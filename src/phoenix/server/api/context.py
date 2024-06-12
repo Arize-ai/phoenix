@@ -27,6 +27,9 @@ from phoenix.server.api.dataloaders import (
     TokenCountDataLoader,
     TraceEvaluationsDataLoader,
 )
+from phoenix.server.api.dataloaders.experiment_sequence_number import (
+    ExperimentSequenceNumberDataLoader,
+)
 
 
 @dataclass
@@ -37,6 +40,7 @@ class DataLoaders:
     document_evaluations: DocumentEvaluationsDataLoader
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
     evaluation_summaries: EvaluationSummaryDataLoader
+    experiment_sequence_number: ExperimentSequenceNumberDataLoader
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
     record_counts: RecordCountDataLoader
