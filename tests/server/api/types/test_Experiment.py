@@ -23,7 +23,7 @@ async def test_experiment_resolver_returns_sequence_number(
         }
       }
     """
-    node_id = str(dataset_with_interlaced_experiments[8])
+    node_id = str(dataset_with_interlaced_experiments[4])
     experiment_id = str(GlobalID(type_name=Experiment.__name__, node_id=node_id))
     variables = {"experimentId": experiment_id}
     response = await test_client.post("/graphql", json={"query": query, "variables": variables})
@@ -31,7 +31,7 @@ async def test_experiment_resolver_returns_sequence_number(
     response_json = response.json()
     assert response_json.get("errors") is None
     assert response_json["data"] == {
-        "experiment": {"sequenceNumber": 3, "id": str(GlobalID(Experiment.__name__, str(9)))}
+        "experiment": {"sequenceNumber": 2, "id": str(GlobalID(Experiment.__name__, str(5)))}
     }
 
 
