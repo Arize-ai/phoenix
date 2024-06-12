@@ -480,7 +480,7 @@ class TestDatasetExperimentsResolver:
     async def test_experiments_have_sequence_number(
         self,
         test_client,
-        dataset_with_interlaced_experiments,
+        datasets_with_interlaced_experiments,
     ) -> None:
         variables = {"datasetId": str(GlobalID("Dataset", str(2)))}
         response = await test_client.post(
@@ -736,7 +736,7 @@ async def dataset_with_deletion(session):
 
 
 @pytest.fixture
-async def dataset_with_interlaced_experiments(session):
+async def datasets_with_interlaced_experiments(session):
     dataset_ids = list(
         await session.scalars(
             insert(models.Dataset).returning(models.Dataset.id),

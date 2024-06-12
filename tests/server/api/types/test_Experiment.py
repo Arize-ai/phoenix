@@ -11,7 +11,7 @@ from strawberry.relay import GlobalID
 
 async def test_experiment_resolver_returns_sequence_number(
     test_client,
-    dataset_with_interlaced_experiments,
+    interlaced_experiments: List[int],
 ):
     query = """
       query ($experimentId: GlobalID!) {
@@ -23,7 +23,7 @@ async def test_experiment_resolver_returns_sequence_number(
         }
       }
     """
-    node_id = str(dataset_with_interlaced_experiments[4])
+    node_id = str(interlaced_experiments[4])
     experiment_id = str(GlobalID(type_name=Experiment.__name__, node_id=node_id))
     variables = {"experimentId": experiment_id}
     response = await test_client.post("/graphql", json={"query": query, "variables": variables})
@@ -108,7 +108,7 @@ async def test_runs_resolver_returns_runs_for_experiment(test_client, dataset_wi
 
 
 @pytest.fixture
-async def dataset_with_interlaced_experiments(session) -> List[int]:
+async def interlaced_experiments(session) -> List[int]:
     dataset_ids = list(
         await session.scalars(
             insert(models.Dataset).returning(models.Dataset.id),
