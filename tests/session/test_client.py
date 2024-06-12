@@ -251,6 +251,57 @@ def test_download_dataset_examples_specific_version(
     assert_frame_equal(actual, expected)
 
 
+def test_get_dataset_without_version_id_returns_expected_dataset(
+    client: Client,
+    endpoint: str,
+    respx_mock: MockRouter,
+) -> None:
+    dataset_id = str(GlobalID("Dataset", str(1)))
+    version_id = str(GlobalID("DatasetVersion", str(1)))
+    respx_mock.get(urljoin(endpoint, f"v1/datasets/{dataset_id}/versions?limit=1")).mock(
+        Response(
+            200,
+            json={
+                "next_cursor": str(GlobalID("DatasetVersion", str(2))),
+                "data": [
+                    {
+                        "version_id": version_id,
+                        "description": None,
+                        "metadata": {"version-metadata-key": "version-metadata-value"},
+                        "created_at": "2024-06-12T22:46:31+00:00",
+                    }
+                ],
+            },
+        )
+    )
+    respx_mock.get(
+        urljoin(endpoint, f"v1/datasets/{dataset_id}/examples?version-id={version_id}")
+    ).mock(
+        Response(
+            200,
+            json=[
+                {
+                    "id": str(GlobalID("DatasetExample", str(1))),
+                    "input": {"input": "input"},
+                    "output": {"output": "output"},
+                    "metadata": {"example-metadata-key": "example-metadata-value"},
+                    "updated_at": "2024-06-12T22:46:31+00:00",
+                }
+            ],
+        )
+    )
+    dataset = client.get_dataset(dataset_id)
+    assert dataset.id == dataset_id
+    assert dataset.version_id == version_id
+    assert dataset.examples
+    example = dataset.examples[0]
+    assert example.id == str(GlobalID("DatasetExample", str(1)))
+    assert example.input == {"input": "input"}
+    assert example.output == {"output": "output"}
+    assert example.metadata == {"example-metadata-key": "example-metadata-value"}
+    assert example.updated_at == datetime.fromisoformat("2024-06-12T22:46:31+00:00")
+
+
 @pytest.fixture
 def dataframe() -> pd.DataFrame:
     return pd.DataFrame({"a": [1, 2], "b": [3, 4]}, index=["x", "y"])
