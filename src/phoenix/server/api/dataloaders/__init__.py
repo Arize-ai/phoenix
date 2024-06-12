@@ -17,6 +17,7 @@ from .document_evaluation_summaries import (
 from .document_evaluations import DocumentEvaluationsDataLoader
 from .document_retrieval_metrics import DocumentRetrievalMetricsDataLoader
 from .evaluation_summaries import EvaluationSummaryCache, EvaluationSummaryDataLoader
+from .experiment_sequence_number import ExperimentSequenceNumberDataLoader
 from .latency_ms_quantile import LatencyMsQuantileCache, LatencyMsQuantileDataLoader
 from .min_start_or_max_end_times import MinStartOrMaxEndTimeCache, MinStartOrMaxEndTimeDataLoader
 from .record_counts import RecordCountCache, RecordCountDataLoader
@@ -34,6 +35,7 @@ __all__ = [
     "DocumentEvaluationsDataLoader",
     "DocumentRetrievalMetricsDataLoader",
     "EvaluationSummaryDataLoader",
+    "ExperimentSequenceNumberDataLoader",
     "LatencyMsQuantileDataLoader",
     "MinStartOrMaxEndTimeDataLoader",
     "RecordCountDataLoader",

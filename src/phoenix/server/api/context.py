@@ -18,6 +18,7 @@ from phoenix.server.api.dataloaders import (
     DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
     EvaluationSummaryDataLoader,
+    ExperimentSequenceNumberDataLoader,
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
     RecordCountDataLoader,
@@ -26,9 +27,6 @@ from phoenix.server.api.dataloaders import (
     SpanProjectsDataLoader,
     TokenCountDataLoader,
     TraceEvaluationsDataLoader,
-)
-from phoenix.server.api.dataloaders.experiment_sequence_number import (
-    ExperimentSequenceNumberDataLoader,
 )
 
 

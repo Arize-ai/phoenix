@@ -63,6 +63,7 @@ from phoenix.server.api.dataloaders import (
     DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
     EvaluationSummaryDataLoader,
+    ExperimentSequenceNumberDataLoader,
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
     RecordCountDataLoader,
@@ -71,9 +72,6 @@ from phoenix.server.api.dataloaders import (
     SpanProjectsDataLoader,
     TokenCountDataLoader,
     TraceEvaluationsDataLoader,
-)
-from phoenix.server.api.dataloaders.experiment_sequence_number import (
-    ExperimentSequenceNumberDataLoader,
 )
 from phoenix.server.api.openapi.schema import OPENAPI_SCHEMA_GENERATOR
 from phoenix.server.api.routers.v1 import V1_ROUTES
