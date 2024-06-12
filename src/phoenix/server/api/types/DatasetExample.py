@@ -3,6 +3,7 @@ from typing import Optional
 
 import strawberry
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 from strawberry import UNSET
 from strawberry.relay.types import Connection, GlobalID, Node, NodeID
 from strawberry.types import Info
@@ -11,7 +12,7 @@ from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevision
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
+from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -57,14 +58,14 @@ class DatasetExample(Node):
         )
 
     @strawberry.field
-    async def experiments(
+    async def experiment_runs(
         self,
         info: Info[Context, None],
         first: Optional[int] = 50,
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
-    ) -> Connection[Experiment]:
+    ) -> Connection[ExperimentRun]:
         args = ConnectionArgs(
             first=first,
             after=after if isinstance(after, CursorString) else None,
@@ -73,13 +74,12 @@ class DatasetExample(Node):
         )
         example_id = self.id_attr
         query = (
-            select(models.Experiment)
-            .join(models.ExperimentRun, models.Experiment.id == models.ExperimentRun.experiment_id)
+            select(models.ExperimentRun)
+            .options(joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id))
+            .join(models.Experiment, models.Experiment.id == models.ExperimentRun.experiment_id)
             .where(models.ExperimentRun.dataset_example_id == example_id)
             .order_by(models.Experiment.id.desc())
         )
         async with info.context.db() as session:
-            experiments = (await session.scalars(query)).all()
-        return connection_from_list(
-            [to_gql_experiment(experiment) for experiment in experiments], args
-        )
+            runs = (await session.scalars(query)).all()
+        return connection_from_list([to_gql_experiment_run(run) for run in runs], args)
