@@ -1,4 +1,3 @@
-from .datasets.experiments import run_experiment
 from .inferences.fixtures import ExampleInferences, load_example
 from .inferences.inferences import Inferences
 from .inferences.schema import EmbeddingColumnNames, RetrievalEmbeddingColumnNames, Schema
@@ -51,5 +50,4 @@ __all__ = [
     "log_evaluations",
     "Client",
     "evals",
-    "run_experiment",
 ]
