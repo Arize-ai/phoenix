@@ -32,6 +32,7 @@ from phoenix.server.api.types.EmbeddingDimension import (
 )
 from phoenix.server.api.types.Event import create_event_id, unpack_event_id
 from phoenix.server.api.types.Experiment import Experiment
+from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
 from phoenix.server.api.types.Model import Model
@@ -206,6 +207,19 @@ class Query:
                 updated_at=experiment.updated_at,
                 metadata=experiment.metadata_,
             )
+        elif type_name == ExperimentRun.__name__:
+            async with info.context.db() as session:
+                if not (
+                    run := await session.scalar(
+                        select(models.ExperimentRun)
+                        .where(models.ExperimentRun.id == node_id)
+                        .options(
+                            joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id)
+                        )
+                    )
+                ):
+                    raise ValueError(f"Unknown experiment run: {id}")
+            return to_gql_experiment_run(run)
         raise Exception(f"Unknown node type: {type_name}")
 
     @strawberry.field
