@@ -170,7 +170,6 @@ export function ExampleExperimentRunsTable({
     },
     [hasNext, isLoadingNext, loadNext]
   );
-  //   const navigate = useNavigate();
   return (
     <div
       css={css`
