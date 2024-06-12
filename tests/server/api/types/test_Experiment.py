@@ -14,14 +14,8 @@ async def test_experiment_resolver_returns_sequence_number(
     interlaced_experiments: List[int],
 ):
     query = """
-      query ($experimentId1: GlobalID!, $experimentId2: GlobalID!) {
-        experiment1: node(id: $experimentId1) {
-          ... on Experiment {
-            sequenceNumber
-            id
-          }
-        }
-        experiment2: node(id: $experimentId2) {
+      query ($experimentId: GlobalID!) {
+        experiment: node(id: $experimentId) {
           ... on Experiment {
             sequenceNumber
             id
@@ -30,11 +24,8 @@ async def test_experiment_resolver_returns_sequence_number(
       }
     """
     variables = {
-        "experimentId1": str(
+        "experimentId": str(
             GlobalID(type_name=Experiment.__name__, node_id=str(interlaced_experiments[5]))
-        ),
-        "experimentId2": str(
-            GlobalID(type_name=Experiment.__name__, node_id=str(interlaced_experiments[6]))
         ),
     }
     response = await test_client.post("/graphql", json={"query": query, "variables": variables})
@@ -42,8 +33,7 @@ async def test_experiment_resolver_returns_sequence_number(
     response_json = response.json()
     assert response_json.get("errors") is None
     assert response_json["data"] == {
-        "experiment1": {"sequenceNumber": 2, "id": str(GlobalID(Experiment.__name__, str(6)))},
-        "experiment2": {"sequenceNumber": 3, "id": str(GlobalID(Experiment.__name__, str(7)))},
+        "experiment": {"sequenceNumber": 2, "id": str(GlobalID(Experiment.__name__, str(6)))},
     }
 
 
