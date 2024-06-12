@@ -63,6 +63,7 @@ from phoenix.server.api.dataloaders import (
     DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
     EvaluationSummaryDataLoader,
+    ExperimentSequenceNumberDataLoader,
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
     RecordCountDataLoader,
@@ -200,6 +201,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
                     if self.cache_for_dataloaders
                     else None,
                 ),
+                experiment_sequence_number=ExperimentSequenceNumberDataLoader(self.db),
                 latency_ms_quantile=LatencyMsQuantileDataLoader(
                     self.db,
                     cache_map=self.cache_for_dataloaders.latency_ms_quantile
