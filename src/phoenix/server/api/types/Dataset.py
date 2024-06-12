@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 import strawberry
-from sqlalchemy import and_, desc, func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.sql.functions import count
 from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node, NodeID
@@ -54,10 +54,10 @@ class Dataset(Node):
             if sort:
                 # For now assume the the column names match 1:1 with the enum values
                 sort_col = getattr(models.DatasetVersion, sort.col.value)
-                sort_expr = sort_col
                 if sort.dir is SortDir.desc:
-                    sort_expr = desc(sort_col)
-                stmt = stmt.order_by(sort_expr)
+                    stmt = stmt.order_by(sort_col.desc()).order_by(models.DatasetVersion.id.desc())
+                else:
+                    stmt = stmt.order_by(sort_col.asc()).order_by(models.DatasetVersion.id.asc())
             else:
                 stmt = stmt.order_by(models.DatasetVersion.created_at.desc())
             versions = await session.scalars(stmt)
