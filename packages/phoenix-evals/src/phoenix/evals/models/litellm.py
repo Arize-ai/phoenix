@@ -56,7 +56,7 @@ class LiteLLMModel(BaseModel):
     def _init_environment(self) -> None:
         try:
             import litellm
-            from litellm.utils import validate_environment
+            from litellm import validate_environment
 
             self._litellm = litellm
             env_info = validate_environment(self.model)
