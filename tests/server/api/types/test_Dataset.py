@@ -420,22 +420,22 @@ class TestDatasetExamplesResolver:
                 {
                     "version": {
                         "id": str(GlobalID("DatasetVersion", str(1))),
-                        "description": None,
-                        "metadata": {},
+                        "description": "version-1-description",
+                        "metadata": {"version-1-metadata-key": "version-1-metadata-value"},
                     }
                 },
                 {
                     "version": {
                         "id": str(GlobalID("DatasetVersion", str(2))),
-                        "description": None,
-                        "metadata": {},
+                        "description": "version-2-description",
+                        "metadata": {"version-2-metadata-key": "version-2-metadata-value"},
                     }
                 },
                 {
                     "version": {
                         "id": str(GlobalID("DatasetVersion", str(3))),
-                        "description": None,
-                        "metadata": {},
+                        "description": "version-3-description",
+                        "metadata": {"version-3-metadata-key": "version-3-metadata-value"},
                     }
                 },
             ],
@@ -447,22 +447,22 @@ class TestDatasetExamplesResolver:
                 {
                     "version": {
                         "id": str(GlobalID("DatasetVersion", str(3))),
-                        "description": None,
-                        "metadata": {},
+                        "description": "version-3-description",
+                        "metadata": {"version-3-metadata-key": "version-3-metadata-value"},
                     }
                 },
                 {
                     "version": {
                         "id": str(GlobalID("DatasetVersion", str(2))),
-                        "description": None,
-                        "metadata": {},
+                        "description": "version-2-description",
+                        "metadata": {"version-2-metadata-key": "version-2-metadata-value"},
                     }
                 },
                 {
                     "version": {
                         "id": str(GlobalID("DatasetVersion", str(1))),
-                        "description": None,
-                        "metadata": {},
+                        "description": "version-1-description",
+                        "metadata": {"version-1-metadata-key": "version-1-metadata-value"},
                     }
                 },
             ],
@@ -666,8 +666,8 @@ async def dataset_with_three_versions(session):
     dataset_version_1 = models.DatasetVersion(
         id=1,
         dataset_id=1,
-        description=None,
-        metadata_={},
+        description="version-1-description",
+        metadata_={"version-1-metadata-key": "version-1-metadata-value"},
         created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
     )
     session.add(dataset_version_1)
@@ -688,8 +688,8 @@ async def dataset_with_three_versions(session):
     dataset_version_2 = models.DatasetVersion(
         id=2,
         dataset_id=1,
-        description=None,
-        metadata_={},
+        description="version-2-description",
+        metadata_={"version-2-metadata-key": "version-2-metadata-value"},
         created_at=datetime(
             year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
         ),  # same created_at as version 1
@@ -700,8 +700,8 @@ async def dataset_with_three_versions(session):
     dataset_version_3 = models.DatasetVersion(
         id=3,
         dataset_id=1,
-        description=None,
-        metadata_={},
+        description="version-3-description",
+        metadata_={"version-3-metadata-key": "version-3-metadata-value"},
         created_at=datetime(
             year=2020, month=1, day=1, hour=0, minute=1, tzinfo=pytz.utc
         ),  # created one minute after version 2
