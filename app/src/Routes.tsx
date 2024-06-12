@@ -18,6 +18,7 @@ import {
   ExamplePage,
   examplesLoader,
   ExamplesPage,
+  ExperimentComparePage,
   experimentsLoader,
   ExperimentsPage,
   homeLoader,
@@ -94,25 +95,33 @@ const router = createBrowserRouter(
           handle={{
             crumb: (data: datasetLoaderQuery$data) => data.dataset.name,
           }}
-          element={<DatasetPage />}
         >
-          <Route
-            index
-            element={<ExperimentsPage />}
-            loader={experimentsLoader}
-          />
-          <Route
-            path="experiments"
-            element={<ExperimentsPage />}
-            loader={experimentsLoader}
-          />
-          <Route
-            path="examples"
-            element={<ExamplesPage />}
-            loader={examplesLoader}
-          >
-            <Route path=":exampleId" element={<ExamplePage />} />
+          <Route element={<DatasetPage />} loader={datasetLoader}>
+            <Route
+              index
+              element={<ExperimentsPage />}
+              loader={experimentsLoader}
+            />
+            <Route
+              path="experiments"
+              element={<ExperimentsPage />}
+              loader={experimentsLoader}
+            />
+            <Route
+              path="examples"
+              element={<ExamplesPage />}
+              loader={examplesLoader}
+            >
+              <Route path=":exampleId" element={<ExamplePage />} />
+            </Route>
           </Route>
+          <Route
+            path="compare"
+            handle={{
+              crumb: () => "compare",
+            }}
+            element={<ExperimentComparePage />}
+          />
         </Route>
       </Route>
       <Route
