@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useNavigate, useParams } from "react-router";
 import { json } from "@codemirror/lang-json";
 import { EditorView } from "@codemirror/view";
@@ -14,14 +15,17 @@ import {
   Dialog,
   DialogContainer,
   Flex,
+  Heading,
   View,
 } from "@arizeai/components";
 
 import { CopyToClipboardButton } from "@phoenix/components";
+import { resizeHandleCSS } from "@phoenix/components/resize";
 import { useTheme } from "@phoenix/contexts";
 
 import type { ExamplePageQuery } from "./__generated__/ExamplePageQuery.graphql";
 import { EditExampleButton } from "./EditExampleButton";
+import { ExampleExperimentRunsTable } from "./ExampleExperimentRunsTable";
 
 /**
  * A page that shows the details of a dataset example.
@@ -50,6 +54,7 @@ export function ExamplePage() {
               }
             }
           }
+          ...ExampleExperimentRunsTableFragment
         }
       }
     `,
@@ -111,40 +116,67 @@ export function ExamplePage() {
           </Flex>
         }
       >
-        <div
-          css={css`
-            overflow-y: auto;
-            padding: var(--ac-global-dimension-size-400);
-          `}
-        >
-          <Flex direction="row" justifyContent="center">
-            <View width="900px" paddingStart="auto" paddingEnd="auto">
-              <Flex direction="column" gap="size-200">
-                <Card
-                  title="Input"
-                  {...defaultCardProps}
-                  extra={<CopyToClipboardButton text={input} />}
+        <PanelGroup direction="vertical" autoSaveId="example-panel-group">
+          <Panel defaultSize={200}>
+            <div
+              css={css`
+                overflow-y: auto;
+                height: 100%;
+              `}
+            >
+              <Flex direction="row" justifyContent="center">
+                <View
+                  width="900px"
+                  paddingStart="auto"
+                  paddingEnd="auto"
+                  paddingTop="size-200"
+                  paddingBottom="size-200"
                 >
-                  <JSONBlock>{input}</JSONBlock>
-                </Card>
-                <Card
-                  title="Output"
-                  {...defaultCardProps}
-                  extra={<CopyToClipboardButton text={output} />}
-                >
-                  <JSONBlock>{output}</JSONBlock>
-                </Card>
-                <Card
-                  title="Metadata"
-                  {...defaultCardProps}
-                  extra={<CopyToClipboardButton text={metadata} />}
-                >
-                  <JSONBlock>{metadata}</JSONBlock>
-                </Card>
+                  <Flex direction="column" gap="size-200">
+                    <Card
+                      title="Input"
+                      {...defaultCardProps}
+                      extra={<CopyToClipboardButton text={input} />}
+                    >
+                      <JSONBlock>{input}</JSONBlock>
+                    </Card>
+                    <Card
+                      title="Output"
+                      {...defaultCardProps}
+                      extra={<CopyToClipboardButton text={output} />}
+                    >
+                      <JSONBlock>{output}</JSONBlock>
+                    </Card>
+                    <Card
+                      title="Metadata"
+                      {...defaultCardProps}
+                      extra={<CopyToClipboardButton text={metadata} />}
+                    >
+                      <JSONBlock>{metadata}</JSONBlock>
+                    </Card>
+                  </Flex>
+                </View>
               </Flex>
-            </View>
-          </Flex>
-        </div>
+            </div>
+          </Panel>
+          <PanelResizeHandle css={resizeHandleCSS} />
+          <Panel defaultSize={100}>
+            <Flex direction="column" height="100%">
+              <View
+                paddingStart="size-200"
+                paddingEnd="size-200"
+                paddingTop="size-100"
+                paddingBottom="size-100"
+                borderBottomColor="dark"
+                borderBottomWidth="thin"
+                flex="none"
+              >
+                <Heading level={3}>Experiment Runs</Heading>
+              </View>
+              <ExampleExperimentRunsTable example={data.example} />
+            </Flex>
+          </Panel>
+        </PanelGroup>
       </Dialog>
     </DialogContainer>
   );
