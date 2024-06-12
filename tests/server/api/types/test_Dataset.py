@@ -474,7 +474,7 @@ async def test_versions_resolver_returns_versions_in_correct_order(
     sort_direction, expected_versions, test_client, dataset_with_three_versions
 ):
     query = """
-      query compare($datasetId: GlobalID!, $dir: SortDir!, $col: DatasetVersionColumn!) {
+      query ($datasetId: GlobalID!, $dir: SortDir!, $col: DatasetVersionColumn!) {
         dataset: node(id: $datasetId) {
           ... on Dataset {
             versions(sort: {dir: $dir, col: $col}) {
