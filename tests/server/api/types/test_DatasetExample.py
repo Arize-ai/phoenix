@@ -89,19 +89,22 @@ async def test_dataset_example_span_resolver(
     }
 
 
-async def test_dataset_example_experiments_resolver_returns_relevant_experiments(
-    test_client, dataset_with_example_and_experiment
+async def test_dataset_example_experiment_runs_resolver_returns_relevant_runs(
+    test_client, example_with_experiment_runs
 ) -> None:
     query = """
       query ($exampleId: GlobalID!) {
         example: node(id: $exampleId) {
           ... on DatasetExample {
-            experiments {
+            experimentRuns {
               edges {
-                experiment: node {
+                run: node {
                   id
-                  description
-                  metadata
+                  traceId
+                  output
+                  startTime
+                  endTime
+                  error
                 }
               }
             }
@@ -123,15 +126,28 @@ async def test_dataset_example_experiments_resolver_returns_relevant_experiments
     assert response_json.get("errors") is None
     assert response_json["data"] == {
         "example": {
-            "experiments": {
+            "experimentRuns": {
                 "edges": [
                     {
-                        "experiment": {
-                            "id": str(GlobalID("Experiment", str(1))),
-                            "description": "experiment-1-description",
-                            "metadata": {"metadata": "experiment-1-metadata"},
+                        "run": {
+                            "id": str(GlobalID("ExperimentRun", str(2))),
+                            "traceId": None,
+                            "output": {"output": "experiment-2-run-1-output"},
+                            "startTime": "2020-01-01T00:00:00+00:00",
+                            "endTime": "2020-01-01T00:01:00+00:00",
+                            "error": None,
                         }
-                    }
+                    },
+                    {
+                        "run": {
+                            "id": str(GlobalID("ExperimentRun", str(1))),
+                            "traceId": None,
+                            "output": {"output": "experiment-1-run-1-output"},
+                            "startTime": "2020-01-01T00:00:00+00:00",
+                            "endTime": "2020-01-01T00:01:00+00:00",
+                            "error": None,
+                        }
+                    },
                 ]
             }
         }
@@ -234,10 +250,10 @@ async def dataset_with_span_and_nonspan_examples(session):
 
 
 @pytest.fixture
-async def dataset_with_example_and_experiment(session) -> None:
+async def example_with_experiment_runs(session) -> None:
     """
-    A dataset with a single example and two experiments, one that uses the
-    example and one that does not.
+    A dataset with a single example and two experiments that use the example in
+    their runs.
     """
 
     # insert dataset
@@ -286,7 +302,7 @@ async def dataset_with_example_and_experiment(session) -> None:
     )
 
     # insert an experiment
-    experiment_id = await session.scalar(
+    experiment_1_id = await session.scalar(
         insert(models.Experiment)
         .returning(models.Experiment.id)
         .values(
@@ -300,20 +316,33 @@ async def dataset_with_example_and_experiment(session) -> None:
     # insert an experiment run on the example
     await session.execute(
         insert(models.ExperimentRun).values(
-            experiment_id=experiment_id,
+            experiment_id=experiment_1_id,
             dataset_example_id=example_id,
-            output={"output": "experiment-run-output"},
+            output={"output": "experiment-1-run-1-output"},
             start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
             end_time=datetime(year=2020, month=1, day=1, hour=0, minute=1, tzinfo=pytz.utc),
         )
     )
 
-    # insert an unused experiment
-    await session.execute(
-        insert(models.Experiment).values(
+    # insert a second experiment
+    experiment_2_id = await session.scalar(
+        insert(models.Experiment)
+        .returning(models.Experiment.id)
+        .values(
             dataset_id=dataset_id,
             dataset_version_id=version_id,
             description="experiment-2-description",
             metadata_={"metadata": "experiment-2-metadata"},
+        )
+    )
+
+    # insert another run on the example
+    await session.execute(
+        insert(models.ExperimentRun).values(
+            experiment_id=experiment_2_id,
+            dataset_example_id=example_id,
+            output={"output": "experiment-2-run-1-output"},
+            start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            end_time=datetime(year=2020, month=1, day=1, hour=0, minute=1, tzinfo=pytz.utc),
         )
     )
