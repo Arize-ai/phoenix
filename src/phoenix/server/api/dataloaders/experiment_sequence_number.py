@@ -29,21 +29,21 @@ class ExperimentSequenceNumberDataLoader(DataLoader[Key, Result]):
             .where(models.Experiment.id.in_(experiment_ids))
             .scalar_subquery()
         )
-        ordinality = (
+        row_number = (
             func.row_number().over(
                 partition_by=models.Experiment.dataset_id,
                 order_by=models.Experiment.id,
             )
-        ).label("ordinality")
+        ).label("row_number")
         subq = (
-            select(models.Experiment.id, ordinality)
+            select(models.Experiment.id, row_number)
             .where(models.Experiment.dataset_id.in_(dataset_ids))
             .subquery()
         )
         stmt = select(subq).where(subq.c.id.in_(experiment_ids))
         async with self._db() as session:
             result = {
-                experiment_id: seq_num
-                async for experiment_id, seq_num in await session.stream(stmt)
+                experiment_id: sequence_number
+                async for experiment_id, sequence_number in await session.stream(stmt)
             }
         return [result.get(experiment_id) for experiment_id in experiment_ids]

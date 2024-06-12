@@ -221,18 +221,16 @@ class Dataset(Node):
             before=before if isinstance(before, CursorString) else None,
         )
         dataset_id = self.id_attr
+        row_number = func.row_number().over(order_by=models.Experiment.id).label("row_number")
         query = (
-            select(
-                models.Experiment,
-                func.row_number().over(order_by=models.Experiment.id).label("ordinality"),
-            )
+            select(models.Experiment, row_number)
             .where(models.Experiment.dataset_id == dataset_id)
             .order_by(models.Experiment.id.desc())
         )
         async with info.context.db() as session:
             experiments = [
-                to_gql_experiment(experiment, ordinality)
-                async for experiment, ordinality in cast(
+                to_gql_experiment(experiment, sequence_number)
+                async for experiment, sequence_number in cast(
                     AsyncIterable[Tuple[models.Experiment, int]],
                     await session.stream(query),
                 )
