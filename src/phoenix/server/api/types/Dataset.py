@@ -223,8 +223,8 @@ class Dataset(Node):
         dataset_id = self.id_attr
         query = (
             select(
-                (func.row_number().over(order_by=models.Experiment.id)).label("ordinality"),
                 models.Experiment,
+                func.row_number().over(order_by=models.Experiment.id).label("ordinality"),
             )
             .where(models.Experiment.dataset_id == dataset_id)
             .order_by(models.Experiment.id.desc())
@@ -232,8 +232,8 @@ class Dataset(Node):
         async with info.context.db() as session:
             experiments = [
                 to_gql_experiment(experiment, ordinality)
-                async for ordinality, experiment in cast(
-                    AsyncIterable[Tuple[int, models.Experiment]],
+                async for experiment, ordinality in cast(
+                    AsyncIterable[Tuple[models.Experiment, int]],
                     await session.stream(query),
                 )
             ]
