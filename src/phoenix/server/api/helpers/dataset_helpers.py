@@ -1,9 +1,13 @@
-from typing import Any, Dict, Literal, Optional, Protocol
+from typing import Any, Dict, Literal, Mapping, Optional, Protocol
 
 from openinference.semconv.trace import (
+    MessageAttributes,
     OpenInferenceMimeTypeValues,
     OpenInferenceSpanKindValues,
+    ToolCallAttributes,
 )
+
+from phoenix.trace.attributes import get_attribute_value
 
 
 class HasSpanIO(Protocol):
@@ -79,10 +83,10 @@ def _get_llm_span_input(
     The input is extracted from the input messages (if present) and prompt
     template variables (if present).
     """
-    input: Dict[str, Any]
-    if input_messages is not None:
-        input = {"input_messages": input_messages}
-    else:
+    input: Dict[str, Any] = {}
+    if messages := [_get_message(m) for m in input_messages or ()]:
+        input["messages"] = messages
+    if not input:
         input = _get_generic_io_value(io_value=input_value, mime_type=input_mime_type, kind="input")
     if prompt_template_variables:
         input = {**input, "prompt_template_variables": prompt_template_variables}
@@ -98,8 +102,8 @@ def _get_llm_span_output(
     Extracts the output value from an LLM span and returns it as a dictionary.
     The output is extracted from the output messages (if present).
     """
-    if output_messages is not None:
-        return {"output_messages": output_messages}
+    if messages := [_get_message(m) for m in output_messages or ()]:
+        return {"messages": messages}
     return _get_generic_io_value(io_value=output_value, mime_type=output_mime_type, kind="output")
 
 
@@ -133,3 +137,42 @@ def _get_generic_io_value(
     ):
         return io_value
     return {}
+
+
+def _get_message(message: Mapping[str, Any]) -> Dict[str, Any]:
+    content = get_attribute_value(message, MESSAGE_CONTENT)
+    name = get_attribute_value(message, MESSAGE_NAME)
+    function_call_name = get_attribute_value(message, MESSAGE_FUNCTION_CALL_NAME)
+    function_call_arguments = get_attribute_value(message, MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON)
+    function_call = (
+        {"name": function_call_name, "arguments": function_call_arguments}
+        if function_call_name is not None and function_call_arguments is not None
+        else None
+    )
+    tool_calls = [
+        {
+            "function": {
+                "name": get_attribute_value(tool_call, TOOL_CALL_FUNCTION_NAME),
+                "arguments": get_attribute_value(tool_call, TOOL_CALL_FUNCTION_ARGUMENTS_JSON),
+            }
+        }
+        for tool_call in get_attribute_value(message, MESSAGE_TOOL_CALLS) or []
+    ]
+    return {
+        "role": get_attribute_value(message, MESSAGE_ROLE),
+        **({"content": content} if content is not None else {}),
+        **({"name": name} if name is not None else {}),
+        **({"function_call": function_call} if function_call is not None else {}),
+        **({"tool_calls": tool_calls} if tool_calls else {}),
+    }
+
+
+MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
+MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON = MessageAttributes.MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON
+MESSAGE_FUNCTION_CALL_NAME = MessageAttributes.MESSAGE_FUNCTION_CALL_NAME
+MESSAGE_NAME = MessageAttributes.MESSAGE_NAME
+MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
+MESSAGE_TOOL_CALLS = MessageAttributes.MESSAGE_TOOL_CALLS
+
+TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
+TOOL_CALL_FUNCTION_ARGUMENTS_JSON = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
