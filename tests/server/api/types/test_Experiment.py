@@ -1,10 +1,40 @@
 from datetime import datetime
+from typing import List
 
 import pytest
 import pytz
 from phoenix.db import models
+from phoenix.server.api.types.Experiment import Experiment
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
+
+
+async def test_experiment_resolver_returns_sequence_number(
+    test_client,
+    interlaced_experiments: List[int],
+):
+    query = """
+      query ($experimentId: GlobalID!) {
+        experiment: node(id: $experimentId) {
+          ... on Experiment {
+            sequenceNumber
+            id
+          }
+        }
+      }
+    """
+    variables = {
+        "experimentId": str(
+            GlobalID(type_name=Experiment.__name__, node_id=str(interlaced_experiments[5]))
+        ),
+    }
+    response = await test_client.post("/graphql", json={"query": query, "variables": variables})
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json.get("errors") is None
+    assert response_json["data"] == {
+        "experiment": {"sequenceNumber": 2, "id": str(GlobalID(Experiment.__name__, str(6)))},
+    }
 
 
 async def test_runs_resolver_returns_runs_for_experiment(test_client, dataset_with_experiment_runs):

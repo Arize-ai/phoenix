@@ -61,6 +61,7 @@ export function ExperimentsTable({
           edges {
             experiment: node {
               id
+              sequenceNumber
               description
               createdAt
               metadata
@@ -102,6 +103,10 @@ export function ExperimentsTable({
           }}
         />
       ),
+    },
+    {
+      header: "#",
+      accessorKey: "sequenceNumber",
     },
     {
       header: "id",

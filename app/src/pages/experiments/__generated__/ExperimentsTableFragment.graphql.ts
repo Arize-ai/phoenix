@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<409b22183c1a5e0dce67467eb8215455>>
+ * @generated SignedSource<<54177abb64bd83986373e4ebc980727f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,6 +18,7 @@ export type ExperimentsTableFragment$data = {
         readonly description: string | null;
         readonly id: string;
         readonly metadata: any;
+        readonly sequenceNumber: number;
       };
     }>;
   };
@@ -113,6 +114,13 @@ return {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
+                  "name": "sequenceNumber",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
                   "name": "description",
                   "storageKey": null
                 },
@@ -196,6 +204,6 @@ return {
 };
 })();
 
-(node as any).hash = "2b1de639b7e4ce002a0eab37585d3b1e";
+(node as any).hash = "d376c68cfc6b9cb90260e59eec37e7cb";
 
 export default node;
