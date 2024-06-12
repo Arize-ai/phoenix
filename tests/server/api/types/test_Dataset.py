@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import List
 
 import pytest
 import pytz
@@ -480,7 +481,7 @@ class TestDatasetExperimentsResolver:
     async def test_experiments_have_sequence_number(
         self,
         test_client,
-        datasets_with_interlaced_experiments,
+        interlaced_experiments: List[int],
     ) -> None:
         variables = {"datasetId": str(GlobalID("Dataset", str(2)))}
         response = await test_client.post(
@@ -491,6 +492,7 @@ class TestDatasetExperimentsResolver:
         response_json = response.json()
         assert response_json.get("errors") is None
         edges = [
+            {"node": {"sequenceNumber": 4, "id": str(GlobalID(Experiment.__name__, str(11)))}},
             {"node": {"sequenceNumber": 3, "id": str(GlobalID(Experiment.__name__, str(8)))}},
             {"node": {"sequenceNumber": 2, "id": str(GlobalID(Experiment.__name__, str(5)))}},
             {"node": {"sequenceNumber": 1, "id": str(GlobalID(Experiment.__name__, str(2)))}},
@@ -731,37 +733,5 @@ async def dataset_with_deletion(session):
         [
             {"dataset_id": 1, "dataset_version_id": 1, "metadata_": {}},
             {"dataset_id": 1, "dataset_version_id": 2, "metadata_": {}},
-        ],
-    )
-
-
-@pytest.fixture
-async def datasets_with_interlaced_experiments(session):
-    dataset_ids = list(
-        await session.scalars(
-            insert(models.Dataset).returning(models.Dataset.id),
-            [{"name": f"{i}", "metadata_": {}} for i in range(3)],
-        )
-    )
-    dataset_version_ids = {
-        dataset_id: dataset_version_id
-        for dataset_id, dataset_version_id in await session.execute(
-            insert(models.DatasetVersion).returning(
-                models.DatasetVersion.dataset_id,
-                models.DatasetVersion.id,
-            ),
-            [{"dataset_id": dataset_id, "metadata_": {}} for dataset_id in dataset_ids],
-        )
-    }
-    await session.scalars(
-        insert(models.Experiment).returning(models.Experiment.id),
-        [
-            {
-                "dataset_id": dataset_id,
-                "dataset_version_id": dataset_version_ids[dataset_id],
-                "metadata_": {},
-            }
-            for _ in range(3)
-            for dataset_id in dataset_ids
         ],
     )

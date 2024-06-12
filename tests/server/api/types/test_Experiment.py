@@ -120,40 +120,6 @@ async def test_runs_resolver_returns_runs_for_experiment(test_client, dataset_wi
 
 
 @pytest.fixture
-async def interlaced_experiments(session) -> List[int]:
-    dataset_ids = list(
-        await session.scalars(
-            insert(models.Dataset).returning(models.Dataset.id),
-            [{"name": f"{i}", "metadata_": {}} for i in range(3)],
-        )
-    )
-    dataset_version_ids = {
-        dataset_id: dataset_version_id
-        for dataset_id, dataset_version_id in await session.execute(
-            insert(models.DatasetVersion).returning(
-                models.DatasetVersion.dataset_id,
-                models.DatasetVersion.id,
-            ),
-            [{"dataset_id": dataset_id, "metadata_": {}} for dataset_id in dataset_ids],
-        )
-    }
-    return list(
-        await session.scalars(
-            insert(models.Experiment).returning(models.Experiment.id),
-            [
-                {
-                    "dataset_id": dataset_id,
-                    "dataset_version_id": dataset_version_ids[dataset_id],
-                    "metadata_": {},
-                }
-                for _ in range(4)
-                for dataset_id in dataset_ids
-            ],
-        )
-    )
-
-
-@pytest.fixture
 async def dataset_with_experiment_runs(session):
     """
     A dataset with an associated experiment with three runs: one that has no
