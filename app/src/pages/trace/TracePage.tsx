@@ -1310,8 +1310,8 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
   const messageStyles = useMemo<ViewStyleProps>(() => {
     if (role === "user") {
       return {
-        backgroundColor: "gray-600",
-        borderColor: "gray-100",
+        backgroundColor: "grey-100",
+        borderColor: "grey-700",
       };
     } else if (role === "assistant") {
       return {
@@ -1330,8 +1330,8 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
       };
     }
     return {
-      backgroundColor: "gray-600",
-      borderColor: "gray-400",
+      backgroundColor: "grey-100",
+      borderColor: "grey-700",
     };
   }, [role]);
 
