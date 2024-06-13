@@ -26,6 +26,3 @@ class Dataset:
     id: str
     version_id: str
     examples: List[Example]
-
-    def get_examples(self) -> List[Example]:
-        return self.examples

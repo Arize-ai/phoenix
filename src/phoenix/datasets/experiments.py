@@ -47,7 +47,8 @@ class DatasetProtocol(Protocol):
     @property
     def version_id(self) -> str: ...
 
-    def get_examples(self) -> List[ExampleProtocol]: ...
+    @property
+    def examples(self) -> List[ExampleProtocol]: ...
 
 
 @dataclass
@@ -163,7 +164,7 @@ def run_experiment(
         fallback_return_value=None,
     )
 
-    experiment_payloads, _execution_details = executor.run(dataset.get_examples())
+    experiment_payloads, _execution_details = executor.run(dataset.examples)
     for payload in experiment_payloads:
         if payload is not None:
             client.post(f"/v1/experiments/{experiment_id}/runs", json=payload)
