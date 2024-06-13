@@ -137,10 +137,24 @@ function DatasetPageContent({
                   case "csv":
                     window.open(`/v1/datasets/${dataset.id}/csv`, "_blank");
                     break;
+                  case "openai-ft":
+                    window.open(
+                      `/v1/datasets/${dataset.id}/jsonl/openai_ft`,
+                      "_blank"
+                    );
+                    break;
+                  case "openai-evals":
+                    window.open(
+                      `/v1/datasets/${dataset.id}/jsonl/openai_evals`,
+                      "_blank"
+                    );
+                    break;
                 }
               }}
             >
               <Item key="csv">Download CSV</Item>
+              <Item key="openai-ft">Download OpenAI Fine-Tuning JSONL</Item>
+              <Item key="openai-evals">Download OpenAI Evals JSONL</Item>
             </ActionMenu>
             <DatasetHistoryButton datasetId={dataset.id} />
             <DatasetCodeDropdown />
