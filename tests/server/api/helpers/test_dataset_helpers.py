@@ -32,12 +32,63 @@ class MockSpan:
                 output_value="plain-text-output",
                 output_mime_type="text/plain",
                 llm_prompt_template_variables={"variable_name": "variable-value"},
-                llm_input_messages=[{"content": "user-message", "role": "user"}],
-                llm_output_messages=[{"content": "assistant-message", "role": "assistant"}],
+                llm_input_messages=[
+                    {"message": {"content": "123", "role": "assistant", "name": "xyz"}},
+                    {"message": {"content": "user-message", "role": "user"}},
+                    {
+                        "message": {
+                            "role": "assistant",
+                            "function_call_name": "add",
+                            "function_call_arguments_json": '{"a": 363, "b": 42}',
+                        }
+                    },
+                    {"message": {"content": "user-message", "role": "user"}},
+                    {
+                        "message": {
+                            "role": "assistant",
+                            "tool_calls": [
+                                {
+                                    "tool_call": {
+                                        "function": {
+                                            "name": "multiply",
+                                            "arguments": '{"a": 121, "b": 3}',
+                                        }
+                                    }
+                                },
+                                {
+                                    "tool_call": {
+                                        "function": {
+                                            "name": "add",
+                                            "arguments": '{"a": 363, "b": 42}',
+                                        }
+                                    }
+                                },
+                            ],
+                        }
+                    },
+                ],
+                llm_output_messages=[
+                    {"message": {"content": "assistant-message", "role": "assistant"}}
+                ],
                 retrieval_documents=None,
             ),
             {
-                "input_messages": [{"content": "user-message", "role": "user"}],
+                "messages": [
+                    {"content": "123", "role": "assistant", "name": "xyz"},
+                    {"content": "user-message", "role": "user"},
+                    {
+                        "role": "assistant",
+                        "function_call": {"name": "add", "arguments": '{"a": 363, "b": 42}'},
+                    },
+                    {"content": "user-message", "role": "user"},
+                    {
+                        "role": "assistant",
+                        "tool_calls": [
+                            {"function": {"name": "multiply", "arguments": '{"a": 121, "b": 3}'}},
+                            {"function": {"name": "add", "arguments": '{"a": 363, "b": 42}'}},
+                        ],
+                    },
+                ],
                 "prompt_template_variables": {"variable_name": "variable-value"},
             },
             id="llm-span-with-input-messages-and-prompt-template-variables",
@@ -50,12 +101,14 @@ class MockSpan:
                 output_value="plain-text-output",
                 output_mime_type="text/plain",
                 llm_prompt_template_variables=None,
-                llm_input_messages=[{"content": "user-message", "role": "user"}],
-                llm_output_messages=[{"content": "assistant-message", "role": "assistant"}],
+                llm_input_messages=[{"message": {"content": "user-message", "role": "user"}}],
+                llm_output_messages=[
+                    {"message": {"content": "assistant-message", "role": "assistant"}}
+                ],
                 retrieval_documents=None,
             ),
             {
-                "input_messages": [{"content": "user-message", "role": "user"}],
+                "messages": [{"content": "user-message", "role": "user"}],
             },
             id="llm-span-with-input-messages-and-no-prompt-template-variables",
         ),
@@ -68,7 +121,9 @@ class MockSpan:
                 output_mime_type="text/plain",
                 llm_prompt_template_variables=None,
                 llm_input_messages=None,
-                llm_output_messages=[{"content": "assistant-message", "role": "assistant"}],
+                llm_output_messages=[
+                    {"message": {"content": "assistant-message", "role": "assistant"}}
+                ],
                 retrieval_documents=None,
             ),
             {"input": "plain-text-input"},
@@ -83,7 +138,9 @@ class MockSpan:
                 output_mime_type="text/plain",
                 llm_prompt_template_variables={"variable_name": "variable-value"},
                 llm_input_messages=None,
-                llm_output_messages=[{"content": "assistant-message", "role": "assistant"}],
+                llm_output_messages=[
+                    {"message": {"content": "assistant-message", "role": "assistant"}}
+                ],
                 retrieval_documents=None,
             ),
             {
@@ -101,7 +158,9 @@ class MockSpan:
                 output_mime_type="text/plain",
                 llm_prompt_template_variables=None,
                 llm_input_messages=None,
-                llm_output_messages=[{"content": "assistant-message", "role": "assistant"}],
+                llm_output_messages=[
+                    {"message": {"content": "assistant-message", "role": "assistant"}}
+                ],
                 retrieval_documents=None,
             ),
             {"llm-span-input": "llm-input"},
@@ -116,7 +175,9 @@ class MockSpan:
                 output_mime_type="text/plain",
                 llm_prompt_template_variables=None,
                 llm_input_messages=None,
-                llm_output_messages=[{"content": "assistant-message", "role": "assistant"}],
+                llm_output_messages=[
+                    {"message": {"content": "assistant-message", "role": "assistant"}}
+                ],
                 retrieval_documents=None,
             ),
             {"input": "plain-text-input"},
@@ -131,7 +192,9 @@ class MockSpan:
                 output_mime_type="text/plain",
                 llm_prompt_template_variables=None,
                 llm_input_messages=None,
-                llm_output_messages=[{"content": "assistant-message", "role": "assistant"}],
+                llm_output_messages=[
+                    {"message": {"content": "assistant-message", "role": "assistant"}}
+                ],
                 retrieval_documents=None,
             ),
             {"chain_input": "chain-input"},
@@ -155,11 +218,13 @@ def test_get_dataset_example_input(span: MockSpan, expected_input_value: Dict[st
                 output_value="plain-text-output",
                 output_mime_type="text/plain",
                 llm_prompt_template_variables={"variable_name": "variable-value"},
-                llm_input_messages=[{"content": "user-message", "role": "user"}],
-                llm_output_messages=[{"content": "assistant-message", "role": "assistant"}],
+                llm_input_messages=[{"message": {"content": "user-message", "role": "user"}}],
+                llm_output_messages=[
+                    {"message": {"content": "assistant-message", "role": "assistant"}}
+                ],
                 retrieval_documents=None,
             ),
-            {"output_messages": [{"content": "assistant-message", "role": "assistant"}]},
+            {"messages": [{"content": "assistant-message", "role": "assistant"}]},
             id="llm-span-with-output-messages",
         ),
         pytest.param(
@@ -170,7 +235,7 @@ def test_get_dataset_example_input(span: MockSpan, expected_input_value: Dict[st
                 output_value="plain-text-output",
                 output_mime_type="text/plain",
                 llm_prompt_template_variables=None,
-                llm_input_messages=[{"content": "user-message", "role": "user"}],
+                llm_input_messages=[{"message": {"content": "user-message", "role": "user"}}],
                 llm_output_messages=None,
                 retrieval_documents=None,
             ),
