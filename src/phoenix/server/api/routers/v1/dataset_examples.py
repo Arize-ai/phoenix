@@ -46,6 +46,8 @@ async def list_dataset_examples(request: Request) -> Response:
                         type: object
                       metadata:
                         type: object
+      403:
+        description: Forbidden
       404:
         description: Dataset does not exist.
     """

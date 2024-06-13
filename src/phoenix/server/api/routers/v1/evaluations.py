@@ -116,6 +116,8 @@ async def get_evaluations(request: Request) -> Response:
     responses:
       200:
         description: Success
+      403:
+        description: Forbidden
       404:
         description: Not found
     """

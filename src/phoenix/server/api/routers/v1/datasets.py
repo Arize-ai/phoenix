@@ -104,6 +104,8 @@ async def list_datasets(request: Request) -> Response:
                       updated_at:
                         type: string
                         format: date-time
+      403:
+        description: Forbidden
       404:
         description: No datasets found
     """
@@ -186,6 +188,8 @@ async def get_dataset_by_id(request: Request) -> Response:
                   format: date-time
                 example_count:
                   type: integer
+      403:
+        description: Forbidden
       404:
         description: Dataset not found
     """
@@ -269,6 +273,8 @@ async def get_dataset_versions(request: Request) -> Response:
                       created_at:
                         type: string
                         format: date-time
+      403:
+        description: Forbidden
       422:
         description: Dataset ID, cursor or limit is invalid.
     """
@@ -611,6 +617,8 @@ async def get_dataset_csv(request: Request) -> Response:
               type: string
               contentMediaType: text/csv
               contentEncoding: gzip
+      403:
+        description: Forbidden
       404:
         description: Dataset does not exist.
       422:
@@ -658,6 +666,8 @@ async def get_dataset_jsonl_openai_ft(request: Request) -> Response:
               type: string
               contentMediaType: text/plain
               contentEncoding: gzip
+      403:
+        description: Forbidden
       404:
         description: Dataset does not exist.
       422:
@@ -705,6 +715,8 @@ async def get_dataset_jsonl_openai_evals(request: Request) -> Response:
               type: string
               contentMediaType: text/plain
               contentEncoding: gzip
+      403:
+        description: Forbidden
       404:
         description: Dataset does not exist.
       422:

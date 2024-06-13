@@ -26,6 +26,7 @@ from phoenix.server.api.input_types.PatchDatasetExamplesInput import (
     PatchDatasetExamplesInput,
 )
 from phoenix.server.api.input_types.PatchDatasetInput import PatchDatasetInput
+from phoenix.server.api.mutations.auth import IsAuthenticated
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -39,7 +40,7 @@ class DatasetMutationPayload:
 
 @strawberry.type
 class DatasetMutationMixin:
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
     async def create_dataset(
         self,
         info: Info[Context, None],
@@ -61,7 +62,7 @@ class DatasetMutationMixin:
             assert dataset is not None
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
     async def patch_dataset(
         self,
         info: Info[Context, None],
@@ -90,7 +91,7 @@ class DatasetMutationMixin:
             assert dataset is not None
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
     async def add_spans_to_dataset(
         self,
         info: Info[Context, None],
@@ -184,7 +185,7 @@ class DatasetMutationMixin:
             )
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
     async def add_examples_to_dataset(
         self, info: Info[Context, None], input: AddExamplesToDatasetInput
     ) -> DatasetMutationPayload:
@@ -269,7 +270,7 @@ class DatasetMutationMixin:
             )
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
     async def delete_dataset(
         self,
         info: Info[Context, None],
@@ -292,7 +293,7 @@ class DatasetMutationMixin:
         dataset = datasets[0]
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
     async def patch_dataset_examples(
         self,
         info: Info[Context, None],
@@ -384,7 +385,7 @@ class DatasetMutationMixin:
 
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
     async def delete_dataset_examples(
         self, info: Info[Context, None], input: DeleteDatasetExamplesInput
     ) -> DatasetMutationPayload:
