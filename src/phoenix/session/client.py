@@ -271,11 +271,13 @@ class Client(TraceDataExtractor):
                 urljoin(self._base_url, f"/v1/datasets/{quote(dataset_id)}/versions"),
                 params={"limit": 1},
             )
+            response.raise_for_status()
             version_id = response.json()["data"][0]["version_id"]
         response = self._client.get(
             urljoin(self._base_url, f"/v1/datasets/{quote(dataset_id)}/examples"),
             params={"version-id": version_id},
         )
+        response.raise_for_status()
         examples = [
             Example(
                 id=example["id"],
