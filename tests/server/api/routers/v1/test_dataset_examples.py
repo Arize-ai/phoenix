@@ -42,8 +42,12 @@ async def test_get_simple_dataset_examples(test_client, simple_dataset):
     response = await test_client.get(f"/v1/datasets/{global_id}/examples")
     assert response.status_code == 200
     result = response.json()
-    assert len(result) == 1
-    expected_values = [
+    data = result["data"]
+    assert data["dataset_id"] == str(GlobalID("Dataset", str(0)))
+    assert data["version_id"] == str(GlobalID("DatasetVersion", str(0)))
+    examples = data["examples"]
+    assert len(examples) == 1
+    expected_examples = [
         {
             "id": str(GlobalID("DatasetExample", str(0))),
             "input": {"in": "foo"},
@@ -51,7 +55,7 @@ async def test_get_simple_dataset_examples(test_client, simple_dataset):
             "metadata": {"info": "the first reivision"},
         }
     ]
-    for example, expected in zip(result, expected_values):
+    for example, expected in zip(examples, expected_examples):
         assert "updated_at" in example
         example_subset = {k: v for k, v in example.items() if k in expected}
         assert example_subset == expected
@@ -67,7 +71,8 @@ async def test_list_simple_dataset_examples_at_each_version(test_client, simple_
     )
     assert response.status_code == 200
     result = response.json()
-    assert len(result) == 1
+    data = result["data"]
+    assert len(data["examples"]) == 1
 
 
 async def test_list_empty_dataset_examples(test_client, empty_dataset):
@@ -75,7 +80,8 @@ async def test_list_empty_dataset_examples(test_client, empty_dataset):
     response = await test_client.get(f"/v1/datasets/{global_id}/examples")
     assert response.status_code == 200
     result = response.json()
-    assert len(result) == 0
+    data = result["data"]
+    assert len(data["examples"]) == 0
 
 
 async def test_list_empty_dataset_examples_at_each_version(test_client, empty_dataset):
@@ -90,7 +96,8 @@ async def test_list_empty_dataset_examples_at_each_version(test_client, empty_da
     )
     assert response.status_code == 200
     result = response.json()
-    assert len(result) == 2
+    data = result["data"]
+    assert len(data["examples"]) == 2
 
     # two examples are patched in version 2
     response = await test_client.get(
@@ -98,7 +105,8 @@ async def test_list_empty_dataset_examples_at_each_version(test_client, empty_da
     )
     assert response.status_code == 200
     result = response.json()
-    assert len(result) == 2
+    data = result["data"]
+    assert len(data["examples"]) == 2
 
     # two examples are deleted in version 3
     response = await test_client.get(
@@ -106,7 +114,8 @@ async def test_list_empty_dataset_examples_at_each_version(test_client, empty_da
     )
     assert response.status_code == 200
     result = response.json()
-    assert len(result) == 0
+    data = result["data"]
+    assert len(data["examples"]) == 0
 
 
 async def test_list_dataset_with_revisions_examples(test_client, dataset_with_revisions):
@@ -114,7 +123,11 @@ async def test_list_dataset_with_revisions_examples(test_client, dataset_with_re
     response = await test_client.get(f"/v1/datasets/{global_id}/examples")
     assert response.status_code == 200
     result = response.json()
-    assert len(result) == 3
+    data = result["data"]
+    assert data["dataset_id"] == str(GlobalID("Dataset", str(2)))
+    assert data["version_id"] == str(GlobalID("DatasetVersion", str(9)))
+    examples = data["examples"]
+    assert len(examples) == 3
     expected_values = [
         {
             "id": str(GlobalID("DatasetExample", str(3))),
@@ -135,7 +148,7 @@ async def test_list_dataset_with_revisions_examples(test_client, dataset_with_re
             "metadata": {"info": "a new example"},
         },
     ]
-    for example, expected in zip(result, expected_values):
+    for example, expected in zip(examples, expected_values):
         assert "updated_at" in example
         example_subset = {k: v for k, v in example.items() if k in expected}
         assert example_subset == expected
@@ -158,7 +171,8 @@ async def test_list_dataset_with_revisions_examples_at_each_version(
     )
     assert response.status_code == 200
     result = response.json()
-    assert len(result) == 2
+    data = result["data"]
+    assert len(data["examples"]) == 2
 
     # two examples are patched in version 5
     response = await test_client.get(
@@ -166,7 +180,8 @@ async def test_list_dataset_with_revisions_examples_at_each_version(
     )
     assert response.status_code == 200
     result = response.json()
-    assert len(result) == 3
+    data = result["data"]
+    assert len(data["examples"]) == 3
 
     # one example is added in version 6
     response = await test_client.get(
@@ -174,7 +189,8 @@ async def test_list_dataset_with_revisions_examples_at_each_version(
     )
     assert response.status_code == 200
     result = response.json()
-    assert len(result) == 4
+    data = result["data"]
+    assert len(data["examples"]) == 4
 
     # one example is deleted in version 7
     response = await test_client.get(
@@ -182,7 +198,8 @@ async def test_list_dataset_with_revisions_examples_at_each_version(
     )
     assert response.status_code == 200
     result = response.json()
-    assert len(result) == 3
+    data = result["data"]
+    assert len(data["examples"]) == 3
 
     # one example is added in version 8
     response = await test_client.get(
@@ -190,7 +207,8 @@ async def test_list_dataset_with_revisions_examples_at_each_version(
     )
     assert response.status_code == 200
     result = response.json()
-    assert len(result) == 4
+    data = result["data"]
+    assert len(data["examples"]) == 4
 
     # one example is deleted in version 9
     response = await test_client.get(
@@ -198,4 +216,5 @@ async def test_list_dataset_with_revisions_examples_at_each_version(
     )
     assert response.status_code == 200
     result = response.json()
-    assert len(result) == 3
+    data = result["data"]
+    assert len(data["examples"]) == 3
