@@ -48,6 +48,8 @@ paths:
                     type: string
                 type: object
           description: A paginated list of datasets
+        403:
+          description: Forbidden
         404:
           description: No datasets found
       summary: List datasets with cursor-based pagination
@@ -144,6 +146,8 @@ paths:
                     type: string
                 type: object
           description: Success
+        403:
+          description: Forbidden
         404:
           description: Dataset not found
       summary: Get dataset by ID
@@ -173,6 +177,8 @@ paths:
                 contentMediaType: text/csv
                 type: string
           description: Success
+        403:
+          description: Forbidden
         404:
           description: Dataset does not exist.
         422:
@@ -216,6 +222,8 @@ paths:
                     type: array
                 type: object
           description: Success
+        403:
+          description: Forbidden
         404:
           description: Dataset does not exist.
       summary: Get dataset examples by dataset ID
@@ -245,6 +253,8 @@ paths:
                 contentMediaType: text/plain
                 type: string
           description: Success
+        403:
+          description: Forbidden
         404:
           description: Dataset does not exist.
         422:
@@ -276,6 +286,8 @@ paths:
                 contentMediaType: text/plain
                 type: string
           description: Success
+        403:
+          description: Forbidden
         404:
           description: Dataset does not exist.
         422:
@@ -328,6 +340,8 @@ paths:
                     type: string
                 type: object
           description: Success
+        403:
+          description: Forbidden
         422:
           description: Dataset ID, cursor or limit is invalid.
       summary: Get dataset versions (sorted from latest to oldest)
@@ -346,6 +360,8 @@ paths:
       responses:
         200:
           description: Success
+        403:
+          description: Forbidden
         404:
           description: Not found
       summary: Get evaluations from Phoenix
@@ -435,6 +451,8 @@ paths:
       responses:
         200:
           description: Success
+        403:
+          description: Forbidden
         404:
           description: Not found
         422:
