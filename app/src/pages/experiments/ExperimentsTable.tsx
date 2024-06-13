@@ -1,5 +1,6 @@
-import React, { useCallback, useMemo, useRef } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
+import { useNavigate } from "react-router";
 // import { useNavigate } from "react-router";
 import {
   ColumnDef,
@@ -9,7 +10,9 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-// import { Link } from "@phoenix/components/Link";
+import { Label } from "@arizeai/components";
+
+import { Link } from "@phoenix/components/Link";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
@@ -17,6 +20,7 @@ import { TextCell } from "@phoenix/components/table/TextCell";
 import { experimentsLoaderQuery$data } from "./__generated__/experimentsLoaderQuery.graphql";
 import type { ExperimentsTableFragment$key } from "./__generated__/ExperimentsTableFragment.graphql";
 import { ExperimentsTableQuery } from "./__generated__/ExperimentsTableQuery.graphql";
+import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
 
 const PAGE_SIZE = 100;
 
@@ -45,6 +49,7 @@ export function ExperimentsTable({
   dataset: experimentsLoaderQuery$data["dataset"];
 }) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [rowSelection, setRowSelection] = useState({});
   const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
     ExperimentsTableQuery,
     ExperimentsTableFragment$key
@@ -107,14 +112,23 @@ export function ExperimentsTable({
     {
       header: "#",
       accessorKey: "sequenceNumber",
+      cell: ({ getValue }) => {
+        return <Label color="yellow-1000">#{getValue() as number}</Label>;
+      },
     },
     {
       header: "id",
       accessorKey: "id",
-      //   cell: ({ getValue, row }) => {
-      //     const experimentId = row.original.id;
-      //     return <Link to={`experiments/${experimentId}`}>{getValue() as string}</Link>;
-      //   },
+      cell: ({ getValue, row }) => {
+        const experimentId = row.original.id;
+        return (
+          <Link
+            to={`/datasets/${dataset.id}/compare?experimentId=${experimentId}`}
+          >
+            {getValue() as string}
+          </Link>
+        );
+      },
     },
     {
       header: "description",
@@ -134,8 +148,18 @@ export function ExperimentsTable({
     columns,
     data: tableData,
     getCoreRowModel: getCoreRowModel(),
+    state: {
+      rowSelection,
+    },
+    onRowSelectionChange: setRowSelection,
   });
   const rows = table.getRowModel().rows;
+  const selectedRows = table.getSelectedRowModel().rows;
+  const selectedExperiments = selectedRows.map((row) => row.original);
+  const clearSelection = useCallback(() => {
+    setRowSelection({});
+  }, [setRowSelection]);
+
   const isEmpty = rows.length === 0;
 
   const fetchMoreOnBottomReached = useCallback(
@@ -154,7 +178,7 @@ export function ExperimentsTable({
     },
     [hasNext, isLoadingNext, loadNext]
   );
-  //   const navigate = useNavigate();
+  const navigate = useNavigate();
   return (
     <div
       css={css`
@@ -188,9 +212,11 @@ export function ExperimentsTable({
             {rows.map((row) => (
               <tr
                 key={row.id}
-                // onClick={() => {
-                //   navigate(`experiments/${row.original.id}`);
-                // }}
+                onClick={() => {
+                  navigate(
+                    `/datasets/${dataset.id}/compare?experimentsIds=${row.original.id}`
+                  );
+                }}
               >
                 {row.getVisibleCells().map((cell) => {
                   return (
@@ -207,6 +233,13 @@ export function ExperimentsTable({
           </tbody>
         )}
       </table>
+      {selectedRows.length ? (
+        <ExperimentSelectionToolbar
+          datasetId={dataset.id}
+          selectedExperiments={selectedExperiments}
+          onClearSelection={clearSelection}
+        />
+      ) : null}
     </div>
   );
 }
