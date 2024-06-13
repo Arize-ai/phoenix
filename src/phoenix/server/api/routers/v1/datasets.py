@@ -775,8 +775,11 @@ def _get_content_jsonl_openai_evals(examples: DBExamples) -> bytes:
                 json.dumps(
                     {
                         "messages": ims if isinstance(ims := input.get("messages"), list) else [],
-                        "ideal": (last_message.get("content") or "")
+                        "ideal": (
+                            ideal if isinstance(ideal := last_message.get("content"), str) else ""
+                        )
                         if isinstance(oms := output.get("messages"), list)
+                        and oms
                         and hasattr(last_message := oms[-1], "get")
                         else "",
                     },
