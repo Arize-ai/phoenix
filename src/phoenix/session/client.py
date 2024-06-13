@@ -266,6 +266,20 @@ class Client(TraceDataExtractor):
             ).raise_for_status()
 
     def get_dataset(self, dataset_id: str, version_id: Optional[str] = None) -> Dataset:
+        """
+        Gets the dataset for a specific version, or gets the latest version of
+        the dataset if no version is specified.
+
+        Args:
+
+            dataset_id (str): An ID for the dataset.
+
+            version_id (Optional[str]): An ID for the version of the dataset, or None.
+
+        Returns:
+
+            A dataset object.
+        """
         if version_id is None:
             response = self._client.get(
                 urljoin(self._base_url, f"/v1/datasets/{quote(dataset_id)}/versions"),
