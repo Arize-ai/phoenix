@@ -9,7 +9,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Icon, Icons, Text } from "@arizeai/components";
+import { Icon, Icons } from "@arizeai/components";
 
 import { Link } from "@phoenix/components";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -83,13 +83,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
         header: "name",
         accessorKey: "name",
         cell: ({ row }) => {
-          return (
-            <Link to={`${row.original.id}`}>
-              <Text textSize="xlarge" color="inherit">
-                {row.original.name}
-              </Text>
-            </Link>
-          );
+          return <Link to={`${row.original.id}`}>{row.original.name}</Link>;
         },
       },
       {
