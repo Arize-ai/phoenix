@@ -95,10 +95,9 @@ export function ExperimentMultiSelector(
                 <Flex direction="column" gap="size-50">
                   <Flex direction="row" gap="size-100">
                     <Label color="yellow-1000">
-                      {experiment.sequenceNumber}
+                      #{experiment.sequenceNumber}
                     </Label>
                     <Text>
-                      {" "}
                       {new Date(experiment.createdAt).toLocaleDateString()}
                     </Text>
                   </Flex>

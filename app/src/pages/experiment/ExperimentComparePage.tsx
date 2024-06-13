@@ -9,7 +9,7 @@ import { ExperimentMultiSelector } from "./ExperimentMultiSelector";
 export function ExperimentComparePage() {
   const data = useLoaderData() as experimentCompareLoaderQuery$data;
   const [searchParams, setSearchParams] = useSearchParams();
-  const experimentIds = searchParams.getAll("experimentIds");
+  const experimentIds = searchParams.getAll("experimentId");
   return (
     <main>
       <View
@@ -26,7 +26,7 @@ export function ExperimentComparePage() {
             onChange={(newExperimentIds) => {
               searchParams.delete("experimentIds");
               newExperimentIds.forEach((id) => {
-                searchParams.append("experimentIds", id);
+                searchParams.append("experimentId", id);
               });
               setSearchParams(searchParams);
             }}
