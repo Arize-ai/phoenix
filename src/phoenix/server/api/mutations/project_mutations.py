@@ -8,13 +8,14 @@ from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.insertion.span import ClearProjectSpansEvent
 from phoenix.server.api.context import Context
+from phoenix.server.api.mutations.auth import IsAuthenticated
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
 @strawberry.type
 class ProjectMutationMixin:
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
     async def delete_project(self, info: Info[Context, None], id: GlobalID) -> Query:
         node_id = from_global_id_with_expected_type(global_id=id, expected_type_name="Project")
         async with info.context.db() as session:
@@ -30,7 +31,7 @@ class ProjectMutationMixin:
             await session.delete(project)
         return Query()
 
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
     async def clear_project(self, info: Info[Context, None], id: GlobalID) -> Query:
         project_id = from_global_id_with_expected_type(global_id=id, expected_type_name="Project")
         delete_statement = delete(models.Trace).where(models.Trace.project_rowid == project_id)

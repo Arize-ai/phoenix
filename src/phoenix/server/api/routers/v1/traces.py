@@ -11,7 +11,6 @@ from starlette.datastructures import State
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.status import (
-    HTTP_403_FORBIDDEN,
     HTTP_415_UNSUPPORTED_MEDIA_TYPE,
     HTTP_422_UNPROCESSABLE_ENTITY,
 )
@@ -43,8 +42,6 @@ async def post_traces(request: Request) -> Response:
       422:
         description: Request body is invalid
     """
-    if request.app.state.read_only:
-        return Response(status_code=HTTP_403_FORBIDDEN)
     content_type = request.headers.get("content-type")
     if content_type != "application/x-protobuf":
         return Response(
