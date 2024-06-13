@@ -23,6 +23,7 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
         id = str(GlobalID("Dataset", "0"))
         version_id = str(GlobalID("DatasetVersion", "0"))
 
+        @property
         def examples(self):
             example_gid = str(GlobalID("DatasetExample", "0"))
             return [TestExample(id=example_gid, input="fancy input 1")]
