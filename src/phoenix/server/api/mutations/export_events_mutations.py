@@ -10,6 +10,7 @@ from strawberry.types import Info
 import phoenix.core.model_schema as ms
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
+from phoenix.server.api.mutations.auth import IsAuthenticated
 from phoenix.server.api.types.Event import parse_event_ids_by_inferences_role, unpack_event_id
 from phoenix.server.api.types.ExportedFile import ExportedFile
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
@@ -18,6 +19,7 @@ from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, Inf
 @strawberry.type
 class ExportEventsMutationMixin:
     @strawberry.mutation(
+        permission_classes=[IsAuthenticated],
         description=(
             "Given a list of event ids, export the corresponding data subset in Parquet format."
             " File name is optional, but if specified, should be without file extension. By default"
@@ -49,6 +51,7 @@ class ExportEventsMutationMixin:
         return ExportedFile(file_name=file_name)
 
     @strawberry.mutation(
+        permission_classes=[IsAuthenticated],
         description=(
             "Given a list of clusters, export the corresponding data subset in Parquet format."
             " File name is optional, but if specified, should be without file extension. By default"
