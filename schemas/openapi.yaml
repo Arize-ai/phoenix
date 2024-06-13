@@ -221,6 +221,68 @@ paths:
       summary: Get dataset examples by dataset ID
       tags:
       - datasets
+  /v1/datasets/{id}/jsonl/openai_evals:
+    get:
+      operationId: getDatasetJSONLOpenAIEvals
+      parameters:
+      - description: Dataset ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - description: Dataset version ID. If omitted, returns the latest version.
+        in: query
+        name: version
+        schema:
+          type: string
+      responses:
+        200:
+          content:
+            text/plain:
+              schema:
+                contentEncoding: gzip
+                contentMediaType: text/plain
+                type: string
+          description: Success
+        404:
+          description: Dataset does not exist.
+        422:
+          description: Dataset ID or version ID is invalid.
+      summary: Download dataset examples as OpenAI Evals JSONL file
+      tags:
+      - datasets
+  /v1/datasets/{id}/jsonl/openai_ft:
+    get:
+      operationId: getDatasetJSONLOpenAIFineTuning
+      parameters:
+      - description: Dataset ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - description: Dataset version ID. If omitted, returns the latest version.
+        in: query
+        name: version
+        schema:
+          type: string
+      responses:
+        200:
+          content:
+            text/plain:
+              schema:
+                contentEncoding: gzip
+                contentMediaType: text/plain
+                type: string
+          description: Success
+        404:
+          description: Dataset does not exist.
+        422:
+          description: Dataset ID or version ID is invalid.
+      summary: Download dataset examples as OpenAI Fine-Tuning JSONL file
+      tags:
+      - datasets
   /v1/datasets/{id}/versions:
     get:
       operationId: getDatasetVersionsByDatasetId
