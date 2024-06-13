@@ -141,8 +141,10 @@ async def list_dataset_examples(request: Request) -> Response:
         ]
         return JSONResponse(
             {
-                "dataset_id": str(GlobalID("Dataset", str(resolved_dataset_id))),
-                "version_id": str(GlobalID("DatasetVersion", str(resolved_version_id))),
-                "examples": examples,
+                "data": {
+                    "dataset_id": str(GlobalID("Dataset", str(resolved_dataset_id))),
+                    "version_id": str(GlobalID("DatasetVersion", str(resolved_version_id))),
+                    "examples": examples,
+                }
             }
         )

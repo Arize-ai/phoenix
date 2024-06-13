@@ -25,7 +25,7 @@ async def test_experiments_api(test_client, simple_dataset):
             f"/v1/datasets/{dataset_globalid}/examples",
             params={"version-id": str(version_globalid)},
         )
-    ).json()["examples"]
+    ).json()["data"]["examples"]
 
     # experiments can be read using the GET /experiments route
     experiment = (await test_client.get(f"/v1/experiments/{experiment_globalid}")).json()
