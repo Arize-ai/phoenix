@@ -1,6 +1,7 @@
 import csv
 import gzip
 import io
+import json
 import logging
 import zlib
 from asyncio import QueueFull
@@ -615,38 +616,195 @@ async def get_dataset_csv(request: Request) -> Response:
       422:
         description: Dataset ID or version ID is invalid.
     """
-    if id_ := request.path_params.get("id"):
-        try:
-            dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id_), Dataset.__name__)
-        except ValueError:
-            return Response(
-                content=f"Invalid Dataset ID: {id_}",
-                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-            )
-    else:
-        return Response(
-            content="Missing Dataset ID",
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+    try:
+        dataset_name, examples = await _get_db_examples(request)
+    except ValueError as e:
+        return Response(content=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
+    content = await run_in_threadpool(_get_content_csv, examples)
+    return Response(
+        content=content,
+        headers={
+            "content-disposition": f'attachment; filename="{dataset_name}.csv"',
+            "content-type": "text/csv",
+            "content-encoding": "gzip",
+        },
+    )
+
+
+async def get_dataset_jsonl_openai_ft(request: Request) -> Response:
+    """
+    summary: Download dataset examples as OpenAI Fine-Tuning JSONL file
+    operationId: getDatasetJSONLOpenAIFineTuning
+    tags:
+      - datasets
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        description: Dataset ID
+      - in: query
+        name: version
+        schema:
+          type: string
+        description: Dataset version ID. If omitted, returns the latest version.
+    responses:
+      200:
+        description: Success
+        content:
+          text/plain:
+            schema:
+              type: string
+              contentMediaType: text/plain
+              contentEncoding: gzip
+      404:
+        description: Dataset does not exist.
+      422:
+        description: Dataset ID or version ID is invalid.
+    """
+    try:
+        dataset_name, examples = await _get_db_examples(request)
+    except ValueError as e:
+        return Response(content=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
+    content = await run_in_threadpool(_get_content_jsonl_openai_ft, examples)
+    return Response(
+        content=content,
+        headers={
+            "content-disposition": f'attachment; filename="{dataset_name}.jsonl"',
+            "content-type": "text/plain",
+            "content-encoding": "gzip",
+        },
+    )
+
+
+async def get_dataset_jsonl_openai_evals(request: Request) -> Response:
+    """
+    summary: Download dataset examples as OpenAI Evals JSONL file
+    operationId: getDatasetJSONLOpenAIEvals
+    tags:
+      - datasets
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        description: Dataset ID
+      - in: query
+        name: version
+        schema:
+          type: string
+        description: Dataset version ID. If omitted, returns the latest version.
+    responses:
+      200:
+        description: Success
+        content:
+          text/plain:
+            schema:
+              type: string
+              contentMediaType: text/plain
+              contentEncoding: gzip
+      404:
+        description: Dataset does not exist.
+      422:
+        description: Dataset ID or version ID is invalid.
+    """
+    try:
+        dataset_name, examples = await _get_db_examples(request)
+    except ValueError as e:
+        return Response(content=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
+    content = await run_in_threadpool(_get_content_jsonl_openai_evals, examples)
+    return Response(
+        content=content,
+        headers={
+            "content-disposition": f'attachment; filename="{dataset_name}.jsonl"',
+            "content-type": "text/plain",
+            "content-encoding": "gzip",
+        },
+    )
+
+
+def _get_content_csv(examples: List[models.DatasetExampleRevision]) -> bytes:
+    records = [
+        {
+            "example_id": GlobalID(
+                type_name=DatasetExample.__name__,
+                node_id=str(ex.dataset_example_id),
+            ),
+            **{f"input_{k}": v for k, v in ex.input.items()},
+            **{f"output_{k}": v for k, v in ex.output.items()},
+            **{f"metadata_{k}": v for k, v in ex.metadata_.items()},
+        }
+        for ex in examples
+    ]
+    return gzip.compress(pd.DataFrame.from_records(records).to_csv(index=False).encode())
+
+
+def _get_content_jsonl_openai_ft(examples: List[models.DatasetExampleRevision]) -> bytes:
+    records = io.BytesIO()
+    for ex in examples:
+        records.write(
+            (
+                json.dumps(
+                    {
+                        "messages": (
+                            ims if isinstance(ims := ex.input.get("messages"), list) else []
+                        )
+                        + (oms if isinstance(oms := ex.output.get("messages"), list) else [])
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n"
+            ).encode()
         )
+    records.seek(0)
+    return gzip.compress(records.read())
+
+
+def _get_content_jsonl_openai_evals(examples: List[models.DatasetExampleRevision]) -> bytes:
+    records = io.BytesIO()
+    for ex in examples:
+        records.write(
+            (
+                json.dumps(
+                    {
+                        "messages": ims
+                        if isinstance(ims := ex.input.get("messages"), list)
+                        else [],
+                        "ideal": (
+                            ideal if isinstance(ideal := last_message.get("content"), str) else ""
+                        )
+                        if isinstance(oms := ex.output.get("messages"), list)
+                        and oms
+                        and hasattr(last_message := oms[-1], "get")
+                        else "",
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n"
+            ).encode()
+        )
+    records.seek(0)
+    return gzip.compress(records.read())
+
+
+async def _get_db_examples(request: Request) -> Tuple[str, List[models.DatasetExampleRevision]]:
+    if not (id_ := request.path_params.get("id")):
+        raise ValueError("Missing Dataset ID")
+    dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id_), Dataset.__name__)
     dataset_version_id: Optional[int] = None
     if version := request.query_params.get("version"):
-        try:
-            dataset_version_id = from_global_id_with_expected_type(
-                GlobalID.from_id(version),
-                DatasetVersion.__name__,
-            )
-        except ValueError:
-            return Response(
-                content=f"Invalid Dataset Version ID: {version}",
-                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-            )
-    mder = models.DatasetExampleRevision
+        dataset_version_id = from_global_id_with_expected_type(
+            GlobalID.from_id(version),
+            DatasetVersion.__name__,
+        )
     latest_version = (
         select(
-            mder.dataset_example_id,
-            func.max(mder.dataset_version_id).label("dataset_version_id"),
+            models.DatasetExampleRevision.dataset_example_id,
+            func.max(models.DatasetExampleRevision.dataset_version_id).label("dataset_version_id"),
         )
-        .group_by(mder.dataset_example_id)
+        .group_by(models.DatasetExampleRevision.dataset_example_id)
         .join(models.DatasetExample)
         .where(models.DatasetExample.dataset_id == dataset_id)
     )
@@ -656,54 +814,27 @@ async def get_dataset_csv(request: Request) -> Response:
             .where(models.DatasetVersion.id == dataset_version_id)
             .where(models.DatasetVersion.dataset_id == dataset_id)
         ).scalar_subquery()
-        latest_version = latest_version.where(mder.dataset_version_id <= max_dataset_version_id)
+        latest_version = latest_version.where(
+            models.DatasetExampleRevision.dataset_version_id <= max_dataset_version_id
+        )
     subq = latest_version.subquery("latest_version")
     stmt = (
-        select(
-            mder.dataset_example_id,
-            mder.input,
-            mder.output,
-            mder.metadata_,
-        )
+        select(models.DatasetExampleRevision)
         .join(
             subq,
             onclause=and_(
-                mder.dataset_example_id == subq.c.dataset_example_id,
-                mder.dataset_version_id == subq.c.dataset_version_id,
+                models.DatasetExampleRevision.dataset_example_id == subq.c.dataset_example_id,
+                models.DatasetExampleRevision.dataset_version_id == subq.c.dataset_version_id,
             ),
         )
-        .where(mder.revision_kind != "DELETE")
-        .order_by(mder.dataset_example_id)
+        .where(models.DatasetExampleRevision.revision_kind != "DELETE")
+        .order_by(models.DatasetExampleRevision.dataset_example_id)
     )
     async with request.app.state.db() as session:
         dataset_name: Optional[str] = await session.scalar(
             select(models.Dataset.name).where(models.Dataset.id == dataset_id)
         )
         if not dataset_name:
-            return Response(
-                content="Dataset does not exist.",
-                status_code=HTTP_404_NOT_FOUND,
-            )
-        examples = [
-            {
-                "example_id": GlobalID(type_name=DatasetExample.__name__, node_id=str(example_id)),
-                **{f"input_{k}": v for k, v in input.items()},
-                **{f"output_{k}": v for k, v in output.items()},
-                **{f"metadata_{k}": v for k, v in metadata.items()},
-            }
-            async for example_id, input, output, metadata in await session.stream(stmt)
-        ]
-    content = await run_in_threadpool(
-        lambda records: gzip.compress(
-            pd.DataFrame.from_records(records).to_csv(index=False).encode()
-        ),
-        examples,
-    )
-    return Response(
-        content=content,
-        headers={
-            "content-disposition": f'attachment; filename="{dataset_name}.csv"',
-            "content-type": "text/csv",
-            "content-encoding": "gzip",
-        },
-    )
+            raise ValueError("Dataset does not exist.")
+        examples = [r async for r in await session.stream_scalars(stmt)]
+    return dataset_name, examples
