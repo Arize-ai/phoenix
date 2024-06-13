@@ -1,5 +1,6 @@
 import gzip
 import inspect
+import io
 import json
 from io import BytesIO, StringIO
 from typing import Tuple
@@ -337,19 +338,22 @@ async def test_get_dataset_jsonl_openai_ft(test_client, dataset_with_messages: T
     assert response.headers.get("content-type") == "text/plain"
     assert response.headers.get("content-encoding") == "gzip"
     assert response.headers.get("content-disposition") == 'attachment; filename="xyz.jsonl"'
-    assert (
-        response.content.decode()
-        == json.dumps(
-            {
-                "messages": [
-                    {"role": "system", "content": "x"},
-                    {"role": "user", "content": "y"},
-                    {"role": "assistant", "content": "z"},
-                ]
-            }
-        )
-        + "\n"
-    )
+    json_lines = io.StringIO(response.text).readlines()
+    assert len(json_lines) == 2
+    assert json.loads(json_lines[0]) == {
+        "messages": [
+            {"role": "system", "content": "x"},
+            {"role": "user", "content": "y"},
+            {"role": "assistant", "content": "z"},
+        ]
+    }
+    assert json.loads(json_lines[1]) == {
+        "messages": [
+            {"role": "system", "content": "xx"},
+            {"role": "user", "content": "yy"},
+            {"role": "assistant", "content": "zz"},
+        ]
+    }
 
 
 async def test_get_dataset_jsonl_openai_evals(test_client, dataset_with_messages: Tuple[int, int]):
@@ -363,19 +367,16 @@ async def test_get_dataset_jsonl_openai_evals(test_client, dataset_with_messages
     assert response.headers.get("content-type") == "text/plain"
     assert response.headers.get("content-encoding") == "gzip"
     assert response.headers.get("content-disposition") == 'attachment; filename="xyz.jsonl"'
-    assert (
-        response.content.decode()
-        == json.dumps(
-            {
-                "messages": [
-                    {"role": "system", "content": "x"},
-                    {"role": "user", "content": "y"},
-                ],
-                "ideal": "z",
-            }
-        )
-        + "\n"
-    )
+    json_lines = io.StringIO(response.text).readlines()
+    assert len(json_lines) == 2
+    assert json.loads(json_lines[0]) == {
+        "messages": [{"role": "system", "content": "x"}, {"role": "user", "content": "y"}],
+        "ideal": "z",
+    }
+    assert json.loads(json_lines[1]) == {
+        "messages": [{"role": "system", "content": "xx"}, {"role": "user", "content": "yy"}],
+        "ideal": "zz",
+    }
 
 
 async def test_post_dataset_upload_csv_create_then_append(test_client, session):

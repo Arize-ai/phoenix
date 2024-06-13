@@ -538,16 +538,18 @@ async def dataset_with_messages(session) -> Tuple[int, int]:
         insert(models.DatasetVersion).returning(models.DatasetVersion.id),
         [{"dataset_id": dataset_id, "metadata_": {}}],
     )
-    dataset_example_id = await session.scalar(
-        insert(models.DatasetExample).returning(models.DatasetExample.id),
-        [{"dataset_id": dataset_id}],
+    dataset_example_ids = list(
+        await session.scalars(
+            insert(models.DatasetExample).returning(models.DatasetExample.id),
+            [{"dataset_id": dataset_id}, {"dataset_id": dataset_id}],
+        )
     )
     await session.scalar(
         insert(models.DatasetExampleRevision).returning(models.DatasetExampleRevision.id),
         [
             {
                 "revision_kind": "CREATE",
-                "dataset_example_id": dataset_example_id,
+                "dataset_example_id": dataset_example_ids[0],
                 "dataset_version_id": dataset_version_id,
                 "input": {
                     "messages": [
@@ -561,7 +563,24 @@ async def dataset_with_messages(session) -> Tuple[int, int]:
                     ]
                 },
                 "metadata_": {},
-            }
+            },
+            {
+                "revision_kind": "CREATE",
+                "dataset_example_id": dataset_example_ids[1],
+                "dataset_version_id": dataset_version_id,
+                "input": {
+                    "messages": [
+                        {"role": "system", "content": "xx"},
+                        {"role": "user", "content": "yy"},
+                    ]
+                },
+                "output": {
+                    "messages": [
+                        {"role": "assistant", "content": "zz"},
+                    ]
+                },
+                "metadata_": {},
+            },
         ],
     )
     return dataset_id, dataset_version_id
