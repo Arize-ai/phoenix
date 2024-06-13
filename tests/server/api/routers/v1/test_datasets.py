@@ -1,12 +1,16 @@
 import gzip
 import inspect
+import json
 from io import BytesIO, StringIO
+from typing import Tuple
 
 import pandas as pd
 import pyarrow as pa
 import pytest
 from pandas.testing import assert_frame_equal
 from phoenix.db import models
+from phoenix.server.api.types.Dataset import Dataset
+from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
@@ -320,6 +324,58 @@ async def test_get_dataset_download_specific_version(test_client, dataset_with_r
         )
     ).sort_index(axis=1)
     assert_frame_equal(actual, expected)
+
+
+async def test_get_dataset_jsonl_openai_ft(test_client, dataset_with_messages: Tuple[int, int]):
+    dataset_id, dataset_version_id = dataset_with_messages
+    dataset_global_id = GlobalID(Dataset.__name__, str(dataset_id))
+    dataset_version_global_id = GlobalID(DatasetVersion.__name__, str(dataset_version_id))
+    response = await test_client.get(
+        f"/v1/datasets/{dataset_global_id}/jsonl/openai_ft?version={dataset_version_global_id}"
+    )
+    assert response.status_code == 200
+    assert response.headers.get("content-type") == "text/plain"
+    assert response.headers.get("content-encoding") == "gzip"
+    assert response.headers.get("content-disposition") == 'attachment; filename="xyz.jsonl"'
+    assert (
+        response.content.decode()
+        == json.dumps(
+            {
+                "messages": [
+                    {"role": "system", "content": "x"},
+                    {"role": "user", "content": "y"},
+                    {"role": "assistant", "content": "z"},
+                ]
+            }
+        )
+        + "\n"
+    )
+
+
+async def test_get_dataset_jsonl_openai_evals(test_client, dataset_with_messages: Tuple[int, int]):
+    dataset_id, dataset_version_id = dataset_with_messages
+    dataset_global_id = GlobalID(Dataset.__name__, str(dataset_id))
+    dataset_version_global_id = GlobalID(DatasetVersion.__name__, str(dataset_version_id))
+    response = await test_client.get(
+        f"/v1/datasets/{dataset_global_id}/jsonl/openai_evals?version={dataset_version_global_id}"
+    )
+    assert response.status_code == 200
+    assert response.headers.get("content-type") == "text/plain"
+    assert response.headers.get("content-encoding") == "gzip"
+    assert response.headers.get("content-disposition") == 'attachment; filename="xyz.jsonl"'
+    assert (
+        response.content.decode()
+        == json.dumps(
+            {
+                "messages": [
+                    {"role": "system", "content": "x"},
+                    {"role": "user", "content": "y"},
+                ],
+                "ideal": "z",
+            }
+        )
+        + "\n"
+    )
 
 
 async def test_post_dataset_upload_csv_create_then_append(test_client, session):
