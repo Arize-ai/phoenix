@@ -124,6 +124,7 @@ async def list_dataset_examples(request: Request) -> Response:
                     content=f"No dataset version with id {version_id} can be found.",
                     status_code=HTTP_404_NOT_FOUND,
                 )
+            # if a version_id is provided, filter the subquery to only include revisions from that
             partial_subquery = partial_subquery.filter(
                 DatasetExampleRevision.dataset_version_id <= resolved_version_id
             )
@@ -141,6 +142,7 @@ async def list_dataset_examples(request: Request) -> Response:
                 )
 
         subquery = partial_subquery.subquery()
+        # Query for the most recent example revisions that are not deleted
         query = (
             select(DatasetExample, DatasetExampleRevision)
             .join(
