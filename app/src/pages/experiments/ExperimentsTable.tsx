@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
+import { useNavigate } from "react-router";
 // import { useNavigate } from "react-router";
 import {
   ColumnDef,
@@ -9,7 +10,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-// import { Link } from "@phoenix/components/Link";
+import { Link } from "@phoenix/components/Link";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
@@ -111,10 +112,14 @@ export function ExperimentsTable({
     {
       header: "id",
       accessorKey: "id",
-      //   cell: ({ getValue, row }) => {
-      //     const experimentId = row.original.id;
-      //     return <Link to={`experiments/${experimentId}`}>{getValue() as string}</Link>;
-      //   },
+      cell: ({ getValue, row }) => {
+        const experimentId = row.original.id;
+        return (
+          <Link to={`compare?experimentIds=${experimentId}`}>
+            {getValue() as string}
+          </Link>
+        );
+      },
     },
     {
       header: "description",
@@ -154,7 +159,7 @@ export function ExperimentsTable({
     },
     [hasNext, isLoadingNext, loadNext]
   );
-  //   const navigate = useNavigate();
+  const navigate = useNavigate();
   return (
     <div
       css={css`
@@ -188,9 +193,9 @@ export function ExperimentsTable({
             {rows.map((row) => (
               <tr
                 key={row.id}
-                // onClick={() => {
-                //   navigate(`experiments/${row.original.id}`);
-                // }}
+                onClick={() => {
+                  navigate(`compare?experimentsIds=${row.original.id}`);
+                }}
               >
                 {row.getVisibleCells().map((cell) => {
                   return (
