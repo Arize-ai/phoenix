@@ -38,13 +38,6 @@ class ExperimentComparison(Node):
 
 
 @strawberry.type
-class CompareExperimentsPayload:
-    @strawberry.field
-    def comparisons(self) -> Connection[ExperimentComparison]:
-        raise NotImplementedError("comparisons is not implemented yet")
-
-
-@strawberry.type
 class Dataset(Node):
     id_attr: NodeID[int]
     name: str
@@ -261,8 +254,8 @@ class Dataset(Node):
     def compare_experiments(
         self,
         info: Info[Context, None],
-        experimentIds: List[GlobalID],
-    ) -> CompareExperimentsPayload:
+        experiment_ids: List[GlobalID],
+    ) -> Connection[ExperimentComparison]:
         # get example ids from the first experiment
         # get revisions for each example from the version corresponding to the experiment
         # do an outer left join on runs from each experiment

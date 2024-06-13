@@ -602,21 +602,19 @@ class TestDatasetCompareExperiments:
         dataset: node(id: $datasetId) {
           ... on Dataset {
             compareExperiments(experimentIds: $experimentIds) {
-              comparisons {
-                edges {
-                  comparison: node {
+              edges {
+                comparison: node {
+                  id
+                  example {
                     id
-                    example {
-                      id
+                  }
+                  runs {
+                    ... on ExperimentRun {
+                      ...ExperimentRunFields
                     }
-                    runs {
-                      ... on ExperimentRun {
+                    ... on RepeatedExperimentRuns {
+                      runs {
                         ...ExperimentRunFields
-                      }
-                      ... on RepeatedExperimentRuns {
-                        runs {
-                          ...ExperimentRunFields
-                        }
                       }
                     }
                   }
