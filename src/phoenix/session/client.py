@@ -18,7 +18,7 @@ from typing import (
     Union,
     cast,
 )
-from urllib.parse import urljoin
+from urllib.parse import quote, urljoin
 
 import httpx
 import pandas as pd
@@ -39,6 +39,7 @@ from phoenix.config import (
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.insertion.dataset import DatasetKeys
 from phoenix.session.data_extractor import DEFAULT_SPAN_LIMIT, TraceDataExtractor
+from phoenix.session.datasets import Dataset, Example
 from phoenix.trace import Evaluations, TraceDataset
 from phoenix.trace.dsl import SpanQuery
 from phoenix.trace.otel import encode_span_to_otlp
@@ -263,6 +264,45 @@ class Client(TraceDataExtractor):
                     "content-encoding": "gzip",
                 },
             ).raise_for_status()
+
+    def get_dataset(self, dataset_id: str, version_id: Optional[str] = None) -> Dataset:
+        """
+        Gets the dataset for a specific version, or gets the latest version of
+        the dataset if no version is specified.
+
+        Args:
+
+            dataset_id (str): An ID for the dataset.
+
+            version_id (Optional[str]): An ID for the version of the dataset, or None.
+
+        Returns:
+
+            A dataset object.
+        """
+        response = self._client.get(
+            urljoin(self._base_url, f"/v1/datasets/{quote(dataset_id)}/examples"),
+            params={"version-id": version_id} if version_id else None,
+        )
+        response.raise_for_status()
+        data = response.json()["data"]
+        examples = [
+            Example(
+                id=example["id"],
+                input=example["input"],
+                output=example["output"],
+                metadata=example["metadata"],
+                updated_at=datetime.fromisoformat(example["updated_at"]),
+            )
+            for example in data["examples"]
+        ]
+        resolved_dataset_id = data["dataset_id"]
+        resolved_version_id = data["version_id"]
+        return Dataset(
+            id=resolved_dataset_id,
+            version_id=resolved_version_id,
+            examples=examples,
+        )
 
     def get_dataset_versions(
         self,
