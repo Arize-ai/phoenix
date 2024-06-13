@@ -32,6 +32,7 @@ class RepeatedExperimentRuns:
 
 @strawberry.type
 class ExperimentComparison(Node):
+    id_attr: NodeID[int]
     example: DatasetExample
     experiment_ids: List[GlobalID]  # or add experiment_id to ExperimentRun type
     runs: List[Union[ExperimentRun, RepeatedExperimentRuns]]  # this could be a resolver

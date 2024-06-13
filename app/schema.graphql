@@ -50,8 +50,7 @@ input ClusterInput {
 }
 
 type CompareExperimentsPayload {
-  examples: [DatasetExample!]!
-  experimentRuns: [ExperimentRun!]!
+  comparisons: ExperimentComparisonConnection!
 }
 
 input CreateDatasetInput {
@@ -584,6 +583,32 @@ type Experiment implements Node {
   runs(first: Int = 50, last: Int, after: String, before: String): ExperimentRunConnection!
 }
 
+type ExperimentComparison implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  example: DatasetExample!
+  experimentIds: [GlobalID!]!
+  runs: [ExperimentRunRepeatedExperimentRuns!]!
+}
+
+"""A connection to a list of items."""
+type ExperimentComparisonConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ExperimentComparisonEdge!]!
+}
+
+"""An edge in a connection."""
+type ExperimentComparisonEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ExperimentComparison!
+}
+
 """A connection to a list of items."""
 type ExperimentConnection {
   """Pagination data for this connection"""
@@ -662,6 +687,8 @@ type ExperimentRunEdge {
   """The item at the end of the edge"""
   node: ExperimentRun!
 }
+
+union ExperimentRunRepeatedExperimentRuns = ExperimentRun | RepeatedExperimentRuns
 
 type ExportedFile {
   """File name without the file extension."""
@@ -959,6 +986,10 @@ type Query {
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
+}
+
+type RepeatedExperimentRuns {
+  runs: [ExperimentRun!]!
 }
 
 type Retrieval {
