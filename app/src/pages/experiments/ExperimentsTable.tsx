@@ -10,6 +10,8 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
+import { Label } from "@arizeai/components";
+
 import { Link } from "@phoenix/components/Link";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -108,6 +110,9 @@ export function ExperimentsTable({
     {
       header: "#",
       accessorKey: "sequenceNumber",
+      cell: ({ getValue }) => {
+        return <Label color="yellow-1000">{getValue() as number}</Label>;
+      },
     },
     {
       header: "id",
@@ -115,7 +120,9 @@ export function ExperimentsTable({
       cell: ({ getValue, row }) => {
         const experimentId = row.original.id;
         return (
-          <Link to={`compare?experimentIds=${experimentId}`}>
+          <Link
+            to={`/datasets/${dataset.id}/compare?experimentIds=${experimentId}`}
+          >
             {getValue() as string}
           </Link>
         );
@@ -194,7 +201,9 @@ export function ExperimentsTable({
               <tr
                 key={row.id}
                 onClick={() => {
-                  navigate(`compare?experimentsIds=${row.original.id}`);
+                  navigate(
+                    `/datasets/${dataset.id}/compare?experimentsIds=${row.original.id}`
+                  );
                 }}
               >
                 {row.getVisibleCells().map((cell) => {

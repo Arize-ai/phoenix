@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<aca355ef40ec50583ebaeddbd46d2f77>>
+ * @generated SignedSource<<ea9ee9906471bdd22f057fa896ff768c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,6 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Query } from 'relay-runtime';
+import { FragmentRefs } from "relay-runtime";
 export type experimentCompareLoaderQuery$variables = {
   id: string;
 };
@@ -16,6 +17,7 @@ export type experimentCompareLoaderQuery$data = {
   readonly dataset: {
     readonly id: string;
     readonly name?: string;
+    readonly " $fragmentSpreads": FragmentRefs<"ExperimentMultiSelector__experiments">;
   };
 };
 export type experimentCompareLoaderQuery = {
@@ -46,18 +48,11 @@ v2 = {
   "storageKey": null
 },
 v3 = {
-  "kind": "InlineFragment",
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "name",
-      "storageKey": null
-    }
-  ],
-  "type": "Dataset",
-  "abstractKey": null
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -75,7 +70,19 @@ return {
         "plural": false,
         "selections": [
           (v2/*: any*/),
-          (v3/*: any*/)
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              (v3/*: any*/),
+              {
+                "args": null,
+                "kind": "FragmentSpread",
+                "name": "ExperimentMultiSelector__experiments"
+              }
+            ],
+            "type": "Dataset",
+            "abstractKey": null
+          }
         ],
         "storageKey": null
       }
@@ -105,23 +112,85 @@ return {
             "storageKey": null
           },
           (v2/*: any*/),
-          (v3/*: any*/)
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              (v3/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "ExperimentConnection",
+                "kind": "LinkedField",
+                "name": "experiments",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "ExperimentEdge",
+                    "kind": "LinkedField",
+                    "name": "edges",
+                    "plural": true,
+                    "selections": [
+                      {
+                        "alias": "experiment",
+                        "args": null,
+                        "concreteType": "Experiment",
+                        "kind": "LinkedField",
+                        "name": "node",
+                        "plural": false,
+                        "selections": [
+                          (v2/*: any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "sequenceNumber",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "description",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "createdAt",
+                            "storageKey": null
+                          }
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": null
+              }
+            ],
+            "type": "Dataset",
+            "abstractKey": null
+          }
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "85e475c414364ce22901dbbe3ea8c9c7",
+    "cacheID": "ea5c76e30df3df4e33e075e6e7dab73b",
     "id": null,
     "metadata": {},
     "name": "experimentCompareLoaderQuery",
     "operationKind": "query",
-    "text": "query experimentCompareLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n    }\n  }\n}\n"
+    "text": "query experimentCompareLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      ...ExperimentMultiSelector__experiments\n    }\n  }\n}\n\nfragment ExperimentMultiSelector__experiments on Dataset {\n  experiments {\n    edges {\n      experiment: node {\n        id\n        sequenceNumber\n        description\n        createdAt\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "df0a23466864a36752ab01e4f8dab942";
+(node as any).hash = "fa02088830fd16688f0f2fba9a0009eb";
 
 export default node;

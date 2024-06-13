@@ -1,13 +1,19 @@
 import React, { useMemo } from "react";
+import { graphql, useFragment } from "react-relay";
 
 import {
   Dropdown,
   DropdownProps,
   Field,
   FieldProps,
+  Flex,
   Item,
+  Label,
   ListBox,
+  Text,
 } from "@arizeai/components";
+
+import { ExperimentMultiSelector__experiments$key } from "./__generated__/ExperimentMultiSelector__experiments.graphql";
 
 export function ExperimentMultiSelector(
   props: Omit<DropdownProps, "menu" | "children"> &
@@ -16,13 +22,13 @@ export function ExperimentMultiSelector(
       "label" | "validationState" | "description" | "errorMessage"
     > & {
       label: string;
-      experiments: string[];
       selectedExperimentIds: string[];
-      onChange: (selectedColumns: string[]) => void;
+      onChange: (selectedExperimentIds: string[]) => void;
+      dataset: ExperimentMultiSelector__experiments$key;
     }
 ) {
   const {
-    experiments,
+    dataset,
     selectedExperimentIds,
     onChange,
     label,
@@ -31,6 +37,30 @@ export function ExperimentMultiSelector(
     errorMessage,
     ...restProps
   } = props;
+  const data = useFragment(
+    graphql`
+      fragment ExperimentMultiSelector__experiments on Dataset {
+        experiments {
+          edges {
+            experiment: node {
+              id
+              sequenceNumber
+              description
+              createdAt
+            }
+          }
+        }
+      }
+    `,
+    dataset
+  );
+  const experiments = useMemo(
+    () =>
+      data.experiments.edges.map((edge) => {
+        return edge.experiment;
+      }),
+    [data]
+  );
   const noColumns = experiments.length === 0;
   const displayText = useMemo(() => {
     if (noColumns) {
@@ -60,13 +90,28 @@ export function ExperimentMultiSelector(
             }}
             selectedKeys={new Set(selectedExperimentIds)}
           >
-            {experiments.map((column) => (
-              <Item key={column}>{column}</Item>
+            {experiments.map((experiment) => (
+              <Item key={experiment.id}>
+                <Flex direction="column" gap="size-50">
+                  <Flex direction="row" gap="size-100">
+                    <Label color="yellow-1000">
+                      {experiment.sequenceNumber}
+                    </Label>
+                    <Text>
+                      {" "}
+                      {new Date(experiment.createdAt).toLocaleDateString()}
+                    </Text>
+                  </Flex>
+                  <Text textSize="small" color="text-700">
+                    {experiment.description || "no description"}
+                  </Text>
+                </Flex>
+              </Item>
             ))}
           </ListBox>
         }
         triggerProps={{
-          placement: "bottom end",
+          placement: "bottom start",
         }}
       >
         {displayText}

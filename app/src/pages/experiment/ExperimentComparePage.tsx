@@ -1,12 +1,14 @@
 import React from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLoaderData, useSearchParams } from "react-router-dom";
 
-import { Flex, View } from "@arizeai/components";
+import { Flex, Heading, View } from "@arizeai/components";
 
+import { experimentCompareLoaderQuery$data } from "./__generated__/experimentCompareLoaderQuery.graphql";
 import { ExperimentMultiSelector } from "./ExperimentMultiSelector";
 
 export function ExperimentComparePage() {
-  const [searchParams] = useSearchParams();
+  const data = useLoaderData() as experimentCompareLoaderQuery$data;
+  const [searchParams, setSearchParams] = useSearchParams();
   const experimentIds = searchParams.getAll("experimentIds");
   return (
     <main>
@@ -16,13 +18,17 @@ export function ExperimentComparePage() {
         borderBottomWidth="thin"
       >
         <Flex direction="column" gap="size-100">
-          {/* <Heading level={1}>Comparing Experiments</Heading> */}
+          <Heading level={1}>Compare Experiments</Heading>
           <ExperimentMultiSelector
-            experiments={experimentIds}
+            dataset={data.dataset}
             selectedExperimentIds={experimentIds}
             label="experiments"
-            onChange={() => {
-              // searchParams.set("experimentIds", selectedExperimentIds);
+            onChange={(newExperimentIds) => {
+              searchParams.delete("experimentIds");
+              newExperimentIds.forEach((id) => {
+                searchParams.append("experimentIds", id);
+              });
+              setSearchParams(searchParams);
             }}
           />
         </Flex>

@@ -19,6 +19,7 @@ export async function experimentCompareLoader(args: LoaderFunctionArgs) {
           ... on Dataset {
             id
             name
+            ...ExperimentMultiSelector__experiments
           }
         }
       }
