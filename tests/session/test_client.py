@@ -9,6 +9,7 @@ import httpx
 import pandas as pd
 import pyarrow as pa
 import pytest
+import respx
 from httpx import Response
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
@@ -251,13 +252,21 @@ def test_download_dataset_examples_specific_version(
     assert_frame_equal(actual, expected)
 
 
-def test_get_dataset_without_version_id_returns_expected_dataset(
+@pytest.mark.parametrize(
+    "version_id",
+    [
+        pytest.param(str(GlobalID("DatasetVersion", str(1))), id="with-version-id"),
+        pytest.param(None, id="without-version-id"),
+    ],
+)
+@respx.mock(assert_all_called=False)
+def test_get_dataset_returns_expected_dataset(
+    version_id: str,
     client: Client,
     endpoint: str,
     respx_mock: MockRouter,
 ) -> None:
     dataset_id = str(GlobalID("Dataset", str(1)))
-    version_id = str(GlobalID("DatasetVersion", str(1)))
     respx_mock.get(urljoin(endpoint, f"v1/datasets/{dataset_id}/versions?limit=1")).mock(
         Response(
             200,
@@ -265,7 +274,7 @@ def test_get_dataset_without_version_id_returns_expected_dataset(
                 "next_cursor": str(GlobalID("DatasetVersion", str(2))),
                 "data": [
                     {
-                        "version_id": version_id,
+                        "version_id": str(GlobalID("DatasetVersion", str(1))),
                         "description": None,
                         "metadata": {"version-metadata-key": "version-metadata-value"},
                         "created_at": "2024-06-12T22:46:31+00:00",
@@ -275,7 +284,10 @@ def test_get_dataset_without_version_id_returns_expected_dataset(
         )
     )
     respx_mock.get(
-        urljoin(endpoint, f"v1/datasets/{dataset_id}/examples?version-id={version_id}")
+        urljoin(
+            endpoint,
+            f"v1/datasets/{dataset_id}/examples?version-id={str(GlobalID("DatasetVersion", str(1)))}",  # noqa: E501
+        )
     ).mock(
         Response(
             200,
@@ -290,9 +302,9 @@ def test_get_dataset_without_version_id_returns_expected_dataset(
             ],
         )
     )
-    dataset = client.get_dataset(dataset_id)
+    dataset = client.get_dataset(dataset_id, version_id=version_id)
     assert dataset.id == dataset_id
-    assert dataset.version_id == version_id
+    assert dataset.version_id == str(GlobalID("DatasetVersion", str(1)))
     assert dataset.examples
     example = dataset.examples[0]
     assert example.id == str(GlobalID("DatasetExample", str(1)))
