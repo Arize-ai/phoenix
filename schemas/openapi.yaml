@@ -208,18 +208,46 @@ paths:
               schema:
                 properties:
                   data:
-                    items:
-                      properties:
-                        example_id:
-                          type: string
-                        input:
+                    properties:
+                      dataset_id:
+                        description: ID of the dataset
+                        type: string
+                      examples:
+                        items:
+                          properties:
+                            id:
+                              description: ID of the dataset example
+                              type: string
+                            input:
+                              description: Input data of the example
+                              type: object
+                            metadata:
+                              description: Metadata of the example
+                              type: object
+                            output:
+                              description: Output data of the example
+                              type: object
+                            updated_at:
+                              description: ISO formatted timestamp of when the example
+                                was updated
+                              format: date-time
+                              type: string
+                          required:
+                          - id
+                          - input
+                          - output
+                          - metadata
+                          - updated_at
                           type: object
-                        metadata:
-                          type: object
-                        output:
-                          type: object
-                      type: object
-                    type: array
+                        type: array
+                      version_id:
+                        description: ID of the version
+                        type: string
+                    required:
+                    - dataset_id
+                    - version_id
+                    - examples
+                    type: object
                 type: object
           description: Success
         403:
