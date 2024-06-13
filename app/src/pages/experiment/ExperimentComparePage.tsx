@@ -24,7 +24,7 @@ export function ExperimentComparePage() {
             selectedExperimentIds={experimentIds}
             label="experiments"
             onChange={(newExperimentIds) => {
-              searchParams.delete("experimentIds");
+              searchParams.delete("experimentId");
               newExperimentIds.forEach((id) => {
                 searchParams.append("experimentId", id);
               });

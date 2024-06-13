@@ -123,7 +123,7 @@ export function ExperimentsTable({
         const experimentId = row.original.id;
         return (
           <Link
-            to={`/datasets/${dataset.id}/compare?experimentIds=${experimentId}`}
+            to={`/datasets/${dataset.id}/compare?experimentId=${experimentId}`}
           >
             {getValue() as string}
           </Link>
