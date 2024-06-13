@@ -4,7 +4,7 @@ from typing import Optional
 import strawberry
 from sqlalchemy import select
 from strawberry import UNSET
-from strawberry.relay import Connection, Node, NodeID
+from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
 
@@ -24,6 +24,7 @@ from phoenix.server.api.types.pagination import (
 @strawberry.type
 class ExperimentRun(Node):
     id_attr: NodeID[int]
+    experiment_id: GlobalID
     trace_id: Optional[str]
     output: Optional[JSON]
     start_time: datetime
@@ -63,8 +64,12 @@ def to_gql_experiment_run(run: models.ExperimentRun) -> ExperimentRun:
     """
     Converts an ORM experiment run to a GraphQL ExperimentRun.
     """
+
+    from phoenix.server.api.types.Experiment import Experiment
+
     return ExperimentRun(
         id_attr=run.id,
+        experiment_id=GlobalID(Experiment.__name__, str(run.experiment.id)),
         trace_id=trace_id
         if (trace := run.trace) and (trace_id := trace.trace_id) is not None
         else None,

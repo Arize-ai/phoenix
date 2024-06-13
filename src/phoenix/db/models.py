@@ -522,6 +522,8 @@ class Experiment(Base):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
 
+    experiment_runs: Mapped[List["ExperimentRun"]] = relationship(back_populates="experiment")
+
 
 class ExperimentRun(Base):
     __tablename__ = "experiment_runs"
@@ -542,6 +544,7 @@ class ExperimentRun(Base):
     completion_token_count: Mapped[Optional[int]]
     error: Mapped[Optional[str]]
 
+    experiment: Mapped[Experiment] = relationship(back_populates="experiment_runs")
     trace: Mapped["Trace"] = relationship(
         primaryjoin="foreign(ExperimentRun.trace_id) == Trace.trace_id",
         back_populates="experiment_runs",

@@ -222,7 +222,10 @@ class Query:
                         select(models.ExperimentRun)
                         .where(models.ExperimentRun.id == node_id)
                         .options(
-                            joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id)
+                            joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id),
+                            joinedload(models.ExperimentRun.experiment).load_only(
+                                models.Experiment.id
+                            ),
                         )
                     )
                 ):

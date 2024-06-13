@@ -587,7 +587,6 @@ type ExperimentComparison implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   example: DatasetExample!
-  experimentIds: [GlobalID!]!
   runs: [ExperimentRunRepeatedExperimentRuns!]!
 }
 
@@ -630,6 +629,7 @@ type ExperimentEdge {
 type ExperimentRun implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
+  experimentId: GlobalID!
   traceId: String
   output: JSON
   startTime: DateTime!
