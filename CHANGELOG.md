@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.4.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.4.1...arize-phoenix-v4.4.2) (2024-06-13)
+
+
+### Bug Fixes
+
+* ui light mode fix for llm messages ([#3510](https://github.com/Arize-ai/phoenix/issues/3510)) ([9aa2eba](https://github.com/Arize-ai/phoenix/commit/9aa2ebab31a8fd729c870e89fbc6b855e1eb6fda))
+
 ## [4.4.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.4.0...arize-phoenix-v4.4.1) (2024-06-11)
 
 
