@@ -75,6 +75,13 @@ async def list_dataset_examples(request: Request) -> Response:
                 content=f"No dataset with id {dataset_id} can be found.",
                 status_code=HTTP_404_NOT_FOUND,
             )
+
+        # Subquery to find the maximum created_at for each dataset_example_id
+        # timestamp tiebreaks are resolved by the largest id
+        partial_subquery = select(
+            func.max(DatasetExampleRevision.id).label("max_id"),
+        ).group_by(DatasetExampleRevision.dataset_example_id)
+
         if version_id:
             if (
                 resolved_version_id := await session.scalar(
@@ -90,6 +97,9 @@ async def list_dataset_examples(request: Request) -> Response:
                     content=f"No dataset version with id {version_id} can be found.",
                     status_code=HTTP_404_NOT_FOUND,
                 )
+            partial_subquery = partial_subquery.filter(
+                DatasetExampleRevision.dataset_version_id <= resolved_version_id
+            )
         else:
             if (
                 resolved_version_id := await session.scalar(
@@ -103,30 +113,19 @@ async def list_dataset_examples(request: Request) -> Response:
                     status_code=HTTP_404_NOT_FOUND,
                 )
 
-        revision_ids = (
-            select(func.max(DatasetExampleRevision.id))
-            .join(DatasetExample, DatasetExample.id == DatasetExampleRevision.dataset_example_id)
-            .where(
-                and_(
-                    DatasetExample.dataset_id == resolved_dataset_id,
-                    DatasetExampleRevision.dataset_version_id <= resolved_version_id,
-                )
-            )
-            .group_by(DatasetExampleRevision.dataset_example_id)
-        )
+        subquery = partial_subquery.subquery()
         query = (
             select(DatasetExample, DatasetExampleRevision)
-            .select_from(DatasetExample)
             .join(
                 DatasetExampleRevision,
-                DatasetExampleRevision.dataset_example_id == DatasetExample.id,
+                DatasetExample.id == DatasetExampleRevision.dataset_example_id,
             )
-            .where(
-                and_(
-                    DatasetExampleRevision.id.in_(revision_ids),
-                    DatasetExampleRevision.revision_kind != "DELETE",
-                )
+            .join(
+                subquery,
+                (subquery.c.max_id == DatasetExampleRevision.id),
             )
+            .filter(DatasetExample.dataset_id == resolved_dataset_id)
+            .filter(DatasetExampleRevision.revision_kind != "DELETE")
             .order_by(DatasetExample.id.asc())
         )
         examples = [
