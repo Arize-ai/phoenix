@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import AsyncIterable, List, Optional, Tuple, cast
+from typing import AsyncIterable, List, Optional, Tuple, Union, cast
 
 import strawberry
 from sqlalchemy import and_, func, select
@@ -26,9 +26,22 @@ from phoenix.server.api.types.SortDir import SortDir
 
 
 @strawberry.type
+class RepeatedExperimentRuns:
+    runs: List[ExperimentRun]
+
+
+@strawberry.type
+class ExperimentComparison(Node):
+    example: DatasetExample
+    experiment_ids: List[GlobalID]  # or add experiment_id to ExperimentRun type
+    runs: List[Union[ExperimentRun, RepeatedExperimentRuns]]  # this could be a resolver
+
+
+@strawberry.type
 class CompareExperimentsPayload:
-    examples: List[DatasetExample]
-    experiment_runs: List[ExperimentRun]
+    @strawberry.field
+    def comparisons(self) -> Connection[ExperimentComparison]:
+        raise NotImplementedError("comparisons is not implemented yet")
 
 
 @strawberry.type
