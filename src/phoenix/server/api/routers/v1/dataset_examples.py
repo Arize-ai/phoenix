@@ -34,18 +34,45 @@ async def list_dataset_examples(request: Request) -> Response:
               type: object
               properties:
                 data:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      example_id:
-                        type: string
-                      input:
+                  type: object
+                  properties:
+                    dataset_id:
+                      type: string
+                      description: ID of the dataset
+                    version_id:
+                      type: string
+                      description: ID of the version
+                    examples:
+                      type: array
+                      items:
                         type: object
-                      output:
-                        type: object
-                      metadata:
-                        type: object
+                        properties:
+                          id:
+                            type: string
+                            description: ID of the dataset example
+                          input:
+                            type: object
+                            description: Input data of the example
+                          output:
+                            type: object
+                            description: Output data of the example
+                          metadata:
+                            type: object
+                            description: Metadata of the example
+                          updated_at:
+                            type: string
+                            format: date-time
+                            description: ISO formatted timestamp of when the example was updated
+                        required:
+                          - id
+                          - input
+                          - output
+                          - metadata
+                          - updated_at
+                  required:
+                    - dataset_id
+                    - version_id
+                    - examples
       403:
         description: Forbidden
       404:
