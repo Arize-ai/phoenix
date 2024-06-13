@@ -264,6 +264,9 @@ class Dataset(Node):
         info: Info[Context, None],
         experimentIds: List[GlobalID],
     ) -> CompareExperimentsPayload:
+        # get example ids from the first experiment
+        # get revisions for each example from the version corresponding to the experiment
+        # do an outer left join on runs from each experiment
         raise NotImplementedError("compare_experiments is not implemented yet")
 
 
