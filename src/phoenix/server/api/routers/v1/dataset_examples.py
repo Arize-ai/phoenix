@@ -1,4 +1,4 @@
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.status import HTTP_404_NOT_FOUND
@@ -64,46 +64,72 @@ async def list_dataset_examples(request: Request) -> Response:
         )
 
     async with request.app.state.db() as session:
-        # Subquery to find the maximum created_at for each dataset_example_id
-        # timestamp tiebreaks are resolved by the largest id
-        partial_subquery = select(
-            func.max(DatasetExampleRevision.id).label("max_id"),
-        ).group_by(DatasetExampleRevision.dataset_example_id)
-
-        # if a version_id is provided, filter the subquery to only include revisions from that
-        # version or earlier
-        if version_id is not None:
-            # ensure that the specified version exists
-            matched_version_id = (
-                select(DatasetVersion.id)
-                .where(DatasetVersion.id == int(version_id.node_id))
-                .scalar_subquery()
+        if (
+            resolved_dataset_id := await session.scalar(
+                select(Dataset.id).where(Dataset.id == int(dataset_id.node_id))
             )
-            partial_subquery = partial_subquery.filter(
-                DatasetExampleRevision.dataset_version_id <= matched_version_id
+        ) is None:
+            return Response(
+                content=f"No dataset with id {dataset_id} can be found.",
+                status_code=HTTP_404_NOT_FOUND,
             )
+        if version_id:
+            if (
+                resolved_version_id := await session.scalar(
+                    select(DatasetVersion.id).where(
+                        and_(
+                            DatasetVersion.dataset_id == resolved_dataset_id,
+                            DatasetVersion.id == int(version_id.node_id),
+                        )
+                    )
+                )
+            ) is None:
+                return Response(
+                    content=f"No dataset version with id {version_id} can be found.",
+                    status_code=HTTP_404_NOT_FOUND,
+                )
+        else:
+            if (
+                resolved_version_id := await session.scalar(
+                    select(func.max(DatasetVersion.id)).where(
+                        DatasetVersion.dataset_id == resolved_dataset_id
+                    )
+                )
+            ) is None:
+                return Response(
+                    content="Dataset has no versions.",
+                    status_code=HTTP_404_NOT_FOUND,
+                )
 
-        subquery = partial_subquery.subquery()
-
-        # Query for the most recent example revisions that are not deleted
+        revision_ids = (
+            select(func.max(DatasetExampleRevision.id))
+            .join(DatasetExample, DatasetExample.id == DatasetExampleRevision.dataset_example_id)
+            .where(
+                and_(
+                    DatasetExample.dataset_id == resolved_dataset_id,
+                    DatasetExampleRevision.dataset_version_id <= resolved_version_id,
+                )
+            )
+            .group_by(DatasetExampleRevision.dataset_example_id)
+        )
         query = (
             select(DatasetExample, DatasetExampleRevision)
+            .select_from(DatasetExample)
             .join(
                 DatasetExampleRevision,
-                DatasetExample.id == DatasetExampleRevision.dataset_example_id,
+                DatasetExampleRevision.dataset_example_id == DatasetExample.id,
             )
-            .join(
-                subquery,
-                (subquery.c.max_id == DatasetExampleRevision.id),
+            .where(
+                and_(
+                    DatasetExampleRevision.id.in_(revision_ids),
+                    DatasetExampleRevision.revision_kind != "DELETE",
+                )
             )
-            .filter(DatasetExample.dataset_id == int(dataset_id.node_id))
-            .filter(DatasetExampleRevision.revision_kind != "DELETE")
             .order_by(DatasetExample.id.asc())
         )
-
-        data = []
+        examples = []
         for example, revision in await session.execute(query):
-            data.append(
+            examples.append(
                 {
                     "id": str(GlobalID("DatasetExample", str(example.id))),
                     "input": revision.input,
@@ -112,25 +138,4 @@ async def list_dataset_examples(request: Request) -> Response:
                     "updated_at": revision.created_at.isoformat(),
                 }
             )
-        if not data:
-            # make a additional queries to determine if the specified entities exist
-            dataset = (
-                await session.execute(select(Dataset).where(Dataset.id == int(dataset_id.node_id)))
-            ).all()
-            if not dataset:
-                return Response(
-                    content=f"No dataset with id {dataset_id} can be found.",
-                    status_code=HTTP_404_NOT_FOUND,
-                )
-            if version_id is not None:
-                version = (
-                    await session.execute(
-                        select(DatasetVersion).where(DatasetVersion.id == int(version_id.node_id))
-                    )
-                ).all()
-                if not version:
-                    return Response(
-                        content=f"No dataset version with id {version_id} can be found.",
-                        status_code=HTTP_404_NOT_FOUND,
-                    )
-        return JSONResponse(data)
+        return JSONResponse(examples)
