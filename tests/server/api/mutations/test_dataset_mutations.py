@@ -204,26 +204,33 @@ async def test_add_span_to_dataset(
                             "example": {
                                 "revision": {
                                     "input": {
-                                        "input_messages": [
+                                        "messages": [
                                             {"content": "user-message-content", "role": "user"}
                                         ]
                                     },
                                     "metadata": {
                                         "llm": {
                                             "input_messages": [
-                                                {"content": "user-message-content", "role": "user"}
+                                                {
+                                                    "message": {
+                                                        "content": "user-message-content",
+                                                        "role": "user",
+                                                    }
+                                                }
                                             ],
                                             "invocation_parameters": {"temperature": 1},
                                             "output_messages": [
                                                 {
-                                                    "content": "assistant-message-content",
-                                                    "role": "assistant",
+                                                    "message": {
+                                                        "content": "assistant-message-content",
+                                                        "role": "assistant",
+                                                    }
                                                 }
                                             ],
                                         }
                                     },
                                     "output": {
-                                        "output_messages": [
+                                        "messages": [
                                             {
                                                 "content": "assistant-message-content",
                                                 "role": "assistant",
@@ -658,9 +665,11 @@ async def spans(session):
             end_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
             attributes={
                 "llm": {
-                    "input_messages": [{"role": "user", "content": "user-message-content"}],
+                    "input_messages": [
+                        {"message": {"role": "user", "content": "user-message-content"}}
+                    ],
                     "output_messages": [
-                        {"role": "assistant", "content": "assistant-message-content"}
+                        {"message": {"role": "assistant", "content": "assistant-message-content"}},
                     ],
                     "invocation_parameters": {"temperature": 1},
                 },
