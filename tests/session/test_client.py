@@ -9,7 +9,6 @@ import httpx
 import pandas as pd
 import pyarrow as pa
 import pytest
-import respx
 from httpx import Response
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
@@ -259,7 +258,6 @@ def test_download_dataset_examples_specific_version(
         pytest.param(None, id="without-version-id"),
     ],
 )
-@respx.mock(assert_all_called=False)
 def test_get_dataset_returns_expected_dataset(
     version_id: str,
     client: Client,
@@ -267,39 +265,24 @@ def test_get_dataset_returns_expected_dataset(
     respx_mock: MockRouter,
 ) -> None:
     dataset_id = str(GlobalID("Dataset", str(1)))
-    respx_mock.get(urljoin(endpoint, f"v1/datasets/{dataset_id}/versions?limit=1")).mock(
+    respx_mock.get(urljoin(endpoint, f"v1/datasets/{dataset_id}/examples")).mock(
         Response(
             200,
             json={
-                "next_cursor": str(GlobalID("DatasetVersion", str(2))),
-                "data": [
-                    {
-                        "version_id": str(GlobalID("DatasetVersion", str(1))),
-                        "description": None,
-                        "metadata": {"version-metadata-key": "version-metadata-value"},
-                        "created_at": "2024-06-12T22:46:31+00:00",
-                    }
-                ],
+                "data": {
+                    "dataset_id": str(GlobalID("Dataset", str(1))),
+                    "version_id": str(GlobalID("DatasetVersion", str(1))),
+                    "examples": [
+                        {
+                            "id": str(GlobalID("DatasetExample", str(1))),
+                            "input": {"input": "input"},
+                            "output": {"output": "output"},
+                            "metadata": {"example-metadata-key": "example-metadata-value"},
+                            "updated_at": "2024-06-12T22:46:31+00:00",
+                        }
+                    ],
+                },
             },
-        )
-    )
-    respx_mock.get(
-        urljoin(
-            endpoint,
-            f"v1/datasets/{dataset_id}/examples?version-id={str(GlobalID("DatasetVersion", str(1)))}",  # noqa: E501
-        )
-    ).mock(
-        Response(
-            200,
-            json=[
-                {
-                    "id": str(GlobalID("DatasetExample", str(1))),
-                    "input": {"input": "input"},
-                    "output": {"output": "output"},
-                    "metadata": {"example-metadata-key": "example-metadata-value"},
-                    "updated_at": "2024-06-12T22:46:31+00:00",
-                }
-            ],
         )
     )
     dataset = client.get_dataset(dataset_id, version_id=version_id)

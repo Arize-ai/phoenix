@@ -280,18 +280,12 @@ class Client(TraceDataExtractor):
 
             A dataset object.
         """
-        if version_id is None:
-            response = self._client.get(
-                urljoin(self._base_url, f"/v1/datasets/{quote(dataset_id)}/versions"),
-                params={"limit": 1},
-            )
-            response.raise_for_status()
-            version_id = response.json()["data"][0]["version_id"]
         response = self._client.get(
             urljoin(self._base_url, f"/v1/datasets/{quote(dataset_id)}/examples"),
-            params={"version-id": version_id},
+            params={"version-id": version_id} if version_id else None,
         )
         response.raise_for_status()
+        data = response.json()["data"]
         examples = [
             Example(
                 id=example["id"],
@@ -300,11 +294,13 @@ class Client(TraceDataExtractor):
                 metadata=example["metadata"],
                 updated_at=datetime.fromisoformat(example["updated_at"]),
             )
-            for example in response.json()
+            for example in data["examples"]
         ]
+        resolved_dataset_id = data["dataset_id"]
+        resolved_version_id = data["version_id"]
         return Dataset(
-            id=dataset_id,
-            version_id=version_id,
+            id=resolved_dataset_id,
+            version_id=resolved_version_id,
             examples=examples,
         )
 
