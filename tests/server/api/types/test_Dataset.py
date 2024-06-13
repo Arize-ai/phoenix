@@ -596,6 +596,467 @@ class TestDatasetExperimentsResolver:
         assert response_json["data"] == {"node": {"experiments": {"edges": edges}}}
 
 
+class TestDatasetCompareExperiments:
+    QUERY = """
+      query ($datasetId: GlobalID!, $experimentIds: [GlobalID!]!) {
+        dataset: node(id: $datasetId) {
+          ... on Dataset {
+            compareExperiments(experimentIds: $experimentIds) {
+              comparisons {
+                edges {
+                  comparison: node {
+                    id
+                    example {
+                      id
+                    }
+                    runs {
+                      ... on ExperimentRun {
+                        ...ExperimentRunFields
+                      }
+                      ... on RepeatedExperimentRuns {
+                        runs {
+                          ...ExperimentRunFields
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      fragment ExperimentRunFields on ExperimentRun {
+        id
+        experimentId
+        traceId
+        output
+        startTime
+        endTime
+        error
+      }
+    """
+
+    async def test(self, test_client, comparison_experiments):
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": self.QUERY,
+                "variables": {
+                    "datasetId": str(GlobalID("Dataset", str(1))),
+                    "experimentIds": [
+                        str(GlobalID("Experiment", str(2))),
+                        str(GlobalID("Experiment", str(1))),
+                        str(GlobalID("Experiment", str(3))),
+                        str(GlobalID("Experiment", str(4))),
+                    ],
+                },
+            },
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json.get("errors") is None
+        assert response_json["data"]
+
+
+@pytest.fixture
+async def comparison_experiments(session):
+    """
+    Creates a dataset with four examples, three versions, and four experiments.
+
+                Version 1   Version 2   Version 3
+    Example 1   CREATED     PATCHED     PATCHED
+    Example 2               CREATED
+    Example 3   CREATED     DELETED
+    Example 4                           CREATED
+
+    Experiment 1: V1
+    Experiment 2: V2
+    Experiment 3: V2 (interrupted by an error)
+    Experiment 4: V3
+    """
+
+    # insert dataset
+    dataset_id = await session.scalar(
+        insert(models.Dataset)
+        .returning(models.Dataset.id)
+        .values(
+            name="dataset-name",
+            description="dataset-description",
+            metadata_={"dataset-metadata-key": "dataset-metadata-value"},
+        )
+    )
+
+    # insert examples
+    example_1_id = await session.scalar(
+        insert(models.DatasetExample)
+        .returning(models.DatasetExample.id)
+        .values(
+            dataset_id=dataset_id,
+        )
+    )
+    example_2_id = await session.scalar(
+        insert(models.DatasetExample)
+        .returning(models.DatasetExample.id)
+        .values(
+            dataset_id=dataset_id,
+        )
+    )
+    example_3_id = await session.scalar(
+        insert(models.DatasetExample)
+        .returning(models.DatasetExample.id)
+        .values(
+            dataset_id=dataset_id,
+        )
+    )
+    example_4_id = await session.scalar(
+        insert(models.DatasetExample)
+        .returning(models.DatasetExample.id)
+        .values(
+            dataset_id=dataset_id,
+        )
+    )
+
+    # insert versions
+    version_1_id = await session.scalar(
+        insert(models.DatasetVersion)
+        .returning(models.DatasetVersion.id)
+        .values(
+            dataset_id=dataset_id,
+            description="version-1-description",
+            metadata_={"version-1-metadata-key": "version-1-metadata-value"},
+        )
+    )
+    version_2_id = await session.scalar(
+        insert(models.DatasetVersion)
+        .returning(models.DatasetVersion.id)
+        .values(
+            dataset_id=dataset_id,
+            description="version-2-description",
+            metadata_={"version-2-metadata-key": "version-2-metadata-value"},
+        )
+    )
+    version_3_id = await session.scalar(
+        insert(models.DatasetVersion)
+        .returning(models.DatasetVersion.id)
+        .values(
+            dataset_id=dataset_id,
+            description="version-3-description",
+            metadata_={"version-3-metadata-key": "version-3-metadata-value"},
+        )
+    )
+
+    # insert revisions for example 1 (created in version 1, patched in versions 2 and 3)
+    await session.scalar(
+        insert(models.DatasetExampleRevision)
+        .returning(models.DatasetExampleRevision.id)
+        .values(
+            dataset_example_id=example_1_id,
+            dataset_version_id=version_1_id,
+            input={
+                "example-1-version-1-revision-input-key": "example-1-version-1-revision-input-value"
+            },
+            output={
+                "example-1-version-1-revision-output-key": "example-1-version-1-revision-output-value"  # noqa: E501
+            },
+            metadata_={
+                "example-1-version-1-revision-metadata-key": "example-1-version-1-revision-metadata-value"  # noqa: E501
+            },
+            revision_kind="CREATE",
+        )
+    )
+    await session.scalar(
+        insert(models.DatasetExampleRevision)
+        .returning(models.DatasetExampleRevision.id)
+        .values(
+            dataset_example_id=example_1_id,
+            dataset_version_id=version_2_id,
+            input={
+                "example-1-version-2-revision-input-key": "example-1-version-2-revision-input-value"
+            },
+            output={
+                "example-1-version-2-revision-output-key": "example-1-version-2-revision-output-value"  # noqa: E501
+            },
+            metadata_={
+                "example-1-version-2-revision-metadata-key": "example-1-version-2-revision-metadata-value"  # noqa: E501
+            },
+            revision_kind="PATCH",
+        )
+    )
+    await session.scalar(
+        insert(models.DatasetExampleRevision)
+        .returning(models.DatasetExampleRevision.id)
+        .values(
+            dataset_example_id=example_1_id,
+            dataset_version_id=version_3_id,
+            input={
+                "example-1-version-3-revision-input-key": "example-1-version-3-revision-input-value"
+            },
+            output={
+                "example-1-version-3-revision-output-key": "example-1-version-3-revision-output-value"  # noqa: E501
+            },
+            metadata_={
+                "example-1-version-3-revision-metadata-key": "example-1-version-3-revision-metadata-value"  # noqa: E501
+            },
+            revision_kind="PATCH",
+        )
+    )
+
+    # insert revisions for example 2 (created in version 2)
+    await session.scalar(
+        insert(models.DatasetExampleRevision)
+        .returning(models.DatasetExampleRevision.id)
+        .values(
+            dataset_example_id=example_2_id,
+            dataset_version_id=version_2_id,
+            input={
+                "example-2-version-2-revision-input-key": "example-2-version-2-revision-input-value"
+            },
+            output={
+                "example-2-version-2-revision-output-key": "example-2-version-2-revision-output-value"  # noqa: E501
+            },
+            metadata_={
+                "example-2-version-2-revision-metadata-key": "example-2-version-2-revision-metadata-value"  # noqa: E501
+            },
+            revision_kind="CREATE",
+        )
+    )
+
+    # insert revisions for example 3 (created in version 1, deleted in version 2)
+    await session.scalar(
+        insert(models.DatasetExampleRevision)
+        .returning(models.DatasetExampleRevision.id)
+        .values(
+            dataset_example_id=example_3_id,
+            dataset_version_id=version_1_id,
+            input={
+                "example-3-version-1-revision-input-key": "example-3-version-1-revision-input-value"
+            },
+            output={
+                "example-3-version-1-revision-output-key": "example-3-version-1-revision-output-value"  # noqa: E501
+            },
+            metadata_={
+                "example-3-version-1-revision-metadata-key": "example-3-version-1-revision-metadata-value"  # noqa: E501
+            },
+            revision_kind="CREATE",
+        )
+    )
+    await session.scalar(
+        insert(models.DatasetExampleRevision)
+        .returning(models.DatasetExampleRevision.id)
+        .values(
+            dataset_example_id=example_3_id,
+            dataset_version_id=version_2_id,
+            input={},
+            output={},
+            metadata_={},
+            revision_kind="DELETE",
+        )
+    )
+
+    # insert revisions for example 4 (created in version 3)
+    await session.scalar(
+        insert(models.DatasetExampleRevision)
+        .returning(models.DatasetExampleRevision.id)
+        .values(
+            dataset_example_id=example_4_id,
+            dataset_version_id=version_3_id,
+            input={
+                "example-4-version-3-revision-input-key": "example-4-version-3-revision-input-value"
+            },
+            output={
+                "example-4-version-3-revision-output-key": "example-4-version-3-revision-output-value"  # noqa: E501
+            },
+            metadata_={
+                "example-4-version-3-revision-metadata-key": "example-4-version-3-revision-metadata-value"  # noqa: E501
+            },
+            revision_kind="CREATE",
+        )
+    )
+
+    # insert an experiment for version 1
+    version_1_experiment_1_id = await session.scalar(
+        insert(models.Experiment)
+        .returning(models.Experiment.id)
+        .values(
+            dataset_id=dataset_id,
+            dataset_version_id=version_1_id,
+            description="version-1-experiment-1-description",
+            metadata_={
+                "version-1-experiment-1-metadata-key": "version-1-experiment-1-metadata-value"
+            },
+        )
+    )
+
+    # insert two experiments for version 2
+    version_2_experiment_1_id = await session.scalar(
+        insert(models.Experiment)
+        .returning(models.Experiment.id)
+        .values(
+            dataset_id=dataset_id,
+            dataset_version_id=version_2_id,
+            description="version-2-experiment-1-description",
+            metadata_={
+                "version-2-experiment-1-metadata-key": "version-2-experiment-1-metadata-value"
+            },
+        )
+    )
+    version_2_experiment_2_id = await session.scalar(
+        insert(models.Experiment)
+        .returning(models.Experiment.id)
+        .values(
+            dataset_id=dataset_id,
+            dataset_version_id=version_2_id,
+            description="version-2-experiment-2-description",
+            metadata_={
+                "version-2-experiment-2-metadata-key": "version-2-experiment-2-metadata-value"
+            },
+        )
+    )
+
+    # insert an experiment for version 3
+    version_3_experiment_1_id = await session.scalar(
+        insert(models.Experiment)
+        .returning(models.Experiment.id)
+        .values(
+            dataset_id=dataset_id,
+            dataset_version_id=version_1_id,
+            description="version-3-experiment-1-description",
+            metadata_={
+                "version-3-experiment-1-metadata-key": "version-3-experiment-1-metadata-value"
+            },
+        )
+    )
+
+    # insert runs for version 1 experiment 1
+    await session.scalar(
+        insert(models.ExperimentRun)
+        .returning(models.ExperimentRun.id)
+        .values(
+            experiment_id=version_1_experiment_1_id,
+            dataset_example_id=example_1_id,
+            trace_id=None,
+            output={
+                "version-1-experiment-1-example-1-run-output-key": "version-1-experiment-1-example-1-run-output-value"  # noqa: E501
+            },
+            start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            error=None,
+        )
+    )
+    await session.scalar(
+        insert(models.ExperimentRun)
+        .returning(models.ExperimentRun.id)
+        .values(
+            experiment_id=version_1_experiment_1_id,
+            dataset_example_id=example_3_id,
+            trace_id=None,
+            output={
+                "version-1-experiment-1-example-3-run-output-key": "version-1-experiment-1-example-3-run-output-value"  # noqa: E501
+            },
+            start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            error=None,
+        )
+    )
+
+    # insert runs for version 2 experiment 1
+    await session.scalar(
+        insert(models.ExperimentRun)
+        .returning(models.ExperimentRun.id)
+        .values(
+            experiment_id=version_2_experiment_1_id,
+            dataset_example_id=example_1_id,
+            trace_id=None,
+            output={
+                "version-2-experiment-1-example-1-run-output-key": "version-2-experiment-1-example-1-run-output-value"  # noqa: E501
+            },
+            start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            error=None,
+        )
+    )
+    await session.scalar(
+        insert(models.ExperimentRun)
+        .returning(models.ExperimentRun.id)
+        .values(
+            experiment_id=version_2_experiment_1_id,
+            dataset_example_id=example_2_id,
+            trace_id=None,
+            output={
+                "version-2-experiment-1-example-2-run-output-key": "version-2-experiment-1-example-2-run-output-value"  # noqa: E501
+            },
+            start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            error=None,
+        )
+    )
+
+    # insert run for version 2 experiment 2
+    # one run has an error and is missing output
+    # no run was created for subsequent examples since it failed out
+    await session.scalar(
+        insert(models.ExperimentRun)
+        .returning(models.ExperimentRun.id)
+        .values(
+            experiment_id=version_2_experiment_2_id,
+            dataset_example_id=example_1_id,
+            trace_id=None,
+            output=None,
+            start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            error="version-2-experiment-2-example-1-run-error",
+        )
+    )
+
+    # insert run for version 3 experiment 1
+    await session.scalar(
+        insert(models.ExperimentRun)
+        .returning(models.ExperimentRun.id)
+        .values(
+            experiment_id=version_3_experiment_1_id,
+            dataset_example_id=example_1_id,
+            trace_id=None,
+            output={
+                "version-3-experiment-1-example-1-run-output-key": "version-3-experiment-1-example-1-run-output-value"  # noqa: E501
+            },
+            start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            error=None,
+        )
+    )
+    await session.scalar(
+        insert(models.ExperimentRun)
+        .returning(models.ExperimentRun.id)
+        .values(
+            experiment_id=version_3_experiment_1_id,
+            dataset_example_id=example_2_id,
+            trace_id=None,
+            output={
+                "version-3-experiment-1-example-2-run-output-key": "version-3-experiment-1-example-2-run-output-value"  # noqa: E501
+            },
+            start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            error=None,
+        )
+    )
+    await session.scalar(
+        insert(models.ExperimentRun)
+        .returning(models.ExperimentRun.id)
+        .values(
+            experiment_id=version_3_experiment_1_id,
+            dataset_example_id=example_4_id,
+            trace_id=None,
+            output={
+                "version-3-experiment-1-example-4-run-output-key": "version-3-experiment-1-example-4-run-output-value"  # noqa: E501
+            },
+            start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            error=None,
+        )
+    )
+
+
 @pytest.fixture
 async def dataset_with_patch_revision(session):
     """
