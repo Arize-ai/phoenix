@@ -23,6 +23,7 @@ from phoenix.server.api.types.pagination import (
 class Experiment(Node):
     cached_sequence_number: Private[Optional[int]] = None
     id_attr: NodeID[int]
+    name: str
     description: Optional[str]
     metadata: JSON
     created_at: datetime
@@ -82,6 +83,7 @@ def to_gql_experiment(
     return Experiment(
         cached_sequence_number=sequence_number,
         id_attr=experiment.id,
+        name=experiment.name,
         description=experiment.description,
         metadata=experiment.metadata_,
         created_at=experiment.created_at,

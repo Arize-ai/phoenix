@@ -202,6 +202,7 @@ class Query:
                 raise ValueError(f"Unknown experiment: {id}")
             return Experiment(
                 id_attr=experiment.id,
+                name=experiment.name,
                 description=experiment.description,
                 created_at=experiment.created_at,
                 updated_at=experiment.updated_at,

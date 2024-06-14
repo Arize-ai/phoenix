@@ -21,7 +21,8 @@ def _generate_experiment_name(dataset_name: str) -> str:
     """
     Generate a semi-unique name for the experiment.
     """
-    return f"{dataset_name.replace(" ", "-")[:8]}-{_short_uuid()}"
+    short_ds_name = dataset_name.replace(" ", "-")[:8]
+    return f"{short_ds_name}-{_short_uuid()}"
 
 
 async def create_experiment(request: Request) -> Response:

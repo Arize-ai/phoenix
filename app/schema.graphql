@@ -556,6 +556,7 @@ interface ExampleRevision {
 type Experiment implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
+  name: String!
   description: String
   metadata: JSON!
   createdAt: DateTime!
