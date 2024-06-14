@@ -598,23 +598,19 @@ class TestDatasetExperimentsResolver:
 
 class TestDatasetCompareExperiments:
     QUERY = """
-      query ($datasetId: GlobalID!, $baselineExperimentId: GlobalID!, $comparisonExperimentIds: [GlobalID!]!) {
-        dataset: node(id: $datasetId) {
-          ... on Dataset {
-            compareExperiments(
-              baselineExperimentId: $baselineExperimentId
-              comparisonExperimentIds: $comparisonExperimentIds
-            ) {
-              example {
-                id
-              }
-              runComparisonItems {
-                experimentId
-                runs {
-                  id
-                  output
-                }
-              }
+      query ($baselineExperimentId: GlobalID!, $comparisonExperimentIds: [GlobalID!]!) {
+        compareExperiments(
+          baselineExperimentId: $baselineExperimentId
+          comparisonExperimentIds: $comparisonExperimentIds
+        ) {
+          example {
+            id
+          }
+          runComparisonItems {
+            experimentId
+            runs {
+              id
+              output
             }
           }
         }
@@ -627,7 +623,6 @@ class TestDatasetCompareExperiments:
             json={
                 "query": self.QUERY,
                 "variables": {
-                    "datasetId": str(GlobalID("Dataset", str(1))),
                     "baselineExperimentId": str(GlobalID("Experiment", str(2))),
                     "comparisonExperimentIds": [
                         str(GlobalID("Experiment", str(1))),
@@ -640,64 +635,62 @@ class TestDatasetCompareExperiments:
         response_json = response.json()
         assert response_json.get("errors") is None
         assert response_json["data"] == {
-            "dataset": {
-                "compareExperiments": [
-                    {
-                        "example": {"id": str(GlobalID("DatasetExample", str(2)))},
-                        "runComparisonItems": [
-                            {
-                                "experimentId": str(GlobalID("Experiment", str(2))),
-                                "runs": [
-                                    {
-                                        "id": str(GlobalID("ExperimentRun", str(4))),
-                                        "output": {"run-4-output-key": "run-4-output-value"},
-                                    },
-                                ],
-                            },
-                            {
-                                "experimentId": str(GlobalID("Experiment", str(1))),
-                                "runs": [],
-                            },
-                            {
-                                "experimentId": str(GlobalID("Experiment", str(3))),
-                                "runs": [],
-                            },
-                        ],
-                    },
-                    {
-                        "example": {"id": str(GlobalID("DatasetExample", str(1)))},
-                        "runComparisonItems": [
-                            {
-                                "experimentId": str(GlobalID("Experiment", str(2))),
-                                "runs": [
-                                    {
-                                        "id": str(GlobalID("ExperimentRun", str(3))),
-                                        "output": {"run-3-output-key": "run-3-output-value"},
-                                    },
-                                ],
-                            },
-                            {
-                                "experimentId": str(GlobalID("Experiment", str(1))),
-                                "runs": [
-                                    {
-                                        "id": str(GlobalID("ExperimentRun", str(1))),
-                                        "output": {"run-1-output-key": "run-1-output-value"},
-                                    },
-                                ],
-                            },
-                            {
-                                "experimentId": str(GlobalID("Experiment", str(3))),
-                                "runs": [
-                                    {
-                                        "id": str(GlobalID("ExperimentRun", str(5))),
-                                        "output": {"run-5-output-key": "run-5-output-value"},
-                                    },
-                                ],
-                            },
-                        ],
-                    },
-                ]
-            }
+            "compareExperiments": [
+                {
+                    "example": {"id": str(GlobalID("DatasetExample", str(2)))},
+                    "runComparisonItems": [
+                        {
+                            "experimentId": str(GlobalID("Experiment", str(2))),
+                            "runs": [
+                                {
+                                    "id": str(GlobalID("ExperimentRun", str(4))),
+                                    "output": {"run-4-output-key": "run-4-output-value"},
+                                },
+                            ],
+                        },
+                        {
+                            "experimentId": str(GlobalID("Experiment", str(1))),
+                            "runs": [],
+                        },
+                        {
+                            "experimentId": str(GlobalID("Experiment", str(3))),
+                            "runs": [],
+                        },
+                    ],
+                },
+                {
+                    "example": {"id": str(GlobalID("DatasetExample", str(1)))},
+                    "runComparisonItems": [
+                        {
+                            "experimentId": str(GlobalID("Experiment", str(2))),
+                            "runs": [
+                                {
+                                    "id": str(GlobalID("ExperimentRun", str(3))),
+                                    "output": {"run-3-output-key": "run-3-output-value"},
+                                },
+                            ],
+                        },
+                        {
+                            "experimentId": str(GlobalID("Experiment", str(1))),
+                            "runs": [
+                                {
+                                    "id": str(GlobalID("ExperimentRun", str(1))),
+                                    "output": {"run-1-output-key": "run-1-output-value"},
+                                },
+                            ],
+                        },
+                        {
+                            "experimentId": str(GlobalID("Experiment", str(3))),
+                            "runs": [
+                                {
+                                    "id": str(GlobalID("ExperimentRun", str(5))),
+                                    "output": {"run-5-output-key": "run-5-output-value"},
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ]
         }
 
 

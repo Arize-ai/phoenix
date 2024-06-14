@@ -1,16 +1,13 @@
-from collections import defaultdict
 from datetime import datetime
-from typing import AsyncIterable, DefaultDict, List, Optional, Tuple, Union, cast
+from typing import AsyncIterable, Optional, Tuple, cast
 
 import strawberry
 from sqlalchemy import and_, func, select
-from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.functions import count
 from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
-from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
@@ -18,7 +15,6 @@ from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
-from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -26,18 +22,6 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.SortDir import SortDir
-
-
-@strawberry.type
-class RunComparisonItem:
-    experiment_id: GlobalID
-    runs: List[ExperimentRun]
-
-
-@strawberry.type
-class ExperimentComparison:
-    example: DatasetExample
-    run_comparison_items: List[RunComparisonItem]
 
 
 @strawberry.type
@@ -252,96 +236,6 @@ class Dataset(Node):
                 )
             ]
         return connection_from_list(data=experiments, args=args)
-
-    @strawberry.field
-    async def compare_experiments(
-        self,
-        info: Info[Context, None],
-        baseline_experiment_id: GlobalID,
-        comparison_experiment_ids: List[GlobalID],
-    ) -> List[ExperimentComparison]:
-        OrmExample = models.DatasetExample
-        OrmExperiment = models.Experiment
-        OrmRun: TypeAlias = models.ExperimentRun
-        OrmRevision = models.DatasetExampleRevision
-        OrmTrace = models.Trace
-
-        experiment_ids = [
-            from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
-            for experiment_id in [baseline_experiment_id] + comparison_experiment_ids
-        ]
-
-        async with info.context.db() as session:
-            if (
-                version_id := await session.scalar(
-                    select(func.max(OrmExperiment.dataset_version_id)).where(
-                        OrmExperiment.id.in_(experiment_ids),
-                    )
-                )
-            ) is None:
-                raise ValueError
-
-            revision_ids = (
-                select(func.max(OrmRevision.id))
-                .where(OrmRevision.dataset_version_id <= version_id)
-                .group_by(OrmRevision.dataset_example_id)
-                .scalar_subquery()
-            )
-            examples = (
-                await session.scalars(
-                    select(OrmExample)
-                    .join(OrmRevision, OrmExample.id == OrmRevision.dataset_example_id)
-                    .where(
-                        and_(
-                            OrmRevision.id.in_(revision_ids),
-                            OrmRevision.revision_kind != "DELETE",
-                        )
-                    )
-                    .order_by(OrmRevision.dataset_example_id.desc())
-                )
-            ).all()
-
-            ExampleID: TypeAlias = int
-            ExperimentID: TypeAlias = int
-            runs: DefaultDict[ExampleID, DefaultDict[ExperimentID, List[OrmRun]]] = defaultdict(
-                lambda: defaultdict(list)
-            )
-
-            for run in await session.scalars(
-                select(OrmRun)
-                .where(
-                    and_(
-                        OrmRun.dataset_example_id.in_(example.id for example in examples),
-                        OrmRun.experiment_id.in_(experiment_ids),
-                    )
-                )
-                .options(joinedload(OrmRun.trace).load_only(OrmTrace.trace_id))
-            ):
-                runs[run.dataset_example_id][run.experiment_id].append(run)
-
-        experiment_comparisons = []
-        for example in examples:
-            run_comparison_items = []
-            for experiment_id in experiment_ids:
-                run_comparison_items.append(
-                    RunComparisonItem(
-                        experiment_id=GlobalID(Experiment.__name__, str(experiment_id)),
-                        runs=[
-                            to_gql_experiment_run(run) for run in runs[example.id][experiment_id]
-                        ],
-                    )
-                )
-            experiment_comparisons.append(
-                ExperimentComparison(
-                    example=DatasetExample(
-                        id_attr=example.id,
-                        created_at=example.created_at,
-                        version_id=version_id,
-                    ),
-                    run_comparison_items=run_comparison_items,
-                )
-            )
-        return experiment_comparisons
 
 
 def to_gql_dataset(dataset: models.Dataset) -> Dataset:
