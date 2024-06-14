@@ -100,7 +100,7 @@ type Dataset implements Node {
   """
   experimentCount(datasetVersionId: GlobalID): Int!
   experiments(first: Int = 50, last: Int, after: String, before: String): ExperimentConnection!
-  compareExperiments(experimentIds: [GlobalID!]!): [ExperimentComparison!]!
+  compareExperiments(baselineExperimentId: GlobalID!, comparisonExperimentIds: [GlobalID!]!): [ExperimentComparison!]!
 }
 
 enum DatasetColumn {

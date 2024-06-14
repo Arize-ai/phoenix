@@ -257,11 +257,9 @@ class Dataset(Node):
     async def compare_experiments(
         self,
         info: Info[Context, None],
-        experiment_ids: List[GlobalID],
+        baseline_experiment_id: GlobalID,
+        comparison_experiment_ids: List[GlobalID],
     ) -> List[ExperimentComparison]:
-        if not experiment_ids:
-            raise ValueError("At least one experiment ID must be provided.")
-
         OrmExample = models.DatasetExample
         OrmExperiment = models.Experiment
         OrmRun: TypeAlias = models.ExperimentRun
@@ -271,16 +269,16 @@ class Dataset(Node):
         dataset_id = self.id_attr
         decoded_experiment_ids = [
             from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
-            for experiment_id in experiment_ids
+            for experiment_id in [baseline_experiment_id] + comparison_experiment_ids
         ]
-        baseline_experiment_id = decoded_experiment_ids[0]
+        decoded_baseline_experiment_id = decoded_experiment_ids[0]
 
         async with info.context.db() as session:
             if (
                 baseline_version_id := await session.scalar(
                     select(OrmExperiment.dataset_version_id).where(
                         and_(
-                            OrmExperiment.id == baseline_experiment_id,
+                            OrmExperiment.id == decoded_baseline_experiment_id,
                             OrmExperiment.dataset_id == dataset_id,
                         )
                     )
@@ -291,7 +289,7 @@ class Dataset(Node):
                 baseline_example_ids := (
                     await session.scalars(
                         select(func.distinct(OrmRun.dataset_example_id))
-                        .where(OrmRun.experiment_id == baseline_experiment_id)
+                        .where(OrmRun.experiment_id == decoded_baseline_experiment_id)
                         .order_by(OrmRun.dataset_example_id.desc())
                     )
                 ).all()

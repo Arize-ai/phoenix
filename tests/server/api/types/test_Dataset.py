@@ -598,10 +598,13 @@ class TestDatasetExperimentsResolver:
 
 class TestDatasetCompareExperiments:
     QUERY = """
-      query ($datasetId: GlobalID!, $experimentIds: [GlobalID!]!) {
+      query ($datasetId: GlobalID!, $baselineExperimentId: GlobalID!, $comparisonExperimentIds: [GlobalID!]!) {
         dataset: node(id: $datasetId) {
           ... on Dataset {
-            compareExperiments(experimentIds: $experimentIds) {
+            compareExperiments(
+              baselineExperimentId: $baselineExperimentId
+              comparisonExperimentIds: $comparisonExperimentIds
+            ) {
               example {
                 id
               }
@@ -616,7 +619,7 @@ class TestDatasetCompareExperiments:
           }
         }
       }
-    """
+    """  # noqa: E501
 
     async def test(self, test_client, comparison_experiments):
         response = await test_client.post(
@@ -625,8 +628,8 @@ class TestDatasetCompareExperiments:
                 "query": self.QUERY,
                 "variables": {
                     "datasetId": str(GlobalID("Dataset", str(1))),
-                    "experimentIds": [
-                        str(GlobalID("Experiment", str(2))),
+                    "baselineExperimentId": str(GlobalID("Experiment", str(2))),
+                    "comparisonExperimentIds": [
                         str(GlobalID("Experiment", str(1))),
                         str(GlobalID("Experiment", str(3))),
                         str(GlobalID("Experiment", str(4))),
