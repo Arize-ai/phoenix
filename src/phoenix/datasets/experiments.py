@@ -253,7 +253,7 @@ def evaluate_experiment(experiment: Experiment, basic_evaluator, name=None, labe
                 raise RuntimeError("Task is async but running in sync context")
             else:
                 output = basic_evaluator(
-                    input=example.input, reference=example.output, output=run.output
+                    input=example["input"], reference=example["output"], output=run["output"]
                 )
         except Exception as exc:
             error = exc
@@ -296,11 +296,11 @@ def evaluate_experiment(experiment: Experiment, basic_evaluator, name=None, labe
         try:
             if asyncio.iscoroutinefunction(basic_evaluator):
                 output = await basic_evaluator(
-                    input=example.input, reference=example.output, output=run.output
+                    input=example["input"], reference=example["output"], output=run["output"]
                 )
             else:
                 output = basic_evaluator(
-                    input=example.input, reference=example.output, output=run.output
+                    input=example["input"], reference=example["output"], output=run["output"]
                 )
         except Exception as exc:
             error = exc
@@ -309,13 +309,13 @@ def evaluate_experiment(experiment: Experiment, basic_evaluator, name=None, labe
 
         evaluator_payload = EvaluatorPayload(
             experiment_run_id=run["id"],
-            name=name,
+            name=name if name is not None else str(basic_evaluator),
             annotator_kind=getattr(basic_evaluator, "annotator_kind", "CODE"),
             label=label if label is not None else None,
             score=getattr(output, "score", None),
-            explanation=getattr(output, "explanation", None)
+            explanation=getattr(output, "explanation", None),
             error=repr(error) if error else None,
-            metadata=output.get("metadata"),
+            metadata=getattr(output, "metadata", None),
             start_time=start_time.isoformat(),
             end_time=end_time.isoformat(),
         )
