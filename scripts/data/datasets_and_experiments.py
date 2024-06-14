@@ -21,8 +21,8 @@ async def revised_dataset(session):
 
     dataset = models.Dataset(
         id=1,
-        name="revised dataset",
-        description="dataset with two revisions",
+        name="example dataset",
+        description="a dataset with dummy data",
         metadata_={},
     )
     session.add(dataset)
@@ -32,7 +32,7 @@ async def revised_dataset(session):
         id=1,
         dataset_id=1,
         description="data gets added",
-        metadata_={"info": "gotta get some test data somewhere"},
+        metadata_={"info": "initial seeding"},
     )
     session.add(dataset_version_1)
     await session.flush()
@@ -55,8 +55,8 @@ async def revised_dataset(session):
         id=1,
         dataset_example_id=1,
         dataset_version_id=1,
-        input={"in": "foo"},
-        output={"out": "bar"},
+        input={"input": "what is the capital of France?"},
+        output={"output": "Paris"},
         metadata_={"info": "first revision"},
         revision_kind="CREATE",
     )
@@ -67,8 +67,8 @@ async def revised_dataset(session):
         id=2,
         dataset_example_id=2,
         dataset_version_id=1,
-        input={"in": "foofoo"},
-        output={"out": "barbar"},
+        input={"input": "what is the capital of Japan?"},
+        output={"output": "Kyoto"},  # Incorrect, for testing
         metadata_={"info": "first revision"},
         revision_kind="CREATE",
     )
@@ -88,8 +88,8 @@ async def revised_dataset(session):
         id=3,
         dataset_example_id=1,
         dataset_version_id=2,
-        input={"in": "FOO"},
-        output={"out": "BAR"},
+        input={"input": "WHAT IS THE CAPITAL OF FRANCE?"},
+        output={"output": "PARIS"},
         metadata_={"info": "all caps revision"},
         revision_kind="PATCH",
     )
@@ -100,8 +100,8 @@ async def revised_dataset(session):
         id=4,
         dataset_example_id=2,
         dataset_version_id=2,
-        input={"in": "FOOFOO"},
-        output={"out": "BARBAR"},
+        input={"input": "WHAT IS THE CAPITAL OF JAPAN?"},
+        output={"output": "KYOTO"},
         metadata_={"info": "all caps revision"},
         revision_kind="PATCH",
     )
@@ -114,6 +114,7 @@ async def dataset_with_experiments_without_runs(session):
         id=0,
         dataset_id=1,
         dataset_version_id=1,
+        name="my-experiment-1",
         metadata_={"info": "a test experiment"},
     )
     session.add(experiment_0)
@@ -123,6 +124,7 @@ async def dataset_with_experiments_without_runs(session):
         id=1,
         dataset_id=1,
         dataset_version_id=2,
+        name="my-experiment-2",
         metadata_={"info": "a second test experiment"},
     )
     session.add(experiment_1)
