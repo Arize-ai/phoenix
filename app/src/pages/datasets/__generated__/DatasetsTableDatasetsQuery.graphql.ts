@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9874853cb9af7310fa4b566736d77a55>>
+ * @generated SignedSource<<e2745ff737f19108b64aa4789d0ceee9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,9 +10,16 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type DatasetColumn = "createdAt" | "name";
+export type SortDir = "asc" | "desc";
+export type DatasetSort = {
+  col: DatasetColumn;
+  dir: SortDir;
+};
 export type DatasetsTableDatasetsQuery$variables = {
   after?: string | null;
   first?: number | null;
+  sort?: DatasetSort | null;
 };
 export type DatasetsTableDatasetsQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"DatasetsTable_datasets">;
@@ -33,6 +40,14 @@ var v0 = [
     "defaultValue": 100,
     "kind": "LocalArgument",
     "name": "first"
+  },
+  {
+    "defaultValue": {
+      "col": "createdAt",
+      "dir": "desc"
+    },
+    "kind": "LocalArgument",
+    "name": "sort"
   }
 ],
 v1 = [
@@ -45,6 +60,11 @@ v1 = [
     "kind": "Variable",
     "name": "first",
     "variableName": "first"
+  },
+  {
+    "kind": "Variable",
+    "name": "sort",
+    "variableName": "sort"
   }
 ];
 return {
@@ -186,7 +206,9 @@ return {
       {
         "alias": null,
         "args": (v1/*: any*/),
-        "filters": null,
+        "filters": [
+          "sort"
+        ],
         "handle": "connection",
         "key": "DatasetsTable_datasets",
         "kind": "LinkedHandle",
@@ -195,16 +217,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0f35826a5d3b16dd6ff8a383ce59352c",
+    "cacheID": "563b248ababc0a0549a1e4dd039d9fc5",
     "id": null,
     "metadata": {},
     "name": "DatasetsTableDatasetsQuery",
     "operationKind": "query",
-    "text": "query DatasetsTableDatasetsQuery(\n  $after: String = null\n  $first: Int = 100\n) {\n  ...DatasetsTable_datasets_2HEEH6\n}\n\nfragment DatasetsTable_datasets_2HEEH6 on Query {\n  datasets(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        name\n        description\n        createdAt\n        exampleCount\n        experimentCount\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query DatasetsTableDatasetsQuery(\n  $after: String = null\n  $first: Int = 100\n  $sort: DatasetSort = {col: createdAt, dir: desc}\n) {\n  ...DatasetsTable_datasets_dWkdd\n}\n\nfragment DatasetsTable_datasets_dWkdd on Query {\n  datasets(first: $first, after: $after, sort: $sort) {\n    edges {\n      node {\n        id\n        name\n        description\n        createdAt\n        exampleCount\n        experimentCount\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a46b79378a5c19b993545c42e96ee4e4";
+(node as any).hash = "ead09294d86188dc9d76825bdef37fbf";
 
 export default node;
