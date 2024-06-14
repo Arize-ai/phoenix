@@ -10,7 +10,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Label } from "@arizeai/components";
+import { Flex, Label } from "@arizeai/components";
 
 import { Link } from "@phoenix/components/Link";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
@@ -66,6 +66,7 @@ export function ExperimentsTable({
           edges {
             experiment: node {
               id
+              name
               sequenceNumber
               description
               createdAt
@@ -109,30 +110,29 @@ export function ExperimentsTable({
         />
       ),
     },
+
     {
-      header: "#",
-      accessorKey: "sequenceNumber",
-      cell: ({ getValue }) => {
-        return <Label color="yellow-1000">#{getValue() as number}</Label>;
-      },
-    },
-    {
-      header: "id",
-      accessorKey: "id",
+      header: "name",
+      accessorKey: "name",
       cell: ({ getValue, row }) => {
         const experimentId = row.original.id;
+        const sequenceNumber = row.original.sequenceNumber;
         return (
-          <Link
-            to={`/datasets/${dataset.id}/compare?experimentId=${experimentId}`}
-          >
-            {getValue() as string}
-          </Link>
+          <Flex direction="row" gap="size-100">
+            <Label color="yellow-1000">#{sequenceNumber}</Label>
+            <Link
+              to={`/datasets/${dataset.id}/compare?experimentId=${experimentId}`}
+            >
+              {getValue() as string}
+            </Link>
+          </Flex>
         );
       },
     },
     {
       header: "description",
       accessorKey: "description",
+      cell: TextCell,
     },
     {
       header: "created at",
@@ -166,7 +166,7 @@ export function ExperimentsTable({
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
         const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
-        //once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
+        // once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
         if (
           scrollHeight - scrollTop - clientHeight < 300 &&
           !isLoadingNext &&

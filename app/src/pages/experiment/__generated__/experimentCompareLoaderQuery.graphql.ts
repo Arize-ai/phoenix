@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ea9ee9906471bdd22f057fa896ff768c>>
+ * @generated SignedSource<<2a0ae6a82d3a0160ea5d93ca6ac26abf>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -141,18 +141,12 @@ return {
                         "plural": false,
                         "selections": [
                           (v2/*: any*/),
+                          (v3/*: any*/),
                           {
                             "alias": null,
                             "args": null,
                             "kind": "ScalarField",
                             "name": "sequenceNumber",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "description",
                             "storageKey": null
                           },
                           {
@@ -181,12 +175,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ea5c76e30df3df4e33e075e6e7dab73b",
+    "cacheID": "7e89f99f940098a21985137aae870de7",
     "id": null,
     "metadata": {},
     "name": "experimentCompareLoaderQuery",
     "operationKind": "query",
-    "text": "query experimentCompareLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      ...ExperimentMultiSelector__experiments\n    }\n  }\n}\n\nfragment ExperimentMultiSelector__experiments on Dataset {\n  experiments {\n    edges {\n      experiment: node {\n        id\n        sequenceNumber\n        description\n        createdAt\n      }\n    }\n  }\n}\n"
+    "text": "query experimentCompareLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      ...ExperimentMultiSelector__experiments\n    }\n  }\n}\n\nfragment ExperimentMultiSelector__experiments on Dataset {\n  experiments {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        createdAt\n      }\n    }\n  }\n}\n"
   }
 };
 })();
