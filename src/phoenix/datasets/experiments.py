@@ -286,7 +286,7 @@ def evaluate_experiment(
         evaluator_payload = EvaluatorPayload(
             experiment_run_id=run.id,
             name=name if name is not None else str(evaluator),
-            annotator_kind="basic",
+            annotator_kind=getattr(evaluator, "annotator_kind", "CODE"),
             label=label if label is not None else None,
             score=getattr(output, "score", None),
             explanation=getattr(output, "explanation", None),
