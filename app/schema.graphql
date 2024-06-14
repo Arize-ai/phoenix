@@ -100,7 +100,7 @@ type Dataset implements Node {
   """
   experimentCount(datasetVersionId: GlobalID): Int!
   experiments(first: Int = 50, last: Int, after: String, before: String): ExperimentConnection!
-  compareExperiments(experimentIds: [GlobalID!]!): ExperimentComparisonConnection!
+  compareExperiments(experimentIds: [GlobalID!]!, first: Int = 50, last: Int, after: String, before: String): ExperimentComparisonConnection!
 }
 
 enum DatasetColumn {
@@ -583,7 +583,7 @@ type ExperimentComparison implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   example: DatasetExample!
-  runs: [ExperimentRunRepeatedExperimentRuns!]!
+  runs: [ExperimentRunRepeatedExperimentRuns]!
 }
 
 """A connection to a list of items."""

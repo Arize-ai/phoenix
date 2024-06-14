@@ -627,11 +627,7 @@ class TestDatasetCompareExperiments:
       fragment ExperimentRunFields on ExperimentRun {
         id
         experimentId
-        traceId
         output
-        startTime
-        endTime
-        error
       }
     """
 
@@ -661,38 +657,23 @@ class TestDatasetCompareExperiments:
                         {
                             "comparison": {
                                 "id": str(GlobalID("ExperimentComparison", str(1))),
-                                "example": {"id": str(GlobalID("DatasetExample", str(1)))},
+                                "example": {"id": str(GlobalID("DatasetExample", str(2)))},
                                 "runs": [
                                     {
-                                        "id": str(GlobalID("ExperimentRun", str(1))),
-                                        "experimentId": str(GlobalID("Experiment", str(1))),
-                                        "traceId": None,
+                                        "id": str(GlobalID("ExperimentRun", str(4))),
+                                        "experimentId": str(GlobalID("Experiment", str(2))),
                                         "output": {
-                                            "version-1-experiment-1-example-1-run-output-key": "version-1-experiment-1-example-1-run-output-value"  # noqa: E501
+                                            "version-2-experiment-1-example-2-run-output-key": "version-2-experiment-1-example-2-run-output-value"  # noqa: E501
                                         },
-                                        "startTime": "2020-01-01T00:00:00+00:00",
-                                        "endTime": "2020-01-01T00:00:00+00:00",
-                                        "error": None,
                                     },
+                                    None,
+                                    None,
                                     {
-                                        "id": str(GlobalID("ExperimentRun", str(5))),
-                                        "experimentId": str(GlobalID("Experiment", str(3))),
-                                        "traceId": None,
-                                        "output": None,
-                                        "startTime": "2020-01-01T00:00:00+00:00",
-                                        "endTime": "2020-01-01T00:00:00+00:00",
-                                        "error": "version-2-experiment-2-example-1-run-error",
-                                    },
-                                    {
-                                        "id": str(GlobalID("ExperimentRun", str(6))),
+                                        "id": str(GlobalID("ExperimentRun", str(7))),
                                         "experimentId": str(GlobalID("Experiment", str(4))),
-                                        "traceId": None,
                                         "output": {
-                                            "version-3-experiment-1-example-1-run-output-key": "version-3-experiment-1-example-1-run-output-value"  # noqa: E501
+                                            "version-3-experiment-1-example-2-run-output-key": "version-3-experiment-1-example-2-run-output-value"  # noqa: E501
                                         },
-                                        "startTime": "2020-01-01T00:00:00+00:00",
-                                        "endTime": "2020-01-01T00:00:00+00:00",
-                                        "error": None,
                                     },
                                 ],
                             }
@@ -700,19 +681,34 @@ class TestDatasetCompareExperiments:
                         {
                             "comparison": {
                                 "id": str(GlobalID("ExperimentComparison", str(1))),
-                                "example": {"id": str(GlobalID("DatasetExample", str(2)))},
+                                "example": {"id": str(GlobalID("DatasetExample", str(1)))},
                                 "runs": [
                                     {
-                                        "id": str(GlobalID("ExperimentRun", str(7))),
-                                        "experimentId": str(GlobalID("Experiment", str(4))),
-                                        "traceId": None,
+                                        "id": str(GlobalID("ExperimentRun", str(3))),
+                                        "experimentId": str(GlobalID("Experiment", str(2))),
                                         "output": {
-                                            "version-3-experiment-1-example-2-run-output-key": "version-3-experiment-1-example-2-run-output-value"  # noqa: E501
+                                            "version-2-experiment-1-example-1-run-output-key": "version-2-experiment-1-example-1-run-output-value"  # noqa: E501
                                         },
-                                        "startTime": "2020-01-01T00:00:00+00:00",
-                                        "endTime": "2020-01-01T00:00:00+00:00",
-                                        "error": None,
-                                    }
+                                    },
+                                    {
+                                        "id": str(GlobalID("ExperimentRun", str(1))),
+                                        "experimentId": str(GlobalID("Experiment", str(1))),
+                                        "output": {
+                                            "version-1-experiment-1-example-1-run-output-key": "version-1-experiment-1-example-1-run-output-value"  # noqa: E501
+                                        },
+                                    },
+                                    {
+                                        "id": str(GlobalID("ExperimentRun", str(5))),
+                                        "experimentId": str(GlobalID("Experiment", str(3))),
+                                        "output": None,
+                                    },
+                                    {
+                                        "id": str(GlobalID("ExperimentRun", str(6))),
+                                        "experimentId": str(GlobalID("Experiment", str(4))),
+                                        "output": {
+                                            "version-3-experiment-1-example-1-run-output-key": "version-3-experiment-1-example-1-run-output-value"  # noqa: E501
+                                        },
+                                    },
                                 ],
                             }
                         },

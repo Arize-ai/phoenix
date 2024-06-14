@@ -1,14 +1,16 @@
+from collections import defaultdict
 from datetime import datetime
-from typing import AsyncIterable, List, Optional, Tuple, Union, cast
+from typing import AsyncIterable, DefaultDict, List, Optional, Tuple, Union, cast
 
 import strawberry
 from sqlalchemy import and_, func, select
-from sqlalchemy.orm import contains_eager
+from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.functions import count
 from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
+from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
@@ -35,7 +37,7 @@ class RepeatedExperimentRuns:
 class ExperimentComparison(Node):
     id_attr: NodeID[int]
     example: DatasetExample
-    runs: List[Union[ExperimentRun, RepeatedExperimentRuns]]  # this could be a resolver
+    runs: List[Optional[Union[ExperimentRun, RepeatedExperimentRuns]]]  # this could be a resolverf
 
 
 @strawberry.type
@@ -273,15 +275,16 @@ class Dataset(Node):
 
         OrmExample = models.DatasetExample
         OrmExperiment = models.Experiment
-        OrmRun = models.ExperimentRun
+        OrmRun: TypeAlias = models.ExperimentRun
         OrmRevision = models.DatasetExampleRevision
         OrmTrace = models.Trace
 
         dataset_id = self.id_attr
-        baseline_experiment_id, *comparison_experiment_ids = map(
-            lambda global_id: from_global_id_with_expected_type(global_id, OrmExperiment.__name__),
-            experiment_ids,
-        )
+        decoded_experiment_ids = [
+            from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
+            for experiment_id in experiment_ids
+        ]
+        baseline_experiment_id = decoded_experiment_ids[0]
 
         async with info.context.db() as session:
             if (
@@ -298,9 +301,9 @@ class Dataset(Node):
             if not (
                 baseline_example_ids := (
                     await session.scalars(
-                        select(func.distinct(OrmRun.dataset_example_id)).where(
-                            OrmRun.experiment_id == baseline_experiment_id
-                        )
+                        select(func.distinct(OrmRun.dataset_example_id))
+                        .where(OrmRun.experiment_id == baseline_experiment_id)
+                        .order_by(OrmRun.dataset_example_id.desc())
                     )
                 ).all()
             ):
@@ -317,40 +320,64 @@ class Dataset(Node):
                 .group_by(OrmRevision.dataset_example_id)
                 .scalar_subquery()
             )
-
-            comparisons = []
-            for example in (
-                await session.scalars(
+            examples = {
+                example.id: example
+                async for example in await session.stream_scalars(
                     select(OrmExample)
-                    .select_from(OrmExample)
                     .join(OrmRevision, OrmExample.id == OrmRevision.dataset_example_id)
-                    .join(OrmRun, OrmExample.id == OrmRun.dataset_example_id)
                     .where(
                         and_(
-                            OrmExample.id.in_(baseline_example_ids),
                             OrmRevision.id.in_(revision_ids),
-                            OrmRun.experiment_id.in_(comparison_experiment_ids),
+                            OrmRevision.revision_kind != "DELETE",
                         )
                     )
-                    .options(
-                        contains_eager(OrmExample.dataset_example_revisions),
-                        contains_eager(OrmExample.experiment_runs)
-                        .joinedload(OrmRun.trace)
-                        .load_only(OrmTrace.id),
+                )
+            }
+
+            ExampleID: TypeAlias = int
+            ExperimentID: TypeAlias = int
+            runs: DefaultDict[ExampleID, DefaultDict[ExperimentID, List[OrmRun]]] = defaultdict(
+                lambda: defaultdict(list)
+            )
+            for run in await session.scalars(
+                select(OrmRun)
+                .where(
+                    and_(
+                        OrmRun.dataset_example_id.in_(baseline_example_ids),
+                        OrmRun.experiment_id.in_(decoded_experiment_ids),
                     )
                 )
-            ).unique():
-                comparisons.append(
-                    ExperimentComparison(
-                        id_attr=1,
-                        example=DatasetExample(
-                            id_attr=example.id,
-                            version_id=baseline_version_id,
-                            created_at=example.created_at,
-                        ),
-                        runs=[to_gql_experiment_run(run) for run in example.experiment_runs],
+                .options(joinedload(OrmRun.trace).load_only(OrmTrace.trace_id))
+            ):
+                runs[run.dataset_example_id][run.experiment_id].append(run)
+
+        comparisons = []
+        for example_id in baseline_example_ids:
+            example = examples[example_id]
+            gql_runs_list = []
+            for experiment_id in decoded_experiment_ids:
+                repetitions = runs[example_id][experiment_id]
+                gql_runs: Optional[Union[ExperimentRun, RepeatedExperimentRuns]]
+                if (num_repetitions := len(repetitions)) == 0:
+                    gql_runs = None
+                elif num_repetitions == 1:
+                    gql_runs = to_gql_experiment_run(repetitions[0])
+                else:
+                    gql_runs = RepeatedExperimentRuns(
+                        runs=[to_gql_experiment_run(run) for run in repetitions]
                     )
+                gql_runs_list.append(gql_runs)
+            comparisons.append(
+                ExperimentComparison(
+                    id_attr=1,
+                    example=DatasetExample(
+                        id_attr=example.id,
+                        created_at=example.created_at,
+                        version_id=baseline_version_id,
+                    ),
+                    runs=gql_runs_list,
                 )
+            )
         return connection_from_list(data=comparisons, args=args)
 
 
