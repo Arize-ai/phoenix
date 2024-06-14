@@ -308,6 +308,7 @@ async def example_with_experiment_runs(session) -> None:
         .values(
             dataset_id=dataset_id,
             dataset_version_id=version_id,
+            name="experiment-1",
             description="experiment-1-description",
             metadata_={"metadata": "experiment-1-metadata"},
         )
@@ -331,6 +332,7 @@ async def example_with_experiment_runs(session) -> None:
         .values(
             dataset_id=dataset_id,
             dataset_version_id=version_id,
+            name="experiment-2",
             description="experiment-2-description",
             metadata_={"metadata": "experiment-2-metadata"},
         )
