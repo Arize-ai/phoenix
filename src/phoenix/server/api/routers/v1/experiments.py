@@ -12,9 +12,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
 def _short_uuid() -> str:
-    uuid_str = str(uuid.uuid4())
-    short_uuid = hashlib.sha1(uuid_str.encode()).hexdigest()[:8]  # Take first few characters
-    return short_uuid
+    return random.getrandbits(32).to_bytes(4, 'big').hex()
 
 
 def _generate_experiment_name(dataset_name: str) -> str:
