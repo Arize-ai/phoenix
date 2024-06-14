@@ -77,12 +77,19 @@ def _phoenix_client() -> httpx.Client:
 def run_experiment(
     dataset: DatasetProtocol,
     task: Union[ExperimentTask, AsyncExperimentTask],
+    experiment_name: Optional[str] = None,
+    experiment_description: Optional[str] = None,
     rate_limit_errors: Optional[Union[Type[BaseException], Tuple[Type[BaseException], ...]]] = None,
 ) -> Experiment:
     client = _phoenix_client()
 
     experiment_response = client.post(
-        f"/v1/datasets/{dataset.id}/experiments", json={"version-id": dataset.version_id}
+        f"/v1/datasets/{dataset.id}/experiments",
+        json={
+            "version-id": dataset.version_id,
+            "name": experiment_name,
+            "description": experiment_description,
+        },
     )
     experiment_id = experiment_response.json()["id"]
 
