@@ -654,7 +654,72 @@ class TestDatasetCompareExperiments:
         assert response.status_code == 200
         response_json = response.json()
         assert response_json.get("errors") is None
-        assert response_json["data"]
+        assert response_json["data"] == {
+            "dataset": {
+                "compareExperiments": {
+                    "edges": [
+                        {
+                            "comparison": {
+                                "id": str(GlobalID("ExperimentComparison", str(1))),
+                                "example": {"id": str(GlobalID("DatasetExample", str(1)))},
+                                "runs": [
+                                    {
+                                        "id": str(GlobalID("ExperimentRun", str(1))),
+                                        "experimentId": str(GlobalID("Experiment", str(1))),
+                                        "traceId": None,
+                                        "output": {
+                                            "version-1-experiment-1-example-1-run-output-key": "version-1-experiment-1-example-1-run-output-value"  # noqa: E501
+                                        },
+                                        "startTime": "2020-01-01T00:00:00+00:00",
+                                        "endTime": "2020-01-01T00:00:00+00:00",
+                                        "error": None,
+                                    },
+                                    {
+                                        "id": str(GlobalID("ExperimentRun", str(5))),
+                                        "experimentId": str(GlobalID("Experiment", str(3))),
+                                        "traceId": None,
+                                        "output": None,
+                                        "startTime": "2020-01-01T00:00:00+00:00",
+                                        "endTime": "2020-01-01T00:00:00+00:00",
+                                        "error": "version-2-experiment-2-example-1-run-error",
+                                    },
+                                    {
+                                        "id": str(GlobalID("ExperimentRun", str(6))),
+                                        "experimentId": str(GlobalID("Experiment", str(4))),
+                                        "traceId": None,
+                                        "output": {
+                                            "version-3-experiment-1-example-1-run-output-key": "version-3-experiment-1-example-1-run-output-value"  # noqa: E501
+                                        },
+                                        "startTime": "2020-01-01T00:00:00+00:00",
+                                        "endTime": "2020-01-01T00:00:00+00:00",
+                                        "error": None,
+                                    },
+                                ],
+                            }
+                        },
+                        {
+                            "comparison": {
+                                "id": str(GlobalID("ExperimentComparison", str(1))),
+                                "example": {"id": str(GlobalID("DatasetExample", str(2)))},
+                                "runs": [
+                                    {
+                                        "id": str(GlobalID("ExperimentRun", str(7))),
+                                        "experimentId": str(GlobalID("Experiment", str(4))),
+                                        "traceId": None,
+                                        "output": {
+                                            "version-3-experiment-1-example-2-run-output-key": "version-3-experiment-1-example-2-run-output-value"  # noqa: E501
+                                        },
+                                        "startTime": "2020-01-01T00:00:00+00:00",
+                                        "endTime": "2020-01-01T00:00:00+00:00",
+                                        "error": None,
+                                    }
+                                ],
+                            }
+                        },
+                    ]
+                }
+            }
+        }
 
 
 @pytest.fixture

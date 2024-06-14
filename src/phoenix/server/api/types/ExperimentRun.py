@@ -69,7 +69,7 @@ def to_gql_experiment_run(run: models.ExperimentRun) -> ExperimentRun:
 
     return ExperimentRun(
         id_attr=run.id,
-        experiment_id=GlobalID(Experiment.__name__, str(run.experiment.id)),
+        experiment_id=GlobalID(Experiment.__name__, str(run.experiment_id)),
         trace_id=trace_id
         if (trace := run.trace) and (trace_id := trace.trace_id) is not None
         else None,

@@ -471,6 +471,10 @@ class DatasetExample(Base):
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
 
+    dataset_example_revisions: Mapped[List["DatasetExampleRevision"]] = relationship(
+        back_populates="dataset_example"
+    )
+    experiment_runs: Mapped[List["ExperimentRun"]] = relationship(back_populates="dataset_example")
     span: Mapped[Optional[Span]] = relationship(back_populates="dataset_examples")
 
 
@@ -494,6 +498,10 @@ class DatasetExampleRevision(Base):
         ),
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+    dataset_example: Mapped[DatasetExample] = relationship(
+        back_populates="dataset_example_revisions"
+    )
 
     __table_args__ = (
         UniqueConstraint(
@@ -545,6 +553,7 @@ class ExperimentRun(Base):
     error: Mapped[Optional[str]]
 
     experiment: Mapped[Experiment] = relationship(back_populates="experiment_runs")
+    dataset_example: Mapped[DatasetExample] = relationship(back_populates="experiment_runs")
     trace: Mapped["Trace"] = relationship(
         primaryjoin="foreign(ExperimentRun.trace_id) == Trace.trace_id",
         back_populates="experiment_runs",

@@ -3,6 +3,7 @@ from typing import AsyncIterable, List, Optional, Tuple, Union, cast
 
 import strawberry
 from sqlalchemy import and_, func, select
+from sqlalchemy.orm import contains_eager
 from sqlalchemy.sql.functions import count
 from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node, NodeID
@@ -15,7 +16,7 @@ from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
-from phoenix.server.api.types.ExperimentRun import ExperimentRun
+from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -251,15 +252,106 @@ class Dataset(Node):
         return connection_from_list(data=experiments, args=args)
 
     @strawberry.field
-    def compare_experiments(
+    async def compare_experiments(
         self,
         info: Info[Context, None],
         experiment_ids: List[GlobalID],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
     ) -> Connection[ExperimentComparison]:
-        # get example ids from the first experiment
-        # get revisions for each example from the version corresponding to the experiment
-        # do an outer left join on runs from each experiment
-        raise NotImplementedError("compare_experiments is not implemented yet")
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+
+        if not experiment_ids:
+            raise ValueError("At least one experiment ID must be provided.")
+
+        OrmExample = models.DatasetExample
+        OrmExperiment = models.Experiment
+        OrmRun = models.ExperimentRun
+        OrmRevision = models.DatasetExampleRevision
+        OrmTrace = models.Trace
+
+        dataset_id = self.id_attr
+        baseline_experiment_id, *comparison_experiment_ids = map(
+            lambda global_id: from_global_id_with_expected_type(global_id, OrmExperiment.__name__),
+            experiment_ids,
+        )
+
+        async with info.context.db() as session:
+            if (
+                baseline_version_id := await session.scalar(
+                    select(OrmExperiment.dataset_version_id).where(
+                        and_(
+                            OrmExperiment.id == baseline_experiment_id,
+                            OrmExperiment.dataset_id == dataset_id,
+                        )
+                    )
+                )
+            ) is None:
+                raise ValueError("Baseline experiment not found.")
+            if not (
+                baseline_example_ids := (
+                    await session.scalars(
+                        select(func.distinct(OrmRun.dataset_example_id)).where(
+                            OrmRun.experiment_id == baseline_experiment_id
+                        )
+                    )
+                ).all()
+            ):
+                raise ValueError("Baseline experiment has no runs.")
+
+            revision_ids = (
+                select(func.max(OrmRevision.id))
+                .where(
+                    and_(
+                        OrmRevision.dataset_example_id.in_(baseline_example_ids),
+                        OrmRevision.dataset_version_id <= baseline_version_id,
+                    )
+                )
+                .group_by(OrmRevision.dataset_example_id)
+                .scalar_subquery()
+            )
+
+            comparisons = []
+            for example in (
+                await session.scalars(
+                    select(OrmExample)
+                    .select_from(OrmExample)
+                    .join(OrmRevision, OrmExample.id == OrmRevision.dataset_example_id)
+                    .join(OrmRun, OrmExample.id == OrmRun.dataset_example_id)
+                    .where(
+                        and_(
+                            OrmExample.id.in_(baseline_example_ids),
+                            OrmRevision.id.in_(revision_ids),
+                            OrmRun.experiment_id.in_(comparison_experiment_ids),
+                        )
+                    )
+                    .options(
+                        contains_eager(OrmExample.dataset_example_revisions),
+                        contains_eager(OrmExample.experiment_runs)
+                        .joinedload(OrmRun.trace)
+                        .load_only(OrmTrace.id),
+                    )
+                )
+            ).unique():
+                comparisons.append(
+                    ExperimentComparison(
+                        id_attr=1,
+                        example=DatasetExample(
+                            id_attr=example.id,
+                            version_id=baseline_version_id,
+                            created_at=example.created_at,
+                        ),
+                        runs=[to_gql_experiment_run(run) for run in example.experiment_runs],
+                    )
+                )
+        return connection_from_list(data=comparisons, args=args)
 
 
 def to_gql_dataset(dataset: models.Dataset) -> Dataset:
