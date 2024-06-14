@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a81c0a2ee236e6086d88c36111e6e1cf>>
+ * @generated SignedSource<<39b76fe61e1f5ab6c640e86d5426df57>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,8 +15,8 @@ export type ExperimentMultiSelector__experiments$data = {
     readonly edges: ReadonlyArray<{
       readonly experiment: {
         readonly createdAt: string;
-        readonly description: string | null;
         readonly id: string;
+        readonly name: string;
         readonly sequenceNumber: number;
       };
     }>;
@@ -69,14 +69,14 @@ const node: ReaderFragment = {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
-                  "name": "sequenceNumber",
+                  "name": "name",
                   "storageKey": null
                 },
                 {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
-                  "name": "description",
+                  "name": "sequenceNumber",
                   "storageKey": null
                 },
                 {
@@ -100,6 +100,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "8794d5b225c97e3f92451bfe596190e6";
+(node as any).hash = "1aa376b1e9425f49268ac231dc2c0412";
 
 export default node;

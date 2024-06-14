@@ -20,6 +20,7 @@ from phoenix.server.api.input_types.Coordinates import (
     InputCoordinate2D,
     InputCoordinate3D,
 )
+from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -43,6 +44,7 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.Project import Project
+from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
 from phoenix.server.api.types.Trace import Trace
 
@@ -85,6 +87,7 @@ class Query:
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        sort: Optional[DatasetSort] = UNSET,
     ) -> Connection[Dataset]:
         args = ConnectionArgs(
             first=first,
@@ -92,8 +95,12 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
+        stmt = select(models.Dataset)
+        if sort:
+            sort_col = getattr(models.Dataset, sort.col.value)
+            stmt = stmt.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
         async with info.context.db() as session:
-            datasets = await session.scalars(select(models.Dataset))
+            datasets = await session.scalars(stmt)
         return connection_from_list(
             data=[to_gql_dataset(dataset) for dataset in datasets], args=args
         )

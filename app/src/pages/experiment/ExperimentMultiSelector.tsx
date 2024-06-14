@@ -44,8 +44,8 @@ export function ExperimentMultiSelector(
           edges {
             experiment: node {
               id
+              name
               sequenceNumber
-              description
               createdAt
             }
           }
@@ -97,12 +97,10 @@ export function ExperimentMultiSelector(
                     <Label color="yellow-1000">
                       #{experiment.sequenceNumber}
                     </Label>
-                    <Text>
-                      {new Date(experiment.createdAt).toLocaleDateString()}
-                    </Text>
+                    <Text>{experiment.name}</Text>
                   </Flex>
                   <Text textSize="small" color="text-700">
-                    {experiment.description || "no description"}
+                    {new Date(experiment.createdAt).toLocaleString()}
                   </Text>
                 </Flex>
               </Item>

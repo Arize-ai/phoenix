@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ba4ecc30308b53d9a3c2034495880790>>
+ * @generated SignedSource<<ee2b87661a747fa9fbab00245e8aed02>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -143,6 +143,13 @@ return {
                             "alias": null,
                             "args": null,
                             "kind": "ScalarField",
+                            "name": "name",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
                             "name": "sequenceNumber",
                             "storageKey": null
                           },
@@ -239,12 +246,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "abfe23177f3e9bf93aec779464081295",
+    "cacheID": "feb3e8336b482556477935a785addc14",
     "id": null,
     "metadata": {},
     "name": "experimentsLoaderQuery",
     "operationKind": "query",
-    "text": "query experimentsLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      ...ExperimentsTableFragment\n    }\n  }\n}\n\nfragment ExperimentsTableFragment on Dataset {\n  experiments(first: 100) {\n    edges {\n      experiment: node {\n        id\n        sequenceNumber\n        description\n        createdAt\n        metadata\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query experimentsLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      ...ExperimentsTableFragment\n    }\n  }\n}\n\nfragment ExperimentsTableFragment on Dataset {\n  experiments(first: 100) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        createdAt\n        metadata\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
