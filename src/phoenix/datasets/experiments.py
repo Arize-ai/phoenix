@@ -97,7 +97,7 @@ class EvaluationProtocol(Protocol):
     def metadata(self) -> JSONSerializable: ...
 
 
-class Evaluator(Protocol):
+class ExperimentEvaluator(Protocol):
     def __call__(
         self, input: JSONSerializable, reference: JSONSerializable, output: JSONSerializable
     ) -> EvaluationProtocol: ...
@@ -213,7 +213,9 @@ def run_experiment(
     )
 
 
-def evaluate_experiment(experiment: Experiment, basic_evaluator, name=None, label=None) -> None:
+def evaluate_experiment(
+    experiment: Experiment, evaluator: ExperimentEvaluator, name=None, label=None
+) -> None:
     client = _phoenix_client()
 
     experiment_id = experiment.id
@@ -249,10 +251,10 @@ def evaluate_experiment(experiment: Experiment, basic_evaluator, name=None, labe
         output = None
         error: Optional[Exception] = None
         try:
-            if asyncio.iscoroutinefunction(basic_evaluator):
+            if asyncio.iscoroutinefunction(evaluator):
                 raise RuntimeError("Task is async but running in sync context")
             else:
-                output = basic_evaluator(
+                output = evaluator(
                     input=example["input"], reference=example["output"], output=run["output"]
                 )
         except Exception as exc:
@@ -294,12 +296,12 @@ def evaluate_experiment(experiment: Experiment, basic_evaluator, name=None, labe
         output = None
         error = None
         try:
-            if asyncio.iscoroutinefunction(basic_evaluator):
-                output = await basic_evaluator(
+            if asyncio.iscoroutinefunction(evaluator):
+                output = await evaluator(
                     input=example["input"], reference=example["output"], output=run["output"]
                 )
             else:
-                output = basic_evaluator(
+                output = evaluator(
                     input=example["input"], reference=example["output"], output=run["output"]
                 )
         except Exception as exc:
@@ -309,8 +311,8 @@ def evaluate_experiment(experiment: Experiment, basic_evaluator, name=None, labe
 
         evaluator_payload = EvaluatorPayload(
             experiment_run_id=run["id"],
-            name=name if name is not None else str(basic_evaluator),
-            annotator_kind=getattr(basic_evaluator, "annotator_kind", "CODE"),
+            name=name if name is not None else str(evaluator),
+            annotator_kind=getattr(evaluator, "annotator_kind", "CODE"),
             label=label if label is not None else None,
             score=getattr(output, "score", None),
             explanation=getattr(output, "explanation", None),
