@@ -651,9 +651,7 @@ class TestDatasetCompareExperiments:
                                 "runs": [
                                     {
                                         "id": str(GlobalID("ExperimentRun", str(4))),
-                                        "output": {
-                                            "version-2-experiment-1-example-2-run-output-key": "version-2-experiment-1-example-2-run-output-value"  # noqa: E501
-                                        },
+                                        "output": {"run-4-output-key": "run-4-output-value"},
                                     },
                                 ],
                             },
@@ -670,9 +668,7 @@ class TestDatasetCompareExperiments:
                                 "runs": [
                                     {
                                         "id": str(GlobalID("ExperimentRun", str(7))),
-                                        "output": {
-                                            "version-3-experiment-1-example-2-run-output-key": "version-3-experiment-1-example-2-run-output-value"  # noqa: E501
-                                        },
+                                        "output": {"run-7-output-key": "run-7-output-value"},
                                     },
                                 ],
                             },
@@ -686,9 +682,7 @@ class TestDatasetCompareExperiments:
                                 "runs": [
                                     {
                                         "id": str(GlobalID("ExperimentRun", str(3))),
-                                        "output": {
-                                            "version-2-experiment-1-example-1-run-output-key": "version-2-experiment-1-example-1-run-output-value"  # noqa: E501
-                                        },
+                                        "output": {"run-3-output-key": "run-3-output-value"},
                                     },
                                 ],
                             },
@@ -697,9 +691,7 @@ class TestDatasetCompareExperiments:
                                 "runs": [
                                     {
                                         "id": str(GlobalID("ExperimentRun", str(1))),
-                                        "output": {
-                                            "version-1-experiment-1-example-1-run-output-key": "version-1-experiment-1-example-1-run-output-value"  # noqa: E501
-                                        },
+                                        "output": {"run-1-output-key": "run-1-output-value"},
                                     },
                                 ],
                             },
@@ -708,7 +700,7 @@ class TestDatasetCompareExperiments:
                                 "runs": [
                                     {
                                         "id": str(GlobalID("ExperimentRun", str(5))),
-                                        "output": None,
+                                        "output": {"run-5-output-key": "run-5-output-value"},
                                     },
                                 ],
                             },
@@ -717,9 +709,7 @@ class TestDatasetCompareExperiments:
                                 "runs": [
                                     {
                                         "id": str(GlobalID("ExperimentRun", str(6))),
-                                        "output": {
-                                            "version-3-experiment-1-example-1-run-output-key": "version-3-experiment-1-example-1-run-output-value"  # noqa: E501
-                                        },
+                                        "output": {"run-6-output-key": "run-6-output-value"},
                                     },
                                 ],
                             },
@@ -790,97 +780,56 @@ async def comparison_experiments(session):
         .values(
             [
                 {
-                    "dataset_example_id": example_ids[0],
-                    "dataset_version_id": version_ids[0],
+                    **revision,
                     "input": {
-                        "example-1-version-1-revision-input-key": "example-1-version-1-revision-input-value"  # noqa: E501
+                        f"revision-{revision_index + 1}-input-key": f"revision-{revision_index + 1}-input-value"  # noqa: E501
                     },
                     "output": {
-                        "example-1-version-1-revision-output-key": "example-1-version-1-revision-output-value"  # noqa: E501
+                        f"revision-{revision_index + 1}-output-key": f"revision-{revision_index + 1}-output-value"  # noqa: E501
                     },
                     "metadata_": {
-                        "example-1-version-1-revision-metadata-key": "example-1-version-1-revision-metadata-value"  # noqa: E501
+                        f"revision-{revision_index + 1}-metadata-key": f"revision-{revision_index + 1}-metadata-value"  # noqa: E501
                     },
-                    "revision_kind": "CREATE",
-                },
-                {
-                    "dataset_example_id": example_ids[0],
-                    "dataset_version_id": version_ids[1],
-                    "input": {
-                        "example-1-version-2-revision-input-key": "example-1-version-2-revision-input-value"  # noqa: E501
-                    },
-                    "output": {
-                        "example-1-version-2-revision-output-key": "example-1-version-2-revision-output-value"  # noqa: E501
-                    },
-                    "metadata_": {
-                        "example-1-version-2-revision-metadata-key": "example-1-version-2-revision-metadata-value"  # noqa: E501
-                    },
-                    "revision_kind": "PATCH",
-                },
-                {
-                    "dataset_example_id": example_ids[0],
-                    "dataset_version_id": version_ids[2],
-                    "input": {
-                        "example-1-version-3-revision-input-key": "example-1-version-3-revision-input-value"  # noqa: E501
-                    },
-                    "output": {
-                        "example-1-version-3-revision-output-key": "example-1-version-3-revision-output-value"  # noqa: E501
-                    },
-                    "metadata_": {
-                        "example-1-version-3-revision-metadata-key": "example-1-version-3-revision-metadata-value"  # noqa: E501
-                    },
-                    "revision_kind": "PATCH",
-                },
-                {
-                    "dataset_example_id": example_ids[1],
-                    "dataset_version_id": version_ids[1],
-                    "input": {
-                        "example-2-version-2-revision-input-key": "example-2-version-2-revision-input-value"  # noqa: E501
-                    },
-                    "output": {
-                        "example-2-version-2-revision-output-key": "example-2-version-2-revision-output-value"  # noqa: E501
-                    },
-                    "metadata_": {
-                        "example-2-version-2-revision-metadata-key": "example-2-version-2-revision-metadata-value"  # noqa: E501
-                    },
-                    "revision_kind": "CREATE",
-                },
-                {
-                    "dataset_example_id": example_ids[2],
-                    "dataset_version_id": version_ids[0],
-                    "input": {
-                        "example-3-version-1-revision-input-key": "example-3-version-1-revision-input-value"  # noqa: E501
-                    },
-                    "output": {
-                        "example-3-version-1-revision-output-key": "example-3-version-1-revision-output-value"  # noqa: E501
-                    },
-                    "metadata_": {
-                        "example-3-version-1-revision-metadata-key": "example-3-version-1-revision-metadata-value"  # noqa: E501
-                    },
-                    "revision_kind": "CREATE",
-                },
-                {
-                    "dataset_example_id": example_ids[2],
-                    "dataset_version_id": version_ids[1],
-                    "input": {},
-                    "output": {},
-                    "metadata_": {},
-                    "revision_kind": "DELETE",
-                },
-                {
-                    "dataset_example_id": example_ids[3],
-                    "dataset_version_id": version_ids[2],
-                    "input": {
-                        "example-4-version-3-revision-input-key": "example-4-version-3-revision-input-value"  # noqa: E501
-                    },
-                    "output": {
-                        "example-4-version-3-revision-output-key": "example-4-version-3-revision-output-value"  # noqa: E501
-                    },
-                    "metadata_": {
-                        "example-4-version-3-revision-metadata-key": "example-4-version-3-revision-metadata-value"  # noqa: E501
-                    },
-                    "revision_kind": "CREATE",
-                },
+                }
+                for revision_index, revision in enumerate(
+                    [
+                        {
+                            "dataset_example_id": example_ids[0],
+                            "dataset_version_id": version_ids[0],
+                            "revision_kind": "CREATE",
+                        },
+                        {
+                            "dataset_example_id": example_ids[0],
+                            "dataset_version_id": version_ids[1],
+                            "revision_kind": "PATCH",
+                        },
+                        {
+                            "dataset_example_id": example_ids[0],
+                            "dataset_version_id": version_ids[2],
+                            "revision_kind": "PATCH",
+                        },
+                        {
+                            "dataset_example_id": example_ids[1],
+                            "dataset_version_id": version_ids[1],
+                            "revision_kind": "CREATE",
+                        },
+                        {
+                            "dataset_example_id": example_ids[2],
+                            "dataset_version_id": version_ids[0],
+                            "revision_kind": "CREATE",
+                        },
+                        {
+                            "dataset_example_id": example_ids[2],
+                            "dataset_version_id": version_ids[1],
+                            "revision_kind": "DELETE",
+                        },
+                        {
+                            "dataset_example_id": example_ids[3],
+                            "dataset_version_id": version_ids[2],
+                            "revision_kind": "CREATE",
+                        },
+                    ]
+                )
             ]
         )
     )
@@ -892,37 +841,32 @@ async def comparison_experiments(session):
             .values(
                 [
                     {
-                        "dataset_id": dataset_id,
-                        "dataset_version_id": version_ids[0],
-                        "description": "version-1-experiment-1-description",
+                        **experiment,
+                        "description": f"experiment-{experiment_index + 1}-description",
                         "metadata_": {
-                            "version-1-experiment-1-metadata-key": "version-1-experiment-1-metadata-value"  # noqa: E501
+                            f"experiment-{experiment_index + 1}-metadata-key": f"experiment-{experiment_index + 1}-metadata-value"  # noqa: E501
                         },
-                    },
-                    {
-                        "dataset_id": dataset_id,
-                        "dataset_version_id": version_ids[1],
-                        "description": "version-2-experiment-1-description",
-                        "metadata_": {
-                            "version-2-experiment-1-metadata-key": "version-2-experiment-1-metadata-value"  # noqa: E501
-                        },
-                    },
-                    {
-                        "dataset_id": dataset_id,
-                        "dataset_version_id": version_ids[1],
-                        "description": "version-2-experiment-2-description",
-                        "metadata_": {
-                            "version-2-experiment-2-metadata-key": "version-2-experiment-2-metadata-value"  # noqa: E501
-                        },
-                    },
-                    {
-                        "dataset_id": dataset_id,
-                        "dataset_version_id": version_ids[0],
-                        "description": "version-3-experiment-1-description",
-                        "metadata_": {
-                            "version-3-experiment-1-metadata-key": "version-3-experiment-1-metadata-value"  # noqa: E501
-                        },
-                    },
+                    }
+                    for experiment_index, experiment in enumerate(
+                        [
+                            {
+                                "dataset_id": dataset_id,
+                                "dataset_version_id": version_ids[0],
+                            },
+                            {
+                                "dataset_id": dataset_id,
+                                "dataset_version_id": version_ids[1],
+                            },
+                            {
+                                "dataset_id": dataset_id,
+                                "dataset_version_id": version_ids[1],
+                            },
+                            {
+                                "dataset_id": dataset_id,
+                                "dataset_version_id": version_ids[0],
+                            },
+                        ]
+                    )
                 ]
             )
         )
@@ -934,123 +878,111 @@ async def comparison_experiments(session):
         .values(
             [
                 {
-                    "experiment_id": experiment_ids[0],
-                    "dataset_example_id": example_ids[0],
-                    "trace_id": None,
+                    **run,
                     "output": {
-                        "version-1-experiment-1-example-1-run-output-key": "version-1-experiment-1-example-1-run-output-value"  # noqa: E501
+                        f"run-{run_index + 1}-output-key": f"run-{run_index + 1}-output-value"
                     },
-                    "start_time": datetime(
-                        year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                    ),
-                    "end_time": datetime(
-                        year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                    ),
-                    "error": None,
-                },
-                {
-                    "experiment_id": experiment_ids[0],
-                    "dataset_example_id": example_ids[3],
-                    "trace_id": None,
-                    "output": {
-                        "version-1-experiment-1-example-3-run-output-key": "version-1-experiment-1-example-3-run-output-value"  # noqa: E501
-                    },
-                    "start_time": datetime(
-                        year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                    ),
-                    "end_time": datetime(
-                        year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                    ),
-                    "error": None,
-                },
-                {
-                    "experiment_id": experiment_ids[1],
-                    "dataset_example_id": example_ids[0],
-                    "trace_id": None,
-                    "output": {
-                        "version-2-experiment-1-example-1-run-output-key": "version-2-experiment-1-example-1-run-output-value"  # noqa: E501
-                    },
-                    "start_time": datetime(
-                        year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                    ),
-                    "end_time": datetime(
-                        year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                    ),
-                    "error": None,
-                },
-                {
-                    "experiment_id": experiment_ids[1],
-                    "dataset_example_id": example_ids[1],
-                    "trace_id": None,
-                    "output": {
-                        "version-2-experiment-1-example-2-run-output-key": "version-2-experiment-1-example-2-run-output-value"  # noqa: E501
-                    },
-                    "start_time": datetime(
-                        year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                    ),
-                    "end_time": datetime(
-                        year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                    ),
-                    "error": None,
-                },
-                {
-                    "experiment_id": experiment_ids[2],
-                    "dataset_example_id": example_ids[0],
-                    "trace_id": None,
-                    "output": None,
-                    "start_time": datetime(
-                        year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                    ),
-                    "end_time": datetime(
-                        year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                    ),
-                    "error": "version-2-experiment-2-example-1-run-error",
-                },
-                {
-                    "experiment_id": experiment_ids[3],
-                    "dataset_example_id": example_ids[0],
-                    "trace_id": None,
-                    "output": {
-                        "version-3-experiment-1-example-1-run-output-key": "version-3-experiment-1-example-1-run-output-value"  # noqa: E501
-                    },
-                    "start_time": datetime(
-                        year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                    ),
-                    "end_time": datetime(
-                        year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                    ),
-                    "error": None,
-                },
-                {
-                    "experiment_id": experiment_ids[3],
-                    "dataset_example_id": example_ids[1],
-                    "trace_id": None,
-                    "output": {
-                        "version-3-experiment-1-example-2-run-output-key": "version-3-experiment-1-example-2-run-output-value"  # noqa: E501
-                    },
-                    "start_time": datetime(
-                        year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                    ),
-                    "end_time": datetime(
-                        year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                    ),
-                    "error": None,
-                },
-                {
-                    "experiment_id": experiment_ids[3],
-                    "dataset_example_id": example_ids[3],
-                    "trace_id": None,
-                    "output": {
-                        "version-3-experiment-1-example-4-run-output-key": "version-3-experiment-1-example-4-run-output-value"  # noqa: E501
-                    },
-                    "start_time": datetime(
-                        year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                    ),
-                    "end_time": datetime(
-                        year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                    ),
-                    "error": None,
-                },
+                }
+                for run_index, run in enumerate(
+                    [
+                        {
+                            "experiment_id": experiment_ids[0],
+                            "dataset_example_id": example_ids[0],
+                            "trace_id": None,
+                            "start_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                            "end_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                            "error": None,
+                        },
+                        {
+                            "experiment_id": experiment_ids[0],
+                            "dataset_example_id": example_ids[3],
+                            "trace_id": None,
+                            "start_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                            "end_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                            "error": None,
+                        },
+                        {
+                            "experiment_id": experiment_ids[1],
+                            "dataset_example_id": example_ids[0],
+                            "trace_id": None,
+                            "start_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                            "end_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                            "error": None,
+                        },
+                        {
+                            "experiment_id": experiment_ids[1],
+                            "dataset_example_id": example_ids[1],
+                            "trace_id": None,
+                            "start_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                            "end_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                            "error": None,
+                        },
+                        {
+                            "experiment_id": experiment_ids[2],
+                            "dataset_example_id": example_ids[0],
+                            "trace_id": None,
+                            "start_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                            "end_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                            "error": "version-2-experiment-2-example-1-run-error",
+                        },
+                        {
+                            "experiment_id": experiment_ids[3],
+                            "dataset_example_id": example_ids[0],
+                            "trace_id": None,
+                            "start_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                            "end_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                            "error": None,
+                        },
+                        {
+                            "experiment_id": experiment_ids[3],
+                            "dataset_example_id": example_ids[1],
+                            "trace_id": None,
+                            "start_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                            "end_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                            "error": None,
+                        },
+                        {
+                            "experiment_id": experiment_ids[3],
+                            "dataset_example_id": example_ids[3],
+                            "trace_id": None,
+                            "start_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                            "end_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                            "error": None,
+                        },
+                    ]
+                )
             ]
         )
     )
