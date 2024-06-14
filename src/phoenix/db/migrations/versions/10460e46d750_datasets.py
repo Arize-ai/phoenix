@@ -141,6 +141,11 @@ def upgrade() -> None:
             index=True,
         ),
         sa.Column(
+            "name",
+            sa.String,
+            nullable=False,
+        ),
+        sa.Column(
             "description",
             sa.String,
             nullable=True,

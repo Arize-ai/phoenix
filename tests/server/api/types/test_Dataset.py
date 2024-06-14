@@ -834,7 +834,7 @@ async def dataset_with_deletion(session):
     await session.execute(
         insert(models.Experiment).returning(models.Experiment.id),
         [
-            {"dataset_id": 1, "dataset_version_id": 1, "metadata_": {}},
-            {"dataset_id": 1, "dataset_version_id": 2, "metadata_": {}},
+            {"dataset_id": 1, "dataset_version_id": 1, "name": "exp-1", "metadata_": {}},
+            {"dataset_id": 1, "dataset_version_id": 2, "name": "exp-2", "metadata_": {}},
         ],
     )
