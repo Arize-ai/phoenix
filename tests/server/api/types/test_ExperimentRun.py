@@ -137,6 +137,7 @@ async def experiment_run_with_annotations(session):
         .values(
             dataset_id=dataset_id,
             dataset_version_id=version_id,
+            name="experiment-name",
             description="experiment-description",
             metadata_={"experiment-metadata-key": "experiment-metadata-value"},
         )

@@ -514,6 +514,7 @@ class Experiment(Base):
         ForeignKey("dataset_versions.id", ondelete="CASCADE"),
         index=True,
     )
+    name: Mapped[str]
     description: Mapped[Optional[str]]
     metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
