@@ -2,7 +2,15 @@ import React, { ReactNode, useState } from "react";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { Button, DialogContainer, Flex, Text, View } from "@arizeai/components";
+import {
+  Button,
+  DialogContainer,
+  Flex,
+  Icon,
+  Icons,
+  Text,
+  View,
+} from "@arizeai/components";
 
 interface SelectedExperiment {
   id: string;
@@ -58,6 +66,7 @@ export function ExperimentSelectionToolbar(
                   `/datasets/${datasetId}/compare?${selectedExperiments.map((experiment) => `experimentId=${experiment.id}`).join("&")}`
                 );
               }}
+              icon={<Icon svg={<Icons.ArrowCompareOutline />} />}
             >
               Compare Experiments
             </Button>
