@@ -1,5 +1,4 @@
-import hashlib
-import uuid
+from random import getrandbits
 
 from sqlalchemy import select
 from starlette.requests import Request
@@ -12,7 +11,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
 def _short_uuid() -> str:
-    return random.getrandbits(32).to_bytes(4, 'big').hex()
+    return str(getrandbits(32).to_bytes(4, "big").hex())
 
 
 def _generate_experiment_name(dataset_name: str) -> str:
