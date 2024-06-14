@@ -34,8 +34,7 @@ class RepeatedExperimentRuns:
 
 
 @strawberry.type
-class ExperimentComparison(Node):
-    id_attr: NodeID[int]
+class ExperimentComparison:
     example: DatasetExample
     runs: List[Optional[Union[ExperimentRun, RepeatedExperimentRuns]]]  # this could be a resolverf
 
@@ -258,18 +257,7 @@ class Dataset(Node):
         self,
         info: Info[Context, None],
         experiment_ids: List[GlobalID],
-        first: Optional[int] = 50,
-        last: Optional[int] = UNSET,
-        after: Optional[CursorString] = UNSET,
-        before: Optional[CursorString] = UNSET,
-    ) -> Connection[ExperimentComparison]:
-        args = ConnectionArgs(
-            first=first,
-            after=after if isinstance(after, CursorString) else None,
-            last=last,
-            before=before if isinstance(before, CursorString) else None,
-        )
-
+    ) -> List[ExperimentComparison]:
         if not experiment_ids:
             raise ValueError("At least one experiment ID must be provided.")
 
@@ -369,7 +357,6 @@ class Dataset(Node):
                 gql_runs_list.append(gql_runs)
             comparisons.append(
                 ExperimentComparison(
-                    id_attr=1,
                     example=DatasetExample(
                         id_attr=example.id,
                         created_at=example.created_at,
@@ -378,7 +365,7 @@ class Dataset(Node):
                     runs=gql_runs_list,
                 )
             )
-        return connection_from_list(data=comparisons, args=args)
+        return comparisons
 
 
 def to_gql_dataset(dataset: models.Dataset) -> Dataset:
