@@ -131,6 +131,26 @@ query = SpanQuery().where(
 )
 ```
 
+#### Filtering on Metadata
+
+`metadata` is an attribute that is a dictionary and it can be filtered like a dictionary.
+
+```python
+query = SpanQuery().where(
+    "metadata["topic"] == 'programming'"
+)
+```
+
+#### Filtering for Substring
+
+Note that Python strings do not have a `contain` method, and substring search is done with the `in` operator.
+
+```python
+query = SpanQuery().where(
+    "'programming' in metadata["topic"]"
+)
+```
+
 ## How to Extract Attributes
 
 Span attributes can be selected by simply listing them inside `.select()` method.

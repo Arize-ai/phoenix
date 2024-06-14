@@ -15,7 +15,7 @@ In your Jupyter or Colab environment, run the following command to install.
 {% tabs %}
 {% tab title="Using pip" %}
 ```sh
-pip install arize-phoenix[evals]
+pip install 'arize-phoenix[evals]'
 ```
 {% endtab %}
 
@@ -33,7 +33,7 @@ import phoenix as px
 session = px.launch_app()
 ```
 
-The above launches a Phoenix server that acts as a trace collector for any LLM application running locally.
+The above launches a Phoenix server that acts as a trace collector for any LLM application running locally in you jupyter notebook! (Note, this step is not necessary if you have launched the app via [Docker](../deployment/docker.md))
 
 ```markup
 🌍 To view the Phoenix app in your browser, visit https://z8rwookkcle1-496ff2e9c6d22116-6060-colab.googleusercontent.com/
@@ -47,10 +47,10 @@ Now that phoenix is up and running, you can now run a [LlamaIndex](../tracing/ho
 
 {% tabs %}
 {% tab title="LlamaIndex" %}
-To use llama-index's one click,  you must install the small integration first:
+To use llama-index's one click, you must install the small integration first:
 
 ```bash
-pip install 'llama-index-callbacks-arize-phoenix>1.3.0'
+pip install 'llama-index>=0.10.44'
 ```
 
 ```python
@@ -70,10 +70,17 @@ os.environ["OPENAI_API_KEY"] = "YOUR_OPENAI_API_KEY"
 # To view traces in Phoenix, you will first have to start a Phoenix server. You can do this by running the following:
 session = px.launch_app()
 
+# Once you have started a Phoenix server, you can start your LlamaIndex application and configure it to send traces to Phoenix.
+from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace import SpanLimits, TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
-# Once you have started a Phoenix server, you can start your LlamaIndex application and configure it to send traces to Phoenix. To do this, you will have to add configure Phoenix as the global handler
-set_global_handler("arize_phoenix")
+endpoint = "http://127.0.0.1:6006/v1/traces"
+tracer_provider = TracerProvider(span_limits=SpanLimits(max_attributes=100_000))
+tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
 
+LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
 
 # LlamaIndex application initialization may vary
 # depending on your application
@@ -81,8 +88,9 @@ Settings.llm = OpenAI(model="gpt-4-turbo-preview")
 Settings.embed_model = OpenAIEmbedding(model="text-embedding-ada-002")
 
 
+YOUR_DATA_DIRECTORY = "/."
 # Load your data and create an index. Note you usually want to store your index in a persistent store like a database or the file system
-documents = SimpleDirectoryReader("YOUR_DATA_DIRECTORY").load_data()
+documents = SimpleDirectoryReader(YOUR_DATA_DIRECTORY).load_data()
 index = VectorStoreIndex.from_documents(documents)
 
 query_engine = index.as_query_engine()
@@ -182,7 +190,7 @@ Once you've executed a sufficient number of queries (or chats) to your applicati
 
 ## Trace Datasets
 
-Phoenix also support datasets that contain [OpenInference trace](../reference/open-inference.md) data. This allows data from a LangChain and LlamaIndex running instance explored for analysis offline.
+Phoenix also support loading data that contains [OpenInference trace](../reference/open-inference.md) data. This allows data from a LangChain and LlamaIndex running instance explored for analysis offline.
 
 There are two ways to extract trace dataframes. The two ways for LangChain are described below.
 

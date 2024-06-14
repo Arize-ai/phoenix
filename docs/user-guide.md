@@ -30,7 +30,7 @@ Phoenix's search and retrieval optimization tools include an embeddings visualiz
 
 ## Testing/Staging
 
-In the testing and staging environment, Phoenix supports comprehensive evaluation, benchmarking, and dataset curation. Traces, prompt tracking, and embedding visualizer remain important in the testing and staging phase, helping teams identify and resolve issues before deployment.
+In the testing and staging environment, Phoenix supports comprehensive evaluation, benchmarking, and data curation. Traces, prompt tracking, and embedding visualizer remain important in the testing and staging phase, helping teams identify and resolve issues before deployment.
 
 ### Benchmarking of Evals
 
@@ -40,9 +40,9 @@ Phoenix allows teams to benchmark their evaluation metrics against industry stan
 
 Phoenix's flexible evaluation framework supports thorough testing of LLM outputs. Teams can define custom metrics, collect user feedback, and leverage separate LLMs for automated assessment. Phoenix offers tools for analyzing evaluation results, identifying trends, and tracking improvements over time.
 
-### Curate Datasets
+### Curate Data
 
-Phoenix assists in curating high-quality datasets for testing and fine-tuning. It provides tools for data exploration, cleaning, and labeling, enabling teams to create representative and diverse datasets that cover a wide range of use cases and edge conditions.
+Phoenix assists in curating high-quality data for testing and fine-tuning. It provides tools for data exploration, cleaning, and labeling, enabling teams to curate representative data that covers a wide range of use cases and edge conditions.
 
 
 

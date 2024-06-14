@@ -168,7 +168,7 @@ prod_schema = px.Schema(
 {% hint style="info" %}
 **When do I need a different schema?**
 
-In general, if both datasets you are visualizing have identical schemas, you can reuse the Schema object.
+In general, if both sets of inferences you are visualizing have identical schemas, you can reuse the Schema object.
 
 However, there are often differences between the schema of a primary and reference dataset. For example:
 

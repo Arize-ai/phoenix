@@ -6,10 +6,13 @@ Phoenix is backed by a SQL database. By default, if you run phoenix with no conf
 Persistence is only available for 'arize-phoenix>=4.0.0'
 {% endhint %}
 
+{% hint style="info" %}
+Persistence for notebooks (a.k.a. `launch_app`) is disabled by default. To enable persistence in notebooks, set the `use_temp_dir` to false.
+{% endhint %}
+
 ## SQLite
 
-By default Phoenix uses SQLite so that it runs with no external dependancies. This SQLite instance is by default mounted in the directory specified by the **PHOENIX\_WORKING\_DIR** environment variable (default value in your home directory, e.x. ` ~/.phoenix/`). The easiest way to make Phoenix to persist data is to back this working directory to a mounted volume. Attach the mounted volume to the phoenix pod and point **PHOENIX\_WORKING\_DIR** to that volume (e.x. `/mnt/volume`)\
-
+By default Phoenix uses SQLite so that it runs with no external dependancies. This SQLite instance is by default mounted in the directory specified by the **PHOENIX\_WORKING\_DIR** environment variable (default value in your home directory, e.x. `~/.phoenix/`). The easiest way to make Phoenix to persist data is to back this working directory to a mounted volume. Attach the mounted volume to the phoenix pod and point **PHOENIX\_WORKING\_DIR** to that volume (e.x. `/mnt/volume`)\\
 
 ## PostgreSQL
 

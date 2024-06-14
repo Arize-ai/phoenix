@@ -1,9 +1,9 @@
 # Use Phoenix Evaluators
 
-The following are simple functions on top of the LLM Evals building blocks that are pre-tested with benchmark datasets.
+The following are simple functions on top of the LLM Evals building blocks that are pre-tested with benchmark data.
 
 {% hint style="info" %}
-All evals templates are tested against golden datasets that are available as part of the LLM eval library's [benchmarked datasets](./#how-we-benchmark-pre-tested-evals) and target precision at 70-90% and F1 at 70-85%.
+All evals templates are tested against golden data that are available as part of the LLM eval library's [benchmarked data](./#how-we-benchmark-pre-tested-evals) and target precision at 70-90% and F1 at 70-85%.
 {% endhint %}
 
 <table data-view="cards"><thead><tr><th align="center"></th><th align="center"></th><th align="center"></th><th align="center"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td align="center"><strong>Retrieval Eval</strong></td><td align="center"><a href="retrieval-rag-relevance.md">RAG individual retrieval</a></td><td align="center"><em>Tested on:</em></td><td align="center">MS Marco, WikiQA</td><td><a href="retrieval-rag-relevance.md">retrieval-rag-relevance.md</a></td></tr><tr><td align="center"><strong>Hallucination Eval</strong></td><td align="center"><a href="hallucinations.md">Hallucinations on answers to public and private data</a></td><td align="center"><em>Tested on:</em></td><td align="center">Hallucination QA Dataset, Hallucination RAG Dataset</td><td><a href="hallucinations.md">hallucinations.md</a></td></tr><tr><td align="center"><strong>Toxicity Eval</strong></td><td align="center"><a href="toxicity.md">Is the AI response racist, biased or toxic</a></td><td align="center">T<em>ested on:</em></td><td align="center">WikiToxic</td><td><a href="toxicity.md">toxicity.md</a></td></tr><tr><td align="center"><strong>Q&#x26;A Eval</strong></td><td align="center"><a href="q-and-a-on-retrieved-data.md">Private data Q&#x26;A Eval</a></td><td align="center"><em>Tested on:</em></td><td align="center">WikiQA</td><td><a href="q-and-a-on-retrieved-data.md">q-and-a-on-retrieved-data.md</a></td></tr><tr><td align="center"><strong>Summarization Eval</strong></td><td align="center"><a href="summarization-eval.md">Summarization performance</a></td><td align="center"><em>Tested on:</em></td><td align="center">GigaWorld, CNNDM, Xsum</td><td><a href="summarization-eval.md">summarization-eval.md</a></td></tr><tr><td align="center"><strong>Code Generation Eval</strong></td><td align="center"><a href="code-generation-eval.md">Code writing correctness and readability</a></td><td align="center"><em>Tested on:</em></td><td align="center">WikiSQL, HumanEval, CodeXGlu</td><td><a href="code-generation-eval.md">code-generation-eval.md</a></td></tr></tbody></table>
@@ -23,7 +23,7 @@ We currently support a growing set of models for LLM Evals, please check out the
 
 ## How we benchmark pre-tested evals
 
-The above diagram shows examples of different environments the Eval harness is desinged to run. The benchmarking environment is designed to enable the testing of the Eval model & Eval template performance against a designed set of datasets.
+The above diagram shows examples of different environments the Eval harness is desinged to run. The benchmarking environment is designed to enable the testing of the Eval model & Eval template performance against a designed set of data.
 
 The above approach allows us to compare models easily in an understandable format:
 

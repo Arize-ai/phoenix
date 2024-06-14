@@ -87,5 +87,3 @@ volumes:
   phoenix_data:
     driver: local
 ```
-
-\
