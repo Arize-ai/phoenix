@@ -251,6 +251,9 @@ def evaluate_experiment(
 
     # not all dataset examples have associated experiment runs, so we need to pair them up
     # based on the example id, this assumes that the examples and experiment runs are sorted by id
+    dataset_examples.sort(key=lambda example: example["id"])
+    experiment_runs.sort(key=lambda run: run["dataset_example_id"])
+
     example_run_pairs = []
     example_cursor, run_cursor = 0, 0
     while example_cursor < len(dataset_examples) and run_cursor < len(experiment_runs):
