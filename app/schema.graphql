@@ -581,7 +581,7 @@ type Experiment implements Node {
 
 type ExperimentComparison {
   example: DatasetExample!
-  runs: [ExperimentRunRepeatedExperimentRuns]!
+  runItems: [RunItem!]!
 }
 
 """A connection to a list of items."""
@@ -663,8 +663,6 @@ type ExperimentRunEdge {
   """The item at the end of the edge"""
   node: ExperimentRun!
 }
-
-union ExperimentRunRepeatedExperimentRuns = ExperimentRun | RepeatedExperimentRuns
 
 type ExportedFile {
   """File name without the file extension."""
@@ -964,10 +962,6 @@ type Query {
   ): [Cluster!]!
 }
 
-type RepeatedExperimentRuns {
-  runs: [ExperimentRun!]!
-}
-
 type Retrieval {
   queryId: ID!
   documentId: ID!
@@ -978,6 +972,11 @@ enum RevisionKind {
   CREATE
   PATCH
   DELETE
+}
+
+type RunItem {
+  experimentId: GlobalID!
+  runs: [ExperimentRun!]!
 }
 
 enum ScalarDriftMetric {

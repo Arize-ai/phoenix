@@ -29,14 +29,15 @@ from phoenix.server.api.types.SortDir import SortDir
 
 
 @strawberry.type
-class RepeatedExperimentRuns:
+class RunItem:
+    experiment_id: GlobalID
     runs: List[ExperimentRun]
 
 
 @strawberry.type
 class ExperimentComparison:
     example: DatasetExample
-    runs: List[Optional[Union[ExperimentRun, RepeatedExperimentRuns]]]  # this could be a resolverf
+    run_items: List[RunItem]
 
 
 @strawberry.type
@@ -342,19 +343,15 @@ class Dataset(Node):
         comparisons = []
         for example_id in baseline_example_ids:
             example = examples[example_id]
-            gql_runs_list = []
+            run_items = []
             for experiment_id in decoded_experiment_ids:
                 repetitions = runs[example_id][experiment_id]
-                gql_runs: Optional[Union[ExperimentRun, RepeatedExperimentRuns]]
-                if (num_repetitions := len(repetitions)) == 0:
-                    gql_runs = None
-                elif num_repetitions == 1:
-                    gql_runs = to_gql_experiment_run(repetitions[0])
-                else:
-                    gql_runs = RepeatedExperimentRuns(
-                        runs=[to_gql_experiment_run(run) for run in repetitions]
+                run_items.append(
+                    RunItem(
+                        experiment_id=GlobalID(Experiment.__name__, str(experiment_id)),
+                        runs=[to_gql_experiment_run(run) for run in repetitions],
                     )
-                gql_runs_list.append(gql_runs)
+                )
             comparisons.append(
                 ExperimentComparison(
                     example=DatasetExample(
@@ -362,7 +359,7 @@ class Dataset(Node):
                         created_at=example.created_at,
                         version_id=baseline_version_id,
                     ),
-                    runs=gql_runs_list,
+                    run_items=run_items,
                 )
             )
         return comparisons
