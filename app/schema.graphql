@@ -581,7 +581,7 @@ type Experiment implements Node {
 
 type ExperimentComparison {
   example: DatasetExample!
-  runItems: [RunItem!]!
+  runComparisonItems: [RunComparisonItem!]!
 }
 
 """A connection to a list of items."""
@@ -974,7 +974,7 @@ enum RevisionKind {
   DELETE
 }
 
-type RunItem {
+type RunComparisonItem {
   experimentId: GlobalID!
   runs: [ExperimentRun!]!
 }

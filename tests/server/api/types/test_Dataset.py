@@ -608,7 +608,7 @@ class TestDatasetCompareExperiments:
               example {
                 id
               }
-              runItems {
+              runComparisonItems {
                 experimentId
                 runs {
                   id
@@ -645,7 +645,7 @@ class TestDatasetCompareExperiments:
                 "compareExperiments": [
                     {
                         "example": {"id": str(GlobalID("DatasetExample", str(2)))},
-                        "runItems": [
+                        "runComparisonItems": [
                             {
                                 "experimentId": str(GlobalID("Experiment", str(2))),
                                 "runs": [
@@ -680,7 +680,7 @@ class TestDatasetCompareExperiments:
                     },
                     {
                         "example": {"id": str(GlobalID("DatasetExample", str(1)))},
-                        "runItems": [
+                        "runComparisonItems": [
                             {
                                 "experimentId": str(GlobalID("Experiment", str(2))),
                                 "runs": [

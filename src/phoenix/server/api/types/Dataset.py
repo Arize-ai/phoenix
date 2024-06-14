@@ -29,7 +29,7 @@ from phoenix.server.api.types.SortDir import SortDir
 
 
 @strawberry.type
-class RunItem:
+class RunComparisonItem:
     experiment_id: GlobalID
     runs: List[ExperimentRun]
 
@@ -37,7 +37,7 @@ class RunItem:
 @strawberry.type
 class ExperimentComparison:
     example: DatasetExample
-    run_items: List[RunItem]
+    run_comparison_items: List[RunComparisonItem]
 
 
 @strawberry.type
@@ -341,11 +341,11 @@ class Dataset(Node):
         comparisons = []
         for example_id in baseline_example_ids:
             example = examples[example_id]
-            run_items = []
+            run_comparison_items = []
             for experiment_id in decoded_experiment_ids:
                 repetitions = runs[example_id][experiment_id]
-                run_items.append(
-                    RunItem(
+                run_comparison_items.append(
+                    RunComparisonItem(
                         experiment_id=GlobalID(Experiment.__name__, str(experiment_id)),
                         runs=[to_gql_experiment_run(run) for run in repetitions],
                     )
@@ -357,7 +357,7 @@ class Dataset(Node):
                         created_at=example.created_at,
                         version_id=baseline_version_id,
                     ),
-                    run_items=run_items,
+                    run_comparison_items=run_comparison_items,
                 )
             )
         return comparisons
