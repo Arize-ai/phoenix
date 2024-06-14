@@ -100,7 +100,7 @@ export function ExperimentMultiSelector(
                     <Text>{experiment.name}</Text>
                   </Flex>
                   <Text textSize="small" color="text-700">
-                    {new Date(experiment.createdAt).toLocaleDateString()}
+                    {new Date(experiment.createdAt).toLocaleString()}
                   </Text>
                 </Flex>
               </Item>
