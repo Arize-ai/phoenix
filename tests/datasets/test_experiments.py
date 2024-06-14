@@ -72,24 +72,32 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
 
         evaluate_experiment(experiment, BasicEvaluator(contains="correct"))
         evaluations = (
-            await session.execute(
-                select(models.ExperimentAnnotation).where(
-                    models.ExperimentAnnotation.experiment_run_id == experiment_run.id
+            (
+                await session.execute(
+                    select(models.ExperimentAnnotation).where(
+                        models.ExperimentAnnotation.experiment_run_id == experiment_run.id
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(evaluations) == 1
         evaluation_1 = evaluations[0]
         assert evaluation_1.score == 0.0
 
         evaluate_experiment(experiment, BasicEvaluator(contains="doesn't matter"))
         evaluations = (
-            await session.execute(
-                select(models.ExperimentAnnotation).where(
-                    models.ExperimentAnnotation.experiment_run_id == experiment_run.id
+            (
+                await session.execute(
+                    select(models.ExperimentAnnotation).where(
+                        models.ExperimentAnnotation.experiment_run_id == experiment_run.id
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(evaluations) == 2
         evaluation_2 = evaluations[1]
         assert evaluation_2.score == 1.0
