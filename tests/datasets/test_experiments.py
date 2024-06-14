@@ -33,7 +33,12 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
         def experiment_task(input):
             return {"output": "doesn't matter, this is the output"}
 
-        experiment = run_experiment(TestDataset(), experiment_task)
+        experiment = run_experiment(
+            dataset=TestDataset(),
+            task=experiment_task,
+            experiment_name="test",
+            experiment_description="test description",
+        )
         experiment_id = from_global_id_with_expected_type(
             GlobalID.from_id(experiment.id), "Experiment"
         )
@@ -43,6 +48,8 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
     assert experiment, "An experiment was run"
     assert experiment.dataset_id == 0
     assert experiment.dataset_version_id == 0
+    assert experiment.name == "test"
+    assert experiment.description == "test description"
 
     experiment_run = (
         await session.execute(

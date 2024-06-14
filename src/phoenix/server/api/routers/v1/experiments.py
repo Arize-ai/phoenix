@@ -1,3 +1,6 @@
+import hashlib
+import uuid
+
 from sqlalchemy import select
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
@@ -6,6 +9,19 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+
+
+def _short_uuid() -> str:
+    uuid_str = str(uuid.uuid4())
+    short_uuid = hashlib.sha1(uuid_str.encode()).hexdigest()[:8]  # Take first few characters
+    return short_uuid
+
+
+def _generate_experiment_name(dataset_name: str) -> str:
+    """
+    Generate a semi-unique name for the experiment.
+    """
+    return f"{dataset_name.replace(" ", "-")[:8]}-{_short_uuid()}"
 
 
 async def create_experiment(request: Request) -> Response:
@@ -35,14 +51,14 @@ async def create_experiment(request: Request) -> Response:
 
     async with request.app.state.db() as session:
         result = (
-            await session.execute(select(models.Dataset.id).where(models.Dataset.id == dataset_id))
+            await session.execute(select(models.Dataset).where(models.Dataset.id == dataset_id))
         ).scalar()
         if result is None:
             return Response(
                 content=f"Dataset with ID {dataset_globalid} does not exist",
                 status_code=HTTP_404_NOT_FOUND,
             )
-
+        dataset_name = result.name
         if dataset_version_globalid_str is None:
             dataset_version_result = await session.execute(
                 select(models.DatasetVersion)
@@ -68,9 +84,14 @@ async def create_experiment(request: Request) -> Response:
                     status_code=HTTP_404_NOT_FOUND,
                 )
 
+        # generate a semi-unique name for the experiment
+        experiment_name = payload.get("name") or _generate_experiment_name(dataset_name)
+        print(f"Creating experiment with name: {experiment_name}")
         experiment = models.Experiment(
             dataset_id=int(dataset_id),
             dataset_version_id=int(dataset_version_id),
+            name=experiment_name,
+            description=payload.get("description"),
             metadata_=metadata,
         )
         session.add(experiment)
