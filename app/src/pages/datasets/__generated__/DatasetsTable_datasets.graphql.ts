@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b97a6f01fe673585b3792f3f539f06a2>>
+ * @generated SignedSource<<3170440e95ab809c6cba17ecdc42c496>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -45,6 +45,14 @@ return {
       "defaultValue": 100,
       "kind": "LocalArgument",
       "name": "first"
+    },
+    {
+      "defaultValue": {
+        "col": "createdAt",
+        "dir": "desc"
+      },
+      "kind": "LocalArgument",
+      "name": "sort"
     }
   ],
   "kind": "Fragment",
@@ -74,7 +82,13 @@ return {
   "selections": [
     {
       "alias": "datasets",
-      "args": null,
+      "args": [
+        {
+          "kind": "Variable",
+          "name": "sort",
+          "variableName": "sort"
+        }
+      ],
       "concreteType": "DatasetConnection",
       "kind": "LinkedField",
       "name": "__DatasetsTable_datasets_connection",
@@ -192,6 +206,6 @@ return {
 };
 })();
 
-(node as any).hash = "a46b79378a5c19b993545c42e96ee4e4";
+(node as any).hash = "ead09294d86188dc9d76825bdef37fbf";
 
 export default node;

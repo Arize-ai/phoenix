@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6b6f9ad85344d5390904fa1dfc3a9288>>
+ * @generated SignedSource<<eae0812022ee81895472b0eb76a76429>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -25,6 +25,14 @@ var v0 = [
     "kind": "Literal",
     "name": "first",
     "value": 100
+  },
+  {
+    "kind": "Literal",
+    "name": "sort",
+    "value": {
+      "col": "createdAt",
+      "dir": "desc"
+    }
   }
 ];
 return {
@@ -161,12 +169,14 @@ return {
             "storageKey": null
           }
         ],
-        "storageKey": "datasets(first:100)"
+        "storageKey": "datasets(first:100,sort:{\"col\":\"createdAt\",\"dir\":\"desc\"})"
       },
       {
         "alias": null,
         "args": (v0/*: any*/),
-        "filters": null,
+        "filters": [
+          "sort"
+        ],
         "handle": "connection",
         "key": "DatasetsTable_datasets",
         "kind": "LinkedHandle",
@@ -175,12 +185,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5f2e582963a3b67b4649a768186767b4",
+    "cacheID": "d601b31a6b08ca286a660c02a5d47ed6",
     "id": null,
     "metadata": {},
     "name": "DatasetsPageQuery",
     "operationKind": "query",
-    "text": "query DatasetsPageQuery {\n  ...DatasetsTable_datasets\n}\n\nfragment DatasetsTable_datasets on Query {\n  datasets(first: 100) {\n    edges {\n      node {\n        id\n        name\n        description\n        createdAt\n        exampleCount\n        experimentCount\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query DatasetsPageQuery {\n  ...DatasetsTable_datasets\n}\n\nfragment DatasetsTable_datasets on Query {\n  datasets(first: 100, sort: {col: createdAt, dir: desc}) {\n    edges {\n      node {\n        id\n        name\n        description\n        createdAt\n        exampleCount\n        experimentCount\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
