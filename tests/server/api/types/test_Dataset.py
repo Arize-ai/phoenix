@@ -747,7 +747,6 @@ async def comparison_experiments(session):
     Experiment 4: V3
     """
 
-    # insert dataset
     dataset_id = await session.scalar(
         insert(models.Dataset)
         .returning(models.Dataset.id)
@@ -758,7 +757,6 @@ async def comparison_experiments(session):
         )
     )
 
-    # insert examples
     example_ids = (
         await session.scalars(
             insert(models.DatasetExample)
@@ -767,7 +765,6 @@ async def comparison_experiments(session):
         )
     ).all()
 
-    # insert versions
     version_ids = (
         await session.scalars(
             insert(models.DatasetVersion)
@@ -787,7 +784,6 @@ async def comparison_experiments(session):
         )
     ).all()
 
-    # insert revisions
     await session.scalars(
         insert(models.DatasetExampleRevision)
         .returning(models.DatasetExampleRevision.id)
@@ -889,7 +885,6 @@ async def comparison_experiments(session):
         )
     )
 
-    # insert experiments
     experiment_ids = (
         await session.scalars(
             insert(models.Experiment)
@@ -933,7 +928,6 @@ async def comparison_experiments(session):
         )
     ).all()
 
-    # insert runs
     await session.scalars(
         insert(models.ExperimentRun)
         .returning(models.ExperimentRun.id)
