@@ -632,7 +632,6 @@ class TestDatasetCompareExperiments:
                     "comparisonExperimentIds": [
                         str(GlobalID("Experiment", str(1))),
                         str(GlobalID("Experiment", str(3))),
-                        str(GlobalID("Experiment", str(4))),
                     ],
                 },
             },
@@ -663,15 +662,6 @@ class TestDatasetCompareExperiments:
                                 "experimentId": str(GlobalID("Experiment", str(3))),
                                 "runs": [],
                             },
-                            {
-                                "experimentId": str(GlobalID("Experiment", str(4))),
-                                "runs": [
-                                    {
-                                        "id": str(GlobalID("ExperimentRun", str(7))),
-                                        "output": {"run-7-output-key": "run-7-output-value"},
-                                    },
-                                ],
-                            },
                         ],
                     },
                     {
@@ -701,15 +691,6 @@ class TestDatasetCompareExperiments:
                                     {
                                         "id": str(GlobalID("ExperimentRun", str(5))),
                                         "output": {"run-5-output-key": "run-5-output-value"},
-                                    },
-                                ],
-                            },
-                            {
-                                "experimentId": str(GlobalID("Experiment", str(4))),
-                                "runs": [
-                                    {
-                                        "id": str(GlobalID("ExperimentRun", str(6))),
-                                        "output": {"run-6-output-key": "run-6-output-value"},
                                     },
                                 ],
                             },

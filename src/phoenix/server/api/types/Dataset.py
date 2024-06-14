@@ -266,50 +266,29 @@ class Dataset(Node):
         OrmRevision = models.DatasetExampleRevision
         OrmTrace = models.Trace
 
-        dataset_id = self.id_attr
-        decoded_experiment_ids = [
+        experiment_ids = [
             from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
             for experiment_id in [baseline_experiment_id] + comparison_experiment_ids
         ]
-        decoded_baseline_experiment_id = decoded_experiment_ids[0]
 
         async with info.context.db() as session:
             if (
-                baseline_version_id := await session.scalar(
-                    select(OrmExperiment.dataset_version_id).where(
-                        and_(
-                            OrmExperiment.id == decoded_baseline_experiment_id,
-                            OrmExperiment.dataset_id == dataset_id,
-                        )
+                version_id := await session.scalar(
+                    select(func.max(OrmExperiment.dataset_version_id)).where(
+                        OrmExperiment.id.in_(experiment_ids),
                     )
                 )
             ) is None:
-                raise ValueError("Baseline experiment not found.")
-            if not (
-                baseline_example_ids := (
-                    await session.scalars(
-                        select(func.distinct(OrmRun.dataset_example_id))
-                        .where(OrmRun.experiment_id == decoded_baseline_experiment_id)
-                        .order_by(OrmRun.dataset_example_id.desc())
-                    )
-                ).all()
-            ):
-                raise ValueError("Baseline experiment has no runs.")
+                raise ValueError
 
             revision_ids = (
                 select(func.max(OrmRevision.id))
-                .where(
-                    and_(
-                        OrmRevision.dataset_example_id.in_(baseline_example_ids),
-                        OrmRevision.dataset_version_id <= baseline_version_id,
-                    )
-                )
+                .where(OrmRevision.dataset_version_id <= version_id)
                 .group_by(OrmRevision.dataset_example_id)
                 .scalar_subquery()
             )
-            examples = {
-                example.id: example
-                async for example in await session.stream_scalars(
+            examples = (
+                await session.scalars(
                     select(OrmExample)
                     .join(OrmRevision, OrmExample.id == OrmRevision.dataset_example_id)
                     .where(
@@ -318,49 +297,51 @@ class Dataset(Node):
                             OrmRevision.revision_kind != "DELETE",
                         )
                     )
+                    .order_by(OrmRevision.dataset_example_id.desc())
                 )
-            }
+            ).all()
 
             ExampleID: TypeAlias = int
             ExperimentID: TypeAlias = int
             runs: DefaultDict[ExampleID, DefaultDict[ExperimentID, List[OrmRun]]] = defaultdict(
                 lambda: defaultdict(list)
             )
+
             for run in await session.scalars(
                 select(OrmRun)
                 .where(
                     and_(
-                        OrmRun.dataset_example_id.in_(baseline_example_ids),
-                        OrmRun.experiment_id.in_(decoded_experiment_ids),
+                        OrmRun.dataset_example_id.in_(example.id for example in examples),
+                        OrmRun.experiment_id.in_(experiment_ids),
                     )
                 )
                 .options(joinedload(OrmRun.trace).load_only(OrmTrace.trace_id))
             ):
                 runs[run.dataset_example_id][run.experiment_id].append(run)
 
-        comparisons = []
-        for example_id in baseline_example_ids:
-            example = examples[example_id]
+        experiment_comparisons = []
+        for example in examples:
             run_comparison_items = []
-            for experiment_id in decoded_experiment_ids:
-                repetitions = runs[example_id][experiment_id]
+            for experiment_id in experiment_ids:
                 run_comparison_items.append(
                     RunComparisonItem(
                         experiment_id=GlobalID(Experiment.__name__, str(experiment_id)),
-                        runs=[to_gql_experiment_run(run) for run in repetitions],
+                        runs=[
+                            to_gql_experiment_run(run) for run in runs[example.id][experiment_id]
+                        ],
                     )
                 )
-            comparisons.append(
+            experiment_comparisons.append(
                 ExperimentComparison(
                     example=DatasetExample(
                         id_attr=example.id,
                         created_at=example.created_at,
-                        version_id=baseline_version_id,
+                        version_id=version_id,
                     ),
                     run_comparison_items=run_comparison_items,
                 )
             )
-        return comparisons
+        return experiment_comparisons
 
 
 def to_gql_dataset(dataset: models.Dataset) -> Dataset:
