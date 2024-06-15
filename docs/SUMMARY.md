@@ -48,11 +48,6 @@
   * [Structured Data Extraction](tracing/use-cases-tracing/structured-extraction.md)
 * [FAQs: Tracing](tracing/faqs-tracing.md)
 
-## 🗄️ Datasets & Testing
-
-* [Overview: Datasets](datasets-and-testing/overview-datasets.md)
-* [Concepts: Datasets](datasets-and-testing/concepts-datasets.md)
-
 ## 🧠 Evaluation
 
 * [Overview: Evals](llm-evals/llm-evals.md)
@@ -77,6 +72,11 @@
   * [Bring Your Own Evaluator](evaluation/how-to-evals/bring-your-own-evaluator.md)
   * [Online Evals](evaluation/how-to-evals/online-evals.md)
 * [Evaluation Models](evaluation/evaluation-models.md)
+
+## 🗄️ Datasets & Testing
+
+* [Overview: Datasets](datasets-and-testing/overview-datasets.md)
+* [Concepts: Datasets](datasets-and-testing/concepts-datasets.md)
 
 ## 🔎 Retrieval
 
