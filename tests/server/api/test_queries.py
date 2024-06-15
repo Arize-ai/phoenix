@@ -65,7 +65,12 @@ async def test_compare_experiments_returns_expected_comparisons(
                     },
                     {
                         "experimentId": str(GlobalID("Experiment", str(3))),
-                        "runs": [],
+                        "runs": [
+                            {
+                                "id": str(GlobalID("ExperimentRun", str(6))),
+                                "output": {"run-6-output-key": "run-6-output-value"},
+                            },
+                        ],
                     },
                 ],
             },
@@ -118,7 +123,7 @@ async def comparison_experiments(session):
 
     Experiment 1: V1
     Experiment 2: V2
-    Experiment 3: V2 (interrupted by an error)
+    Experiment 3: V2
     Experiment 4: V3
     """
 
@@ -328,7 +333,19 @@ async def comparison_experiments(session):
                             "end_time": datetime(
                                 year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
                             ),
-                            "error": "version-2-experiment-2-example-1-run-error",
+                            "error": None,
+                        },
+                        {
+                            "experiment_id": experiment_ids[2],
+                            "dataset_example_id": example_ids[1],
+                            "trace_id": None,
+                            "start_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                            "end_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                            "error": None,
                         },
                         {
                             "experiment_id": experiment_ids[3],
