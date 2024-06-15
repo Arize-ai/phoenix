@@ -215,7 +215,10 @@ class Query:
                     RunComparisonItem(
                         experiment_id=GlobalID(Experiment.__name__, str(experiment_id)),
                         runs=[
-                            to_gql_experiment_run(run) for run in runs[example.id][experiment_id]
+                            to_gql_experiment_run(run)
+                            for run in sorted(
+                                runs[example.id][experiment_id], key=lambda run: run.id
+                            )
                         ],
                     )
                 )
