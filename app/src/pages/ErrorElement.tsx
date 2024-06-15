@@ -115,7 +115,7 @@ function ErrorContent({ error }: { error: unknown }) {
           Return Home
         </Button>
       </div>
-      <details>
+      <details open>
         <summary>error details</summary>
         <pre
           css={css`

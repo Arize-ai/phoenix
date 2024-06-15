@@ -32,7 +32,7 @@ export function ExampleExperimentsTableEmpty() {
             padding: ${theme.spacing.margin24}px ${theme.spacing.margin24}px !important;
           `}
         >
-          No experiments for have been run for this example.
+          No experiments have been run for this example.
         </td>
       </tr>
     </tbody>
