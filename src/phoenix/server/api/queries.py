@@ -135,6 +135,8 @@ class Query:
             from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
             for experiment_id in [baseline_experiment_id] + comparison_experiment_ids
         ]
+        if len(set(experiment_ids)) != len(experiment_ids):
+            raise ValueError("Experiment IDs must be unique.")
 
         async with info.context.db() as session:
             validation_result = (
