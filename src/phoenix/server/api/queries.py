@@ -4,7 +4,7 @@ from typing import DefaultDict, Dict, List, Optional, Set, Union
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, distinct, func, select
 from sqlalchemy.orm import joinedload
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, GlobalID, Node
@@ -118,6 +118,7 @@ class Query:
         OrmRun: TypeAlias = models.ExperimentRun
         OrmRevision = models.DatasetExampleRevision
         OrmTrace = models.Trace
+        OrmVersion = models.DatasetVersion
 
         experiment_ids = [
             from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
@@ -125,14 +126,32 @@ class Query:
         ]
 
         async with info.context.db() as session:
-            if (
-                version_id := await session.scalar(
-                    select(func.max(OrmExperiment.dataset_version_id)).where(
+            validation_result = (
+                await session.execute(
+                    select(
+                        func.count(distinct(OrmVersion.dataset_id)),
+                        func.max(OrmVersion.dataset_id),
+                        func.max(OrmVersion.id),
+                        func.count(OrmExperiment.id),
+                    )
+                    .select_from(OrmVersion)
+                    .join(
+                        OrmExperiment,
+                        OrmExperiment.dataset_version_id == OrmVersion.id,
+                    )
+                    .where(
                         OrmExperiment.id.in_(experiment_ids),
                     )
                 )
-            ) is None:
-                raise ValueError
+            ).first()
+            if validation_result is None:
+                raise ValueError("No experiments could be found for input IDs.")
+
+            num_datasets, dataset_id, version_id, num_resolved_experiment_ids = validation_result
+            if num_datasets != 1:
+                raise ValueError("Experiments must belong to the same dataset.")
+            if num_resolved_experiment_ids != len(experiment_ids):
+                raise ValueError("Unable to resolve one or more experiment IDs.")
 
             revision_ids = (
                 select(func.max(OrmRevision.id))
