@@ -12,6 +12,24 @@ from strawberry.types import Info
 from typing_extensions import Annotated, TypeAlias
 
 from phoenix.db import models
+from phoenix.db.models import (
+    DatasetExample as OrmExample,
+)
+from phoenix.db.models import (
+    DatasetExampleRevision as OrmRevision,
+)
+from phoenix.db.models import (
+    DatasetVersion as OrmVersion,
+)
+from phoenix.db.models import (
+    Experiment as OrmExperiment,
+)
+from phoenix.db.models import (
+    ExperimentRun as OrmRun,
+)
+from phoenix.db.models import (
+    Trace as OrmTrace,
+)
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.context import Context
 from phoenix.server.api.helpers import ensure_list
@@ -113,13 +131,6 @@ class Query:
         baseline_experiment_id: GlobalID,
         comparison_experiment_ids: List[GlobalID],
     ) -> List[ExperimentComparison]:
-        OrmExample = models.DatasetExample
-        OrmExperiment = models.Experiment
-        OrmRun: TypeAlias = models.ExperimentRun
-        OrmRevision = models.DatasetExampleRevision
-        OrmTrace = models.Trace
-        OrmVersion = models.DatasetVersion
-
         experiment_ids = [
             from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
             for experiment_id in [baseline_experiment_id] + comparison_experiment_ids
@@ -178,7 +189,6 @@ class Query:
             runs: DefaultDict[ExampleID, DefaultDict[ExperimentID, List[OrmRun]]] = defaultdict(
                 lambda: defaultdict(list)
             )
-
             for run in await session.scalars(
                 select(OrmRun)
                 .where(
