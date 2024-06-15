@@ -240,6 +240,7 @@ async def comparison_experiments(session):
                 [
                     {
                         **experiment,
+                        "name": f"experiment-{experiment_index + 1}-name",
                         "description": f"experiment-{experiment_index + 1}-description",
                         "metadata_": {
                             f"experiment-{experiment_index + 1}-metadata-key": f"experiment-{experiment_index + 1}-metadata-value"  # noqa: E501

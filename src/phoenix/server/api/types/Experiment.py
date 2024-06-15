@@ -66,8 +66,7 @@ class Experiment(Node):
                     .where(models.ExperimentRun.experiment_id == experiment_id)
                     .order_by(models.ExperimentRun.id.desc())
                     .options(
-                        joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id),
-                        joinedload(models.ExperimentRun.experiment).load_only(models.Experiment.id),
+                        joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id)
                     )
                 )
             ).all()
