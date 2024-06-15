@@ -18,6 +18,11 @@ async def test_compare_experiments_returns_expected_comparisons(
         ) {
           example {
             id
+            revision {
+              input
+              output
+              metadata
+            }
           }
           runComparisonItems {
             experimentId
@@ -48,7 +53,14 @@ async def test_compare_experiments_returns_expected_comparisons(
     assert response_json["data"] == {
         "compareExperiments": [
             {
-                "example": {"id": str(GlobalID("DatasetExample", str(2)))},
+                "example": {
+                    "id": str(GlobalID("DatasetExample", str(2))),
+                    "revision": {
+                        "input": {"revision-4-input-key": "revision-4-input-value"},
+                        "output": {"revision-4-output-key": "revision-4-output-value"},
+                        "metadata": {"revision-4-metadata-key": "revision-4-metadata-value"},
+                    },
+                },
                 "runComparisonItems": [
                     {
                         "experimentId": str(GlobalID("Experiment", str(2))),
@@ -79,7 +91,14 @@ async def test_compare_experiments_returns_expected_comparisons(
                 ],
             },
             {
-                "example": {"id": str(GlobalID("DatasetExample", str(1)))},
+                "example": {
+                    "id": str(GlobalID("DatasetExample", str(1))),
+                    "revision": {
+                        "input": {"revision-2-input-key": "revision-2-input-value"},
+                        "output": {"revision-2-output-key": "revision-2-output-value"},
+                        "metadata": {"revision-2-metadata-key": "revision-2-metadata-value"},
+                    },
+                },
                 "runComparisonItems": [
                     {
                         "experimentId": str(GlobalID("Experiment", str(2))),
