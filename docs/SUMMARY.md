@@ -48,6 +48,10 @@
   * [Structured Data Extraction](tracing/use-cases-tracing/structured-extraction.md)
 * [FAQs: Tracing](tracing/faqs-tracing.md)
 
+## 🗄️ Datasets & Testing
+
+* [Overview: Datasets](datasets-and-testing/overview-datasets.md)
+
 ## 🧠 Evaluation
 
 * [Overview: Evals](llm-evals/llm-evals.md)
