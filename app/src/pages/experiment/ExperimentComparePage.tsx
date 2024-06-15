@@ -4,6 +4,7 @@ import { useLoaderData, useSearchParams } from "react-router-dom";
 import { Flex, Heading, View } from "@arizeai/components";
 
 import { experimentCompareLoaderQuery$data } from "./__generated__/experimentCompareLoaderQuery.graphql";
+import { ExperimentCompareTable } from "./ExperimentCompareTable";
 import { ExperimentMultiSelector } from "./ExperimentMultiSelector";
 
 export function ExperimentComparePage() {
@@ -33,6 +34,10 @@ export function ExperimentComparePage() {
           />
         </Flex>
       </View>
+      <ExperimentCompareTable
+        experimentIds={experimentIds}
+        baselineExperimentId={experimentIds[0]}
+      />
     </main>
   );
 }
