@@ -935,12 +935,8 @@ type PromptResponse {
 
 type Query {
   projects(first: Int = 50, last: Int, after: String, before: String): ProjectConnection!
-<<<<<<< HEAD
   datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort): DatasetConnection!
-=======
-  datasets(first: Int = 50, last: Int, after: String, before: String): DatasetConnection!
   compareExperiments(baselineExperimentId: GlobalID!, comparisonExperimentIds: [GlobalID!]!): [ExperimentComparison!]!
->>>>>>> eedd4401 (refactor compareExperiments resolver on query)
   functionality: Functionality!
   model: Model!
   node(id: GlobalID!): Node!
