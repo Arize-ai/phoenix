@@ -250,27 +250,16 @@ def evaluate_experiment(
     experiment_runs = client.get(f"/v1/experiments/{experiment_id}/runs").json()
 
     # not all dataset examples have associated experiment runs, so we need to pair them up
-    # based on the example id, this assumes that the examples and experiment runs are sorted by id
-    dataset_examples.sort(key=lambda example: example["id"])
-    experiment_runs.sort(key=lambda run: run["dataset_example_id"])
-
     example_run_pairs = []
-    example_cursor, run_cursor = 0, 0
-    while example_cursor < len(dataset_examples) and run_cursor < len(experiment_runs):
-        example = dataset_examples[example_cursor]
-        run = experiment_runs[run_cursor]
-        if example["id"] == run["dataset_example_id"]:
+    examples_by_id = {example["id"]: example for example in dataset_examples}
+    for run in experiment_runs:
+        example = examples_by_id.get(run["dataset_example_id"])
+        if example:
             wrapped_example = ExampleWrapper(
                 id=example["id"], input=example["input"], output=example["output"]
             )
             wrapped_run = RunWrapper(id=run["id"], output=run["output"])
             example_run_pairs.append((wrapped_example, wrapped_run))
-            example_cursor += 1
-            run_cursor += 1
-        elif example["id"] < run["dataset_example_id"]:
-            example_cursor += 1
-        else:
-            run_cursor += 1
 
     def sync_evaluate_run(example_run: Tuple[ExampleProtocol, RunProtocol]) -> EvaluatorPayload:
         example, run = example_run
