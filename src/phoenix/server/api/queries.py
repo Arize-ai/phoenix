@@ -195,7 +195,7 @@ class Query:
             runs: DefaultDict[ExampleID, DefaultDict[ExperimentID, List[OrmRun]]] = defaultdict(
                 lambda: defaultdict(list)
             )
-            for run in await session.scalars(
+            async for run in await session.stream_scalars(
                 select(OrmRun)
                 .where(
                     and_(
