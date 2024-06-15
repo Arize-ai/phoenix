@@ -596,46 +596,6 @@ class TestDatasetExperimentsResolver:
         assert response_json["data"] == {"node": {"experiments": {"edges": edges}}}
 
 
-class TestDatasetExperimentsResolver:
-    QUERY = """
-      query ($datasetId: GlobalID!) {
-        node(id: $datasetId) {
-          ... on Dataset {
-            experiments {
-              edges {
-                node {
-                  sequenceNumber
-                  id
-                }
-              }
-            }
-          }
-        }
-      }
-    """  # noqa: E501
-
-    async def test_experiments_have_sequence_number(
-        self,
-        test_client,
-        interlaced_experiments: List[int],
-    ) -> None:
-        variables = {"datasetId": str(GlobalID("Dataset", str(2)))}
-        response = await test_client.post(
-            "/graphql",
-            json={"query": self.QUERY, "variables": variables},
-        )
-        assert response.status_code == 200
-        response_json = response.json()
-        assert response_json.get("errors") is None
-        edges = [
-            {"node": {"sequenceNumber": 4, "id": str(GlobalID(Experiment.__name__, str(11)))}},
-            {"node": {"sequenceNumber": 3, "id": str(GlobalID(Experiment.__name__, str(8)))}},
-            {"node": {"sequenceNumber": 2, "id": str(GlobalID(Experiment.__name__, str(5)))}},
-            {"node": {"sequenceNumber": 1, "id": str(GlobalID(Experiment.__name__, str(2)))}},
-        ]
-        assert response_json["data"] == {"node": {"experiments": {"edges": edges}}}
-
-
 @pytest.fixture
 async def dataset_with_patch_revision(session):
     """
