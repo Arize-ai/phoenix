@@ -166,7 +166,13 @@ class Query:
 
             revision_ids = (
                 select(func.max(OrmRevision.id))
-                .where(OrmRevision.dataset_version_id <= version_id)
+                .join(OrmExample, OrmExample.id == OrmRevision.dataset_example_id)
+                .where(
+                    and_(
+                        OrmRevision.dataset_version_id <= version_id,
+                        OrmExample.dataset_id == dataset_id,
+                    )
+                )
                 .group_by(OrmRevision.dataset_example_id)
                 .scalar_subquery()
             )
