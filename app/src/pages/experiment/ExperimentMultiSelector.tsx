@@ -8,10 +8,11 @@ import {
   FieldProps,
   Flex,
   Item,
-  Label,
   ListBox,
   Text,
 } from "@arizeai/components";
+
+import { SequenceNumberLabel } from "@phoenix/components/experiment/SequenceNumberLabel";
 
 import { ExperimentMultiSelector__experiments$key } from "./__generated__/ExperimentMultiSelector__experiments.graphql";
 
@@ -91,12 +92,13 @@ export function ExperimentMultiSelector(
             selectedKeys={new Set(selectedExperimentIds)}
           >
             {experiments.map((experiment) => (
-              <Item key={experiment.id}>
+              <Item key={experiment.id} textValue={experiment.name}>
                 <Flex direction="column" gap="size-50">
                   <Flex direction="row" gap="size-100">
-                    <Label color="yellow-1000">
-                      #{experiment.sequenceNumber}
-                    </Label>
+                    <SequenceNumberLabel
+                      sequenceNumber={experiment.sequenceNumber}
+                    />
+
                     <Text>{experiment.name}</Text>
                   </Flex>
                   <Text textSize="small" color="text-700">
