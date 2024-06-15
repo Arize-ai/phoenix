@@ -67,8 +67,12 @@ async def test_compare_experiments_returns_expected_comparisons(
                         "experimentId": str(GlobalID("Experiment", str(3))),
                         "runs": [
                             {
-                                "id": str(GlobalID("ExperimentRun", str(6))),
-                                "output": {"run-6-output-key": "run-6-output-value"},
+                                "id": str(GlobalID("ExperimentRun", str(7))),
+                                "output": {"run-7-output-key": "run-7-output-value"},
+                            },
+                            {
+                                "id": str(GlobalID("ExperimentRun", str(8))),
+                                "output": {"run-8-output-key": "run-8-output-value"},
                             },
                         ],
                     },
@@ -102,6 +106,10 @@ async def test_compare_experiments_returns_expected_comparisons(
                                 "id": str(GlobalID("ExperimentRun", str(5))),
                                 "output": {"run-5-output-key": "run-5-output-value"},
                             },
+                            {
+                                "id": str(GlobalID("ExperimentRun", str(6))),
+                                "output": {"run-6-output-key": "run-6-output-value"},
+                            },
                         ],
                     },
                 ],
@@ -121,10 +129,10 @@ async def comparison_experiments(session):
     Example 3   CREATED     DELETED
     Example 4                           CREATED
 
-    Experiment 1: V1
-    Experiment 2: V2
-    Experiment 3: V2
-    Experiment 4: V3
+    Experiment 1: V1 (1 repetition)
+    Experiment 2: V2 (1 repetition)
+    Experiment 3: V2 (2 repetitions)
+    Experiment 4: V3 (1 repetition)
     """
 
     dataset_id = await session.scalar(
@@ -326,6 +334,30 @@ async def comparison_experiments(session):
                         {
                             "experiment_id": experiment_ids[2],
                             "dataset_example_id": example_ids[0],
+                            "trace_id": None,
+                            "start_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                            "end_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                            "error": None,
+                        },
+                        {
+                            "experiment_id": experiment_ids[2],
+                            "dataset_example_id": example_ids[0],
+                            "trace_id": None,
+                            "start_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                            "end_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                            "error": None,
+                        },
+                        {
+                            "experiment_id": experiment_ids[2],
+                            "dataset_example_id": example_ids[1],
                             "trace_id": None,
                             "start_time": datetime(
                                 year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
