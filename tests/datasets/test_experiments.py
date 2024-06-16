@@ -24,6 +24,7 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
         id = str(GlobalID("Dataset", "0"))
         version_id = str(GlobalID("DatasetVersion", "0"))
 
+        @property
         def examples(self):
             example_gid = str(GlobalID("DatasetExample", "0"))
             return [TestExample(id=example_gid, input="fancy input 1")]
@@ -52,16 +53,23 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
         def experiment_task(input):
             return {"output": "doesn't matter, this is the output"}
 
-        experiment = run_experiment(TestDataset(), experiment_task)
+        experiment = run_experiment(
+            dataset=TestDataset(),
+            task=experiment_task,
+            experiment_name="test",
+            experiment_description="test description",
+        )
         experiment_id = from_global_id_with_expected_type(
             GlobalID.from_id(experiment.id), "Experiment"
         )
         assert experiment_id
 
-        experiment_model = (await session.execute(select(models.Experiment))).scalar()
-        assert experiment_model, "An experiment was run"
-        assert experiment_model.dataset_id == 0
-        assert experiment_model.dataset_version_id == 0
+        experiment = (await session.execute(select(models.Experiment))).scalar()
+        assert experiment, "An experiment was run"
+        assert experiment.dataset_id == 0
+        assert experiment.dataset_version_id == 0
+        assert experiment.name == "test"
+        assert experiment.description == "test description"
 
         experiment_run = (
             await session.execute(

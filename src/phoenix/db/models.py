@@ -157,7 +157,7 @@ class Trace(Base):
         uselist=True,
     )
     experiment_runs: Mapped[List["ExperimentRun"]] = relationship(
-        primaryjoin="foreign(ExperimentRun.trace_id) == remote(Trace.trace_id)",
+        primaryjoin="foreign(ExperimentRun.trace_id) == Trace.trace_id",
         back_populates="trace",
     )
     __table_args__ = (
@@ -514,6 +514,7 @@ class Experiment(Base):
         ForeignKey("dataset_versions.id", ondelete="CASCADE"),
         index=True,
     )
+    name: Mapped[str]
     description: Mapped[Optional[str]]
     metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
@@ -542,7 +543,7 @@ class ExperimentRun(Base):
     error: Mapped[Optional[str]]
 
     trace: Mapped["Trace"] = relationship(
-        primaryjoin="foreign(ExperimentRun.trace_id) == remote(Trace.trace_id)",
+        primaryjoin="foreign(ExperimentRun.trace_id) == Trace.trace_id",
         back_populates="experiment_runs",
     )
 

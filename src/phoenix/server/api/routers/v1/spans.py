@@ -68,6 +68,8 @@ async def query_spans_handler(request: Request) -> Response:
     responses:
       200:
         description: Success
+      403:
+        description: Forbidden
       404:
         description: Not found
       422:

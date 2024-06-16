@@ -1,7 +1,9 @@
 from datetime import datetime
+from typing import Tuple
 
 import pytest
 from phoenix.db import models
+from sqlalchemy import insert
 
 
 @pytest.fixture
@@ -393,6 +395,7 @@ async def dataset_with_experiments_without_runs(session, empty_dataset):
         id=0,
         dataset_id=1,
         dataset_version_id=1,
+        name="test",
         metadata_={"info": "a test experiment"},
     )
     session.add(experiment_0)
@@ -402,6 +405,7 @@ async def dataset_with_experiments_without_runs(session, empty_dataset):
         id=1,
         dataset_id=1,
         dataset_version_id=2,
+        name="second test",
         metadata_={"info": "a second test experiment"},
     )
     session.add(experiment_1)
@@ -524,3 +528,61 @@ async def dataset_with_experiments_runs_and_evals(session, dataset_with_experime
     )
     session.add(experiment_evaluation_3)
     await session.flush()
+
+
+@pytest.fixture
+async def dataset_with_messages(session) -> Tuple[int, int]:
+    dataset_id = await session.scalar(
+        insert(models.Dataset).returning(models.Dataset.id),
+        [{"name": "xyz", "metadata_": {}}],
+    )
+    dataset_version_id = await session.scalar(
+        insert(models.DatasetVersion).returning(models.DatasetVersion.id),
+        [{"dataset_id": dataset_id, "metadata_": {}}],
+    )
+    dataset_example_ids = list(
+        await session.scalars(
+            insert(models.DatasetExample).returning(models.DatasetExample.id),
+            [{"dataset_id": dataset_id}, {"dataset_id": dataset_id}],
+        )
+    )
+    await session.scalar(
+        insert(models.DatasetExampleRevision).returning(models.DatasetExampleRevision.id),
+        [
+            {
+                "revision_kind": "CREATE",
+                "dataset_example_id": dataset_example_ids[0],
+                "dataset_version_id": dataset_version_id,
+                "input": {
+                    "messages": [
+                        {"role": "system", "content": "x"},
+                        {"role": "user", "content": "y"},
+                    ]
+                },
+                "output": {
+                    "messages": [
+                        {"role": "assistant", "content": "z"},
+                    ]
+                },
+                "metadata_": {},
+            },
+            {
+                "revision_kind": "CREATE",
+                "dataset_example_id": dataset_example_ids[1],
+                "dataset_version_id": dataset_version_id,
+                "input": {
+                    "messages": [
+                        {"role": "system", "content": "xx"},
+                        {"role": "user", "content": "yy"},
+                    ]
+                },
+                "output": {
+                    "messages": [
+                        {"role": "assistant", "content": "zz"},
+                    ]
+                },
+                "metadata_": {},
+            },
+        ],
+    )
+    return dataset_id, dataset_version_id

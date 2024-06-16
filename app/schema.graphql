@@ -102,6 +102,11 @@ type Dataset implements Node {
   experiments(first: Int = 50, last: Int, after: String, before: String): ExperimentConnection!
 }
 
+enum DatasetColumn {
+  createdAt
+  name
+}
+
 """A connection to a list of items."""
 type DatasetConnection {
   """Pagination data for this connection"""
@@ -171,6 +176,12 @@ type DatasetExampleRevision implements ExampleRevision {
 
 type DatasetMutationPayload {
   dataset: Dataset!
+}
+
+"""The sort key and direction for dataset connections"""
+input DatasetSort {
+  col: DatasetColumn!
+  dir: SortDir!
 }
 
 type DatasetValues {
@@ -556,6 +567,7 @@ interface ExampleRevision {
 type Experiment implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
+  name: String!
   description: String
   metadata: JSON!
   createdAt: DateTime!
@@ -917,7 +929,7 @@ type PromptResponse {
 
 type Query {
   projects(first: Int = 50, last: Int, after: String, before: String): ProjectConnection!
-  datasets(first: Int = 50, last: Int, after: String, before: String): DatasetConnection!
+  datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort): DatasetConnection!
   functionality: Functionality!
   model: Model!
   node(id: GlobalID!): Node!

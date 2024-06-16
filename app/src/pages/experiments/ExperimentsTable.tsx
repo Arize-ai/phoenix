@@ -1,5 +1,6 @@
-import React, { useCallback, useMemo, useRef } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
+import { useNavigate } from "react-router";
 // import { useNavigate } from "react-router";
 import {
   ColumnDef,
@@ -9,7 +10,9 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-// import { Link } from "@phoenix/components/Link";
+import { Flex, Label } from "@arizeai/components";
+
+import { Link } from "@phoenix/components/Link";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
@@ -17,6 +20,7 @@ import { TextCell } from "@phoenix/components/table/TextCell";
 import { experimentsLoaderQuery$data } from "./__generated__/experimentsLoaderQuery.graphql";
 import type { ExperimentsTableFragment$key } from "./__generated__/ExperimentsTableFragment.graphql";
 import { ExperimentsTableQuery } from "./__generated__/ExperimentsTableQuery.graphql";
+import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
 
 const PAGE_SIZE = 100;
 
@@ -45,6 +49,7 @@ export function ExperimentsTable({
   dataset: experimentsLoaderQuery$data["dataset"];
 }) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [rowSelection, setRowSelection] = useState({});
   const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
     ExperimentsTableQuery,
     ExperimentsTableFragment$key
@@ -61,6 +66,7 @@ export function ExperimentsTable({
           edges {
             experiment: node {
               id
+              name
               sequenceNumber
               description
               createdAt
@@ -104,21 +110,29 @@ export function ExperimentsTable({
         />
       ),
     },
+
     {
-      header: "#",
-      accessorKey: "sequenceNumber",
-    },
-    {
-      header: "id",
-      accessorKey: "id",
-      //   cell: ({ getValue, row }) => {
-      //     const experimentId = row.original.id;
-      //     return <Link to={`experiments/${experimentId}`}>{getValue() as string}</Link>;
-      //   },
+      header: "name",
+      accessorKey: "name",
+      cell: ({ getValue, row }) => {
+        const experimentId = row.original.id;
+        const sequenceNumber = row.original.sequenceNumber;
+        return (
+          <Flex direction="row" gap="size-100">
+            <Label color="yellow-1000">#{sequenceNumber}</Label>
+            <Link
+              to={`/datasets/${dataset.id}/compare?experimentId=${experimentId}`}
+            >
+              {getValue() as string}
+            </Link>
+          </Flex>
+        );
+      },
     },
     {
       header: "description",
       accessorKey: "description",
+      cell: TextCell,
     },
     {
       header: "created at",
@@ -134,15 +148,25 @@ export function ExperimentsTable({
     columns,
     data: tableData,
     getCoreRowModel: getCoreRowModel(),
+    state: {
+      rowSelection,
+    },
+    onRowSelectionChange: setRowSelection,
   });
   const rows = table.getRowModel().rows;
+  const selectedRows = table.getSelectedRowModel().rows;
+  const selectedExperiments = selectedRows.map((row) => row.original);
+  const clearSelection = useCallback(() => {
+    setRowSelection({});
+  }, [setRowSelection]);
+
   const isEmpty = rows.length === 0;
 
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
         const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
-        //once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
+        // once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
         if (
           scrollHeight - scrollTop - clientHeight < 300 &&
           !isLoadingNext &&
@@ -154,7 +178,7 @@ export function ExperimentsTable({
     },
     [hasNext, isLoadingNext, loadNext]
   );
-  //   const navigate = useNavigate();
+  const navigate = useNavigate();
   return (
     <div
       css={css`
@@ -188,9 +212,11 @@ export function ExperimentsTable({
             {rows.map((row) => (
               <tr
                 key={row.id}
-                // onClick={() => {
-                //   navigate(`experiments/${row.original.id}`);
-                // }}
+                onClick={() => {
+                  navigate(
+                    `/datasets/${dataset.id}/compare?experimentsIds=${row.original.id}`
+                  );
+                }}
               >
                 {row.getVisibleCells().map((cell) => {
                   return (
@@ -207,6 +233,13 @@ export function ExperimentsTable({
           </tbody>
         )}
       </table>
+      {selectedRows.length ? (
+        <ExperimentSelectionToolbar
+          datasetId={dataset.id}
+          selectedExperiments={selectedExperiments}
+          onClearSelection={clearSelection}
+        />
+      ) : null}
     </div>
   );
 }

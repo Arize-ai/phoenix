@@ -48,6 +48,8 @@ paths:
                     type: string
                 type: object
           description: A paginated list of datasets
+        403:
+          description: Forbidden
         404:
           description: No datasets found
       summary: List datasets with cursor-based pagination
@@ -144,6 +146,8 @@ paths:
                     type: string
                 type: object
           description: Success
+        403:
+          description: Forbidden
         404:
           description: Dataset not found
       summary: Get dataset by ID
@@ -173,6 +177,8 @@ paths:
                 contentMediaType: text/csv
                 type: string
           description: Success
+        403:
+          description: Forbidden
         404:
           description: Dataset does not exist.
         422:
@@ -202,23 +208,119 @@ paths:
               schema:
                 properties:
                   data:
-                    items:
-                      properties:
-                        example_id:
-                          type: string
-                        input:
+                    properties:
+                      dataset_id:
+                        description: ID of the dataset
+                        type: string
+                      examples:
+                        items:
+                          properties:
+                            id:
+                              description: ID of the dataset example
+                              type: string
+                            input:
+                              description: Input data of the example
+                              type: object
+                            metadata:
+                              description: Metadata of the example
+                              type: object
+                            output:
+                              description: Output data of the example
+                              type: object
+                            updated_at:
+                              description: ISO formatted timestamp of when the example
+                                was updated
+                              format: date-time
+                              type: string
+                          required:
+                          - id
+                          - input
+                          - output
+                          - metadata
+                          - updated_at
                           type: object
-                        metadata:
-                          type: object
-                        output:
-                          type: object
-                      type: object
-                    type: array
+                        type: array
+                      version_id:
+                        description: ID of the version
+                        type: string
+                    required:
+                    - dataset_id
+                    - version_id
+                    - examples
+                    type: object
                 type: object
           description: Success
+        403:
+          description: Forbidden
         404:
           description: Dataset does not exist.
       summary: Get dataset examples by dataset ID
+      tags:
+      - datasets
+  /v1/datasets/{id}/jsonl/openai_evals:
+    get:
+      operationId: getDatasetJSONLOpenAIEvals
+      parameters:
+      - description: Dataset ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - description: Dataset version ID. If omitted, returns the latest version.
+        in: query
+        name: version
+        schema:
+          type: string
+      responses:
+        200:
+          content:
+            text/plain:
+              schema:
+                contentEncoding: gzip
+                contentMediaType: text/plain
+                type: string
+          description: Success
+        403:
+          description: Forbidden
+        404:
+          description: Dataset does not exist.
+        422:
+          description: Dataset ID or version ID is invalid.
+      summary: Download dataset examples as OpenAI Evals JSONL file
+      tags:
+      - datasets
+  /v1/datasets/{id}/jsonl/openai_ft:
+    get:
+      operationId: getDatasetJSONLOpenAIFineTuning
+      parameters:
+      - description: Dataset ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      - description: Dataset version ID. If omitted, returns the latest version.
+        in: query
+        name: version
+        schema:
+          type: string
+      responses:
+        200:
+          content:
+            text/plain:
+              schema:
+                contentEncoding: gzip
+                contentMediaType: text/plain
+                type: string
+          description: Success
+        403:
+          description: Forbidden
+        404:
+          description: Dataset does not exist.
+        422:
+          description: Dataset ID or version ID is invalid.
+      summary: Download dataset examples as OpenAI Fine-Tuning JSONL file
       tags:
       - datasets
   /v1/datasets/{id}/versions:
@@ -266,6 +368,8 @@ paths:
                     type: string
                 type: object
           description: Success
+        403:
+          description: Forbidden
         422:
           description: Dataset ID, cursor or limit is invalid.
       summary: Get dataset versions (sorted from latest to oldest)
@@ -284,6 +388,8 @@ paths:
       responses:
         200:
           description: Success
+        403:
+          description: Forbidden
         404:
           description: Not found
       summary: Get evaluations from Phoenix
@@ -373,6 +479,8 @@ paths:
       responses:
         200:
           description: Success
+        403:
+          description: Forbidden
         404:
           description: Not found
         422:
