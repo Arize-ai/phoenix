@@ -10,8 +10,9 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex, Label } from "@arizeai/components";
+import { Flex } from "@arizeai/components";
 
+import { SequenceNumberLabel } from "@phoenix/components/experiment/SequenceNumberLabel";
 import { Link } from "@phoenix/components/Link";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -119,7 +120,7 @@ export function ExperimentsTable({
         const sequenceNumber = row.original.sequenceNumber;
         return (
           <Flex direction="row" gap="size-100">
-            <Label color="yellow-1000">#{sequenceNumber}</Label>
+            <SequenceNumberLabel sequenceNumber={sequenceNumber} />
             <Link
               to={`/datasets/${dataset.id}/compare?experimentId=${experimentId}`}
             >
@@ -214,7 +215,7 @@ export function ExperimentsTable({
                 key={row.id}
                 onClick={() => {
                   navigate(
-                    `/datasets/${dataset.id}/compare?experimentsIds=${row.original.id}`
+                    `/datasets/${dataset.id}/compare?experimentId=${row.original.id}`
                   );
                 }}
               >

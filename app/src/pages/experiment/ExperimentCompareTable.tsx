@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import { useNavigate } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -8,11 +9,13 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Text } from "@arizeai/components";
+import { ActionMenu, Flex, Icon, Icons, Item, Text } from "@arizeai/components";
 
-import { TextCell } from "@phoenix/components/table";
+import { SequenceNumberLabel } from "@phoenix/components/experiment/SequenceNumberLabel";
+import { ExampleIOCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
   ExperimentCompareTableQuery,
@@ -20,19 +23,21 @@ import {
 } from "./__generated__/ExperimentCompareTableQuery.graphql";
 
 type ExampleCompareTableProps = {
+  datasetId: string;
   baselineExperimentId: string;
   experimentIds: string[];
 };
 
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   // eslint-disable-next-line prefer-const
-  let { baselineExperimentId, experimentIds } = props;
+  let { datasetId, baselineExperimentId, experimentIds } = props;
   experimentIds = experimentIds.filter((id) => id !== baselineExperimentId);
   const data = useLazyLoadQuery<ExperimentCompareTableQuery>(
     graphql`
       query ExperimentCompareTableQuery(
         $baselineExperimentId: GlobalID!
         $experimentIds: [GlobalID!]!
+        $datasetId: GlobalID!
       ) {
         comparisons: compareExperiments(
           baselineExperimentId: $baselineExperimentId
@@ -42,7 +47,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             id
             revision {
               input
-              expectedOutput: output
+              referenceOutput: output
             }
           }
           runComparisonItems {
@@ -53,13 +58,42 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             }
           }
         }
+        dataset: node(id: $datasetId) {
+          id
+          ... on Dataset {
+            experiments {
+              edges {
+                experiment: node {
+                  id
+                  name
+                  sequenceNumber
+                }
+              }
+            }
+          }
+        }
       }
     `,
     {
       baselineExperimentId,
       experimentIds,
+      datasetId,
     }
   );
+  const experimentInfoById = useMemo(() => {
+    return (
+      data.dataset?.experiments?.edges.reduce(
+        (acc, edge) => {
+          acc[edge.experiment.id] = { ...edge.experiment };
+          return acc;
+        },
+        {} as Record<
+          string,
+          { name: string; sequenceNumber: number } | undefined
+        >
+      ) || {}
+    );
+  }, [data]);
   const tableData = useMemo(
     () =>
       data.comparisons.map((comparison) => {
@@ -76,10 +110,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         return {
           ...comparison,
           id: comparison.example.id,
-          input: JSON.stringify(comparison.example.revision.input),
-          expectedOutput: JSON.stringify(
-            comparison.example.revision.expectedOutput
-          ),
+          input: comparison.example.revision.input,
+          referenceOutput: comparison.example.revision.referenceOutput,
           runComparisonMap,
         };
       }),
@@ -90,31 +122,63 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     {
       header: "input",
       accessorKey: "input",
-      cell: TextCell,
+      cell: ExampleIOCell,
     },
     {
-      header: "expected output",
-      accessorKey: "expectedOutput",
-      cell: TextCell,
+      header: "reference output",
+      accessorKey: "referenceOutput",
+      cell: ExampleIOCell,
     },
   ];
 
-  const experimentColumns: ColumnDef<TableRow>[] = experimentIds.map(
-    (experimentId) => ({
-      header: `experiment ${experimentId}`,
-      accessorKey: experimentId,
-      cell: ({ row }) => {
-        const runComparisonItem = row.original.runComparisonMap[experimentId];
-        return runComparisonItem ? (
-          <Text>{JSON.stringify(runComparisonItem)}</Text>
-        ) : (
-          <Text>{"--"}</Text>
-        );
-      },
-    })
-  );
+  const experimentColumns: ColumnDef<TableRow>[] = [
+    baselineExperimentId,
+    ...experimentIds,
+  ].map((experimentId) => ({
+    header: () => {
+      const name = experimentInfoById[experimentId]?.name;
+      const sequenceNumber =
+        experimentInfoById[experimentId]?.sequenceNumber || 0;
+      return (
+        <Flex direction="row" gap="size-100">
+          <SequenceNumberLabel sequenceNumber={sequenceNumber} />
+          <Text>{name}</Text>
+        </Flex>
+      );
+    },
+    accessorKey: experimentId,
+    cell: ({ row }) => {
+      const runComparisonItem = row.original.runComparisonMap[experimentId];
+      const numRuns = runComparisonItem?.runs.length || 0;
+      if (numRuns === 0) {
+        return <Text color="text-700">not run</Text>;
+      } else if (numRuns > 1) {
+        // TODO: Support repetitions
+        return <Text color="warning">{`${numRuns} runs`}</Text>;
+      }
+      // Only show the first run
+      const run = runComparisonItem?.runs[0];
+      return runComparisonItem ? (
+        <Text>{JSON.stringify(run)}</Text>
+      ) : (
+        <Text>{"--"}</Text>
+      );
+    },
+  }));
+
+  const actionColumns: ColumnDef<TableRow>[] = [
+    {
+      id: "actions",
+      cell: ({ row }) => (
+        <ExperimentRowActionMenu
+          datasetId={datasetId}
+          exampleId={row.original.id}
+        />
+      ),
+    },
+  ];
   const table = useReactTable<TableRow>({
-    columns: [...baseColumns, ...experimentColumns],
+    columns: [...baseColumns, ...experimentColumns, ...actionColumns],
     data: tableData,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -167,6 +231,55 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           </tbody>
         )}
       </table>
+    </div>
+  );
+}
+
+enum ExperimentRowAction {
+  GO_TO_EXAMPLE = "gotoExample",
+}
+function ExperimentRowActionMenu(props: {
+  datasetId: string;
+  exampleId: string;
+}) {
+  const { datasetId, exampleId } = props;
+  const navigate = useNavigate();
+  return (
+    <div
+      // TODO: add this logic to the ActionMenu component
+      onClick={(e) => {
+        // prevent parent anchor link from being followed
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+    >
+      <ActionMenu
+        buttonSize="compact"
+        align="end"
+        onAction={(firedAction) => {
+          const action = firedAction as ExperimentRowAction;
+          switch (action) {
+            case ExperimentRowAction.GO_TO_EXAMPLE: {
+              return navigate(`/datasets/${datasetId}/examples/${exampleId}`);
+            }
+            default: {
+              assertUnreachable(action);
+            }
+          }
+        }}
+      >
+        <Item key={ExperimentRowAction.GO_TO_EXAMPLE}>
+          <Flex
+            direction={"row"}
+            gap="size-75"
+            justifyContent={"start"}
+            alignItems={"center"}
+          >
+            <Icon svg={<Icons.ExternalLinkOutline />} />
+            <Text>Go to example</Text>
+          </Flex>
+        </Item>
+      </ActionMenu>
     </div>
   );
 }

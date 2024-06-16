@@ -1,7 +1,9 @@
-import React from "react";
+import React, { startTransition, Suspense } from "react";
 import { useLoaderData, useSearchParams } from "react-router-dom";
 
-import { Flex, Heading, View } from "@arizeai/components";
+import { Alert, Flex, Heading, View } from "@arizeai/components";
+
+import { Loading } from "@phoenix/components";
 
 import { experimentCompareLoaderQuery$data } from "./__generated__/experimentCompareLoaderQuery.graphql";
 import { ExperimentCompareTable } from "./ExperimentCompareTable";
@@ -11,6 +13,7 @@ export function ExperimentComparePage() {
   const data = useLoaderData() as experimentCompareLoaderQuery$data;
   const [searchParams, setSearchParams] = useSearchParams();
   const experimentIds = searchParams.getAll("experimentId");
+  const experimentIdsSelected = experimentIds.length > 0;
   return (
     <main>
       <View
@@ -25,19 +28,32 @@ export function ExperimentComparePage() {
             selectedExperimentIds={experimentIds}
             label="experiments"
             onChange={(newExperimentIds) => {
-              searchParams.delete("experimentId");
-              newExperimentIds.forEach((id) => {
-                searchParams.append("experimentId", id);
+              startTransition(() => {
+                searchParams.delete("experimentId");
+                newExperimentIds.forEach((id) => {
+                  searchParams.append("experimentId", id);
+                });
+                setSearchParams(searchParams);
               });
-              setSearchParams(searchParams);
             }}
           />
         </Flex>
       </View>
-      <ExperimentCompareTable
-        experimentIds={experimentIds}
-        baselineExperimentId={experimentIds[0]}
-      />
+      {experimentIdsSelected ? (
+        <Suspense fallback={<Loading />}>
+          <ExperimentCompareTable
+            datasetId={data.dataset.id}
+            experimentIds={experimentIds}
+            baselineExperimentId={experimentIds[0]}
+          />
+        </Suspense>
+      ) : (
+        <View padding="size-200">
+          <Alert variant="info" title="No Experiment Selected">
+            Please select at least 1 experiment
+          </Alert>
+        </View>
+      )}
     </main>
   );
 }
