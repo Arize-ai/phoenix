@@ -39,6 +39,17 @@ class ExampleProtocol(Protocol):
     @property
     def input(self) -> JSONSerializable: ...
 
+    @property
+    def output(self) -> JSONSerializable: ...
+
+
+class RunProtocol(Protocol):
+    @property
+    def id(self) -> str: ...
+
+    @property
+    def output(self) -> JSONSerializable: ...
+
 
 class DatasetProtocol(Protocol):
     @property
@@ -64,6 +75,39 @@ class ExperimentPayload(TypedDict):
     start_time: str
     end_time: str
     error: Optional[str]
+
+
+class EvaluatorPayload(TypedDict):
+    experiment_run_id: str
+    name: str
+    annotator_kind: str
+    label: Optional[str]
+    score: Optional[float]
+    explanation: Optional[str]
+    error: Optional[str]
+    metadata: JSONSerializable
+    start_time: str
+    end_time: str
+
+
+class EvaluationProtocol(Protocol):
+    @property
+    def score(self) -> Optional[float]: ...
+
+    @property
+    def explanation(self) -> Optional[str]: ...
+
+    @property
+    def metadata(self) -> JSONSerializable: ...
+
+
+class ExperimentEvaluator(Protocol):
+    def __call__(
+        self, input: JSONSerializable, reference: JSONSerializable, output: JSONSerializable
+    ) -> EvaluationProtocol: ...
+
+    @property
+    def annotator_kind(self) -> str: ...
 
 
 def _phoenix_client() -> httpx.Client:
@@ -178,3 +222,131 @@ def run_experiment(
     return Experiment(
         id=experiment_id, dataset_id=dataset.id, dataset_version_id=dataset.version_id
     )
+
+
+def evaluate_experiment(
+    experiment: Experiment,
+    evaluator: ExperimentEvaluator,
+    name: Optional[str] = None,
+    label: Optional[str] = None,
+) -> None:
+    # define wrapper classes to coerce JSON payloads to conform to the input protocols until
+    # we flesh out our clientside models
+
+    @dataclass
+    class ExampleWrapper:
+        id: str
+        input: JSONSerializable
+        output: JSONSerializable
+
+    @dataclass
+    class RunWrapper:
+        id: str
+        output: JSONSerializable
+
+    client = _phoenix_client()
+
+    experiment_id = experiment.id
+    dataset_id = experiment.dataset_id
+    dataset_version_id = experiment.dataset_version_id
+
+    dataset_examples = (
+        client.get(
+            f"/v1/datasets/{dataset_id}/examples",
+            params={"version-id": str(dataset_version_id)},
+        )
+        .json()
+        .get("data", {})
+        .get("examples", [])
+    )
+
+    experiment_runs = client.get(f"/v1/experiments/{experiment_id}/runs").json()
+
+    # not all dataset examples have associated experiment runs, so we need to pair them up
+    example_run_pairs = []
+    examples_by_id = {example["id"]: example for example in dataset_examples}
+    for run in experiment_runs:
+        example = examples_by_id.get(run["dataset_example_id"])
+        if example:
+            wrapped_example = ExampleWrapper(
+                id=example["id"], input=example["input"], output=example["output"]
+            )
+            wrapped_run = RunWrapper(id=run["id"], output=run["output"])
+            example_run_pairs.append((wrapped_example, wrapped_run))
+
+    def sync_evaluate_run(example_run: Tuple[ExampleProtocol, RunProtocol]) -> EvaluatorPayload:
+        example, run = example_run
+        start_time = datetime.now()
+        output = None
+        error: Optional[Exception] = None
+        try:
+            if asyncio.iscoroutinefunction(evaluator):
+                raise RuntimeError("Task is async but running in sync context")
+            else:
+                output = evaluator(input=example.input, reference=example.output, output=run.output)
+        except Exception as exc:
+            error = exc
+        finally:
+            end_time = datetime.now()
+
+        evaluator_payload = EvaluatorPayload(
+            experiment_run_id=run.id,
+            name=name if name is not None else str(evaluator),
+            annotator_kind=getattr(evaluator, "annotator_kind", "CODE"),
+            label=label if label is not None else None,
+            score=output.score if output else None,
+            explanation=output.explanation if output else None,
+            error=repr(error) if error else None,
+            metadata=output.metadata if output else {},
+            start_time=start_time.isoformat(),
+            end_time=end_time.isoformat(),
+        )
+        return evaluator_payload
+
+    async def async_evaluate_run(
+        example_run: Tuple[ExampleProtocol, RunProtocol],
+    ) -> EvaluatorPayload:
+        example, run = example_run
+        start_time = datetime.now()
+        output = None
+        error = None
+        try:
+            if asyncio.iscoroutinefunction(evaluator):
+                output = await evaluator(
+                    input=example.input, reference=example.output, output=run.output
+                )
+            else:
+                output = evaluator(input=example.input, reference=example.output, output=run.output)
+        except Exception as exc:
+            error = exc
+        finally:
+            end_time = datetime.now()
+
+        evaluator_payload = EvaluatorPayload(
+            experiment_run_id=run.id,
+            name=name if name is not None else str(evaluator),
+            annotator_kind=getattr(evaluator, "annotator_kind", "CODE"),
+            label=label if label is not None else None,
+            score=output.score if output else None,
+            explanation=output.explanation if output else None,
+            error=repr(error) if error else None,
+            metadata=output.metadata if output else {},
+            start_time=start_time.isoformat(),
+            end_time=end_time.isoformat(),
+        )
+        return evaluator_payload
+
+    executor = get_executor_on_sync_context(
+        sync_evaluate_run,
+        async_evaluate_run,
+        max_retries=0,
+        exit_on_error=False,
+        fallback_return_value=None,
+    )
+    evaluation_payloads, _execution_details = executor.run(example_run_pairs)
+    for payload in evaluation_payloads:
+        if payload is not None:
+            client.post(
+                f"/v1/experiments/{experiment_id}/runs/{payload['experiment_run_id']}/evaluations",
+                json=payload,
+            )
