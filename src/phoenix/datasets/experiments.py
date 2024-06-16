@@ -277,6 +277,7 @@ def evaluate_experiment(
     def sync_evaluate_run(example_run: Tuple[ExampleProtocol, RunProtocol]) -> EvaluatorPayload:
         example, run = example_run
         start_time = datetime.now()
+        output = None
         error: Optional[Exception] = None
         try:
             if asyncio.iscoroutinefunction(evaluator):
@@ -293,10 +294,10 @@ def evaluate_experiment(
             name=name if name is not None else str(evaluator),
             annotator_kind=getattr(evaluator, "annotator_kind", "CODE"),
             label=label if label is not None else None,
-            score=output.score,
-            explanation=output.explanation,
+            score=output.score if output else None,
+            explanation=output.explanation if output else None,
             error=repr(error) if error else None,
-            metadata=output.metadata,
+            metadata=output.metadata if output else {},
             start_time=start_time.isoformat(),
             end_time=end_time.isoformat(),
         )
@@ -326,10 +327,10 @@ def evaluate_experiment(
             name=name if name is not None else str(evaluator),
             annotator_kind=getattr(evaluator, "annotator_kind", "CODE"),
             label=label if label is not None else None,
-            score=output.score,
-            explanation=output.explanation,
+            score=output.score if output else None,
+            explanation=output.explanation if output else None,
             error=repr(error) if error else None,
-            metadata=output.metadata,
+            metadata=output.metadata if output else {},
             start_time=start_time.isoformat(),
             end_time=end_time.isoformat(),
         )
