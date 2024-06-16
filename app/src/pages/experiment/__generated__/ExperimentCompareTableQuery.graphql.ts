@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ad6566446957a95aa7163472050c83c9>>
+ * @generated SignedSource<<50b5733c0a1ee6dfa2d32924f7eda5c1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -26,6 +26,17 @@ export type ExperimentCompareTableQuery$data = {
     readonly runComparisonItems: ReadonlyArray<{
       readonly experimentId: string;
       readonly runs: ReadonlyArray<{
+        readonly annotations: {
+          readonly edges: ReadonlyArray<{
+            readonly annotation: {
+              readonly explanation: string | null;
+              readonly id: string;
+              readonly label: string | null;
+              readonly name: string;
+              readonly score: number | null;
+            };
+          }>;
+        };
         readonly error: string | null;
         readonly output: any | null;
       }>;
@@ -73,6 +84,13 @@ v3 = {
   "storageKey": null
 },
 v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v5 = {
   "alias": "comparisons",
   "args": [
     {
@@ -164,6 +182,62 @@ v4 = {
               "kind": "ScalarField",
               "name": "error",
               "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "ExperimentRunAnnotationConnection",
+              "kind": "LinkedField",
+              "name": "annotations",
+              "plural": false,
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "ExperimentRunAnnotationEdge",
+                  "kind": "LinkedField",
+                  "name": "edges",
+                  "plural": true,
+                  "selections": [
+                    {
+                      "alias": "annotation",
+                      "args": null,
+                      "concreteType": "ExperimentRunAnnotation",
+                      "kind": "LinkedField",
+                      "name": "node",
+                      "plural": false,
+                      "selections": [
+                        (v3/*: any*/),
+                        (v4/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "score",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "label",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "explanation",
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                }
+              ],
+              "storageKey": null
             }
           ],
           "storageKey": null
@@ -174,14 +248,14 @@ v4 = {
   ],
   "storageKey": null
 },
-v5 = [
+v6 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "datasetId"
   }
 ],
-v6 = {
+v7 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -209,13 +283,7 @@ v6 = {
               "plural": false,
               "selections": [
                 (v3/*: any*/),
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "name",
-                  "storageKey": null
-                },
+                (v4/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -247,17 +315,17 @@ return {
     "metadata": null,
     "name": "ExperimentCompareTableQuery",
     "selections": [
-      (v4/*: any*/),
+      (v5/*: any*/),
       {
         "alias": "dataset",
-        "args": (v5/*: any*/),
+        "args": (v6/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
           (v3/*: any*/),
-          (v6/*: any*/)
+          (v7/*: any*/)
         ],
         "storageKey": null
       }
@@ -275,10 +343,10 @@ return {
     "kind": "Operation",
     "name": "ExperimentCompareTableQuery",
     "selections": [
-      (v4/*: any*/),
+      (v5/*: any*/),
       {
         "alias": "dataset",
-        "args": (v5/*: any*/),
+        "args": (v6/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -292,23 +360,23 @@ return {
             "storageKey": null
           },
           (v3/*: any*/),
-          (v6/*: any*/)
+          (v7/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "78859e7276230778607e8f877dacb51c",
+    "cacheID": "d3696ddd5d6881c55bda252d4f79bba4",
     "id": null,
     "metadata": {},
     "name": "ExperimentCompareTableQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareTableQuery(\n  $baselineExperimentId: GlobalID!\n  $experimentIds: [GlobalID!]!\n  $datasetId: GlobalID!\n) {\n  comparisons: compareExperiments(baselineExperimentId: $baselineExperimentId, comparisonExperimentIds: $experimentIds) {\n    example {\n      id\n      revision {\n        input\n        referenceOutput: output\n      }\n    }\n    runComparisonItems {\n      experimentId\n      runs {\n        output\n        error\n      }\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query ExperimentCompareTableQuery(\n  $baselineExperimentId: GlobalID!\n  $experimentIds: [GlobalID!]!\n  $datasetId: GlobalID!\n) {\n  comparisons: compareExperiments(baselineExperimentId: $baselineExperimentId, comparisonExperimentIds: $experimentIds) {\n    example {\n      id\n      revision {\n        input\n        referenceOutput: output\n      }\n    }\n    runComparisonItems {\n      experimentId\n      runs {\n        output\n        error\n        annotations {\n          edges {\n            annotation: node {\n              id\n              name\n              score\n              label\n              explanation\n            }\n          }\n        }\n      }\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "744dab08840ad9c5469343fdd18f93eb";
+(node as any).hash = "2e8622c5bf4653481654caab1dc8c7d5";
 
 export default node;

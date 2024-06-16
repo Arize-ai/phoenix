@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 import {
+  Column,
   ColumnDef,
   flexRender,
   getCoreRowModel,
@@ -11,9 +12,15 @@ import { css } from "@emotion/react";
 
 import { ActionMenu, Flex, Icon, Icons, Item, Text } from "@arizeai/components";
 
+import { JSONText } from "@phoenix/components/code/JSONText";
+import { AnnotationLabel } from "@phoenix/components/experiment";
 import { SequenceNumberLabel } from "@phoenix/components/experiment/SequenceNumberLabel";
-import { ExampleIOCell } from "@phoenix/components/table";
-import { tableCSS } from "@phoenix/components/table/styles";
+import { CompactJSONCell } from "@phoenix/components/table";
+import {
+  borderedTableCSS,
+  getCommonPinningStyles,
+  tableCSS,
+} from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
@@ -27,6 +34,9 @@ type ExampleCompareTableProps = {
   baselineExperimentId: string;
   experimentIds: string[];
 };
+
+type ExperimentRun =
+  ExperimentCompareTableQuery$data["comparisons"][number]["runComparisonItems"][number]["runs"][number];
 
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   // eslint-disable-next-line prefer-const
@@ -55,6 +65,17 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             runs {
               output
               error
+              annotations {
+                edges {
+                  annotation: node {
+                    id
+                    name
+                    score
+                    label
+                    explanation
+                  }
+                }
+              }
             }
           }
         }
@@ -122,12 +143,12 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     {
       header: "input",
       accessorKey: "input",
-      cell: ExampleIOCell,
+      cell: CompactJSONCell,
     },
     {
       header: "reference output",
       accessorKey: "referenceOutput",
-      cell: ExampleIOCell,
+      cell: CompactJSONCell,
     },
   ];
 
@@ -151,18 +172,14 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       const runComparisonItem = row.original.runComparisonMap[experimentId];
       const numRuns = runComparisonItem?.runs.length || 0;
       if (numRuns === 0) {
-        return <Text color="text-700">not run</Text>;
+        return <NotRunText />;
       } else if (numRuns > 1) {
         // TODO: Support repetitions
         return <Text color="warning">{`${numRuns} runs`}</Text>;
       }
       // Only show the first run
       const run = runComparisonItem?.runs[0];
-      return runComparisonItem ? (
-        <Text>{JSON.stringify(run)}</Text>
-      ) : (
-        <Text>{"--"}</Text>
-      );
+      return run ? <ExperimentRunOutput {...run} /> : <NotRunText />;
     },
   }));
 
@@ -175,12 +192,20 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           exampleId={row.original.id}
         />
       ),
+      size: 10,
     },
   ];
   const table = useReactTable<TableRow>({
     columns: [...baseColumns, ...experimentColumns, ...actionColumns],
     data: tableData,
+    initialState: {
+      columnPinning: {
+        left: ["input", "referenceOutput"],
+        right: ["actions"],
+      },
+    },
     getCoreRowModel: getCoreRowModel(),
+    columnResizeMode: "onChange",
   });
   const rows = table.getRowModel().rows;
 
@@ -193,18 +218,33 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         overflow: auto;
       `}
     >
-      <table css={tableCSS}>
+      <table css={(theme) => css(tableCSS(theme), borderedTableCSS)}>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <th key={header.id}>
+                <th
+                  key={header.id}
+                  colSpan={header.colSpan}
+                  style={{
+                    ...getCommonPinningStyles(header.column as Column<unknown>),
+                  }}
+                >
                   <div>
                     {flexRender(
                       header.column.columnDef.header,
                       header.getContext()
                     )}
                   </div>
+                  <div
+                    {...{
+                      onMouseDown: header.getResizeHandler(),
+                      onTouchStart: header.getResizeHandler(),
+                      className: `resizer ${
+                        header.column.getIsResizing() ? "isResizing" : ""
+                      }`,
+                    }}
+                  />
                 </th>
               ))}
             </tr>
@@ -218,7 +258,14 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               <tr key={row.id}>
                 {row.getVisibleCells().map((cell) => {
                   return (
-                    <td key={cell.id}>
+                    <td
+                      key={cell.id}
+                      style={{
+                        ...getCommonPinningStyles(
+                          cell.column as Column<unknown>
+                        ),
+                      }}
+                    >
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()
@@ -281,5 +328,45 @@ function ExperimentRowActionMenu(props: {
         </Item>
       </ActionMenu>
     </div>
+  );
+}
+
+/**
+ * Display the output of an experiment run.
+ */
+function ExperimentRunOutput(props: ExperimentRun) {
+  const { output, error, annotations } = props;
+  if (error) {
+    return (
+      <Flex direction="row" gap="size-50" alignItems="center">
+        <Icon svg={<Icons.AlertCircleOutline />} color="danger" />
+        <Text color="danger">{error}</Text>
+      </Flex>
+    );
+  }
+  const annotationsList = annotations?.edges.length
+    ? annotations.edges.map((edge) => edge.annotation)
+    : [];
+
+  return (
+    <Flex direction="column" gap="size-50">
+      <JSONText json={output} />
+      <ul>
+        {annotationsList.map((annotation) => (
+          <li key={annotation.id}>
+            <AnnotationLabel annotation={annotation} />
+          </li>
+        ))}
+      </ul>
+    </Flex>
+  );
+}
+
+function NotRunText() {
+  return (
+    <Flex direction="row" gap="size-50">
+      <Icon svg={<Icons.MinusCircleOutline />} color="grey-800" />
+      <Text color="text-700">not run</Text>
+    </Flex>
   );
 }

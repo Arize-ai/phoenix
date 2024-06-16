@@ -3,4 +3,4 @@ export * from "./FloatCell";
 export * from "./IntCell";
 export * from "./PercentCell";
 export * from "./TextCell";
-export * from "./ExampleIOCell";
+export * from "./CompactJSONCell";
