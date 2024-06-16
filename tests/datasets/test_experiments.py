@@ -64,12 +64,12 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
         )
         assert experiment_id
 
-        experiment = (await session.execute(select(models.Experiment))).scalar()
-        assert experiment, "An experiment was run"
-        assert experiment.dataset_id == 0
-        assert experiment.dataset_version_id == 0
-        assert experiment.name == "test"
-        assert experiment.description == "test description"
+        experiment_model = (await session.execute(select(models.Experiment))).scalar()
+        assert experiment_model, "An experiment was run"
+        assert experiment_model.dataset_id == 0
+        assert experiment_model.dataset_version_id == 0
+        assert experiment_model.name == "test"
+        assert experiment_model.description == "test description"
 
         experiment_run = (
             await session.execute(

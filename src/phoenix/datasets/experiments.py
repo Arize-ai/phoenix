@@ -250,10 +250,15 @@ def evaluate_experiment(
     dataset_id = experiment.dataset_id
     dataset_version_id = experiment.dataset_version_id
 
-    dataset_examples = client.get(
-        f"/v1/datasets/{dataset_id}/examples",
-        params={"version-id": str(dataset_version_id)},
-    ).json()
+    dataset_examples = (
+        client.get(
+            f"/v1/datasets/{dataset_id}/examples",
+            params={"version-id": str(dataset_version_id)},
+        )
+        .json()
+        .get("data", {})
+        .get("examples", [])
+    )
 
     experiment_runs = client.get(f"/v1/experiments/{experiment_id}/runs").json()
 
