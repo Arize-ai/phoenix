@@ -78,7 +78,7 @@ class IntervalBinning(BinningMethod):
             else pd.IntervalIndex(
                 (
                     pd.Interval(
-                        np.NINF,
+                        -np.inf,
                         np.inf,
                         closed="neither",
                     ),
@@ -208,7 +208,7 @@ class QuantileBinning(IntervalBinning):
         # Extend min and max to infinities, unless len(breaks) < 3,
         # in which case the min is kept and two bins are created.
         breaks = breaks[1:-1] if len(breaks) > 2 else breaks[:1]
-        breaks = [np.NINF] + breaks + [np.inf]
+        breaks = [-np.inf] + breaks + [np.inf]
         return pd.IntervalIndex.from_breaks(
             breaks,
             closed="left",

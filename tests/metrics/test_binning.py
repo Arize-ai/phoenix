@@ -104,7 +104,7 @@ def test_categorical_binning() -> None:
 def test_interval_binning() -> None:
     bins = pd.IntervalIndex(
         (
-            pd.Interval(np.NINF, 1.0, closed="left"),
+            pd.Interval(-np.inf, 1.0, closed="left"),
             pd.Interval(1.0, 2.0, closed="left"),
             pd.Interval(2.0, np.inf, closed="left"),
         )
@@ -124,7 +124,7 @@ def test_quantile_binning() -> None:
     prob = (0.25, 0.5, 0.75)
     bins = pd.IntervalIndex(
         (
-            pd.Interval(np.NINF, 0.0, closed="left"),
+            pd.Interval(-np.inf, 0.0, closed="left"),
             pd.Interval(0.0, 1.0, closed="left"),
             pd.Interval(1.0, 2.0, closed="left"),
             pd.Interval(2.0, np.inf, closed="left"),
@@ -225,7 +225,7 @@ def test_segmented_summary_with_interval_binning(
         [
             [np.nan, np.nan],
             [None, -1],
-            [pd.NA, np.NINF],  # infinities are not null
+            [pd.NA, -np.inf],  # infinities are not null
             [pd.NaT, np.nan],
             [MISSING, np.nan],  # MISSING is not null
             [-4, 5],
@@ -240,7 +240,7 @@ def test_segmented_summary_with_interval_binning(
             ["", np.nan],  # "" is same as NaN due to numeric coercion
             ["nan", np.nan],
             [np.inf, 7],
-            [np.NINF, np.nan],
+            [-np.inf, np.nan],
         ],
         columns=["by", "x"],
     )
@@ -250,7 +250,7 @@ def test_segmented_summary_with_interval_binning(
         (
             pd.Interval(-2, 2, closed="left"),
             pd.Interval(100, 200, closed="left"),  # not found in data
-            pd.Interval(np.NINF, -200, closed="left"),
+            pd.Interval(-np.inf, -200, closed="left"),
         ),
     )
     binning_method = binning.IntervalBinning(
@@ -269,7 +269,7 @@ def test_segmented_summary_with_interval_binning(
             cast(List[Any], [] if dropna else [np.nan])
             + [
                 pd.Interval(-2, 2, closed="left"),
-                pd.Interval(np.NINF, -200, closed="left"),
+                pd.Interval(-np.inf, -200, closed="left"),
             ],
             categories=bins,
             ordered=True,
@@ -341,11 +341,11 @@ def test_segmented_summary_with_categorical_binning(
             [1, np.nan],
             ["", np.nan],
             ["1", 2],  # "1" differs from 1
-            ["1", np.NINF],  # infinities are not null
+            ["1", -np.inf],  # infinities are not null
             ["1", 2],
             ["1", np.nan],
             ["nan", np.nan],
-            [np.NINF, 3],
+            [-np.inf, 3],
         ],
         columns=["by", "x"],
     )
@@ -364,7 +364,7 @@ def test_segmented_summary_with_categorical_binning(
     ).set_axis(
         pd.CategoricalIndex(
             cast(List[Any], [] if dropna else [np.nan])
-            + [MISSING, 0.1, 1, "", "1", "nan", np.NINF],
+            + [MISSING, 0.1, 1, "", "1", "nan", -np.inf],
             ordered=False,
         ),
         axis=0,
