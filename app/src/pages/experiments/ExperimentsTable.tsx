@@ -51,34 +51,32 @@ export function ExperimentsTable({
 }) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = useState({});
-  const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
-    ExperimentsTableQuery,
-    ExperimentsTableFragment$key
-  >(
-    graphql`
-      fragment ExperimentsTableFragment on Dataset
-      @refetchable(queryName: "ExperimentsTableQuery")
-      @argumentDefinitions(
-        after: { type: "String", defaultValue: null }
-        first: { type: "Int", defaultValue: 100 }
-      ) {
-        experiments(first: $first, after: $after)
-          @connection(key: "ExperimentsTable_experiments") {
-          edges {
-            experiment: node {
-              id
-              name
-              sequenceNumber
-              description
-              createdAt
-              metadata
+  const { data, loadNext, hasNext, isLoadingNext, refetch } =
+    usePaginationFragment<ExperimentsTableQuery, ExperimentsTableFragment$key>(
+      graphql`
+        fragment ExperimentsTableFragment on Dataset
+        @refetchable(queryName: "ExperimentsTableQuery")
+        @argumentDefinitions(
+          after: { type: "String", defaultValue: null }
+          first: { type: "Int", defaultValue: 100 }
+        ) {
+          experiments(first: $first, after: $after)
+            @connection(key: "ExperimentsTable_experiments") {
+            edges {
+              experiment: node {
+                id
+                name
+                sequenceNumber
+                description
+                createdAt
+                metadata
+              }
             }
           }
         }
-      }
-    `,
-    dataset
-  );
+      `,
+      dataset
+    );
 
   const tableData = useMemo(
     () =>
@@ -239,6 +237,9 @@ export function ExperimentsTable({
           datasetId={dataset.id}
           selectedExperiments={selectedExperiments}
           onClearSelection={clearSelection}
+          onExperimentsDeleted={() => {
+            refetch({}, { fetchPolicy: "store-and-network" });
+          }}
         />
       ) : null}
     </div>
