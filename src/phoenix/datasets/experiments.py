@@ -1,9 +1,9 @@
 import asyncio
 import functools
 from copy import deepcopy
-from itertools import product
 from dataclasses import dataclass
 from datetime import datetime
+from itertools import product
 from typing import (
     Any,
     Callable,
@@ -229,8 +229,7 @@ def run_experiment(
     )
 
     inputs = [
-        (deepcopy(ex), rep)
-        for ex, rep in product(dataset.examples, range(1, repetitions + 1))
+        (deepcopy(ex), rep) for ex, rep in product(dataset.examples, range(1, repetitions + 1))
     ]
     experiment_payloads, _execution_details = executor.run(inputs)
     for payload in experiment_payloads:
