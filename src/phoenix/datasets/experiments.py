@@ -148,7 +148,7 @@ class JSONParsable(ExperimentEvaluator):
         self, input: JSONSerializable, reference: JSONSerializable, output: JSONSerializable
     ) -> Evaluation:
         output = _unwrap_json(output)
-        assert isinstance(output, str), "Experiment run ooutput must be a string"
+        assert isinstance(output, str), "Experiment run output must be a string"
         try:
             json.loads(output)
             json_parsable = True
