@@ -23,7 +23,7 @@ classifiers = [
 ]
 dependencies = [
   "scikit-learn",
-  "numpy",
+  "numpy<2",  # https://github.com/scikit-learn-contrib/hdbscan/issues/642
   "pandas",
   "jinja2",
   "umap-learn",
@@ -31,7 +31,7 @@ dependencies = [
   "starlette",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.227.2",  # need to pin version because we're monkey-patching
+  "strawberry-graphql==0.235.0",  # need to pin version because we're monkey-patching
   "pyarrow",
   "typing-extensions>=4.5; python_version<'3.12'",
   # A minimum version of typing-extensions==4.6.0 is needed to avoid this issue on Python 3.12: https://github.com/Azure/azure-sdk-for-python/issues/33442#issuecomment-1847886784
@@ -66,15 +66,16 @@ dev = [
   "hatch",
   "jupyter",
   "nbqa",
-  "ruff==0.3.0",
-  "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
-  "pytest==7.4.4",
+  "ruff==0.4.9",
+  "pandas-stubs==2.2.2.240603; python_version>='3.9'",
+  "pandas-stubs==2.0.3.230814; python_version<'3.9'",
+  "pytest==8.2.2",
   "pytest-asyncio",
   "pytest-cov",
   "pytest-postgresql",
   "asyncpg",
   "psycopg[binary]",
-  "strawberry-graphql[debug-server,opentelemetry]==0.227.2",  # need to pin version because we're monkey-patching
+  "strawberry-graphql[debug-server,opentelemetry]==0.235.0",  # need to pin version because we're monkey-patching
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
   "llama-index>=0.10.3",
@@ -106,7 +107,7 @@ container = [
   "opentelemetry-instrumentation-sqlalchemy",
   "opentelemetry-instrumentation-grpc",
   "py-grpc-prometheus",
-  "strawberry-graphql[opentelemetry]==0.227.2",  # need to pin version because we're monkey-patching
+  "strawberry-graphql[opentelemetry]==0.235.0",  # need to pin version because we're monkey-patching
   "uvloop; platform_system != 'Windows'",
 ]
 
@@ -136,8 +137,10 @@ artifacts = ["src/phoenix/server/static", "src/phoenix/db/migrations"]
 
 [tool.hatch.envs.default]
 dependencies = [
-  "pandas==1.4.0",
-  "pytest==7.4.4",
+  "numpy",
+  "pandas==2.2.2; python_version>='3.9'",
+  "pandas==1.4.0; python_version<'3.9'",
+  "pytest==8.2.2",
   "pytest-asyncio",
   "pytest-cov",
   "pytest-postgresql",
@@ -161,9 +164,10 @@ dependencies = [
 
 [tool.hatch.envs.type]
 dependencies = [
-  "mypy==1.9.0",
+  "mypy==1.10.0",
   "tenacity",
-  "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
+  "pandas-stubs==2.2.2.240603; python_version>='3.9'",
+  "pandas-stubs==2.0.3.230814; python_version<'3.9'",
   "types-psutil",
   "types-tqdm",
   "types-requests",
@@ -182,13 +186,13 @@ dependencies = [
   "opentelemetry-instrumentation-sqlalchemy",
   "opentelemetry-instrumentation-grpc",
   "py-grpc-prometheus",
-  "strawberry-graphql[opentelemetry]==0.227.2",  # need to pin version because we're monkey-patching
+  "strawberry-graphql[opentelemetry]==0.235.0",  # need to pin version because we're monkey-patching
 ]
 
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
-  "ruff==0.4.1",
+  "ruff==0.4.9",
 ]
 
 [tool.hatch.envs.notebooks]
@@ -281,7 +285,7 @@ check = [
 
 [tool.hatch.envs.gql]
 dependencies = [
-  "strawberry-graphql[cli]==0.227.2",  # need to pin version because we're monkey-patching
+  "strawberry-graphql[cli]==0.235.0",  # need to pin version because we're monkey-patching
   "requests",
 ]
 
@@ -371,8 +375,7 @@ target-version = "py38"
 "*.ipynb" = ["E402", "E501"]
 
 [tool.ruff.lint]
-ignore-init-module-imports = true
-select = ["E", "F", "W", "I"]
+select = ["E", "F", "W", "I", "NPY201"]
 
 [tool.ruff.lint.isort]
 force-single-line = false
