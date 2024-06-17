@@ -23,7 +23,7 @@ classifiers = [
 ]
 dependencies = [
   "scikit-learn",
-  "numpy",
+  "numpy<2",  # https://github.com/scikit-learn-contrib/hdbscan/issues/642
   "pandas",
   "jinja2",
   "umap-learn",
