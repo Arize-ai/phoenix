@@ -83,9 +83,9 @@ class TestDeleteExperiment:
         assert response.status_code == 200
         response_json = response.json()
         assert (errors := response_json.get("errors"))
-        assert (
-            errors[0]["message"]
-            == f"Unknown experiment IDs: ['{str(GlobalID('Experiment', str(3)))}']"
+        assert errors[0]["message"] == (
+            "Failed to delete experiment(s), probably due to invalid input experiment ID(s): "
+            f"['{str(GlobalID('Experiment', str(3)))}']"
         )
 
 

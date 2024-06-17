@@ -45,7 +45,8 @@ class ExperimentMutationMixin:
             if unknown_experiment_ids := set(experiment_ids) - set(experiments.keys()):
                 await savepoint.rollback()
                 raise ValueError(
-                    "Unknown experiment IDs: "
+                    "Failed to delete experiment(s), "
+                    "probably due to invalid input experiment ID(s): "
                     + str(
                         [
                             str(GlobalID(Experiment.__name__, str(experiment_id)))
