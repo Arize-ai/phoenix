@@ -1,6 +1,7 @@
 import asyncio
 import functools
 from copy import deepcopy
+import json
 from dataclasses import dataclass
 from datetime import datetime
 from itertools import product
@@ -119,6 +120,57 @@ def _phoenix_client() -> httpx.Client:
     base_url = base_url if base_url.endswith("/") else base_url + "/"
     client = httpx.Client(base_url=base_url)
     return client
+
+
+def _unwrap_json(obj: JSONSerializable) -> JSONSerializable:
+    if isinstance(obj, dict):
+        if len(obj) == 1 and "data" in obj:
+            return obj["data"]
+    return obj
+
+
+class JSONParsable(ExperimentEvaluator):
+    annotator_kind = "CODE"
+
+    def __call__(
+        self, input: JSONSerializable, reference: JSONSerializable, output: JSONSerializable
+    ) -> EvaluationProtocol:
+        output = _unwrap_json(output)
+        assert isinstance(output, str), "Experiment run ooutput must be a string"
+        try:
+            json.loads(output)
+            json_parsable = True
+        except json.JSONDecodeError:
+            json_parsable = False
+
+        return EvaluationProtocol(
+            score=float(json_parsable),
+            explanation=None,
+            metadata={},
+        )
+
+
+class ContainsKeyword(ExperimentEvaluator):
+    annotator_kind = "CODE"
+
+    def __init__(self, contains: str):
+        self.contains = contains
+
+    def __call__(
+        self, input: JSONSerializable, reference: JSONSerializable, output: JSONSerializable
+    ) -> EvaluationProtocol:
+        output = _unwrap_json(output)
+        assert isinstance(output, str), "Experiment run output must be a string"
+        found = self.contains in input
+        evaluation = EvaluationProtocol(
+            score=float(found),
+            explanation=(
+                f"the string {repr(self.contains)} was "
+                f"{'found' if found else 'not found'} in the output",
+            ),
+            metadata={},
+        )
+        return evaluation
 
 
 def run_experiment(
