@@ -1,7 +1,8 @@
-import React, { useMemo } from "react";
+import React, { ReactNode, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 import {
+  CellContext,
   Column,
   ColumnDef,
   flexRender,
@@ -33,13 +34,17 @@ import {
 type ExampleCompareTableProps = {
   datasetId: string;
   experimentIds: string[];
+  /**
+   * Whether to display the full text of the text fields
+   */
+  displayFullText: boolean;
 };
 
 type ExperimentRun =
   ExperimentCompareTableQuery$data["comparisons"][number]["runComparisonItems"][number]["runs"][number];
 
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
-  const { datasetId, experimentIds } = props;
+  const { datasetId, experimentIds, displayFullText } = props;
   const data = useLazyLoadQuery<ExperimentCompareTableQuery>(
     graphql`
       query ExperimentCompareTableQuery(
@@ -138,12 +143,12 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     {
       header: "input",
       accessorKey: "input",
-      cell: CompactJSONCell,
+      cell: displayFullText ? JSONCell : CompactJSONCell,
     },
     {
       header: "reference output",
       accessorKey: "referenceOutput",
-      cell: CompactJSONCell,
+      cell: displayFullText ? JSONCell : CompactJSONCell,
     },
   ];
 
@@ -154,7 +159,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         const sequenceNumber =
           experimentInfoById[experimentId]?.sequenceNumber || 0;
         return (
-          <Flex direction="row" gap="size-100">
+          <Flex direction="row" gap="size-100" wrap>
             <SequenceNumberLabel sequenceNumber={sequenceNumber} />
             <Text>{name}</Text>
           </Flex>
@@ -172,7 +177,11 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         }
         // Only show the first run
         const run = runComparisonItem?.runs[0];
-        return run ? <ExperimentRunOutput {...run} /> : <NotRunText />;
+        return run ? (
+          <ExperimentRunOutput {...run} displayFullText={displayFullText} />
+        ) : (
+          <NotRunText />
+        );
       },
     })
   );
@@ -192,19 +201,20 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const table = useReactTable<TableRow>({
     columns: [...baseColumns, ...experimentColumns, ...actionColumns],
     data: tableData,
-    initialState: {
-      columnPinning: {
-        left: ["input", "referenceOutput"],
-        right: ["actions"],
-      },
-    },
     getCoreRowModel: getCoreRowModel(),
     columnResizeMode: "onChange",
+    defaultColumn: {
+      size: 50,
+      minSize: 50,
+    },
   });
   const rows = table.getRowModel().rows;
 
   const isEmpty = rows.length === 0;
 
+  // Make sure the table is at least 1280px wide
+  const tableTotalSize =
+    table.getTotalSize() > 1280 ? table.getTotalSize() + "px" : "100%";
   return (
     <div
       css={css`
@@ -212,7 +222,12 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         overflow: auto;
       `}
     >
-      <table css={(theme) => css(tableCSS(theme), borderedTableCSS)}>
+      <table
+        css={(theme) => css(tableCSS(theme), borderedTableCSS)}
+        style={{
+          width: tableTotalSize,
+        }}
+      >
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
@@ -328,8 +343,11 @@ function ExperimentRowActionMenu(props: {
 /**
  * Display the output of an experiment run.
  */
-function ExperimentRunOutput(props: ExperimentRun) {
-  const { output, error, startTime, endTime, annotations } = props;
+function ExperimentRunOutput(
+  props: ExperimentRun & { displayFullText: boolean }
+) {
+  const { output, error, startTime, endTime, annotations, displayFullText } =
+    props;
   const latencyMs = useMemo(() => {
     let latencyMs: number | null = null;
     if (startTime && endTime) {
@@ -350,8 +368,10 @@ function ExperimentRunOutput(props: ExperimentRun) {
     : [];
 
   return (
-    <Flex direction="column" gap="size-50">
-      <JSONText json={output} />
+    <Flex direction="column" gap="size-50" height="100%">
+      <LargeTextWrap>
+        <JSONText json={output} space={displayFullText ? 2 : 0} />
+      </LargeTextWrap>
       {typeof latencyMs === "number" ? (
         <LatencyText latencyMs={latencyMs} />
       ) : null}
@@ -372,5 +392,29 @@ function NotRunText() {
       <Icon svg={<Icons.MinusCircleOutline />} color="grey-800" />
       <Text color="text-700">not run</Text>
     </Flex>
+  );
+}
+
+function JSONCell<TData extends object, TValue>({
+  getValue,
+}: CellContext<TData, TValue>) {
+  const value = getValue();
+  return (
+    <LargeTextWrap>
+      <JSONText json={value} space={2} />
+    </LargeTextWrap>
+  );
+}
+
+function LargeTextWrap({ children }: { children: ReactNode }) {
+  return (
+    <div
+      css={css`
+        max-height: 300px;
+        overflow-y: auto;
+      `}
+    >
+      {children}
+    </div>
   );
 }
