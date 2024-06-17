@@ -165,15 +165,15 @@ class JSONParsable(ExperimentEvaluator):
 class ContainsKeyword(ExperimentEvaluator):
     annotator_kind = "CODE"
 
-    def __init__(self, contains: str):
-        self.contains = contains
+    def __init__(self, keyword: str):
+        self.keyword = keyword
 
     def __call__(
         self, input: JSONSerializable, reference: JSONSerializable, output: JSONSerializable
     ) -> Evaluation:
         output = _unwrap_json(output)
         assert isinstance(output, str), "Experiment run output must be a string"
-        found = self.contains in output
+        found = self.keyword in output
         evaluation = Evaluation(
             score=float(found),
             explanation=(
