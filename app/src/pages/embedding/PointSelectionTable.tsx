@@ -186,7 +186,6 @@ export function PointSelectionTable({
     state: {
       sorting,
     },
-    columnResizeMode: "onChange",
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
