@@ -58,7 +58,7 @@ export function ExperimentComparePage() {
       ) : (
         <View padding="size-200">
           <Alert variant="info" title="No Experiment Selected">
-            Please select at least 1 experiment
+            Please select one or more experiments.
           </Alert>
         </View>
       )}
