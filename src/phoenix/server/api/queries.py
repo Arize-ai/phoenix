@@ -1,17 +1,35 @@
 from collections import defaultdict
-from typing import Dict, List, Optional, Set, Union
+from typing import DefaultDict, Dict, List, Optional, Set, Union
 
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, distinct, func, select
 from sqlalchemy.orm import joinedload
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, GlobalID, Node
 from strawberry.types import Info
-from typing_extensions import Annotated
+from typing_extensions import Annotated, TypeAlias
 
 from phoenix.db import models
+from phoenix.db.models import (
+    DatasetExample as OrmExample,
+)
+from phoenix.db.models import (
+    DatasetExampleRevision as OrmRevision,
+)
+from phoenix.db.models import (
+    DatasetVersion as OrmVersion,
+)
+from phoenix.db.models import (
+    Experiment as OrmExperiment,
+)
+from phoenix.db.models import (
+    ExperimentRun as OrmRun,
+)
+from phoenix.db.models import (
+    Trace as OrmTrace,
+)
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.context import Context
 from phoenix.server.api.helpers import ensure_list
@@ -33,11 +51,12 @@ from phoenix.server.api.types.EmbeddingDimension import (
 )
 from phoenix.server.api.types.Event import create_event_id, unpack_event_id
 from phoenix.server.api.types.Experiment import Experiment
+from phoenix.server.api.types.ExperimentComparison import ExperimentComparison, RunComparisonItem
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
 from phoenix.server.api.types.Model import Model
-from phoenix.server.api.types.node import from_global_id
+from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     CursorString,
@@ -104,6 +123,117 @@ class Query:
         return connection_from_list(
             data=[to_gql_dataset(dataset) for dataset in datasets], args=args
         )
+
+    @strawberry.field
+    async def compare_experiments(
+        self,
+        info: Info[Context, None],
+        experiment_ids: List[GlobalID],
+    ) -> List[ExperimentComparison]:
+        experiment_ids_ = [
+            from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
+            for experiment_id in experiment_ids
+        ]
+        if len(set(experiment_ids_)) != len(experiment_ids_):
+            raise ValueError("Experiment IDs must be unique.")
+
+        async with info.context.db() as session:
+            validation_result = (
+                await session.execute(
+                    select(
+                        func.count(distinct(OrmVersion.dataset_id)),
+                        func.max(OrmVersion.dataset_id),
+                        func.max(OrmVersion.id),
+                        func.count(OrmExperiment.id),
+                    )
+                    .select_from(OrmVersion)
+                    .join(
+                        OrmExperiment,
+                        OrmExperiment.dataset_version_id == OrmVersion.id,
+                    )
+                    .where(
+                        OrmExperiment.id.in_(experiment_ids_),
+                    )
+                )
+            ).first()
+            if validation_result is None:
+                raise ValueError("No experiments could be found for input IDs.")
+
+            num_datasets, dataset_id, version_id, num_resolved_experiment_ids = validation_result
+            if num_datasets != 1:
+                raise ValueError("Experiments must belong to the same dataset.")
+            if num_resolved_experiment_ids != len(experiment_ids_):
+                raise ValueError("Unable to resolve one or more experiment IDs.")
+
+            revision_ids = (
+                select(func.max(OrmRevision.id))
+                .join(OrmExample, OrmExample.id == OrmRevision.dataset_example_id)
+                .where(
+                    and_(
+                        OrmRevision.dataset_version_id <= version_id,
+                        OrmExample.dataset_id == dataset_id,
+                    )
+                )
+                .group_by(OrmRevision.dataset_example_id)
+                .scalar_subquery()
+            )
+            examples = (
+                await session.scalars(
+                    select(OrmExample)
+                    .join(OrmRevision, OrmExample.id == OrmRevision.dataset_example_id)
+                    .where(
+                        and_(
+                            OrmRevision.id.in_(revision_ids),
+                            OrmRevision.revision_kind != "DELETE",
+                        )
+                    )
+                    .order_by(OrmRevision.dataset_example_id.desc())
+                )
+            ).all()
+
+            ExampleID: TypeAlias = int
+            ExperimentID: TypeAlias = int
+            runs: DefaultDict[ExampleID, DefaultDict[ExperimentID, List[OrmRun]]] = defaultdict(
+                lambda: defaultdict(list)
+            )
+            async for run in await session.stream_scalars(
+                select(OrmRun)
+                .where(
+                    and_(
+                        OrmRun.dataset_example_id.in_(example.id for example in examples),
+                        OrmRun.experiment_id.in_(experiment_ids_),
+                    )
+                )
+                .options(joinedload(OrmRun.trace).load_only(OrmTrace.trace_id))
+            ):
+                runs[run.dataset_example_id][run.experiment_id].append(run)
+
+        experiment_comparisons = []
+        for example in examples:
+            run_comparison_items = []
+            for experiment_id in experiment_ids_:
+                run_comparison_items.append(
+                    RunComparisonItem(
+                        experiment_id=GlobalID(Experiment.__name__, str(experiment_id)),
+                        runs=[
+                            to_gql_experiment_run(run)
+                            for run in sorted(
+                                runs[example.id][experiment_id], key=lambda run: run.id
+                            )
+                        ],
+                    )
+                )
+            experiment_comparisons.append(
+                ExperimentComparison(
+                    example=DatasetExample(
+                        id_attr=example.id,
+                        created_at=example.created_at,
+                        version_id=version_id,
+                    ),
+                    run_comparison_items=run_comparison_items,
+                )
+            )
+        return experiment_comparisons
 
     @strawberry.field
     async def functionality(self, info: Info[Context, None]) -> "Functionality":
