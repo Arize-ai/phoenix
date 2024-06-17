@@ -11,10 +11,9 @@ async def test_compare_experiments_returns_expected_comparisons(
     test_client, comparison_experiments
 ):
     query = """
-      query ($baselineExperimentId: GlobalID!, $comparisonExperimentIds: [GlobalID!]!) {
+      query ($experimentIds: [GlobalID!]!) {
         compareExperiments(
-          baselineExperimentId: $baselineExperimentId
-          comparisonExperimentIds: $comparisonExperimentIds
+          experimentIds: $experimentIds
         ) {
           example {
             id
@@ -39,8 +38,8 @@ async def test_compare_experiments_returns_expected_comparisons(
         json={
             "query": query,
             "variables": {
-                "baselineExperimentId": str(GlobalID("Experiment", str(2))),
-                "comparisonExperimentIds": [
+                "experimentIds": [
+                    str(GlobalID("Experiment", str(2))),
                     str(GlobalID("Experiment", str(1))),
                     str(GlobalID("Experiment", str(3))),
                 ],

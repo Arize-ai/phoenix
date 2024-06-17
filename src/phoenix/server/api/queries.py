@@ -128,14 +128,13 @@ class Query:
     async def compare_experiments(
         self,
         info: Info[Context, None],
-        baseline_experiment_id: GlobalID,
-        comparison_experiment_ids: List[GlobalID],
+        experiment_ids: List[GlobalID],
     ) -> List[ExperimentComparison]:
-        experiment_ids = [
+        experiment_ids_ = [
             from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
-            for experiment_id in [baseline_experiment_id] + comparison_experiment_ids
+            for experiment_id in experiment_ids
         ]
-        if len(set(experiment_ids)) != len(experiment_ids):
+        if len(set(experiment_ids_)) != len(experiment_ids_):
             raise ValueError("Experiment IDs must be unique.")
 
         async with info.context.db() as session:
@@ -153,7 +152,7 @@ class Query:
                         OrmExperiment.dataset_version_id == OrmVersion.id,
                     )
                     .where(
-                        OrmExperiment.id.in_(experiment_ids),
+                        OrmExperiment.id.in_(experiment_ids_),
                     )
                 )
             ).first()
@@ -163,7 +162,7 @@ class Query:
             num_datasets, dataset_id, version_id, num_resolved_experiment_ids = validation_result
             if num_datasets != 1:
                 raise ValueError("Experiments must belong to the same dataset.")
-            if num_resolved_experiment_ids != len(experiment_ids):
+            if num_resolved_experiment_ids != len(experiment_ids_):
                 raise ValueError("Unable to resolve one or more experiment IDs.")
 
             revision_ids = (
@@ -202,7 +201,7 @@ class Query:
                 .where(
                     and_(
                         OrmRun.dataset_example_id.in_(example.id for example in examples),
-                        OrmRun.experiment_id.in_(experiment_ids),
+                        OrmRun.experiment_id.in_(experiment_ids_),
                     )
                 )
                 .options(joinedload(OrmRun.trace).load_only(OrmTrace.trace_id))
@@ -212,7 +211,7 @@ class Query:
         experiment_comparisons = []
         for example in examples:
             run_comparison_items = []
-            for experiment_id in experiment_ids:
+            for experiment_id in experiment_ids_:
                 run_comparison_items.append(
                     RunComparisonItem(
                         experiment_id=GlobalID(Experiment.__name__, str(experiment_id)),

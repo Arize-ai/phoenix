@@ -936,7 +936,7 @@ type PromptResponse {
 type Query {
   projects(first: Int = 50, last: Int, after: String, before: String): ProjectConnection!
   datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort): DatasetConnection!
-  compareExperiments(baselineExperimentId: GlobalID!, comparisonExperimentIds: [GlobalID!]!): [ExperimentComparison!]!
+  compareExperiments(experimentIds: [GlobalID!]!): [ExperimentComparison!]!
   functionality: Functionality!
   model: Model!
   node(id: GlobalID!): Node!
