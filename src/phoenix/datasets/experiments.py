@@ -1,6 +1,7 @@
 import asyncio
 import functools
-import itertools
+from copy import deepcopy
+from itertools import product
 from dataclasses import dataclass
 from datetime import datetime
 from typing import (
@@ -227,7 +228,10 @@ def run_experiment(
         fallback_return_value=None,
     )
 
-    inputs = list(itertools.product(dataset.examples, range(1, repetitions + 1)))
+    inputs = [
+        deepcopy(ex, rep)
+        for ex, rep in product(dataset.examples, range(1, repetitions + 1))
+    ]
     experiment_payloads, _execution_details = executor.run(inputs)
     for payload in experiment_payloads:
         if payload is not None:
