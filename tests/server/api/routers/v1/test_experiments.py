@@ -39,6 +39,7 @@ async def test_experiments_api(test_client, simple_dataset):
         "dataset_example_id": str(dataset_examples[0]["id"]),
         "trace_id": "placeholder-id",  # not yet implemented
         "output": "some LLM application output",
+        "repetition_number": 1,
         "start_time": datetime.datetime.now().isoformat(),
         "end_time": datetime.datetime.now().isoformat(),
         "error": "an error message, if applicable",

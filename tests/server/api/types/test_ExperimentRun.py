@@ -139,6 +139,7 @@ async def experiment_run_with_annotations(session):
             dataset_version_id=version_id,
             name="experiment-name",
             description="experiment-description",
+            repetitions=1,
             metadata_={"experiment-metadata-key": "experiment-metadata-value"},
         )
     )
@@ -151,6 +152,7 @@ async def experiment_run_with_annotations(session):
             experiment_id=experiment_id,
             dataset_example_id=example_id,
             output={"run-1-output-key": "run-1-output-value"},
+            repetition_number=1,
             start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
             end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
         )

@@ -537,6 +537,7 @@ class ExperimentRun(Base):
     )
     trace_id: Mapped[Optional[str]]
     output: Mapped[Optional[Dict[str, Any]]]
+    repetition_number: Mapped[int]
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     prompt_token_count: Mapped[Optional[int]]

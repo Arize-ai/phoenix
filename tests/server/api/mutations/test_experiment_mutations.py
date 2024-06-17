@@ -132,6 +132,7 @@ async def simple_experiment(session) -> None:
             dataset_version_id=version_id,
             name="experiment-name",
             description="experiment-description",
+            repetitions=1,
             metadata_={"experiment-metadata-key": "experiment-metadata-value"},
         )
     )
