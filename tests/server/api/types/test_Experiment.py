@@ -70,6 +70,7 @@ async def test_runs_resolver_returns_runs_for_experiment(test_client, dataset_wi
     )
     assert response.status_code == 200
     response_json = response.json()
+    assert response_json.get("errors") is None
     assert response_json["data"] == {
         "experiment": {
             "runs": {
@@ -111,6 +112,39 @@ async def test_runs_resolver_returns_runs_for_experiment(test_client, dataset_wi
             }
         }
     }
+
+
+async def test_annotation_summaries(test_client, experiments_with_runs_and_annotations) -> None:
+    query = """
+      query ($experimentId: GlobalID!) {
+        node(id: $experimentId) {
+          ... on Experiment {
+            annotationSummaries {
+              edges {
+                annotationSummary: node {
+                  id
+                  annotationName
+                  meanScore
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+    response = await test_client.post(
+        "/graphql",
+        json={
+            "query": query,
+            "variables": {
+                "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
+            },
+        },
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json.get("errors") is None
+    assert response_json["data"]
 
 
 @pytest.fixture
@@ -239,5 +273,150 @@ async def dataset_with_experiment_runs(session):
             repetition_number=3,
             start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
             end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+        )
+    )
+
+
+@pytest.fixture
+async def experiments_with_runs_and_annotations(session):
+    # insert dataset
+    dataset_id = await session.scalar(
+        insert(models.Dataset)
+        .returning(models.Dataset.id)
+        .values(
+            name="dataset-name",
+            description="dataset-description",
+            metadata_={"dataset-metadata-key": "dataset-metadata-value"},
+        )
+    )
+
+    # insert examples
+    example_ids = (
+        await session.scalars(
+            insert(models.DatasetExample)
+            .values(
+                [
+                    {
+                        "dataset_id": dataset_id,
+                        "created_at": datetime(
+                            year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                        ),
+                    }
+                    for _ in range(2)
+                ]
+            )
+            .returning(models.DatasetExample.id)
+        )
+    ).all()
+
+    # insert version
+    version_id = await session.scalar(
+        insert(models.DatasetVersion)
+        .returning(models.DatasetVersion.id)
+        .values(
+            dataset_id=dataset_id,
+            description="version-description",
+            metadata_={},
+        )
+    )
+
+    # insert revisions
+    await session.scalars(
+        insert(models.DatasetExampleRevision)
+        .returning(models.DatasetExampleRevision.id)
+        .values(
+            [
+                {
+                    "dataset_example_id": example_id,
+                    "dataset_version_id": version_id,
+                    "input": {"input": "input"},
+                    "output": {"output": "output"},
+                    "metadata_": {"metadata": "metadata"},
+                    "revision_kind": "CREATE",
+                }
+                for example_id in example_ids
+            ]
+        )
+    )
+
+    # insert experiments
+    experiment_ids = (
+        await session.scalars(
+            insert(models.Experiment)
+            .returning(models.Experiment.id)
+            .values(
+                [
+                    {
+                        "dataset_id": dataset_id,
+                        "dataset_version_id": version_id,
+                        "name": "experiment-name",
+                        "description": "experiment-description",
+                        "repetitions": 1,
+                        "metadata_": {},
+                    }
+                    for _ in range(2)
+                ]
+            )
+        )
+    ).all()
+
+    # insert experiment runs
+    run_ids = (
+        await session.scalars(
+            insert(models.ExperimentRun)
+            .returning(models.ExperimentRun.id)
+            .values(
+                [
+                    {
+                        "experiment_id": experiment_id,
+                        "dataset_example_id": example_id,
+                        "output": {"output-key": "output-value"},
+                        "repetition_number": 1,
+                        "start_time": datetime(
+                            year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                        ),
+                        "end_time": datetime(
+                            year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                        ),
+                    }
+                    for experiment_id in experiment_ids
+                    for example_id in example_ids
+                ]
+            )
+        )
+    ).all()
+
+    # insert experiment annotations
+    await session.scalar(
+        insert(models.ExperimentAnnotation)
+        .returning(models.ExperimentAnnotation.id)
+        .values(
+            [
+                {
+                    "experiment_run_id": run_id,
+                    "name": annotation_name,
+                    "annotator_kind": "CODE",
+                    "label": f"label-{score}",
+                    "score": score,
+                    "explanation": "explanation",
+                    "trace_id": None,
+                    "error": None,
+                    "metadata_": {},
+                    "start_time": datetime(
+                        year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                    ),
+                    "end_time": datetime(
+                        year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                    ),
+                }
+                for run_id in run_ids
+                for annotation_name, score in [
+                    ("annotation-name-1", 0),
+                    ("annotation-name-1", 0),
+                    ("annotation-name-1", 1),
+                    ("annotation-name-2", 0),
+                    ("annotation-name-2", 1),
+                ]
+            ]
         )
     )
