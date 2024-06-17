@@ -2,7 +2,7 @@ import asyncio
 import functools
 import json
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from itertools import product
 from typing import (
@@ -105,6 +105,13 @@ class EvaluationProtocol(Protocol):
     def metadata(self) -> JSONSerializable: ...
 
 
+@dataclass
+class Evaluation:
+    score: Optional[float] = None
+    explanation: Optional[str] = None
+    metadata: JSONSerializable = field(default_factory=dict)
+
+
 class ExperimentEvaluator(Protocol):
     def __call__(
         self, input: JSONSerializable, reference: JSONSerializable, output: JSONSerializable
@@ -134,7 +141,7 @@ class JSONParsable(ExperimentEvaluator):
 
     def __call__(
         self, input: JSONSerializable, reference: JSONSerializable, output: JSONSerializable
-    ) -> EvaluationProtocol:
+    ) -> Evaluation:
         output = _unwrap_json(output)
         assert isinstance(output, str), "Experiment run ooutput must be a string"
         try:
@@ -143,7 +150,7 @@ class JSONParsable(ExperimentEvaluator):
         except json.JSONDecodeError:
             json_parsable = False
 
-        return EvaluationProtocol(
+        return Evaluation(
             score=float(json_parsable),
             explanation=None,
             metadata={},
@@ -158,11 +165,11 @@ class ContainsKeyword(ExperimentEvaluator):
 
     def __call__(
         self, input: JSONSerializable, reference: JSONSerializable, output: JSONSerializable
-    ) -> EvaluationProtocol:
+    ) -> Evaluation:
         output = _unwrap_json(output)
         assert isinstance(output, str), "Experiment run output must be a string"
         found = self.contains in input
-        evaluation = EvaluationProtocol(
+        evaluation = Evaluation(
             score=float(found),
             explanation=(
                 f"the string {repr(self.contains)} was "
