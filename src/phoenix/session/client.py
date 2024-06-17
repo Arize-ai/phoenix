@@ -265,6 +265,29 @@ class Client(TraceDataExtractor):
                 },
             ).raise_for_status()
 
+    def get_dataset_by_name(self, name: str, version_id: Optional[str] = None) -> Dataset:
+        """
+         Gets a dataset by name. If no version is specified, the latest version is returned.
+
+         Args:
+             name (str): The name of the dataset.
+             version_id (Optional[str]): The version ID of the dataset. Default None.
+
+        Returns:
+             Dataset: The dataset object.
+        """
+        response = self._client.get(
+            urljoin(self._base_url, "/v1/datasets"),
+            params={"name": name},
+        )
+        response.raise_for_status()
+        if not (records := response.json()["data"]):
+            raise ValueError(f"Failed to query dataset by name: {name}")
+        if len(records) > 1 or not records[0]:
+            raise ValueError(f"Failed to find a single dataset with the given name: {name}")
+        dataset = records[0]
+        return self.get_dataset(dataset_id=dataset["id"], version_id=version_id)
+
     def get_dataset(self, dataset_id: str, version_id: Optional[str] = None) -> Dataset:
         """
         Gets the dataset for a specific version, or gets the latest version of
