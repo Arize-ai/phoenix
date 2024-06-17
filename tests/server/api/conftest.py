@@ -396,6 +396,7 @@ async def dataset_with_experiments_without_runs(session, empty_dataset):
         dataset_id=1,
         dataset_version_id=1,
         name="test",
+        repetitions=1,
         metadata_={"info": "a test experiment"},
     )
     session.add(experiment_0)
