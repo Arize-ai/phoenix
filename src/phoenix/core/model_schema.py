@@ -749,7 +749,7 @@ class Model:
     _inference_sets: Dict[InferencesRole, Inferences]
     _dimensions: Dict[Name, Dimension]
     _dim_names_by_role: Dict[DimensionRole, List[Name]]
-    _original_columns_by_role: Dict[DatasetRole, "pd.Index[Any]"]
+    _original_columns_by_role: Dict[InferencesRole, "pd.Index[Any]"]
     _default_timestamps_factory: _ConstantValueSeriesFactory
     _nan_series_factory: _ConstantValueSeriesFactory
     _dimension_categories_from_all_inferences: _Cache[Name, Tuple[str, ...]]
