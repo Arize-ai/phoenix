@@ -581,6 +581,32 @@ type Experiment implements Node {
   """Sequence number (1-based) of experiments belonging to the same dataset"""
   sequenceNumber: Int!
   runs(first: Int = 50, last: Int, after: String, before: String): ExperimentRunConnection!
+  annotationSummaries(first: Int = 50, last: Int, after: String, before: String): ExperimentAnnotationSummaryConnection!
+}
+
+type ExperimentAnnotationSummary implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  annotationName: String!
+  meanScore: Float!
+}
+
+"""A connection to a list of items."""
+type ExperimentAnnotationSummaryConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ExperimentAnnotationSummaryEdge!]!
+}
+
+"""An edge in a connection."""
+type ExperimentAnnotationSummaryEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ExperimentAnnotationSummary!
 }
 
 type ExperimentComparison {
