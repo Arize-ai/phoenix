@@ -183,6 +183,7 @@ dependencies = [
   "opentelemetry-instrumentation-grpc",
   "py-grpc-prometheus",
   "strawberry-graphql[opentelemetry]==0.235.0",  # need to pin version because we're monkey-patching
+  "requests",  # this is needed to type-check third-party packages
 ]
 
 [tool.hatch.envs.style]
