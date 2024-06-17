@@ -238,6 +238,10 @@ input DeleteDatasetInput {
   datasetId: GlobalID!
 }
 
+input DeleteExperimentInput {
+  experimentId: GlobalID!
+}
+
 type Dimension implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
@@ -601,6 +605,10 @@ type ExperimentEdge {
   node: Experiment!
 }
 
+type ExperimentMutationPayload {
+  experiment: Experiment!
+}
+
 type ExperimentRun implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
@@ -790,6 +798,7 @@ type Mutation {
   deleteDataset(input: DeleteDatasetInput!): DatasetMutationPayload!
   patchDatasetExamples(input: PatchDatasetExamplesInput!): DatasetMutationPayload!
   deleteDatasetExamples(input: DeleteDatasetExamplesInput!): DatasetMutationPayload!
+  deleteExperiment(input: DeleteExperimentInput!): ExperimentMutationPayload!
 
   """
   Given a list of event ids, export the corresponding data subset in Parquet format. File name is optional, but if specified, should be without file extension. By default the exported file name is current timestamp.
