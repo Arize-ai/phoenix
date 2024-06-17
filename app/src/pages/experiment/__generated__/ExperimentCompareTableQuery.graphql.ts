@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<50b5733c0a1ee6dfa2d32924f7eda5c1>>
+ * @generated SignedSource<<3ada14aca14f4247ad8c9db1ae76c86a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,6 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 export type ExperimentCompareTableQuery$variables = {
-  baselineExperimentId: string;
   datasetId: string;
   experimentIds: ReadonlyArray<string>;
 };
@@ -64,43 +63,33 @@ const node: ConcreteRequest = (function(){
 var v0 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "baselineExperimentId"
+  "name": "datasetId"
 },
 v1 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "datasetId"
-},
-v2 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
   "name": "experimentIds"
 },
-v3 = {
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v4 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v5 = {
+v4 = {
   "alias": "comparisons",
   "args": [
     {
       "kind": "Variable",
-      "name": "baselineExperimentId",
-      "variableName": "baselineExperimentId"
-    },
-    {
-      "kind": "Variable",
-      "name": "comparisonExperimentIds",
+      "name": "experimentIds",
       "variableName": "experimentIds"
     }
   ],
@@ -117,7 +106,7 @@ v5 = {
       "name": "example",
       "plural": false,
       "selections": [
-        (v3/*: any*/),
+        (v2/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -207,8 +196,8 @@ v5 = {
                       "name": "node",
                       "plural": false,
                       "selections": [
+                        (v2/*: any*/),
                         (v3/*: any*/),
-                        (v4/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -248,14 +237,14 @@ v5 = {
   ],
   "storageKey": null
 },
-v6 = [
+v5 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "datasetId"
   }
 ],
-v7 = {
+v6 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -282,8 +271,8 @@ v7 = {
               "name": "node",
               "plural": false,
               "selections": [
+                (v2/*: any*/),
                 (v3/*: any*/),
-                (v4/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -308,24 +297,23 @@ return {
   "fragment": {
     "argumentDefinitions": [
       (v0/*: any*/),
-      (v1/*: any*/),
-      (v2/*: any*/)
+      (v1/*: any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
     "name": "ExperimentCompareTableQuery",
     "selections": [
-      (v5/*: any*/),
+      (v4/*: any*/),
       {
         "alias": "dataset",
-        "args": (v6/*: any*/),
+        "args": (v5/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v3/*: any*/),
-          (v7/*: any*/)
+          (v2/*: any*/),
+          (v6/*: any*/)
         ],
         "storageKey": null
       }
@@ -336,17 +324,16 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v0/*: any*/),
-      (v2/*: any*/),
-      (v1/*: any*/)
+      (v1/*: any*/),
+      (v0/*: any*/)
     ],
     "kind": "Operation",
     "name": "ExperimentCompareTableQuery",
     "selections": [
-      (v5/*: any*/),
+      (v4/*: any*/),
       {
         "alias": "dataset",
-        "args": (v6/*: any*/),
+        "args": (v5/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -359,24 +346,24 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v3/*: any*/),
-          (v7/*: any*/)
+          (v2/*: any*/),
+          (v6/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "d3696ddd5d6881c55bda252d4f79bba4",
+    "cacheID": "d503232f35d6c58b1aef173662c96734",
     "id": null,
     "metadata": {},
     "name": "ExperimentCompareTableQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareTableQuery(\n  $baselineExperimentId: GlobalID!\n  $experimentIds: [GlobalID!]!\n  $datasetId: GlobalID!\n) {\n  comparisons: compareExperiments(baselineExperimentId: $baselineExperimentId, comparisonExperimentIds: $experimentIds) {\n    example {\n      id\n      revision {\n        input\n        referenceOutput: output\n      }\n    }\n    runComparisonItems {\n      experimentId\n      runs {\n        output\n        error\n        annotations {\n          edges {\n            annotation: node {\n              id\n              name\n              score\n              label\n              explanation\n            }\n          }\n        }\n      }\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query ExperimentCompareTableQuery(\n  $experimentIds: [GlobalID!]!\n  $datasetId: GlobalID!\n) {\n  comparisons: compareExperiments(experimentIds: $experimentIds) {\n    example {\n      id\n      revision {\n        input\n        referenceOutput: output\n      }\n    }\n    runComparisonItems {\n      experimentId\n      runs {\n        output\n        error\n        annotations {\n          edges {\n            annotation: node {\n              id\n              name\n              score\n              label\n              explanation\n            }\n          }\n        }\n      }\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2e8622c5bf4653481654caab1dc8c7d5";
+(node as any).hash = "31ae6f1eb510bf9cbc996cf811ac0276";
 
 export default node;

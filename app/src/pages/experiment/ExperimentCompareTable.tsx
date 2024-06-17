@@ -31,7 +31,6 @@ import {
 
 type ExampleCompareTableProps = {
   datasetId: string;
-  baselineExperimentId: string;
   experimentIds: string[];
 };
 
@@ -39,20 +38,14 @@ type ExperimentRun =
   ExperimentCompareTableQuery$data["comparisons"][number]["runComparisonItems"][number]["runs"][number];
 
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
-  // eslint-disable-next-line prefer-const
-  let { datasetId, baselineExperimentId, experimentIds } = props;
-  experimentIds = experimentIds.filter((id) => id !== baselineExperimentId);
+  const { datasetId, experimentIds } = props;
   const data = useLazyLoadQuery<ExperimentCompareTableQuery>(
     graphql`
       query ExperimentCompareTableQuery(
-        $baselineExperimentId: GlobalID!
         $experimentIds: [GlobalID!]!
         $datasetId: GlobalID!
       ) {
-        comparisons: compareExperiments(
-          baselineExperimentId: $baselineExperimentId
-          comparisonExperimentIds: $experimentIds
-        ) {
+        comparisons: compareExperiments(experimentIds: $experimentIds) {
           example {
             id
             revision {
@@ -96,7 +89,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       }
     `,
     {
-      baselineExperimentId,
       experimentIds,
       datasetId,
     }
@@ -152,36 +144,35 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     },
   ];
 
-  const experimentColumns: ColumnDef<TableRow>[] = [
-    baselineExperimentId,
-    ...experimentIds,
-  ].map((experimentId) => ({
-    header: () => {
-      const name = experimentInfoById[experimentId]?.name;
-      const sequenceNumber =
-        experimentInfoById[experimentId]?.sequenceNumber || 0;
-      return (
-        <Flex direction="row" gap="size-100">
-          <SequenceNumberLabel sequenceNumber={sequenceNumber} />
-          <Text>{name}</Text>
-        </Flex>
-      );
-    },
-    accessorKey: experimentId,
-    cell: ({ row }) => {
-      const runComparisonItem = row.original.runComparisonMap[experimentId];
-      const numRuns = runComparisonItem?.runs.length || 0;
-      if (numRuns === 0) {
-        return <NotRunText />;
-      } else if (numRuns > 1) {
-        // TODO: Support repetitions
-        return <Text color="warning">{`${numRuns} runs`}</Text>;
-      }
-      // Only show the first run
-      const run = runComparisonItem?.runs[0];
-      return run ? <ExperimentRunOutput {...run} /> : <NotRunText />;
-    },
-  }));
+  const experimentColumns: ColumnDef<TableRow>[] = experimentIds.map(
+    (experimentId) => ({
+      header: () => {
+        const name = experimentInfoById[experimentId]?.name;
+        const sequenceNumber =
+          experimentInfoById[experimentId]?.sequenceNumber || 0;
+        return (
+          <Flex direction="row" gap="size-100">
+            <SequenceNumberLabel sequenceNumber={sequenceNumber} />
+            <Text>{name}</Text>
+          </Flex>
+        );
+      },
+      accessorKey: experimentId,
+      cell: ({ row }) => {
+        const runComparisonItem = row.original.runComparisonMap[experimentId];
+        const numRuns = runComparisonItem?.runs.length || 0;
+        if (numRuns === 0) {
+          return <NotRunText />;
+        } else if (numRuns > 1) {
+          // TODO: Support repetitions
+          return <Text color="warning">{`${numRuns} runs`}</Text>;
+        }
+        // Only show the first run
+        const run = runComparisonItem?.runs[0];
+        return run ? <ExperimentRunOutput {...run} /> : <NotRunText />;
+      },
+    })
+  );
 
   const actionColumns: ColumnDef<TableRow>[] = [
     {

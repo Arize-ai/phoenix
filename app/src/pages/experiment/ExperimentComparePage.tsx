@@ -53,7 +53,6 @@ export function ExperimentComparePage() {
           <ExperimentCompareTable
             datasetId={data.dataset.id}
             experimentIds={experimentIds}
-            baselineExperimentId={experimentIds[0]}
           />
         </Suspense>
       ) : (
