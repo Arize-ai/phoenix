@@ -33,6 +33,7 @@ async def create_experiment(request: Request) -> Response:
         )
 
     payload = await request.json()
+    repetitions = payload.get("repetitions", 1)
     metadata = payload.get("metadata", {})
     dataset_version_globalid_str = payload.get("version-id")
     if dataset_version_globalid_str is not None:
@@ -90,6 +91,7 @@ async def create_experiment(request: Request) -> Response:
             dataset_version_id=int(dataset_version_id),
             name=experiment_name,
             description=payload.get("description"),
+            repetitions=repetitions,
             metadata_=metadata,
         )
         session.add(experiment)
@@ -104,6 +106,7 @@ async def create_experiment(request: Request) -> Response:
             "id": str(experiment_globalid),
             "dataset_id": str(dataset_globalid),
             "dataset_version_id": str(dataset_version_globalid),
+            "repetitions": experiment.repetitions,
             "metadata": experiment.metadata_,
             "created_at": experiment.created_at.isoformat(),
             "updated_at": experiment.updated_at.isoformat(),
@@ -138,6 +141,7 @@ async def read_experiment(request: Request) -> Response:
             "id": str(experiment_globalid),
             "dataset_id": str(dataset_globalid),
             "dataset_version_id": str(dataset_version_globalid),
+            "repetitions": experiment.repetitions,
             "metadata": experiment.metadata_,
             "created_at": experiment.created_at.isoformat(),
             "updated_at": experiment.updated_at.isoformat(),

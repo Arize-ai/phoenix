@@ -1,7 +1,9 @@
 import asyncio
 import functools
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
+from itertools import product
 from typing import (
     Any,
     Callable,
@@ -72,6 +74,7 @@ class Experiment:
 class ExperimentPayload(TypedDict):
     dataset_example_id: str
     output: JSONSerializable
+    repetition_number: int
     start_time: str
     end_time: str
     error: Optional[str]
@@ -123,8 +126,11 @@ def run_experiment(
     task: Union[ExperimentTask, AsyncExperimentTask],
     experiment_name: Optional[str] = None,
     experiment_description: Optional[str] = None,
+    repetitions: int = 1,
     rate_limit_errors: Optional[Union[Type[BaseException], Tuple[Type[BaseException], ...]]] = None,
 ) -> Experiment:
+    assert repetitions > 0, "Must run the experiment at least once."
+
     client = _phoenix_client()
 
     experiment_response = client.post(
@@ -133,6 +139,7 @@ def run_experiment(
             "version-id": dataset.version_id,
             "name": experiment_name,
             "description": experiment_description,
+            "repetitions": repetitions,
         },
     )
     experiment_id = experiment_response.json()["id"]
@@ -146,7 +153,8 @@ def run_experiment(
 
     rate_limiters = [RateLimiter(rate_limit_error=rate_limit_error) for rate_limit_error in errors]
 
-    def sync_run_experiment(example: ExampleProtocol) -> ExperimentPayload:
+    def sync_run_experiment(experiment_input: Tuple[ExampleProtocol, int]) -> ExperimentPayload:
+        example, repetition_number = experiment_input
         start_time = datetime.now()
         output = None
         error: Optional[Exception] = None
@@ -166,6 +174,7 @@ def run_experiment(
         experiment_payload = ExperimentPayload(
             dataset_example_id=example.id,
             output=output,
+            repetition_number=repetition_number,
             start_time=start_time.isoformat(),
             end_time=end_time.isoformat(),
             error=repr(error) if error else None,
@@ -173,7 +182,10 @@ def run_experiment(
 
         return experiment_payload
 
-    async def async_run_experiment(example: ExampleProtocol) -> ExperimentPayload:
+    async def async_run_experiment(
+        experiment_input: Tuple[ExampleProtocol, int],
+    ) -> ExperimentPayload:
+        example, repetition_number = experiment_input
         start_time = datetime.now()
         output = None
         error = None
@@ -193,6 +205,7 @@ def run_experiment(
         experiment_payload = ExperimentPayload(
             dataset_example_id=example.id,
             output=output,
+            repetition_number=repetition_number,
             start_time=start_time.isoformat(),
             end_time=end_time.isoformat(),
             error=repr(error) if error else None,
@@ -215,7 +228,10 @@ def run_experiment(
         fallback_return_value=None,
     )
 
-    experiment_payloads, _execution_details = executor.run(dataset.examples)
+    inputs = [
+        (deepcopy(ex), rep) for ex, rep in product(dataset.examples, range(1, repetitions + 1))
+    ]
+    experiment_payloads, _execution_details = executor.run(inputs)
     for payload in experiment_payloads:
         if payload is not None:
             client.post(f"/v1/experiments/{experiment_id}/runs", json=payload)

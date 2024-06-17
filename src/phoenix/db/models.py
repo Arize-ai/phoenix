@@ -516,6 +516,7 @@ class Experiment(Base):
     )
     name: Mapped[str]
     description: Mapped[Optional[str]]
+    repetitions: Mapped[int]
     metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -536,6 +537,7 @@ class ExperimentRun(Base):
     )
     trace_id: Mapped[Optional[str]]
     output: Mapped[Optional[Dict[str, Any]]]
+    repetition_number: Mapped[int]
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     prompt_token_count: Mapped[Optional[int]]

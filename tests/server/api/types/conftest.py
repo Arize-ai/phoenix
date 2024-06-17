@@ -81,6 +81,7 @@ async def interlaced_experiments(session) -> List[int]:
                     "dataset_id": dataset_id,
                     "dataset_version_id": dataset_version_ids[i],
                     "name": f"experiment-{i}",
+                    "repetitions": 1,
                     "metadata_": {},
                 }
                 for _ in range(4)
