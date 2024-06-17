@@ -74,10 +74,14 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
         assert experiment_model.repetitions == 3
 
         experiment_runs = (
-            await session.execute(
-                select(models.ExperimentRun).where(models.ExperimentRun.dataset_example_id == 0)
+            (
+                await session.execute(
+                    select(models.ExperimentRun).where(models.ExperimentRun.dataset_example_id == 0)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(experiment_runs) == 3, "The experiment was configured to have 3 repetitions"
         for run in experiment_runs:
             assert run.output == {"output": "doesn't matter, this is the output"}
