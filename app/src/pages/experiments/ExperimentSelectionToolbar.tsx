@@ -1,4 +1,5 @@
-import React, { ReactNode, useState } from "react";
+import React, { ReactNode, useCallback, useState } from "react";
+import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
@@ -12,6 +13,8 @@ import {
   View,
 } from "@arizeai/components";
 
+import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+
 interface SelectedExperiment {
   id: string;
 }
@@ -20,6 +23,7 @@ type ExperimentSelectionToolbarProps = {
   datasetId: string;
   selectedExperiments: SelectedExperiment[];
   onClearSelection: () => void;
+  onExperimentsDeleted: () => void;
 };
 
 export function ExperimentSelectionToolbar(
@@ -27,10 +31,48 @@ export function ExperimentSelectionToolbar(
 ) {
   const navigate = useNavigate();
   const [dialog, setDialog] = useState<ReactNode>(null);
-  const { datasetId, selectedExperiments, onClearSelection } = props;
-
+  const [deleteExperiments, isDeletingExperiments] = useMutation(graphql`
+    mutation ExperimentSelectionToolbarDeleteExperimentsMutation(
+      $input: DeleteExperimentsInput!
+    ) {
+      deleteExperiments(input: $input) {
+        __typename
+      }
+    }
+  `);
+  const {
+    datasetId,
+    selectedExperiments,
+    onClearSelection,
+    onExperimentsDeleted,
+  } = props;
   const isPlural = selectedExperiments.length !== 1;
-
+  const notifySuccess = useNotifySuccess();
+  const notifyError = useNotifyError();
+  const onDeleteExperiments = useCallback(() => {
+    deleteExperiments({
+      variables: {
+        input: {
+          exampleIds: selectedExperiments.map((example) => example.id),
+        },
+      },
+      onCompleted: () => {
+        notifySuccess({
+          title: "Examples Deleted",
+          message: `${selectedExperiments.length} experiments${isPlural ? "s" : ""} have been deleted.`,
+        });
+        // Clear the selection
+        onExperimentsDeleted();
+        onClearSelection();
+      },
+      onError: (error) => {
+        notifyError({
+          title: "An error occurred",
+          message: `Failed to delete examples: ${error.message}`,
+        });
+      },
+    });
+  }, []);
   return (
     <div
       css={css`
@@ -57,6 +99,18 @@ export function ExperimentSelectionToolbar(
           <Flex direction="row" gap="size-100">
             <Button variant="default" size="compact" onClick={onClearSelection}>
               Cancel
+            </Button>
+            <Button
+              variant="danger"
+              size="compact"
+              icon={<Icon svg={<Icons.TrashOutline />} />}
+              loading={isDeletingExperiments}
+              disabled={isDeletingExperiments}
+              onClick={onDeleteExperiments}
+            >
+              {isDeletingExperiments
+                ? "Deleting..."
+                : "Delete Experiment" + (isPlural ? "s" : "")}
             </Button>
             <Button
               variant="primary"
