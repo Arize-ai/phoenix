@@ -5,6 +5,7 @@ import { css } from "@emotion/react";
 
 import {
   Button,
+  Dialog,
   DialogContainer,
   Flex,
   Icon,
@@ -49,17 +50,18 @@ export function ExperimentSelectionToolbar(
   const isPlural = selectedExperiments.length !== 1;
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
-  const onDeleteExperiments = useCallback(() => {
+
+  const handleDelete = useCallback(() => {
     deleteExperiments({
       variables: {
         input: {
-          exampleIds: selectedExperiments.map((example) => example.id),
+          experimentIds: selectedExperiments.map((experiment) => experiment.id),
         },
       },
       onCompleted: () => {
         notifySuccess({
           title: "Examples Deleted",
-          message: `${selectedExperiments.length} experiments${isPlural ? "s" : ""} have been deleted.`,
+          message: `${selectedExperiments.length} experiment${isPlural ? "s" : ""} have been deleted.`,
         });
         // Clear the selection
         onExperimentsDeleted();
@@ -73,6 +75,38 @@ export function ExperimentSelectionToolbar(
       },
     });
   }, []);
+
+  const onClickDelete = useCallback(() => {
+    setDialog(
+      <Dialog size="S" title="Delete Experiments">
+        <View padding="size-200">
+          <Text color="danger">
+            {`Are you sure you want to delete these experiments? This cannot be undone.`}
+          </Text>
+        </View>
+        <View
+          paddingEnd="size-200"
+          paddingTop="size-100"
+          paddingBottom="size-100"
+          borderTopColor="light"
+          borderTopWidth="thin"
+        >
+          <Flex direction="row" justifyContent="end">
+            <Button
+              variant="danger"
+              onClick={() => {
+                handleDelete();
+                setDialog(null);
+              }}
+            >
+              Delete Experiments
+            </Button>
+          </Flex>
+        </View>
+      </Dialog>
+    );
+  }, [handleDelete]);
+
   return (
     <div
       css={css`
@@ -94,6 +128,7 @@ export function ExperimentSelectionToolbar(
           direction="row"
           justifyContent="space-between"
           alignItems="center"
+          gap="size-100"
         >
           <Text>{`${selectedExperiments.length} experiment${isPlural ? "s" : ""} selected`}</Text>
           <Flex direction="row" gap="size-100">
@@ -106,11 +141,9 @@ export function ExperimentSelectionToolbar(
               icon={<Icon svg={<Icons.TrashOutline />} />}
               loading={isDeletingExperiments}
               disabled={isDeletingExperiments}
-              onClick={onDeleteExperiments}
+              onClick={onClickDelete}
             >
-              {isDeletingExperiments
-                ? "Deleting..."
-                : "Delete Experiment" + (isPlural ? "s" : "")}
+              {isDeletingExperiments ? "Deleting..." : "Delete"}
             </Button>
             <Button
               variant="primary"
