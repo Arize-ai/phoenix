@@ -229,7 +229,7 @@ def run_experiment(
     )
 
     inputs = [
-        deepcopy(ex, rep)
+        (deepcopy(ex), rep)
         for ex, rep in product(dataset.examples, range(1, repetitions + 1))
     ]
     experiment_payloads, _execution_details = executor.run(inputs)
