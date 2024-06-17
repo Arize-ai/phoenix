@@ -131,8 +131,13 @@ def _phoenix_client() -> httpx.Client:
 
 def _unwrap_json(obj: JSONSerializable) -> JSONSerializable:
     if isinstance(obj, dict):
-        if len(obj) == 1 and "data" in obj:
-            return obj["data"]
+        if len(obj) == 1:
+            key = next(iter(obj.keys()))
+            output = obj[key]
+            assert isinstance(
+                output, (dict, list, str, int, float, bool, type(None))
+            ), "Output must be JSON serializable"
+            return output
     return obj
 
 
@@ -168,12 +173,12 @@ class ContainsKeyword(ExperimentEvaluator):
     ) -> Evaluation:
         output = _unwrap_json(output)
         assert isinstance(output, str), "Experiment run output must be a string"
-        found = self.contains in input
+        found = self.contains in output
         evaluation = Evaluation(
             score=float(found),
             explanation=(
                 f"the string {repr(self.contains)} was "
-                f"{'found' if found else 'not found'} in the output",
+                f"{'found' if found else 'not found'} in the output"
             ),
             metadata={},
         )
