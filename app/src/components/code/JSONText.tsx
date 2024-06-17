@@ -30,11 +30,12 @@ export function JSONText({
   // If the object has only one key and the value is a string, show the string
   if (Object.keys(obj).length === 1) {
     const key = Object.keys(obj)[0];
-    if (typeof obj[key] === "string") {
-      const textValue = hasMaxLength
-        ? formatText(obj[key], maxLength)
-        : obj[key];
-      return <span title={fullValue}>{textValue}</span>;
+    const singleValue = obj[key];
+    if (typeof singleValue === "string") {
+      const singleValueStr: string = hasMaxLength
+        ? formatText(singleValue, maxLength)
+        : singleValue;
+      return <span title={fullValue}>{singleValueStr}</span>;
     }
   }
   const textValue = hasMaxLength ? formatText(fullValue, maxLength) : fullValue;
