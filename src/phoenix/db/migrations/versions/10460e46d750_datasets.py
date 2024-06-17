@@ -197,7 +197,7 @@ def upgrade() -> None:
             "repetition_number",
             sa.Integer,
             nullable=False,
-        )
+        ),
         sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column(
