@@ -75,6 +75,12 @@ async def list_datasets(request: Request) -> Response:
         schema:
           type: integer
           default: 10
+      - in: query
+        name: name
+        required: false
+        schema:
+          type: string
+        description: match by dataset name
     responses:
       200:
         description: A paginated list of datasets
@@ -109,6 +115,7 @@ async def list_datasets(request: Request) -> Response:
       404:
         description: No datasets found
     """
+    name = request.query_params.get("name")
     cursor = request.query_params.get("cursor")
     limit = int(request.query_params.get("limit", 10))
     async with request.app.state.db() as session:
@@ -123,6 +130,8 @@ async def list_datasets(request: Request) -> Response:
                     content=f"Invalid cursor format: {cursor}",
                     status_code=HTTP_422_UNPROCESSABLE_ENTITY,
                 )
+        if name:
+            query = query.filter(models.Dataset.name.is_(name))
 
         query = query.limit(limit + 1)
         result = await session.execute(query)
