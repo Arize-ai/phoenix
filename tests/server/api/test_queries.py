@@ -260,6 +260,7 @@ async def comparison_experiments(session):
                         **experiment,
                         "name": f"experiment-{experiment_index + 1}-name",
                         "description": f"experiment-{experiment_index + 1}-description",
+                        "repetitions": 1,
                         "metadata_": {
                             f"experiment-{experiment_index + 1}-metadata-key": f"experiment-{experiment_index + 1}-metadata-value"  # noqa: E501
                         },
@@ -306,6 +307,7 @@ async def comparison_experiments(session):
                             "experiment_id": experiment_ids[0],
                             "dataset_example_id": example_ids[0],
                             "trace_id": None,
+                            "repetition_number": 1,
                             "start_time": datetime(
                                 year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
                             ),
@@ -318,6 +320,7 @@ async def comparison_experiments(session):
                             "experiment_id": experiment_ids[0],
                             "dataset_example_id": example_ids[3],
                             "trace_id": None,
+                            "repetition_number": 1,
                             "start_time": datetime(
                                 year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
                             ),
@@ -330,6 +333,7 @@ async def comparison_experiments(session):
                             "experiment_id": experiment_ids[1],
                             "dataset_example_id": example_ids[0],
                             "trace_id": None,
+                            "repetition_number": 1,
                             "start_time": datetime(
                                 year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
                             ),
@@ -342,6 +346,7 @@ async def comparison_experiments(session):
                             "experiment_id": experiment_ids[1],
                             "dataset_example_id": example_ids[1],
                             "trace_id": None,
+                            "repetition_number": 1,
                             "start_time": datetime(
                                 year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
                             ),
@@ -354,6 +359,7 @@ async def comparison_experiments(session):
                             "experiment_id": experiment_ids[2],
                             "dataset_example_id": example_ids[0],
                             "trace_id": None,
+                            "repetition_number": 1,
                             "start_time": datetime(
                                 year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
                             ),
@@ -366,6 +372,7 @@ async def comparison_experiments(session):
                             "experiment_id": experiment_ids[2],
                             "dataset_example_id": example_ids[0],
                             "trace_id": None,
+                            "repetition_number": 2,
                             "start_time": datetime(
                                 year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
                             ),
@@ -378,6 +385,7 @@ async def comparison_experiments(session):
                             "experiment_id": experiment_ids[2],
                             "dataset_example_id": example_ids[1],
                             "trace_id": None,
+                            "repetition_number": 1,
                             "start_time": datetime(
                                 year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
                             ),
@@ -390,6 +398,7 @@ async def comparison_experiments(session):
                             "experiment_id": experiment_ids[2],
                             "dataset_example_id": example_ids[1],
                             "trace_id": None,
+                            "repetition_number": 2,
                             "start_time": datetime(
                                 year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
                             ),
@@ -402,6 +411,7 @@ async def comparison_experiments(session):
                             "experiment_id": experiment_ids[3],
                             "dataset_example_id": example_ids[0],
                             "trace_id": None,
+                            "repetition_number": 1,
                             "start_time": datetime(
                                 year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
                             ),
@@ -414,6 +424,7 @@ async def comparison_experiments(session):
                             "experiment_id": experiment_ids[3],
                             "dataset_example_id": example_ids[1],
                             "trace_id": None,
+                            "repetition_number": 1,
                             "start_time": datetime(
                                 year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
                             ),
@@ -426,6 +437,7 @@ async def comparison_experiments(session):
                             "experiment_id": experiment_ids[3],
                             "dataset_example_id": example_ids[3],
                             "trace_id": None,
+                            "repetition_number": 1,
                             "start_time": datetime(
                                 year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
                             ),

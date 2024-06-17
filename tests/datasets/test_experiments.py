@@ -58,6 +58,7 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
             task=experiment_task,
             experiment_name="test",
             experiment_description="test description",
+            repetitions=3,
         )
         experiment_id = from_global_id_with_expected_type(
             GlobalID.from_id(experiment.id), "Experiment"
@@ -70,42 +71,51 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
         assert experiment_model.dataset_version_id == 0
         assert experiment_model.name == "test"
         assert experiment_model.description == "test description"
+        assert experiment_model.repetitions == 3
 
-        experiment_run = (
-            await session.execute(
-                select(models.ExperimentRun).where(models.ExperimentRun.dataset_example_id == 0)
+        experiment_runs = (
+            (
+                await session.execute(
+                    select(models.ExperimentRun).where(models.ExperimentRun.dataset_example_id == 0)
+                )
             )
-        ).scalar()
-        assert experiment_run.output == {"output": "doesn't matter, this is the output"}
+            .scalars()
+            .all()
+        )
+        assert len(experiment_runs) == 3, "The experiment was configured to have 3 repetitions"
+        for run in experiment_runs:
+            assert run.output == {"output": "doesn't matter, this is the output"}
 
         evaluate_experiment(experiment, BasicEvaluator(contains="correct"))
-        evaluations = (
-            (
-                await session.execute(
-                    select(models.ExperimentAnnotation).where(
-                        models.ExperimentAnnotation.experiment_run_id == experiment_run.id
+        for run in experiment_runs:
+            evaluations = (
+                (
+                    await session.execute(
+                        select(models.ExperimentAnnotation).where(
+                            models.ExperimentAnnotation.experiment_run_id == run.id
+                        )
                     )
                 )
+                .scalars()
+                .all()
             )
-            .scalars()
-            .all()
-        )
-        assert len(evaluations) == 1
-        evaluation_1 = evaluations[0]
-        assert evaluation_1.score == 0.0
+            assert len(evaluations) == 1
+            evaluation = evaluations[0]
+            assert evaluation.score == 0.0
 
         evaluate_experiment(experiment, BasicEvaluator(contains="doesn't matter"))
-        evaluations = (
-            (
-                await session.execute(
-                    select(models.ExperimentAnnotation).where(
-                        models.ExperimentAnnotation.experiment_run_id == experiment_run.id
+        for run in experiment_runs:
+            evaluations = (
+                (
+                    await session.execute(
+                        select(models.ExperimentAnnotation).where(
+                            models.ExperimentAnnotation.experiment_run_id == run.id
+                        )
                     )
                 )
+                .scalars()
+                .all()
             )
-            .scalars()
-            .all()
-        )
-        assert len(evaluations) == 2
-        evaluation_2 = evaluations[1]
-        assert evaluation_2.score == 1.0
+            assert len(evaluations) == 2
+            evaluation_2 = evaluations[1]
+            assert evaluation_2.score == 1.0

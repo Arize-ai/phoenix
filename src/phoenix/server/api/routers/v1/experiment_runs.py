@@ -35,6 +35,7 @@ async def create_experiment_run(request: Request) -> Response:
 
     trace_id = payload.get("trace_id", None)
     output = payload["output"]
+    repetition_number = payload["repetition_number"]
     start_time = payload["start_time"]
     end_time = payload["end_time"]
     error = payload.get("error")
@@ -45,6 +46,7 @@ async def create_experiment_run(request: Request) -> Response:
             dataset_example_id=dataset_example_id,
             trace_id=trace_id,
             output=output,
+            repetition_number=repetition_number,
             start_time=datetime.fromisoformat(start_time),
             end_time=datetime.fromisoformat(end_time),
             error=error,
@@ -59,6 +61,7 @@ async def create_experiment_run(request: Request) -> Response:
             "dataset_example_id": str(dataset_example_globalid),
             "output": experiment_run.output,
             "trace_id": experiment_run.trace_id,
+            "repetition_number": experiment_run.repetition_number,
             "start_time": experiment_run.start_time.isoformat(),
             "end_time": experiment_run.end_time.isoformat(),
             "error": experiment_run.error,
@@ -96,6 +99,7 @@ async def list_experiment_runs(request: Request) -> Response:
                     "dataset_example_id": str(example_gid),
                     "output": run.output,
                     "trace_id": run.trace_id,
+                    "repetition_number": run.repetition_number,
                     "start_time": run.start_time.isoformat(),
                     "end_time": run.end_time.isoformat(),
                     "error": run.error,
