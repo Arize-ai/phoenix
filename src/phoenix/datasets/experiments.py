@@ -177,7 +177,7 @@ class ContainsKeyword(ExperimentEvaluator):
         evaluation = Evaluation(
             score=float(found),
             explanation=(
-                f"the string {repr(self.contains)} was "
+                f"the string {repr(self.keyword)} was "
                 f"{'found' if found else 'not found'} in the output"
             ),
             metadata={},
