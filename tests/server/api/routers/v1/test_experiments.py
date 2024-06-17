@@ -11,14 +11,16 @@ async def test_experiments_api(test_client, simple_dataset):
     dataset_globalid = GlobalID("Dataset", "0")
 
     # first, create an experiment associated with a dataset
-    experiment = (
+    created_experiment = (
         await test_client.post(
-            f"/v1/datasets/{dataset_globalid}/experiments", json={"version-id": None}
+            f"/v1/datasets/{dataset_globalid}/experiments",
+            json={"version-id": None, "repetitions": 1},
         )
     ).json()
 
-    experiment_globalid = experiment["id"]
-    version_globalid = experiment["dataset_version_id"]
+    experiment_globalid = created_experiment["id"]
+    version_globalid = created_experiment["dataset_version_id"]
+    assert created_experiment["repetitions"] == 1
 
     dataset_examples = (
         await test_client.get(
@@ -30,12 +32,14 @@ async def test_experiments_api(test_client, simple_dataset):
     # experiments can be read using the GET /experiments route
     experiment = (await test_client.get(f"/v1/experiments/{experiment_globalid}")).json()
     assert experiment
+    assert created_experiment["repetitions"] == 1
 
     # create experiment runs for each dataset example
     run_payload = {
         "dataset_example_id": str(dataset_examples[0]["id"]),
         "trace_id": "placeholder-id",  # not yet implemented
         "output": "some LLM application output",
+        "repetition_number": 1,
         "start_time": datetime.datetime.now().isoformat(),
         "end_time": datetime.datetime.now().isoformat(),
         "error": "an error message, if applicable",

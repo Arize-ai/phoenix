@@ -150,6 +150,11 @@ def upgrade() -> None:
             sa.String,
             nullable=True,
         ),
+        sa.Column(
+            "repetitions",
+            sa.Integer,
+            nullable=False,
+        ),
         sa.Column("metadata", JSON_, nullable=False),
         sa.Column(
             "created_at",
@@ -188,6 +193,11 @@ def upgrade() -> None:
             nullable=True,
         ),
         sa.Column("output", JSON_, nullable=True),
+        sa.Column(
+            "repetition_number",
+            sa.Integer,
+            nullable=False,
+        ),
         sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column(
