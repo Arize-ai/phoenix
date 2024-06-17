@@ -42,5 +42,5 @@ export function JSONText({
     }
   }
   const textValue = hasMaxLength ? formatText(fullValue, maxLength) : fullValue;
-  return <span>{textValue}</span>;
+  return <span title={fullValue}>{textValue}</span>;
 }
