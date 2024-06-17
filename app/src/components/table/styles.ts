@@ -42,7 +42,7 @@ export const tableCSS = (theme: Theme) => css`
           right: 0;
           top: 0;
           cursor: grab;
-          z-index: 2;
+          z-index: 4;
           touch-action: none;
           &.isResizing,
           &:hover {
@@ -127,7 +127,7 @@ export function getCommonPinningStyles<Row>(
     right: isPinned === "right" ? `${column.getAfter("right")}px` : undefined,
     opacity: isPinned ? 0.95 : 1,
     position: isPinned ? "sticky" : "relative",
-    width: column.getSize(),
-    zIndex: isPinned ? 1 : 0,
+    width: column.getSize() + "px",
+    zIndex: isPinned ? 3 : 0,
   };
 }

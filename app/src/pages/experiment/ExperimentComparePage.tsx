@@ -1,8 +1,8 @@
-import React, { startTransition, Suspense } from "react";
+import React, { startTransition, Suspense, useState } from "react";
 import { useLoaderData, useSearchParams } from "react-router-dom";
 import { css } from "@emotion/react";
 
-import { Alert, Flex, Heading, View } from "@arizeai/components";
+import { Alert, Flex, Heading, Switch, View } from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
 
@@ -12,6 +12,8 @@ import { ExperimentMultiSelector } from "./ExperimentMultiSelector";
 
 export function ExperimentComparePage() {
   const data = useLoaderData() as experimentCompareLoaderQuery$data;
+  // The text of most is too long, so we need to make this optional
+  const [displayFullText, setDisplayFullText] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const experimentIds = searchParams.getAll("experimentId");
   const experimentIdsSelected = experimentIds.length > 0;
@@ -32,20 +34,31 @@ export function ExperimentComparePage() {
       >
         <Flex direction="column" gap="size-100">
           <Heading level={1}>Compare Experiments</Heading>
-          <ExperimentMultiSelector
-            dataset={data.dataset}
-            selectedExperimentIds={experimentIds}
-            label="experiments"
-            onChange={(newExperimentIds) => {
-              startTransition(() => {
-                searchParams.delete("experimentId");
-                newExperimentIds.forEach((id) => {
-                  searchParams.append("experimentId", id);
+          <Flex direction="row" justifyContent="space-between" alignItems="end">
+            <ExperimentMultiSelector
+              dataset={data.dataset}
+              selectedExperimentIds={experimentIds}
+              label="experiments"
+              onChange={(newExperimentIds) => {
+                startTransition(() => {
+                  searchParams.delete("experimentId");
+                  newExperimentIds.forEach((id) => {
+                    searchParams.append("experimentId", id);
+                  });
+                  setSearchParams(searchParams);
                 });
-                setSearchParams(searchParams);
-              });
-            }}
-          />
+              }}
+            />
+            <Switch
+              onChange={(isSelected) => {
+                setDisplayFullText(isSelected);
+              }}
+              defaultSelected={false}
+              labelPlacement="start"
+            >
+              Full Text
+            </Switch>
+          </Flex>
         </Flex>
       </View>
       {experimentIdsSelected ? (
@@ -53,6 +66,7 @@ export function ExperimentComparePage() {
           <ExperimentCompareTable
             datasetId={data.dataset.id}
             experimentIds={experimentIds}
+            displayFullText={displayFullText}
           />
         </Suspense>
       ) : (

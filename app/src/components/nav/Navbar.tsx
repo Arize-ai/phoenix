@@ -30,7 +30,7 @@ const sideNavCSS = css`
   height: 100vh;
   position: fixed;
   width: var(--px-nav-collapsed-width);
-  z-index: 3;
+  z-index: 100; // Above the content
   transition:
     width 0.15s cubic-bezier(0, 0.57, 0.21, 0.99),
     box-shadow 0.15s cubic-bezier(0, 0.57, 0.21, 0.99);
