@@ -6,9 +6,9 @@ from strawberry.relay import GlobalID
 
 class TestDeleteExperiment:
     MUTATION = """
-      mutation ($experimentId: GlobalID!) {
-        deleteExperiment(input: {experimentId: $experimentId}) {
-          experiment {
+      mutation ($experimentIds: [GlobalID!]!) {
+        deleteExperiments(input: {experimentIds: $experimentIds}) {
+          experiments {
             id
             name
             description
@@ -18,20 +18,22 @@ class TestDeleteExperiment:
       }
     """
 
-    async def test_deletes_and_returns_experiment(
+    async def test_deletes_and_returns_experiments(
         self,
         session,
         test_client,
-        simple_experiment,
+        simple_experiments,
     ) -> None:
-        experiment_id = str(GlobalID(type_name="Experiment", node_id=str(1)))
-        assert (await session.scalar(func.count(models.Experiment.id))) == 1
+        assert (await session.scalar(func.count(models.Experiment.id))) == 2
         response = await test_client.post(
             "/graphql",
             json={
                 "query": self.MUTATION,
                 "variables": {
-                    "experimentId": experiment_id,
+                    "experimentIds": [
+                        str(GlobalID(type_name="Experiment", node_id=str(1))),
+                        str(GlobalID(type_name="Experiment", node_id=str(2))),
+                    ],
                 },
             },
         )
@@ -40,42 +42,57 @@ class TestDeleteExperiment:
         response_json = response.json()
         assert response_json.get("errors") is None
         assert response_json["data"] == {
-            "deleteExperiment": {
-                "experiment": {
-                    "id": experiment_id,
-                    "name": "experiment-name",
-                    "description": "experiment-description",
-                    "metadata": {"experiment-metadata-key": "experiment-metadata-value"},
-                }
+            "deleteExperiments": {
+                "experiments": [
+                    {
+                        "id": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                        "name": "experiment-1-name",
+                        "description": "experiment-1-description",
+                        "metadata": {"experiment-1-metadata-key": "experiment-1-metadata-value"},
+                    },
+                    {
+                        "id": str(GlobalID(type_name="Experiment", node_id=str(2))),
+                        "name": "experiment-2-name",
+                        "description": "experiment-2-description",
+                        "metadata": {"experiment-2-metadata-key": "experiment-2-metadata-value"},
+                    },
+                ]
             }
         }
 
-    async def test_non_existent_experiment_id_returns_error(
+    async def test_non_existent_experiment_id_results_in_no_deletions_and_returns_error(
         self,
         session,
         test_client,
-        simple_experiment,
+        simple_experiments,
     ) -> None:
-        experiment_id = str(GlobalID(type_name="Experiment", node_id=str(2)))
+        assert (await session.scalar(func.count(models.Experiment.id))) == 2
         response = await test_client.post(
             "/graphql",
             json={
                 "query": self.MUTATION,
                 "variables": {
-                    "experimentId": experiment_id,
+                    "experimentIds": [
+                        str(GlobalID(type_name="Experiment", node_id=str(1))),
+                        str(GlobalID(type_name="Experiment", node_id=str(3))),
+                    ],
                 },
             },
         )
+        assert (await session.scalar(func.count(models.Experiment.id))) == 2
         assert response.status_code == 200
         response_json = response.json()
         assert (errors := response_json.get("errors"))
-        assert errors[0]["message"] == f"Unknown experiment: {experiment_id}"
+        assert errors[0]["message"] == (
+            "Failed to delete experiment(s), probably due to invalid input experiment ID(s): "
+            f"['{str(GlobalID('Experiment', str(3)))}']"
+        )
 
 
 @pytest.fixture
-async def simple_experiment(session) -> None:
+async def simple_experiments(session) -> None:
     """
-    A dataset with one example and one experiment.
+    A dataset with one example and two experiments.
     """
 
     # insert dataset
@@ -123,16 +140,28 @@ async def simple_experiment(session) -> None:
         )
     )
 
-    # insert an experiment
+    # insert two experiments
     await session.scalar(
         insert(models.Experiment)
         .returning(models.Experiment.id)
         .values(
             dataset_id=dataset_id,
             dataset_version_id=version_id,
-            name="experiment-name",
-            description="experiment-description",
+            name="experiment-1-name",
+            description="experiment-1-description",
+            metadata_={"experiment-1-metadata-key": "experiment-1-metadata-value"},
             repetitions=1,
-            metadata_={"experiment-metadata-key": "experiment-metadata-value"},
+        )
+    )
+    await session.scalar(
+        insert(models.Experiment)
+        .returning(models.Experiment.id)
+        .values(
+            dataset_id=dataset_id,
+            dataset_version_id=version_id,
+            name="experiment-2-name",
+            description="experiment-2-description",
+            metadata_={"experiment-2-metadata-key": "experiment-2-metadata-value"},
+            repetitions=1,
         )
     )
