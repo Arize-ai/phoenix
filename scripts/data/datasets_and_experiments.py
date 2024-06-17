@@ -115,6 +115,7 @@ async def dataset_with_experiments_without_runs(session):
         dataset_id=1,
         dataset_version_id=1,
         name="my-experiment-1",
+        repetitions=1,
         metadata_={"info": "a test experiment"},
     )
     session.add(experiment_0)
@@ -125,6 +126,7 @@ async def dataset_with_experiments_without_runs(session):
         dataset_id=1,
         dataset_version_id=2,
         name="my-experiment-2",
+        repetitions=1,
         metadata_={"info": "a second test experiment"},
     )
     session.add(experiment_1)
@@ -136,6 +138,7 @@ async def dataset_with_experiments_and_runs(session):
         id=0,
         experiment_id=0,
         dataset_example_id=1,
+        repetition_number=1,
         output={"out": "barr"},
         start_time=datetime.now(),
         end_time=datetime.now(),
@@ -149,6 +152,7 @@ async def dataset_with_experiments_and_runs(session):
         experiment_id=0,
         dataset_example_id=2,
         output={"out": "barbarr"},
+        repetition_number=1,
         start_time=datetime.now(),
         end_time=datetime.now(),
         error=None,
@@ -161,6 +165,7 @@ async def dataset_with_experiments_and_runs(session):
         experiment_id=1,
         dataset_example_id=1,
         output={"out": "bar"},
+        repetition_number=1,
         start_time=datetime.now(),
         end_time=datetime.now(),
         error=None,
@@ -174,6 +179,7 @@ async def dataset_with_experiments_and_runs(session):
         dataset_example_id=2,
         output=None,
         start_time=datetime.now(),
+        repetition_number=1,
         end_time=datetime.now(),
         error="something funny happened",
     )
