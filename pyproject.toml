@@ -67,7 +67,8 @@ dev = [
   "jupyter",
   "nbqa",
   "ruff==0.4.9",
-  "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
+  "pandas-stubs==2.2.2.240603; python_version>='3.9'",
+  "pandas-stubs==2.0.3.230814; python_version<'3.9'",
   "pytest==8.2.2",
   "pytest-asyncio",
   "pytest-cov",
