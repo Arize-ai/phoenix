@@ -22,6 +22,7 @@ import {
   tableCSS,
 } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
@@ -58,6 +59,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             runs {
               output
               error
+              startTime
+              endTime
               annotations {
                 edges {
                   annotation: node {
@@ -326,7 +329,14 @@ function ExperimentRowActionMenu(props: {
  * Display the output of an experiment run.
  */
 function ExperimentRunOutput(props: ExperimentRun) {
-  const { output, error, annotations } = props;
+  const { output, error, startTime, endTime, annotations } = props;
+  const latencyMs = useMemo(() => {
+    let latencyMs: number | null = null;
+    if (startTime && endTime) {
+      latencyMs = new Date(endTime).getTime() - new Date(startTime).getTime();
+    }
+    return latencyMs;
+  }, [startTime, endTime]);
   if (error) {
     return (
       <Flex direction="row" gap="size-50" alignItems="center">
@@ -342,6 +352,9 @@ function ExperimentRunOutput(props: ExperimentRun) {
   return (
     <Flex direction="column" gap="size-50">
       <JSONText json={output} />
+      {typeof latencyMs === "number" ? (
+        <LatencyText latencyMs={latencyMs} />
+      ) : null}
       <ul>
         {annotationsList.map((annotation) => (
           <li key={annotation.id}>

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3ada14aca14f4247ad8c9db1ae76c86a>>
+ * @generated SignedSource<<cdd895d77dfcaa8a1f91887d2aff5dd8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -36,8 +36,10 @@ export type ExperimentCompareTableQuery$data = {
             };
           }>;
         };
+        readonly endTime: string;
         readonly error: string | null;
         readonly output: any | null;
+        readonly startTime: string;
       }>;
     }>;
   }>;
@@ -170,6 +172,20 @@ v4 = {
               "args": null,
               "kind": "ScalarField",
               "name": "error",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "startTime",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "endTime",
               "storageKey": null
             },
             {
@@ -354,16 +370,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d503232f35d6c58b1aef173662c96734",
+    "cacheID": "be90b60e21a7e4ccb0f4b4a44c1c685a",
     "id": null,
     "metadata": {},
     "name": "ExperimentCompareTableQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareTableQuery(\n  $experimentIds: [GlobalID!]!\n  $datasetId: GlobalID!\n) {\n  comparisons: compareExperiments(experimentIds: $experimentIds) {\n    example {\n      id\n      revision {\n        input\n        referenceOutput: output\n      }\n    }\n    runComparisonItems {\n      experimentId\n      runs {\n        output\n        error\n        annotations {\n          edges {\n            annotation: node {\n              id\n              name\n              score\n              label\n              explanation\n            }\n          }\n        }\n      }\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query ExperimentCompareTableQuery(\n  $experimentIds: [GlobalID!]!\n  $datasetId: GlobalID!\n) {\n  comparisons: compareExperiments(experimentIds: $experimentIds) {\n    example {\n      id\n      revision {\n        input\n        referenceOutput: output\n      }\n    }\n    runComparisonItems {\n      experimentId\n      runs {\n        output\n        error\n        startTime\n        endTime\n        annotations {\n          edges {\n            annotation: node {\n              id\n              name\n              score\n              label\n              explanation\n            }\n          }\n        }\n      }\n    }\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "31ae6f1eb510bf9cbc996cf811ac0276";
+(node as any).hash = "cd53fbb62b69987f05f540493e6fea8d";
 
 export default node;
