@@ -150,6 +150,11 @@ def upgrade() -> None:
             sa.String,
             nullable=True,
         ),
+        sa.Column(
+            "repetitions",
+            sa.Integer,
+            nullable=False,
+        )
         sa.Column("metadata", JSON_, nullable=False),
         sa.Column(
             "created_at",
