@@ -163,7 +163,8 @@ dependencies = [
 dependencies = [
   "mypy==1.10.0",
   "tenacity",
-  "pandas-stubs==2.0.3.230814",
+  "pandas-stubs==2.2.2.240603; python_version>='3.9'",
+  "pandas-stubs==2.0.3.230814; python_version<'3.9'",
   "types-psutil",
   "types-tqdm",
   "types-protobuf",
@@ -184,17 +185,11 @@ dependencies = [
   "strawberry-graphql[opentelemetry]==0.235.0",  # need to pin version because we're monkey-patching
 ]
 
-[[tool.hatch.envs.type.matrix]]
-python = ["3.8", "3.9", "3.12"]
-
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
   "ruff==0.4.9",
 ]
-
-[[tool.hatch.envs.style.matrix]]
-python = ["3.8", "3.9", "3.12"]
 
 [tool.hatch.envs.notebooks]
 detached = true
