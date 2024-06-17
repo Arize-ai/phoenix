@@ -24,7 +24,10 @@ export function JSONText({
   const hasMaxLength = typeof maxLength === "number";
   const fullValue = useMemo(() => JSON.stringify(json), [json]);
   if (!isObject(json)) {
-    return <span>--</span>;
+    // Just show text and log a warning
+    // eslint-disable-next-line no-console
+    console.warn("JSONText component received a non-object value", json);
+    return <span>{String(json)}</span>;
   }
   const obj = json as Record<string, unknown>;
   // If the object has only one key and the value is a string, show the string
