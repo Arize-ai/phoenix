@@ -265,23 +265,61 @@ class Client(TraceDataExtractor):
                 },
             ).raise_for_status()
 
-    def get_dataset(self, dataset_id: str, version_id: Optional[str] = None) -> Dataset:
+    def _get_dataset_id_by_name(self, name: str) -> str:
+        """
+         Gets a dataset by name.
+
+         Args:
+             name (str): The name of the dataset.
+             version_id (Optional[str]): The version ID of the dataset. Default None.
+
+        Returns:
+             Dataset: The dataset object.
+        """
+        response = self._client.get(
+            urljoin(self._base_url, "/v1/datasets"),
+            params={"name": name},
+        )
+        response.raise_for_status()
+        if not (records := response.json()["data"]):
+            raise ValueError(f"Failed to query dataset by name: {name}")
+        if len(records) > 1 or not records[0]:
+            raise ValueError(f"Failed to find a single dataset with the given name: {name}")
+        dataset = records[0]
+        return str(dataset["id"])
+
+    def get_dataset(
+        self,
+        *,
+        id: Optional[str] = None,
+        name: Optional[str] = None,
+        version_id: Optional[str] = None,
+    ) -> Dataset:
         """
         Gets the dataset for a specific version, or gets the latest version of
         the dataset if no version is specified.
 
         Args:
 
-            dataset_id (str): An ID for the dataset.
+            id (Optional[str]): An ID for the dataset.
 
-            version_id (Optional[str]): An ID for the version of the dataset, or None.
+            name (Optional[str]): the name for the dataset. If provided, the ID
+            is ignored and the dataset is retrieved by name.
+
+            version_id (Optional[str]): An ID for the version of the dataset, or
+            None.
 
         Returns:
-
             A dataset object.
         """
+        if name:
+            id = self._get_dataset_id_by_name(name)
+
+        if not id:
+            raise ValueError("Dataset id or name must be provided.")
+
         response = self._client.get(
-            urljoin(self._base_url, f"/v1/datasets/{quote(dataset_id)}/examples"),
+            urljoin(self._base_url, f"/v1/datasets/{quote(id)}/examples"),
             params={"version-id": version_id} if version_id else None,
         )
         response.raise_for_status()
