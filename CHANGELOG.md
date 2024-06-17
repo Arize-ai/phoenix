@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.4.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.4.2...arize-phoenix-v4.4.3) (2024-06-17)
+
+
+### Bug Fixes
+
+* hdbscan incompatibility with numpy 2.0 ([#3533](https://github.com/Arize-ai/phoenix/issues/3533)) ([52dc11d](https://github.com/Arize-ai/phoenix/commit/52dc11d0b30e0a3588467de46ccfa02bd21e767b))
+
 ## [4.4.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.4.1...arize-phoenix-v4.4.2) (2024-06-13)
 
 
