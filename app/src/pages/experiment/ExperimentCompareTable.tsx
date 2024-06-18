@@ -452,13 +452,19 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                                   <li key={index}>
                                     <Flex direction="row">
                                       <View flex>
-                                        <JSONBlock
-                                          value={JSON.stringify(
-                                            run.output,
-                                            null,
-                                            2
-                                          )}
-                                        />
+                                        {run.error ? (
+                                          <View padding="size-200">
+                                            <RunError error={run.error} />
+                                          </View>
+                                        ) : (
+                                          <JSONBlock
+                                            value={JSON.stringify(
+                                              run.output,
+                                              null,
+                                              2
+                                            )}
+                                          />
+                                        )}
                                       </View>
                                       <ViewSummaryAside width="size-3000">
                                         <RunLatency
@@ -566,12 +572,7 @@ function ExperimentRunOutput(
   const { output, error, startTime, endTime, annotations, displayFullText } =
     props;
   if (error) {
-    return (
-      <Flex direction="row" gap="size-50" alignItems="center">
-        <Icon svg={<Icons.AlertCircleOutline />} color="danger" />
-        <Text color="danger">{error}</Text>
-      </Flex>
-    );
+    return <RunError error={error} />;
   }
   const annotationsList = annotations?.edges.length
     ? annotations.edges.map((edge) => edge.annotation)
@@ -590,6 +591,15 @@ function ExperimentRunOutput(
           </li>
         ))}
       </ul>
+    </Flex>
+  );
+}
+
+function RunError({ error }: { error: string }) {
+  return (
+    <Flex direction="row" gap="size-50" alignItems="center">
+      <Icon svg={<Icons.AlertCircleOutline />} color="danger" />
+      <Text color="danger">{error}</Text>
     </Flex>
   );
 }
