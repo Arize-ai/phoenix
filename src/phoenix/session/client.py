@@ -68,7 +68,7 @@ class Client(TraceDataExtractor):
 
             headers (Mapping[str, str], optional): Headers to include in each
             network request. If not provided, the headers will be inferred from
-            the environment variables or be empty.
+            the environment variables (if present).
         """
         if kwargs.pop("use_active_session_if_available", None) is not None:
             print(
