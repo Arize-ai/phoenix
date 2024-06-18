@@ -88,6 +88,7 @@ class Experiment(Node):
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
+        experiment_id = self.id_attr
         return connection_from_list(
             [
                 ExperimentAnnotationSummary(
@@ -96,7 +97,7 @@ class Experiment(Node):
                     mean_score=summary.mean_score,
                 )
                 for summary in await info.context.data_loaders.experiment_annotation_summaries.load(
-                    self.id_attr
+                    experiment_id
                 )
             ],
             args,

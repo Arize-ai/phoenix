@@ -1,14 +1,19 @@
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import (
     AsyncContextManager,
     Callable,
+    DefaultDict,
     List,
     Optional,
 )
 
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias
+
+from phoenix.db import models
 
 
 @dataclass
@@ -32,6 +37,25 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
         self._db = db
 
     async def _load_fn(self, keys: List[Key]) -> List[Result]:
-        raise NotImplementedError(
-            "ExperimentAnnotationSummariesDataLoader._load_fn not implemented yet"
-        )
+        experiment_ids = keys
+        summaries: DefaultDict[ExperimentID, Result] = defaultdict(list)
+        async with self._db() as session:
+            async for experiment_id, annotation_name, mean_score in await session.stream(
+                select(
+                    models.ExperimentRun.experiment_id,
+                    models.ExperimentAnnotation.name,
+                    func.avg(models.ExperimentAnnotation.score),
+                )
+                .join(
+                    models.ExperimentRun,
+                    models.ExperimentAnnotation.experiment_run_id == models.ExperimentRun.id,
+                )
+                .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
+                .group_by(models.ExperimentRun.experiment_id, models.ExperimentAnnotation.name)
+            ):
+                summaries[experiment_id].append(
+                    ExperimentAnnotationSummary(
+                        annotation_name=annotation_name, mean_score=mean_score
+                    )
+                )
+        return [summaries[experiment_id] for experiment_id in experiment_ids]
