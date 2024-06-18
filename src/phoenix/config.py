@@ -16,7 +16,7 @@ ENV_PHOENIX_HOST_ROOT_PATH = "PHOENIX_HOST_ROOT_PATH"
 ENV_NOTEBOOK_ENV = "PHOENIX_NOTEBOOK_ENV"
 ENV_PHOENIX_CLIENT_HEADERS = "PHOENIX_CLIENT_HEADERS"
 """
-The headers to include in the Phoenix client requests.
+The headers to include in Phoenix client requests.
 Note: This overrides OTEL_EXPORTER_OTLP_HEADERS in the case where
 phoenix.trace instrumentors are used.
 """
