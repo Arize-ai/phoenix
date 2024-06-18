@@ -128,6 +128,6 @@ export function getCommonPinningStyles<Row>(
     opacity: isPinned ? 0.95 : 1,
     position: isPinned ? "sticky" : "relative",
     width: column.getSize() + "px",
-    zIndex: isPinned ? 3 : 0,
+    zIndex: isPinned ? 1 : 0,
   };
 }
