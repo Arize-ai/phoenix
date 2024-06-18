@@ -1,4 +1,4 @@
-import React, { ReactNode, useMemo } from "react";
+import React, { ReactNode, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 import {
@@ -11,7 +11,18 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { ActionMenu, Flex, Icon, Icons, Item, Text } from "@arizeai/components";
+import {
+  ActionMenu,
+  Card,
+  Dialog,
+  DialogContainer,
+  Flex,
+  Icon,
+  Icons,
+  Item,
+  Text,
+  View,
+} from "@arizeai/components";
 
 import { JSONText } from "@phoenix/components/code/JSONText";
 import { AnnotationLabel } from "@phoenix/components/experiment";
@@ -139,6 +150,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     [data]
   );
   type TableRow = (typeof tableData)[number];
+  const [selectedExample, setSelectedExample] = useState<TableRow | null>();
   const baseColumns: ColumnDef<TableRow>[] = [
     {
       header: "input",
@@ -264,7 +276,12 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         ) : (
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id}>
+              <tr
+                key={row.id}
+                onClick={() => {
+                  setSelectedExample(row.original);
+                }}
+              >
                 {row.getVisibleCells().map((cell) => {
                   return (
                     <td
@@ -287,6 +304,32 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           </tbody>
         )}
       </table>
+      <DialogContainer
+        isDismissable
+        type="slideOver"
+        onDismiss={() => {
+          setSelectedExample(null);
+        }}
+      >
+        {selectedExample ? (
+          <Dialog title="Example Details" size="fullscreen">
+            <View overflow="hidden" padding="size-200">
+              <Flex direction="row" gap="size-200" flex="1 1 auto">
+                <View width="50%">
+                  <Card title="Input">
+                    {JSON.stringify(selectedExample.input)}
+                  </Card>
+                </View>
+                <View width="50%">
+                  <Card title="Reference Output">
+                    {JSON.stringify(selectedExample.referenceOutput)}
+                  </Card>
+                </View>
+              </Flex>
+            </View>
+          </Dialog>
+        ) : null}
+      </DialogContainer>
     </div>
   );
 }
