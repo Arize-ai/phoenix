@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 import strawberry
 from sqlalchemy import select
@@ -75,33 +75,19 @@ class Experiment(Node):
 
     @strawberry.field
     async def annotation_summaries(
-        self,
-        info: Info[Context, None],
-        first: Optional[int] = 50,
-        last: Optional[int] = UNSET,
-        after: Optional[CursorString] = UNSET,
-        before: Optional[CursorString] = UNSET,
-    ) -> Connection[ExperimentAnnotationSummary]:
-        args = ConnectionArgs(
-            first=first,
-            after=after if isinstance(after, CursorString) else None,
-            last=last,
-            before=before if isinstance(before, CursorString) else None,
-        )
+        self, info: Info[Context, None]
+    ) -> List[ExperimentAnnotationSummary]:
         experiment_id = self.id_attr
-        return connection_from_list(
-            [
-                ExperimentAnnotationSummary(
-                    experiment_id=experiment_id,
-                    annotation_name=summary.annotation_name,
-                    mean_score=summary.mean_score,
-                )
-                for summary in await info.context.data_loaders.experiment_annotation_summaries.load(
-                    experiment_id
-                )
-            ],
-            args,
-        )
+        return [
+            ExperimentAnnotationSummary(
+                experiment_id=experiment_id,
+                annotation_name=summary.annotation_name,
+                mean_score=summary.mean_score,
+            )
+            for summary in await info.context.data_loaders.experiment_annotation_summaries.load(
+                experiment_id
+            )
+        ]
 
 
 def to_gql_experiment(

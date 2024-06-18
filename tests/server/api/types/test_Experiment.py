@@ -1,4 +1,3 @@
-from base64 import b64encode
 from datetime import datetime
 from typing import List
 
@@ -128,13 +127,8 @@ async def test_annotation_summaries_and_names_return_expected_values(
                 experiment: node {
                   id
                   annotationSummaries {
-                    edges {
-                      annotationSummary: node {
-                        id
-                        annotationName
-                        meanScore
-                      }
-                    }
+                    annotationName
+                    meanScore
                   }
                 }
               }
@@ -163,55 +157,31 @@ async def test_annotation_summaries_and_names_return_expected_values(
                     {
                         "experiment": {
                             "id": str(GlobalID(type_name="Experiment", node_id=str(2))),
-                            "annotationSummaries": {
-                                "edges": [
-                                    {
-                                        "annotationSummary": {
-                                            "id": b64encode(
-                                                """ExperimentAnnotationSummary:{"annotation_name":"annotation-name-1","experiment_id":2}""".encode()
-                                            ).decode(),
-                                            "annotationName": "annotation-name-1",
-                                            "meanScore": 1 / 3,
-                                        }
-                                    },
-                                    {
-                                        "annotationSummary": {
-                                            "id": b64encode(
-                                                """ExperimentAnnotationSummary:{"annotation_name":"annotation-name-2","experiment_id":2}""".encode()
-                                            ).decode(),
-                                            "annotationName": "annotation-name-2",
-                                            "meanScore": 1 / 2,
-                                        }
-                                    },
-                                ]
-                            },
+                            "annotationSummaries": [
+                                {
+                                    "annotationName": "annotation-name-1",
+                                    "meanScore": 1 / 3,
+                                },
+                                {
+                                    "annotationName": "annotation-name-2",
+                                    "meanScore": 1 / 2,
+                                },
+                            ],
                         }
                     },
                     {
                         "experiment": {
                             "id": str(GlobalID(type_name="Experiment", node_id=str(1))),
-                            "annotationSummaries": {
-                                "edges": [
-                                    {
-                                        "annotationSummary": {
-                                            "id": b64encode(
-                                                """ExperimentAnnotationSummary:{"annotation_name":"annotation-name-1","experiment_id":1}""".encode()
-                                            ).decode(),
-                                            "annotationName": "annotation-name-1",
-                                            "meanScore": 1 / 3,
-                                        }
-                                    },
-                                    {
-                                        "annotationSummary": {
-                                            "id": b64encode(
-                                                """ExperimentAnnotationSummary:{"annotation_name":"annotation-name-2","experiment_id":1}""".encode()
-                                            ).decode(),
-                                            "annotationName": "annotation-name-2",
-                                            "meanScore": 1 / 2,
-                                        }
-                                    },
-                                ]
-                            },
+                            "annotationSummaries": [
+                                {
+                                    "annotationName": "annotation-name-1",
+                                    "meanScore": 1 / 3,
+                                },
+                                {
+                                    "annotationName": "annotation-name-2",
+                                    "meanScore": 1 / 2,
+                                },
+                            ],
                         }
                     },
                 ]
