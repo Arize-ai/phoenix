@@ -14,6 +14,7 @@ import { Flex } from "@arizeai/components";
 
 import { SequenceNumberLabel } from "@phoenix/components/experiment/SequenceNumberLabel";
 import { Link } from "@phoenix/components/Link";
+import { CompactJSONCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
@@ -140,7 +141,7 @@ export function ExperimentsTable({
     {
       header: "metadata",
       accessorKey: "metadata",
-      cell: TextCell,
+      cell: CompactJSONCell,
     },
   ];
   const table = useReactTable<TableRow>({
