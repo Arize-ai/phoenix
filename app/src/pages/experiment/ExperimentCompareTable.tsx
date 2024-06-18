@@ -1,5 +1,6 @@
 import React, { ReactNode, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useNavigate } from "react-router";
 import {
   CellContext,
@@ -14,6 +15,7 @@ import { css } from "@emotion/react";
 import {
   ActionMenu,
   Card,
+  CardProps,
   Dialog,
   DialogContainer,
   Flex,
@@ -24,9 +26,12 @@ import {
   View,
 } from "@arizeai/components";
 
+import { CopyToClipboardButton, ViewSummaryAside } from "@phoenix/components";
+import { JSONBlock } from "@phoenix/components/code";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import { AnnotationLabel } from "@phoenix/components/experiment";
 import { SequenceNumberLabel } from "@phoenix/components/experiment/SequenceNumberLabel";
+import { resizeHandleCSS } from "@phoenix/components/resize";
 import { CompactJSONCell } from "@phoenix/components/table";
 import {
   borderedTableCSS,
@@ -53,6 +58,16 @@ type ExampleCompareTableProps = {
 
 type ExperimentRun =
   ExperimentCompareTableQuery$data["comparisons"][number]["runComparisonItems"][number]["runs"][number];
+
+const defaultCardProps: Partial<CardProps> = {
+  backgroundColor: "light",
+  borderColor: "light",
+  variant: "compact",
+  collapsible: true,
+  bodyStyle: {
+    padding: 0,
+  },
+};
 
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const { datasetId, experimentIds, displayFullText } = props;
@@ -312,21 +327,151 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         }}
       >
         {selectedExample ? (
-          <Dialog title="Example Details" size="fullscreen">
-            <View overflow="hidden" padding="size-200">
-              <Flex direction="row" gap="size-200" flex="1 1 auto">
-                <View width="50%">
-                  <Card title="Input">
-                    {JSON.stringify(selectedExample.input)}
-                  </Card>
-                </View>
-                <View width="50%">
-                  <Card title="Reference Output">
-                    {JSON.stringify(selectedExample.referenceOutput)}
-                  </Card>
-                </View>
-              </Flex>
-            </View>
+          <Dialog
+            title={`Comparing Experiments for Example: ${selectedExample.id}`}
+            size="fullscreen"
+            extra={
+              <ExperimentRowActionMenu
+                datasetId={datasetId}
+                exampleId={selectedExample.id}
+              />
+            }
+          >
+            <PanelGroup
+              direction="vertical"
+              autoSaveId="example-compare-panel-group"
+            >
+              <Panel defaultSize={100}>
+                <div
+                  css={css`
+                    overflow-y: auto;
+                    height: 100%;
+                  `}
+                >
+                  <View overflow="hidden" padding="size-200">
+                    <Flex direction="row" gap="size-200" flex="1 1 auto">
+                      <View width="50%">
+                        <Card
+                          title="Input"
+                          {...defaultCardProps}
+                          bodyStyle={{
+                            padding: 0,
+                            maxHeight: "300px",
+                            overflowY: "auto",
+                          }}
+                          extra={
+                            <CopyToClipboardButton
+                              text={JSON.stringify(selectedExample.input)}
+                            />
+                          }
+                        >
+                          <JSONBlock
+                            value={JSON.stringify(
+                              selectedExample.input,
+                              null,
+                              2
+                            )}
+                          />
+                        </Card>
+                      </View>
+                      <View width="50%">
+                        <Card
+                          title="Reference Output"
+                          {...defaultCardProps}
+                          extra={
+                            <CopyToClipboardButton
+                              text={JSON.stringify(selectedExample.input)}
+                            />
+                          }
+                          bodyStyle={{
+                            padding: 0,
+                            maxHeight: "300px",
+                            overflowY: "auto",
+                          }}
+                        >
+                          <JSONBlock
+                            value={JSON.stringify(
+                              selectedExample.referenceOutput,
+                              null,
+                              2
+                            )}
+                          />
+                        </Card>
+                      </View>
+                    </Flex>
+                  </View>
+                </div>
+              </Panel>
+              <PanelResizeHandle css={resizeHandleCSS} />
+              <Panel defaultSize={200}>
+                <div
+                  css={css`
+                    overflow-y: auto;
+                    height: 100%;
+                    padding: var(--ac-global-dimension-static-size-200);
+                  `}
+                >
+                  <ul
+                    css={css`
+                      display: flex;
+                      flex-direction: column;
+                      gap: var(--ac-global-dimension-static-size-200);
+                    `}
+                  >
+                    {selectedExample.runComparisonItems.map((runItem) => {
+                      const experiment =
+                        experimentInfoById[runItem.experimentId];
+                      return (
+                        <li key={runItem.experimentId}>
+                          <Card
+                            {...defaultCardProps}
+                            title={experiment?.name}
+                            titleExtra={
+                              <SequenceNumberLabel
+                                sequenceNumber={experiment?.sequenceNumber || 0}
+                              />
+                            }
+                          >
+                            <ul>
+                              {runItem.runs.map((run, index) => (
+                                <li key={index}>
+                                  <Flex direction="row">
+                                    <View flex>
+                                      <JSONBlock
+                                        value={JSON.stringify(
+                                          run.output,
+                                          null,
+                                          2
+                                        )}
+                                      />
+                                    </View>
+                                    <ViewSummaryAside width="size-3000">
+                                      <RunLatency
+                                        startTime={run.startTime}
+                                        endTime={run.endTime}
+                                      />
+                                      <ul>
+                                        {run.annotations?.edges.map((edge) => (
+                                          <li key={edge.annotation.id}>
+                                            <AnnotationLabel
+                                              annotation={edge.annotation}
+                                            />
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </ViewSummaryAside>
+                                  </Flex>
+                                </li>
+                              ))}
+                            </ul>
+                          </Card>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              </Panel>
+            </PanelGroup>
           </Dialog>
         ) : null}
       </DialogContainer>
@@ -391,13 +536,6 @@ function ExperimentRunOutput(
 ) {
   const { output, error, startTime, endTime, annotations, displayFullText } =
     props;
-  const latencyMs = useMemo(() => {
-    let latencyMs: number | null = null;
-    if (startTime && endTime) {
-      latencyMs = new Date(endTime).getTime() - new Date(startTime).getTime();
-    }
-    return latencyMs;
-  }, [startTime, endTime]);
   if (error) {
     return (
       <Flex direction="row" gap="size-50" alignItems="center">
@@ -415,9 +553,7 @@ function ExperimentRunOutput(
       <LargeTextWrap>
         <JSONText json={output} space={displayFullText ? 2 : 0} />
       </LargeTextWrap>
-      {typeof latencyMs === "number" ? (
-        <LatencyText latencyMs={latencyMs} />
-      ) : null}
+      <RunLatency startTime={startTime} endTime={endTime} />
       <ul>
         {annotationsList.map((annotation) => (
           <li key={annotation.id}>
@@ -429,6 +565,25 @@ function ExperimentRunOutput(
   );
 }
 
+function RunLatency({
+  startTime,
+  endTime,
+}: {
+  startTime: string;
+  endTime: string;
+}) {
+  const latencyMs = useMemo(() => {
+    let latencyMs: number | null = null;
+    if (startTime && endTime) {
+      latencyMs = new Date(endTime).getTime() - new Date(startTime).getTime();
+    }
+    return latencyMs;
+  }, [startTime, endTime]);
+  if (latencyMs === null) {
+    return null;
+  }
+  return <LatencyText latencyMs={latencyMs} />;
+}
 function NotRunText() {
   return (
     <Flex direction="row" gap="size-50">
