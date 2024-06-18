@@ -6,6 +6,7 @@ from collections import Counter
 from datetime import datetime
 from io import BytesIO, StringIO
 from pathlib import Path
+from types import MappingProxyType
 from typing import (
     Any,
     BinaryIO,
@@ -36,10 +37,10 @@ from phoenix.config import (
     get_env_port,
     get_env_project_name,
 )
+from phoenix.datasets.types import Dataset, Example
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.insertion.dataset import DatasetKeys
 from phoenix.session.data_extractor import DEFAULT_SPAN_LIMIT, TraceDataExtractor
-from phoenix.session.datasets import Dataset, Example
 from phoenix.trace import Evaluations, TraceDataset
 from phoenix.trace.dsl import SpanQuery
 from phoenix.trace.otel import encode_span_to_otlp
@@ -274,7 +275,7 @@ class Client(TraceDataExtractor):
              version_id (Optional[str]): The version ID of the dataset. Default None.
 
         Returns:
-             Dataset: The dataset object.
+             phoenix.datasets.types.Dataset: The dataset object.
         """
         response = self._client.get(
             urljoin(self._base_url, "/v1/datasets"),
@@ -324,16 +325,16 @@ class Client(TraceDataExtractor):
         )
         response.raise_for_status()
         data = response.json()["data"]
-        examples = [
+        examples = tuple(
             Example(
                 id=example["id"],
-                input=example["input"],
-                output=example["output"],
-                metadata=example["metadata"],
+                input=MappingProxyType(cast(Dict[str, Any], example["input"])),
+                output=MappingProxyType(cast(Dict[str, Any], example["output"])),
+                metadata=MappingProxyType(cast(Dict[str, Any], example["metadata"])),
                 updated_at=datetime.fromisoformat(example["updated_at"]),
             )
             for example in data["examples"]
-        ]
+        )
         resolved_dataset_id = data["dataset_id"]
         resolved_version_id = data["version_id"]
         return Dataset(

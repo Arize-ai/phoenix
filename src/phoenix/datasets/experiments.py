@@ -1,38 +1,41 @@
 import asyncio
 import functools
 import json
-from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime
 from itertools import product
 from typing import (
     Any,
+    Awaitable,
     Callable,
-    Coroutine,
     Dict,
     List,
+    Mapping,
     Optional,
     Protocol,
     Tuple,
     Type,
     TypedDict,
+    TypeVar,
     Union,
     cast,
 )
 
 import httpx
 
-from phoenix.config import (
-    get_env_collector_endpoint,
-    get_env_host,
-    get_env_port,
+from phoenix.config import get_env_collector_endpoint, get_env_host, get_env_port
+from phoenix.datasets.decorators import capture_experiment_result
+from phoenix.datasets.types import (
+    Dataset,
+    Example,
+    Experiment,
+    ExperimentResult,
+    TestCase,
 )
 from phoenix.evals.executors import get_executor_on_sync_context
 from phoenix.evals.models.rate_limiters import RateLimiter
 
 JSONSerializable = Union[Dict[str, Any], List[Any], str, int, float, bool, None]
-ExperimentTask = Callable[[JSONSerializable], JSONSerializable]
-AsyncExperimentTask = Callable[[JSONSerializable], Coroutine[Any, Any, JSONSerializable]]
 
 
 class ExampleProtocol(Protocol):
@@ -65,20 +68,7 @@ class DatasetProtocol(Protocol):
     def examples(self) -> List[ExampleProtocol]: ...
 
 
-@dataclass
-class Experiment:
-    id: str
-    dataset_id: str
-    dataset_version_id: str
-
-
-class ExperimentPayload(TypedDict):
-    dataset_example_id: str
-    output: JSONSerializable
-    repetition_number: int
-    start_time: str
-    end_time: str
-    error: Optional[str]
+T = TypeVar("T")
 
 
 class EvaluatorPayload(TypedDict):
@@ -186,27 +176,38 @@ class ContainsKeyword(ExperimentEvaluator):
 
 
 def run_experiment(
-    dataset: DatasetProtocol,
-    task: Union[ExperimentTask, AsyncExperimentTask],
+    dataset: Dataset,
+    fn: Union[Callable[[Example], T], Callable[[Example], Awaitable[T]]],
+    *,
     experiment_name: Optional[str] = None,
     experiment_description: Optional[str] = None,
+    experiment_metadata: Optional[Mapping[str, Any]] = None,
     repetitions: int = 1,
     rate_limit_errors: Optional[Union[Type[BaseException], Tuple[Type[BaseException], ...]]] = None,
+    dry_run: bool = False,
 ) -> Experiment:
     assert repetitions > 0, "Must run the experiment at least once."
 
-    client = _phoenix_client()
-
-    experiment_response = client.post(
-        f"/v1/datasets/{dataset.id}/experiments",
-        json={
-            "version-id": dataset.version_id,
-            "name": experiment_name,
-            "description": experiment_description,
-            "repetitions": repetitions,
-        },
+    experiment = Experiment(
+        dry_run=dry_run,
+        dataset_id=dataset.id,
+        dataset_version_id=dataset.version_id,
+        split=dataset.split,
+        name=experiment_name,
+        description=experiment_description,
+        metadata=experiment_metadata,
+        repetitions=repetitions,
+        test_cases=tuple(
+            TestCase(example=ex, repetition_number=rep)
+            for ex, rep in product(dataset.examples, range(1, repetitions + 1))
+        ),
     )
-    experiment_id = experiment_response.json()["id"]
+
+    def task(tc: TestCase) -> T:
+        def on_finish(result: ExperimentResult) -> None:
+            experiment[tc.id] = result
+
+        return capture_experiment_result(fn, on_finish=on_finish)(tc.example)
 
     errors: Tuple[Optional[Type[BaseException]], ...]
     if not hasattr(rate_limit_errors, "__iter__"):
@@ -217,65 +218,17 @@ def run_experiment(
 
     rate_limiters = [RateLimiter(rate_limit_error=rate_limit_error) for rate_limit_error in errors]
 
-    def sync_run_experiment(experiment_input: Tuple[ExampleProtocol, int]) -> ExperimentPayload:
-        example, repetition_number = experiment_input
-        start_time = datetime.now()
-        output = None
-        error: Optional[Exception] = None
-        try:
-            if asyncio.iscoroutinefunction(task):
-                raise RuntimeError("Task is async but running in sync context")
-            else:
-                output = task(example.input)
-        except Exception as exc:
-            error = exc
-        finally:
-            end_time = datetime.now()
+    def sync_run_experiment(test_case: TestCase) -> T:
+        if asyncio.iscoroutinefunction(task):
+            raise RuntimeError("Task is async but running in sync context")
+        else:
+            return task(test_case)
 
-        assert isinstance(
-            output, (dict, list, str, int, float, bool, type(None))
-        ), "Output must be JSON serializable"
-        experiment_payload = ExperimentPayload(
-            dataset_example_id=example.id,
-            output=output,
-            repetition_number=repetition_number,
-            start_time=start_time.isoformat(),
-            end_time=end_time.isoformat(),
-            error=repr(error) if error else None,
-        )
-
-        return experiment_payload
-
-    async def async_run_experiment(
-        experiment_input: Tuple[ExampleProtocol, int],
-    ) -> ExperimentPayload:
-        example, repetition_number = experiment_input
-        start_time = datetime.now()
-        output = None
-        error = None
-        try:
-            if asyncio.iscoroutinefunction(task):
-                output = await task(example.input)
-            else:
-                output = task(example.input)
-        except Exception as exc:
-            error = exc
-        finally:
-            end_time = datetime.now()
-
-        assert isinstance(
-            output, (dict, list, str, int, float, bool, type(None))
-        ), "Output must be JSON serializable"
-        experiment_payload = ExperimentPayload(
-            dataset_example_id=example.id,
-            output=output,
-            repetition_number=repetition_number,
-            start_time=start_time.isoformat(),
-            end_time=end_time.isoformat(),
-            error=repr(error) if error else None,
-        )
-
-        return experiment_payload
+    async def async_run_experiment(test_case: TestCase) -> T:
+        if asyncio.iscoroutinefunction(task):
+            return await task(test_case)
+        else:
+            return task(test_case)
 
     rate_limited_sync_run_experiment = functools.reduce(
         lambda fn, limiter: limiter.limit(fn), rate_limiters, sync_run_experiment
@@ -292,16 +245,8 @@ def run_experiment(
         fallback_return_value=None,
     )
 
-    inputs = [
-        (deepcopy(ex), rep) for ex, rep in product(dataset.examples, range(1, repetitions + 1))
-    ]
-    experiment_payloads, _execution_details = executor.run(inputs)
-    for payload in experiment_payloads:
-        if payload is not None:
-            client.post(f"/v1/experiments/{experiment_id}/runs", json=payload)
-    return Experiment(
-        id=experiment_id, dataset_id=dataset.id, dataset_version_id=dataset.version_id
-    )
+    executor.run(experiment.test_cases)
+    return experiment
 
 
 def evaluate_experiment(
