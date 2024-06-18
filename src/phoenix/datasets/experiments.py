@@ -1,7 +1,8 @@
 import asyncio
 import functools
+import json
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from itertools import product
 from typing import (
@@ -104,6 +105,13 @@ class EvaluationProtocol(Protocol):
     def metadata(self) -> JSONSerializable: ...
 
 
+@dataclass
+class Evaluation:
+    score: Optional[float] = None
+    explanation: Optional[str] = None
+    metadata: JSONSerializable = field(default_factory=dict)
+
+
 class ExperimentEvaluator(Protocol):
     def __call__(
         self, input: JSONSerializable, reference: JSONSerializable, output: JSONSerializable
@@ -119,6 +127,62 @@ def _phoenix_client() -> httpx.Client:
     base_url = base_url if base_url.endswith("/") else base_url + "/"
     client = httpx.Client(base_url=base_url)
     return client
+
+
+def _unwrap_json(obj: JSONSerializable) -> JSONSerializable:
+    if isinstance(obj, dict):
+        if len(obj) == 1:
+            key = next(iter(obj.keys()))
+            output = obj[key]
+            assert isinstance(
+                output, (dict, list, str, int, float, bool, type(None))
+            ), "Output must be JSON serializable"
+            return output
+    return obj
+
+
+class JSONParsable(ExperimentEvaluator):
+    annotator_kind = "CODE"
+
+    def __call__(
+        self, input: JSONSerializable, reference: JSONSerializable, output: JSONSerializable
+    ) -> Evaluation:
+        output = _unwrap_json(output)
+        assert isinstance(output, str), "Experiment run output must be a string"
+        try:
+            json.loads(output)
+            json_parsable = True
+        except json.JSONDecodeError:
+            json_parsable = False
+
+        return Evaluation(
+            score=float(json_parsable),
+            explanation=None,
+            metadata={},
+        )
+
+
+class ContainsKeyword(ExperimentEvaluator):
+    annotator_kind = "CODE"
+
+    def __init__(self, keyword: str):
+        self.keyword = keyword
+
+    def __call__(
+        self, input: JSONSerializable, reference: JSONSerializable, output: JSONSerializable
+    ) -> Evaluation:
+        output = _unwrap_json(output)
+        assert isinstance(output, str), "Experiment run output must be a string"
+        found = self.keyword in output
+        evaluation = Evaluation(
+            score=float(found),
+            explanation=(
+                f"the string {repr(self.keyword)} was "
+                f"{'found' if found else 'not found'} in the output"
+            ),
+            metadata={},
+        )
+        return evaluation
 
 
 def run_experiment(
