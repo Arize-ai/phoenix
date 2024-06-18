@@ -82,7 +82,25 @@ class Experiment(Node):
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
     ) -> Connection[ExperimentAnnotationSummary]:
-        raise NotImplementedError("Experiment.annotation_summaries not implemented yet")
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        return connection_from_list(
+            [
+                ExperimentAnnotationSummary(
+                    id_attr=1,
+                    annotation_name=summary.annotation_name,
+                    mean_score=summary.mean_score,
+                )
+                for summary in await info.context.data_loaders.experiment_annotation_summaries.load(
+                    self.id_attr
+                )
+            ],
+            args,
+        )
 
 
 def to_gql_experiment(
