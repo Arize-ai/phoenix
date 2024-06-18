@@ -128,6 +128,8 @@ async def test_annotation_summaries_and_names_return_expected_values(
                   id
                   annotationSummaries {
                     annotationName
+                    minScore
+                    maxScore
                     meanScore
                     count
                     errorCount
@@ -166,6 +168,8 @@ async def test_annotation_summaries_and_names_return_expected_values(
                             "annotationSummaries": [
                                 {
                                     "annotationName": "annotation-name-3",
+                                    "minScore": None,
+                                    "maxScore": None,
                                     "meanScore": None,
                                     "count": 4,
                                     "errorCount": 4,
@@ -179,12 +183,16 @@ async def test_annotation_summaries_and_names_return_expected_values(
                             "annotationSummaries": [
                                 {
                                     "annotationName": "annotation-name-1",
+                                    "minScore": 0,
+                                    "maxScore": 1,
                                     "meanScore": 1 / 3,
                                     "count": 6,
                                     "errorCount": 0,
                                 },
                                 {
                                     "annotationName": "annotation-name-2",
+                                    "minScore": 0,
+                                    "maxScore": 1,
                                     "meanScore": 2 / 3,
                                     "count": 4,
                                     "errorCount": 1,

@@ -80,8 +80,9 @@ class Experiment(Node):
         experiment_id = self.id_attr
         return [
             ExperimentAnnotationSummary(
-                experiment_id=experiment_id,
                 annotation_name=summary.annotation_name,
+                min_score=summary.min_score,
+                max_score=summary.max_score,
                 mean_score=summary.mean_score,
                 count=summary.count,
                 error_count=summary.error_count,

@@ -19,6 +19,8 @@ from phoenix.db import models
 @dataclass
 class ExperimentAnnotationSummary:
     annotation_name: str
+    min_score: float
+    max_score: float
     mean_score: float
     count: int
     error_count: int
@@ -45,6 +47,8 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
             async for (
                 experiment_id,
                 annotation_name,
+                min_score,
+                max_score,
                 mean_score,
                 count,
                 error_count,
@@ -52,6 +56,8 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                 select(
                     models.ExperimentRun.experiment_id,
                     models.ExperimentAnnotation.name,
+                    func.min(models.ExperimentAnnotation.score),
+                    func.max(models.ExperimentAnnotation.score),
                     func.avg(models.ExperimentAnnotation.score),
                     func.count(),
                     func.sum(
@@ -71,6 +77,8 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                 summaries[experiment_id].append(
                     ExperimentAnnotationSummary(
                         annotation_name=annotation_name,
+                        min_score=min_score,
+                        max_score=max_score,
                         mean_score=mean_score,
                         count=count,
                         error_count=error_count,
