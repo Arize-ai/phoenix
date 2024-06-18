@@ -23,6 +23,7 @@ from typing import (
 import httpx
 
 from phoenix.config import (
+    get_env_client_headers,
     get_env_collector_endpoint,
     get_env_host,
     get_env_port,
@@ -125,7 +126,8 @@ def _phoenix_client() -> httpx.Client:
     host = get_env_host()
     base_url = get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
     base_url = base_url if base_url.endswith("/") else base_url + "/"
-    client = httpx.Client(base_url=base_url)
+    headers = get_env_client_headers()
+    client = httpx.Client(base_url=base_url, headers=headers)
     return client
 
 
