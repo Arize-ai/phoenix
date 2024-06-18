@@ -70,6 +70,7 @@ async def test_runs_resolver_returns_runs_for_experiment(test_client, dataset_wi
     )
     assert response.status_code == 200
     response_json = response.json()
+    assert response_json.get("errors") is None
     assert response_json["data"] == {
         "experiment": {
             "runs": {
@@ -109,6 +110,98 @@ async def test_runs_resolver_returns_runs_for_experiment(test_client, dataset_wi
                     },
                 ]
             }
+        }
+    }
+
+
+async def test_annotation_summaries_and_names_return_expected_values(
+    test_client, experiments_with_runs_and_annotations
+) -> None:
+    query = """
+      query ($datasetId: GlobalID!) {
+        dataset: node(id: $datasetId) {
+          ... on Dataset {
+            experimentAnnotationNames
+            experiments {
+              edges {
+                experiment: node {
+                  id
+                  annotationSummaries {
+                    annotationName
+                    minScore
+                    maxScore
+                    meanScore
+                    count
+                    errorCount
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+    response = await test_client.post(
+        "/graphql",
+        json={
+            "query": query,
+            "variables": {
+                "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
+            },
+        },
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json.get("errors") is None
+    assert response_json["data"] == {
+        "dataset": {
+            "experimentAnnotationNames": [
+                "annotation-name-1",
+                "annotation-name-2",
+                "annotation-name-3",
+            ],
+            "experiments": {
+                "edges": [
+                    {
+                        "experiment": {
+                            "id": str(GlobalID(type_name="Experiment", node_id=str(2))),
+                            "annotationSummaries": [
+                                {
+                                    "annotationName": "annotation-name-3",
+                                    "minScore": None,
+                                    "maxScore": None,
+                                    "meanScore": None,
+                                    "count": 4,
+                                    "errorCount": 4,
+                                },
+                            ],
+                        }
+                    },
+                    {
+                        "experiment": {
+                            "id": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                            "annotationSummaries": [
+                                {
+                                    "annotationName": "annotation-name-1",
+                                    "minScore": 0,
+                                    "maxScore": 1,
+                                    "meanScore": 1 / 3,
+                                    "count": 6,
+                                    "errorCount": 0,
+                                },
+                                {
+                                    "annotationName": "annotation-name-2",
+                                    "minScore": 0,
+                                    "maxScore": 1,
+                                    "meanScore": 2 / 3,
+                                    "count": 4,
+                                    "errorCount": 1,
+                                },
+                            ],
+                        }
+                    },
+                ]
+            },
         }
     }
 
@@ -239,5 +332,313 @@ async def dataset_with_experiment_runs(session):
             repetition_number=3,
             start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
             end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+        )
+    )
+
+
+@pytest.fixture
+async def experiments_with_runs_and_annotations(session):
+    """
+    Inserts two experiments, each with runs and annotations.
+    """
+    # insert dataset
+    dataset_id = await session.scalar(
+        insert(models.Dataset)
+        .returning(models.Dataset.id)
+        .values(
+            name="dataset-name",
+            description="dataset-description",
+            metadata_={"dataset-metadata-key": "dataset-metadata-value"},
+        )
+    )
+
+    # insert examples
+    example_ids = (
+        await session.scalars(
+            insert(models.DatasetExample)
+            .values(
+                [
+                    {
+                        "dataset_id": dataset_id,
+                        "created_at": datetime(
+                            year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                        ),
+                    }
+                    for _ in range(2)
+                ]
+            )
+            .returning(models.DatasetExample.id)
+        )
+    ).all()
+
+    # insert version
+    version_id = await session.scalar(
+        insert(models.DatasetVersion)
+        .returning(models.DatasetVersion.id)
+        .values(
+            dataset_id=dataset_id,
+            description="version-description",
+            metadata_={},
+        )
+    )
+
+    # insert revisions
+    await session.scalars(
+        insert(models.DatasetExampleRevision)
+        .returning(models.DatasetExampleRevision.id)
+        .values(
+            [
+                {
+                    "dataset_example_id": example_id,
+                    "dataset_version_id": version_id,
+                    "input": {"input": "input"},
+                    "output": {"output": "output"},
+                    "metadata_": {"metadata": "metadata"},
+                    "revision_kind": "CREATE",
+                }
+                for example_id in example_ids
+            ]
+        )
+    )
+
+    # insert experiments
+    experiment_ids = (
+        await session.scalars(
+            insert(models.Experiment)
+            .returning(models.Experiment.id)
+            .values(
+                [
+                    {
+                        "dataset_id": dataset_id,
+                        "dataset_version_id": version_id,
+                        "name": "experiment-name",
+                        "description": "experiment-description",
+                        "repetitions": 1,
+                        "metadata_": {},
+                    }
+                    for _ in range(2)
+                ]
+            )
+        )
+    ).all()
+
+    # insert experiment runs
+    run_ids = (
+        await session.scalars(
+            insert(models.ExperimentRun)
+            .returning(models.ExperimentRun.id)
+            .values(
+                [
+                    {
+                        "experiment_id": experiment_id,
+                        "dataset_example_id": example_id,
+                        "output": {"output-key": "output-value"},
+                        "repetition_number": 1,
+                        "start_time": datetime(
+                            year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                        ),
+                        "end_time": datetime(
+                            year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                        ),
+                    }
+                    for experiment_id in experiment_ids
+                    for example_id in example_ids
+                ]
+            )
+        )
+    ).all()
+
+    # insert experiment annotations
+    await session.scalar(
+        insert(models.ExperimentAnnotation)
+        .returning(models.ExperimentAnnotation.id)
+        .values(
+            [
+                # experiment 1, annotation-name-1 (three repetitions)
+                {
+                    "experiment_run_id": run_ids[0],
+                    "name": "annotation-name-1",
+                    "annotator_kind": "CODE",
+                    "label": "label-1",
+                    "score": 1,
+                    "explanation": "explanation",
+                    "trace_id": None,
+                    "error": None,
+                    "metadata_": {},
+                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                },
+                {
+                    "experiment_run_id": run_ids[0],
+                    "name": "annotation-name-1",
+                    "annotator_kind": "CODE",
+                    "label": "label-0",
+                    "score": 0,
+                    "explanation": "explanation",
+                    "trace_id": None,
+                    "error": None,
+                    "metadata_": {},
+                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                },
+                {
+                    "experiment_run_id": run_ids[0],
+                    "name": "annotation-name-1",
+                    "annotator_kind": "CODE",
+                    "label": "label-1",
+                    "score": 1,
+                    "explanation": "explanation",
+                    "trace_id": None,
+                    "error": None,
+                    "metadata_": {},
+                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                },
+                {
+                    "experiment_run_id": run_ids[1],
+                    "name": "annotation-name-1",
+                    "annotator_kind": "CODE",
+                    "label": "label-0",
+                    "score": 0,
+                    "explanation": "explanation",
+                    "trace_id": None,
+                    "error": None,
+                    "metadata_": {},
+                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                },
+                {
+                    "experiment_run_id": run_ids[1],
+                    "name": "annotation-name-1",
+                    "annotator_kind": "CODE",
+                    "label": "label-0",
+                    "score": 0,
+                    "explanation": "explanation",
+                    "trace_id": None,
+                    "error": None,
+                    "metadata_": {},
+                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                },
+                {
+                    "experiment_run_id": run_ids[1],
+                    "name": "annotation-name-1",
+                    "annotator_kind": "CODE",
+                    "label": "label-0",
+                    "score": 0,
+                    "explanation": "explanation",
+                    "trace_id": None,
+                    "error": None,
+                    "metadata_": {},
+                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                },
+                # experiment 1, annotation-name-2 (two repetitions)
+                {
+                    "experiment_run_id": run_ids[0],
+                    "name": "annotation-name-2",
+                    "annotator_kind": "CODE",
+                    "label": "label-0",
+                    "score": 0,
+                    "explanation": "explanation",
+                    "trace_id": None,
+                    "error": None,
+                    "metadata_": {},
+                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                },
+                {
+                    "experiment_run_id": run_ids[0],
+                    "name": "annotation-name-2",
+                    "annotator_kind": "CODE",
+                    "label": "label-1",
+                    "score": 1,
+                    "explanation": "explanation",
+                    "trace_id": None,
+                    "error": None,
+                    "metadata_": {},
+                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                },
+                {
+                    "experiment_run_id": run_ids[1],
+                    "name": "annotation-name-2",
+                    "annotator_kind": "CODE",
+                    "label": "label-1",
+                    "score": 1,
+                    "explanation": "explanation",
+                    "trace_id": None,
+                    "error": None,
+                    "metadata_": {},
+                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                },
+                {
+                    "experiment_run_id": run_ids[1],
+                    "name": "annotation-name-2",
+                    "annotator_kind": "CODE",
+                    "label": None,
+                    "score": None,
+                    "explanation": None,
+                    "trace_id": None,
+                    "error": "failed",
+                    "metadata_": {},
+                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                },
+                # experiment 2, annotation-name-3 (two repetitions)
+                {
+                    "experiment_run_id": run_ids[2],
+                    "name": "annotation-name-3",
+                    "annotator_kind": "CODE",
+                    "label": None,
+                    "score": None,
+                    "explanation": None,
+                    "trace_id": None,
+                    "error": "failed",
+                    "metadata_": {},
+                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                },
+                {
+                    "experiment_run_id": run_ids[2],
+                    "name": "annotation-name-3",
+                    "annotator_kind": "CODE",
+                    "label": None,
+                    "score": None,
+                    "explanation": None,
+                    "trace_id": None,
+                    "error": "failed",
+                    "metadata_": {},
+                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                },
+                {
+                    "experiment_run_id": run_ids[3],
+                    "name": "annotation-name-3",
+                    "annotator_kind": "CODE",
+                    "label": None,
+                    "score": None,
+                    "explanation": None,
+                    "trace_id": None,
+                    "error": "failed",
+                    "metadata_": {},
+                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                },
+                {
+                    "experiment_run_id": run_ids[3],
+                    "name": "annotation-name-3",
+                    "annotator_kind": "CODE",
+                    "label": None,
+                    "score": None,
+                    "explanation": None,
+                    "trace_id": None,
+                    "error": "failed",
+                    "metadata_": {},
+                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                },
+            ]
         )
     )
