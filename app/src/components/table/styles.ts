@@ -10,7 +10,7 @@ export const tableCSS = (theme: Theme) => css`
   thead {
     position: sticky;
     top: 0;
-    z-index: 2;
+    z-index: 1;
     tr {
       th {
         padding: ${theme.spacing.margin4}px ${theme.spacing.margin16}px;
