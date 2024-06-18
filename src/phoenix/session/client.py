@@ -13,6 +13,7 @@ from typing import (
     Iterable,
     List,
     Literal,
+    Mapping,
     Optional,
     Tuple,
     Union,
@@ -31,6 +32,7 @@ from pyarrow import ArrowInvalid, Table
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.config import (
+    get_env_client_headers,
     get_env_collector_endpoint,
     get_env_host,
     get_env_port,
@@ -53,6 +55,7 @@ class Client(TraceDataExtractor):
         *,
         endpoint: Optional[str] = None,
         warn_if_server_not_running: bool = True,
+        headers: Optional[Mapping[str, str]] = None,
         **kwargs: Any,  # for backward-compatibility
     ):
         """
@@ -61,6 +64,8 @@ class Client(TraceDataExtractor):
         Args:
             endpoint (str, optional): Phoenix server endpoint, e.g. http://localhost:6006. If not
                 provided, the endpoint will be inferred from the environment variables.
+            headers (str, optional): Headers to include in each network request. If not provided,
+                the headers will be inferred from the environment variables or be empty.
         """
         if kwargs.pop("use_active_session_if_available", None) is not None:
             print(
@@ -69,12 +74,13 @@ class Client(TraceDataExtractor):
             )
         if kwargs:
             raise TypeError(f"Unexpected keyword arguments: {', '.join(kwargs)}")
+        headers = headers or get_env_client_headers()
         host = get_env_host()
         if host == "0.0.0.0":
             host = "127.0.0.1"
         base_url = endpoint or get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
         self._base_url = base_url if base_url.endswith("/") else base_url + "/"
-        self._client = httpx.Client()
+        self._client = httpx.Client(headers=headers)
         weakref.finalize(self, self._client.close)
         if warn_if_server_not_running:
             self._warn_if_phoenix_is_not_running()
