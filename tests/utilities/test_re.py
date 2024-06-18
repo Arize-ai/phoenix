@@ -3,7 +3,7 @@ from phoenix.utilities.re import parse_env_headers
 
 
 @pytest.mark.parametrize(
-    "case",
+    "headers, expected, warn",
     [
         # invalid header name
         ("=value", [], True),
@@ -43,8 +43,7 @@ from phoenix.utilities.re import parse_env_headers
         ),
     ],
 )
-def test_get_env_client_headers(case, caplog):
-    headers, expected, warn = case
+def test_get_env_client_headers(headers, expected, warn, caplog):
     assert parse_env_headers(headers) == dict(expected)
     if warn:
         with caplog.at_level(level="WARNING"):
