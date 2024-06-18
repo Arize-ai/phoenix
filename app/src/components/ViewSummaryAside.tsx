@@ -1,15 +1,19 @@
 import React, { PropsWithChildren } from "react";
 
-import { Flex, View } from "@arizeai/components";
+import { Flex, View, ViewProps } from "@arizeai/components";
 
+type ViewSummaryAsideProps = PropsWithChildren<{
+  width?: ViewProps["width"];
+}>;
 /**
  * A summary that's displayed on the right side of a view that shows a summary of the view's content.
  * E.x. a statistic
  */
-export function ViewSummaryAside(props: PropsWithChildren) {
+export function ViewSummaryAside(props: ViewSummaryAsideProps) {
+  const { width = "size-1250" } = props;
   return (
     <View
-      width="size-1250"
+      width={width}
       backgroundColor="light"
       borderStartWidth="thin"
       borderStartColor="dark"
