@@ -1,4 +1,3 @@
-import json
 from datetime import datetime
 from typing import Any, Dict
 
@@ -71,13 +70,12 @@ class DatasetMutationMixin:
         dataset_id = from_global_id_with_expected_type(
             global_id=input.dataset_id, expected_type_name=Dataset.__name__
         )
-        input_metadata = json.loads(input.metadata) if isinstance(input.metadata, str) else None
         patch = {
             column.key: patch_value
             for column, patch_value, column_is_nullable in (
                 (models.Dataset.name, input.name, False),
                 (models.Dataset.description, input.description, True),
-                (models.Dataset.metadata_, input_metadata, False),
+                (models.Dataset.metadata_, input.metadata, False),
             )
             if patch_value is not UNSET and (patch_value is not None or column_is_nullable)
         }
