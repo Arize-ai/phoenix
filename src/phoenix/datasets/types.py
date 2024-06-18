@@ -6,7 +6,6 @@ from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
     Any,
-    Coroutine,
     Dict,
     List,
     Mapping,
@@ -176,19 +175,13 @@ class _HasKind(Protocol):
 
 
 @runtime_checkable
-class CanEvaluate(_HasName, _HasKind, Protocol):
+class ExperimentEvaluator(_HasName, _HasKind, Protocol):
     def evaluate(
         self,
         example: Example,
         experiment_run: ExperimentRun,
-    ) -> Union[
-        EvaluationResult,
-        Coroutine[None, None, EvaluationResult],
-    ]: ...
+    ) -> EvaluationResult: ...
 
-
-@runtime_checkable
-class CanAsyncEvaluate(_HasName, _HasKind, Protocol):
     async def async_evaluate(
         self,
         example: Example,
@@ -196,33 +189,18 @@ class CanAsyncEvaluate(_HasName, _HasKind, Protocol):
     ) -> EvaluationResult: ...
 
 
-ExperimentEvaluator: TypeAlias = Union[CanEvaluate, CanAsyncEvaluate]
-
-# Someday we'll do typing checking in unit tests.
+# Someday we'll do type checking in unit tests.
 if TYPE_CHECKING:
 
-    class _SyncDummy:
+    class _EvaluatorDummy:
         annotator_kind: str
         name: str
 
         def evaluate(self, _: Example, __: ExperimentRun) -> EvaluationResult:
             raise NotImplementedError
 
-    class _AsyncDummy:
-        annotator_kind: str
-        name: str
-
-        async def evaluate(self, _: Example, __: ExperimentRun) -> EvaluationResult:
-            raise NotImplementedError
-
-    class _AsyncDummy2:
-        annotator_kind: str
-        name: str
-
         async def async_evaluate(self, _: Example, __: ExperimentRun) -> EvaluationResult:
             raise NotImplementedError
 
     _: ExperimentEvaluator
-    _ = _SyncDummy()
-    _ = _AsyncDummy()
-    _ = _AsyncDummy2()
+    _ = _EvaluatorDummy()
