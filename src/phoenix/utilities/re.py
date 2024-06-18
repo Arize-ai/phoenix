@@ -1,6 +1,6 @@
 from logging import getLogger
 from re import compile, split
-from typing import Dict, List, Mapping
+from typing import Dict, List
 from urllib.parse import unquote
 
 _logger = getLogger(__name__)
@@ -19,7 +19,7 @@ _HEADER_PATTERN = compile(_KEY_VALUE_FORMAT)
 _DELIMITER_PATTERN = compile(r"[ \t]*,[ \t]*")
 
 
-def parse_env_headers(s: str) -> Mapping[str, str]:
+def parse_env_headers(s: str) -> Dict[str, str]:
     """
     Parse ``s``, which is a ``str`` instance containing HTTP headers encoded
     for use in ENV variables per the W3C Baggage HTTP header format at

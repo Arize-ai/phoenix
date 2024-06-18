@@ -2,7 +2,7 @@ import os
 import tempfile
 from logging import getLogger
 from pathlib import Path
-from typing import List, Mapping, Optional
+from typing import Dict, List, Optional
 
 from .utilities.re import parse_env_headers
 
@@ -227,7 +227,7 @@ def get_env_enable_prometheus() -> bool:
     )
 
 
-def get_env_client_headers() -> Optional[Mapping[str, str]]:
+def get_env_client_headers() -> Optional[Dict[str, str]]:
     if headers_str := os.getenv(ENV_PHOENIX_CLIENT_HEADERS):
         return parse_env_headers(headers_str)
     return None
