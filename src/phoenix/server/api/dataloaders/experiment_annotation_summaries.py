@@ -58,4 +58,7 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                         annotation_name=annotation_name, mean_score=mean_score
                     )
                 )
-        return [summaries[experiment_id] for experiment_id in experiment_ids]
+        return [
+            sorted(summaries[experiment_id], key=lambda summary: summary.annotation_name)
+            for experiment_id in experiment_ids
+        ]

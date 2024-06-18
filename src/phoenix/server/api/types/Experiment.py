@@ -91,8 +91,8 @@ class Experiment(Node):
         experiment_id = self.id_attr
         return connection_from_list(
             [
-                ExperimentAnnotationSummary(
-                    id_attr=1,
+                ExperimentAnnotationSummary.from_fields(
+                    experiment_id=experiment_id,
                     annotation_name=summary.annotation_name,
                     mean_score=summary.mean_score,
                 )

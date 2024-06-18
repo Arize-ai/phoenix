@@ -1,3 +1,4 @@
+from base64 import b64encode
 from datetime import datetime
 from typing import List
 
@@ -114,17 +115,27 @@ async def test_runs_resolver_returns_runs_for_experiment(test_client, dataset_wi
     }
 
 
-async def test_annotation_summaries(test_client, experiments_with_runs_and_annotations) -> None:
+async def test_annotation_summaries_and_experiment_annotation_names(
+    test_client, experiments_with_runs_and_annotations
+) -> None:
     query = """
-      query ($experimentId: GlobalID!) {
-        node(id: $experimentId) {
-          ... on Experiment {
-            annotationSummaries {
+      query ($datasetId: GlobalID!) {
+        dataset: node(id: $datasetId) {
+          ... on Dataset {
+            experimentAnnotationNames
+            experiments {
               edges {
-                annotationSummary: node {
+                experiment: node {
                   id
-                  annotationName
-                  meanScore
+                  annotationSummaries {
+                    edges {
+                      annotationSummary: node {
+                        id
+                        annotationName
+                        meanScore
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -137,14 +148,76 @@ async def test_annotation_summaries(test_client, experiments_with_runs_and_annot
         json={
             "query": query,
             "variables": {
-                "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
             },
         },
     )
     assert response.status_code == 200
     response_json = response.json()
     assert response_json.get("errors") is None
-    assert response_json["data"]
+    assert response_json["data"] == {
+        "dataset": {
+            "experimentAnnotationNames": ["annotation-name-1", "annotation-name-2"],
+            "experiments": {
+                "edges": [
+                    {
+                        "experiment": {
+                            "id": str(GlobalID(type_name="Experiment", node_id=str(2))),
+                            "annotationSummaries": {
+                                "edges": [
+                                    {
+                                        "annotationSummary": {
+                                            "id": b64encode(
+                                                """ExperimentAnnotationSummary:{"annotation_name":"annotation-name-1","experiment_id":2}""".encode()
+                                            ).decode(),
+                                            "annotationName": "annotation-name-1",
+                                            "meanScore": 1 / 3,
+                                        }
+                                    },
+                                    {
+                                        "annotationSummary": {
+                                            "id": b64encode(
+                                                """ExperimentAnnotationSummary:{"annotation_name":"annotation-name-2","experiment_id":2}""".encode()
+                                            ).decode(),
+                                            "annotationName": "annotation-name-2",
+                                            "meanScore": 1 / 2,
+                                        }
+                                    },
+                                ]
+                            },
+                        }
+                    },
+                    {
+                        "experiment": {
+                            "id": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                            "annotationSummaries": {
+                                "edges": [
+                                    {
+                                        "annotationSummary": {
+                                            "id": b64encode(
+                                                """ExperimentAnnotationSummary:{"annotation_name":"annotation-name-1","experiment_id":1}""".encode()
+                                            ).decode(),
+                                            "annotationName": "annotation-name-1",
+                                            "meanScore": 1 / 3,
+                                        }
+                                    },
+                                    {
+                                        "annotationSummary": {
+                                            "id": b64encode(
+                                                """ExperimentAnnotationSummary:{"annotation_name":"annotation-name-2","experiment_id":1}""".encode()
+                                            ).decode(),
+                                            "annotationName": "annotation-name-2",
+                                            "meanScore": 1 / 2,
+                                        }
+                                    },
+                                ]
+                            },
+                        }
+                    },
+                ]
+            },
+        }
+    }
 
 
 @pytest.fixture
