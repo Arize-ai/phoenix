@@ -286,7 +286,7 @@ class Client(TraceDataExtractor):
         if len(records) > 1 or not records[0]:
             raise ValueError(f"Failed to find a single dataset with the given name: {name}")
         dataset = records[0]
-        return cast(str, dataset["id"])
+        return str(dataset["id"])
 
     def get_dataset(
         self,
