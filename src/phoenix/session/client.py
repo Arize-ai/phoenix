@@ -62,10 +62,13 @@ class Client(TraceDataExtractor):
         Client for connecting to a Phoenix server.
 
         Args:
-            endpoint (str, optional): Phoenix server endpoint, e.g. http://localhost:6006. If not
-                provided, the endpoint will be inferred from the environment variables.
-            headers (str, optional): Headers to include in each network request. If not provided,
-                the headers will be inferred from the environment variables or be empty.
+            endpoint (str, optional): Phoenix server endpoint, e.g.
+            http://localhost:6006. If not provided, the endpoint will be
+            inferred from the environment variables.
+
+            headers (Mapping[str, str], optional): Headers to include in each
+            network request. If not provided, the headers will be inferred from
+            the environment variables or be empty.
         """
         if kwargs.pop("use_active_session_if_available", None) is not None:
             print(
