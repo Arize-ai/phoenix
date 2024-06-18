@@ -2,7 +2,9 @@ import os
 import tempfile
 from logging import getLogger
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Mapping, Optional
+
+from .utilities.re import parse_env_headers
 
 logger = getLogger(__name__)
 
@@ -12,6 +14,11 @@ ENV_PHOENIX_GRPC_PORT = "PHOENIX_GRPC_PORT"
 ENV_PHOENIX_HOST = "PHOENIX_HOST"
 ENV_PHOENIX_HOST_ROOT_PATH = "PHOENIX_HOST_ROOT_PATH"
 ENV_NOTEBOOK_ENV = "PHOENIX_NOTEBOOK_ENV"
+ENV_PHOENIX_CLIENT_HEADERS = "PHOENIX_CLIENT_HEADERS"
+"""
+The headers to include in the Phoenix client requests.
+Note: This does not apply to OTEL_EXPORTER_OTLP_HEADERS, which is used for OpenTelemetry.
+"""
 ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
 """
 The endpoint traces and evals are sent to. This must be set if the Phoenix
@@ -217,6 +224,12 @@ def get_env_enable_prometheus() -> bool:
         f"Invalid value for environment variable {ENV_PHOENIX_ENABLE_PROMETHEUS}: "
         f"{enable_promotheus}. Value values are 'TRUE' and 'FALSE' (case-insensitive)."
     )
+
+
+def get_env_client_headers() -> Optional[Mapping[str, str]]:
+    if headers_str := os.getenv(ENV_PHOENIX_CLIENT_HEADERS):
+        return parse_env_headers(headers_str)
+    return None
 
 
 DEFAULT_PROJECT_NAME = "default"
