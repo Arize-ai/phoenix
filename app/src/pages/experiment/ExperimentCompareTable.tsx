@@ -1,5 +1,6 @@
-import React, { ReactNode, useMemo } from "react";
+import React, { ReactNode, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useNavigate } from "react-router";
 import {
   CellContext,
@@ -11,11 +12,27 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { ActionMenu, Flex, Icon, Icons, Item, Text } from "@arizeai/components";
+import {
+  ActionMenu,
+  Card,
+  CardProps,
+  Dialog,
+  DialogContainer,
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  Item,
+  Text,
+  View,
+} from "@arizeai/components";
 
+import { CopyToClipboardButton, ViewSummaryAside } from "@phoenix/components";
+import { JSONBlock } from "@phoenix/components/code";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import { AnnotationLabel } from "@phoenix/components/experiment";
 import { SequenceNumberLabel } from "@phoenix/components/experiment/SequenceNumberLabel";
+import { resizeHandleCSS } from "@phoenix/components/resize";
 import { CompactJSONCell } from "@phoenix/components/table";
 import {
   borderedTableCSS,
@@ -42,6 +59,16 @@ type ExampleCompareTableProps = {
 
 type ExperimentRun =
   ExperimentCompareTableQuery$data["comparisons"][number]["runComparisonItems"][number]["runs"][number];
+
+const defaultCardProps: Partial<CardProps> = {
+  backgroundColor: "light",
+  borderColor: "light",
+  variant: "compact",
+  collapsible: true,
+  bodyStyle: {
+    padding: 0,
+  },
+};
 
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const { datasetId, experimentIds, displayFullText } = props;
@@ -139,6 +166,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     [data]
   );
   type TableRow = (typeof tableData)[number];
+  const [selectedExample, setSelectedExample] = useState<TableRow | null>();
   const baseColumns: ColumnDef<TableRow>[] = [
     {
       header: "input",
@@ -264,7 +292,12 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         ) : (
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id}>
+              <tr
+                key={row.id}
+                onClick={() => {
+                  setSelectedExample(row.original);
+                }}
+              >
                 {row.getVisibleCells().map((cell) => {
                   return (
                     <td
@@ -287,6 +320,196 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           </tbody>
         )}
       </table>
+      <DialogContainer
+        isDismissable
+        type="slideOver"
+        onDismiss={() => {
+          setSelectedExample(null);
+        }}
+      >
+        {selectedExample ? (
+          <Dialog
+            title={`Comparing Experiments for Example: ${selectedExample.id}`}
+            size="fullscreen"
+            extra={
+              <ExperimentRowActionMenu
+                datasetId={datasetId}
+                exampleId={selectedExample.id}
+              />
+            }
+          >
+            <PanelGroup
+              direction="vertical"
+              autoSaveId="example-compare-panel-group"
+            >
+              <Panel defaultSize={100}>
+                <div
+                  css={css`
+                    overflow-y: auto;
+                    height: 100%;
+                  `}
+                >
+                  <View overflow="hidden" padding="size-200">
+                    <Flex direction="row" gap="size-200" flex="1 1 auto">
+                      <View width="50%">
+                        <Card
+                          title="Input"
+                          {...defaultCardProps}
+                          bodyStyle={{
+                            padding: 0,
+                            maxHeight: "300px",
+                            overflowY: "auto",
+                          }}
+                          extra={
+                            <CopyToClipboardButton
+                              text={JSON.stringify(selectedExample.input)}
+                            />
+                          }
+                        >
+                          <JSONBlock
+                            value={JSON.stringify(
+                              selectedExample.input,
+                              null,
+                              2
+                            )}
+                          />
+                        </Card>
+                      </View>
+                      <View width="50%">
+                        <Card
+                          title="Reference Output"
+                          {...defaultCardProps}
+                          extra={
+                            <CopyToClipboardButton
+                              text={JSON.stringify(selectedExample.input)}
+                            />
+                          }
+                          bodyStyle={{
+                            padding: 0,
+                            maxHeight: "300px",
+                            overflowY: "auto",
+                          }}
+                        >
+                          <JSONBlock
+                            value={JSON.stringify(
+                              selectedExample.referenceOutput,
+                              null,
+                              2
+                            )}
+                          />
+                        </Card>
+                      </View>
+                    </Flex>
+                  </View>
+                </div>
+              </Panel>
+              <PanelResizeHandle css={resizeHandleCSS} />
+              <Panel defaultSize={200}>
+                <Flex direction="column" height="100%">
+                  <View
+                    paddingStart="size-200"
+                    paddingEnd="size-200"
+                    paddingTop="size-100"
+                    paddingBottom="size-100"
+                    borderBottomColor="dark"
+                    borderBottomWidth="thin"
+                    flex="none"
+                  >
+                    <Heading level={2}>Experiments</Heading>
+                  </View>
+                  <div
+                    css={css`
+                      overflow-y: auto;
+                      height: 100%;
+                      padding: var(--ac-global-dimension-static-size-200);
+                    `}
+                  >
+                    <ul
+                      css={css`
+                        display: flex;
+                        flex-direction: column;
+                        gap: var(--ac-global-dimension-static-size-200);
+                      `}
+                    >
+                      {selectedExample.runComparisonItems.map((runItem) => {
+                        const experiment =
+                          experimentInfoById[runItem.experimentId];
+                        return (
+                          <li key={runItem.experimentId}>
+                            <Card
+                              {...defaultCardProps}
+                              title={experiment?.name}
+                              titleExtra={
+                                <SequenceNumberLabel
+                                  sequenceNumber={
+                                    experiment?.sequenceNumber || 0
+                                  }
+                                />
+                              }
+                            >
+                              <ul>
+                                {runItem.runs.map((run, index) => (
+                                  <li key={index}>
+                                    <Flex direction="row">
+                                      <View flex>
+                                        {run.error ? (
+                                          <View padding="size-200">
+                                            <RunError error={run.error} />
+                                          </View>
+                                        ) : (
+                                          <JSONBlock
+                                            value={JSON.stringify(
+                                              run.output,
+                                              null,
+                                              2
+                                            )}
+                                          />
+                                        )}
+                                      </View>
+                                      <ViewSummaryAside width="size-3000">
+                                        <RunLatency
+                                          startTime={run.startTime}
+                                          endTime={run.endTime}
+                                        />
+                                        <ul
+                                          css={css`
+                                            margin-top: var(
+                                              --ac-global-dimension-static-size-100
+                                            );
+                                            display: flex;
+                                            flex-direction: column;
+                                            gap: var(
+                                              --ac-global-dimension-static-size-100
+                                            );
+                                          `}
+                                        >
+                                          {run.annotations?.edges.map(
+                                            (edge) => (
+                                              <li key={edge.annotation.id}>
+                                                <AnnotationLabel
+                                                  annotation={edge.annotation}
+                                                />
+                                              </li>
+                                            )
+                                          )}
+                                        </ul>
+                                      </ViewSummaryAside>
+                                    </Flex>
+                                  </li>
+                                ))}
+                              </ul>
+                            </Card>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                </Flex>
+              </Panel>
+            </PanelGroup>
+          </Dialog>
+        ) : null}
+      </DialogContainer>
     </div>
   );
 }
@@ -348,20 +571,8 @@ function ExperimentRunOutput(
 ) {
   const { output, error, startTime, endTime, annotations, displayFullText } =
     props;
-  const latencyMs = useMemo(() => {
-    let latencyMs: number | null = null;
-    if (startTime && endTime) {
-      latencyMs = new Date(endTime).getTime() - new Date(startTime).getTime();
-    }
-    return latencyMs;
-  }, [startTime, endTime]);
   if (error) {
-    return (
-      <Flex direction="row" gap="size-50" alignItems="center">
-        <Icon svg={<Icons.AlertCircleOutline />} color="danger" />
-        <Text color="danger">{error}</Text>
-      </Flex>
-    );
+    return <RunError error={error} />;
   }
   const annotationsList = annotations?.edges.length
     ? annotations.edges.map((edge) => edge.annotation)
@@ -372,9 +583,7 @@ function ExperimentRunOutput(
       <LargeTextWrap>
         <JSONText json={output} space={displayFullText ? 2 : 0} />
       </LargeTextWrap>
-      {typeof latencyMs === "number" ? (
-        <LatencyText latencyMs={latencyMs} />
-      ) : null}
+      <RunLatency startTime={startTime} endTime={endTime} />
       <ul>
         {annotationsList.map((annotation) => (
           <li key={annotation.id}>
@@ -386,6 +595,34 @@ function ExperimentRunOutput(
   );
 }
 
+function RunError({ error }: { error: string }) {
+  return (
+    <Flex direction="row" gap="size-50" alignItems="center">
+      <Icon svg={<Icons.AlertCircleOutline />} color="danger" />
+      <Text color="danger">{error}</Text>
+    </Flex>
+  );
+}
+
+function RunLatency({
+  startTime,
+  endTime,
+}: {
+  startTime: string;
+  endTime: string;
+}) {
+  const latencyMs = useMemo(() => {
+    let latencyMs: number | null = null;
+    if (startTime && endTime) {
+      latencyMs = new Date(endTime).getTime() - new Date(startTime).getTime();
+    }
+    return latencyMs;
+  }, [startTime, endTime]);
+  if (latencyMs === null) {
+    return null;
+  }
+  return <LatencyText latencyMs={latencyMs} />;
+}
 function NotRunText() {
   return (
     <Flex direction="row" gap="size-50">
