@@ -253,9 +253,10 @@ class Dataset(Node):
                         models.ExperimentRun.experiment_id == models.Experiment.id,
                     )
                     .where(models.Experiment.dataset_id == dataset_id)
+                    .order_by(models.ExperimentAnnotation.name.asc())
                 )
             ).all()
-        return sorted(annotation_names)
+        return list(annotation_names)
 
 
 def to_gql_dataset(dataset: models.Dataset) -> Dataset:

@@ -115,7 +115,7 @@ async def test_runs_resolver_returns_runs_for_experiment(test_client, dataset_wi
     }
 
 
-async def test_annotation_summaries_and_experiment_annotation_names(
+async def test_annotation_summaries_and_names_return_expected_values(
     test_client, experiments_with_runs_and_annotations
 ) -> None:
     query = """
