@@ -285,7 +285,7 @@ def test_get_dataset_returns_expected_dataset(
             },
         )
     )
-    dataset = client.get_dataset(dataset_id, version_id=version_id)
+    dataset = client.get_dataset(id=dataset_id, version_id=version_id)
     assert dataset.id == dataset_id
     assert dataset.version_id == str(GlobalID("DatasetVersion", str(1)))
     assert dataset.examples
