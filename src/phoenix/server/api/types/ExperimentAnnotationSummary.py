@@ -1,4 +1,5 @@
 import json
+from typing import ClassVar
 
 import strawberry
 from strawberry.relay import Node
@@ -16,8 +17,8 @@ class ExperimentAnnotationSummary(Node):
     mean_score: float
     experiment_id: strawberry.Private[int]
 
-    _EXPERIMENT_ID: strawberry.Private[str] = "experiment_id"
-    _ANNOTATION_NAME: strawberry.Private[str] = "annotation_name"
+    _EXPERIMENT_ID: ClassVar[str] = "experiment_id"
+    _ANNOTATION_NAME: ClassVar[str] = "annotation_name"
 
     @classmethod
     def resolve_id(
