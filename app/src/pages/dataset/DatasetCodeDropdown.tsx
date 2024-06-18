@@ -16,7 +16,7 @@ import {
 } from "@arizeai/components";
 
 import { CopyToClipboardButton } from "@phoenix/components";
-import { PythonBlock } from "@phoenix/components/code";
+import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
 import { BASE_URL } from "@phoenix/config";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 
@@ -92,21 +92,7 @@ export function DatasetCodeDropdown() {
                   borderWidth="thin"
                   borderRadius="small"
                 >
-                  <div
-                    className="python-code-block"
-                    css={css`
-                      position: relative;
-                      .copy-to-clipboard-button {
-                        position: absolute;
-                        top: var(--ac-global-dimension-size-100);
-                        right: var(--ac-global-dimension-size-100);
-                        z-index: 1;
-                      }
-                    `}
-                  >
-                    <CopyToClipboardButton text={pythonCode} />
-                    <PythonBlock value={pythonCode} />
-                  </div>
+                  <PythonBlockWithCopy value={pythonCode} />
                 </View>
               </TabPane>
               <TabPane name="REST">
