@@ -83,6 +83,8 @@ class Experiment(Node):
                 experiment_id=experiment_id,
                 annotation_name=summary.annotation_name,
                 mean_score=summary.mean_score,
+                count=summary.count,
+                error_count=summary.error_count,
             )
             for summary in await info.context.data_loaders.experiment_annotation_summaries.load(
                 experiment_id

@@ -129,6 +129,8 @@ async def test_annotation_summaries_and_names_return_expected_values(
                   annotationSummaries {
                     annotationName
                     meanScore
+                    count
+                    errorCount
                   }
                 }
               }
@@ -165,6 +167,8 @@ async def test_annotation_summaries_and_names_return_expected_values(
                                 {
                                     "annotationName": "annotation-name-3",
                                     "meanScore": None,
+                                    "count": 4,
+                                    "errorCount": 4,
                                 },
                             ],
                         }
@@ -176,10 +180,14 @@ async def test_annotation_summaries_and_names_return_expected_values(
                                 {
                                     "annotationName": "annotation-name-1",
                                     "meanScore": 1 / 3,
+                                    "count": 6,
+                                    "errorCount": 0,
                                 },
                                 {
                                     "annotationName": "annotation-name-2",
-                                    "meanScore": 1 / 2,
+                                    "meanScore": 2 / 3,
+                                    "count": 4,
+                                    "errorCount": 1,
                                 },
                             ],
                         }
@@ -535,19 +543,6 @@ async def experiments_with_runs_and_annotations(session):
                     "experiment_run_id": run_ids[0],
                     "name": "annotation-name-2",
                     "annotator_kind": "CODE",
-                    "label": "label-0",
-                    "score": 0,
-                    "explanation": "explanation",
-                    "trace_id": None,
-                    "error": None,
-                    "metadata_": {},
-                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                },
-                {
-                    "experiment_run_id": run_ids[1],
-                    "name": "annotation-name-2",
-                    "annotator_kind": "CODE",
                     "label": "label-1",
                     "score": 1,
                     "explanation": "explanation",
@@ -566,6 +561,19 @@ async def experiments_with_runs_and_annotations(session):
                     "explanation": "explanation",
                     "trace_id": None,
                     "error": None,
+                    "metadata_": {},
+                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                },
+                {
+                    "experiment_run_id": run_ids[1],
+                    "name": "annotation-name-2",
+                    "annotator_kind": "CODE",
+                    "label": None,
+                    "score": None,
+                    "explanation": None,
+                    "trace_id": None,
+                    "error": "failed",
                     "metadata_": {},
                     "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
                     "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
@@ -579,7 +587,7 @@ async def experiments_with_runs_and_annotations(session):
                     "score": None,
                     "explanation": None,
                     "trace_id": None,
-                    "error": None,
+                    "error": "failed",
                     "metadata_": {},
                     "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
                     "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
@@ -592,7 +600,7 @@ async def experiments_with_runs_and_annotations(session):
                     "score": None,
                     "explanation": None,
                     "trace_id": None,
-                    "error": None,
+                    "error": "failed",
                     "metadata_": {},
                     "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
                     "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),

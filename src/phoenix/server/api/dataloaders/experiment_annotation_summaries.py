@@ -8,7 +8,7 @@ from typing import (
     Optional,
 )
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias
@@ -20,6 +20,8 @@ from phoenix.db import models
 class ExperimentAnnotationSummary:
     annotation_name: str
     mean_score: float
+    count: int
+    error_count: int
 
 
 ExperimentID: TypeAlias = int
@@ -40,11 +42,24 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
         experiment_ids = keys
         summaries: DefaultDict[ExperimentID, Result] = defaultdict(list)
         async with self._db() as session:
-            async for experiment_id, annotation_name, mean_score in await session.stream(
+            async for (
+                experiment_id,
+                annotation_name,
+                mean_score,
+                count,
+                error_count,
+            ) in await session.stream(
                 select(
                     models.ExperimentRun.experiment_id,
                     models.ExperimentAnnotation.name,
                     func.avg(models.ExperimentAnnotation.score),
+                    func.count(),
+                    func.sum(
+                        case(
+                            (models.ExperimentAnnotation.error.is_(None), 0),
+                            else_=1,
+                        )
+                    ),
                 )
                 .join(
                     models.ExperimentRun,
@@ -55,7 +70,10 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
             ):
                 summaries[experiment_id].append(
                     ExperimentAnnotationSummary(
-                        annotation_name=annotation_name, mean_score=mean_score
+                        annotation_name=annotation_name,
+                        mean_score=mean_score,
+                        count=count,
+                        error_count=error_count,
                     )
                 )
         return [
