@@ -77,6 +77,8 @@
 
 * [Overview: Datasets](datasets-and-testing/overview-datasets.md)
 * [Concepts: Datasets](datasets-and-testing/concepts-datasets.md)
+* [How-to: Datasets](datasets-and-testing/how-to-datasets.md)
+* [Use-Cases: Datasets](datasets-and-testing/use-cases-datasets.md)
 
 ## 🔎 Retrieval
 
