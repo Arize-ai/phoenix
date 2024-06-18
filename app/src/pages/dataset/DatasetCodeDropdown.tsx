@@ -35,7 +35,7 @@ export function DatasetCodeDropdown() {
     return (
       `import phoenix as px\n` +
       `client = px.Client()\n` +
-      `# Get the latest dataset\n` +
+      `# Get the current dataset version\n` +
       `dataset = client.get_dataset(id="${datasetId}"${version ? `, version_id="${version.id}"` : ""})`
     );
   }, [datasetId, version]);
