@@ -586,7 +586,7 @@ type Experiment implements Node {
 
 type ExperimentAnnotationSummary {
   annotationName: String!
-  meanScore: Float!
+  meanScore: Float
 }
 
 type ExperimentComparison {
