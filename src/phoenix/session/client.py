@@ -301,14 +301,15 @@ class Client(TraceDataExtractor):
 
         Args:
 
-            id (Optional[str]): An ID for the dataset. name (Optional[str]): A
-            name for the dataset. If provided, the ID is ignored and the dataset
-            is retrieved by name.
+            id (Optional[str]): An ID for the dataset.
+
+            name (Optional[str]): the name for the dataset. If provided, the ID
+            is ignored and the dataset is retrieved by name.
+
             version_id (Optional[str]): An ID for the version of the dataset, or
             None.
 
         Returns:
-
             A dataset object.
         """
         if name:
