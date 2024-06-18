@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7fe7a8e2024ce649087c3ba9f2a4b9a2>>
+ * @generated SignedSource<<ceec0f3392f199eb0837c7b2c15c8c7c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,6 +15,8 @@ export type datasetLoaderQuery$variables = {
 export type datasetLoaderQuery$data = {
   readonly dataset: {
     readonly description?: string | null;
+    readonly exampleCount?: number;
+    readonly experimentCount?: number;
     readonly id: string;
     readonly latestVersions?: {
       readonly edges: ReadonlyArray<{
@@ -73,6 +75,20 @@ v4 = {
       "storageKey": null
     },
     (v3/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "exampleCount",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "experimentCount",
+      "storageKey": null
+    },
     {
       "alias": "latestVersions",
       "args": [
@@ -186,16 +202,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "fe14f51ed57f59aa46d158f6b7af392c",
+    "cacheID": "5b221627cf7e63f41fbec41027cc0951",
     "id": null,
     "metadata": {},
     "name": "datasetLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      description\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n            description\n            createdAt\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query datasetLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      description\n      exampleCount\n      experimentCount\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n            description\n            createdAt\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5db11d96f7855fc6e625ab3039d36bc4";
+(node as any).hash = "469da2debdebd608c88a6ef83c2540aa";
 
 export default node;
