@@ -12,7 +12,7 @@ import { ExperimentMultiSelector } from "./ExperimentMultiSelector";
 
 export function ExperimentComparePage() {
   const data = useLoaderData() as experimentCompareLoaderQuery$data;
-  // The text of most is too long, so we need to make this optional
+  // The text of most IO is too long so default to showing truncated text
   const [displayFullText, setDisplayFullText] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const experimentIds = searchParams.getAll("experimentId");
