@@ -34,7 +34,7 @@ async def create_experiment(request: Request) -> Response:
 
     payload = await request.json()
     repetitions = payload.get("repetitions", 1)
-    metadata = payload.get("metadata", {})
+    metadata = payload.get("metadata") or {}
     dataset_version_globalid_str = payload.get("version-id")
     if dataset_version_globalid_str is not None:
         try:
