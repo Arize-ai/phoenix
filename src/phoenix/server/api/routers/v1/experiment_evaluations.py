@@ -27,7 +27,7 @@ async def create_experiment_evaluation(request: Request) -> Response:
     score = payload["score"]
     explanation = payload["explanation"]
     error = payload.get("error")
-    metadata = payload.get("metadata", {})
+    metadata = payload.get("metadata") or {}
     start_time = payload["start_time"]
     end_time = payload["end_time"]
     async with request.app.state.db() as session:
