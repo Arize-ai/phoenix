@@ -1,8 +1,8 @@
 from datetime import datetime
-from typing import AsyncIterable, Optional, Tuple, cast
+from typing import AsyncIterable, List, Optional, Tuple, cast
 
 import strawberry
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, distinct, func, select
 from sqlalchemy.sql.functions import count
 from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node, NodeID
@@ -236,6 +236,27 @@ class Dataset(Node):
                 )
             ]
         return connection_from_list(data=experiments, args=args)
+
+    @strawberry.field
+    async def experiment_annotation_names(self, info: Info[Context, None]) -> List[str]:
+        dataset_id = self.id_attr
+        async with info.context.db() as session:
+            annotation_names = (
+                await session.scalars(
+                    select(distinct(models.ExperimentAnnotation.name))
+                    .join(
+                        models.ExperimentRun,
+                        models.ExperimentAnnotation.experiment_run_id == models.ExperimentRun.id,
+                    )
+                    .join(
+                        models.Experiment,
+                        models.ExperimentRun.experiment_id == models.Experiment.id,
+                    )
+                    .where(models.Experiment.dataset_id == dataset_id)
+                    .order_by(models.ExperimentAnnotation.name.asc())
+                )
+            ).all()
+        return list(annotation_names)
 
 
 def to_gql_dataset(dataset: models.Dataset) -> Dataset:

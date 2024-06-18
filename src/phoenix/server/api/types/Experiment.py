@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 import strawberry
 from sqlalchemy import select
@@ -11,6 +11,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnotationSummary
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -71,6 +72,25 @@ class Experiment(Node):
                 )
             ).all()
         return connection_from_list([to_gql_experiment_run(run) for run in runs], args)
+
+    @strawberry.field
+    async def annotation_summaries(
+        self, info: Info[Context, None]
+    ) -> List[ExperimentAnnotationSummary]:
+        experiment_id = self.id_attr
+        return [
+            ExperimentAnnotationSummary(
+                annotation_name=summary.annotation_name,
+                min_score=summary.min_score,
+                max_score=summary.max_score,
+                mean_score=summary.mean_score,
+                count=summary.count,
+                error_count=summary.error_count,
+            )
+            for summary in await info.context.data_loaders.experiment_annotation_summaries.load(
+                experiment_id
+            )
+        ]
 
 
 def to_gql_experiment(
