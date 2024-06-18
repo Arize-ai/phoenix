@@ -258,8 +258,8 @@ export function DatasetsTable(props: DatasetsTableProps) {
                   onClick={() => {
                     const hasExperiments = row.original.experimentCount > 0;
                     const to = hasExperiments
-                      ? `/${row.original.id}/experiments`
-                      : `/${row.original.id}/examples`;
+                      ? `${row.original.id}/experiments`
+                      : `${row.original.id}/examples`;
                     navigate(to);
                   }}
                 >
