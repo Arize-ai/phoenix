@@ -1,8 +1,14 @@
-from dataclasses import dataclass
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 import nest_asyncio
 from phoenix.datasets.experiments import evaluate_experiment, run_experiment
+from phoenix.datasets.types import (
+    Dataset,
+    EvaluationResult,
+    Example,
+    ExperimentRun,
+)
 from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from sqlalchemy import select
@@ -15,46 +21,43 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
     nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
     assert not nonexistent_experiment, "There should be no experiments in the database"
 
-    class TestExample:
-        def __init__(self, id, input):
-            self.id = id
-            self.input = input
+    test_dataset = Dataset(
+        id=str(GlobalID("Dataset", "0")),
+        version_id=str(GlobalID("DatasetVersion", "0")),
+        examples=[
+            Example(
+                id=str(GlobalID("DatasetExample", "0")),
+                input={"input": "fancy input 1"},
+                output={},
+                metadata={},
+                updated_at=datetime.now(timezone.utc),
+            )
+        ],
+    )
 
-    class TestDataset:
-        id = str(GlobalID("Dataset", "0"))
-        version_id = str(GlobalID("DatasetVersion", "0"))
+    class ContainsSubstring:
+        def __init__(self, substring: str):
+            self.substring = substring
 
-        @property
-        def examples(self):
-            example_gid = str(GlobalID("DatasetExample", "0"))
-            return [TestExample(id=example_gid, input="fancy input 1")]
-
-    @dataclass
-    class EvaluationType:
-        score: float
-        explanation: str
-        metadata: dict
-
-    class BasicEvaluator:
-        def __init__(self, contains: str):
-            self.contains = contains
-
-        def __call__(self, input: dict, reference: dict, output: dict) -> EvaluationType:
-            score = float(self.contains in output["output"])
-            evaluation = EvaluationType(
+        def __call__(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+            result = exp_run.output.result
+            score = int(isinstance(result, str) and self.substring in result)
+            return EvaluationResult(
+                name="test",
+                annotator_kind="CODE",
                 score=score,
-                explanation="the string {repr(self.contains)} was in the output",
+                label=None,
+                explanation=f"the substring `{repr(self.substring)}` was in the output",
                 metadata={},
             )
-            return evaluation
 
     with patch("phoenix.datasets.experiments._phoenix_client", return_value=sync_test_client):
 
-        def experiment_task(input):
-            return {"output": "doesn't matter, this is the output"}
+        def experiment_task(example: Example) -> str:
+            return "doesn't matter, this is the output"
 
         experiment = run_experiment(
-            dataset=TestDataset(),
+            dataset=test_dataset,
             task=experiment_task,
             experiment_name="test",
             experiment_description="test description",
@@ -84,9 +87,9 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
         )
         assert len(experiment_runs) == 3, "The experiment was configured to have 3 repetitions"
         for run in experiment_runs:
-            assert run.output == {"output": "doesn't matter, this is the output"}
+            assert run.output == {"result": "doesn't matter, this is the output"}
 
-        evaluate_experiment(experiment, BasicEvaluator(contains="correct"))
+        evaluate_experiment(experiment, ContainsSubstring(substring="correct"))
         for run in experiment_runs:
             evaluations = (
                 (
@@ -103,7 +106,7 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
             evaluation = evaluations[0]
             assert evaluation.score == 0.0
 
-        evaluate_experiment(experiment, BasicEvaluator(contains="doesn't matter"))
+        evaluate_experiment(experiment, ContainsSubstring(substring="doesn't matter"))
         for run in experiment_runs:
             evaluations = (
                 (
