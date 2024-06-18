@@ -352,6 +352,9 @@ async def dataset_with_experiment_runs(session):
 
 @pytest.fixture
 async def experiments_with_runs_and_annotations(session):
+    """
+    Inserts two experiments, each with runs and annotations.
+    """
     # insert dataset
     dataset_id = await session.scalar(
         insert(models.Dataset)

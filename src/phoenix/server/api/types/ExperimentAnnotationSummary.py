@@ -30,7 +30,9 @@ class ExperimentAnnotationSummary(Node):
     @classmethod
     def _encode_node_id(cls, experiment_id: int, annotation_name: str) -> str:
         """
-        Encodes a node ID for an ExperimentAnnotationSummary.
+        Encodes a node ID for an ExperimentAnnotationSummary. This more complex
+        node ID is needed since there is no single number that uniquely
+        identifies an ExperimentAnnotationSummary.
         """
         return json.dumps(
             {
