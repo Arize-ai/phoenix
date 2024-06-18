@@ -6,25 +6,34 @@ from phoenix.utilities.re import parse_env_headers
     "headers, expected, warn",
     [
         # invalid header name
-        ("=value", [], True),
-        ("}key=value", [], True),
-        ("@key()=value", [], True),
-        ("/key=value", [], True),
+        pytest.param("=value", [], True, id="invalid header name 1"),
+        pytest.param("}key=value", [], True, id="invalid header name 2"),
+        pytest.param("@key()=value", [], True, id="invalid header name 3"),
+        pytest.param("/key=value", [], True, id="invalid header name 4"),
         # invalid header value
-        ("name=\\", [], True),
-        ('name=value"', [], True),
-        ("name=;value", [], True),
+        pytest.param("name=\\", [], True, id="invalid header value 1"),
+        pytest.param('name=value"', [], True, id="invalid header value 2"),
+        pytest.param("name=;value", [], True, id="invalid header value 3"),
         # different header values
-        ("name=", [("name", "")], False),
-        ("name===value=", [("name", "==value=")], False),
+        pytest.param("name=", [("name", "")], False, id="different header values 1"),
+        pytest.param(
+            "name===value=", [("name", "==value=")], False, id="different header values 2"
+        ),
         # url-encoded headers
-        ("key=value%20with%20space", [("key", "value with space")], False),
-        ("key%21=value", [("key!", "value")], False),
-        ("%20key%20=%20value%20", [("key", "value")], False),
+        pytest.param(
+            "key=value%20with%20space",
+            [("key", "value with space")],
+            False,
+            id="url-encoded headers 1",
+        ),
+        pytest.param("key%21=value", [("key!", "value")], False, id="url-encoded headers 2"),
+        pytest.param(
+            "%20key%20=%20value%20", [("key", "value")], False, id="url-encoded headers 3"
+        ),
         # header name case normalization
-        ("Key=Value", [("key", "Value")], False),
+        pytest.param("Key=Value", [("key", "Value")], False, id="header name case normalization"),
         # mix of valid and invalid headers
-        (
+        pytest.param(
             "name1=value1,invalidName, name2 =   value2   , name3=value3==",
             [
                 (
@@ -35,11 +44,13 @@ from phoenix.utilities.re import parse_env_headers
                 ("name3", "value3=="),
             ],
             True,
+            id="mix of valid and invalid headers 1",
         ),
-        (
+        pytest.param(
             "=name=valu3; key1; key2, content  =  application, red=\tvelvet; cake",
             [("content", "application")],
             True,
+            id="mix of valid and invalid headers 2",
         ),
     ],
 )
