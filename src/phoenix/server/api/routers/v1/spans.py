@@ -19,7 +19,7 @@ async def query_spans_handler(request: Request) -> Response:
     summary: Query spans using query DSL
     operationId: querySpans
     tags:
-      - spans
+      - private
     parameters:
       - name: project-name
         in: query
