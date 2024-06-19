@@ -165,8 +165,7 @@ class ExperimentEvaluationRun:
 
 
 class _HasName(Protocol):
-    @property
-    def name(self) -> str: ...
+    name: str
 
 
 class _HasKind(Protocol):

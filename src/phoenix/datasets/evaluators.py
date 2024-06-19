@@ -1,6 +1,6 @@
 import json
 import re
-from typing import TYPE_CHECKING, Type
+from typing import TYPE_CHECKING, Optional, Type
 
 from phoenix.datasets.types import (
     EvaluationResult,
@@ -73,7 +73,6 @@ class ContainsKeyword:
 
 class LLMCriteriaEvaluator(ExperimentEvaluator):
     annotator_kind = "LLM"
-    name = "LLMCriteriaEvaluator"
     template = (
         "Determine if the following text is {criteria}. {description}"
         "First, explain step-by-step why you think the text is or is not {criteria}. Then provide "
@@ -91,10 +90,16 @@ class LLMCriteriaEvaluator(ExperimentEvaluator):
     )
     description = "In this context, '{criteria}' means the text '{description}'. "
 
-    def __init__(self, model: LLMBaseModel, criteria: str, description: str):
+    def __init__(
+        self, model: LLMBaseModel, criteria: str, description: str, name: Optional[str] = None
+    ):
         self.model = model
         self.criteria = criteria
         self.description = description
+        if name is not None:
+            self.name = name
+        else:
+            name = "LLMCriteriaEvaluator"
 
     def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
         assert exp_run.output is not None
@@ -157,18 +162,16 @@ class LLMCriteriaEvaluator(ExperimentEvaluator):
 def evaluator_factory(
     class_name: str, criteria: str, description: str
 ) -> Type[ExperimentEvaluator]:
-    evaluator_class = type(
+    return type(
         class_name,
         (LLMCriteriaEvaluator,),
         {
             "__init__": lambda self, model: LLMCriteriaEvaluator.__init__(
-                self, model, criteria, description
+                self, model, criteria, description, name=class_name
             ),
             "__module__": __name__,
         },
     )
-    evaluator_class.name = class_name
-    return evaluator_class
 
 
 LLMConcisenessEvaluator = evaluator_factory(
