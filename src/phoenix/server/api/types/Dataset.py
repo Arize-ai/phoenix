@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import AsyncIterable, List, Optional, Tuple, cast
 
 import strawberry
-from sqlalchemy import and_, case, func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.sql.functions import count
 from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node, NodeID
@@ -250,12 +250,7 @@ class Dataset(Node):
                 func.max(models.ExperimentAnnotation.score),
                 func.avg(models.ExperimentAnnotation.score),
                 func.count(),
-                func.sum(
-                    case(
-                        (models.ExperimentAnnotation.error.is_(None), 0),
-                        else_=1,
-                    )
-                ),
+                func.count(models.ExperimentAnnotation.error),
             )
             .join(
                 models.ExperimentRun,
