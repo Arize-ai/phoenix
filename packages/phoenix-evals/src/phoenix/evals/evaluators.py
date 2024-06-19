@@ -253,6 +253,22 @@ class SummarizationEvaluator(LLMEvaluator):
 
         super().__init__(model=model, template=EvalCriteria.SUMMARIZATION.value)
 
+class SQLEvaluator(LLMEvaluator):
+    """
+    Leverages an LLM to evaluate whether a retrieved SQL query and the corresponding 
+    response is relevant or irrelevant to the corresponding question.
+    """
+
+    def __init__(self, model: BaseModel) -> None:
+        """
+        Initializer for SQLEvaluator.
+
+        Args:
+            model (BaseEvalModel): The LLM model to use for evaluation.
+        """
+
+        super().__init__(model=model, template=EvalCriteria.SQL_GEN_EVAL.value)
+
 
 class MapReducer:
     """
