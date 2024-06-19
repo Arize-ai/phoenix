@@ -172,7 +172,7 @@ class LLMCriteriaEvaluator(ExperimentEvaluator):
 def evaluator_factory(
     class_name: str, criteria: str, description: str
 ) -> Type[ExperimentEvaluator]:
-    evaluator_class = type(
+    return type(
         class_name,
         (LLMCriteriaEvaluator,),
         {
@@ -180,11 +180,10 @@ def evaluator_factory(
                 self, model, criteria, description
             ),
             "__module__": __name__,
+            "name": class_name,
+            "template": LLMCriteriaEvaluator._format_base_template(criteria, description),
         },
     )
-    evaluator_class.name = class_name  # type: ignore
-    evaluator_class.template = evaluator_class._format_base_template(criteria, description)  # type: ignore
-    return evaluator_class
 
 
 LLMConcisenessEvaluator = evaluator_factory(
