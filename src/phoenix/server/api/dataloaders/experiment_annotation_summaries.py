@@ -8,7 +8,7 @@ from typing import (
     Optional,
 )
 
-from sqlalchemy import case, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias
@@ -60,12 +60,7 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                     func.max(models.ExperimentAnnotation.score),
                     func.avg(models.ExperimentAnnotation.score),
                     func.count(),
-                    func.sum(
-                        case(
-                            (models.ExperimentAnnotation.error.is_(None), 0),
-                            else_=1,
-                        )
-                    ),
+                    func.count(models.ExperimentAnnotation.error),
                 )
                 .join(
                     models.ExperimentRun,
