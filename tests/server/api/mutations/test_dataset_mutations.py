@@ -1,4 +1,3 @@
-import json
 import textwrap
 from datetime import datetime
 
@@ -33,7 +32,7 @@ async def test_create_dataset(test_client):
             "variables": {
                 "name": "original-dataset-name",
                 "description": "original-dataset-description",
-                "metadata": json.dumps({"original-metadata-key": "original-metadata-value"}),
+                "metadata": {"original-metadata-key": "original-metadata-value"},
             },
         },
     )
@@ -46,7 +45,7 @@ async def test_create_dataset(test_client):
                 "id": str(GlobalID(type_name="Dataset", node_id=str(1))),
                 "name": "original-dataset-name",
                 "description": "original-dataset-description",
-                "metadata": json.dumps({"original-metadata-key": "original-metadata-value"}),
+                "metadata": {"original-metadata-key": "original-metadata-value"},
             }
         }
     }
@@ -77,7 +76,7 @@ class TestPatchDatasetMutation:
                     "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
                     "name": "patched-dataset-name",
                     "description": "patched-dataset-description",
-                    "metadata": json.dumps({"patched-metadata-key": "patched-metadata-value"}),
+                    "metadata": {"patched-metadata-key": "patched-metadata-value"},
                 },
             },
         )
