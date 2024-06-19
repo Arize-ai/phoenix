@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<423937050b98a402ba99af784354a0be>>
+ * @generated SignedSource<<b7eb05fe40be690647b0148457c746fa>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,9 +11,18 @@
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ExperimentsTableFragment$data = {
+  readonly experimentAnnotationSummaries: ReadonlyArray<{
+    readonly annotationName: string;
+    readonly maxScore: number | null;
+    readonly minScore: number | null;
+  }>;
   readonly experiments: {
     readonly edges: ReadonlyArray<{
       readonly experiment: {
+        readonly annotationSummaries: ReadonlyArray<{
+          readonly annotationName: string;
+          readonly meanScore: number | null;
+        }>;
         readonly createdAt: string;
         readonly description: string | null;
         readonly id: string;
@@ -36,6 +45,13 @@ var v0 = [
   "experiments"
 ],
 v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "annotationName",
+  "storageKey": null
+},
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -87,6 +103,32 @@ return {
   "name": "ExperimentsTableFragment",
   "selections": [
     {
+      "alias": null,
+      "args": null,
+      "concreteType": "ExperimentAnnotationSummary",
+      "kind": "LinkedField",
+      "name": "experimentAnnotationSummaries",
+      "plural": true,
+      "selections": [
+        (v1/*: any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "minScore",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "maxScore",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    },
+    {
       "alias": "experiments",
       "args": null,
       "concreteType": "ExperimentConnection",
@@ -110,7 +152,7 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v1/*: any*/),
+                (v2/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -144,6 +186,25 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "metadata",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "ExperimentAnnotationSummary",
+                  "kind": "LinkedField",
+                  "name": "annotationSummaries",
+                  "plural": true,
+                  "selections": [
+                    (v1/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "meanScore",
+                      "storageKey": null
+                    }
+                  ],
                   "storageKey": null
                 }
               ],
@@ -205,13 +266,13 @@ return {
       ],
       "storageKey": null
     },
-    (v1/*: any*/)
+    (v2/*: any*/)
   ],
   "type": "Dataset",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "ba35e52b64c67fe4a9d57eb5e02742dc";
+(node as any).hash = "41018e1480ad0d5c0fe3534392668207";
 
 export default node;
