@@ -28,6 +28,7 @@ from .evaluators import (
     RelevanceEvaluator,
     SummarizationEvaluator,
     ToxicityEvaluator,
+    SQLEvaluator,
 )
 from .generate import llm_generate
 from .models import (
