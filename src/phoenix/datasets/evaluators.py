@@ -73,7 +73,7 @@ class ContainsKeyword:
 
 class LLMCriteriaEvaluator(ExperimentEvaluator):
     annotator_kind = "LLM"
-    template = (
+    _base_template = (
         "Determine if the following text is {criteria}. {description}"
         "First, explain step-by-step why you think the text is or is not {criteria}. Then provide "
         "a single word label; 'true' if the text is {criteria} or 'false' if the text is not "
@@ -88,14 +88,19 @@ class LLMCriteriaEvaluator(ExperimentEvaluator):
         "TEXT: {text}\n"
         "EXPLANATION: "
     )
-    description = "In this context, '{criteria}' means the text '{description}'. "
+    _description = "In this context, '{criteria}' means the text '{description}'. "
 
     def __init__(
-        self, model: LLMBaseModel, criteria: str, description: str, name: Optional[str] = None
+        self,
+        model: LLMBaseModel,
+        criteria: str,
+        description: Optional[str],
+        name: Optional[str] = None,
     ):
         self.model = model
         self.criteria = criteria
         self.description = description
+        self.template = self._format_base_template(self.criteria, self.description)
         if name is not None:
             self.name = name
         else:
@@ -104,13 +109,7 @@ class LLMCriteriaEvaluator(ExperimentEvaluator):
     def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
         assert exp_run.output is not None
         result = _unwrap_json(exp_run.output.result)
-        formatted_description = self.description.replace("{criteria}", str(result))
-        formatted_description = formatted_description.replace(
-            "{description}", str(self.description)
-        )
-        formatted_template = self.template.replace("{criteria}", str(self.criteria))
-        formatted_template = formatted_template.replace("{description}", str(formatted_description))
-        formatted_template = formatted_template.replace("{text}", str(result))
+        formatted_template = self.template.replace("{text}", str(result))
         unparsed_response = self.model._generate(formatted_template)
         raw_label, explanation = (
             self._parse_label_from_explanation(unparsed_response),
@@ -158,20 +157,34 @@ class LLMCriteriaEvaluator(ExperimentEvaluator):
                 last_index -= 1
         return raw_string
 
+    @classmethod
+    def _format_base_template(cls, criteria: str, description: Optional[str] = None) -> str:
+        if description is not None:
+            formatted_description = cls._description.replace("{criteria}", criteria)
+            formatted_description = formatted_description.replace("{description}", str(description))
+        else:
+            formatted_description = ""
+        formatted_template = cls._base_template.replace("{criteria}", str(criteria))
+        formatted_template = formatted_template.replace("{description}", str(formatted_description))
+        return formatted_template
+
 
 def evaluator_factory(
     class_name: str, criteria: str, description: str
 ) -> Type[ExperimentEvaluator]:
-    return type(
+    evaluator_class = type(
         class_name,
         (LLMCriteriaEvaluator,),
         {
             "__init__": lambda self, model: LLMCriteriaEvaluator.__init__(
-                self, model, criteria, description, name=class_name
+                self, model, criteria, description
             ),
             "__module__": __name__,
         },
     )
+    evaluator_class.name = class_name  # type: ignore
+    evaluator_class.template = evaluator_class._format_base_template(criteria, description)  # type: ignore
+    return evaluator_class
 
 
 LLMConcisenessEvaluator = evaluator_factory(
