@@ -74,7 +74,15 @@ export function ExperimentSelectionToolbar(
         });
       },
     });
-  }, []);
+  }, [
+    deleteExperiments,
+    isPlural,
+    notifyError,
+    notifySuccess,
+    onClearSelection,
+    onExperimentsDeleted,
+    selectedExperiments,
+  ]);
 
   const onClickDelete = useCallback(() => {
     setDialog(

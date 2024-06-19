@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ee2b87661a747fa9fbab00245e8aed02>>
+ * @generated SignedSource<<b1f33b01c4477dc893cdae858d72bb18>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -53,7 +53,14 @@ v3 = {
   "name": "__typename",
   "storageKey": null
 },
-v4 = [
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "annotationName",
+  "storageKey": null
+},
+v5 = [
   {
     "kind": "Literal",
     "name": "first",
@@ -116,7 +123,33 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v4/*: any*/),
+                "args": null,
+                "concreteType": "ExperimentAnnotationSummary",
+                "kind": "LinkedField",
+                "name": "experimentAnnotationSummaries",
+                "plural": true,
+                "selections": [
+                  (v4/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "minScore",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "maxScore",
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": (v5/*: any*/),
                 "concreteType": "ExperimentConnection",
                 "kind": "LinkedField",
                 "name": "experiments",
@@ -172,6 +205,25 @@ return {
                             "args": null,
                             "kind": "ScalarField",
                             "name": "metadata",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "ExperimentAnnotationSummary",
+                            "kind": "LinkedField",
+                            "name": "annotationSummaries",
+                            "plural": true,
+                            "selections": [
+                              (v4/*: any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "meanScore",
+                                "storageKey": null
+                              }
+                            ],
                             "storageKey": null
                           }
                         ],
@@ -229,7 +281,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v4/*: any*/),
+                "args": (v5/*: any*/),
                 "filters": null,
                 "handle": "connection",
                 "key": "ExperimentsTable_experiments",
@@ -246,12 +298,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "feb3e8336b482556477935a785addc14",
+    "cacheID": "8b42b7d0b14d76b5b002dacfc70fc345",
     "id": null,
     "metadata": {},
     "name": "experimentsLoaderQuery",
     "operationKind": "query",
-    "text": "query experimentsLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      ...ExperimentsTableFragment\n    }\n  }\n}\n\nfragment ExperimentsTableFragment on Dataset {\n  experiments(first: 100) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        createdAt\n        metadata\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query experimentsLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      ...ExperimentsTableFragment\n    }\n  }\n}\n\nfragment ExperimentsTableFragment on Dataset {\n  experimentAnnotationSummaries {\n    annotationName\n    minScore\n    maxScore\n  }\n  experiments(first: 100) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        createdAt\n        metadata\n        annotationSummaries {\n          annotationName\n          meanScore\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
