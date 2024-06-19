@@ -114,21 +114,13 @@ async def test_runs_resolver_returns_runs_for_experiment(test_client, dataset_wi
     }
 
 
-async def test_annotation_summaries_and_names_return_expected_values(
+async def test_experiment_annotation_summaries_and_names_return_expected_values(
     test_client, experiments_with_runs_and_annotations
 ) -> None:
     query = """
       query ($datasetId: GlobalID!) {
         dataset: node(id: $datasetId) {
           ... on Dataset {
-            experimentAnnotationSummaries {
-              annotationName
-              minScore
-              maxScore
-              meanScore
-              count
-              errorCount
-            }
             experiments {
               edges {
                 experiment: node {
@@ -143,6 +135,85 @@ async def test_annotation_summaries_and_names_return_expected_values(
                   }
                 }
               }
+            }
+          }
+        }
+      }
+    """
+    response = await test_client.post(
+        "/graphql",
+        json={
+            "query": query,
+            "variables": {
+                "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
+            },
+        },
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json.get("errors") is None
+    assert response_json["data"] == {
+        "dataset": {
+            "experiments": {
+                "edges": [
+                    {
+                        "experiment": {
+                            "id": str(GlobalID(type_name="Experiment", node_id=str(2))),
+                            "annotationSummaries": [
+                                {
+                                    "annotationName": "annotation-name-3",
+                                    "minScore": None,
+                                    "maxScore": None,
+                                    "meanScore": None,
+                                    "count": 4,
+                                    "errorCount": 4,
+                                },
+                            ],
+                        }
+                    },
+                    {
+                        "experiment": {
+                            "id": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                            "annotationSummaries": [
+                                {
+                                    "annotationName": "annotation-name-1",
+                                    "minScore": 0,
+                                    "maxScore": 1,
+                                    "meanScore": 1 / 3,
+                                    "count": 6,
+                                    "errorCount": 0,
+                                },
+                                {
+                                    "annotationName": "annotation-name-2",
+                                    "minScore": 0,
+                                    "maxScore": 1,
+                                    "meanScore": 2 / 3,
+                                    "count": 4,
+                                    "errorCount": 1,
+                                },
+                            ],
+                        }
+                    },
+                ]
+            },
+        }
+    }
+
+
+async def test_dataset_annotation_summaries_and_names_return_expected_values(
+    test_client, experiments_with_runs_and_annotations
+) -> None:
+    query = """
+      query ($datasetId: GlobalID!) {
+        dataset: node(id: $datasetId) {
+          ... on Dataset {
+            experimentAnnotationSummaries {
+              annotationName
+              minScore
+              maxScore
+              meanScore
+              count
+              errorCount
             }
           }
         }
@@ -188,48 +259,6 @@ async def test_annotation_summaries_and_names_return_expected_values(
                     "errorCount": 4,
                 },
             ],
-            "experiments": {
-                "edges": [
-                    {
-                        "experiment": {
-                            "id": str(GlobalID(type_name="Experiment", node_id=str(2))),
-                            "annotationSummaries": [
-                                {
-                                    "annotationName": "annotation-name-3",
-                                    "minScore": None,
-                                    "maxScore": None,
-                                    "meanScore": None,
-                                    "count": 4,
-                                    "errorCount": 4,
-                                },
-                            ],
-                        }
-                    },
-                    {
-                        "experiment": {
-                            "id": str(GlobalID(type_name="Experiment", node_id=str(1))),
-                            "annotationSummaries": [
-                                {
-                                    "annotationName": "annotation-name-1",
-                                    "minScore": 0,
-                                    "maxScore": 1,
-                                    "meanScore": 1 / 3,
-                                    "count": 6,
-                                    "errorCount": 0,
-                                },
-                                {
-                                    "annotationName": "annotation-name-2",
-                                    "minScore": 0,
-                                    "maxScore": 1,
-                                    "meanScore": 2 / 3,
-                                    "count": 4,
-                                    "errorCount": 1,
-                                },
-                            ],
-                        }
-                    },
-                ]
-            },
         }
     }
 
