@@ -400,7 +400,7 @@ paths:
           description: Not found
       summary: Get evaluations from Phoenix
       tags:
-      - evaluations
+      - private
     post:
       operationId: addEvaluations
       parameters:
@@ -433,7 +433,7 @@ paths:
           description: Request body is invalid
       summary: Add evaluations to a span, trace, or document
       tags:
-      - evaluations
+      - private
   /v1/spans:
     post:
       operationId: querySpans
@@ -493,7 +493,7 @@ paths:
           description: Request body is invalid
       summary: Query spans using query DSL
       tags:
-      - spans
+      - private
   /v1/traces:
     post:
       operationId: addTraces
@@ -515,5 +515,5 @@ paths:
           description: Request body is invalid
       summary: Send traces to Phoenix
       tags:
-      - traces
+      - private
 

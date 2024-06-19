@@ -43,6 +43,9 @@ def get_swagger_ui_html(
     <div id="swagger-ui">
     </div>
     <script src="{swagger_js_url}"></script>
+    <style type="text/css">
+    div[id^="operations-private"]{{display:none}} #operations-tag-private{{display:none}}
+    </style>
     <!-- `SwaggerUIBundle` is now available on the page -->
     <script>
     const ui = SwaggerUIBundle({{

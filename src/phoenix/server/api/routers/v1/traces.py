@@ -24,7 +24,7 @@ async def post_traces(request: Request) -> Response:
     summary: Send traces to Phoenix
     operationId: addTraces
     tags:
-      - traces
+      - private
     requestBody:
       required: true
       content:

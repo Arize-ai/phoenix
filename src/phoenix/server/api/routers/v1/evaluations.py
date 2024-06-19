@@ -44,7 +44,7 @@ async def post_evaluations(request: Request) -> Response:
     summary: Add evaluations to a span, trace, or document
     operationId: addEvaluations
     tags:
-      - evaluations
+      - private
     parameters:
       - name: project-name
         in: query
@@ -105,7 +105,7 @@ async def get_evaluations(request: Request) -> Response:
     summary: Get evaluations from Phoenix
     operationId: getEvaluation
     tags:
-      - evaluations
+      - private
     parameters:
       - name: project-name
         in: query
