@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import AsyncIterable, List, Optional, Tuple, cast
 
 import strawberry
-from sqlalchemy import and_, distinct, func, select
+from sqlalchemy import and_, case, func, select
 from sqlalchemy.sql.functions import count
 from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node, NodeID
@@ -15,6 +15,7 @@ from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
+from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnotationSummary
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -238,25 +239,56 @@ class Dataset(Node):
         return connection_from_list(data=experiments, args=args)
 
     @strawberry.field
-    async def experiment_annotation_names(self, info: Info[Context, None]) -> List[str]:
+    async def experiment_annotation_summaries(
+        self, info: Info[Context, None]
+    ) -> List[ExperimentAnnotationSummary]:
         dataset_id = self.id_attr
+        summaries = []
         async with info.context.db() as session:
-            annotation_names = (
-                await session.scalars(
-                    select(distinct(models.ExperimentAnnotation.name))
-                    .join(
-                        models.ExperimentRun,
-                        models.ExperimentAnnotation.experiment_run_id == models.ExperimentRun.id,
-                    )
-                    .join(
-                        models.Experiment,
-                        models.ExperimentRun.experiment_id == models.Experiment.id,
-                    )
-                    .where(models.Experiment.dataset_id == dataset_id)
-                    .order_by(models.ExperimentAnnotation.name.asc())
+            async for (
+                annotation_name,
+                min_score,
+                max_score,
+                mean_score,
+                count_,
+                error_count,
+            ) in await session.stream(
+                select(
+                    models.ExperimentAnnotation.name,
+                    func.min(models.ExperimentAnnotation.score),
+                    func.max(models.ExperimentAnnotation.score),
+                    func.avg(models.ExperimentAnnotation.score),
+                    func.count(),
+                    func.sum(
+                        case(
+                            (models.ExperimentAnnotation.error.is_(None), 0),
+                            else_=1,
+                        )
+                    ),
                 )
-            ).all()
-        return list(annotation_names)
+                .join(
+                    models.ExperimentRun,
+                    models.ExperimentAnnotation.experiment_run_id == models.ExperimentRun.id,
+                )
+                .join(
+                    models.Experiment,
+                    models.ExperimentRun.experiment_id == models.Experiment.id,
+                )
+                .where(models.Experiment.dataset_id == dataset_id)
+                .group_by(models.ExperimentAnnotation.name)
+                .order_by(models.ExperimentAnnotation.name)
+            ):
+                summaries.append(
+                    ExperimentAnnotationSummary(
+                        annotation_name=annotation_name,
+                        min_score=min_score,
+                        max_score=max_score,
+                        mean_score=mean_score,
+                        count=count_,
+                        error_count=error_count,
+                    )
+                )
+        return summaries
 
 
 def to_gql_dataset(dataset: models.Dataset) -> Dataset:

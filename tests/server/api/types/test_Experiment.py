@@ -121,7 +121,14 @@ async def test_annotation_summaries_and_names_return_expected_values(
       query ($datasetId: GlobalID!) {
         dataset: node(id: $datasetId) {
           ... on Dataset {
-            experimentAnnotationNames
+            experimentAnnotationSummaries {
+              annotationName
+              minScore
+              maxScore
+              meanScore
+              count
+              errorCount
+            }
             experiments {
               edges {
                 experiment: node {
@@ -155,10 +162,31 @@ async def test_annotation_summaries_and_names_return_expected_values(
     assert response_json.get("errors") is None
     assert response_json["data"] == {
         "dataset": {
-            "experimentAnnotationNames": [
-                "annotation-name-1",
-                "annotation-name-2",
-                "annotation-name-3",
+            "experimentAnnotationSummaries": [
+                {
+                    "annotationName": "annotation-name-1",
+                    "minScore": 0,
+                    "maxScore": 1,
+                    "meanScore": 1 / 3,
+                    "count": 6,
+                    "errorCount": 0,
+                },
+                {
+                    "annotationName": "annotation-name-2",
+                    "minScore": 0,
+                    "maxScore": 1,
+                    "meanScore": 2 / 3,
+                    "count": 4,
+                    "errorCount": 1,
+                },
+                {
+                    "annotationName": "annotation-name-3",
+                    "minScore": None,
+                    "maxScore": None,
+                    "meanScore": None,
+                    "count": 4,
+                    "errorCount": 4,
+                },
             ],
             "experiments": {
                 "edges": [
