@@ -85,7 +85,6 @@ async def create_experiment(request: Request) -> Response:
 
         # generate a semi-unique name for the experiment
         experiment_name = payload.get("name") or _generate_experiment_name(dataset_name)
-        print(f"Creating experiment with name: {experiment_name}")
         experiment = models.Experiment(
             dataset_id=int(dataset_id),
             dataset_version_id=int(dataset_version_id),
