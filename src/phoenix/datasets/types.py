@@ -30,11 +30,6 @@ TraceId: TypeAlias = str
 
 @dataclass(frozen=True)
 class Example:
-    """
-    Contains input, output, metadata, and other information for a dataset
-    example.
-    """
-
     id: ExampleId
     updated_at: datetime
     input: Mapping[str, JSONSerializable]
@@ -54,10 +49,6 @@ class Example:
 
 @dataclass(frozen=True)
 class Dataset:
-    """
-    Contains dataset metadata and examples.
-    """
-
     id: DatasetId
     version_id: DatasetVersionId
     examples: Sequence[Example]
