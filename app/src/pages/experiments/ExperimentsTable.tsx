@@ -10,14 +10,16 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex } from "@arizeai/components";
+import { Flex, Text } from "@arizeai/components";
 
+import { AnnotationColorSwatch } from "@phoenix/components/experiment";
 import { SequenceNumberLabel } from "@phoenix/components/experiment/SequenceNumberLabel";
 import { Link } from "@phoenix/components/Link";
 import { CompactJSONCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
+import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { experimentsLoaderQuery$data } from "./__generated__/experimentsLoaderQuery.graphql";
 import type { ExperimentsTableFragment$key } from "./__generated__/ExperimentsTableFragment.graphql";
@@ -61,6 +63,7 @@ export function ExperimentsTable({
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 100 }
         ) {
+          experimentAnnotationNames
           experiments(first: $first, after: $after)
             @connection(key: "ExperimentsTable_experiments") {
             edges {
@@ -71,6 +74,10 @@ export function ExperimentsTable({
                 description
                 createdAt
                 metadata
+                annotationSummaries {
+                  annotationName
+                  meanScore
+                }
               }
             }
           }
@@ -82,12 +89,25 @@ export function ExperimentsTable({
   const tableData = useMemo(
     () =>
       data.experiments.edges.map((edge) => {
-        return edge.experiment;
+        const annotationSummaryMap = edge.experiment.annotationSummaries.reduce(
+          (acc, summary) => {
+            acc[summary.annotationName] = summary;
+            return acc;
+          },
+          {} as Record<
+            string,
+            { annotationName: string; meanScore: number | null } | undefined
+          >
+        );
+        return {
+          ...edge.experiment,
+          annotationSummaryMap,
+        };
       }),
     [data]
   );
   type TableRow = (typeof tableData)[number];
-  const columns: ColumnDef<TableRow>[] = [
+  const baseColumns: ColumnDef<TableRow>[] = [
     {
       id: "select",
       header: ({ table }) => (
@@ -144,8 +164,27 @@ export function ExperimentsTable({
       cell: CompactJSONCell,
     },
   ];
+  const annotationColumns: ColumnDef<TableRow>[] =
+    data.experimentAnnotationNames.map((annotationName) => {
+      return {
+        header: () => (
+          <Flex direction="row" gap="size-100" wrap alignItems="center">
+            <AnnotationColorSwatch annotationName={annotationName} />
+            <Text>{annotationName}</Text>
+          </Flex>
+        ),
+        id: `annotation-${annotationName}`,
+        cell: ({ row }) => {
+          const annotation = row.original.annotationSummaryMap[annotationName];
+          if (!annotation || annotation.meanScore == null) {
+            return "--";
+          }
+          return floatFormatter(annotation.meanScore);
+        },
+      };
+    });
   const table = useReactTable<TableRow>({
-    columns,
+    columns: [...baseColumns, ...annotationColumns],
     data: tableData,
     getCoreRowModel: getCoreRowModel(),
     state: {

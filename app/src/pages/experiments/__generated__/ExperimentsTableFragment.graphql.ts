@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<423937050b98a402ba99af784354a0be>>
+ * @generated SignedSource<<231df1543d719095dc7ef86f4b26877c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,9 +11,14 @@
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ExperimentsTableFragment$data = {
+  readonly experimentAnnotationNames: ReadonlyArray<string>;
   readonly experiments: {
     readonly edges: ReadonlyArray<{
       readonly experiment: {
+        readonly annotationSummaries: ReadonlyArray<{
+          readonly annotationName: string;
+          readonly meanScore: number | null;
+        }>;
         readonly createdAt: string;
         readonly description: string | null;
         readonly id: string;
@@ -87,6 +92,13 @@ return {
   "name": "ExperimentsTableFragment",
   "selections": [
     {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "experimentAnnotationNames",
+      "storageKey": null
+    },
+    {
       "alias": "experiments",
       "args": null,
       "concreteType": "ExperimentConnection",
@@ -144,6 +156,31 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "metadata",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "ExperimentAnnotationSummary",
+                  "kind": "LinkedField",
+                  "name": "annotationSummaries",
+                  "plural": true,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "annotationName",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "meanScore",
+                      "storageKey": null
+                    }
+                  ],
                   "storageKey": null
                 }
               ],
@@ -212,6 +249,6 @@ return {
 };
 })();
 
-(node as any).hash = "ba35e52b64c67fe4a9d57eb5e02742dc";
+(node as any).hash = "fd1a55492f95584d2c6de7d5e82830bb";
 
 export default node;
