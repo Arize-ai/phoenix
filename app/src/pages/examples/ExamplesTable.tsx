@@ -16,6 +16,7 @@ import {
 import { css } from "@emotion/react";
 
 import { Link } from "@phoenix/components/Link";
+import { CompactJSONCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
@@ -85,9 +86,9 @@ export function ExamplesTable({
         const revision = example.revision;
         return {
           id: example.id,
-          input: JSON.stringify(revision.input),
-          output: JSON.stringify(revision.output),
-          metadata: JSON.stringify(revision.metadata),
+          input: revision.input,
+          output: revision.output,
+          metadata: revision.metadata,
         };
       }),
     [data]
@@ -127,17 +128,17 @@ export function ExamplesTable({
     {
       header: "input",
       accessorKey: "input",
-      cell: TextCell,
+      cell: CompactJSONCell,
     },
     {
       header: "output",
       accessorKey: "output",
-      cell: TextCell,
+      cell: CompactJSONCell,
     },
     {
       header: "metadata",
       accessorKey: "metadata",
-      cell: TextCell,
+      cell: CompactJSONCell,
     },
   ];
   const table = useReactTable<TableRow>({
