@@ -243,52 +243,51 @@ class Dataset(Node):
         self, info: Info[Context, None]
     ) -> List[ExperimentAnnotationSummary]:
         dataset_id = self.id_attr
-        summaries = []
-        async with info.context.db() as session:
-            async for (
-                annotation_name,
-                min_score,
-                max_score,
-                mean_score,
-                count_,
-                error_count,
-            ) in await session.stream(
-                select(
-                    models.ExperimentAnnotation.name,
-                    func.min(models.ExperimentAnnotation.score),
-                    func.max(models.ExperimentAnnotation.score),
-                    func.avg(models.ExperimentAnnotation.score),
-                    func.count(),
-                    func.sum(
-                        case(
-                            (models.ExperimentAnnotation.error.is_(None), 0),
-                            else_=1,
-                        )
-                    ),
-                )
-                .join(
-                    models.ExperimentRun,
-                    models.ExperimentAnnotation.experiment_run_id == models.ExperimentRun.id,
-                )
-                .join(
-                    models.Experiment,
-                    models.ExperimentRun.experiment_id == models.Experiment.id,
-                )
-                .where(models.Experiment.dataset_id == dataset_id)
-                .group_by(models.ExperimentAnnotation.name)
-                .order_by(models.ExperimentAnnotation.name)
-            ):
-                summaries.append(
-                    ExperimentAnnotationSummary(
-                        annotation_name=annotation_name,
-                        min_score=min_score,
-                        max_score=max_score,
-                        mean_score=mean_score,
-                        count=count_,
-                        error_count=error_count,
+        query = (
+            select(
+                models.ExperimentAnnotation.name,
+                func.min(models.ExperimentAnnotation.score),
+                func.max(models.ExperimentAnnotation.score),
+                func.avg(models.ExperimentAnnotation.score),
+                func.count(),
+                func.sum(
+                    case(
+                        (models.ExperimentAnnotation.error.is_(None), 0),
+                        else_=1,
                     )
+                ),
+            )
+            .join(
+                models.ExperimentRun,
+                models.ExperimentAnnotation.experiment_run_id == models.ExperimentRun.id,
+            )
+            .join(
+                models.Experiment,
+                models.ExperimentRun.experiment_id == models.Experiment.id,
+            )
+            .where(models.Experiment.dataset_id == dataset_id)
+            .group_by(models.ExperimentAnnotation.name)
+            .order_by(models.ExperimentAnnotation.name)
+        )
+        async with info.context.db() as session:
+            return [
+                ExperimentAnnotationSummary(
+                    annotation_name=annotation_name,
+                    min_score=min_score,
+                    max_score=max_score,
+                    mean_score=mean_score,
+                    count=count_,
+                    error_count=error_count,
                 )
-        return summaries
+                async for (
+                    annotation_name,
+                    min_score,
+                    max_score,
+                    mean_score,
+                    count_,
+                    error_count,
+                ) in await session.stream(query)
+            ]
 
 
 def to_gql_dataset(dataset: models.Dataset) -> Dataset:
