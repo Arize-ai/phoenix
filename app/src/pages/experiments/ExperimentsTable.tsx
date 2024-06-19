@@ -1,7 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
-// import { useNavigate } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -10,14 +9,29 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex } from "@arizeai/components";
+import {
+  Flex,
+  Heading,
+  HelpTooltip,
+  ProgressBar,
+  Text,
+  TooltipTrigger,
+  TriggerWrap,
+  View,
+} from "@arizeai/components";
 
+import { AnnotationColorSwatch } from "@phoenix/components/experiment";
 import { SequenceNumberLabel } from "@phoenix/components/experiment/SequenceNumberLabel";
 import { Link } from "@phoenix/components/Link";
 import { CompactJSONCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
+import { useWordColor } from "@phoenix/hooks/useWordColor";
+import {
+  floatFormatter,
+  formatPercent,
+} from "@phoenix/utils/numberFormatUtils";
 
 import { experimentsLoaderQuery$data } from "./__generated__/experimentsLoaderQuery.graphql";
 import type { ExperimentsTableFragment$key } from "./__generated__/ExperimentsTableFragment.graphql";
@@ -61,6 +75,11 @@ export function ExperimentsTable({
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 100 }
         ) {
+          experimentAnnotationSummaries {
+            annotationName
+            minScore
+            maxScore
+          }
           experiments(first: $first, after: $after)
             @connection(key: "ExperimentsTable_experiments") {
             edges {
@@ -71,6 +90,10 @@ export function ExperimentsTable({
                 description
                 createdAt
                 metadata
+                annotationSummaries {
+                  annotationName
+                  meanScore
+                }
               }
             }
           }
@@ -82,12 +105,25 @@ export function ExperimentsTable({
   const tableData = useMemo(
     () =>
       data.experiments.edges.map((edge) => {
-        return edge.experiment;
+        const annotationSummaryMap = edge.experiment.annotationSummaries.reduce(
+          (acc, summary) => {
+            acc[summary.annotationName] = summary;
+            return acc;
+          },
+          {} as Record<
+            string,
+            { annotationName: string; meanScore: number | null } | undefined
+          >
+        );
+        return {
+          ...edge.experiment,
+          annotationSummaryMap,
+        };
       }),
     [data]
   );
   type TableRow = (typeof tableData)[number];
-  const columns: ColumnDef<TableRow>[] = [
+  const baseColumns: ColumnDef<TableRow>[] = [
     {
       id: "select",
       header: ({ table }) => (
@@ -144,8 +180,43 @@ export function ExperimentsTable({
       cell: CompactJSONCell,
     },
   ];
+  const annotationColumns: ColumnDef<TableRow>[] =
+    data.experimentAnnotationSummaries.map((annotationSummary) => {
+      const { annotationName, minScore, maxScore } = annotationSummary;
+      return {
+        header: () => (
+          <Flex direction="row" gap="size-100" wrap alignItems="center">
+            <AnnotationColorSwatch annotationName={annotationName} />
+            <Text>{annotationName}</Text>
+          </Flex>
+        ),
+        id: `annotation-${annotationName}`,
+        cell: ({ row }) => {
+          const annotation = row.original.annotationSummaryMap[annotationName];
+          if (!annotation || annotation.meanScore == null) {
+            return (
+              <span
+                css={css`
+                  float: right;
+                `}
+              >
+                --
+              </span>
+            );
+          }
+          return (
+            <AnnotationAggregationCell
+              annotationName={annotationName}
+              value={annotation.meanScore}
+              min={minScore}
+              max={maxScore}
+            />
+          );
+        },
+      };
+    });
   const table = useReactTable<TableRow>({
-    columns,
+    columns: [...baseColumns, ...annotationColumns],
     data: tableData,
     getCoreRowModel: getCoreRowModel(),
     state: {
@@ -244,5 +315,82 @@ export function ExperimentsTable({
         />
       ) : null}
     </div>
+  );
+}
+
+function AnnotationAggregationCell({
+  annotationName,
+  value,
+  min,
+  max,
+}: {
+  annotationName: string;
+  value: number;
+  min?: number | null;
+  max?: number | null;
+}) {
+  min = typeof min === "number" ? min : 0;
+  max = typeof max === "number" ? max : 1;
+  const color = useWordColor(annotationName);
+  const percentile = useMemo(() => {
+    // Avoid division by zero
+    const range = max - min || 1;
+    return ((value - min) / range) * 100;
+  }, [value, min, max]);
+  return (
+    <TooltipTrigger>
+      <TriggerWrap>
+        <div
+          css={css`
+            float: right;
+            --mod-barloader-fill-color: ${color};
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: var(--ac-global-dimension-size-100);
+          `}
+        >
+          {floatFormatter(value)}
+          <ProgressBar
+            width="30px"
+            value={percentile}
+            aria-label="where the mean score lands between overall min max"
+          />
+        </div>
+      </TriggerWrap>
+      <HelpTooltip>
+        <View width="size-2400">
+          <Heading level={3} weight="heavy">
+            {annotationName}
+          </Heading>
+          <Flex direction="column">
+            <Flex justifyContent="space-between">
+              <Text weight="heavy" textSize="small">
+                Mean Score
+              </Text>
+              <Text textSize="small">{floatFormatter(value)}</Text>
+            </Flex>
+            <Flex justifyContent="space-between">
+              <Text weight="heavy" textSize="small">
+                All Experiments Min
+              </Text>
+              <Text textSize="small">{floatFormatter(min)}</Text>
+            </Flex>
+            <Flex justifyContent="space-between">
+              <Text weight="heavy" textSize="small">
+                All Experiments Max
+              </Text>
+              <Text textSize="small">{floatFormatter(max)}</Text>
+            </Flex>
+            <Flex justifyContent="space-between">
+              <Text weight="heavy" textSize="small">
+                Mean Score Percentile
+              </Text>
+              <Text textSize="small">{formatPercent(percentile)}</Text>
+            </Flex>
+          </Flex>
+        </View>
+      </HelpTooltip>
+    </TooltipTrigger>
   );
 }

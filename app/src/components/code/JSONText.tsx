@@ -38,9 +38,12 @@ export function JSONText({
     // Just show text and log a warning
     // eslint-disable-next-line no-console
     console.warn("JSONText component received a non-object value", json);
-    return <span>{String(json)}</span>;
+    return <span title={fullValue}>{String(json)}</span>;
   }
   const obj = json as Record<string, unknown>;
+  if (Object.keys(obj).length === 0) {
+    return <span title={fullValue}>--</span>;
+  }
   // If the object has only one key and the value is a string, show the string
   if (Object.keys(obj).length === 1) {
     const key = Object.keys(obj)[0];
