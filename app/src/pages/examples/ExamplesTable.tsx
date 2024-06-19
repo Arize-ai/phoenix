@@ -20,7 +20,6 @@ import { CompactJSONCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
-import { TextCell } from "@phoenix/components/table/TextCell";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 
 import { examplesLoaderQuery$data } from "./__generated__/examplesLoaderQuery.graphql";
