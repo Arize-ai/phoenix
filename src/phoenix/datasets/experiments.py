@@ -1,5 +1,4 @@
 import functools
-import json
 from copy import deepcopy
 from datetime import datetime, timezone
 from itertools import product
@@ -7,6 +6,7 @@ from typing import (
     Any,
     Awaitable,
     Callable,
+    Coroutine,
     Mapping,
     Optional,
     Tuple,
@@ -16,6 +16,7 @@ from typing import (
 )
 
 import httpx
+from typing_extensions import TypeAlias
 
 from phoenix.config import (
     get_env_collector_endpoint,
@@ -23,6 +24,8 @@ from phoenix.config import (
     get_env_port,
 )
 from phoenix.datasets.types import (
+    CanAsyncEvaluate,
+    CanEvaluate,
     Dataset,
     EvaluationResult,
     Example,
@@ -39,9 +42,9 @@ from phoenix.evals.executors import get_executor_on_sync_context
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.utilities.json_utils import jsonify
 
-ExperimentTask = Callable[
-    [Example],
-    Optional[Union[JSONSerializable, Awaitable[JSONSerializable]]],
+ExperimentTask: TypeAlias = Union[
+    Callable[[Example], Optional[JSONSerializable]],
+    Callable[[Example], Coroutine[None, None, Optional[JSONSerializable]]],
 ]
 
 
@@ -51,58 +54,6 @@ def _phoenix_client() -> httpx.Client:
     base_url = base_url if base_url.endswith("/") else base_url + "/"
     client = httpx.Client(base_url=base_url)
     return client
-
-
-def _unwrap_json(obj: JSONSerializable) -> JSONSerializable:
-    if isinstance(obj, dict):
-        if len(obj) == 1:
-            key = next(iter(obj.keys()))
-            output = obj[key]
-            assert isinstance(
-                output, (dict, list, str, int, float, bool, type(None))
-            ), "Output must be JSON serializable"
-            return output
-    return obj
-
-
-class JSONParsable:
-    annotator_kind = "CODE"
-    name = "JSONParsable"
-
-    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
-        assert exp_run.output is not None
-        output = _unwrap_json(exp_run.output.result)
-        assert isinstance(output, str), "Experiment run output must be a string"
-        try:
-            json.loads(output)
-            json_parsable = True
-        except BaseException:
-            json_parsable = False
-        return EvaluationResult(
-            score=int(json_parsable),
-        )
-
-
-class ContainsKeyword:
-    annotator_kind = "CODE"
-    name = "ContainsKeyword"
-
-    def __init__(self, keyword: str) -> None:
-        super().__init__()
-        self.keyword = keyword
-
-    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
-        assert exp_run.output is not None
-        result = _unwrap_json(exp_run.output.result)
-        assert isinstance(result, str), "Experiment run output must be a string"
-        found = self.keyword in result
-        return EvaluationResult(
-            score=float(found),
-            explanation=(
-                f"the string {repr(self.keyword)} was "
-                f"{'found' if found else 'not found'} in the output"
-            ),
-        )
 
 
 def run_experiment(
@@ -148,7 +99,8 @@ def run_experiment(
         error: Optional[Exception] = None
         try:
             # Do not use keyword arguments, which can fail at runtime
-            # even when function obeys protocol.
+            # even when function obeys protocol, because keyword arguments
+            # are implementation details.
             _output = task(example)
             if isinstance(_output, Awaitable):
                 raise RuntimeError("Task is async but running in sync context")
@@ -180,7 +132,8 @@ def run_experiment(
         error: Optional[BaseException] = None
         try:
             # Do not use keyword arguments, which can fail at runtime
-            # even when function obeys protocol.
+            # even when function obeys protocol, because keyword arguments
+            # are implementation details.
             _output = task(example)
             if isinstance(_output, Awaitable):
                 output = await _output
@@ -240,6 +193,7 @@ def evaluate_experiment(
     experiment: Experiment,
     evaluator: ExperimentEvaluator,
 ) -> None:
+    assert isinstance(evaluator, (CanEvaluate, CanAsyncEvaluate))
     client = _phoenix_client()
 
     experiment_id = experiment.id
@@ -279,7 +233,10 @@ def evaluate_experiment(
         error: Optional[BaseException] = None
         try:
             # Do not use keyword arguments, which can fail at runtime
-            # even when function obeys protocol.
+            # even when function obeys protocol, because keyword arguments
+            # are implementation details.
+            if not isinstance(evaluator, CanEvaluate):
+                raise RuntimeError("Task is async but running in sync context")
             _output = evaluator.evaluate(example, experiment_run)
             if isinstance(_output, Awaitable):
                 raise RuntimeError("Task is async but running in sync context")
@@ -307,12 +264,16 @@ def evaluate_experiment(
         error: Optional[BaseException] = None
         try:
             # Do not use keyword arguments, which can fail at runtime
-            # even when function obeys protocol.
-            _output = evaluator.evaluate(example, experiment_run)
-            if isinstance(_output, Awaitable):
-                result = await _output
+            # even when function obeys protocol, because keyword arguments
+            # are implementation details.
+            if isinstance(evaluator, CanAsyncEvaluate):
+                result = await evaluator.async_evaluate(example, experiment_run)
             else:
-                result = _output
+                _output = evaluator.evaluate(example, experiment_run)
+                if isinstance(_output, Awaitable):
+                    result = await _output
+                else:
+                    result = _output
         except BaseException as exc:
             error = exc
         finally:

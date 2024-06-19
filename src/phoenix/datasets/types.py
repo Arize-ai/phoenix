@@ -4,8 +4,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from types import MappingProxyType
 from typing import (
+    TYPE_CHECKING,
     Any,
-    Awaitable,
+    Coroutine,
     Dict,
     List,
     Mapping,
@@ -13,6 +14,7 @@ from typing import (
     Protocol,
     Sequence,
     Union,
+    runtime_checkable,
 )
 
 from typing_extensions import TypeAlias
@@ -109,20 +111,6 @@ class ExperimentRun:
             ValueError("Must specify either result or error")
 
 
-class ExperimentEvaluator(Protocol):
-    @property
-    def name(self) -> str: ...
-
-    @property
-    def annotator_kind(self) -> str: ...
-
-    def evaluate(
-        self,
-        example: Example,
-        experiment_run: ExperimentRun,
-    ) -> Union[EvaluationResult, Awaitable[EvaluationResult]]: ...
-
-
 @dataclass(frozen=True)
 class EvaluationResult:
     score: Optional[float] = None
@@ -175,3 +163,66 @@ class ExperimentEvaluationRun:
     def __post_init__(self) -> None:
         if bool(self.result) == bool(self.error):
             ValueError("Must specify either result or error")
+
+
+class _HasName(Protocol):
+    @property
+    def name(self) -> str: ...
+
+
+class _HasKind(Protocol):
+    @property
+    def annotator_kind(self) -> str: ...
+
+
+@runtime_checkable
+class CanEvaluate(_HasName, _HasKind, Protocol):
+    def evaluate(
+        self,
+        example: Example,
+        experiment_run: ExperimentRun,
+    ) -> Union[
+        EvaluationResult,
+        Coroutine[None, None, EvaluationResult],
+    ]: ...
+
+
+@runtime_checkable
+class CanAsyncEvaluate(_HasName, _HasKind, Protocol):
+    async def async_evaluate(
+        self,
+        example: Example,
+        experiment_run: ExperimentRun,
+    ) -> EvaluationResult: ...
+
+
+ExperimentEvaluator: TypeAlias = Union[CanEvaluate, CanAsyncEvaluate]
+
+# Someday we'll do typing checking in unit tests.
+if TYPE_CHECKING:
+
+    class _SyncDummy:
+        annotator_kind: str
+        name: str
+
+        def evaluate(self, _: Example, __: ExperimentRun) -> EvaluationResult:
+            raise NotImplementedError
+
+    class _AsyncDummy:
+        annotator_kind: str
+        name: str
+
+        async def evaluate(self, _: Example, __: ExperimentRun) -> EvaluationResult:
+            raise NotImplementedError
+
+    class _AsyncDummy2:
+        annotator_kind: str
+        name: str
+
+        async def async_evaluate(self, _: Example, __: ExperimentRun) -> EvaluationResult:
+            raise NotImplementedError
+
+    _: ExperimentEvaluator
+    _ = _SyncDummy()
+    _ = _AsyncDummy()
+    _ = _AsyncDummy2()

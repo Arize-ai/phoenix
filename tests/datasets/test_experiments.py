@@ -2,7 +2,8 @@ from datetime import datetime, timezone
 from unittest.mock import patch
 
 import nest_asyncio
-from phoenix.datasets.experiments import ContainsKeyword, evaluate_experiment, run_experiment
+from phoenix.datasets.evaluators import ContainsKeyword
+from phoenix.datasets.experiments import evaluate_experiment, run_experiment
 from phoenix.datasets.types import (
     Dataset,
     Example,
