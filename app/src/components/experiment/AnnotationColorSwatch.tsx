@@ -1,17 +1,14 @@
-import React, { useMemo } from "react";
-import { interpolateSinebow } from "d3-scale-chromatic";
+import React from "react";
 import { css } from "@emotion/react";
+
+import { useWordColor } from "@phoenix/hooks/useWordColor";
 
 export function AnnotationColorSwatch({
   annotationName,
 }: {
   annotationName: string;
 }) {
-  const color = useMemo(() => {
-    // Derive a color from the label first character
-    const charCode = annotationName.charCodeAt(0);
-    return interpolateSinebow((charCode % 26) / 26);
-  }, [annotationName]);
+  const color = useWordColor(annotationName);
   return (
     <span
       css={css`
