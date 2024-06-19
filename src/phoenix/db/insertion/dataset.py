@@ -50,7 +50,7 @@ async def insert_dataset(
         .values(
             name=name,
             description=description,
-            metadata_=metadata or {},
+            metadata_=metadata,
             created_at=created_at,
         )
         .returning(models.Dataset.id)
@@ -70,7 +70,7 @@ async def insert_dataset_version(
         .values(
             dataset_id=dataset_id,
             description=description,
-            metadata_=metadata or {},
+            metadata_=metadata,
             created_at=created_at,
         )
         .returning(models.DatasetVersion.id)
@@ -125,7 +125,7 @@ async def insert_dataset_example_revision(
             dataset_example_id=dataset_example_id,
             input=input,
             output=output,
-            metadata_=metadata or {},
+            metadata_=metadata,
             revision_kind=revision_kind.value,
             created_at=created_at,
         )

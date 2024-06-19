@@ -61,6 +61,24 @@ JSON_ = (
 )
 
 
+class JsonDict(TypeDecorator[Dict[str, Any]]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(self, value: Optional[Dict[str, Any]], _: Dialect) -> Dict[str, Any]:
+        return value if isinstance(value, dict) else {}
+
+
+class JsonList(TypeDecorator[List[Any]]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(self, value: Optional[List[Any]], _: Dialect) -> List[Any]:
+        return value if isinstance(value, list) else []
+
+
 class UtcTimeStamp(TypeDecorator[datetime]):
     # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
@@ -86,8 +104,8 @@ class Base(DeclarativeBase):
         }
     )
     type_annotation_map = {
-        Dict[str, Any]: JSON_,
-        List[Dict[str, Any]]: JSON_,
+        Dict[str, Any]: JsonDict,
+        List[Dict[str, Any]]: JsonList,
     }
 
 
