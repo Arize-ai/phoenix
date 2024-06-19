@@ -1,7 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
-// import { useNavigate } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -16,7 +15,6 @@ import {
   HelpTooltip,
   ProgressBar,
   Text,
-  Tooltip,
   TooltipTrigger,
   TriggerWrap,
   View,
