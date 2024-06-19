@@ -43,8 +43,8 @@ from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.utilities.json_utils import jsonify
 
 ExperimentTask: TypeAlias = Union[
-    Callable[[Example], Optional[JSONSerializable]],
-    Callable[[Example], Coroutine[None, None, Optional[JSONSerializable]]],
+    Callable[[Example], JSONSerializable],
+    Callable[[Example], Coroutine[None, None, JSONSerializable]],
 ]
 
 
