@@ -47,7 +47,7 @@ class DatasetMutationMixin:
     ) -> DatasetMutationPayload:
         name = input.name
         description = input.description if input.description is not UNSET else None
-        metadata = input.metadata or {}
+        metadata = input.metadata
         async with info.context.db() as session:
             dataset = await session.scalar(
                 insert(models.Dataset)
@@ -124,7 +124,7 @@ class DatasetMutationMixin:
                 .values(
                     dataset_id=dataset_rowid,
                     description=dataset_version_description,
-                    metadata_=dataset_version_metadata or {},
+                    metadata_=dataset_version_metadata,
                 )
                 .returning(models.DatasetVersion.id)
             )
@@ -197,7 +197,7 @@ class DatasetMutationMixin:
         dataset_version_description = (
             input.dataset_version_description if input.dataset_version_description else None
         )
-        dataset_version_metadata = input.dataset_version_metadata or {}
+        dataset_version_metadata = input.dataset_version_metadata
         dataset_rowid = from_global_id_with_expected_type(
             global_id=dataset_id, expected_type_name=Dataset.__name__
         )
@@ -313,7 +313,7 @@ class DatasetMutationMixin:
         if any(patch.is_empty() for patch in patches):
             raise ValueError("Received one or more empty patches that contain no fields to update.")
         version_description = input.version_description or None
-        version_metadata = input.version_metadata or {}
+        version_metadata = input.version_metadata
         async with info.context.db() as session:
             datasets = (
                 await session.scalars(
@@ -400,7 +400,7 @@ class DatasetMutationMixin:
             if isinstance(input.dataset_version_description, str)
             else None
         )
-        dataset_version_metadata = input.dataset_version_metadata or {}
+        dataset_version_metadata = input.dataset_version_metadata
         async with info.context.db() as session:
             # Check if the examples are from a single dataset
             datasets = (
