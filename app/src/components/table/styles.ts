@@ -10,7 +10,7 @@ export const tableCSS = (theme: Theme) => css`
   thead {
     position: sticky;
     top: 0;
-    z-index: 2;
+    z-index: 1;
     tr {
       th {
         padding: ${theme.spacing.margin4}px ${theme.spacing.margin16}px;
@@ -42,7 +42,7 @@ export const tableCSS = (theme: Theme) => css`
           right: 0;
           top: 0;
           cursor: grab;
-          z-index: 2;
+          z-index: 4;
           touch-action: none;
           &.isResizing,
           &:hover {
@@ -127,7 +127,7 @@ export function getCommonPinningStyles<Row>(
     right: isPinned === "right" ? `${column.getAfter("right")}px` : undefined,
     opacity: isPinned ? 0.95 : 1,
     position: isPinned ? "sticky" : "relative",
-    width: column.getSize(),
+    width: column.getSize() + "px",
     zIndex: isPinned ? 1 : 0,
   };
 }

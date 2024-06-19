@@ -2,10 +2,6 @@ import React, { useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useNavigate, useParams } from "react-router";
-import { json } from "@codemirror/lang-json";
-import { EditorView } from "@codemirror/view";
-import { nord } from "@uiw/codemirror-theme-nord";
-import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
 import {
@@ -20,8 +16,8 @@ import {
 } from "@arizeai/components";
 
 import { CopyToClipboardButton } from "@phoenix/components";
+import { JSONBlock } from "@phoenix/components/code";
 import { resizeHandleCSS } from "@phoenix/components/resize";
-import { useTheme } from "@phoenix/contexts";
 
 import type { ExamplePageQuery } from "./__generated__/ExamplePageQuery.graphql";
 import { EditExampleButton } from "./EditExampleButton";
@@ -138,21 +134,21 @@ export function ExamplePage() {
                       {...defaultCardProps}
                       extra={<CopyToClipboardButton text={input} />}
                     >
-                      <JSONBlock>{input}</JSONBlock>
+                      <JSONBlock value={input} />
                     </Card>
                     <Card
                       title="Output"
                       {...defaultCardProps}
                       extra={<CopyToClipboardButton text={output} />}
                     >
-                      <JSONBlock>{output}</JSONBlock>
+                      <JSONBlock value={output} />
                     </Card>
                     <Card
                       title="Metadata"
                       {...defaultCardProps}
                       extra={<CopyToClipboardButton text={metadata} />}
                     >
-                      <JSONBlock>{metadata}</JSONBlock>
+                      <JSONBlock value={metadata} />
                     </Card>
                   </Flex>
                 </View>
@@ -191,70 +187,3 @@ const defaultCardProps: Partial<CardProps> = {
     padding: 0,
   },
 };
-
-/**
- * A block of JSON content that is not editable.
- */
-export function JSONBlock({ children }: { children: string }) {
-  const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? undefined : nord;
-  // We need to make sure that the content can actually be displayed
-  // As JSON as we cannot fully trust the backend to always send valid JSON
-  const { value, mimeType } = useMemo(() => {
-    try {
-      // Attempt to pretty print the JSON. This may fail if the JSON is invalid.
-      // E.g. sometimes it contains NANs due to poor JSON.dumps in the backend
-      return {
-        value: JSON.stringify(JSON.parse(children), null, 2),
-        mimeType: "json" as const,
-      };
-    } catch (e) {
-      // Fall back to string
-      return { value: children, mimeType: "text" as const };
-    }
-  }, [children]);
-  if (mimeType === "json") {
-    return (
-      <CodeMirror
-        value={value}
-        basicSetup={{
-          lineNumbers: true,
-          foldGutter: true,
-          bracketMatching: true,
-          syntaxHighlighting: true,
-          highlightActiveLine: false,
-          highlightActiveLineGutter: false,
-        }}
-        extensions={[json(), EditorView.lineWrapping]}
-        editable={false}
-        theme={codeMirrorTheme}
-        css={codeMirrorCSS}
-      />
-    );
-  } else {
-    return <PreBlock>{value}</PreBlock>;
-  }
-}
-
-function PreBlock({ children }: { children: string }) {
-  return (
-    <pre
-      css={css`
-        white-space: pre-wrap;
-        padding: 0;
-      `}
-    >
-      {children}
-    </pre>
-  );
-}
-
-const codeMirrorCSS = css`
-  .cm-content {
-    padding: var(--ac-global-dimension-static-size-200) 0;
-  }
-  .cm-editor,
-  .cm-gutters {
-    background-color: transparent;
-  }
-`;

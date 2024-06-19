@@ -5,36 +5,37 @@ from starlette.responses import JSONResponse, Response
 from starlette.status import HTTP_404_NOT_FOUND
 from strawberry.relay import GlobalID
 
+from phoenix.datasets.types import EvaluationResult, ExperimentEvaluationRun
 from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.utilities.json_utils import jsonify
 
 
 async def create_experiment_evaluation(request: Request) -> Response:
-    experiment_run_globalid = GlobalID.from_id(request.path_params["run_id"])
+    payload = await request.json()
+    experiment_run_gid = GlobalID.from_id(payload["experiment_run_id"])
     try:
-        experiment_run_id = from_global_id_with_expected_type(
-            experiment_run_globalid, "ExperimentRun"
-        )
+        experiment_run_id = from_global_id_with_expected_type(experiment_run_gid, "ExperimentRun")
     except ValueError:
         return Response(
-            content=f"ExperimentRun with ID {experiment_run_globalid} does not exist",
+            content=f"ExperimentRun with ID {experiment_run_gid} does not exist",
             status_code=HTTP_404_NOT_FOUND,
         )
-
-    payload = await request.json()
     name = payload["name"]
-    label = payload["label"]
-    score = payload["score"]
-    explanation = payload["explanation"]
+    annotator_kind = payload["annotator_kind"]
+    result = payload.get("result")
+    label = result.get("label") if result else None
+    score = result.get("score") if result else None
+    explanation = result.get("explanation") if result else None
     error = payload.get("error")
-    metadata = payload.get("metadata", {})
+    metadata = payload.get("metadata") or {}
     start_time = payload["start_time"]
     end_time = payload["end_time"]
     async with request.app.state.db() as session:
-        experiment_evaluation = models.ExperimentAnnotation(
+        exp_eval_run = models.ExperimentAnnotation(
             experiment_run_id=experiment_run_id,
             name=name,
-            annotator_kind="LLM",
+            annotator_kind=annotator_kind,
             label=label,
             score=score,
             explanation=explanation,
@@ -43,19 +44,22 @@ async def create_experiment_evaluation(request: Request) -> Response:
             start_time=datetime.fromisoformat(start_time),
             end_time=datetime.fromisoformat(end_time),
         )
-        session.add(experiment_evaluation)
+        session.add(exp_eval_run)
         await session.flush()
-        evaluation_globalid = GlobalID("ExperimentEvaluation", str(experiment_evaluation.id))
-        eval_payload = {
-            "id": str(evaluation_globalid),
-            "experiment_run_id": str(experiment_run_globalid),
-            "name": experiment_evaluation.name,
-            "label": experiment_evaluation.label,
-            "score": experiment_evaluation.score,
-            "explanation": experiment_evaluation.explanation,
-            "error": experiment_evaluation.error,
-            "metadata": experiment_evaluation.metadata_,
-            "start_time": experiment_evaluation.start_time.isoformat(),
-            "end_time": experiment_evaluation.end_time.isoformat(),
-        }
-        return JSONResponse(content=eval_payload, status_code=200)
+        evaluation_gid = GlobalID("ExperimentEvaluation", str(exp_eval_run.id))
+        eval_payload = ExperimentEvaluationRun(
+            id=str(evaluation_gid),
+            experiment_run_id=str(experiment_run_gid),
+            start_time=exp_eval_run.start_time,
+            end_time=exp_eval_run.end_time,
+            name=exp_eval_run.name,
+            annotator_kind=exp_eval_run.annotator_kind,
+            error=exp_eval_run.error,
+            result=EvaluationResult(
+                label=exp_eval_run.label,
+                score=exp_eval_run.score,
+                explanation=exp_eval_run.explanation,
+                metadata=exp_eval_run.metadata_,
+            ),
+        )
+        return JSONResponse(content=jsonify(eval_payload), status_code=200)

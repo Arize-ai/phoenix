@@ -79,7 +79,7 @@ V1_ROUTES = [
         methods=["GET"],
     ),
     Route(
-        "/v1/experiments/{exp_id:str}/runs/{run_id:str}/evaluations",
+        "/v1/experiment_evaluations",
         experiment_evaluations.create_experiment_evaluation,
         methods=["POST"],
     ),

@@ -13,6 +13,7 @@ from typing import (
     Iterable,
     List,
     Literal,
+    Mapping,
     Optional,
     Tuple,
     Union,
@@ -31,15 +32,16 @@ from pyarrow import ArrowInvalid, Table
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.config import (
+    get_env_client_headers,
     get_env_collector_endpoint,
     get_env_host,
     get_env_port,
     get_env_project_name,
 )
+from phoenix.datasets.types import Dataset, Example
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.insertion.dataset import DatasetKeys
 from phoenix.session.data_extractor import DEFAULT_SPAN_LIMIT, TraceDataExtractor
-from phoenix.session.datasets import Dataset, Example
 from phoenix.trace import Evaluations, TraceDataset
 from phoenix.trace.dsl import SpanQuery
 from phoenix.trace.otel import encode_span_to_otlp
@@ -53,14 +55,20 @@ class Client(TraceDataExtractor):
         *,
         endpoint: Optional[str] = None,
         warn_if_server_not_running: bool = True,
+        headers: Optional[Mapping[str, str]] = None,
         **kwargs: Any,  # for backward-compatibility
     ):
         """
         Client for connecting to a Phoenix server.
 
         Args:
-            endpoint (str, optional): Phoenix server endpoint, e.g. http://localhost:6006. If not
-                provided, the endpoint will be inferred from the environment variables.
+            endpoint (str, optional): Phoenix server endpoint, e.g.
+            http://localhost:6006. If not provided, the endpoint will be
+            inferred from the environment variables.
+
+            headers (Mapping[str, str], optional): Headers to include in each
+            network request. If not provided, the headers will be inferred from
+            the environment variables (if present).
         """
         if kwargs.pop("use_active_session_if_available", None) is not None:
             print(
@@ -69,12 +77,13 @@ class Client(TraceDataExtractor):
             )
         if kwargs:
             raise TypeError(f"Unexpected keyword arguments: {', '.join(kwargs)}")
+        headers = headers or get_env_client_headers()
         host = get_env_host()
         if host == "0.0.0.0":
             host = "127.0.0.1"
         base_url = endpoint or get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
         self._base_url = base_url if base_url.endswith("/") else base_url + "/"
-        self._client = httpx.Client()
+        self._client = httpx.Client(headers=headers)
         weakref.finalize(self, self._client.close)
         if warn_if_server_not_running:
             self._warn_if_phoenix_is_not_running()
@@ -265,23 +274,61 @@ class Client(TraceDataExtractor):
                 },
             ).raise_for_status()
 
-    def get_dataset(self, dataset_id: str, version_id: Optional[str] = None) -> Dataset:
+    def _get_dataset_id_by_name(self, name: str) -> str:
+        """
+         Gets a dataset by name.
+
+         Args:
+             name (str): The name of the dataset.
+             version_id (Optional[str]): The version ID of the dataset. Default None.
+
+        Returns:
+             Dataset: The dataset object.
+        """
+        response = self._client.get(
+            urljoin(self._base_url, "/v1/datasets"),
+            params={"name": name},
+        )
+        response.raise_for_status()
+        if not (records := response.json()["data"]):
+            raise ValueError(f"Failed to query dataset by name: {name}")
+        if len(records) > 1 or not records[0]:
+            raise ValueError(f"Failed to find a single dataset with the given name: {name}")
+        dataset = records[0]
+        return str(dataset["id"])
+
+    def get_dataset(
+        self,
+        *,
+        id: Optional[str] = None,
+        name: Optional[str] = None,
+        version_id: Optional[str] = None,
+    ) -> Dataset:
         """
         Gets the dataset for a specific version, or gets the latest version of
         the dataset if no version is specified.
 
         Args:
 
-            dataset_id (str): An ID for the dataset.
+            id (Optional[str]): An ID for the dataset.
 
-            version_id (Optional[str]): An ID for the version of the dataset, or None.
+            name (Optional[str]): the name for the dataset. If provided, the ID
+            is ignored and the dataset is retrieved by name.
+
+            version_id (Optional[str]): An ID for the version of the dataset, or
+            None.
 
         Returns:
-
             A dataset object.
         """
+        if name:
+            id = self._get_dataset_id_by_name(name)
+
+        if not id:
+            raise ValueError("Dataset id or name must be provided.")
+
         response = self._client.get(
-            urljoin(self._base_url, f"/v1/datasets/{quote(dataset_id)}/examples"),
+            urljoin(self._base_url, f"/v1/datasets/{quote(id)}/examples"),
             params={"version-id": version_id} if version_id else None,
         )
         response.raise_for_status()

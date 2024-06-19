@@ -32,6 +32,7 @@
         "numpy",
         "openai",
         "openinference",
+        "OTEL",
         "OTLP",
         "postprocessors",
         "pydantic",

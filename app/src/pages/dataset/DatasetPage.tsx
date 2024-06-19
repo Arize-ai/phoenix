@@ -4,6 +4,7 @@ import { css } from "@emotion/react";
 
 import {
   ActionMenu,
+  Counter,
   Flex,
   Icon,
   Icons,
@@ -173,12 +174,18 @@ function DatasetPageContent({
         </Flex>
       </View>
       <Tabs onChange={onTabChange} defaultIndex={initialIndex}>
-        <TabPane name="Experiments">
+        <TabPane
+          name="Experiments"
+          extra={<Counter>{dataset.experimentCount}</Counter>}
+        >
           <Suspense>
             <Outlet />
           </Suspense>
         </TabPane>
-        <TabPane name="Examples">
+        <TabPane
+          name="Examples"
+          extra={<Counter>{dataset.exampleCount}</Counter>}
+        >
           <Suspense>
             <Outlet />
           </Suspense>

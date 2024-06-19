@@ -1,131 +1,70 @@
-import asyncio
 import functools
 from copy import deepcopy
-from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from itertools import product
 from typing import (
     Any,
+    Awaitable,
     Callable,
     Coroutine,
-    Dict,
-    List,
+    Mapping,
     Optional,
-    Protocol,
     Tuple,
     Type,
-    TypedDict,
     Union,
     cast,
 )
 
 import httpx
+from typing_extensions import TypeAlias
 
 from phoenix.config import (
+    get_env_client_headers,
     get_env_collector_endpoint,
     get_env_host,
     get_env_port,
 )
+from phoenix.datasets.types import (
+    CanAsyncEvaluate,
+    CanEvaluate,
+    Dataset,
+    EvaluationResult,
+    Example,
+    Experiment,
+    ExperimentEvaluationRun,
+    ExperimentEvaluator,
+    ExperimentResult,
+    ExperimentRun,
+    ExperimentRunId,
+    JSONSerializable,
+    TestCase,
+)
 from phoenix.evals.executors import get_executor_on_sync_context
 from phoenix.evals.models.rate_limiters import RateLimiter
+from phoenix.utilities.json_utils import jsonify
 
-JSONSerializable = Union[Dict[str, Any], List[Any], str, int, float, bool, None]
-ExperimentTask = Callable[[JSONSerializable], JSONSerializable]
-AsyncExperimentTask = Callable[[JSONSerializable], Coroutine[Any, Any, JSONSerializable]]
-
-
-class ExampleProtocol(Protocol):
-    @property
-    def id(self) -> str: ...
-
-    @property
-    def input(self) -> JSONSerializable: ...
-
-    @property
-    def output(self) -> JSONSerializable: ...
-
-
-class RunProtocol(Protocol):
-    @property
-    def id(self) -> str: ...
-
-    @property
-    def output(self) -> JSONSerializable: ...
-
-
-class DatasetProtocol(Protocol):
-    @property
-    def id(self) -> str: ...
-
-    @property
-    def version_id(self) -> str: ...
-
-    @property
-    def examples(self) -> List[ExampleProtocol]: ...
-
-
-@dataclass
-class Experiment:
-    id: str
-    dataset_id: str
-    dataset_version_id: str
-
-
-class ExperimentPayload(TypedDict):
-    dataset_example_id: str
-    output: JSONSerializable
-    repetition_number: int
-    start_time: str
-    end_time: str
-    error: Optional[str]
-
-
-class EvaluatorPayload(TypedDict):
-    experiment_run_id: str
-    name: str
-    annotator_kind: str
-    label: Optional[str]
-    score: Optional[float]
-    explanation: Optional[str]
-    error: Optional[str]
-    metadata: JSONSerializable
-    start_time: str
-    end_time: str
-
-
-class EvaluationProtocol(Protocol):
-    @property
-    def score(self) -> Optional[float]: ...
-
-    @property
-    def explanation(self) -> Optional[str]: ...
-
-    @property
-    def metadata(self) -> JSONSerializable: ...
-
-
-class ExperimentEvaluator(Protocol):
-    def __call__(
-        self, input: JSONSerializable, reference: JSONSerializable, output: JSONSerializable
-    ) -> EvaluationProtocol: ...
-
-    @property
-    def annotator_kind(self) -> str: ...
+ExperimentTask: TypeAlias = Union[
+    Callable[[Example], JSONSerializable],
+    Callable[[Example], Coroutine[None, None, JSONSerializable]],
+]
 
 
 def _phoenix_client() -> httpx.Client:
     host = get_env_host()
     base_url = get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
     base_url = base_url if base_url.endswith("/") else base_url + "/"
-    client = httpx.Client(base_url=base_url)
+    headers = get_env_client_headers()
+    client = httpx.Client(base_url=base_url, headers=headers)
     return client
 
 
 def run_experiment(
-    dataset: DatasetProtocol,
-    task: Union[ExperimentTask, AsyncExperimentTask],
+    dataset: Dataset,
+    task: ExperimentTask,
+    *,
     experiment_name: Optional[str] = None,
     experiment_description: Optional[str] = None,
+    experiment_metadata: Optional[Mapping[str, Any]] = None,
     repetitions: int = 1,
     rate_limit_errors: Optional[Union[Type[BaseException], Tuple[Type[BaseException], ...]]] = None,
 ) -> Experiment:
@@ -139,9 +78,11 @@ def run_experiment(
             "version-id": dataset.version_id,
             "name": experiment_name,
             "description": experiment_description,
+            "metadata": experiment_metadata,
             "repetitions": repetitions,
         },
     )
+    experiment_response.raise_for_status()
     experiment_id = experiment_response.json()["id"]
 
     errors: Tuple[Optional[Type[BaseException]], ...]
@@ -153,65 +94,71 @@ def run_experiment(
 
     rate_limiters = [RateLimiter(rate_limit_error=rate_limit_error) for rate_limit_error in errors]
 
-    def sync_run_experiment(experiment_input: Tuple[ExampleProtocol, int]) -> ExperimentPayload:
-        example, repetition_number = experiment_input
-        start_time = datetime.now()
+    def sync_run_experiment(test_case: TestCase) -> ExperimentRun:
+        example, repetition_number = test_case.example, test_case.repetition_number
+        start_time = datetime.now(timezone.utc)
         output = None
         error: Optional[Exception] = None
         try:
-            if asyncio.iscoroutinefunction(task):
+            # Do not use keyword arguments, which can fail at runtime
+            # even when function obeys protocol, because keyword arguments
+            # are implementation details.
+            _output = task(example)
+            if isinstance(_output, Awaitable):
                 raise RuntimeError("Task is async but running in sync context")
             else:
-                output = task(example.input)
+                output = _output
         except Exception as exc:
             error = exc
         finally:
-            end_time = datetime.now()
+            end_time = datetime.now(timezone.utc)
 
         assert isinstance(
             output, (dict, list, str, int, float, bool, type(None))
         ), "Output must be JSON serializable"
-        experiment_payload = ExperimentPayload(
+        experiment_run = ExperimentRun(
+            start_time=start_time,
+            end_time=end_time,
+            experiment_id=experiment_id,
             dataset_example_id=example.id,
-            output=output,
             repetition_number=repetition_number,
-            start_time=start_time.isoformat(),
-            end_time=end_time.isoformat(),
+            output=ExperimentResult(result=output) if output else None,
             error=repr(error) if error else None,
         )
+        return experiment_run
 
-        return experiment_payload
-
-    async def async_run_experiment(
-        experiment_input: Tuple[ExampleProtocol, int],
-    ) -> ExperimentPayload:
-        example, repetition_number = experiment_input
-        start_time = datetime.now()
+    async def async_run_experiment(test_case: TestCase) -> ExperimentRun:
+        example, repetition_number = test_case.example, test_case.repetition_number
+        start_time = datetime.now(timezone.utc)
         output = None
-        error = None
+        error: Optional[BaseException] = None
         try:
-            if asyncio.iscoroutinefunction(task):
-                output = await task(example.input)
+            # Do not use keyword arguments, which can fail at runtime
+            # even when function obeys protocol, because keyword arguments
+            # are implementation details.
+            _output = task(example)
+            if isinstance(_output, Awaitable):
+                output = await _output
             else:
-                output = task(example.input)
+                output = _output
         except Exception as exc:
             error = exc
         finally:
-            end_time = datetime.now()
+            end_time = datetime.now(timezone.utc)
 
         assert isinstance(
             output, (dict, list, str, int, float, bool, type(None))
         ), "Output must be JSON serializable"
-        experiment_payload = ExperimentPayload(
+        experiment_run = ExperimentRun(
+            start_time=start_time,
+            end_time=end_time,
+            experiment_id=experiment_id,
             dataset_example_id=example.id,
-            output=output,
             repetition_number=repetition_number,
-            start_time=start_time.isoformat(),
-            end_time=end_time.isoformat(),
+            output=ExperimentResult(result=output) if output else None,
             error=repr(error) if error else None,
         )
-
-        return experiment_payload
+        return experiment_run
 
     rate_limited_sync_run_experiment = functools.reduce(
         lambda fn, limiter: limiter.limit(fn), rate_limiters, sync_run_experiment
@@ -228,127 +175,120 @@ def run_experiment(
         fallback_return_value=None,
     )
 
-    inputs = [
-        (deepcopy(ex), rep) for ex, rep in product(dataset.examples, range(1, repetitions + 1))
+    test_cases = [
+        TestCase(example=ex, repetition_number=rep)
+        for ex, rep in product(dataset.examples, range(1, repetitions + 1))
     ]
-    experiment_payloads, _execution_details = executor.run(inputs)
+    experiment_payloads, _execution_details = executor.run(test_cases)
     for payload in experiment_payloads:
         if payload is not None:
-            client.post(f"/v1/experiments/{experiment_id}/runs", json=payload)
+            resp = client.post(f"/v1/experiments/{experiment_id}/runs", json=jsonify(payload))
+            resp.raise_for_status()
     return Experiment(
-        id=experiment_id, dataset_id=dataset.id, dataset_version_id=dataset.version_id
+        id=experiment_id,
+        dataset_id=dataset.id,
+        dataset_version_id=dataset.version_id,
     )
 
 
 def evaluate_experiment(
     experiment: Experiment,
     evaluator: ExperimentEvaluator,
-    name: Optional[str] = None,
-    label: Optional[str] = None,
 ) -> None:
-    # define wrapper classes to coerce JSON payloads to conform to the input protocols until
-    # we flesh out our clientside models
-
-    @dataclass
-    class ExampleWrapper:
-        id: str
-        input: JSONSerializable
-        output: JSONSerializable
-
-    @dataclass
-    class RunWrapper:
-        id: str
-        output: JSONSerializable
-
+    assert isinstance(evaluator, (CanEvaluate, CanAsyncEvaluate))
     client = _phoenix_client()
 
     experiment_id = experiment.id
     dataset_id = experiment.dataset_id
     dataset_version_id = experiment.dataset_version_id
 
-    dataset_examples = (
-        client.get(
-            f"/v1/datasets/{dataset_id}/examples",
-            params={"version-id": str(dataset_version_id)},
+    dataset_examples = [
+        Example.from_dict(ex)
+        for ex in (
+            client.get(
+                f"/v1/datasets/{dataset_id}/examples",
+                params={"version-id": str(dataset_version_id)},
+            )
+            .json()
+            .get("data", {})
+            .get("examples", [])
         )
-        .json()
-        .get("data", {})
-        .get("examples", [])
-    )
+    ]
 
-    experiment_runs = client.get(f"/v1/experiments/{experiment_id}/runs").json()
+    experiment_runs = [
+        ExperimentRun.from_dict(exp_run)
+        for exp_run in client.get(f"/v1/experiments/{experiment_id}/runs").json()
+    ]
 
     # not all dataset examples have associated experiment runs, so we need to pair them up
     example_run_pairs = []
-    examples_by_id = {example["id"]: example for example in dataset_examples}
-    for run in experiment_runs:
-        example = examples_by_id.get(run["dataset_example_id"])
+    examples_by_id = {example.id: example for example in dataset_examples}
+    for exp_run in experiment_runs:
+        example = examples_by_id.get(exp_run.dataset_example_id)
         if example:
-            wrapped_example = ExampleWrapper(
-                id=example["id"], input=example["input"], output=example["output"]
-            )
-            wrapped_run = RunWrapper(id=run["id"], output=run["output"])
-            example_run_pairs.append((wrapped_example, wrapped_run))
+            example_run_pairs.append((deepcopy(example), exp_run))
 
-    def sync_evaluate_run(example_run: Tuple[ExampleProtocol, RunProtocol]) -> EvaluatorPayload:
-        example, run = example_run
-        start_time = datetime.now()
-        output = None
-        error: Optional[Exception] = None
+    def sync_evaluate_run(obj: Tuple[Example, ExperimentRun]) -> ExperimentEvaluationRun:
+        example, experiment_run = obj
+        start_time = datetime.now(timezone.utc)
+        result: Optional[EvaluationResult] = None
+        error: Optional[BaseException] = None
         try:
-            if asyncio.iscoroutinefunction(evaluator):
+            # Do not use keyword arguments, which can fail at runtime
+            # even when function obeys protocol, because keyword arguments
+            # are implementation details.
+            if not isinstance(evaluator, CanEvaluate):
                 raise RuntimeError("Task is async but running in sync context")
-            else:
-                output = evaluator(input=example.input, reference=example.output, output=run.output)
-        except Exception as exc:
+            _output = evaluator.evaluate(example, experiment_run)
+            if isinstance(_output, Awaitable):
+                raise RuntimeError("Task is async but running in sync context")
+            result = _output
+        except BaseException as exc:
             error = exc
         finally:
-            end_time = datetime.now()
+            end_time = datetime.now(timezone.utc)
 
-        evaluator_payload = EvaluatorPayload(
-            experiment_run_id=run.id,
-            name=name if name is not None else str(evaluator),
-            annotator_kind=getattr(evaluator, "annotator_kind", "CODE"),
-            label=label if label is not None else None,
-            score=output.score if output else None,
-            explanation=output.explanation if output else None,
+        evaluator_payload = ExperimentEvaluationRun(
+            experiment_run_id=cast(ExperimentRunId, experiment_run.id),
+            start_time=start_time,
+            end_time=end_time,
+            name=evaluator.name,
+            annotator_kind=evaluator.annotator_kind,
             error=repr(error) if error else None,
-            metadata=output.metadata if output else {},
-            start_time=start_time.isoformat(),
-            end_time=end_time.isoformat(),
+            result=result,
         )
         return evaluator_payload
 
-    async def async_evaluate_run(
-        example_run: Tuple[ExampleProtocol, RunProtocol],
-    ) -> EvaluatorPayload:
-        example, run = example_run
-        start_time = datetime.now()
-        output = None
-        error = None
+    async def async_evaluate_run(obj: Tuple[Example, ExperimentRun]) -> ExperimentEvaluationRun:
+        example, experiment_run = obj
+        start_time = datetime.now(timezone.utc)
+        result: Optional[EvaluationResult] = None
+        error: Optional[BaseException] = None
         try:
-            if asyncio.iscoroutinefunction(evaluator):
-                output = await evaluator(
-                    input=example.input, reference=example.output, output=run.output
-                )
+            # Do not use keyword arguments, which can fail at runtime
+            # even when function obeys protocol, because keyword arguments
+            # are implementation details.
+            if isinstance(evaluator, CanAsyncEvaluate):
+                result = await evaluator.async_evaluate(example, experiment_run)
             else:
-                output = evaluator(input=example.input, reference=example.output, output=run.output)
-        except Exception as exc:
+                _output = evaluator.evaluate(example, experiment_run)
+                if isinstance(_output, Awaitable):
+                    result = await _output
+                else:
+                    result = _output
+        except BaseException as exc:
             error = exc
         finally:
-            end_time = datetime.now()
+            end_time = datetime.now(timezone.utc)
 
-        evaluator_payload = EvaluatorPayload(
-            experiment_run_id=run.id,
-            name=name if name is not None else str(evaluator),
-            annotator_kind=getattr(evaluator, "annotator_kind", "CODE"),
-            label=label if label is not None else None,
-            score=output.score if output else None,
-            explanation=output.explanation if output else None,
+        evaluator_payload = ExperimentEvaluationRun(
+            experiment_run_id=cast(ExperimentRunId, experiment_run.id),
+            start_time=start_time,
+            end_time=end_time,
+            name=evaluator.name,
+            annotator_kind=evaluator.annotator_kind,
             error=repr(error) if error else None,
-            metadata=output.metadata if output else {},
-            start_time=start_time.isoformat(),
-            end_time=end_time.isoformat(),
+            result=result,
         )
         return evaluator_payload
 
@@ -362,7 +302,5 @@ def evaluate_experiment(
     evaluation_payloads, _execution_details = executor.run(example_run_pairs)
     for payload in evaluation_payloads:
         if payload is not None:
-            client.post(
-                f"/v1/experiments/{experiment_id}/runs/{payload['experiment_run_id']}/evaluations",
-                json=payload,
-            )
+            resp = client.post("/v1/experiment_evaluations", json=jsonify(payload))
+            resp.raise_for_status()

@@ -12,7 +12,12 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from typing_extensions import TypeAlias, assert_never
 
 import phoenix.trace.v1 as pb
-from phoenix.config import get_env_collector_endpoint, get_env_host, get_env_port
+from phoenix.config import (
+    get_env_client_headers,
+    get_env_collector_endpoint,
+    get_env_host,
+    get_env_port,
+)
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -74,7 +79,8 @@ class HttpExporter:
         )
         self._base_url = base_url if base_url.endswith("/") else base_url + "/"
         _warn_if_phoenix_is_not_running(self._base_url)
-        self._client = httpx.Client()
+        headers = get_env_client_headers()
+        self._client = httpx.Client(headers=headers)
         weakref.finalize(self, self._client.close)
         self._client.headers.update(
             {

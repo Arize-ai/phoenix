@@ -107,7 +107,6 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
             <Button variant="default" size="compact" onClick={onClearSelection}>
               Cancel
             </Button>
-
             <Button
               variant="danger"
               size="compact"

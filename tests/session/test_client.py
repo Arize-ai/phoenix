@@ -285,7 +285,7 @@ def test_get_dataset_returns_expected_dataset(
             },
         )
     )
-    dataset = client.get_dataset(dataset_id, version_id=version_id)
+    dataset = client.get_dataset(id=dataset_id, version_id=version_id)
     assert dataset.id == dataset_id
     assert dataset.version_id == str(GlobalID("DatasetVersion", str(1)))
     assert dataset.examples
@@ -295,6 +295,35 @@ def test_get_dataset_returns_expected_dataset(
     assert example.output == {"output": "output"}
     assert example.metadata == {"example-metadata-key": "example-metadata-value"}
     assert example.updated_at == datetime.fromisoformat("2024-06-12T22:46:31+00:00")
+
+
+def test_client_headers(endpoint: str, respx_mock: MockRouter):
+    client = Client(endpoint=endpoint, headers={"x-api-key": "my-api-key"})
+    dataset_id = str(GlobalID("Dataset", str(1)))
+    respx_mock.get(urljoin(endpoint, f"v1/datasets/{dataset_id}/examples")).mock(
+        Response(
+            200,
+            json={
+                "data": {
+                    "dataset_id": str(GlobalID("Dataset", str(1))),
+                    "version_id": str(GlobalID("DatasetVersion", str(1))),
+                    "examples": [
+                        {
+                            "id": str(GlobalID("DatasetExample", str(1))),
+                            "input": {"input": "input"},
+                            "output": {"output": "output"},
+                            "metadata": {"example-metadata-key": "example-metadata-value"},
+                            "updated_at": "2024-06-12T22:46:31+00:00",
+                        }
+                    ],
+                },
+            },
+        )
+    )
+
+    client.get_dataset(id=dataset_id)
+    # Ensure that the client headers are passed to the request
+    assert respx_mock.calls[0].request.headers["x-api-key"] == "my-api-key"
 
 
 @pytest.fixture

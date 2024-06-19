@@ -114,7 +114,11 @@ export function DatasetsTable(props: DatasetsTableProps) {
         header: "name",
         accessorKey: "name",
         cell: ({ row }) => {
-          return <Link to={`${row.original.id}`}>{row.original.name}</Link>;
+          const hasExperiments = row.original.experimentCount > 0;
+          const to = hasExperiments
+            ? `${row.original.id}/experiments`
+            : `${row.original.id}/examples`;
+          return <Link to={to}>{row.original.name}</Link>;
         },
       },
       {
@@ -252,7 +256,11 @@ export function DatasetsTable(props: DatasetsTableProps) {
                 <tr
                   key={row.id}
                   onClick={() => {
-                    navigate(`${row.original.id}`);
+                    const hasExperiments = row.original.experimentCount > 0;
+                    const to = hasExperiments
+                      ? `${row.original.id}/experiments`
+                      : `${row.original.id}/examples`;
+                    navigate(to);
                   }}
                 >
                   {row.getVisibleCells().map((cell) => {
