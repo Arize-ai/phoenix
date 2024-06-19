@@ -114,96 +114,161 @@ async def test_runs_resolver_returns_runs_for_experiment(test_client, dataset_wi
     }
 
 
-async def test_annotation_summaries_and_names_return_expected_values(
-    test_client, experiments_with_runs_and_annotations
-) -> None:
-    query = """
-      query ($datasetId: GlobalID!) {
-        dataset: node(id: $datasetId) {
-          ... on Dataset {
-            experimentAnnotationNames
-            experiments {
-              edges {
-                experiment: node {
-                  id
-                  annotationSummaries {
-                    annotationName
-                    minScore
-                    maxScore
-                    meanScore
-                    count
-                    errorCount
+class TestExperimentAnnotationSummaries:
+    async def test_experiment_resolver_returns_expected_values(
+        self, test_client, experiments_with_runs_and_annotations
+    ) -> None:
+        query = """
+          query ($datasetId: GlobalID!) {
+            dataset: node(id: $datasetId) {
+              ... on Dataset {
+                experiments {
+                  edges {
+                    experiment: node {
+                      id
+                      annotationSummaries {
+                        annotationName
+                        minScore
+                        maxScore
+                        meanScore
+                        count
+                        errorCount
+                      }
+                    }
                   }
                 }
               }
             }
           }
-        }
-      }
-    """
-    response = await test_client.post(
-        "/graphql",
-        json={
-            "query": query,
-            "variables": {
-                "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
+        """
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": query,
+                "variables": {
+                    "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
+                },
             },
-        },
-    )
-    assert response.status_code == 200
-    response_json = response.json()
-    assert response_json.get("errors") is None
-    assert response_json["data"] == {
-        "dataset": {
-            "experimentAnnotationNames": [
-                "annotation-name-1",
-                "annotation-name-2",
-                "annotation-name-3",
-            ],
-            "experiments": {
-                "edges": [
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json.get("errors") is None
+        assert response_json["data"] == {
+            "dataset": {
+                "experiments": {
+                    "edges": [
+                        {
+                            "experiment": {
+                                "id": str(GlobalID(type_name="Experiment", node_id=str(2))),
+                                "annotationSummaries": [
+                                    {
+                                        "annotationName": "annotation-name-1",
+                                        "minScore": 1,
+                                        "maxScore": 1,
+                                        "meanScore": 1.0,
+                                        "count": 2,
+                                        "errorCount": 0,
+                                    },
+                                    {
+                                        "annotationName": "annotation-name-3",
+                                        "minScore": None,
+                                        "maxScore": None,
+                                        "meanScore": None,
+                                        "count": 4,
+                                        "errorCount": 4,
+                                    },
+                                ],
+                            }
+                        },
+                        {
+                            "experiment": {
+                                "id": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                                "annotationSummaries": [
+                                    {
+                                        "annotationName": "annotation-name-1",
+                                        "minScore": 0,
+                                        "maxScore": 1,
+                                        "meanScore": 1 / 3,
+                                        "count": 6,
+                                        "errorCount": 0,
+                                    },
+                                    {
+                                        "annotationName": "annotation-name-2",
+                                        "minScore": 0,
+                                        "maxScore": 1,
+                                        "meanScore": 2 / 3,
+                                        "count": 4,
+                                        "errorCount": 1,
+                                    },
+                                ],
+                            }
+                        },
+                    ]
+                },
+            }
+        }
+
+    async def test_dataset_resolver_returns_expected_values(
+        self, test_client, experiments_with_runs_and_annotations
+    ) -> None:
+        query = """
+          query ($datasetId: GlobalID!) {
+            dataset: node(id: $datasetId) {
+              ... on Dataset {
+                experimentAnnotationSummaries {
+                  annotationName
+                  minScore
+                  maxScore
+                  meanScore
+                  count
+                  errorCount
+                }
+              }
+            }
+          }
+        """
+        response = await test_client.post(
+            "/graphql",
+            json={
+                "query": query,
+                "variables": {
+                    "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
+                },
+            },
+        )
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json.get("errors") is None
+        assert response_json["data"] == {
+            "dataset": {
+                "experimentAnnotationSummaries": [
                     {
-                        "experiment": {
-                            "id": str(GlobalID(type_name="Experiment", node_id=str(2))),
-                            "annotationSummaries": [
-                                {
-                                    "annotationName": "annotation-name-3",
-                                    "minScore": None,
-                                    "maxScore": None,
-                                    "meanScore": None,
-                                    "count": 4,
-                                    "errorCount": 4,
-                                },
-                            ],
-                        }
+                        "annotationName": "annotation-name-1",
+                        "minScore": 0,
+                        "maxScore": 1,
+                        "meanScore": 1 / 2,
+                        "count": 8,
+                        "errorCount": 0,
                     },
                     {
-                        "experiment": {
-                            "id": str(GlobalID(type_name="Experiment", node_id=str(1))),
-                            "annotationSummaries": [
-                                {
-                                    "annotationName": "annotation-name-1",
-                                    "minScore": 0,
-                                    "maxScore": 1,
-                                    "meanScore": 1 / 3,
-                                    "count": 6,
-                                    "errorCount": 0,
-                                },
-                                {
-                                    "annotationName": "annotation-name-2",
-                                    "minScore": 0,
-                                    "maxScore": 1,
-                                    "meanScore": 2 / 3,
-                                    "count": 4,
-                                    "errorCount": 1,
-                                },
-                            ],
-                        }
+                        "annotationName": "annotation-name-2",
+                        "minScore": 0,
+                        "maxScore": 1,
+                        "meanScore": 2 / 3,
+                        "count": 4,
+                        "errorCount": 1,
                     },
-                ]
-            },
+                    {
+                        "annotationName": "annotation-name-3",
+                        "minScore": None,
+                        "maxScore": None,
+                        "meanScore": None,
+                        "count": 4,
+                        "errorCount": 4,
+                    },
+                ],
+            }
         }
-    }
 
 
 @pytest.fixture
@@ -582,6 +647,33 @@ async def experiments_with_runs_and_annotations(session):
                     "explanation": None,
                     "trace_id": None,
                     "error": "failed",
+                    "metadata_": {},
+                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                },
+                # experiment 2, annotation-name-1
+                {
+                    "experiment_run_id": run_ids[2],
+                    "name": "annotation-name-1",
+                    "annotator_kind": "CODE",
+                    "label": "label-1",
+                    "score": 1,
+                    "explanation": "explanation",
+                    "trace_id": None,
+                    "error": None,
+                    "metadata_": {},
+                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                },
+                {
+                    "experiment_run_id": run_ids[3],
+                    "name": "annotation-name-1",
+                    "annotator_kind": "CODE",
+                    "label": "label-1",
+                    "score": 1,
+                    "explanation": "explanation",
+                    "trace_id": None,
+                    "error": None,
                     "metadata_": {},
                     "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
                     "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
