@@ -1,7 +1,7 @@
 import functools
 import json
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timezone
 from itertools import product
 from typing import (
     Any,
@@ -22,22 +22,22 @@ from phoenix.config import (
     get_env_host,
     get_env_port,
 )
-from phoenix.datasets.jsonify import jsonify
 from phoenix.datasets.types import (
     Dataset,
     EvaluationResult,
-    EvaluatorPayload,
     Example,
     Experiment,
+    ExperimentEvaluationRun,
     ExperimentEvaluator,
-    ExperimentPayload,
     ExperimentResult,
     ExperimentRun,
+    ExperimentRunId,
     JSONSerializable,
     TestCase,
 )
 from phoenix.evals.executors import get_executor_on_sync_context
 from phoenix.evals.models.rate_limiters import RateLimiter
+from phoenix.utilities.json_utils import jsonify
 
 ExperimentTask = Callable[
     [Example],
@@ -66,7 +66,11 @@ def _unwrap_json(obj: JSONSerializable) -> JSONSerializable:
 
 
 class JSONParsable:
-    def __call__(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+    annotator_kind = "CODE"
+    name = "JSONParsable"
+
+    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+        assert exp_run.output is not None
         output = _unwrap_json(exp_run.output.result)
         assert isinstance(output, str), "Experiment run output must be a string"
         try:
@@ -75,34 +79,29 @@ class JSONParsable:
         except BaseException:
             json_parsable = False
         return EvaluationResult(
-            name=self.__class__.__name__,
-            annotator_kind="CODE",
-            score=float(json_parsable),
-            label=None,
-            explanation=None,
-            metadata={},
+            score=int(json_parsable),
         )
 
 
 class ContainsKeyword:
+    annotator_kind = "CODE"
+    name = "ContainsKeyword"
+
     def __init__(self, keyword: str) -> None:
         super().__init__()
         self.keyword = keyword
 
-    def __call__(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+        assert exp_run.output is not None
         result = _unwrap_json(exp_run.output.result)
         assert isinstance(result, str), "Experiment run output must be a string"
         found = self.keyword in result
         return EvaluationResult(
-            name=self.__class__.__name__,
-            annotator_kind="CODE",
             score=float(found),
-            label=None,
             explanation=(
                 f"the string {repr(self.keyword)} was "
                 f"{'found' if found else 'not found'} in the output"
             ),
-            metadata={},
         )
 
 
@@ -142,9 +141,9 @@ def run_experiment(
 
     rate_limiters = [RateLimiter(rate_limit_error=rate_limit_error) for rate_limit_error in errors]
 
-    def sync_run_experiment(test_case: TestCase) -> ExperimentPayload:
+    def sync_run_experiment(test_case: TestCase) -> ExperimentRun:
         example, repetition_number = test_case.example, test_case.repetition_number
-        start_time = datetime.now()
+        start_time = datetime.now(timezone.utc)
         output = None
         error: Optional[Exception] = None
         try:
@@ -158,27 +157,27 @@ def run_experiment(
         except Exception as exc:
             error = exc
         finally:
-            end_time = datetime.now()
+            end_time = datetime.now(timezone.utc)
 
         assert isinstance(
             output, (dict, list, str, int, float, bool, type(None))
         ), "Output must be JSON serializable"
-        experiment_payload = ExperimentPayload(
+        experiment_run = ExperimentRun(
+            start_time=start_time,
+            end_time=end_time,
+            experiment_id=experiment_id,
             dataset_example_id=example.id,
-            output=ExperimentResult(result=output),
             repetition_number=repetition_number,
-            start_time=start_time.isoformat(),
-            end_time=end_time.isoformat(),
+            output=ExperimentResult(result=output) if output else None,
             error=repr(error) if error else None,
         )
+        return experiment_run
 
-        return experiment_payload
-
-    async def async_run_experiment(test_case: TestCase) -> ExperimentPayload:
+    async def async_run_experiment(test_case: TestCase) -> ExperimentRun:
         example, repetition_number = test_case.example, test_case.repetition_number
-        start_time = datetime.now()
+        start_time = datetime.now(timezone.utc)
         output = None
-        error = None
+        error: Optional[BaseException] = None
         try:
             # Do not use keyword arguments, which can fail at runtime
             # even when function obeys protocol.
@@ -190,21 +189,21 @@ def run_experiment(
         except Exception as exc:
             error = exc
         finally:
-            end_time = datetime.now()
+            end_time = datetime.now(timezone.utc)
 
         assert isinstance(
             output, (dict, list, str, int, float, bool, type(None))
         ), "Output must be JSON serializable"
-        experiment_payload = ExperimentPayload(
+        experiment_run = ExperimentRun(
+            start_time=start_time,
+            end_time=end_time,
+            experiment_id=experiment_id,
             dataset_example_id=example.id,
-            output=ExperimentResult(result=output),
             repetition_number=repetition_number,
-            start_time=start_time.isoformat(),
-            end_time=end_time.isoformat(),
+            output=ExperimentResult(result=output) if output else None,
             error=repr(error) if error else None,
         )
-
-        return experiment_payload
+        return experiment_run
 
     rate_limited_sync_run_experiment = functools.reduce(
         lambda fn, limiter: limiter.limit(fn), rate_limiters, sync_run_experiment
@@ -268,71 +267,65 @@ def evaluate_experiment(
     # not all dataset examples have associated experiment runs, so we need to pair them up
     example_run_pairs = []
     examples_by_id = {example.id: example for example in dataset_examples}
-    for run in experiment_runs:
-        example = examples_by_id.get(run.dataset_example_id)
+    for exp_run in experiment_runs:
+        example = examples_by_id.get(exp_run.dataset_example_id)
         if example:
-            example_run_pairs.append((deepcopy(example), run))
+            example_run_pairs.append((deepcopy(example), exp_run))
 
-    def sync_evaluate_run(obj: Tuple[Example, ExperimentRun]) -> EvaluatorPayload:
+    def sync_evaluate_run(obj: Tuple[Example, ExperimentRun]) -> ExperimentEvaluationRun:
         example, experiment_run = obj
-        start_time = datetime.now()
-        output: Optional[EvaluationResult] = None
-        error: Optional[Exception] = None
+        start_time = datetime.now(timezone.utc)
+        result: Optional[EvaluationResult] = None
+        error: Optional[BaseException] = None
         try:
             # Do not use keyword arguments, which can fail at runtime
             # even when function obeys protocol.
-            _output = evaluator(example, experiment_run)
+            _output = evaluator.evaluate(example, experiment_run)
             if isinstance(_output, Awaitable):
                 raise RuntimeError("Task is async but running in sync context")
-            output = _output
-        except Exception as exc:
+            result = _output
+        except BaseException as exc:
             error = exc
         finally:
-            end_time = datetime.now()
+            end_time = datetime.now(timezone.utc)
 
-        evaluator_payload = EvaluatorPayload(
-            experiment_run_id=experiment_run.id,
-            name=output.name if output else str(evaluator),
-            annotator_kind=getattr(evaluator, "annotator_kind", "CODE"),
-            label=output.label if output else None,
-            score=output.score if output else None,
-            explanation=output.explanation if output else None,
+        evaluator_payload = ExperimentEvaluationRun(
+            experiment_run_id=cast(ExperimentRunId, experiment_run.id),
+            start_time=start_time,
+            end_time=end_time,
+            name=evaluator.name,
+            annotator_kind=evaluator.annotator_kind,
             error=repr(error) if error else None,
-            metadata=output.metadata if output else {},
-            start_time=start_time.isoformat(),
-            end_time=end_time.isoformat(),
+            result=result,
         )
         return evaluator_payload
 
-    async def async_evaluate_run(obj: Tuple[Example, ExperimentRun]) -> EvaluatorPayload:
+    async def async_evaluate_run(obj: Tuple[Example, ExperimentRun]) -> ExperimentEvaluationRun:
         example, experiment_run = obj
-        start_time = datetime.now()
-        output: Optional[EvaluationResult] = None
-        error = None
+        start_time = datetime.now(timezone.utc)
+        result: Optional[EvaluationResult] = None
+        error: Optional[BaseException] = None
         try:
             # Do not use keyword arguments, which can fail at runtime
             # even when function obeys protocol.
-            _output = evaluator(example, experiment_run)
+            _output = evaluator.evaluate(example, experiment_run)
             if isinstance(_output, Awaitable):
-                output = await _output
+                result = await _output
             else:
-                output = _output
-        except Exception as exc:
+                result = _output
+        except BaseException as exc:
             error = exc
         finally:
-            end_time = datetime.now()
+            end_time = datetime.now(timezone.utc)
 
-        evaluator_payload = EvaluatorPayload(
-            experiment_run_id=experiment_run.id,
-            name=output.name if output else str(evaluator),
-            annotator_kind=getattr(evaluator, "annotator_kind", "CODE"),
-            label=output.label if output else None,
-            score=output.score if output else None,
-            explanation=output.explanation if output else None,
+        evaluator_payload = ExperimentEvaluationRun(
+            experiment_run_id=cast(ExperimentRunId, experiment_run.id),
+            start_time=start_time,
+            end_time=end_time,
+            name=evaluator.name,
+            annotator_kind=evaluator.annotator_kind,
             error=repr(error) if error else None,
-            metadata=output.metadata if output else {},
-            start_time=start_time.isoformat(),
-            end_time=end_time.isoformat(),
+            result=result,
         )
         return evaluator_payload
 
@@ -346,8 +339,5 @@ def evaluate_experiment(
     evaluation_payloads, _execution_details = executor.run(example_run_pairs)
     for payload in evaluation_payloads:
         if payload is not None:
-            resp = client.post(
-                f"/v1/experiments/{experiment_id}/runs/{payload.experiment_run_id}/evaluations",
-                json=jsonify(payload),
-            )
+            resp = client.post("/v1/experiment_evaluations", json=jsonify(payload))
             resp.raise_for_status()

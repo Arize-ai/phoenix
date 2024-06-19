@@ -40,6 +40,8 @@ def jsonify(obj: Any) -> Any:
         return obj.total_seconds()
     elif isinstance(obj, Path):
         return str(obj)
+    elif isinstance(obj, BaseException):
+        return str(obj)
     elif hasattr(obj, "model_dump") and callable(obj.model_dump):
         # pydantic v2
         try:

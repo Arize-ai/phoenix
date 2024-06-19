@@ -1,5 +1,8 @@
-from dataclasses import dataclass
+from __future__ import annotations
+
+from dataclasses import dataclass, field
 from datetime import datetime
+from types import MappingProxyType
 from typing import (
     Any,
     Awaitable,
@@ -16,8 +19,13 @@ from typing_extensions import TypeAlias
 
 JSONSerializable: TypeAlias = Optional[Union[Dict[str, Any], List[Any], str, int, float, bool]]
 
+ExperimentId: TypeAlias = str
+DatasetId: TypeAlias = str
+DatasetVersionId: TypeAlias = str
 ExampleId: TypeAlias = str
-RepetitionId: TypeAlias = int
+RepetitionNumber: TypeAlias = int
+ExperimentRunId: TypeAlias = str
+TraceId: TypeAlias = str
 
 
 @dataclass(frozen=True)
@@ -28,18 +36,18 @@ class Example:
     """
 
     id: ExampleId
+    updated_at: datetime
     input: Mapping[str, JSONSerializable]
     output: Mapping[str, JSONSerializable]
-    metadata: Mapping[str, JSONSerializable]
-    updated_at: datetime
+    metadata: Mapping[str, JSONSerializable] = field(default_factory=lambda: MappingProxyType({}))
 
     @classmethod
-    def from_dict(cls, obj: Mapping[str, Any]) -> "Example":
+    def from_dict(cls, obj: Mapping[str, Any]) -> Example:
         return cls(
-            id=obj["id"],
             input=obj["input"],
             output=obj["output"],
             metadata=obj.get("metadata") or {},
+            id=obj["id"],
             updated_at=obj["updated_at"],
         )
 
@@ -50,22 +58,22 @@ class Dataset:
     Contains dataset metadata and examples.
     """
 
-    id: str
-    version_id: str
+    id: DatasetId
+    version_id: DatasetVersionId
     examples: Sequence[Example]
 
 
 @dataclass(frozen=True)
 class TestCase:
     example: Example
-    repetition_number: int
+    repetition_number: RepetitionNumber
 
 
 @dataclass(frozen=True)
 class Experiment:
-    id: str
-    dataset_id: str
-    dataset_version_id: str
+    id: ExperimentId
+    dataset_id: DatasetId
+    dataset_version_id: DatasetVersionId
 
 
 @dataclass(frozen=True)
@@ -73,62 +81,106 @@ class ExperimentResult:
     result: JSONSerializable
 
     @classmethod
-    def from_dict(cls, obj: Mapping[str, Any]) -> "ExperimentResult":
+    def from_dict(cls, obj: Optional[Mapping[str, Any]]) -> Optional[ExperimentResult]:
+        if not obj:
+            return None
         return cls(result=obj["result"])
 
 
 @dataclass(frozen=True)
 class ExperimentRun:
-    id: str
-    dataset_example_id: str
-    output: ExperimentResult
+    start_time: datetime
+    end_time: datetime
+    experiment_id: ExperimentId
+    dataset_example_id: ExampleId
+    repetition_number: RepetitionNumber
+    output: Optional[ExperimentResult] = None
+    error: Optional[str] = None
+    id: Optional[ExperimentRunId] = None
+    trace_id: Optional[TraceId] = None
 
     @classmethod
-    def from_dict(cls, obj: Mapping[str, Any]) -> "ExperimentRun":
+    def from_dict(cls, obj: Mapping[str, Any]) -> ExperimentRun:
         return cls(
-            id=obj["id"],
+            start_time=obj["start_time"],
+            end_time=obj["end_time"],
+            experiment_id=obj["experiment_id"],
             dataset_example_id=obj["dataset_example_id"],
+            repetition_number=obj.get("repetition_number") or 1,
             output=ExperimentResult.from_dict(obj["output"]),
+            error=obj.get("error"),
+            id=obj.get("id"),
+            trace_id=obj.get("trace_id"),
         )
 
-
-@dataclass(frozen=True)
-class ExperimentPayload:
-    dataset_example_id: str
-    output: ExperimentResult
-    repetition_number: int
-    start_time: str
-    end_time: str
-    error: Optional[str]
-
-
-@dataclass(frozen=True)
-class EvaluatorPayload:
-    experiment_run_id: str
-    name: str
-    annotator_kind: str
-    label: Optional[str]
-    score: Optional[float]
-    explanation: Optional[str]
-    error: Optional[str]
-    metadata: Optional[Mapping[str, JSONSerializable]]
-    start_time: str
-    end_time: str
-
-
-@dataclass(frozen=True)
-class EvaluationResult:
-    name: str
-    annotator_kind: str
-    score: Optional[float]
-    label: Optional[str]
-    explanation: Optional[str]
-    metadata: Mapping[str, JSONSerializable]
+    def __post_init__(self) -> None:
+        if bool(self.output) == bool(self.error):
+            ValueError("Must specify either result or error")
 
 
 class ExperimentEvaluator(Protocol):
-    def __call__(
+    @property
+    def name(self) -> str: ...
+
+    @property
+    def annotator_kind(self) -> str: ...
+
+    def evaluate(
         self,
         example: Example,
         experiment_run: ExperimentRun,
     ) -> Union[EvaluationResult, Awaitable[EvaluationResult]]: ...
+
+
+@dataclass(frozen=True)
+class EvaluationResult:
+    score: Optional[float] = None
+    label: Optional[str] = None
+    explanation: Optional[str] = None
+    metadata: Mapping[str, JSONSerializable] = field(default_factory=lambda: MappingProxyType({}))
+
+    @classmethod
+    def from_dict(cls, obj: Optional[Mapping[str, Any]]) -> Optional[EvaluationResult]:
+        if not obj:
+            return None
+        return cls(
+            score=obj.get("score"),
+            label=obj.get("label"),
+            explanation=obj.get("explanation"),
+            metadata=obj.get("metadata") or {},
+        )
+
+    def __post_init__(self) -> None:
+        if self.score is None and not self.label and not self.explanation:
+            ValueError("Must specify one of score, label, or explanation")
+
+
+@dataclass(frozen=True)
+class ExperimentEvaluationRun:
+    experiment_run_id: ExperimentRunId
+    start_time: datetime
+    end_time: datetime
+    name: str
+    annotator_kind: str
+    error: Optional[str] = None
+    result: Optional[EvaluationResult] = None
+    id: Optional[str] = None
+    trace_id: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, obj: Mapping[str, Any]) -> ExperimentEvaluationRun:
+        return cls(
+            experiment_run_id=obj["experiment_run_id"],
+            start_time=obj["start_time"],
+            end_time=obj["end_time"],
+            name=obj["name"],
+            annotator_kind=obj["annotator_kind"],
+            error=obj.get("error"),
+            result=EvaluationResult.from_dict(obj.get("result")),
+            id=obj.get("id"),
+            trace_id=obj.get("trace_id"),
+        )
+
+    def __post_init__(self) -> None:
+        if bool(self.result) == bool(self.error):
+            ValueError("Must specify either result or error")

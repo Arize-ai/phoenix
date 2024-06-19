@@ -2,12 +2,10 @@ from datetime import datetime, timezone
 from unittest.mock import patch
 
 import nest_asyncio
-from phoenix.datasets.experiments import evaluate_experiment, run_experiment
+from phoenix.datasets.experiments import ContainsKeyword, evaluate_experiment, run_experiment
 from phoenix.datasets.types import (
     Dataset,
-    EvaluationResult,
     Example,
-    ExperimentRun,
 )
 from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -34,22 +32,6 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
             )
         ],
     )
-
-    class ContainsSubstring:
-        def __init__(self, substring: str):
-            self.substring = substring
-
-        def __call__(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
-            result = exp_run.output.result
-            score = int(isinstance(result, str) and self.substring in result)
-            return EvaluationResult(
-                name="test",
-                annotator_kind="CODE",
-                score=score,
-                label=None,
-                explanation=f"the substring `{repr(self.substring)}` was in the output",
-                metadata={},
-            )
 
     with patch("phoenix.datasets.experiments._phoenix_client", return_value=sync_test_client):
 
@@ -89,7 +71,7 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
         for run in experiment_runs:
             assert run.output == {"result": "doesn't matter, this is the output"}
 
-        evaluate_experiment(experiment, ContainsSubstring(substring="correct"))
+        evaluate_experiment(experiment, ContainsKeyword(keyword="correct"))
         for run in experiment_runs:
             evaluations = (
                 (
@@ -106,7 +88,7 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
             evaluation = evaluations[0]
             assert evaluation.score == 0.0
 
-        evaluate_experiment(experiment, ContainsSubstring(substring="doesn't matter"))
+        evaluate_experiment(experiment, ContainsKeyword(keyword="doesn't matter"))
         for run in experiment_runs:
             evaluations = (
                 (
