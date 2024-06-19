@@ -6,12 +6,9 @@ import {
   Store,
 } from "relay-runtime";
 
-function getSanitizedPath(path: string): string {
-  return path.endsWith("/") ? path.slice(0, -1) : path;
-}
-const graphQLPath =
-  `${window.location.protocol}//${window.location.host}${getSanitizedPath(window.Config.basename)}` +
-  "/graphql";
+import { BASE_URL } from "@phoenix/config";
+
+const graphQLPath = BASE_URL + "/graphql";
 
 /**
  * Relay requires developers to configure a "fetch" function that tells Relay how to load
