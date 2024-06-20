@@ -351,7 +351,7 @@ async def dataset_with_experiment_runs(session):
             dataset_version_id=version_id,
             name="experiment-name",
             description="experiment-description",
-            repetitions=3,
+            # repetitions=3, TODO: Enable Repetitions #3584
             metadata_={"experiment-metadata-key": "experiment-metadata-value"},
         )
     )
