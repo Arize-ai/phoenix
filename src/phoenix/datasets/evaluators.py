@@ -42,9 +42,6 @@ class JSONParsable:
             score=int(json_parsable),
         )
 
-    async def async_evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
-        return self.evaluate(example, exp_run)
-
 
 class ContainsKeyword:
     annotator_kind = "CODE"
@@ -67,11 +64,8 @@ class ContainsKeyword:
             ),
         )
 
-    async def async_evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
-        return self.evaluate(example, exp_run)
 
-
-class LLMCriteriaEvaluator(ExperimentEvaluator):
+class LLMCriteriaEvaluator:
     annotator_kind = "LLM"
     _base_template = (
         "Determine if the following text is {criteria}. {description}"
@@ -94,47 +88,33 @@ class LLMCriteriaEvaluator(ExperimentEvaluator):
         self,
         model: LLMBaseModel,
         criteria: str,
-        description: Optional[str],
-        name: Optional[str] = None,
+        description: str,
+        name: str,
     ):
         self.model = model
         self.criteria = criteria
         self.description = description
         self.template = self._format_base_template(self.criteria, self.description)
-        if name is not None:
-            self.name = name
-        else:
-            name = "LLMCriteriaEvaluator"
+        self.name = name
 
     def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
-        assert exp_run.output is not None
-        result = _unwrap_json(exp_run.output.result)
-        formatted_template = self.template.replace("{text}", str(result))
+        formatted_template = self._format_eval_template(exp_run)
         unparsed_response = self.model._generate(formatted_template)
-        raw_label, explanation = (
-            self._parse_label_from_explanation(unparsed_response),
-            unparsed_response,
-        )
-        label = snap_to_rail(raw_label, ["true", "false"])
-        if label == "true":
-            score = 1.0
-        elif label == "false":
-            score = 0.0
-        else:
-            score = None
-        return EvaluationResult(
-            score=score,
-            explanation=explanation,
-            metadata={},
-        )
+        return self._parse_eval_output(unparsed_response)
 
     async def async_evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
-        assert exp_run.output is not None
-        result = _unwrap_json(exp_run.output.result)
-        formatted_template = self.template.replace("{text}", str(result))
+        formatted_template = self._format_eval_template(exp_run)
         unparsed_response = await self.model._async_generate(formatted_template)
+        return self._parse_eval_output(unparsed_response)
+
+    def _format_eval_template(self, experiment_run: ExperimentRun) -> str:
+        assert experiment_run.output is not None
+        result = _unwrap_json(experiment_run.output.result)
+        return self.template.format(text=str(result))
+
+    def _parse_eval_output(self, unparsed_response: str) -> EvaluationResult:
         raw_label, explanation = (
-            self._parse_label_from_explanation(unparsed_response),
+            _parse_label_from_explanation(unparsed_response),
             unparsed_response,
         )
         label = snap_to_rail(raw_label, ["true", "false"])
@@ -143,34 +123,20 @@ class LLMCriteriaEvaluator(ExperimentEvaluator):
         elif label == "false":
             score = 0.0
         else:
-            score = None
+            raise RuntimeError(f"Could not parse LLM evaluation: {unparsed_response}")
         return EvaluationResult(
             score=score,
             explanation=explanation,
             metadata={},
         )
-
-    def _parse_label_from_explanation(self, raw_string: str) -> str:
-        label_delimiter = r"(\W*label\W*)"
-        parts = re.split(label_delimiter, raw_string, flags=re.IGNORECASE)
-        if len(parts) > 1:
-            # Find the last occurrence of the delimiter and take the part after it
-            last_index = len(parts) - 1
-            while last_index > 0:
-                if re.match(label_delimiter, parts[last_index - 1], flags=re.IGNORECASE):
-                    return parts[last_index].strip()
-                last_index -= 1
-        return raw_string
 
     @classmethod
     def _format_base_template(cls, criteria: str, description: Optional[str] = None) -> str:
-        if description is not None:
-            formatted_description = cls._description.replace("{criteria}", criteria)
-            formatted_description = formatted_description.replace("{description}", str(description))
-        else:
-            formatted_description = ""
-        formatted_template = cls._base_template.replace("{criteria}", str(criteria))
-        formatted_template = formatted_template.replace("{description}", str(formatted_description))
+        formatted_description = cls._description.format(criteria=criteria, description=description)
+        # leave the text field as a placeholder
+        formatted_template = cls._base_template.format(
+            criteria=criteria, description=formatted_description, text="{text}"
+        )
         return formatted_template
 
 
@@ -182,7 +148,7 @@ def evaluator_factory(
         (LLMCriteriaEvaluator,),
         {
             "__init__": lambda self, model: LLMCriteriaEvaluator.__init__(
-                self, model, criteria, description
+                self, model, criteria, description, name=class_name
             ),
             "__module__": __name__,
             "name": class_name,
@@ -210,6 +176,19 @@ LLMCoherenceEvaluator = evaluator_factory(
     criteria="coherent",
     description="is coherent, well-structured, and organized",
 )
+
+
+def _parse_label_from_explanation(raw_string: str) -> str:
+    label_delimiter = r"(\W*label\W*)"
+    parts = re.split(label_delimiter, raw_string, flags=re.IGNORECASE)
+    if len(parts) > 1:
+        # Find the last occurrence of the delimiter and take the part after it
+        last_index = len(parts) - 1
+        while last_index > 0:
+            if re.match(label_delimiter, parts[last_index - 1], flags=re.IGNORECASE):
+                return parts[last_index].strip()
+            last_index -= 1
+    return raw_string
 
 
 # Someday we'll do typing checking in unit tests.

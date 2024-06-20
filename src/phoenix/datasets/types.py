@@ -174,18 +174,24 @@ class _HasKind(Protocol):
 
 
 @runtime_checkable
-class ExperimentEvaluator(_HasName, _HasKind, Protocol):
+class CanEvaluate(_HasName, _HasKind, Protocol):
     def evaluate(
         self,
         example: Example,
         experiment_run: ExperimentRun,
     ) -> EvaluationResult: ...
 
+
+@runtime_checkable
+class CanAsyncEvaluate(_HasName, _HasKind, Protocol):
     async def async_evaluate(
         self,
         example: Example,
         experiment_run: ExperimentRun,
     ) -> EvaluationResult: ...
+
+
+ExperimentEvaluator: TypeAlias = Union[CanEvaluate, CanAsyncEvaluate]
 
 
 # Someday we'll do type checking in unit tests.

@@ -25,6 +25,8 @@ from phoenix.config import (
     get_env_port,
 )
 from phoenix.datasets.types import (
+    CanAsyncEvaluate,
+    CanEvaluate,
     Dataset,
     EvaluationResult,
     Example,
@@ -234,7 +236,12 @@ def evaluate_experiment(
             # Do not use keyword arguments, which can fail at runtime
             # even when function obeys protocol, because keyword arguments
             # are implementation details.
-            result = evaluator.evaluate(example, experiment_run)
+            if not isinstance(evaluator, CanEvaluate):
+                raise RuntimeError("Task is async but running in sync context")
+            _output = evaluator.evaluate(example, experiment_run)
+            if isinstance(_output, Awaitable):
+                raise RuntimeError("Task is async but running in sync context")
+            result = _output
         except BaseException as exc:
             error = exc
         finally:
@@ -260,7 +267,14 @@ def evaluate_experiment(
             # Do not use keyword arguments, which can fail at runtime
             # even when function obeys protocol, because keyword arguments
             # are implementation details.
-            result = await evaluator.async_evaluate(example, experiment_run)
+            if isinstance(evaluator, CanAsyncEvaluate):
+                result = await evaluator.async_evaluate(example, experiment_run)
+            else:
+                _output = evaluator.evaluate(example, experiment_run)
+                if isinstance(_output, Awaitable):
+                    result = await _output
+                else:
+                    result = _output
         except BaseException as exc:
             error = exc
         finally:
