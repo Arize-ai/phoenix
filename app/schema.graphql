@@ -630,6 +630,7 @@ type ExperimentRun implements Node {
   endTime: DateTime!
   error: String
   annotations(first: Int = 50, last: Int, after: String, before: String): ExperimentRunAnnotationConnection!
+  trace: Trace
 }
 
 type ExperimentRunAnnotation implements Node {
@@ -644,6 +645,8 @@ type ExperimentRunAnnotation implements Node {
   metadata: JSON!
   startTime: DateTime!
   endTime: DateTime!
+  traceId: String
+  trace: Trace
 }
 
 """A connection to a list of items."""

@@ -54,6 +54,10 @@ class ExperimentMutationMixin:
                         ]
                     )
                 )
+            if project_names := set(filter(bool, (e.project_name for e in experiments.values()))):
+                await session.execute(
+                    delete(models.Project).where(models.Project.name.in_(project_names))
+                )
         return ExperimentMutationPayload(
             experiments=[
                 to_gql_experiment(experiments[experiment_id]) for experiment_id in experiment_ids

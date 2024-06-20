@@ -7,6 +7,8 @@ from starlette.status import HTTP_404_NOT_FOUND
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.insertion.helpers import insert_stmt
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
@@ -85,6 +87,10 @@ async def create_experiment(request: Request) -> Response:
 
         # generate a semi-unique name for the experiment
         experiment_name = payload.get("name") or _generate_experiment_name(dataset_name)
+        project_name = f"Experiment-{getrandbits(96).to_bytes(12, 'big').hex()}"
+        project_description = (
+            f"dataset_id: {dataset_globalid}\ndataset_version_id: {dataset_version_globalid}"
+        )
         experiment = models.Experiment(
             dataset_id=int(dataset_id),
             dataset_version_id=int(dataset_version_id),
@@ -92,9 +98,27 @@ async def create_experiment(request: Request) -> Response:
             description=payload.get("description"),
             repetitions=repetitions,
             metadata_=metadata,
+            project_name=project_name,
         )
         session.add(experiment)
         await session.flush()
+
+        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        project_rowid = await session.scalar(
+            insert_stmt(
+                dialect=dialect,
+                table=models.Project,
+                constraint="uq_projects_name",
+                column_names=("name",),
+                values=dict(
+                    name=project_name,
+                    description=project_description,
+                    created_at=experiment.created_at,
+                    updated_at=experiment.updated_at,
+                ),
+            ).returning(models.Project.id)
+        )
+        assert project_rowid is not None
 
         experiment_globalid = GlobalID("Experiment", str(experiment.id))
         if dataset_version_globalid_str is None:
@@ -107,6 +131,7 @@ async def create_experiment(request: Request) -> Response:
             "dataset_version_id": str(dataset_version_globalid),
             "repetitions": experiment.repetitions,
             "metadata": experiment.metadata_,
+            "project_name": experiment.project_name,
             "created_at": experiment.created_at.isoformat(),
             "updated_at": experiment.updated_at.isoformat(),
         }
@@ -142,6 +167,7 @@ async def read_experiment(request: Request) -> Response:
             "dataset_version_id": str(dataset_version_globalid),
             "repetitions": experiment.repetitions,
             "metadata": experiment.metadata_,
+            "project_name": experiment.project_name,
             "created_at": experiment.created_at.isoformat(),
             "updated_at": experiment.updated_at.isoformat(),
         }

@@ -67,6 +67,7 @@ class Experiment:
     id: ExperimentId
     dataset_id: DatasetId
     dataset_version_id: DatasetVersionId
+    project_name: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -144,7 +145,7 @@ class ExperimentEvaluationRun:
     error: Optional[str] = None
     result: Optional[EvaluationResult] = None
     id: Optional[str] = None
-    trace_id: Optional[str] = None
+    trace_id: Optional[TraceId] = None
 
     @classmethod
     def from_dict(cls, obj: Mapping[str, Any]) -> ExperimentEvaluationRun:

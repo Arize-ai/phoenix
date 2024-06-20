@@ -85,17 +85,25 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        async with info.context.db() as session:
-            projects = await session.scalars(select(models.Project))
-        data = [
-            Project(
-                id_attr=project.id,
-                name=project.name,
-                gradient_start_color=project.gradient_start_color,
-                gradient_end_color=project.gradient_end_color,
+        stmt = (
+            select(models.Project)
+            .outerjoin(
+                models.Experiment,
+                models.Project.name == models.Experiment.project_name,
             )
-            for project in projects
-        ]
+            .where(models.Experiment.project_name.is_(None))
+        )
+        async with info.context.db() as session:
+            projects = await session.stream_scalars(stmt)
+            data = [
+                Project(
+                    id_attr=project.id,
+                    name=project.name,
+                    gradient_start_color=project.gradient_start_color,
+                    gradient_end_color=project.gradient_end_color,
+                )
+                async for project in projects
+            ]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field

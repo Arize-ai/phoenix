@@ -536,6 +536,7 @@ class Experiment(Base):
     description: Mapped[Optional[str]]
     repetitions: Mapped[int]
     metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    project_name: Mapped[Optional[str]] = mapped_column(index=True)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()

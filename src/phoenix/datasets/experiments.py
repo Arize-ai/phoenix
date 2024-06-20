@@ -24,6 +24,7 @@ from phoenix.config import (
     get_env_host,
     get_env_port,
 )
+from phoenix.datasets.tracing import trace_stealing
 from phoenix.datasets.types import (
     CanAsyncEvaluate,
     CanEvaluate,
@@ -83,7 +84,9 @@ def run_experiment(
         },
     )
     experiment_response.raise_for_status()
-    experiment_id = experiment_response.json()["id"]
+    exp_json = experiment_response.json()
+    experiment_id = exp_json["id"]
+    project_name = exp_json["project_name"]
 
     errors: Tuple[Optional[Type[BaseException]], ...]
     if not hasattr(rate_limit_errors, "__iter__"):
@@ -99,18 +102,18 @@ def run_experiment(
         start_time = datetime.now(timezone.utc)
         output = None
         error: Optional[Exception] = None
-        try:
-            # Do not use keyword arguments, which can fail at runtime
-            # even when function obeys protocol, because keyword arguments
-            # are implementation details.
-            _output = task(example)
-            if isinstance(_output, Awaitable):
-                raise RuntimeError("Task is async but running in sync context")
-            else:
-                output = _output
-        except Exception as exc:
-            error = exc
-        finally:
+        with trace_stealing(project_name) as ts:
+            try:
+                # Do not use keyword arguments, which can fail at runtime
+                # even when function obeys protocol, because keyword arguments
+                # are implementation details.
+                _output = task(example)
+                if isinstance(_output, Awaitable):
+                    raise RuntimeError("Task is async but running in sync context")
+                else:
+                    output = _output
+            except Exception as exc:
+                error = exc
             end_time = datetime.now(timezone.utc)
 
         assert isinstance(
@@ -124,6 +127,7 @@ def run_experiment(
             repetition_number=repetition_number,
             output=ExperimentResult(result=output) if output else None,
             error=repr(error) if error else None,
+            trace_id=ts.trace_id,
         )
         return experiment_run
 
@@ -132,18 +136,18 @@ def run_experiment(
         start_time = datetime.now(timezone.utc)
         output = None
         error: Optional[BaseException] = None
-        try:
-            # Do not use keyword arguments, which can fail at runtime
-            # even when function obeys protocol, because keyword arguments
-            # are implementation details.
-            _output = task(example)
-            if isinstance(_output, Awaitable):
-                output = await _output
-            else:
-                output = _output
-        except Exception as exc:
-            error = exc
-        finally:
+        with trace_stealing(project_name) as ts:
+            try:
+                # Do not use keyword arguments, which can fail at runtime
+                # even when function obeys protocol, because keyword arguments
+                # are implementation details.
+                _output = task(example)
+                if isinstance(_output, Awaitable):
+                    output = await _output
+                else:
+                    output = _output
+            except Exception as exc:
+                error = exc
             end_time = datetime.now(timezone.utc)
 
         assert isinstance(
@@ -157,6 +161,7 @@ def run_experiment(
             repetition_number=repetition_number,
             output=ExperimentResult(result=output) if output else None,
             error=repr(error) if error else None,
+            trace_id=ts.trace_id,
         )
         return experiment_run
 
@@ -188,6 +193,7 @@ def run_experiment(
         id=experiment_id,
         dataset_id=dataset.id,
         dataset_version_id=dataset.version_id,
+        project_name=project_name,
     )
 
 
@@ -201,6 +207,7 @@ def evaluate_experiment(
     experiment_id = experiment.id
     dataset_id = experiment.dataset_id
     dataset_version_id = experiment.dataset_version_id
+    project_name = experiment.project_name
 
     dataset_examples = [
         Example.from_dict(ex)
@@ -233,19 +240,19 @@ def evaluate_experiment(
         start_time = datetime.now(timezone.utc)
         result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
-        try:
-            # Do not use keyword arguments, which can fail at runtime
-            # even when function obeys protocol, because keyword arguments
-            # are implementation details.
-            if not isinstance(evaluator, CanEvaluate):
-                raise RuntimeError("Task is async but running in sync context")
-            _output = evaluator.evaluate(example, experiment_run)
-            if isinstance(_output, Awaitable):
-                raise RuntimeError("Task is async but running in sync context")
-            result = _output
-        except BaseException as exc:
-            error = exc
-        finally:
+        with trace_stealing(project_name) as ts:
+            try:
+                # Do not use keyword arguments, which can fail at runtime
+                # even when function obeys protocol, because keyword arguments
+                # are implementation details.
+                if not isinstance(evaluator, CanEvaluate):
+                    raise RuntimeError("Task is async but running in sync context")
+                _output = evaluator.evaluate(example, experiment_run)
+                if isinstance(_output, Awaitable):
+                    raise RuntimeError("Task is async but running in sync context")
+                result = _output
+            except BaseException as exc:
+                error = exc
             end_time = datetime.now(timezone.utc)
 
         evaluator_payload = ExperimentEvaluationRun(
@@ -256,6 +263,7 @@ def evaluate_experiment(
             annotator_kind=evaluator.annotator_kind,
             error=repr(error) if error else None,
             result=result,
+            trace_id=ts.trace_id,
         )
         return evaluator_payload
 
@@ -264,21 +272,21 @@ def evaluate_experiment(
         start_time = datetime.now(timezone.utc)
         result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
-        try:
-            # Do not use keyword arguments, which can fail at runtime
-            # even when function obeys protocol, because keyword arguments
-            # are implementation details.
-            if isinstance(evaluator, CanAsyncEvaluate):
-                result = await evaluator.async_evaluate(example, experiment_run)
-            else:
-                _output = evaluator.evaluate(example, experiment_run)
-                if isinstance(_output, Awaitable):
-                    result = await _output
+        with trace_stealing(project_name) as ts:
+            try:
+                # Do not use keyword arguments, which can fail at runtime
+                # even when function obeys protocol, because keyword arguments
+                # are implementation details.
+                if isinstance(evaluator, CanAsyncEvaluate):
+                    result = await evaluator.async_evaluate(example, experiment_run)
                 else:
-                    result = _output
-        except BaseException as exc:
-            error = exc
-        finally:
+                    _output = evaluator.evaluate(example, experiment_run)
+                    if isinstance(_output, Awaitable):
+                        result = await _output
+                    else:
+                        result = _output
+            except BaseException as exc:
+                error = exc
             end_time = datetime.now(timezone.utc)
 
         evaluator_payload = ExperimentEvaluationRun(
@@ -289,6 +297,7 @@ def evaluate_experiment(
             annotator_kind=evaluator.annotator_kind,
             error=repr(error) if error else None,
             result=result,
+            trace_id=ts.trace_id,
         )
         return evaluator_payload
 

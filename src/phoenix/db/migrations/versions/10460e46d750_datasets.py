@@ -156,6 +156,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("metadata", JSON_, nullable=False),
+        sa.Column("project_name", sa.String),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),

@@ -19,6 +19,7 @@ from phoenix.server.api.types.pagination import (
     CursorString,
     connection_from_list,
 )
+from phoenix.server.api.types.Trace import Trace
 
 
 @strawberry.type
@@ -58,6 +59,15 @@ class ExperimentRun(Node):
         return connection_from_list(
             [to_gql_experiment_run_annotation(annotation) for annotation in annotations], args
         )
+
+    @strawberry.field
+    async def trace(self, info: Info) -> Optional[Trace]:
+        if not self.trace_id:
+            return None
+        dataloader = info.context.data_loaders.trace_row_ids
+        if (trace_row_id := await dataloader.load(self.trace_id)) is None:
+            return None
+        return Trace(id_attr=trace_row_id)
 
 
 def to_gql_experiment_run(run: models.ExperimentRun) -> ExperimentRun:
