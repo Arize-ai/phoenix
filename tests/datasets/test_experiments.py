@@ -57,7 +57,7 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
         assert experiment_model.dataset_version_id == 0
         assert experiment_model.name == "test"
         assert experiment_model.description == "test description"
-        assert experiment_model.repetitions == 1
+        assert experiment_model.repetitions == 1  # TODO: Enable repetitions #3584
 
         experiment_runs = (
             (
