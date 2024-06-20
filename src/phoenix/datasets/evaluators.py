@@ -138,9 +138,14 @@ class LLMCriteriaEvaluator(ExperimentEvaluator):
             unparsed_response,
         )
         label = snap_to_rail(raw_label, ["true", "false"])
-        meets_criteria = label == "true"
+        if label == "true":
+            score = 1.0
+        elif label == "false":
+            score = 0.0
+        else:
+            score = None
         return EvaluationResult(
-            score=float(meets_criteria),
+            score=score,
             explanation=explanation,
             metadata={},
         )
