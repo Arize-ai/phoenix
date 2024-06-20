@@ -7,6 +7,7 @@ from typing import (
     Awaitable,
     Callable,
     Coroutine,
+    Iterable,
     Mapping,
     Optional,
     Tuple,
@@ -66,9 +67,12 @@ def run_experiment(
     experiment_description: Optional[str] = None,
     experiment_metadata: Optional[Mapping[str, Any]] = None,
     repetitions: int = 1,
+    evaluators: Optional[Union[ExperimentEvaluator, Iterable[ExperimentEvaluator]]] = None,
     rate_limit_errors: Optional[Union[Type[BaseException], Tuple[Type[BaseException], ...]]] = None,
 ) -> Experiment:
     assert repetitions > 0, "Must run the experiment at least once."
+    if isinstance(evaluators, (CanEvaluate, CanAsyncEvaluate)):
+        evaluators = [evaluators]
 
     client = _phoenix_client()
 
@@ -184,36 +188,29 @@ def run_experiment(
         if payload is not None:
             resp = client.post(f"/v1/experiments/{experiment_id}/runs", json=jsonify(payload))
             resp.raise_for_status()
-    return Experiment(
+
+    experiment = Experiment(
         id=experiment_id,
         dataset_id=dataset.id,
         dataset_version_id=dataset.version_id,
     )
 
+    if evaluators:
+        for evaluator in evaluators:
+            _evaluate_experiment(experiment, evaluator, dataset.examples)
 
-def evaluate_experiment(
+    return experiment
+
+
+def _evaluate_experiment(
     experiment: Experiment,
     evaluator: ExperimentEvaluator,
+    dataset_examples: Iterable[Example],
 ) -> None:
     assert isinstance(evaluator, (CanEvaluate, CanAsyncEvaluate))
     client = _phoenix_client()
 
     experiment_id = experiment.id
-    dataset_id = experiment.dataset_id
-    dataset_version_id = experiment.dataset_version_id
-
-    dataset_examples = [
-        Example.from_dict(ex)
-        for ex in (
-            client.get(
-                f"/v1/datasets/{dataset_id}/examples",
-                params={"version-id": str(dataset_version_id)},
-            )
-            .json()
-            .get("data", {})
-            .get("examples", [])
-        )
-    ]
 
     experiment_runs = [
         ExperimentRun.from_dict(exp_run)
