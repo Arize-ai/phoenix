@@ -26,7 +26,7 @@ class Experiment(Node):
     cached_sequence_number: Private[Optional[int]] = None
     id_attr: NodeID[int]
     name: str
-    project_name: str | None
+    project_name: Optional[str]
     description: Optional[str]
     metadata: JSON
     created_at: datetime
