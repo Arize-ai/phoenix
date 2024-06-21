@@ -41,6 +41,7 @@ from phoenix.datasets.types import (
 )
 from phoenix.evals.executors import get_executor_on_sync_context
 from phoenix.evals.models.rate_limiters import RateLimiter
+from phoenix.evals.utils import get_tqdm_progress_bar_formatter
 from phoenix.utilities.json_utils import jsonify
 
 ExperimentTask: TypeAlias = Union[
@@ -49,12 +50,25 @@ ExperimentTask: TypeAlias = Union[
 ]
 
 
-def _phoenix_client() -> httpx.Client:
+def _get_base_url() -> str:
     host = get_env_host()
+    if host == "0.0.0.0":
+        host = "127.0.0.1"
     base_url = get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
-    base_url = base_url if base_url.endswith("/") else base_url + "/"
+    return base_url if base_url.endswith("/") else base_url + "/"
+
+
+def _get_experiment_url(*, dataset_id: str, experiment_id: str) -> str:
+    return f"{_get_base_url()}datasets/{dataset_id}/compare?experimentId={experiment_id}"
+
+
+def _get_dataset_experiments_url(*, dataset_id: str) -> str:
+    return f"{_get_base_url()}datasets/{dataset_id}/experiments"
+
+
+def _phoenix_client() -> httpx.Client:
     headers = get_env_client_headers()
-    client = httpx.Client(base_url=base_url, headers=headers)
+    client = httpx.Client(base_url=_get_base_url(), headers=headers)
     return client
 
 
@@ -65,9 +79,10 @@ def run_experiment(
     experiment_name: Optional[str] = None,
     experiment_description: Optional[str] = None,
     experiment_metadata: Optional[Mapping[str, Any]] = None,
-    repetitions: int = 1,
     rate_limit_errors: Optional[Union[Type[BaseException], Tuple[Type[BaseException], ...]]] = None,
 ) -> Experiment:
+    # Add this to the params once supported in the UI
+    repetitions = 1
     assert repetitions > 0, "Must run the experiment at least once."
 
     client = _phoenix_client()
@@ -84,6 +99,9 @@ def run_experiment(
     )
     experiment_response.raise_for_status()
     experiment_id = experiment_response.json()["id"]
+    dataset_experiments_url = _get_dataset_experiments_url(dataset_id=dataset.id)
+    experiment_compare_url = _get_experiment_url(dataset_id=dataset.id, experiment_id=experiment_id)
+    print(f"🧪 Experiment started: {experiment_compare_url}")
 
     errors: Tuple[Optional[Type[BaseException]], ...]
     if not hasattr(rate_limit_errors, "__iter__"):
@@ -173,6 +191,7 @@ def run_experiment(
         max_retries=0,
         exit_on_error=False,
         fallback_return_value=None,
+        tqdm_bar_format=get_tqdm_progress_bar_formatter("running tasks"),
     )
 
     test_cases = [
@@ -184,6 +203,8 @@ def run_experiment(
         if payload is not None:
             resp = client.post(f"/v1/experiments/{experiment_id}/runs", json=jsonify(payload))
             resp.raise_for_status()
+
+    print(f"✅ Task runs completed. View all experiments: {dataset_experiments_url}")
     return Experiment(
         id=experiment_id,
         dataset_id=dataset.id,
