@@ -351,6 +351,7 @@ class Query:
             return Experiment(
                 id_attr=experiment.id,
                 name=experiment.name,
+                project_name=experiment.project_name,
                 description=experiment.description,
                 created_at=experiment.created_at,
                 updated_at=experiment.updated_at,
