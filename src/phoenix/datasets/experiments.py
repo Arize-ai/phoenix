@@ -215,9 +215,7 @@ def run_experiment(
     print(f"✅ Task runs completed. View all experiments: {dataset_experiments_url}")
 
     if evaluators is not None:
-        evaluate_experiment(
-            experiment, evaluators, dataset_examples=dataset.examples, client=client
-        )
+        _evaluate_experiment(experiment, evaluators, dataset.examples, client)
 
     return experiment
 
@@ -225,33 +223,36 @@ def run_experiment(
 def evaluate_experiment(
     experiment: Experiment,
     evaluators: Union[ExperimentEvaluator, Iterable[ExperimentEvaluator]],
-    dataset_examples: Optional[Iterable[Example]] = None,
-    client: Optional[httpx.Client] = None,
 ) -> None:
-    if client is None:
-        client = _phoenix_client()
+    client = _phoenix_client()
+    dataset_id = experiment.dataset_id
+    dataset_version_id = experiment.dataset_version_id
 
-    if not hasattr(evaluators, "__iter__"):
+    dataset_examples = [
+        Example.from_dict(ex)
+        for ex in (
+            client.get(
+                f"/v1/datasets/{dataset_id}/examples",
+                params={"version-id": str(dataset_version_id)},
+            )
+            .json()
+            .get("data", {})
+            .get("examples", [])
+        )
+    ]
+    _evaluate_experiment(experiment, evaluators, dataset_examples, client)
+
+
+def _evaluate_experiment(
+    experiment: Experiment,
+    evaluators: Union[ExperimentEvaluator, Iterable[ExperimentEvaluator]],
+    dataset_examples: Iterable[Example],
+    client: httpx.Client,
+) -> None:
+    if isinstance(evaluators, (CanEvaluate, CanAsyncEvaluate)):
         evaluators = [evaluators]
 
     experiment_id = experiment.id
-
-    if dataset_examples is None:
-        dataset_id = experiment.dataset_id
-        dataset_version_id = experiment.dataset_version_id
-
-        dataset_examples = [
-            Example.from_dict(ex)
-            for ex in (
-                client.get(
-                    f"/v1/datasets/{dataset_id}/examples",
-                    params={"version-id": str(dataset_version_id)},
-                )
-                .json()
-                .get("data", {})
-                .get("examples", [])
-            )
-        ]
 
     experiment_runs = [
         ExperimentRun.from_dict(exp_run)
