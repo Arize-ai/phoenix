@@ -92,6 +92,10 @@ class Experiment(Node):
             )
         ]
 
+    @strawberry.field
+    async def error_rate(self, info: Info[Context, None]) -> Optional[float]:
+        raise NotImplementedError("errorRate on Experiment not implemented")
+
 
 def to_gql_experiment(
     experiment: models.Experiment,
