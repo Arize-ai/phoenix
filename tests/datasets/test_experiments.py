@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import nest_asyncio
 from phoenix.datasets.evaluators import ContainsKeyword
-from phoenix.datasets.experiments import evaluate_experiment, run_experiment
+from phoenix.datasets.experiments import run_experiment
 from phoenix.datasets.types import (
     Dataset,
     Example,
@@ -45,6 +45,10 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
             experiment_name="test",
             experiment_description="test description",
             # repetitions=3, TODO: Enable repetitions #3584
+            evaluators=[
+                ContainsKeyword(keyword="correct"),
+                ContainsKeyword(keyword="doesn't matter"),
+            ],
         )
         experiment_id = from_global_id_with_expected_type(
             GlobalID.from_id(experiment.id), "Experiment"
@@ -72,25 +76,6 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
         for run in experiment_runs:
             assert run.output == {"result": "doesn't matter, this is the output"}
 
-        evaluate_experiment(experiment, ContainsKeyword(keyword="correct"))
-        for run in experiment_runs:
-            evaluations = (
-                (
-                    await session.execute(
-                        select(models.ExperimentRunAnnotation).where(
-                            models.ExperimentRunAnnotation.experiment_run_id == run.id
-                        )
-                    )
-                )
-                .scalars()
-                .all()
-            )
-            assert len(evaluations) == 1
-            evaluation = evaluations[0]
-            assert evaluation.score == 0.0
-
-        evaluate_experiment(experiment, ContainsKeyword(keyword="doesn't matter"))
-        for run in experiment_runs:
             evaluations = (
                 (
                     await session.execute(
@@ -103,5 +88,5 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
                 .all()
             )
             assert len(evaluations) == 2
-            evaluation_2 = evaluations[1]
-            assert evaluation_2.score == 1.0
+            assert evaluations[0].score == 0.0
+            assert evaluations[1].score == 1.0
