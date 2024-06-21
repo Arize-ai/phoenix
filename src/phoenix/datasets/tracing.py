@@ -28,8 +28,8 @@ _ACTIVE_MODIFIER: ContextVar[Optional[SpanModifier]] = ContextVar("active_modifi
 
 def override_span(init: Callable[..., None], span: ReadableSpan, args: Any, kwargs: Any) -> None:
     init(*args, **kwargs)
-    if isinstance(ts := _ACTIVE_MODIFIER.get(None), SpanModifier):
-        ts.modify_resource(span)
+    if isinstance(span_modifier := _ACTIVE_MODIFIER.get(None), SpanModifier):
+        span_modifier.modify_resource(span)
 
 
 _SPAN_INIT_MONKEY_PATCH_LOCK = Lock()

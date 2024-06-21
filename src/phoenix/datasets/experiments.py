@@ -129,7 +129,7 @@ def run_experiment(
         SimpleSpanProcessor(OTLPSpanExporter(urljoin(f"{_get_base_url()}", "v1/traces")))
     )
     tracer = tracer_provider.get_tracer(__name__)
-    root_span_name = f"Experiment: {task.__qualname__}"
+    root_span_name = f"Task: {task.__qualname__}"
     root_span_kind = CHAIN.value
 
     dataset_experiments_url = _get_dataset_experiments_url(dataset_id=dataset.id)
