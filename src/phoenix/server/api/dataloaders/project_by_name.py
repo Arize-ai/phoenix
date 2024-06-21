@@ -18,7 +18,7 @@ class ProjectByNameDataLoader(DataLoader[Key, Result]):
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[Union[Result, ValueError]]:
+    async def _load_fn(self, keys: List[Key]) -> List[Result]:
         project_names = list(set(keys))
         projects_by_name: DefaultDict[Key, Result] = defaultdict(None)
         async with self._db() as session:
