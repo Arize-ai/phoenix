@@ -26,9 +26,9 @@ from .evaluators import (
     LLMEvaluator,
     QAEvaluator,
     RelevanceEvaluator,
+    SQLEvaluator,
     SummarizationEvaluator,
     ToxicityEvaluator,
-    SQLEvaluator,
 )
 from .generate import llm_generate
 from .models import (
@@ -91,6 +91,7 @@ __all__ = [
     "HallucinationEvaluator",
     "QAEvaluator",
     "RelevanceEvaluator",
+    "SQLEvaluator",
     "SummarizationEvaluator",
     "ToxicityEvaluator",
     "HALLUCINATION_SPAN_PROMPT_TEMPLATE",
