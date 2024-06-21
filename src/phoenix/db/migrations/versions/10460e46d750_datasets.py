@@ -217,7 +217,7 @@ def upgrade() -> None:
         ),
     )
     op.create_table(
-        "experiment_annotations",
+        "experiment_run_annotations",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column(
             "experiment_run_id",
@@ -272,7 +272,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("experiment_annotations")
+    op.drop_table("experiment_run_annotations")
     op.drop_table("experiment_runs")
     op.drop_table("experiments")
     op.drop_table("dataset_example_revisions")
