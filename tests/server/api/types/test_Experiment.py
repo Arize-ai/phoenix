@@ -271,6 +271,56 @@ class TestExperimentAnnotationSummaries:
         }
 
 
+async def test_error_rate(test_client, experiments_with_runs_and_annotations) -> None:
+    query = """
+      query ($datasetId: GlobalID!) {
+        dataset: node(id: $datasetId) {
+          ... on Dataset {
+            experiments {
+              edges {
+                experiment: node {
+                  id
+                  errorRate
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+    response = await test_client.post(
+        "/graphql",
+        json={
+            "query": query,
+            "variables": {
+                "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
+            },
+        },
+    )
+    response_json = response.json()
+    assert response_json.get("errors") is None
+    assert response_json["data"] == {
+        "dataset": {
+            "experiments": {
+                "edges": [
+                    {
+                        "experiment": {
+                            "id": str(GlobalID(type_name="Experiment", node_id=str(2))),
+                            "errorRate": 2 / 3,
+                        }
+                    },
+                    {
+                        "experiment": {
+                            "id": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                            "errorRate": 1 / 10,
+                        }
+                    },
+                ]
+            },
+        }
+    }
+
+
 @pytest.fixture
 async def dataset_with_experiment_runs(session):
     """
