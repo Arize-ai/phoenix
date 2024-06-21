@@ -8,6 +8,8 @@ The pace of AI application development is often bottlenecked by quality evaluati
 
 ## Datasets
 
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/evaluator.png" alt=""><figcaption><p>How Datasets are used to test changes to your AI application</p></figcaption></figure>
+
 Datasets are an integral part of evaluation and experimentation. They are collections of examples that provide the necessary inputs and, optionally, expected `reference` outputs for assessing your AI application. Each example within a dataset represents a single data point, consisting of an `inputs` dictionary, an optional `output` dictionary, and an optional `metadata` dictionary. The `optional` output dictionary will often contain a `reference` key, which is the expected LLM application output for the given input.
 
 Datasets allow you to collect data from production, staging, evaluations, and even manually, and then use that data to run experiments and evaluations to track improvements.
