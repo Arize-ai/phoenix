@@ -244,7 +244,7 @@ async def test_add_span_to_dataset(
                                 "revision": {
                                     "input": {"input": "retriever-span-input"},
                                     "output": {
-                                        "retrieval_documents": [
+                                        "documents": [
                                             {
                                                 "document": {
                                                     "content": "retrieved-document-content",
