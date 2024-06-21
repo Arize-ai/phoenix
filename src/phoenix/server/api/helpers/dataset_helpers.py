@@ -117,7 +117,7 @@ def _get_retriever_span_output(
     The output is extracted from the retrieval documents (if present).
     """
     if retrieval_documents is not None:
-        return {"retrieval_documents": retrieval_documents}
+        return {"documents": retrieval_documents}
     return _get_generic_io_value(io_value=output_value, mime_type=output_mime_type, kind="output")
 
 
