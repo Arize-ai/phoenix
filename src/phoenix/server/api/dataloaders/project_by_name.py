@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import AsyncContextManager, Callable, DefaultDict, List, Optional, Union
+from typing import AsyncContextManager, Callable, DefaultDict, List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
