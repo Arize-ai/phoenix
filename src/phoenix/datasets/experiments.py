@@ -28,6 +28,7 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import Span
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.trace import Status, StatusCode
 from typing_extensions import TypeAlias
 
 from phoenix.config import (
@@ -123,7 +124,7 @@ def run_experiment(
         SimpleSpanProcessor(OTLPSpanExporter(urljoin(f"{_get_base_url()}", "v1/traces")))
     )
     tracer = tracer_provider.get_tracer(__name__)
-    root_span_name = "Experiment"
+    root_span_name = f"Experiment: {task.__qualname__}"
     root_span_kind = OpenInferenceSpanKindValues.CHAIN.value
 
     dataset_experiments_url = _get_dataset_experiments_url(dataset_id=dataset.id)
@@ -143,6 +144,7 @@ def run_experiment(
         example, repetition_number = test_case.example, test_case.repetition_number
         output = None
         error: Optional[BaseException] = None
+        status = Status(StatusCode.OK)
         with ExitStack() as stack:
             span: Span = stack.enter_context(
                 tracer.start_as_current_span(root_span_name, context=Context())
@@ -159,10 +161,12 @@ def run_experiment(
                     output = _output
             except BaseException as exc:
                 span.record_exception(exc)
+                status = Status()
                 error = exc
             if result := ExperimentResult(result=output) if output else None:
                 span.set_attributes(dict(flatten(jsonify(result), recurse_on_sequence=True)))
             span.set_attribute(SpanAttributes.OPENINFERENCE_SPAN_KIND, root_span_kind)
+            span.set_status(status)
 
         assert isinstance(
             output, (dict, list, str, int, float, bool, type(None))
@@ -183,6 +187,7 @@ def run_experiment(
         example, repetition_number = test_case.example, test_case.repetition_number
         output = None
         error: Optional[BaseException] = None
+        status = Status(StatusCode.OK)
         with ExitStack() as stack:
             span: Span = stack.enter_context(
                 tracer.start_as_current_span(root_span_name, context=Context())
@@ -199,10 +204,12 @@ def run_experiment(
                     output = _output
             except BaseException as exc:
                 span.record_exception(exc)
+                status = Status()
                 error = exc
             if result := ExperimentResult(result=output) if output else None:
                 span.set_attributes(dict(flatten(jsonify(result), recurse_on_sequence=True)))
             span.set_attribute(SpanAttributes.OPENINFERENCE_SPAN_KIND, root_span_kind)
+            span.set_status(status)
 
         assert isinstance(
             output, (dict, list, str, int, float, bool, type(None))
@@ -283,6 +290,9 @@ def evaluate_experiment(
     _evaluate_experiment(experiment, evaluators, dataset_examples, client)
 
 
+ExperimentEvaluatorName: TypeAlias = str
+
+
 def _evaluate_experiment(
     experiment: Experiment,
     evaluators: Union[ExperimentEvaluator, Iterable[ExperimentEvaluator]],
@@ -307,7 +317,7 @@ def _evaluate_experiment(
         if example:
             example_run_pairs.append((deepcopy(example), exp_run))
     evaluation_inputs = [
-        (example, run, evaluator)
+        (example, run, evaluator.name, evaluator)
         for (example, run), evaluator in product(example_run_pairs, evaluators)
     ]
 
@@ -318,15 +328,16 @@ def _evaluate_experiment(
         SimpleSpanProcessor(OTLPSpanExporter(urljoin(f"{_get_base_url()}", "v1/traces")))
     )
     tracer = tracer_provider.get_tracer(__name__)
-    root_span_name = "Evaluation"
     root_span_kind = "EVALUATOR"
 
     def sync_evaluate_run(
-        obj: Tuple[Example, ExperimentRun, ExperimentEvaluator],
+        obj: Tuple[Example, ExperimentRun, ExperimentEvaluatorName, ExperimentEvaluator],
     ) -> ExperimentEvaluationRun:
-        example, experiment_run, evaluator = obj
+        example, experiment_run, name, evaluator = obj
         result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
+        status = Status(StatusCode.OK)
+        root_span_name = f"Evaluation: {name}"
         with ExitStack() as stack:
             span: Span = stack.enter_context(
                 tracer.start_as_current_span(root_span_name, context=Context())
@@ -344,9 +355,11 @@ def _evaluate_experiment(
                 result = _output
             except BaseException as exc:
                 span.record_exception(exc)
+                status = Status()
                 error = exc
             span.set_attributes(dict(flatten(jsonify(result), recurse_on_sequence=True)))
             span.set_attribute(SpanAttributes.OPENINFERENCE_SPAN_KIND, root_span_kind)
+            span.set_status(status)
 
         evaluator_payload = ExperimentEvaluationRun(
             experiment_run_id=cast(ExperimentRunId, experiment_run.id),
@@ -361,11 +374,13 @@ def _evaluate_experiment(
         return evaluator_payload
 
     async def async_evaluate_run(
-        obj: Tuple[Example, ExperimentRun, ExperimentEvaluator],
+        obj: Tuple[Example, ExperimentRun, ExperimentEvaluatorName, ExperimentEvaluator],
     ) -> ExperimentEvaluationRun:
-        example, experiment_run, evaluator = obj
+        example, experiment_run, name, evaluator = obj
         result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
+        status = Status(StatusCode.OK)
+        root_span_name = f"Evaluation: {name}"
         with ExitStack() as stack:
             span: Span = stack.enter_context(
                 tracer.start_as_current_span(root_span_name, context=Context())
@@ -385,9 +400,11 @@ def _evaluate_experiment(
                         result = _output
             except BaseException as exc:
                 span.record_exception(exc)
+                status = Status()
                 error = exc
             span.set_attributes(dict(flatten(jsonify(result), recurse_on_sequence=True)))
             span.set_attribute(SpanAttributes.OPENINFERENCE_SPAN_KIND, root_span_kind)
+            span.set_status(status)
 
         evaluator_payload = ExperimentEvaluationRun(
             experiment_run_id=cast(ExperimentRunId, experiment_run.id),
