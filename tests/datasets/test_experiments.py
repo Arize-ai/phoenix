@@ -44,7 +44,7 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
             task=experiment_task,
             experiment_name="test",
             experiment_description="test description",
-            repetitions=3,
+            # repetitions=3, TODO: Enable repetitions #3584
         )
         experiment_id = from_global_id_with_expected_type(
             GlobalID.from_id(experiment.id), "Experiment"
@@ -57,7 +57,7 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
         assert experiment_model.dataset_version_id == 0
         assert experiment_model.name == "test"
         assert experiment_model.description == "test description"
-        assert experiment_model.repetitions == 3
+        assert experiment_model.repetitions == 1  # TODO: Enable repetitions #3584
 
         experiment_runs = (
             (
@@ -68,7 +68,7 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
             .scalars()
             .all()
         )
-        assert len(experiment_runs) == 3, "The experiment was configured to have 3 repetitions"
+        assert len(experiment_runs) == 1, "The experiment was configured to have 1 repetition"
         for run in experiment_runs:
             assert run.output == {"result": "doesn't matter, this is the output"}
 
