@@ -71,8 +71,6 @@ def run_experiment(
     rate_limit_errors: Optional[Union[Type[BaseException], Tuple[Type[BaseException], ...]]] = None,
 ) -> Experiment:
     assert repetitions > 0, "Must run the experiment at least once."
-    if isinstance(evaluators, (CanEvaluate, CanAsyncEvaluate)):
-        evaluators = [evaluators]
 
     client = _phoenix_client()
 
@@ -195,22 +193,44 @@ def run_experiment(
         dataset_version_id=dataset.version_id,
     )
 
-    if evaluators:
-        for evaluator in evaluators:
-            _evaluate_experiment(experiment, evaluator, dataset.examples)
+    if evaluators is not None:
+        evaluate_experiment(
+            experiment, evaluators, dataset_examples=dataset.examples, client=client
+        )
 
     return experiment
 
 
-def _evaluate_experiment(
+def evaluate_experiment(
     experiment: Experiment,
-    evaluator: ExperimentEvaluator,
-    dataset_examples: Iterable[Example],
+    evaluators: Union[ExperimentEvaluator, Iterable[ExperimentEvaluator]],
+    dataset_examples: Optional[Iterable[Example]] = None,
+    client: Optional[httpx.Client] = None,
 ) -> None:
-    assert isinstance(evaluator, (CanEvaluate, CanAsyncEvaluate))
-    client = _phoenix_client()
+    if client is None:
+        client = _phoenix_client()
+
+    if isinstance(evaluators, (CanEvaluate, CanAsyncEvaluate)):
+        evaluators = [evaluators]
 
     experiment_id = experiment.id
+
+    if dataset_examples is None:
+        dataset_id = experiment.dataset_id
+        dataset_version_id = experiment.dataset_version_id
+
+        dataset_examples = [
+            Example.from_dict(ex)
+            for ex in (
+                client.get(
+                    f"/v1/datasets/{dataset_id}/examples",
+                    params={"version-id": str(dataset_version_id)},
+                )
+                .json()
+                .get("data", {})
+                .get("examples", [])
+            )
+        ]
 
     experiment_runs = [
         ExperimentRun.from_dict(exp_run)
@@ -224,9 +244,15 @@ def _evaluate_experiment(
         example = examples_by_id.get(exp_run.dataset_example_id)
         if example:
             example_run_pairs.append((deepcopy(example), exp_run))
+    evaluation_inputs = [
+        (example, run, evaluator)
+        for (example, run), evaluator in product(example_run_pairs, evaluators)
+    ]
 
-    def sync_evaluate_run(obj: Tuple[Example, ExperimentRun]) -> ExperimentEvaluationRun:
-        example, experiment_run = obj
+    def sync_evaluate_run(
+        obj: Tuple[Example, ExperimentRun, ExperimentEvaluator],
+    ) -> ExperimentEvaluationRun:
+        example, experiment_run, evaluator = obj
         start_time = datetime.now(timezone.utc)
         result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
@@ -256,8 +282,10 @@ def _evaluate_experiment(
         )
         return evaluator_payload
 
-    async def async_evaluate_run(obj: Tuple[Example, ExperimentRun]) -> ExperimentEvaluationRun:
-        example, experiment_run = obj
+    async def async_evaluate_run(
+        obj: Tuple[Example, ExperimentRun, ExperimentEvaluator],
+    ) -> ExperimentEvaluationRun:
+        example, experiment_run, evaluator = obj
         start_time = datetime.now(timezone.utc)
         result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
@@ -296,7 +324,7 @@ def _evaluate_experiment(
         exit_on_error=False,
         fallback_return_value=None,
     )
-    evaluation_payloads, _execution_details = executor.run(example_run_pairs)
+    evaluation_payloads, _execution_details = executor.run(evaluation_inputs)
     for payload in evaluation_payloads:
         if payload is not None:
             resp = client.post("/v1/experiment_evaluations", json=jsonify(payload))
