@@ -185,12 +185,21 @@ export function ExperimentsTable({
       const { annotationName, minScore, maxScore } = annotationSummary;
       return {
         header: () => (
-          <Flex direction="row" gap="size-100" wrap alignItems="center">
+          <Flex
+            direction="row"
+            gap="size-100"
+            wrap
+            alignItems="center"
+            justifyContent="end"
+          >
             <AnnotationColorSwatch annotationName={annotationName} />
             <Text>{annotationName}</Text>
           </Flex>
         ),
         id: `annotation-${annotationName}`,
+        meta: {
+          textAlign: "right",
+        },
         cell: ({ row }) => {
           const annotation = row.original.annotationSummaryMap[annotationName];
           if (!annotation || annotation.meanScore == null) {
@@ -264,7 +273,10 @@ export function ExperimentsTable({
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <th key={header.id}>
+                <th
+                  key={header.id}
+                  align={header.column.columnDef?.meta?.textAlign}
+                >
                   <div>
                     {flexRender(
                       header.column.columnDef.header,
