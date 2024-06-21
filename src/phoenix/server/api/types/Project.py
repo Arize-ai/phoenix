@@ -30,7 +30,6 @@ from phoenix.server.api.types.pagination import (
 )
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
-from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.trace.dsl import SpanFilter
 
@@ -140,18 +139,6 @@ class Project(Node):
         return await info.context.data_loaders.latency_ms_quantile.load(
             ("span", self.id_attr, time_range, filter_condition, probability),
         )
-
-    @strawberry.field
-    async def trace(self, trace_id: ID, info: Info[Context, None]) -> Optional[Trace]:
-        stmt = (
-            select(models.Trace.id)
-            .where(models.Trace.trace_id == str(trace_id))
-            .where(models.Trace.project_rowid == self.id_attr)
-        )
-        async with info.context.db() as session:
-            if (id_attr := await session.scalar(stmt)) is None:
-                return None
-        return Trace(id_attr=id_attr)
 
     @strawberry.field
     async def spans(

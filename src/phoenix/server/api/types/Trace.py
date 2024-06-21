@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from typing import List, Optional
 
 import strawberry
 from sqlalchemy import desc, select
 from sqlalchemy.orm import contains_eager
-from strawberry import UNSET
+from strawberry import UNSET, Private
 from strawberry.relay import Connection, Node, NodeID
 from strawberry.types import Info
 
@@ -15,12 +17,29 @@ from phoenix.server.api.types.pagination import (
     CursorString,
     connection_from_list,
 )
+from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.Span import Span, to_gql_span
 
 
 @strawberry.type
 class Trace(Node):
     id_attr: NodeID[int]
+    project_rowid: Private[int]
+
+    @strawberry.field
+    async def project(self, info: Info) -> Optional[Project]:
+        async with info.context.db() as session:
+            project = await session.scalar(
+                select(models.Project).where(models.Project.id == self.project_rowid)
+            )
+        if not project:
+            return None
+        return Project(
+            id_attr=project.id,
+            name=project.name,
+            gradient_start_color=project.gradient_start_color,
+            gradient_end_color=project.gradient_end_color,
+        )
 
     @strawberry.field
     async def spans(

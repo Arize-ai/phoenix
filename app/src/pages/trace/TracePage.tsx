@@ -96,7 +96,7 @@ import { SpanEvaluationsTable } from "./SpanEvaluationsTable";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
 
 type Span = NonNullable<
-  TracePageQuery$data["project"]["trace"]
+  TracePageQuery$data["trace"]
 >["spans"]["edges"][number]["span"];
 type DocumentEvaluation = Span["documentEvaluations"][number];
 /**
@@ -167,61 +167,57 @@ export function TracePage() {
   const data = useLazyLoadQuery<TracePageQuery>(
     graphql`
       query TracePageQuery($traceId: ID!, $id: GlobalID!) {
-        project: node(id: $id) {
-          ... on Project {
-            trace(traceId: $traceId) {
-              spans(first: 1000) {
-                edges {
-                  span: node {
-                    id
-                    context {
-                      spanId
-                    }
-                    name
-                    spanKind
-                    statusCode: propagatedStatusCode
-                    statusMessage
-                    startTime
-                    parentId
-                    latencyMs
-                    tokenCountTotal
-                    tokenCountPrompt
-                    tokenCountCompletion
-                    input {
-                      value
-                      mimeType
-                    }
-                    output {
-                      value
-                      mimeType
-                    }
-                    attributes
-                    events {
-                      name
-                      message
-                      timestamp
-                    }
-                    spanEvaluations {
-                      name
-                      label
-                      score
-                    }
-                    documentRetrievalMetrics {
-                      evaluationName
-                      ndcg
-                      precision
-                      hit
-                    }
-                    documentEvaluations {
-                      documentPosition
-                      name
-                      label
-                      score
-                      explanation
-                    }
-                    ...SpanEvaluationsTable_evals
-                  }
+        trace(traceId: $traceId, projectId: $id) {
+          spans(first: 1000) {
+            edges {
+              span: node {
+                id
+                context {
+                  spanId
                 }
+                name
+                spanKind
+                statusCode: propagatedStatusCode
+                statusMessage
+                startTime
+                parentId
+                latencyMs
+                tokenCountTotal
+                tokenCountPrompt
+                tokenCountCompletion
+                input {
+                  value
+                  mimeType
+                }
+                output {
+                  value
+                  mimeType
+                }
+                attributes
+                events {
+                  name
+                  message
+                  timestamp
+                }
+                spanEvaluations {
+                  name
+                  label
+                  score
+                }
+                documentRetrievalMetrics {
+                  evaluationName
+                  ndcg
+                  precision
+                  hit
+                }
+                documentEvaluations {
+                  documentPosition
+                  name
+                  label
+                  score
+                  explanation
+                }
+                ...SpanEvaluationsTable_evals
               }
             }
           }
@@ -234,7 +230,7 @@ export function TracePage() {
     }
   );
   const spansList: Span[] = useMemo(() => {
-    const gqlSpans = data.project.trace?.spans.edges || [];
+    const gqlSpans = data.trace?.spans.edges || [];
     return gqlSpans.map((node) => node.span);
   }, [data]);
   const urlSelectedSpanId = searchParams.get("selectedSpanId");
