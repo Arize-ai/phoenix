@@ -14,6 +14,7 @@ import { css } from "@emotion/react";
 
 import {
   ActionMenu,
+  Button,
   Card,
   CardProps,
   Dialog,
@@ -24,6 +25,8 @@ import {
   Icons,
   Item,
   Text,
+  Tooltip,
+  TooltipTrigger,
   View,
 } from "@arizeai/components";
 
@@ -93,6 +96,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               error
               startTime
               endTime
+              trace {
+                traceId
+                projectId
+              }
               annotations {
                 edges {
                   annotation: node {
@@ -569,6 +576,7 @@ function ExperimentRowActionMenu(props: {
 function ExperimentRunOutput(
   props: ExperimentRun & { displayFullText: boolean }
 ) {
+  const navigate = useNavigate();
   const { output, error, startTime, endTime, annotations, displayFullText } =
     props;
   if (error) {
@@ -578,20 +586,58 @@ function ExperimentRunOutput(
     ? annotations.edges.map((edge) => edge.annotation)
     : [];
 
+  const traceId = props.trace?.traceId;
+  const projectId = props.trace?.projectId;
+  const hasTrace = traceId && projectId;
   return (
-    <Flex direction="column" gap="size-100" height="100%">
-      <LargeTextWrap>
-        <JSONText json={output} space={displayFullText ? 2 : 0} />
-      </LargeTextWrap>
-      <RunLatency startTime={startTime} endTime={endTime} />
-      <ul>
-        {annotationsList.map((annotation) => (
-          <li key={annotation.id}>
-            <AnnotationLabel annotation={annotation} />
-          </li>
-        ))}
-      </ul>
-    </Flex>
+    <div
+      css={css`
+        position: relative;
+        .trace-button {
+          position: absolute;
+          top: 0;
+          right: 0;
+        }
+      `}
+    >
+      {hasTrace ? (
+        <TooltipTrigger>
+          <Button
+            variant="default"
+            className="trace-button"
+            size="compact"
+            aria-label="View run trace"
+            icon={<Icon svg={<Icons.Trace />} />}
+            onClick={() => {
+              navigate(`/projects/${projectId}/traces/${traceId}`);
+            }}
+          />
+          <Tooltip>View Trace</Tooltip>
+        </TooltipTrigger>
+      ) : null}
+      <View paddingEnd="size-500">
+        <Flex direction="column" gap="size-100" height="100%">
+          <LargeTextWrap>
+            <JSONText json={output} space={displayFullText ? 2 : 0} />
+          </LargeTextWrap>
+          <RunLatency startTime={startTime} endTime={endTime} />
+          <ul
+            css={css`
+              display: flex;
+              flex-direction: row;
+              gap: var(--ac-global-dimension-static-size-100);
+              flex-wrap: wrap;
+            `}
+          >
+            {annotationsList.map((annotation) => (
+              <li key={annotation.id}>
+                <AnnotationLabel annotation={annotation} />
+              </li>
+            ))}
+          </ul>
+        </Flex>
+      </View>
+    </div>
   );
 }
 

@@ -24,6 +24,7 @@ from phoenix.server.api.types.Span import Span, to_gql_span
 class Trace(Node):
     id_attr: NodeID[int]
     project_rowid: Private[int]
+    trace_id: str
 
     @strawberry.field
     async def project_id(self) -> GlobalID:
