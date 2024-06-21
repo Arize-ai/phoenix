@@ -210,7 +210,7 @@ def evaluate_experiment(
     if client is None:
         client = _phoenix_client()
 
-    if isinstance(evaluators, (CanEvaluate, CanAsyncEvaluate)):
+    if not hasattr(evaluators, "__iter__"):
         evaluators = [evaluators]
 
     experiment_id = experiment.id
