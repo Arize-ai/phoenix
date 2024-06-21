@@ -407,7 +407,7 @@ class Client(TraceDataExtractor):
             index_col="example_id",
         )
 
-    def upload_dataset_examples(
+    def upload_dataset(
         self,
         table: Union[str, Path, pd.DataFrame],
         /,
@@ -418,7 +418,7 @@ class Client(TraceDataExtractor):
         metadata_keys: Iterable[str] = (),
         description: Optional[str] = None,
         action: Literal["create", "append"] = "create",
-    ) -> None:
+    ) -> Dataset:
         """
         Upload examples as dataset to the Phoenix server.
 
@@ -440,7 +440,7 @@ class Client(TraceDataExtractor):
                 existing dataset. If action=append, dataset name is required.
 
         Returns:
-            None
+            A Dataset object with the uploaded examples.
         """
         if action not in ("create", "append"):
             raise ValueError(f"Invalid action: {action}")
@@ -457,7 +457,7 @@ class Client(TraceDataExtractor):
             file = _prepare_csv(Path(table), keys)
         else:
             assert_never(table)
-        response = httpx.post(
+        response = self._client.post(
             url=urljoin(self._base_url, "v1/datasets/upload"),
             files={"file": file},
             data={
@@ -468,8 +468,32 @@ class Client(TraceDataExtractor):
                 "output_keys[]": sorted(keys.output),
                 "metadata_keys[]": sorted(keys.metadata),
             },
+            params={"sync": True},
         )
         response.raise_for_status()
+        data = response.json()["data"]
+        dataset_id = data["dataset_id"]
+        response = self._client.get(
+            url=urljoin(self._base_url, f"v1/datasets/{dataset_id}/examples")
+        )
+        response.raise_for_status()
+        data = response.json()["data"]
+        version_id = data["version_id"]
+        examples = data["examples"]
+        return Dataset(
+            id=dataset_id,
+            version_id=version_id,
+            examples=[
+                Example(
+                    id=example["id"],
+                    input=example["input"],
+                    output=example["output"],
+                    metadata=example["metadata"],
+                    updated_at=datetime.fromisoformat(example["updated_at"]),
+                )
+                for example in examples
+            ],
+        )
 
 
 FileName: TypeAlias = str
