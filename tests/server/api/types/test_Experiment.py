@@ -565,8 +565,8 @@ async def experiments_with_runs_and_annotations(session):
 
     # insert experiment annotations
     await session.scalar(
-        insert(models.ExperimentAnnotation)
-        .returning(models.ExperimentAnnotation.id)
+        insert(models.ExperimentRunAnnotation)
+        .returning(models.ExperimentRunAnnotation.id)
         .values(
             [
                 # experiment 1, annotation-name-1 (three repetitions)

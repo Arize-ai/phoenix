@@ -471,7 +471,7 @@ async def dataset_with_experiments_and_runs(session, dataset_with_experiments_wi
 
 @pytest.fixture
 async def dataset_with_experiments_runs_and_evals(session, dataset_with_experiments_and_runs):
-    experiment_evaluation_0 = models.ExperimentAnnotation(
+    experiment_evaluation_0 = models.ExperimentRunAnnotation(
         id=0,
         experiment_run_id=0,
         name="test",
@@ -487,7 +487,7 @@ async def dataset_with_experiments_runs_and_evals(session, dataset_with_experime
     session.add(experiment_evaluation_0)
     await session.flush()
 
-    experiment_evaluation_1 = models.ExperimentAnnotation(
+    experiment_evaluation_1 = models.ExperimentRunAnnotation(
         id=1,
         experiment_run_id=1,
         name="test",
@@ -503,7 +503,7 @@ async def dataset_with_experiments_runs_and_evals(session, dataset_with_experime
     session.add(experiment_evaluation_1)
     await session.flush()
 
-    experiment_evaluation_2 = models.ExperimentAnnotation(
+    experiment_evaluation_2 = models.ExperimentRunAnnotation(
         id=2,
         experiment_run_id=2,
         name="second experiment",
@@ -519,7 +519,7 @@ async def dataset_with_experiments_runs_and_evals(session, dataset_with_experime
     session.add(experiment_evaluation_2)
     await session.flush()
 
-    experiment_evaluation_3 = models.ExperimentAnnotation(
+    experiment_evaluation_3 = models.ExperimentRunAnnotation(
         id=3,
         experiment_run_id=3,
         name="experiment",
