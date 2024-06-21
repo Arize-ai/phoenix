@@ -1,8 +1,13 @@
 from datetime import datetime, timezone
+from typing import Any
 from unittest.mock import patch
 
 import nest_asyncio
-from phoenix.datasets.evaluators import ContainsKeyword
+from phoenix.datasets.evaluators import (
+    ContainsKeyword,
+    LLMConcisenessEvaluator,
+    LLMHelpfulnessEvaluator,
+)
 from phoenix.datasets.experiments import run_experiment
 from phoenix.datasets.types import (
     Dataset,
@@ -76,6 +81,102 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
         for run in experiment_runs:
             assert run.output == {"result": "doesn't matter, this is the output"}
 
+            evaluations = (
+                (
+                    await session.execute(
+                        select(models.ExperimentRunAnnotation).where(
+                            models.ExperimentRunAnnotation.experiment_run_id == run.id
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            assert len(evaluations) == 2
+            assert evaluations[0].score == 0.0
+            assert evaluations[1].score == 1.0
+
+
+async def test_run_experiment_with_llm_eval(session, sync_test_client, simple_dataset):
+    nest_asyncio.apply()
+
+    nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
+    assert not nonexistent_experiment, "There should be no experiments in the database"
+
+    test_dataset = Dataset(
+        id=str(GlobalID("Dataset", "0")),
+        version_id=str(GlobalID("DatasetVersion", "0")),
+        examples=[
+            Example(
+                id=str(GlobalID("DatasetExample", "0")),
+                input={"input": "fancy input 1"},
+                output={},
+                metadata={},
+                updated_at=datetime.now(timezone.utc),
+            )
+        ],
+    )
+
+    class PostitiveFakeLLMModel:
+        model_name = "fake-llm"
+
+        def _generate(self, prompt: str, **kwargs: Any) -> str:
+            return " doesn't matter I can't think!\nLABEL: true"
+
+        async def _async_generate(self, prompt: str, **kwargs: Any) -> str:
+            return " doesn't matter I can't think!\nLABEL: true"
+
+    class NegativeFakeLLMModel:
+        model_name = "fake-llm"
+
+        def _generate(self, prompt: str, **kwargs: Any) -> str:
+            return " doesn't matter I can't think!\nLABEL: false"
+
+        async def _async_generate(self, prompt: str, **kwargs: Any) -> str:
+            return " doesn't matter I can't think!\nLABEL: false"
+
+    with patch("phoenix.datasets.experiments._phoenix_client", return_value=sync_test_client):
+
+        def experiment_task(input):
+            return "doesn't matter, this is the output"
+
+        experiment = run_experiment(
+            dataset=test_dataset,
+            task=experiment_task,
+            experiment_name="test",
+            experiment_description="test description",
+            # repetitions=3,  # TODO: Enable repetitions #3584
+            evaluators=[
+                LLMConcisenessEvaluator(model=NegativeFakeLLMModel()),
+                LLMHelpfulnessEvaluator(model=PostitiveFakeLLMModel()),
+            ],
+        )
+        experiment_id = from_global_id_with_expected_type(
+            GlobalID.from_id(experiment.id), "Experiment"
+        )
+        assert experiment_id
+
+        experiment_model = (await session.execute(select(models.Experiment))).scalar()
+        assert experiment_model, "An experiment was run"
+        assert experiment_model.dataset_id == 0
+        assert experiment_model.dataset_version_id == 0
+        assert experiment_model.name == "test"
+        assert experiment_model.description == "test description"
+
+        experiment_runs = (
+            (
+                await session.execute(
+                    select(models.ExperimentRun).where(models.ExperimentRun.dataset_example_id == 0)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert len(experiment_runs) == 1, "The experiment was configured to have 1 repetition"
+        for run in experiment_runs:
+            assert run.output == {"result": "doesn't matter, this is the output"}
+
+        for run in experiment_runs:
             evaluations = (
                 (
                     await session.execute(
