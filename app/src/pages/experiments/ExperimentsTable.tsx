@@ -426,7 +426,7 @@ function AnnotationAggregationCell({
 }
 
 export enum ExperimentAction {
-  GO_TO_TASK_TRACES = "GO_TO_TASK_TRACES",
+  GO_TO_EXPERIMENT_RUN_TRACES = "GO_TO_EXPERIMENT_RUN_TRACES",
 }
 
 function ExperimentActionMenu(props: { projectId: string | null }) {
@@ -444,11 +444,13 @@ function ExperimentActionMenu(props: { projectId: string | null }) {
       <ActionMenu
         buttonSize="compact"
         align="end"
-        disabledKeys={projectId ? [] : [ExperimentAction.GO_TO_TASK_TRACES]}
+        disabledKeys={
+          projectId ? [] : [ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES]
+        }
         onAction={(firedAction) => {
           const action = firedAction as ExperimentAction;
           switch (action) {
-            case ExperimentAction.GO_TO_TASK_TRACES: {
+            case ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES: {
               return navigate(`/projects/${projectId}`);
             }
             default: {
@@ -457,7 +459,7 @@ function ExperimentActionMenu(props: { projectId: string | null }) {
           }
         }}
       >
-        <Item key={ExperimentAction.GO_TO_TASK_TRACES}>
+        <Item key={ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES}>
           <Flex
             direction={"row"}
             gap="size-75"
@@ -465,7 +467,7 @@ function ExperimentActionMenu(props: { projectId: string | null }) {
             alignItems={"center"}
           >
             <Icon svg={<Icons.Trace />} />
-            <Text>View task traces</Text>
+            <Text>View run traces</Text>
           </Flex>
         </Item>
       </ActionMenu>
