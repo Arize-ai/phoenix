@@ -8,7 +8,7 @@ from typing import (
     Optional,
 )
 
-from sqlalchemy import case, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias
@@ -55,24 +55,19 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
             ) in await session.stream(
                 select(
                     models.ExperimentRun.experiment_id,
-                    models.ExperimentAnnotation.name,
-                    func.min(models.ExperimentAnnotation.score),
-                    func.max(models.ExperimentAnnotation.score),
-                    func.avg(models.ExperimentAnnotation.score),
+                    models.ExperimentRunAnnotation.name,
+                    func.min(models.ExperimentRunAnnotation.score),
+                    func.max(models.ExperimentRunAnnotation.score),
+                    func.avg(models.ExperimentRunAnnotation.score),
                     func.count(),
-                    func.sum(
-                        case(
-                            (models.ExperimentAnnotation.error.is_(None), 0),
-                            else_=1,
-                        )
-                    ),
+                    func.count(models.ExperimentRunAnnotation.error),
                 )
                 .join(
                     models.ExperimentRun,
-                    models.ExperimentAnnotation.experiment_run_id == models.ExperimentRun.id,
+                    models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
                 )
                 .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
-                .group_by(models.ExperimentRun.experiment_id, models.ExperimentAnnotation.name)
+                .group_by(models.ExperimentRun.experiment_id, models.ExperimentRunAnnotation.name)
             ):
                 summaries[experiment_id].append(
                     ExperimentAnnotationSummary(

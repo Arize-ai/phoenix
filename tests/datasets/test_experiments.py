@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import nest_asyncio
 from phoenix.datasets.evaluators import ContainsKeyword, LLMConcisenessEvaluator
-from phoenix.datasets.experiments import evaluate_experiment, run_experiment
+from phoenix.datasets.experiments import run_experiment
 from phoenix.datasets.types import (
     Dataset,
     Example,
@@ -45,7 +45,11 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
             task=experiment_task,
             experiment_name="test",
             experiment_description="test description",
-            repetitions=3,
+            # repetitions=3, TODO: Enable repetitions #3584
+            evaluators=[
+                ContainsKeyword(keyword="correct"),
+                ContainsKeyword(keyword="doesn't matter"),
+            ],
         )
         experiment_id = from_global_id_with_expected_type(
             GlobalID.from_id(experiment.id), "Experiment"
@@ -58,7 +62,7 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
         assert experiment_model.dataset_version_id == 0
         assert experiment_model.name == "test"
         assert experiment_model.description == "test description"
-        assert experiment_model.repetitions == 3
+        assert experiment_model.repetitions == 1  # TODO: Enable repetitions #3584
 
         experiment_runs = (
             (
@@ -69,34 +73,15 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
             .scalars()
             .all()
         )
-        assert len(experiment_runs) == 3, "The experiment was configured to have 3 repetitions"
+        assert len(experiment_runs) == 1, "The experiment was configured to have 1 repetition"
         for run in experiment_runs:
             assert run.output == {"result": "doesn't matter, this is the output"}
 
-        evaluate_experiment(experiment, ContainsKeyword(keyword="correct"))
-        for run in experiment_runs:
             evaluations = (
                 (
                     await session.execute(
-                        select(models.ExperimentAnnotation).where(
-                            models.ExperimentAnnotation.experiment_run_id == run.id
-                        )
-                    )
-                )
-                .scalars()
-                .all()
-            )
-            assert len(evaluations) == 1
-            evaluation = evaluations[0]
-            assert evaluation.score == 0.0
-
-        evaluate_experiment(experiment, ContainsKeyword(keyword="doesn't matter"))
-        for run in experiment_runs:
-            evaluations = (
-                (
-                    await session.execute(
-                        select(models.ExperimentAnnotation).where(
-                            models.ExperimentAnnotation.experiment_run_id == run.id
+                        select(models.ExperimentRunAnnotation).where(
+                            models.ExperimentRunAnnotation.experiment_run_id == run.id
                         )
                     )
                 )
@@ -104,8 +89,8 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
                 .all()
             )
             assert len(evaluations) == 2
-            evaluation_2 = evaluations[1]
-            assert evaluation_2.score == 1.0
+            assert evaluations[0].score == 0.0
+            assert evaluations[1].score == 1.0
 
 
 async def test_run_experiment_with_llm_eval(session, sync_test_client, simple_dataset):
@@ -157,6 +142,10 @@ async def test_run_experiment_with_llm_eval(session, sync_test_client, simple_da
             experiment_name="test",
             experiment_description="test description",
             repetitions=3,
+            evaluators=[
+                LLMConcisenessEvaluator(model=NegativeFakeLLMModel()),
+                LLMConcisenessEvaluator(model=PostitiveFakeLLMModel()),
+            ],
         )
         experiment_id = from_global_id_with_expected_type(
             GlobalID.from_id(experiment.id), "Experiment"
@@ -184,24 +173,6 @@ async def test_run_experiment_with_llm_eval(session, sync_test_client, simple_da
         for run in experiment_runs:
             assert run.output == {"result": "doesn't matter, this is the output"}
 
-        evaluate_experiment(experiment, LLMConcisenessEvaluator(model=NegativeFakeLLMModel()))
-        for run in experiment_runs:
-            evaluations = (
-                (
-                    await session.execute(
-                        select(models.ExperimentAnnotation).where(
-                            models.ExperimentAnnotation.experiment_run_id == run.id
-                        )
-                    )
-                )
-                .scalars()
-                .all()
-            )
-            assert len(evaluations) == 1
-            evaluation = evaluations[0]
-            assert evaluation.score == 0.0
-
-        evaluate_experiment(experiment, LLMConcisenessEvaluator(model=PostitiveFakeLLMModel()))
         for run in experiment_runs:
             evaluations = (
                 (
@@ -215,5 +186,6 @@ async def test_run_experiment_with_llm_eval(session, sync_test_client, simple_da
                 .all()
             )
             assert len(evaluations) == 2
-            evaluation_2 = evaluations[1]
-            assert evaluation_2.score == 1.0
+            evaluation = evaluations[0]
+            assert evaluation[0].score == 0.0
+            assert evaluation[1].score == 1.0

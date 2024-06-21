@@ -92,6 +92,10 @@ class Experiment(Node):
             )
         ]
 
+    @strawberry.field
+    async def error_rate(self, info: Info[Context, None]) -> Optional[float]:
+        return await info.context.data_loaders.experiment_error_rates.load(self.id_attr)
+
 
 def to_gql_experiment(
     experiment: models.Experiment,

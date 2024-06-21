@@ -7,6 +7,7 @@ from typing import (
     Awaitable,
     Callable,
     Coroutine,
+    Iterable,
     Mapping,
     Optional,
     Tuple,
@@ -41,6 +42,7 @@ from phoenix.datasets.types import (
 )
 from phoenix.evals.executors import get_executor_on_sync_context
 from phoenix.evals.models.rate_limiters import RateLimiter
+from phoenix.evals.utils import get_tqdm_progress_bar_formatter
 from phoenix.utilities.json_utils import jsonify
 
 ExperimentTask: TypeAlias = Union[
@@ -49,12 +51,25 @@ ExperimentTask: TypeAlias = Union[
 ]
 
 
-def _phoenix_client() -> httpx.Client:
+def _get_base_url() -> str:
     host = get_env_host()
+    if host == "0.0.0.0":
+        host = "127.0.0.1"
     base_url = get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
-    base_url = base_url if base_url.endswith("/") else base_url + "/"
+    return base_url if base_url.endswith("/") else base_url + "/"
+
+
+def _get_experiment_url(*, dataset_id: str, experiment_id: str) -> str:
+    return f"{_get_base_url()}datasets/{dataset_id}/compare?experimentId={experiment_id}"
+
+
+def _get_dataset_experiments_url(*, dataset_id: str) -> str:
+    return f"{_get_base_url()}datasets/{dataset_id}/experiments"
+
+
+def _phoenix_client() -> httpx.Client:
     headers = get_env_client_headers()
-    client = httpx.Client(base_url=base_url, headers=headers)
+    client = httpx.Client(base_url=_get_base_url(), headers=headers)
     return client
 
 
@@ -65,9 +80,11 @@ def run_experiment(
     experiment_name: Optional[str] = None,
     experiment_description: Optional[str] = None,
     experiment_metadata: Optional[Mapping[str, Any]] = None,
-    repetitions: int = 1,
+    evaluators: Optional[Union[ExperimentEvaluator, Iterable[ExperimentEvaluator]]] = None,
     rate_limit_errors: Optional[Union[Type[BaseException], Tuple[Type[BaseException], ...]]] = None,
 ) -> Experiment:
+    # Add this to the params once supported in the UI
+    repetitions = 1
     assert repetitions > 0, "Must run the experiment at least once."
 
     client = _phoenix_client()
@@ -84,6 +101,9 @@ def run_experiment(
     )
     experiment_response.raise_for_status()
     experiment_id = experiment_response.json()["id"]
+    dataset_experiments_url = _get_dataset_experiments_url(dataset_id=dataset.id)
+    experiment_compare_url = _get_experiment_url(dataset_id=dataset.id, experiment_id=experiment_id)
+    print(f"🧪 Experiment started: {experiment_compare_url}")
 
     errors: Tuple[Optional[Type[BaseException]], ...]
     if not hasattr(rate_limit_errors, "__iter__"):
@@ -173,6 +193,7 @@ def run_experiment(
         max_retries=0,
         exit_on_error=False,
         fallback_return_value=None,
+        tqdm_bar_format=get_tqdm_progress_bar_formatter("running tasks"),
     )
 
     test_cases = [
@@ -184,20 +205,26 @@ def run_experiment(
         if payload is not None:
             resp = client.post(f"/v1/experiments/{experiment_id}/runs", json=jsonify(payload))
             resp.raise_for_status()
-    return Experiment(
+
+    experiment = Experiment(
         id=experiment_id,
         dataset_id=dataset.id,
         dataset_version_id=dataset.version_id,
     )
 
+    print(f"✅ Task runs completed. View all experiments: {dataset_experiments_url}")
+
+    if evaluators is not None:
+        _evaluate_experiment(experiment, evaluators, dataset.examples, client)
+
+    return experiment
+
 
 def evaluate_experiment(
     experiment: Experiment,
-    evaluator: ExperimentEvaluator,
+    evaluators: Union[ExperimentEvaluator, Iterable[ExperimentEvaluator]],
 ) -> None:
     client = _phoenix_client()
-
-    experiment_id = experiment.id
     dataset_id = experiment.dataset_id
     dataset_version_id = experiment.dataset_version_id
 
@@ -213,6 +240,19 @@ def evaluate_experiment(
             .get("examples", [])
         )
     ]
+    _evaluate_experiment(experiment, evaluators, dataset_examples, client)
+
+
+def _evaluate_experiment(
+    experiment: Experiment,
+    evaluators: Union[ExperimentEvaluator, Iterable[ExperimentEvaluator]],
+    dataset_examples: Iterable[Example],
+    client: httpx.Client,
+) -> None:
+    if isinstance(evaluators, (CanEvaluate, CanAsyncEvaluate)):
+        evaluators = [evaluators]
+
+    experiment_id = experiment.id
 
     experiment_runs = [
         ExperimentRun.from_dict(exp_run)
@@ -226,9 +266,15 @@ def evaluate_experiment(
         example = examples_by_id.get(exp_run.dataset_example_id)
         if example:
             example_run_pairs.append((deepcopy(example), exp_run))
+    evaluation_inputs = [
+        (example, run, evaluator)
+        for (example, run), evaluator in product(example_run_pairs, evaluators)
+    ]
 
-    def sync_evaluate_run(obj: Tuple[Example, ExperimentRun]) -> ExperimentEvaluationRun:
-        example, experiment_run = obj
+    def sync_evaluate_run(
+        obj: Tuple[Example, ExperimentRun, ExperimentEvaluator],
+    ) -> ExperimentEvaluationRun:
+        example, experiment_run, evaluator = obj
         start_time = datetime.now(timezone.utc)
         result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
@@ -258,8 +304,10 @@ def evaluate_experiment(
         )
         return evaluator_payload
 
-    async def async_evaluate_run(obj: Tuple[Example, ExperimentRun]) -> ExperimentEvaluationRun:
-        example, experiment_run = obj
+    async def async_evaluate_run(
+        obj: Tuple[Example, ExperimentRun, ExperimentEvaluator],
+    ) -> ExperimentEvaluationRun:
+        example, experiment_run, evaluator = obj
         start_time = datetime.now(timezone.utc)
         result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
@@ -298,7 +346,7 @@ def evaluate_experiment(
         exit_on_error=False,
         fallback_return_value=None,
     )
-    evaluation_payloads, _execution_details = executor.run(example_run_pairs)
+    evaluation_payloads, _execution_details = executor.run(evaluation_inputs)
     for payload in evaluation_payloads:
         if payload is not None:
             resp = client.post("/v1/experiment_evaluations", json=jsonify(payload))
