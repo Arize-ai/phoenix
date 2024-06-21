@@ -271,6 +271,56 @@ class TestExperimentAnnotationSummaries:
         }
 
 
+async def test_error_rate_returns_expected_values(test_client, experiments_with_runs) -> None:
+    query = """
+      query ($datasetId: GlobalID!) {
+        dataset: node(id: $datasetId) {
+          ... on Dataset {
+            experiments {
+              edges {
+                experiment: node {
+                  id
+                  errorRate
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+    response = await test_client.post(
+        "/graphql",
+        json={
+            "query": query,
+            "variables": {
+                "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
+            },
+        },
+    )
+    response_json = response.json()
+    assert response_json.get("errors") is None
+    assert response_json["data"] == {
+        "dataset": {
+            "experiments": {
+                "edges": [
+                    {
+                        "experiment": {
+                            "id": str(GlobalID(type_name="Experiment", node_id=str(2))),
+                            "errorRate": None,
+                        }
+                    },
+                    {
+                        "experiment": {
+                            "id": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                            "errorRate": 1 / 2,
+                        }
+                    },
+                ]
+            },
+        }
+    }
+
+
 @pytest.fixture
 async def dataset_with_experiment_runs(session):
     """
@@ -734,3 +784,129 @@ async def experiments_with_runs_and_annotations(session):
             ]
         )
     )
+
+
+@pytest.fixture
+async def experiments_with_runs(session):
+    """
+    Inserts two experiments, the first of which contains one errored run and the
+    second of which is empty (i.e., has no runs).
+    """
+    # insert dataset
+    dataset_id = await session.scalar(
+        insert(models.Dataset)
+        .returning(models.Dataset.id)
+        .values(
+            name="dataset-name",
+            description="dataset-description",
+            metadata_={"dataset-metadata-key": "dataset-metadata-value"},
+        )
+    )
+
+    # insert examples
+    example_ids = (
+        await session.scalars(
+            insert(models.DatasetExample)
+            .values(
+                [
+                    {
+                        "dataset_id": dataset_id,
+                        "created_at": datetime(
+                            year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                        ),
+                    }
+                    for _ in range(2)
+                ]
+            )
+            .returning(models.DatasetExample.id)
+        )
+    ).all()
+
+    # insert version
+    version_id = await session.scalar(
+        insert(models.DatasetVersion)
+        .returning(models.DatasetVersion.id)
+        .values(
+            dataset_id=dataset_id,
+            description="version-description",
+            metadata_={},
+        )
+    )
+
+    # insert revisions
+    await session.scalars(
+        insert(models.DatasetExampleRevision)
+        .returning(models.DatasetExampleRevision.id)
+        .values(
+            [
+                {
+                    "dataset_example_id": example_id,
+                    "dataset_version_id": version_id,
+                    "input": {"input": "input"},
+                    "output": {"output": "output"},
+                    "metadata_": {"metadata": "metadata"},
+                    "revision_kind": "CREATE",
+                }
+                for example_id in example_ids
+            ]
+        )
+    )
+
+    # insert experiments
+    experiment_ids = (
+        await session.scalars(
+            insert(models.Experiment)
+            .returning(models.Experiment.id)
+            .values(
+                [
+                    {
+                        "dataset_id": dataset_id,
+                        "dataset_version_id": version_id,
+                        "name": "experiment-name",
+                        "description": "experiment-description",
+                        "repetitions": 1,
+                        "metadata_": {},
+                    }
+                    for _ in range(2)
+                ]
+            )
+        )
+    ).all()
+
+    # insert experiment runs
+    (
+        await session.scalars(
+            insert(models.ExperimentRun)
+            .returning(models.ExperimentRun.id)
+            .values(
+                [
+                    {
+                        "error": "failed",
+                        "experiment_id": experiment_ids[0],
+                        "dataset_example_id": example_ids[0],
+                        "output": {"output-key-test": "output-value"},
+                        "repetition_number": 1,
+                        "start_time": datetime(
+                            year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                        ),
+                        "end_time": datetime(
+                            year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                        ),
+                    },
+                    {
+                        "error": None,
+                        "experiment_id": experiment_ids[0],
+                        "dataset_example_id": example_ids[1],
+                        "output": {"output-key": "output-value"},
+                        "repetition_number": 1,
+                        "start_time": datetime(
+                            year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                        ),
+                        "end_time": datetime(
+                            year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                        ),
+                    },
+                ]
+            )
+        )
+    ).all()
