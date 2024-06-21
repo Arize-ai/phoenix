@@ -568,8 +568,8 @@ class ExperimentRun(Base):
     )
 
 
-class ExperimentAnnotation(Base):
-    __tablename__ = "experiment_annotations"
+class ExperimentRunAnnotation(Base):
+    __tablename__ = "experiment_run_annotations"
     id: Mapped[int] = mapped_column(primary_key=True)
     experiment_run_id: Mapped[int] = mapped_column(
         ForeignKey("experiment_runs.id", ondelete="CASCADE"),

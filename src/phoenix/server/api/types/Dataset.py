@@ -245,24 +245,24 @@ class Dataset(Node):
         dataset_id = self.id_attr
         query = (
             select(
-                models.ExperimentAnnotation.name,
-                func.min(models.ExperimentAnnotation.score),
-                func.max(models.ExperimentAnnotation.score),
-                func.avg(models.ExperimentAnnotation.score),
+                models.ExperimentRunAnnotation.name,
+                func.min(models.ExperimentRunAnnotation.score),
+                func.max(models.ExperimentRunAnnotation.score),
+                func.avg(models.ExperimentRunAnnotation.score),
                 func.count(),
-                func.count(models.ExperimentAnnotation.error),
+                func.count(models.ExperimentRunAnnotation.error),
             )
             .join(
                 models.ExperimentRun,
-                models.ExperimentAnnotation.experiment_run_id == models.ExperimentRun.id,
+                models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
             )
             .join(
                 models.Experiment,
                 models.ExperimentRun.experiment_id == models.Experiment.id,
             )
             .where(models.Experiment.dataset_id == dataset_id)
-            .group_by(models.ExperimentAnnotation.name)
-            .order_by(models.ExperimentAnnotation.name)
+            .group_by(models.ExperimentRunAnnotation.name)
+            .order_by(models.ExperimentRunAnnotation.name)
         )
         async with info.context.db() as session:
             return [
