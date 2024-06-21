@@ -292,7 +292,9 @@ class Query:
                 trace = (await session.execute(trace_stmt)).first()
             if trace is None:
                 raise ValueError(f"Unknown trace: {id}")
-            return Trace(id_attr=trace.id, project_rowid=trace.project_rowid)
+            return Trace(
+                id_attr=trace.id, trace_id=trace.trace_id, project_rowid=trace.project_rowid
+            )
         elif type_name == Span.__name__:
             span_stmt = (
                 select(models.Span)
