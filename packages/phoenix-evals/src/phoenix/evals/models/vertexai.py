@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 from phoenix.evals.models.base import BaseModel
 
 if TYPE_CHECKING:
-    from google.auth.credentials import Credentials  # type:ignore
+    from google.auth.credentials import Credentials
 
 logger = logging.getLogger(__name__)
 
