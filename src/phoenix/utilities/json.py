@@ -1,9 +1,8 @@
 import dataclasses
 import datetime
-from collections import deque
 from enum import Enum
 from pathlib import Path
-from typing import Any, SupportsFloat, Union, get_args, get_origin
+from typing import Any, Mapping, Sequence, SupportsFloat, Union, get_args, get_origin
 
 import numpy as np
 
@@ -14,13 +13,13 @@ def jsonify(obj: Any) -> Any:
     """
     if isinstance(obj, Enum):
         return jsonify(obj.value)
-    elif isinstance(obj, (str, int, float, bool)) or obj is None:
+    if isinstance(obj, (str, int, float, bool)) or obj is None:
         return obj
-    elif isinstance(obj, np.ndarray):
+    if isinstance(obj, np.ndarray):
         return [jsonify(v) for v in obj]
-    elif isinstance(obj, SupportsFloat):
+    if isinstance(obj, SupportsFloat):
         return float(obj)
-    elif dataclasses.is_dataclass(obj):
+    if dataclasses.is_dataclass(obj):
         return {
             k: jsonify(v)
             for field in dataclasses.fields(obj)
@@ -30,19 +29,19 @@ def jsonify(obj: Any) -> Any:
                 and type(None) in get_args(field)
             )
         }
-    elif isinstance(obj, (list, tuple, set, frozenset, deque)):
+    if isinstance(obj, (Sequence, set, frozenset)):
         return [jsonify(v) for v in obj]
-    elif isinstance(obj, dict):
+    if isinstance(obj, Mapping):
         return {jsonify(k): jsonify(v) for k, v in obj.items()}
-    elif isinstance(obj, (datetime.date, datetime.datetime, datetime.time)):
+    if isinstance(obj, (datetime.date, datetime.datetime, datetime.time)):
         return obj.isoformat()
-    elif isinstance(obj, datetime.timedelta):
+    if isinstance(obj, datetime.timedelta):
         return obj.total_seconds()
-    elif isinstance(obj, Path):
+    if isinstance(obj, Path):
         return str(obj)
-    elif isinstance(obj, BaseException):
+    if isinstance(obj, BaseException):
         return str(obj)
-    elif hasattr(obj, "model_dump") and callable(obj.model_dump):
+    if hasattr(obj, "model_dump") and callable(obj.model_dump):
         # pydantic v2
         try:
             assert isinstance(d := obj.model_dump(), dict)
@@ -50,7 +49,7 @@ def jsonify(obj: Any) -> Any:
             pass
         else:
             return jsonify(d)
-    elif hasattr(obj, "dict") and callable(obj.dict):
+    if hasattr(obj, "dict") and callable(obj.dict):
         # pydantic v1
         try:
             assert isinstance(d := obj.dict(), dict)
