@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4434962eb1d4ffcf9fe596409aaa0d58>>
+ * @generated SignedSource<<18f2b2f02e1ea6ff12d8a3f9e4625c83>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -222,6 +222,18 @@ return {
                           {
                             "alias": null,
                             "args": null,
+                            "concreteType": "Project",
+                            "kind": "LinkedField",
+                            "name": "project",
+                            "plural": false,
+                            "selections": [
+                              (v4/*: any*/)
+                            ],
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
                             "concreteType": "ExperimentAnnotationSummary",
                             "kind": "LinkedField",
                             "name": "annotationSummaries",
@@ -310,16 +322,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f2aaa1f5e600e10102bd5fb7ec1c55c0",
+    "cacheID": "6c9af409faca7f016950572dc4a7420b",
     "id": null,
     "metadata": {},
     "name": "ExperimentsTableQuery",
     "operationKind": "query",
-    "text": "query ExperimentsTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExperimentsTableFragment_2HEEH6\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ExperimentsTableFragment_2HEEH6 on Dataset {\n  experimentAnnotationSummaries {\n    annotationName\n    minScore\n    maxScore\n  }\n  experiments(first: $first, after: $after) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        createdAt\n        metadata\n        annotationSummaries {\n          annotationName\n          meanScore\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ExperimentsTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExperimentsTableFragment_2HEEH6\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ExperimentsTableFragment_2HEEH6 on Dataset {\n  experimentAnnotationSummaries {\n    annotationName\n    minScore\n    maxScore\n  }\n  experiments(first: $first, after: $after) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        createdAt\n        metadata\n        project {\n          id\n        }\n        annotationSummaries {\n          annotationName\n          meanScore\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "41018e1480ad0d5c0fe3534392668207";
+(node as any).hash = "0911261e5175626c0a4b4f91d60bc0d9";
 
 export default node;
