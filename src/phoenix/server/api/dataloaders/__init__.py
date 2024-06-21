@@ -7,9 +7,6 @@ from phoenix.db.insertion.evaluation import (
     TraceEvaluationInsertionEvent,
 )
 from phoenix.db.insertion.span import ClearProjectSpansEvent, SpanInsertionEvent
-from phoenix.server.api.dataloaders.trace_row_ids import (
-    TraceRowIdsDataLoader,
-)
 
 from .dataset_example_revisions import DatasetExampleRevisionsDataLoader
 from .dataset_example_spans import DatasetExampleSpansDataLoader
@@ -31,6 +28,7 @@ from .span_evaluations import SpanEvaluationsDataLoader
 from .span_projects import SpanProjectsDataLoader
 from .token_counts import TokenCountCache, TokenCountDataLoader
 from .trace_evaluations import TraceEvaluationsDataLoader
+from .trace_row_ids import TraceRowIdsDataLoader
 
 __all__ = [
     "CacheForDataLoaders",
