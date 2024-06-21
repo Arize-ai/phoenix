@@ -1,4 +1,5 @@
 import functools
+import json
 from binascii import hexlify
 from contextlib import ExitStack
 from copy import deepcopy
@@ -22,7 +23,11 @@ from urllib.parse import urljoin
 import httpx
 import opentelemetry.sdk.trace as trace_sdk
 from openinference.semconv.resource import ResourceAttributes
-from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
+from openinference.semconv.trace import (
+    OpenInferenceMimeTypeValues,
+    OpenInferenceSpanKindValues,
+    SpanAttributes,
+)
 from opentelemetry.context import Context
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
@@ -125,7 +130,7 @@ def run_experiment(
     )
     tracer = tracer_provider.get_tracer(__name__)
     root_span_name = f"Experiment: {task.__qualname__}"
-    root_span_kind = OpenInferenceSpanKindValues.CHAIN.value
+    root_span_kind = CHAIN.value
 
     dataset_experiments_url = _get_dataset_experiments_url(dataset_id=dataset.id)
     experiment_compare_url = _get_experiment_url(dataset_id=dataset.id, experiment_id=experiment_id)
@@ -163,7 +168,14 @@ def run_experiment(
                 span.record_exception(exc)
                 status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
-            if result := ExperimentResult(result=output) if output else None:
+            span.set_attribute(INPUT_VALUE, json.dumps(example.input, ensure_ascii=False))
+            span.set_attribute(INPUT_MIME_TYPE, JSON.value)
+            if result := ExperimentResult(result=output) if output is not None else None:
+                if isinstance(output, str):
+                    span.set_attribute(OUTPUT_VALUE, output)
+                else:
+                    span.set_attribute(OUTPUT_VALUE, json.dumps(output, ensure_ascii=False))
+                    span.set_attribute(OUTPUT_MIME_TYPE, JSON.value)
                 span.set_attributes(dict(flatten(jsonify(result), recurse_on_sequence=True)))
             span.set_attribute(SpanAttributes.OPENINFERENCE_SPAN_KIND, root_span_kind)
             span.set_status(status)
@@ -206,9 +218,16 @@ def run_experiment(
                 span.record_exception(exc)
                 status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
-            if result := ExperimentResult(result=output) if output else None:
+            span.set_attribute(INPUT_VALUE, json.dumps(example.input, ensure_ascii=False))
+            span.set_attribute(INPUT_MIME_TYPE, JSON.value)
+            if result := ExperimentResult(result=output) if output is not None else None:
+                if isinstance(output, str):
+                    span.set_attribute(OUTPUT_VALUE, output)
+                else:
+                    span.set_attribute(OUTPUT_VALUE, json.dumps(output, ensure_ascii=False))
+                    span.set_attribute(OUTPUT_MIME_TYPE, JSON.value)
                 span.set_attributes(dict(flatten(jsonify(result), recurse_on_sequence=True)))
-            span.set_attribute(SpanAttributes.OPENINFERENCE_SPAN_KIND, root_span_kind)
+            span.set_attribute(OPENINFERENCE_SPAN_KIND, root_span_kind)
             span.set_status(status)
 
         assert isinstance(
@@ -358,7 +377,7 @@ def _evaluate_experiment(
                 status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
             span.set_attributes(dict(flatten(jsonify(result), recurse_on_sequence=True)))
-            span.set_attribute(SpanAttributes.OPENINFERENCE_SPAN_KIND, root_span_kind)
+            span.set_attribute(OPENINFERENCE_SPAN_KIND, root_span_kind)
             span.set_status(status)
 
         evaluator_payload = ExperimentEvaluationRun(
@@ -403,7 +422,7 @@ def _evaluate_experiment(
                 status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
             span.set_attributes(dict(flatten(jsonify(result), recurse_on_sequence=True)))
-            span.set_attribute(SpanAttributes.OPENINFERENCE_SPAN_KIND, root_span_kind)
+            span.set_attribute(OPENINFERENCE_SPAN_KIND, root_span_kind)
             span.set_status(status)
 
         evaluator_payload = ExperimentEvaluationRun(
@@ -438,3 +457,13 @@ def _str_trace_id(id_: int) -> str:
 
 def _decode_unix_nano(time_unix_nano: int) -> datetime:
     return datetime.fromtimestamp(time_unix_nano / 1e9, tz=timezone.utc)
+
+
+INPUT_VALUE = SpanAttributes.INPUT_VALUE
+OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
+INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
+OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
+OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
+
+CHAIN = OpenInferenceSpanKindValues.CHAIN
+JSON = OpenInferenceMimeTypeValues.JSON
