@@ -133,9 +133,10 @@ class LLMCriteriaEvaluator:
     @classmethod
     def _format_base_template(cls, criteria: str, description: Optional[str] = None) -> str:
         formatted_description = cls._description.format(criteria=criteria, description=description)
-        # leave the text field as a placeholder
         formatted_template = cls._base_template.format(
-            criteria=criteria, description=formatted_description, text="{text}"
+            criteria=criteria,
+            description=formatted_description,
+            text="{text}",  # leave the text field as a placeholder
         )
         return formatted_template
 
