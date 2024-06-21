@@ -137,7 +137,11 @@ export function ThemeToggle() {
 
 export function Brand() {
   return (
-    <Link to="/" css={brandCSS}>
+    <Link
+      to="/"
+      css={brandCSS}
+      title={`version: ${window.Config.platformVersion}`}
+    >
       <Logo />
     </Link>
   );
