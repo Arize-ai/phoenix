@@ -19,7 +19,8 @@ from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 
-async def test_run_experiment(session, sync_test_client, simple_dataset):
+@patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
+async def test_run_experiment(_, session, sync_test_client, simple_dataset):
     nest_asyncio.apply()
 
     nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
@@ -97,7 +98,8 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
             assert evaluations[1].score == 1.0
 
 
-async def test_run_experiment_with_llm_eval(session, sync_test_client, simple_dataset):
+@patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
+async def test_run_experiment_with_llm_eval(_, session, sync_test_client, simple_dataset):
     nest_asyncio.apply()
 
     nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()

@@ -28,6 +28,7 @@ from .span_evaluations import SpanEvaluationsDataLoader
 from .span_projects import SpanProjectsDataLoader
 from .token_counts import TokenCountCache, TokenCountDataLoader
 from .trace_evaluations import TraceEvaluationsDataLoader
+from .trace_row_ids import TraceRowIdsDataLoader
 
 __all__ = [
     "CacheForDataLoaders",
@@ -48,6 +49,7 @@ __all__ = [
     "SpanProjectsDataLoader",
     "TokenCountDataLoader",
     "TraceEvaluationsDataLoader",
+    "TraceRowIdsDataLoader",
 ]
 
 
