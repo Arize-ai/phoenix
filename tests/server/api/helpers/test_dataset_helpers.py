@@ -271,7 +271,7 @@ def test_get_dataset_example_input(span: MockSpan, expected_input_value: Dict[st
                 llm_output_messages=None,
                 retrieval_documents=[{"id": "1", "score": 0.5, "content": "document-content"}],
             ),
-            {"retrieval_documents": [{"id": "1", "score": 0.5, "content": "document-content"}]},
+            {"documents": [{"id": "1", "score": 0.5, "content": "document-content"}]},
             id="retriever-span-with-retrieval-documents",
         ),
         pytest.param(
