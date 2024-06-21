@@ -251,11 +251,11 @@ class RelevanceEvaluator:
         )
 
     def _default_get_query(self, example: Example, experiment_run: ExperimentRun) -> str:
-        return example.input
+        return str(example.input)
 
     def _default_get_response(self, example: Example, experiment_run: ExperimentRun) -> str:
         assert experiment_run.output is not None
-        return _unwrap_json(experiment_run.output.result)
+        return str(_unwrap_json(experiment_run.output.result))
 
     def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
         formatted_template = self._format_eval_template(example, exp_run)
