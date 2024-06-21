@@ -30,7 +30,7 @@ Evaluates a pandas dataframe using a set of user-specified evaluators that asses
   * **ToxicityEvaluator:** Evaluates whether a string (stored under an "input" column) contains racist, sexist, chauvinistic, biased, or otherwise toxic content.
   * **QAEvaluator:** Evaluates whether a response (stored under an "output" column) is correct or incorrect given a query (stored under an "input" column) and one or more retrieved documents (stored under a "reference" column).
   * **SummarizationEvaluator:** Evaluates whether a summary (stored under an "output" column) provides an accurate synopsis of an input document (stored under an "input" column).
-  * **SQLEvaluator:** Evaluates whether a SQL (stored under an "query_gen" column) and a response (stored under an "response" column) provides an accurate response for the question passed (stored under an "question" column).
+  * **SQLEvaluator:** Evaluates whether a generated SQL query (stored under the "query_gen" column) and a response (stored under the "response" column) appropriately answer a question (stored under the "question" column).
 * **provide\_explanation** (bool, optional): If true, each output dataframe will contain an explanation column containing the LLM's reasoning for each evaluation.
 * **use\_function\_calling\_if\_available** (bool, optional): If true, function calling is used (if available) as a means to constrain the LLM outputs. With function calling, the LLM is instructed to provide its response as a structured JSON object, which is easier to parse.
 * **verbose** (bool, optional): If true, prints detailed information such as model invocation parameters, retries on failed requests, etc.

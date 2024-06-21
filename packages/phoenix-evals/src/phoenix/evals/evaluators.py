@@ -253,10 +253,12 @@ class SummarizationEvaluator(LLMEvaluator):
 
         super().__init__(model=model, template=EvalCriteria.SUMMARIZATION.value)
 
+
 class SQLEvaluator(LLMEvaluator):
     """
-    Leverages an LLM to evaluate whether a retrieved SQL query and the corresponding 
-    response is relevant or irrelevant to the corresponding question.
+    Leverages an LLM to evaluate whether a generated SQL query (stored under
+    the "query_gen" column) and a response (stored under the "response" column)
+    appropriately answer a question (stored under the "question" column).
     """
 
     def __init__(self, model: BaseModel) -> None:
