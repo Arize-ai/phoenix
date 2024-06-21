@@ -579,7 +579,7 @@ function ExperimentRunOutput(
     : [];
 
   return (
-    <Flex direction="column" gap="size-50" height="100%">
+    <Flex direction="column" gap="size-100" height="100%">
       <LargeTextWrap>
         <JSONText json={output} space={displayFullText ? 2 : 0} />
       </LargeTextWrap>
