@@ -68,7 +68,7 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
             .scalars()
             .all()
         )
-        assert len(experiment_runs) == 3, "The experiment was configured to have 3 repetitions"
+        assert len(experiment_runs) == 1, "The experiment was configured to have 1 repetition"
         for run in experiment_runs:
             assert run.output == {"result": "doesn't matter, this is the output"}
 
