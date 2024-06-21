@@ -3,7 +3,7 @@
 This section introduces _inferences_ and _schemas,_ the starting concepts needed to use Phoenix with inferences.
 
 {% hint style="info" %}
-* For comprehensive descriptions of `phoenix.Inferences` and `phoenix.Schema`, see the [API reference](../api/dataset-and-schema.md).
+* For comprehensive descriptions of `phoenix.Inferences` and `phoenix.Schema`, see the [API reference](broken-reference).
 * For tips on creating your own Phoenix inferences and schemas, see the [how-to guide](../how-to/define-your-schema/).
 {% endhint %}
 
@@ -12,7 +12,7 @@ This section introduces _inferences_ and _schemas,_ the starting concepts needed
 _Phoenix inferences_ are an instance of `phoenix.Inferences` that contains three pieces of information:
 
 * The data itself (a pandas dataframe)
-* A [schema](../api/dataset-and-schema.md#phoenix.schema) (a `phoenix.Schema` instance) that describes the [columns](../how-to/define-your-schema/) of your dataframe
+* A [schema](broken-reference) (a `phoenix.Schema` instance) that describes the [columns](../how-to/define-your-schema/) of your dataframe
 * A name that appears in the UI
 
 For example, if you have a dataframe `prod_df` that is described by a schema `prod_schema`, you can define inferences `prod_ds` with

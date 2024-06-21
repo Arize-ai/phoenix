@@ -4,15 +4,15 @@
 Phoenix Datasets are currently in pre-release.
 {% endhint %}
 
-The pace of AI application development is often bottlenecked by quality evaluations because AI engineers often face hard tradeoffs: which prompt or which LLM best balances accuracy, latency, and cost. High quality evaluations can help you answer these types of questions with greater confidence.
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/evaluator.png" alt=""><figcaption><p>How Datasets are used to test changes to your AI application</p></figcaption></figure>
+
+AI application development is often bottlenecked by quality evaluations because engineers  are often face hard tradeoffs: which prompt or which LLM best balances performance, latency, and cost. High quality evaluations can help answer these types of questions with greater confidence.
 
 ## Datasets
 
-<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/evaluator.png" alt=""><figcaption><p>How Datasets are used to test changes to your AI application</p></figcaption></figure>
+Datasets are an integral to evaluation and experimentation. They are collections of examples that provide the `inputs` and, optionally, expected `reference` outputs for assessing your application. Each example within a dataset represents a single data point, consisting of an `inputs` dictionary, an optional `output` dictionary, and an optional `metadata` dictionary. The `optional` output dictionary often contains the the expected LLM application output for the given input.
 
-Datasets are an integral part of evaluation and experimentation. They are collections of examples that provide the necessary inputs and, optionally, expected `reference` outputs for assessing your AI application. Each example within a dataset represents a single data point, consisting of an `inputs` dictionary, an optional `output` dictionary, and an optional `metadata` dictionary. The `optional` output dictionary will often contain a `reference` key, which is the expected LLM application output for the given input.
-
-Datasets allow you to collect data from production, staging, evaluations, and even manually, and then use that data to run experiments and evaluations to track improvements.
+Datasets allow you to collect data from production, staging, evaluations, and even manually. The examples collected is  to run experiments and evaluations to track improvements.
 
 Use datasets to:
 

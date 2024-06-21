@@ -2,7 +2,7 @@
 
 ### Embedding Details
 
-For each [embedding](embeddings-analysis.md#embeddings) described in the inference [schema](../../api/dataset-and-schema.md)(s), Phoenix serves a embeddings troubleshooting view to help you identify areas of drift and performance degradation. Let's start with embedding drift.
+For each [embedding](embeddings-analysis.md#embeddings) described in the inference [schema](broken-reference)(s), Phoenix serves a embeddings troubleshooting view to help you identify areas of drift and performance degradation. Let's start with embedding drift.
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/ner_color_by_correctness.png" alt=""><figcaption></figcaption></figure>
 
