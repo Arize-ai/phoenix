@@ -7,6 +7,7 @@ from typing import (
     Awaitable,
     Callable,
     Coroutine,
+    Iterable,
     Mapping,
     Optional,
     Tuple,
@@ -80,6 +81,7 @@ def run_experiment(
     experiment_name: Optional[str] = None,
     experiment_description: Optional[str] = None,
     experiment_metadata: Optional[Mapping[str, Any]] = None,
+    evaluators: Optional[Union[ExperimentEvaluator, Iterable[ExperimentEvaluator]]] = None,
     rate_limit_errors: Optional[Union[Type[BaseException], Tuple[Type[BaseException], ...]]] = None,
 ) -> Experiment:
     # Add this to the params once supported in the UI
@@ -209,23 +211,26 @@ def run_experiment(
             resp = client.post(f"/v1/experiments/{experiment_id}/runs", json=jsonify(payload))
             resp.raise_for_status()
 
-    print(f"✅ Task runs completed. View all experiments: {dataset_experiments_url}")
-    return Experiment(
+    experiment = Experiment(
         id=experiment_id,
         dataset_id=dataset.id,
         dataset_version_id=dataset.version_id,
         project_name=project_name,
     )
 
+    print(f"✅ Task runs completed. View all experiments: {dataset_experiments_url}")
+
+    if evaluators is not None:
+        _evaluate_experiment(experiment, evaluators, dataset.examples, client)
+
+    return experiment
+
 
 def evaluate_experiment(
     experiment: Experiment,
-    evaluator: ExperimentEvaluator,
+    evaluators: Union[ExperimentEvaluator, Iterable[ExperimentEvaluator]],
 ) -> None:
-    assert isinstance(evaluator, (CanEvaluate, CanAsyncEvaluate))
     client = _phoenix_client()
-
-    experiment_id = experiment.id
     dataset_id = experiment.dataset_id
     dataset_version_id = experiment.dataset_version_id
     project_name = experiment.project_name
@@ -242,6 +247,19 @@ def evaluate_experiment(
             .get("examples", [])
         )
     ]
+    _evaluate_experiment(experiment, evaluators, dataset_examples, client)
+
+
+def _evaluate_experiment(
+    experiment: Experiment,
+    evaluators: Union[ExperimentEvaluator, Iterable[ExperimentEvaluator]],
+    dataset_examples: Iterable[Example],
+    client: httpx.Client,
+) -> None:
+    if isinstance(evaluators, (CanEvaluate, CanAsyncEvaluate)):
+        evaluators = [evaluators]
+
+    experiment_id = experiment.id
 
     experiment_runs = [
         ExperimentRun.from_dict(exp_run)
@@ -255,9 +273,15 @@ def evaluate_experiment(
         example = examples_by_id.get(exp_run.dataset_example_id)
         if example:
             example_run_pairs.append((deepcopy(example), exp_run))
+    evaluation_inputs = [
+        (example, run, evaluator)
+        for (example, run), evaluator in product(example_run_pairs, evaluators)
+    ]
 
-    def sync_evaluate_run(obj: Tuple[Example, ExperimentRun]) -> ExperimentEvaluationRun:
-        example, experiment_run = obj
+    def sync_evaluate_run(
+        obj: Tuple[Example, ExperimentRun, ExperimentEvaluator],
+    ) -> ExperimentEvaluationRun:
+        example, experiment_run, evaluator = obj
         start_time = datetime.now(timezone.utc)
         result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
@@ -288,8 +312,10 @@ def evaluate_experiment(
         )
         return evaluator_payload
 
-    async def async_evaluate_run(obj: Tuple[Example, ExperimentRun]) -> ExperimentEvaluationRun:
-        example, experiment_run = obj
+    async def async_evaluate_run(
+        obj: Tuple[Example, ExperimentRun, ExperimentEvaluator],
+    ) -> ExperimentEvaluationRun:
+        example, experiment_run, evaluator = obj
         start_time = datetime.now(timezone.utc)
         result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
@@ -329,7 +355,7 @@ def evaluate_experiment(
         exit_on_error=False,
         fallback_return_value=None,
     )
-    evaluation_payloads, _execution_details = executor.run(example_run_pairs)
+    evaluation_payloads, _execution_details = executor.run(evaluation_inputs)
     for payload in evaluation_payloads:
         if payload is not None:
             resp = client.post("/v1/experiment_evaluations", json=jsonify(payload))

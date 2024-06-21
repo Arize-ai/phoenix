@@ -189,16 +189,16 @@ def upgrade() -> None:
             index=True,
         ),
         sa.Column(
+            "repetition_number",
+            sa.Integer,
+            nullable=False,
+        ),
+        sa.Column(
             "trace_id",
             sa.String,
             nullable=True,
         ),
         sa.Column("output", JSON_, nullable=True),
-        sa.Column(
-            "repetition_number",
-            sa.Integer,
-            nullable=False,
-        ),
         sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column(
@@ -215,6 +215,11 @@ def upgrade() -> None:
             "error",
             sa.String,
             nullable=True,
+        ),
+        sa.UniqueConstraint(
+            "experiment_id",
+            "dataset_example_id",
+            "repetition_number",
         ),
     )
     op.create_table(
@@ -269,6 +274,10 @@ def upgrade() -> None:
         sa.Column("metadata", JSON_, nullable=False),
         sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=False),
+        sa.UniqueConstraint(
+            "experiment_run_id",
+            "name",
+        ),
     )
 
 
