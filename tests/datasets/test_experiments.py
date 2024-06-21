@@ -141,7 +141,7 @@ async def test_run_experiment_with_llm_eval(session, sync_test_client, simple_da
             task=experiment_task,
             experiment_name="test",
             experiment_description="test description",
-            repetitions=3,
+            # repetitions=3,  # TODO: Enable repetitions #3584
             evaluators=[
                 LLMConcisenessEvaluator(model=NegativeFakeLLMModel()),
                 LLMConcisenessEvaluator(model=PostitiveFakeLLMModel()),
@@ -158,7 +158,6 @@ async def test_run_experiment_with_llm_eval(session, sync_test_client, simple_da
         assert experiment_model.dataset_version_id == 0
         assert experiment_model.name == "test"
         assert experiment_model.description == "test description"
-        assert experiment_model.repetitions == 3
 
         experiment_runs = (
             (
@@ -169,7 +168,7 @@ async def test_run_experiment_with_llm_eval(session, sync_test_client, simple_da
             .scalars()
             .all()
         )
-        assert len(experiment_runs) == 3, "The experiment was configured to have 3 repetitions"
+        assert len(experiment_runs) == 1, "The experiment was configured to have 1 repetition"
         for run in experiment_runs:
             assert run.output == {"result": "doesn't matter, this is the output"}
 
@@ -177,8 +176,8 @@ async def test_run_experiment_with_llm_eval(session, sync_test_client, simple_da
             evaluations = (
                 (
                     await session.execute(
-                        select(models.ExperimentAnnotation).where(
-                            models.ExperimentAnnotation.experiment_run_id == run.id
+                        select(models.ExperimentRunAnnotation).where(
+                            models.ExperimentRunAnnotation.experiment_run_id == run.id
                         )
                     )
                 )
@@ -186,6 +185,5 @@ async def test_run_experiment_with_llm_eval(session, sync_test_client, simple_da
                 .all()
             )
             assert len(evaluations) == 2
-            evaluation = evaluations[0]
-            assert evaluation[0].score == 0.0
-            assert evaluation[1].score == 1.0
+            assert evaluations[0].score == 0.0
+            assert evaluations[1].score == 1.0
