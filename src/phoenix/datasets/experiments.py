@@ -161,7 +161,7 @@ def run_experiment(
                     output = _output
             except BaseException as exc:
                 span.record_exception(exc)
-                status = Status()
+                status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
             if result := ExperimentResult(result=output) if output else None:
                 span.set_attributes(dict(flatten(jsonify(result), recurse_on_sequence=True)))
@@ -204,7 +204,7 @@ def run_experiment(
                     output = _output
             except BaseException as exc:
                 span.record_exception(exc)
-                status = Status()
+                status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
             if result := ExperimentResult(result=output) if output else None:
                 span.set_attributes(dict(flatten(jsonify(result), recurse_on_sequence=True)))
@@ -355,7 +355,7 @@ def _evaluate_experiment(
                 result = _output
             except BaseException as exc:
                 span.record_exception(exc)
-                status = Status()
+                status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
             span.set_attributes(dict(flatten(jsonify(result), recurse_on_sequence=True)))
             span.set_attribute(SpanAttributes.OPENINFERENCE_SPAN_KIND, root_span_kind)
@@ -400,7 +400,7 @@ def _evaluate_experiment(
                         result = _output
             except BaseException as exc:
                 span.record_exception(exc)
-                status = Status()
+                status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
             span.set_attributes(dict(flatten(jsonify(result), recurse_on_sequence=True)))
             span.set_attribute(SpanAttributes.OPENINFERENCE_SPAN_KIND, root_span_kind)
