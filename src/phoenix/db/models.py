@@ -587,3 +587,10 @@ class ExperimentRunAnnotation(Base):
     metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "experiment_run_id",
+            "name",
+        ),
+    )
