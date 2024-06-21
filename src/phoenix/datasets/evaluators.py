@@ -1,6 +1,6 @@
 import json
 import re
-from typing import TYPE_CHECKING, Optional, Type
+from typing import TYPE_CHECKING, Callable, Optional, Type
 
 from phoenix.datasets.types import (
     EvaluationResult,
@@ -141,7 +141,7 @@ class LLMCriteriaEvaluator:
         return formatted_template
 
 
-def evaluator_factory(
+def criteria_evaluator_factory(
     class_name: str, criteria: str, description: str
 ) -> Type[ExperimentEvaluator]:
     return type(
@@ -158,21 +158,21 @@ def evaluator_factory(
     )
 
 
-LLMConcisenessEvaluator = evaluator_factory(
+LLMConcisenessEvaluator = criteria_evaluator_factory(
     class_name="LLMConcisenessEvaluator",
     criteria="concise",
     description="is just a few sentences and easy to follow",
 )
 
 
-LLMHelpfulnessEvaluator = evaluator_factory(
+LLMHelpfulnessEvaluator = criteria_evaluator_factory(
     class_name="LLMHelpfulnessEvaluator",
     criteria="helpful",
     description="provides useful information",
 )
 
 
-LLMCoherenceEvaluator = evaluator_factory(
+LLMCoherenceEvaluator = criteria_evaluator_factory(
     class_name="LLMCoherenceEvaluator",
     criteria="coherent",
     description="is coherent, well-structured, and organized",
@@ -190,6 +190,75 @@ def _parse_label_from_explanation(raw_string: str) -> str:
                 return parts[last_index].strip()
             last_index -= 1
     return raw_string
+
+
+class RAGRelevanceEvaluator:
+    annotator_kind = "LLM"
+    template = (
+        "Determine if the following submission is relevant to the reference text. In this context, "
+        "'relevance' means that the submission directly quotes or explicitly paraphrases the "
+        "reference text. First, explain step-by-step why you think the text is or is not relevant. "
+        "Then provide a single word label; 'true' if the text is relevant or 'false' if the text "
+        "is not relevant. "
+        "Here is an example template for your reponse:\n\n"
+        "CRITERIA: the text is 'relevant'\n"
+        "REFERENCE: *the reference text*\n"
+        "SUBMISSION: *a response that may or may not be relevant to the reference text*\n"
+        "EXPLANATION: *a step by step explanation of your reasoning for whether or not the "
+        "text is relevant to the reference text*\n"
+        "LABEL: *true or false*\n\n"
+        "Follow this template for the following text:\n\n"
+        "CRITERIA: the text is 'relevant'\n"
+        "REFERENCE: {reference}\n"
+        "SUBMISSION: {submission}\n"
+        "EXPLANATION: "
+    )
+
+    def __init__(
+        self,
+        model: LLMBaseModel,
+        reference_fn: Callable[[Example, ExperimentRun], str],
+        submission_fn: Callable[[Example, ExperimentRun], str],
+        name: str = "RAGRelevanceEvaluator",
+    ):
+        self.model = model
+        self.name = name
+        self.reference_fn = reference_fn
+        self.submission_fn = submission_fn
+
+    def _format_eval_template(self, example: Example, experiment_run: ExperimentRun) -> str:
+        assert experiment_run.output is not None
+        reference = self.reference_fn(example, experiment_run)
+        submission = self.submission_fn(example, experiment_run)
+        return self.template.format(reference=reference, submission=submission)
+
+    def _parse_eval_output(self, unparsed_response: str) -> EvaluationResult:
+        raw_label, explanation = (
+            _parse_label_from_explanation(unparsed_response),
+            unparsed_response,
+        )
+        label = snap_to_rail(raw_label, ["true", "false"])
+        if label == "true":
+            score = 1.0
+        elif label == "false":
+            score = 0.0
+        else:
+            raise RuntimeError(f"Could not parse LLM evaluation: {unparsed_response}")
+        return EvaluationResult(
+            score=score,
+            explanation=explanation,
+            metadata={},
+        )
+
+    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+        formatted_template = self._format_eval_template(example, exp_run)
+        unparsed_response = self.model._generate(formatted_template)
+        return self._parse_eval_output(unparsed_response)
+
+    async def async_evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+        formatted_template = self._format_eval_template(example, exp_run)
+        unparsed_response = await self.model._async_generate(formatted_template)
+        return self._parse_eval_output(unparsed_response)
 
 
 # Someday we'll do typing checking in unit tests.
