@@ -909,6 +909,7 @@ type Project implements Node {
   tokenCountCompletion(timeRange: TimeRange, filterCondition: String): Int!
   latencyMsQuantile(probability: Float!, timeRange: TimeRange): Float
   spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String): Float
+  trace(traceId: ID!): Trace
   spans(timeRange: TimeRange, first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String): SpanConnection!
 
   """
@@ -957,7 +958,6 @@ type PromptResponse {
 }
 
 type Query {
-  trace(traceId: ID!, projectId: GlobalID): Trace
   projects(first: Int = 50, last: Int, after: String, before: String): ProjectConnection!
   datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort): DatasetConnection!
   compareExperiments(experimentIds: [GlobalID!]!): [ExperimentComparison!]!
@@ -1216,7 +1216,7 @@ type TimeSeriesDataPoint {
 type Trace implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
-  project: Project
+  projectId: GlobalID!
   spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
 
   """Evaluations associated with the trace"""

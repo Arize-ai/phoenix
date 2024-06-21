@@ -71,26 +71,6 @@ from phoenix.server.api.types.Trace import Trace
 @strawberry.type
 class Query:
     @strawberry.field
-    async def trace(
-        self,
-        info: Info,
-        trace_id: ID,
-        project_id: Optional[GlobalID] = UNSET,
-    ) -> Optional[Trace]:
-        stmt = select(
-            models.Trace.id,
-            models.Trace.project_rowid,
-        ).where(models.Trace.trace_id == str(trace_id))
-        if project_id:
-            project_rowid = from_global_id_with_expected_type(project_id, Project.__name__)
-            stmt = stmt.where(models.Trace.project_rowid == project_rowid)
-        async with info.context.db() as session:
-            if (trace := (await session.execute(stmt)).first()) is None:
-                return None
-        trace_rowid, project_rowid = trace
-        return Trace(id_attr=trace_rowid, project_rowid=project_rowid)
-
-    @strawberry.field
     async def projects(
         self,
         info: Info[Context, None],
