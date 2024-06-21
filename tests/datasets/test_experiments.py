@@ -3,7 +3,11 @@ from typing import Any
 from unittest.mock import patch
 
 import nest_asyncio
-from phoenix.datasets.evaluators import ContainsKeyword, LLMConcisenessEvaluator
+from phoenix.datasets.evaluators import (
+    ContainsKeyword,
+    LLMConcisenessEvaluator,
+    LLMHelpfulnessEvaluator,
+)
 from phoenix.datasets.experiments import run_experiment
 from phoenix.datasets.types import (
     Dataset,
@@ -144,7 +148,7 @@ async def test_run_experiment_with_llm_eval(session, sync_test_client, simple_da
             # repetitions=3,  # TODO: Enable repetitions #3584
             evaluators=[
                 LLMConcisenessEvaluator(model=NegativeFakeLLMModel()),
-                LLMConcisenessEvaluator(model=PostitiveFakeLLMModel()),
+                LLMHelpfulnessEvaluator(model=PostitiveFakeLLMModel()),
             ],
         )
         experiment_id = from_global_id_with_expected_type(
