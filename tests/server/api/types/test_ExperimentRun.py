@@ -160,8 +160,8 @@ async def experiment_run_with_annotations(session):
 
     # insert annotations
     await session.scalar(
-        insert(models.ExperimentAnnotation)
-        .returning(models.ExperimentAnnotation.id)
+        insert(models.ExperimentRunAnnotation)
+        .returning(models.ExperimentRunAnnotation.id)
         .values(
             experiment_run_id=run_id,
             name="annotation-1-name",
@@ -178,8 +178,8 @@ async def experiment_run_with_annotations(session):
     )
 
     await session.scalar(
-        insert(models.ExperimentAnnotation)
-        .returning(models.ExperimentAnnotation.id)
+        insert(models.ExperimentRunAnnotation)
+        .returning(models.ExperimentRunAnnotation.id)
         .values(
             experiment_run_id=run_id,
             name="annotation-2-name",

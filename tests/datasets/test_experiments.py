@@ -79,8 +79,8 @@ async def test_run_experiment(session, sync_test_client, simple_dataset):
             evaluations = (
                 (
                     await session.execute(
-                        select(models.ExperimentAnnotation).where(
-                            models.ExperimentAnnotation.experiment_run_id == run.id
+                        select(models.ExperimentRunAnnotation).where(
+                            models.ExperimentRunAnnotation.experiment_run_id == run.id
                         )
                     )
                 )
