@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.4.3...arize-phoenix-v4.5.0) (2024-06-21)
+
+
+### Features
+
+* added SQLEvaluator ([#3577](https://github.com/Arize-ai/phoenix/issues/3577)) ([0a79535](https://github.com/Arize-ai/phoenix/commit/0a79535f20426072c8ffa60960b605a8dbb95a18))
+
 ## [4.4.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.4.2...arize-phoenix-v4.4.3) (2024-06-17)
 
 
