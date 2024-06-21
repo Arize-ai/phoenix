@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 from typing import List, Optional
 
 import strawberry
 from sqlalchemy import desc, select
 from sqlalchemy.orm import contains_eager
-from strawberry import UNSET
-from strawberry.relay import Connection, Node, NodeID
+from strawberry import UNSET, Private
+from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.types import Info
 
 from phoenix.db import models
@@ -21,6 +23,13 @@ from phoenix.server.api.types.Span import Span, to_gql_span
 @strawberry.type
 class Trace(Node):
     id_attr: NodeID[int]
+    project_rowid: Private[int]
+
+    @strawberry.field
+    async def project_id(self) -> GlobalID:
+        from phoenix.server.api.types.Project import Project
+
+        return GlobalID(type_name=Project.__name__, node_id=str(self.project_rowid))
 
     @strawberry.field
     async def spans(
