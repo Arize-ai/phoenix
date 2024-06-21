@@ -68,7 +68,7 @@ class ExperimentRun(Node):
         if (trace := await dataloader.load(self.trace_id)) is None:
             return None
         trace_rowid, project_rowid = trace
-        return Trace(id_attr=trace_rowid, project_rowid=project_rowid)
+        return Trace(id_attr=trace_rowid, trace_id=self.trace_id, project_rowid=project_rowid)
 
 
 def to_gql_experiment_run(run: models.ExperimentRun) -> ExperimentRun:

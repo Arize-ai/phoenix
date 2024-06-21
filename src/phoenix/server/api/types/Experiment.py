@@ -18,6 +18,7 @@ from phoenix.server.api.types.pagination import (
     CursorString,
     connection_from_list,
 )
+from phoenix.server.api.types.Project import Project
 
 
 @strawberry.type
@@ -25,6 +26,7 @@ class Experiment(Node):
     cached_sequence_number: Private[Optional[int]] = None
     id_attr: NodeID[int]
     name: str
+    project_name: Optional[str]
     description: Optional[str]
     metadata: JSON
     created_at: datetime
@@ -96,6 +98,23 @@ class Experiment(Node):
     async def error_rate(self, info: Info[Context, None]) -> Optional[float]:
         return await info.context.data_loaders.experiment_error_rates.load(self.id_attr)
 
+    @strawberry.field
+    async def project(self, info: Info[Context, None]) -> Optional[Project]:
+        if self.project_name is None:
+            return None
+
+        db_project = await info.context.data_loaders.project_by_name.load(self.project_name)
+
+        if db_project is None:
+            return None
+
+        return Project(
+            id_attr=db_project.id,
+            name=db_project.name,
+            gradient_start_color=db_project.gradient_start_color,
+            gradient_end_color=db_project.gradient_end_color,
+        )
+
 
 def to_gql_experiment(
     experiment: models.Experiment,
@@ -108,6 +127,7 @@ def to_gql_experiment(
         cached_sequence_number=sequence_number,
         id_attr=experiment.id,
         name=experiment.name,
+        project_name=experiment.project_name,
         description=experiment.description,
         metadata=experiment.metadata_,
         created_at=experiment.created_at,
