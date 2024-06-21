@@ -553,9 +553,9 @@ class ExperimentRun(Base):
         ForeignKey("dataset_examples.id", ondelete="CASCADE"),
         index=True,
     )
+    repetition_number: Mapped[int]
     trace_id: Mapped[Optional[str]]
     output: Mapped[Optional[Dict[str, Any]]]
-    repetition_number: Mapped[int]
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     prompt_token_count: Mapped[Optional[int]]
@@ -565,6 +565,14 @@ class ExperimentRun(Base):
     trace: Mapped["Trace"] = relationship(
         primaryjoin="foreign(ExperimentRun.trace_id) == Trace.trace_id",
         back_populates="experiment_runs",
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "experiment_id",
+            "dataset_example_id",
+            "repetition_number",
+        ),
     )
 
 
