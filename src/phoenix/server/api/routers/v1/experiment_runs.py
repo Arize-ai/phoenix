@@ -9,7 +9,7 @@ from strawberry.relay import GlobalID
 from phoenix.datasets.types import ExperimentResult, ExperimentRun
 from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.utilities.json_utils import jsonify
+from phoenix.utilities.json import jsonify
 
 
 async def create_experiment_run(request: Request) -> Response:

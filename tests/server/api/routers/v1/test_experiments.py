@@ -37,7 +37,7 @@ async def test_experiments_api(test_client, simple_dataset):
     # create experiment runs for each dataset example
     run_payload = {
         "dataset_example_id": str(dataset_examples[0]["id"]),
-        "trace_id": "placeholder-id",  # not yet implemented
+        "trace_id": "placeholder-id",
         "output": {"result": "some LLM application output"},
         "repetition_number": 1,
         "start_time": datetime.datetime.now().isoformat(),
@@ -59,6 +59,7 @@ async def test_experiments_api(test_client, simple_dataset):
     # each experiment run can be evaluated
     evaluation_payload = {
         "experiment_run_id": experiment_run["id"],
+        "trace_id": "placeholder-id",
         "name": "some evaluation name",
         "annotator_kind": "LLM",
         "result": {

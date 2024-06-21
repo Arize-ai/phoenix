@@ -29,6 +29,7 @@ from phoenix.server.api.dataloaders import (
     SpanProjectsDataLoader,
     TokenCountDataLoader,
     TraceEvaluationsDataLoader,
+    TraceRowIdsDataLoader,
 )
 
 
@@ -51,6 +52,7 @@ class DataLoaders:
     span_projects: SpanProjectsDataLoader
     token_counts: TokenCountDataLoader
     trace_evaluations: TraceEvaluationsDataLoader
+    trace_row_ids: TraceRowIdsDataLoader
 
 
 ProjectRowId: TypeAlias = int

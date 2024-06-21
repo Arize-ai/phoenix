@@ -74,6 +74,7 @@ from phoenix.server.api.dataloaders import (
     SpanProjectsDataLoader,
     TokenCountDataLoader,
     TraceEvaluationsDataLoader,
+    TraceRowIdsDataLoader,
 )
 from phoenix.server.api.openapi.schema import OPENAPI_SCHEMA_GENERATOR
 from phoenix.server.api.routers.v1 import V1_ROUTES
@@ -235,6 +236,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
                     else None,
                 ),
                 trace_evaluations=TraceEvaluationsDataLoader(self.db),
+                trace_row_ids=TraceRowIdsDataLoader(self.db),
             ),
             cache_for_dataloaders=self.cache_for_dataloaders,
             read_only=self.read_only,

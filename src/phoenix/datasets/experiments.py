@@ -1,4 +1,7 @@
 import functools
+import json
+from binascii import hexlify
+from contextlib import ExitStack
 from copy import deepcopy
 from datetime import datetime, timezone
 from itertools import product
@@ -15,8 +18,22 @@ from typing import (
     Union,
     cast,
 )
+from urllib.parse import urljoin
 
 import httpx
+import opentelemetry.sdk.trace as trace_sdk
+from openinference.semconv.resource import ResourceAttributes
+from openinference.semconv.trace import (
+    OpenInferenceMimeTypeValues,
+    OpenInferenceSpanKindValues,
+    SpanAttributes,
+)
+from opentelemetry.context import Context
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import Span
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.trace import Status, StatusCode
 from typing_extensions import TypeAlias
 
 from phoenix.config import (
@@ -25,6 +42,7 @@ from phoenix.config import (
     get_env_host,
     get_env_port,
 )
+from phoenix.datasets.tracing import capture_spans
 from phoenix.datasets.types import (
     CanAsyncEvaluate,
     CanEvaluate,
@@ -43,7 +61,8 @@ from phoenix.datasets.types import (
 from phoenix.evals.executors import get_executor_on_sync_context
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.utils import get_tqdm_progress_bar_formatter
-from phoenix.utilities.json_utils import jsonify
+from phoenix.trace.attributes import flatten
+from phoenix.utilities.json import jsonify
 
 ExperimentTask: TypeAlias = Union[
     Callable[[Example], JSONSerializable],
@@ -100,7 +119,19 @@ def run_experiment(
         },
     )
     experiment_response.raise_for_status()
-    experiment_id = experiment_response.json()["id"]
+    exp_json = experiment_response.json()
+    experiment_id = exp_json["id"]
+    project_name = exp_json["project_name"]
+
+    resource = Resource({ResourceAttributes.PROJECT_NAME: project_name} if project_name else {})
+    tracer_provider = trace_sdk.TracerProvider(resource=resource)
+    tracer_provider.add_span_processor(
+        SimpleSpanProcessor(OTLPSpanExporter(urljoin(f"{_get_base_url()}", "v1/traces")))
+    )
+    tracer = tracer_provider.get_tracer(__name__)
+    root_span_name = f"Task: {task.__qualname__}"
+    root_span_kind = CHAIN.value
+
     dataset_experiments_url = _get_dataset_experiments_url(dataset_id=dataset.id)
     experiment_compare_url = _get_experiment_url(dataset_id=dataset.id, experiment_id=experiment_id)
     print(f"🧪 Experiment started: {experiment_compare_url}")
@@ -116,67 +147,101 @@ def run_experiment(
 
     def sync_run_experiment(test_case: TestCase) -> ExperimentRun:
         example, repetition_number = test_case.example, test_case.repetition_number
-        start_time = datetime.now(timezone.utc)
         output = None
-        error: Optional[Exception] = None
-        try:
-            # Do not use keyword arguments, which can fail at runtime
-            # even when function obeys protocol, because keyword arguments
-            # are implementation details.
-            _output = task(example)
-            if isinstance(_output, Awaitable):
-                raise RuntimeError("Task is async but running in sync context")
-            else:
-                output = _output
-        except Exception as exc:
-            error = exc
-        finally:
-            end_time = datetime.now(timezone.utc)
+        error: Optional[BaseException] = None
+        status = Status(StatusCode.OK)
+        with ExitStack() as stack:
+            span: Span = stack.enter_context(
+                tracer.start_as_current_span(root_span_name, context=Context())
+            )
+            stack.enter_context(capture_spans(resource))
+            try:
+                # Do not use keyword arguments, which can fail at runtime
+                # even when function obeys protocol, because keyword arguments
+                # are implementation details.
+                _output = task(example)
+                if isinstance(_output, Awaitable):
+                    raise RuntimeError("Task is async but running in sync context")
+                else:
+                    output = _output
+            except BaseException as exc:
+                span.record_exception(exc)
+                status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
+                error = exc
+            span.set_attribute(INPUT_VALUE, json.dumps(example.input, ensure_ascii=False))
+            span.set_attribute(INPUT_MIME_TYPE, JSON.value)
+            if result := ExperimentResult(result=output) if output is not None else None:
+                if isinstance(output, str):
+                    span.set_attribute(OUTPUT_VALUE, output)
+                else:
+                    span.set_attribute(OUTPUT_VALUE, json.dumps(output, ensure_ascii=False))
+                    span.set_attribute(OUTPUT_MIME_TYPE, JSON.value)
+                span.set_attributes(dict(flatten(jsonify(result), recurse_on_sequence=True)))
+            span.set_attribute(SpanAttributes.OPENINFERENCE_SPAN_KIND, root_span_kind)
+            span.set_status(status)
 
         assert isinstance(
             output, (dict, list, str, int, float, bool, type(None))
         ), "Output must be JSON serializable"
         experiment_run = ExperimentRun(
-            start_time=start_time,
-            end_time=end_time,
+            start_time=_decode_unix_nano(cast(int, span.start_time)),
+            end_time=_decode_unix_nano(cast(int, span.end_time)),
             experiment_id=experiment_id,
             dataset_example_id=example.id,
             repetition_number=repetition_number,
-            output=ExperimentResult(result=output) if output else None,
+            output=result,
             error=repr(error) if error else None,
+            trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
         return experiment_run
 
     async def async_run_experiment(test_case: TestCase) -> ExperimentRun:
         example, repetition_number = test_case.example, test_case.repetition_number
-        start_time = datetime.now(timezone.utc)
         output = None
         error: Optional[BaseException] = None
-        try:
-            # Do not use keyword arguments, which can fail at runtime
-            # even when function obeys protocol, because keyword arguments
-            # are implementation details.
-            _output = task(example)
-            if isinstance(_output, Awaitable):
-                output = await _output
-            else:
-                output = _output
-        except Exception as exc:
-            error = exc
-        finally:
-            end_time = datetime.now(timezone.utc)
+        status = Status(StatusCode.OK)
+        with ExitStack() as stack:
+            span: Span = stack.enter_context(
+                tracer.start_as_current_span(root_span_name, context=Context())
+            )
+            stack.enter_context(capture_spans(resource))
+            try:
+                # Do not use keyword arguments, which can fail at runtime
+                # even when function obeys protocol, because keyword arguments
+                # are implementation details.
+                _output = task(example)
+                if isinstance(_output, Awaitable):
+                    output = await _output
+                else:
+                    output = _output
+            except BaseException as exc:
+                span.record_exception(exc)
+                status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
+                error = exc
+            span.set_attribute(INPUT_VALUE, json.dumps(example.input, ensure_ascii=False))
+            span.set_attribute(INPUT_MIME_TYPE, JSON.value)
+            if result := ExperimentResult(result=output) if output is not None else None:
+                if isinstance(output, str):
+                    span.set_attribute(OUTPUT_VALUE, output)
+                else:
+                    span.set_attribute(OUTPUT_VALUE, json.dumps(output, ensure_ascii=False))
+                    span.set_attribute(OUTPUT_MIME_TYPE, JSON.value)
+                span.set_attributes(dict(flatten(jsonify(result), recurse_on_sequence=True)))
+            span.set_attribute(OPENINFERENCE_SPAN_KIND, root_span_kind)
+            span.set_status(status)
 
         assert isinstance(
             output, (dict, list, str, int, float, bool, type(None))
         ), "Output must be JSON serializable"
         experiment_run = ExperimentRun(
-            start_time=start_time,
-            end_time=end_time,
+            start_time=_decode_unix_nano(cast(int, span.start_time)),
+            end_time=_decode_unix_nano(cast(int, span.end_time)),
             experiment_id=experiment_id,
             dataset_example_id=example.id,
             repetition_number=repetition_number,
-            output=ExperimentResult(result=output) if output else None,
+            output=result,
             error=repr(error) if error else None,
+            trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
         return experiment_run
 
@@ -210,6 +275,7 @@ def run_experiment(
         id=experiment_id,
         dataset_id=dataset.id,
         dataset_version_id=dataset.version_id,
+        project_name=project_name,
     )
 
     print(f"✅ Task runs completed. View all experiments: {dataset_experiments_url}")
@@ -243,6 +309,9 @@ def evaluate_experiment(
     _evaluate_experiment(experiment, evaluators, dataset_examples, client)
 
 
+ExperimentEvaluatorName: TypeAlias = str
+
+
 def _evaluate_experiment(
     experiment: Experiment,
     evaluators: Union[ExperimentEvaluator, Iterable[ExperimentEvaluator]],
@@ -267,75 +336,104 @@ def _evaluate_experiment(
         if example:
             example_run_pairs.append((deepcopy(example), exp_run))
     evaluation_inputs = [
-        (example, run, evaluator)
+        (example, run, evaluator.name, evaluator)
         for (example, run), evaluator in product(example_run_pairs, evaluators)
     ]
 
+    project_name = "evaluators"
+    resource = Resource({ResourceAttributes.PROJECT_NAME: project_name} if project_name else {})
+    tracer_provider = trace_sdk.TracerProvider(resource=resource)
+    tracer_provider.add_span_processor(
+        SimpleSpanProcessor(OTLPSpanExporter(urljoin(f"{_get_base_url()}", "v1/traces")))
+    )
+    tracer = tracer_provider.get_tracer(__name__)
+    root_span_kind = "EVALUATOR"
+
     def sync_evaluate_run(
-        obj: Tuple[Example, ExperimentRun, ExperimentEvaluator],
+        obj: Tuple[Example, ExperimentRun, ExperimentEvaluatorName, ExperimentEvaluator],
     ) -> ExperimentEvaluationRun:
-        example, experiment_run, evaluator = obj
-        start_time = datetime.now(timezone.utc)
+        example, experiment_run, name, evaluator = obj
         result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
-        try:
-            # Do not use keyword arguments, which can fail at runtime
-            # even when function obeys protocol, because keyword arguments
-            # are implementation details.
-            if not isinstance(evaluator, CanEvaluate):
-                raise RuntimeError("Task is async but running in sync context")
-            _output = evaluator.evaluate(example, experiment_run)
-            if isinstance(_output, Awaitable):
-                raise RuntimeError("Task is async but running in sync context")
-            result = _output
-        except BaseException as exc:
-            error = exc
-        finally:
-            end_time = datetime.now(timezone.utc)
+        status = Status(StatusCode.OK)
+        root_span_name = f"Evaluation: {name}"
+        with ExitStack() as stack:
+            span: Span = stack.enter_context(
+                tracer.start_as_current_span(root_span_name, context=Context())
+            )
+            stack.enter_context(capture_spans(resource))
+            try:
+                # Do not use keyword arguments, which can fail at runtime
+                # even when function obeys protocol, because keyword arguments
+                # are implementation details.
+                if not isinstance(evaluator, CanEvaluate):
+                    raise RuntimeError("Task is async but running in sync context")
+                _output = evaluator.evaluate(example, experiment_run)
+                if isinstance(_output, Awaitable):
+                    raise RuntimeError("Task is async but running in sync context")
+                result = _output
+            except BaseException as exc:
+                span.record_exception(exc)
+                status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
+                error = exc
+            span.set_attributes(dict(flatten(jsonify(result), recurse_on_sequence=True)))
+            span.set_attribute(OPENINFERENCE_SPAN_KIND, root_span_kind)
+            span.set_status(status)
 
         evaluator_payload = ExperimentEvaluationRun(
             experiment_run_id=cast(ExperimentRunId, experiment_run.id),
-            start_time=start_time,
-            end_time=end_time,
+            start_time=_decode_unix_nano(cast(int, span.start_time)),
+            end_time=_decode_unix_nano(cast(int, span.end_time)),
             name=evaluator.name,
             annotator_kind=evaluator.annotator_kind,
             error=repr(error) if error else None,
             result=result,
+            trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
         return evaluator_payload
 
     async def async_evaluate_run(
-        obj: Tuple[Example, ExperimentRun, ExperimentEvaluator],
+        obj: Tuple[Example, ExperimentRun, ExperimentEvaluatorName, ExperimentEvaluator],
     ) -> ExperimentEvaluationRun:
-        example, experiment_run, evaluator = obj
-        start_time = datetime.now(timezone.utc)
+        example, experiment_run, name, evaluator = obj
         result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
-        try:
-            # Do not use keyword arguments, which can fail at runtime
-            # even when function obeys protocol, because keyword arguments
-            # are implementation details.
-            if isinstance(evaluator, CanAsyncEvaluate):
-                result = await evaluator.async_evaluate(example, experiment_run)
-            else:
-                _output = evaluator.evaluate(example, experiment_run)
-                if isinstance(_output, Awaitable):
-                    result = await _output
+        status = Status(StatusCode.OK)
+        root_span_name = f"Evaluation: {name}"
+        with ExitStack() as stack:
+            span: Span = stack.enter_context(
+                tracer.start_as_current_span(root_span_name, context=Context())
+            )
+            stack.enter_context(capture_spans(resource))
+            try:
+                # Do not use keyword arguments, which can fail at runtime
+                # even when function obeys protocol, because keyword arguments
+                # are implementation details.
+                if isinstance(evaluator, CanAsyncEvaluate):
+                    result = await evaluator.async_evaluate(example, experiment_run)
                 else:
-                    result = _output
-        except BaseException as exc:
-            error = exc
-        finally:
-            end_time = datetime.now(timezone.utc)
+                    _output = evaluator.evaluate(example, experiment_run)
+                    if isinstance(_output, Awaitable):
+                        result = await _output
+                    else:
+                        result = _output
+            except BaseException as exc:
+                span.record_exception(exc)
+                status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
+                error = exc
+            span.set_attributes(dict(flatten(jsonify(result), recurse_on_sequence=True)))
+            span.set_attribute(OPENINFERENCE_SPAN_KIND, root_span_kind)
+            span.set_status(status)
 
         evaluator_payload = ExperimentEvaluationRun(
             experiment_run_id=cast(ExperimentRunId, experiment_run.id),
-            start_time=start_time,
-            end_time=end_time,
+            start_time=_decode_unix_nano(cast(int, span.start_time)),
+            end_time=_decode_unix_nano(cast(int, span.end_time)),
             name=evaluator.name,
             annotator_kind=evaluator.annotator_kind,
             error=repr(error) if error else None,
             result=result,
+            trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
         return evaluator_payload
 
@@ -351,3 +449,21 @@ def _evaluate_experiment(
         if payload is not None:
             resp = client.post("/v1/experiment_evaluations", json=jsonify(payload))
             resp.raise_for_status()
+
+
+def _str_trace_id(id_: int) -> str:
+    return hexlify(id_.to_bytes(16, "big")).decode()
+
+
+def _decode_unix_nano(time_unix_nano: int) -> datetime:
+    return datetime.fromtimestamp(time_unix_nano / 1e9, tz=timezone.utc)
+
+
+INPUT_VALUE = SpanAttributes.INPUT_VALUE
+OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
+INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
+OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
+OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
+
+CHAIN = OpenInferenceSpanKindValues.CHAIN
+JSON = OpenInferenceMimeTypeValues.JSON
