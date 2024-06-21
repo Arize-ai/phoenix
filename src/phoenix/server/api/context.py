@@ -19,6 +19,7 @@ from phoenix.server.api.dataloaders import (
     DocumentRetrievalMetricsDataLoader,
     EvaluationSummaryDataLoader,
     ExperimentAnnotationSummaryDataLoader,
+    ExperimentErrorRatesDataLoader,
     ExperimentSequenceNumberDataLoader,
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
@@ -41,6 +42,7 @@ class DataLoaders:
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
     evaluation_summaries: EvaluationSummaryDataLoader
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
+    experiment_error_rates: ExperimentErrorRatesDataLoader
     experiment_sequence_number: ExperimentSequenceNumberDataLoader
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader

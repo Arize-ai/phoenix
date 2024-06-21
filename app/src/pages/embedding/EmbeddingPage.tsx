@@ -56,7 +56,7 @@ import {
   TimeSliceContextProvider,
   useTimeSlice,
 } from "@phoenix/contexts/TimeSliceContext";
-import { useEmbeddingDimensionId } from "@phoenix/hooks";
+import { useEmbeddingDimensionId } from "@phoenix/hooks/useEmbeddingDimensionId";
 import {
   ClusterColorMode,
   getDefaultDriftPointCloudProps,

@@ -135,11 +135,17 @@ export function DatasetsTable(props: DatasetsTableProps) {
         header: "example count",
         accessorKey: "exampleCount",
         enableSorting: false,
+        meta: {
+          textAlign: "right",
+        },
       },
       {
         header: "experiment count",
         accessorKey: "experimentCount",
         enableSorting: false,
+        meta: {
+          textAlign: "right",
+        },
       },
       {
         header: "",
@@ -219,8 +225,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
                           : "",
                         onClick: header.column.getToggleSortingHandler(),
                         style: {
-                          left: header.getStart(),
-                          width: header.getSize(),
+                          textAlign: header.column.columnDef.meta?.textAlign,
                         },
                       }}
                     >
@@ -265,7 +270,10 @@ export function DatasetsTable(props: DatasetsTableProps) {
                 >
                   {row.getVisibleCells().map((cell) => {
                     return (
-                      <td key={cell.id}>
+                      <td
+                        key={cell.id}
+                        align={cell.column.columnDef.meta?.textAlign}
+                      >
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext()

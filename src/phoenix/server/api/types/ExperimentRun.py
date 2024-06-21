@@ -51,9 +51,9 @@ class ExperimentRun(Node):
         async with info.context.db() as session:
             annotations = (
                 await session.scalars(
-                    select(models.ExperimentAnnotation)
-                    .where(models.ExperimentAnnotation.experiment_run_id == run_id)
-                    .order_by(models.ExperimentAnnotation.id.desc())
+                    select(models.ExperimentRunAnnotation)
+                    .where(models.ExperimentRunAnnotation.experiment_run_id == run_id)
+                    .order_by(models.ExperimentRunAnnotation.id.desc())
                 )
             ).all()
         return connection_from_list(
