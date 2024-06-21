@@ -24,7 +24,7 @@ class ExperimentRunAnnotation(Node):
 
 
 def to_gql_experiment_run_annotation(
-    annotation: models.ExperimentAnnotation,
+    annotation: models.ExperimentRunAnnotation,
 ) -> ExperimentRunAnnotation:
     """
     Converts an ORM experiment run annotation to a GraphQL ExperimentRunAnnotation.
