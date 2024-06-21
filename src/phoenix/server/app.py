@@ -128,6 +128,7 @@ class Static(StaticFiles):
                     "n_neighbors": self._app_config.n_neighbors,
                     "n_samples": self._app_config.n_samples,
                     "basename": request.scope.get("root_path", ""),
+                    "platform_version": phoenix.__version__,
                     "request": request,
                 },
             )
