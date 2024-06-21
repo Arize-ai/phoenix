@@ -192,45 +192,45 @@ def _parse_label_from_explanation(raw_string: str) -> str:
     return raw_string
 
 
-class RAGRelevanceEvaluator:
+class RelevanceEvaluator:
     annotator_kind = "LLM"
     template = (
-        "Determine if the following submission is relevant to the reference text. In this context, "
-        "'relevance' means that the submission directly quotes or explicitly paraphrases the "
-        "reference text. First, explain step-by-step why you think the text is or is not relevant. "
+        "Determine if the following response is relevant to the query. In this context, "
+        "'relevance' means that the response directly addresses the core question or topic of the "
+        "query. First, explain step-by-step why you think the text is or is not relevant. "
         "Then provide a single word label; 'true' if the text is relevant or 'false' if the text "
         "is not relevant. "
         "Here is an example template for your reponse:\n\n"
-        "CRITERIA: the text is 'relevant'\n"
-        "REFERENCE: *the reference text*\n"
-        "SUBMISSION: *a response that may or may not be relevant to the reference text*\n"
+        "CRITERIA: the response is 'relevant' to the query\n"
+        "QUERY: *text that contains a query*\n"
+        "RESPONSE: *a response that may or may not be relevant to the query*\n"
         "EXPLANATION: *a step by step explanation of your reasoning for whether or not the "
-        "text is relevant to the reference text*\n"
+        "response is relevant to the query*\n"
         "LABEL: *true or false*\n\n"
-        "Follow this template for the following text:\n\n"
-        "CRITERIA: the text is 'relevant'\n"
-        "REFERENCE: {reference}\n"
-        "SUBMISSION: {submission}\n"
+        "Follow this template for the following example:\n\n"
+        "CRITERIA: the response is 'relevant' to the query\n"
+        "QUERY: {reference}\n"
+        "RESPONSE: {submission}\n"
         "EXPLANATION: "
     )
 
     def __init__(
         self,
         model: LLMBaseModel,
-        reference_fn: Callable[[Example, ExperimentRun], str],
-        submission_fn: Callable[[Example, ExperimentRun], str],
+        query_fn: Callable[[Example, ExperimentRun], str],
+        response_fn: Callable[[Example, ExperimentRun], str],
         name: str = "RAGRelevanceEvaluator",
     ):
         self.model = model
         self.name = name
-        self.reference_fn = reference_fn
-        self.submission_fn = submission_fn
+        self.query_fn = query_fn
+        self.response_fn = response_fn
 
     def _format_eval_template(self, example: Example, experiment_run: ExperimentRun) -> str:
         assert experiment_run.output is not None
-        reference = self.reference_fn(example, experiment_run)
-        submission = self.submission_fn(example, experiment_run)
-        return self.template.format(reference=reference, submission=submission)
+        query = self.query_fn(example, experiment_run)
+        response = self.response_fn(example, experiment_run)
+        return self.template.format(query=query, response=response)
 
     def _parse_eval_output(self, unparsed_response: str) -> EvaluationResult:
         raw_label, explanation = (
