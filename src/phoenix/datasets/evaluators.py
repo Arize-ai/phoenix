@@ -42,11 +42,11 @@ class JSONParsable:
 
 class ContainsKeyword:
     annotator_kind = "CODE"
-    name = "ContainsKeyword"
 
     def __init__(self, keyword: str) -> None:
         super().__init__()
         self.keyword = keyword
+        self.name = f"ContainsKeyword({keyword})"
 
     def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
         assert exp_run.output is not None
