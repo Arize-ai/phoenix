@@ -163,8 +163,8 @@ class TestExperimentAnnotationSummaries:
                                 "annotationSummaries": [
                                     {
                                         "annotationName": "annotation-name-1",
-                                        "minScore": 1,
-                                        "maxScore": 1,
+                                        "minScore": 1.0,
+                                        "maxScore": 1.0,
                                         "meanScore": 1.0,
                                         "count": 2,
                                         "errorCount": 0,
@@ -186,16 +186,16 @@ class TestExperimentAnnotationSummaries:
                                 "annotationSummaries": [
                                     {
                                         "annotationName": "annotation-name-1",
-                                        "minScore": 0,
-                                        "maxScore": 1,
+                                        "minScore": 0.0,
+                                        "maxScore": 1.0,
                                         "meanScore": 1 / 3,
                                         "count": 6,
                                         "errorCount": 0,
                                     },
                                     {
                                         "annotationName": "annotation-name-2",
-                                        "minScore": 0,
-                                        "maxScore": 1,
+                                        "minScore": 0.0,
+                                        "maxScore": 1.0,
                                         "meanScore": 2 / 3,
                                         "count": 4,
                                         "errorCount": 1,
@@ -544,20 +544,40 @@ async def experiments_with_runs_and_annotations(session):
             .returning(models.ExperimentRun.id)
             .values(
                 [
-                    {
-                        "experiment_id": experiment_id,
-                        "dataset_example_id": example_id,
-                        "output": {"output-key": "output-value"},
-                        "repetition_number": 1,
-                        "start_time": datetime(
-                            year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                        ),
-                        "end_time": datetime(
-                            year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                        ),
-                    }
-                    for experiment_id in experiment_ids
-                    for example_id in example_ids
+                    # experiment 1 (three repetitions)
+                    *[
+                        {
+                            "experiment_id": experiment_ids[0],
+                            "dataset_example_id": example_id,
+                            "output": {"output-key": "output-value"},
+                            "repetition_number": repetition_number,
+                            "start_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                            "end_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                        }
+                        for repetition_number in range(1, 4)
+                        for example_id in example_ids
+                    ],
+                    # experiment 2 (two repetitions)
+                    *[
+                        {
+                            "experiment_id": experiment_ids[1],
+                            "dataset_example_id": example_id,
+                            "output": {"output-key": "output-value"},
+                            "repetition_number": repetition_number,
+                            "start_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                            "end_time": datetime(
+                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            ),
+                        }
+                        for repetition_number in range(1, 3)
+                        for example_id in example_ids
+                    ],
                 ]
             )
         )
@@ -569,127 +589,42 @@ async def experiments_with_runs_and_annotations(session):
         .returning(models.ExperimentRunAnnotation.id)
         .values(
             [
-                # experiment 1, annotation-name-1 (three repetitions)
+                # experiment 1, annotation-name-1
+                *[
+                    {
+                        "experiment_run_id": run_id,
+                        "name": "annotation-name-1",
+                        "annotator_kind": "CODE",
+                        "label": f"label-{score}",
+                        "score": score,
+                        "explanation": "explanation",
+                        "trace_id": None,
+                        "error": None,
+                        "metadata_": {},
+                        "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                        "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    }
+                    for run_id, score in zip(run_ids[:6], [1, 0, 1, 0, 0, 0])
+                ],
+                # experiment 1, annotation-name-2
+                *[
+                    {
+                        "experiment_run_id": run_id,
+                        "name": "annotation-name-2",
+                        "annotator_kind": "CODE",
+                        "label": f"label-{score}",
+                        "score": score,
+                        "explanation": "explanation",
+                        "trace_id": None,
+                        "error": None,
+                        "metadata_": {},
+                        "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                        "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    }
+                    for run_id, score in zip(run_ids[:3], [0, 1, 1])
+                ],
                 {
-                    "experiment_run_id": run_ids[0],
-                    "name": "annotation-name-1",
-                    "annotator_kind": "CODE",
-                    "label": "label-1",
-                    "score": 1,
-                    "explanation": "explanation",
-                    "trace_id": None,
-                    "error": None,
-                    "metadata_": {},
-                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                },
-                {
-                    "experiment_run_id": run_ids[0],
-                    "name": "annotation-name-1",
-                    "annotator_kind": "CODE",
-                    "label": "label-0",
-                    "score": 0,
-                    "explanation": "explanation",
-                    "trace_id": None,
-                    "error": None,
-                    "metadata_": {},
-                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                },
-                {
-                    "experiment_run_id": run_ids[0],
-                    "name": "annotation-name-1",
-                    "annotator_kind": "CODE",
-                    "label": "label-1",
-                    "score": 1,
-                    "explanation": "explanation",
-                    "trace_id": None,
-                    "error": None,
-                    "metadata_": {},
-                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                },
-                {
-                    "experiment_run_id": run_ids[1],
-                    "name": "annotation-name-1",
-                    "annotator_kind": "CODE",
-                    "label": "label-0",
-                    "score": 0,
-                    "explanation": "explanation",
-                    "trace_id": None,
-                    "error": None,
-                    "metadata_": {},
-                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                },
-                {
-                    "experiment_run_id": run_ids[1],
-                    "name": "annotation-name-1",
-                    "annotator_kind": "CODE",
-                    "label": "label-0",
-                    "score": 0,
-                    "explanation": "explanation",
-                    "trace_id": None,
-                    "error": None,
-                    "metadata_": {},
-                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                },
-                {
-                    "experiment_run_id": run_ids[1],
-                    "name": "annotation-name-1",
-                    "annotator_kind": "CODE",
-                    "label": "label-0",
-                    "score": 0,
-                    "explanation": "explanation",
-                    "trace_id": None,
-                    "error": None,
-                    "metadata_": {},
-                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                },
-                # experiment 1, annotation-name-2 (two repetitions)
-                {
-                    "experiment_run_id": run_ids[0],
-                    "name": "annotation-name-2",
-                    "annotator_kind": "CODE",
-                    "label": "label-0",
-                    "score": 0,
-                    "explanation": "explanation",
-                    "trace_id": None,
-                    "error": None,
-                    "metadata_": {},
-                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                },
-                {
-                    "experiment_run_id": run_ids[0],
-                    "name": "annotation-name-2",
-                    "annotator_kind": "CODE",
-                    "label": "label-1",
-                    "score": 1,
-                    "explanation": "explanation",
-                    "trace_id": None,
-                    "error": None,
-                    "metadata_": {},
-                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                },
-                {
-                    "experiment_run_id": run_ids[1],
-                    "name": "annotation-name-2",
-                    "annotator_kind": "CODE",
-                    "label": "label-1",
-                    "score": 1,
-                    "explanation": "explanation",
-                    "trace_id": None,
-                    "error": None,
-                    "metadata_": {},
-                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                },
-                {
-                    "experiment_run_id": run_ids[1],
+                    "experiment_run_id": run_ids[4],
                     "name": "annotation-name-2",
                     "annotator_kind": "CODE",
                     "label": None,
@@ -702,85 +637,39 @@ async def experiments_with_runs_and_annotations(session):
                     "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
                 },
                 # experiment 2, annotation-name-1
-                {
-                    "experiment_run_id": run_ids[2],
-                    "name": "annotation-name-1",
-                    "annotator_kind": "CODE",
-                    "label": "label-1",
-                    "score": 1,
-                    "explanation": "explanation",
-                    "trace_id": None,
-                    "error": None,
-                    "metadata_": {},
-                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                },
-                {
-                    "experiment_run_id": run_ids[3],
-                    "name": "annotation-name-1",
-                    "annotator_kind": "CODE",
-                    "label": "label-1",
-                    "score": 1,
-                    "explanation": "explanation",
-                    "trace_id": None,
-                    "error": None,
-                    "metadata_": {},
-                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                },
-                # experiment 2, annotation-name-3 (two repetitions)
-                {
-                    "experiment_run_id": run_ids[2],
-                    "name": "annotation-name-3",
-                    "annotator_kind": "CODE",
-                    "label": None,
-                    "score": None,
-                    "explanation": None,
-                    "trace_id": None,
-                    "error": "failed",
-                    "metadata_": {},
-                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                },
-                {
-                    "experiment_run_id": run_ids[2],
-                    "name": "annotation-name-3",
-                    "annotator_kind": "CODE",
-                    "label": None,
-                    "score": None,
-                    "explanation": None,
-                    "trace_id": None,
-                    "error": "failed",
-                    "metadata_": {},
-                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                },
-                {
-                    "experiment_run_id": run_ids[3],
-                    "name": "annotation-name-3",
-                    "annotator_kind": "CODE",
-                    "label": None,
-                    "score": None,
-                    "explanation": None,
-                    "trace_id": None,
-                    "error": "failed",
-                    "metadata_": {},
-                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                },
-                {
-                    "experiment_run_id": run_ids[3],
-                    "name": "annotation-name-3",
-                    "annotator_kind": "CODE",
-                    "label": None,
-                    "score": None,
-                    "explanation": None,
-                    "trace_id": None,
-                    "error": "failed",
-                    "metadata_": {},
-                    "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                    "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
-                },
+                *[
+                    {
+                        "experiment_run_id": run_id,
+                        "name": "annotation-name-1",
+                        "annotator_kind": "CODE",
+                        "label": f"label-{score}",
+                        "score": score,
+                        "explanation": "explanation",
+                        "trace_id": None,
+                        "error": None,
+                        "metadata_": {},
+                        "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                        "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    }
+                    for run_id, score in zip(run_ids[6:8], [1, 1])
+                ],
+                # experiment 2, annotation-name-3
+                *[
+                    {
+                        "experiment_run_id": run_id,
+                        "name": "annotation-name-3",
+                        "annotator_kind": "CODE",
+                        "label": None,
+                        "score": None,
+                        "explanation": None,
+                        "trace_id": None,
+                        "error": "failed",
+                        "metadata_": {},
+                        "start_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                        "end_time": datetime(2020, 1, 1, 0, 0, tzinfo=pytz.UTC),
+                    }
+                    for run_id in run_ids[6:]
+                ],
             ]
         )
     )

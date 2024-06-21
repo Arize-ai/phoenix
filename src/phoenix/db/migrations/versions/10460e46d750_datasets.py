@@ -268,6 +268,10 @@ def upgrade() -> None:
         sa.Column("metadata", JSON_, nullable=False),
         sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=False),
+        sa.UniqueConstraint(
+            "experiment_run_id",
+            "name",
+        ),
     )
 
 
