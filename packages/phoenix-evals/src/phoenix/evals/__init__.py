@@ -26,6 +26,7 @@ from .evaluators import (
     LLMEvaluator,
     QAEvaluator,
     RelevanceEvaluator,
+    SQLEvaluator,
     SummarizationEvaluator,
     ToxicityEvaluator,
 )
@@ -90,6 +91,7 @@ __all__ = [
     "HallucinationEvaluator",
     "QAEvaluator",
     "RelevanceEvaluator",
+    "SQLEvaluator",
     "SummarizationEvaluator",
     "ToxicityEvaluator",
     "HALLUCINATION_SPAN_PROMPT_TEMPLATE",
