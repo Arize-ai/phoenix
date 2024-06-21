@@ -573,6 +573,7 @@ type Experiment implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   name: String!
+  projectName: String
   description: String
   metadata: JSON!
   createdAt: DateTime!
@@ -583,6 +584,7 @@ type Experiment implements Node {
   runs(first: Int = 50, last: Int, after: String, before: String): ExperimentRunConnection!
   annotationSummaries: [ExperimentAnnotationSummary!]!
   errorRate: Float
+  project: Project
 }
 
 type ExperimentAnnotationSummary {

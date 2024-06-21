@@ -93,6 +93,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               error
               startTime
               endTime
+              trace {
+                id
+              }
               annotations {
                 edges {
                   annotation: node {

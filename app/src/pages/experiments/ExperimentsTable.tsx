@@ -10,9 +10,13 @@ import {
 import { css } from "@emotion/react";
 
 import {
+  ActionMenu,
   Flex,
   Heading,
   HelpTooltip,
+  Icon,
+  Icons,
+  Item,
   ProgressBar,
   Text,
   TooltipTrigger,
@@ -28,6 +32,7 @@ import { IndeterminateCheckboxCell } from "@phoenix/components/table/Indetermina
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
+import { assertUnreachable } from "@phoenix/typeUtils";
 import {
   floatFormatter,
   formatPercent,
@@ -90,6 +95,9 @@ export function ExperimentsTable({
                 description
                 createdAt
                 metadata
+                project {
+                  id
+                }
                 annotationSummaries {
                   annotationName
                   meanScore
@@ -224,8 +232,18 @@ export function ExperimentsTable({
         },
       };
     });
+
+  const actionColumns: ColumnDef<TableRow>[] = [
+    {
+      id: "actions",
+      cell: ({ row }) => {
+        const project = row.original.project;
+        return <ExperimentActionMenu projectId={project?.id || null} />;
+      },
+    },
+  ];
   const table = useReactTable<TableRow>({
-    columns: [...baseColumns, ...annotationColumns],
+    columns: [...baseColumns, ...annotationColumns, ...actionColumns],
     data: tableData,
     getCoreRowModel: getCoreRowModel(),
     state: {
@@ -404,5 +422,53 @@ function AnnotationAggregationCell({
         </View>
       </HelpTooltip>
     </TooltipTrigger>
+  );
+}
+
+export enum ExperimentAction {
+  GO_TO_TASK_TRACES = "GO_TO_TASK_TRACES",
+}
+
+function ExperimentActionMenu(props: { projectId: string | null }) {
+  const { projectId } = props;
+  const navigate = useNavigate();
+  return (
+    <div
+      // TODO: add this logic to the ActionMenu component
+      onClick={(e) => {
+        // prevent parent anchor link from being followed
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+    >
+      <ActionMenu
+        buttonSize="compact"
+        align="end"
+        disabledKeys={projectId ? [] : [ExperimentAction.GO_TO_TASK_TRACES]}
+        onAction={(firedAction) => {
+          const action = firedAction as ExperimentAction;
+          switch (action) {
+            case ExperimentAction.GO_TO_TASK_TRACES: {
+              return navigate(`/projects/${projectId}`);
+            }
+            default: {
+              assertUnreachable(action);
+            }
+          }
+        }}
+      >
+        <Item key={ExperimentAction.GO_TO_TASK_TRACES}>
+          <Flex
+            direction={"row"}
+            gap="size-75"
+            justifyContent={"start"}
+            alignItems={"center"}
+          >
+            <Icon svg={<Icons.Trace />} />
+            <Text>View task traces</Text>
+          </Flex>
+        </Item>
+      </ActionMenu>
+    </div>
   );
 }
