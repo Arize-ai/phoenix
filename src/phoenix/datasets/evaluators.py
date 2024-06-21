@@ -217,19 +217,19 @@ class RelevanceEvaluator:
     def __init__(
         self,
         model: LLMBaseModel,
-        query_fn: Callable[[Example, ExperimentRun], str],
-        response_fn: Callable[[Example, ExperimentRun], str],
-        name: str = "RAGRelevanceEvaluator",
+        get_query: Optional[Callable[[Example, ExperimentRun], str]] = None,
+        get_response: Optional[Callable[[Example, ExperimentRun], str]] = None,
+        name: str = "RelevanceEvaluator",
     ):
         self.model = model
         self.name = name
-        self.query_fn = query_fn
-        self.response_fn = response_fn
+        self.get_query = get_query or self._default_get_query
+        self.get_response = get_response or self._default_get_response
 
     def _format_eval_template(self, example: Example, experiment_run: ExperimentRun) -> str:
         assert experiment_run.output is not None
-        query = self.query_fn(example, experiment_run)
-        response = self.response_fn(example, experiment_run)
+        query = self.get_query(example, experiment_run)
+        response = self.get_response(example, experiment_run)
         return self.template.format(query=query, response=response)
 
     def _parse_eval_output(self, unparsed_response: str) -> EvaluationResult:
@@ -249,6 +249,13 @@ class RelevanceEvaluator:
             explanation=explanation,
             metadata={},
         )
+
+    def _default_get_query(self, example: Example, experiment_run: ExperimentRun) -> str:
+        return str(example.input)
+
+    def _default_get_response(self, example: Example, experiment_run: ExperimentRun) -> str:
+        assert experiment_run.output is not None
+        return str(_unwrap_json(experiment_run.output.result))
 
     def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
         formatted_template = self._format_eval_template(example, exp_run)
