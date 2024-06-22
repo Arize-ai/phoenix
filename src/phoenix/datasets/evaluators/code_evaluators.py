@@ -94,7 +94,7 @@ class ContainsAllKeywords:
 class MatchesRegex:
     annotator_kind = "CODE"
 
-    def __init__(self, pattern: Union[str, re.Pattern], name: Optional[str] = None) -> None:
+    def __init__(self, pattern: Union[str, re.Pattern[str]], name: Optional[str] = None) -> None:
         if isinstance(pattern, str):
             pattern = re.compile(pattern)
         self.pattern = pattern
