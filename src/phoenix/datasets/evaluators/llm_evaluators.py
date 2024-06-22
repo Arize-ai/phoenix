@@ -1,7 +1,7 @@
 import re
 from typing import Callable, Optional, Type
 
-from phoenix.datasets.evaluators._utils import _unwrap_json
+from phoenix.datasets.evaluators.utils import _unwrap_json
 from phoenix.datasets.types import EvaluationResult, Example, ExperimentEvaluator, ExperimentRun
 from phoenix.evals.models.base import BaseModel as LLMBaseModel
 from phoenix.evals.utils import snap_to_rail
