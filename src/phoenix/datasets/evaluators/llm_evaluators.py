@@ -19,7 +19,7 @@ class LLMCriteriaEvaluator:
         "EXPLANATION: *a step by step explanation of your reasoning for whether the text meets "
         "the criteria*\n"
         "LABEL: *true or false*\n\n"
-        "Follow this template for the following text:\n\n"
+        "Follow this template for the following example:\n\n"
         "CRITERIA: the text is '{criteria}'\n"
         "TEXT: {text}\n"
         "EXPLANATION: "
