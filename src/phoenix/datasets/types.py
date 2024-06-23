@@ -19,6 +19,17 @@ from typing import (
 
 from typing_extensions import TypeAlias
 
+
+class AnnotatorKind(Enum):
+    CODE = "CODE"
+    LLM = "LLM"
+
+
+class ScoreType(Enum):
+    FLOAT = "float"
+    BOOLEAN = "boolean"
+
+
 JSONSerializable: TypeAlias = Optional[Union[Dict[str, Any], List[Any], str, int, float, bool]]
 
 ExperimentId: TypeAlias = str
@@ -194,16 +205,6 @@ class CanAsyncEvaluate(_HasName, _HasKind, Protocol):
 
 
 ExperimentEvaluator: TypeAlias = Union[CanEvaluate, CanAsyncEvaluate]
-
-
-class AnnotatorKind(Enum):
-    CODE = "CODE"
-    LLM = "LLM"
-
-
-class ScoreType(Enum):
-    FLOAT = "float"
-    BOOLEAN = "boolean"
 
 
 # Someday we'll do type checking in unit tests.
