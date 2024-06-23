@@ -1,7 +1,8 @@
 from typing import Any
 
-from phoenix.server.api.routers.v1 import V1_ROUTES
 from starlette.schemas import SchemaGenerator
+
+from phoenix.server.api.routers.v1 import V1_ROUTES
 
 OPENAPI_SCHEMA_GENERATOR = SchemaGenerator(
     {"openapi": "3.0.0", "info": {"title": "Arize-Phoenix API", "version": "1.0"}}
