@@ -232,6 +232,38 @@ const UnknownSVG = () => (
   </svg>
 );
 
+const EvaluatorSVG = () => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 20 20"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <rect
+      x="0.5"
+      y="0.5"
+      width="19"
+      height="19"
+      rx="3.5"
+      stroke="currentColor"
+    />
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M8.5 12C10.433 12 12 10.433 12 8.5C12 6.567 10.433 5 8.5 5C6.567 5 5 6.567 5 8.5C5 10.433 6.567 12 8.5 12ZM8.5 13C10.9853 13 13 10.9853 13 8.5C13 6.01472 10.9853 4 8.5 4C6.01472 4 4 6.01472 4 8.5C4 10.9853 6.01472 13 8.5 13Z"
+      fill="currentColor"
+    />
+    <line
+      x1="11.3536"
+      y1="11.6464"
+      x2="15.3536"
+      y2="15.6464"
+      stroke="currentColor"
+    />
+  </svg>
+);
+
 export function SpanKindIcon({ spanKind }: { spanKind: string }) {
   let icon = <UnknownSVG />;
   let color = "--ac-global-color-grey-900";
@@ -263,6 +295,10 @@ export function SpanKindIcon({ spanKind }: { spanKind: string }) {
     case "reranker":
       color = "--ac-global-color-celery-1000";
       icon = <RerankerSVG />;
+      break;
+    case "evaluator":
+      color = "--ac-global-color-indigo-1000";
+      icon = <EvaluatorSVG />;
       break;
   }
 
