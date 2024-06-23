@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4b2f072facd84349fc7114c8354fc090>>
+ * @generated SignedSource<<cb61f21b25105ea1d593b0791dd65372>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,11 +13,11 @@ import { FragmentRefs } from "relay-runtime";
 export type MimeType = "json" | "text";
 export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "llm" | "reranker" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
-export type TracePageQuery$variables = {
+export type TraceDetailsQuery$variables = {
   id: string;
   traceId: string;
 };
-export type TracePageQuery$data = {
+export type TraceDetailsQuery$data = {
   readonly project: {
     readonly trace?: {
       readonly spans: {
@@ -76,9 +76,9 @@ export type TracePageQuery$data = {
     } | null;
   };
 };
-export type TracePageQuery = {
-  response: TracePageQuery$data;
-  variables: TracePageQuery$variables;
+export type TraceDetailsQuery = {
+  response: TraceDetailsQuery$data;
+  variables: TraceDetailsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -367,7 +367,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "TracePageQuery",
+    "name": "TraceDetailsQuery",
     "selections": [
       {
         "alias": "project",
@@ -479,7 +479,7 @@ return {
       (v0/*: any*/)
     ],
     "kind": "Operation",
-    "name": "TracePageQuery",
+    "name": "TraceDetailsQuery",
     "selections": [
       {
         "alias": "project",
@@ -591,16 +591,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6dd46b3013ec88841b2c3959f7f7e9ad",
+    "cacheID": "09420fac27c4768b8a68fa7ee918cdfb",
     "id": null,
     "metadata": {},
-    "name": "TracePageQuery",
+    "name": "TraceDetailsQuery",
     "operationKind": "query",
-    "text": "query TracePageQuery(\n  $traceId: ID!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              context {\n                spanId\n              }\n              name\n              spanKind\n              statusCode: propagatedStatusCode\n              statusMessage\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              tokenCountPrompt\n              tokenCountCompletion\n              input {\n                value\n                mimeType\n              }\n              output {\n                value\n                mimeType\n              }\n              attributes\n              events {\n                name\n                message\n                timestamp\n              }\n              spanEvaluations {\n                name\n                label\n                score\n              }\n              documentRetrievalMetrics {\n                evaluationName\n                ndcg\n                precision\n                hit\n              }\n              documentEvaluations {\n                documentPosition\n                name\n                label\n                score\n                explanation\n              }\n              ...SpanEvaluationsTable_evals\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanEvaluationsTable_evals on Span {\n  spanEvaluations {\n    name\n    label\n    score\n    explanation\n  }\n}\n"
+    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              context {\n                spanId\n              }\n              name\n              spanKind\n              statusCode: propagatedStatusCode\n              statusMessage\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              tokenCountPrompt\n              tokenCountCompletion\n              input {\n                value\n                mimeType\n              }\n              output {\n                value\n                mimeType\n              }\n              attributes\n              events {\n                name\n                message\n                timestamp\n              }\n              spanEvaluations {\n                name\n                label\n                score\n              }\n              documentRetrievalMetrics {\n                evaluationName\n                ndcg\n                precision\n                hit\n              }\n              documentEvaluations {\n                documentPosition\n                name\n                label\n                score\n                explanation\n              }\n              ...SpanEvaluationsTable_evals\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanEvaluationsTable_evals on Span {\n  spanEvaluations {\n    name\n    label\n    score\n    explanation\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "635cbdf63b471afbe4876fe360064b2c";
+(node as any).hash = "d8dff7c0dd0c97ffe1540aff1504de4a";
 
 export default node;
