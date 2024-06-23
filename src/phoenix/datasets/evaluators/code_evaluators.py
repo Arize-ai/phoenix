@@ -5,11 +5,17 @@ import re
 from typing import TYPE_CHECKING, List, Optional, Union
 
 from phoenix.datasets.evaluators.utils import _unwrap_json
-from phoenix.datasets.types import EvaluationResult, Example, ExperimentEvaluator, ExperimentRun
+from phoenix.datasets.types import (
+    AnnotatorKind,
+    EvaluationResult,
+    Example,
+    ExperimentEvaluator,
+    ExperimentRun,
+)
 
 
 class JSONParsable:
-    annotator_kind = "CODE"
+    annotator_kind = AnnotatorKind.CODE.value
     name = "JSONParsable"
 
     def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
@@ -27,7 +33,7 @@ class JSONParsable:
 
 
 class ContainsKeyword:
-    annotator_kind = "CODE"
+    annotator_kind = AnnotatorKind.CODE.value
 
     def __init__(self, keyword: str, name: Optional[str] = None) -> None:
         self.keyword = keyword
@@ -48,7 +54,7 @@ class ContainsKeyword:
 
 
 class ContainsAnyKeyword:
-    annotator_kind = "CODE"
+    annotator_kind = AnnotatorKind.CODE.value
 
     def __init__(self, keywords: List[str], name: Optional[str] = None) -> None:
         self.keywords = keywords
@@ -70,7 +76,7 @@ class ContainsAnyKeyword:
 
 
 class ContainsAllKeywords:
-    annotator_kind = "CODE"
+    annotator_kind = AnnotatorKind.CODE.value
 
     def __init__(self, keywords: List[str], name: Optional[str] = None) -> None:
         self.keywords = keywords
@@ -94,7 +100,7 @@ class ContainsAllKeywords:
 
 
 class MatchesRegex:
-    annotator_kind = "CODE"
+    annotator_kind = AnnotatorKind.CODE.value
 
     def __init__(self, pattern: Union[str, re.Pattern[str]], name: Optional[str] = None) -> None:
         if isinstance(pattern, str):
