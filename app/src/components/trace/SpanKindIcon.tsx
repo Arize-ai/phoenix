@@ -309,6 +309,7 @@ export function SpanKindIcon({ spanKind }: { spanKind: string }) {
         width: 20px;
         height: 20px;
       `}
+      title={spanKind}
     >
       {icon}
     </div>

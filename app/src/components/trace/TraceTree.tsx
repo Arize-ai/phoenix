@@ -1,10 +1,13 @@
-import React, { PropsWithChildren } from "react";
+import React, { PropsWithChildren, startTransition } from "react";
 import { css } from "@emotion/react";
 
-import { Flex } from "@arizeai/components";
+import { Flex, Text, View } from "@arizeai/components";
 
-import { SpanItem } from "./SpanItem";
+import { TokenCount } from "@phoenix/pages/project/TokenCount";
+
+import { LatencyText } from "./LatencyText";
 import { SpanKindIcon } from "./SpanKindIcon";
+import { SpanStatusCodeIcon } from "./SpanStatusCodeIcon";
 import { ISpanItem, SpanStatusCodeType } from "./types";
 import { createSpanTree, SpanTreeNode } from "./utils";
 
@@ -50,11 +53,13 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
       <button
         className="button--reset"
         css={css`
-          min-width: var(--ac-global-dimension-static-size-5000);
+          min-width: var(--ac-global-dimension-static-size-4600);
           cursor: pointer;
         `}
         onClick={() => {
-          onSpanClick && onSpanClick(node.span.context.spanId);
+          startTransition(() => {
+            onSpanClick && onSpanClick(node.span.context.spanId);
+          });
         }}
       >
         <SpanNodeWrap isSelected={selectedSpanId === node.span.context.spanId}>
@@ -115,9 +120,9 @@ function SpanNodeWrap(props: PropsWithChildren<{ isSelected: boolean }>) {
       css={css`
         border-radius: var(--ac-global-dimension-static-size-150);
         background-color: var(--ac-global-color-grey-200);
-        padding: var(--ac-global-dimension-static-size-100)
+        padding: var(--ac-global-dimension-static-size-50)
           var(--ac-global-dimension-static-size-200)
-          var(--ac-global-dimension-static-size-100)
+          var(--ac-global-dimension-static-size-50)
           var(--ac-global-dimension-static-size-200);
         border-width: var(--ac-global-dimension-static-size-10);
         border-style: solid;
@@ -177,12 +182,65 @@ function SpanTreeEdge({ statusCode }: { statusCode: SpanStatusCodeType }) {
           border-left: 1px solid ${color};
           border-bottom: 1px solid ${color};
           border-radius: 0 0 0 var(--ac-global-dimension-static-size-150);
-          top: -27px;
+          top: -24px;
           left: -22px;
           width: 38px;
-          height: 56px;
+          height: 48px;
         `;
       }}
     ></div>
+  );
+}
+
+interface SpanItemProps {
+  name: string;
+  spanKind: string;
+  latencyMs: number | null;
+  statusCode: SpanStatusCodeType;
+  tokenCountTotal?: number | null;
+  tokenCountPrompt?: number | null;
+  tokenCountCompletion?: number | null;
+}
+
+export function SpanItem(props: SpanItemProps) {
+  const {
+    name,
+    latencyMs,
+    statusCode,
+    tokenCountTotal,
+    tokenCountPrompt,
+    tokenCountCompletion,
+  } = props;
+  return (
+    <View height="size-500" width="100%">
+      <Flex
+        direction="row"
+        gap="size-150"
+        width="100%"
+        height="100%"
+        alignItems="center"
+      >
+        <View flex="1 1 auto">
+          <div
+            css={css`
+              float: left;
+            `}
+          >
+            <Text>{name}</Text>
+          </div>
+        </View>
+        {typeof tokenCountTotal === "number" ? (
+          <TokenCount
+            tokenCountTotal={tokenCountTotal}
+            tokenCountPrompt={tokenCountPrompt ?? 0}
+            tokenCountCompletion={tokenCountCompletion ?? 0}
+          />
+        ) : null}
+        {latencyMs === null ? null : <LatencyText latencyMs={latencyMs} />}
+        {statusCode === "ERROR" ? (
+          <SpanStatusCodeIcon statusCode="ERROR" />
+        ) : null}
+      </Flex>
+    </View>
   );
 }
