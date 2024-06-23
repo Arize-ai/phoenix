@@ -146,7 +146,9 @@ def run_experiment(
 
     dataset_experiments_url = _get_dataset_experiments_url(dataset_id=dataset.id)
     experiment_compare_url = _get_experiment_url(dataset_id=dataset.id, experiment_id=experiment_id)
-    print(f"🧪 Experiment started: {experiment_compare_url}")
+    print("🧪 Experiment started.")
+    print(f"📺 View dataset experiments: {dataset_experiments_url}")
+    print(f"🔗 View this experiment: {experiment_compare_url}")
 
     errors: Tuple[Optional[Type[BaseException]], ...]
     if not hasattr(rate_limit_errors, "__iter__"):
@@ -290,7 +292,8 @@ def run_experiment(
         project_name=project_name,
     )
 
-    print(f"✅ Task runs completed. View all experiments: {dataset_experiments_url}")
+    print("✅ Task runs completed.")
+    print("🧠 Evaluation started.")
 
     if evaluators is not None:
         _evaluate_experiment(experiment, evaluators, dataset.examples, client)
