@@ -41,7 +41,7 @@ def _bind_signature(
         elif "experiment_run" in params:
             return sig.bind_partial(experiment_run=experiment_run)
         else:
-            return sig.bind(experiment_run.output)
+            return sig.bind(experiment_run.output.result)
     elif len(params) == 2:
         if "example" in params and "experiment_run" in params:
             return sig.bind_partial(example=example, experiment_run=experiment_run)
@@ -99,7 +99,7 @@ def _wrap_coroutine_evaluation_function(
                 self.annotator_kind = annotator_kind
 
             @functools.wraps(func)
-            async def __call__(*args: Any, **kwargs: Any) -> Any:
+            async def __call__(self, *args: Any, **kwargs: Any) -> Any:
                 return await func(*args, **kwargs)
 
             async def async_evaluate(
@@ -129,7 +129,7 @@ def _wrap_sync_evaluation_function(
                 self.annotator_kind = annotator_kind
 
             @functools.wraps(func)
-            def __call__(*args: Any, **kwargs: Any) -> Any:
+            def __call__(self, *args: Any, **kwargs: Any) -> Any:
                 return func(*args, **kwargs)
 
             def evaluate(self, example: Example, experiment_run: ExperimentRun) -> EvaluationResult:

@@ -8,10 +8,16 @@ from phoenix.datasets.evaluators import (
     ContainsKeyword,
     HelpfulnessEvaluator,
 )
+from phoenix.datasets.evaluators.utils import evaluator
 from phoenix.datasets.experiments import run_experiment
 from phoenix.datasets.types import (
+    AnnotatorKind,
+    CanAsyncEvaluate,
+    CanEvaluate,
     Dataset,
     Example,
+    ExperimentResult,
+    ExperimentRun,
 )
 from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -193,3 +199,90 @@ async def test_run_experiment_with_llm_eval(_, session, sync_test_client, simple
             assert len(evaluations) == 2
             assert evaluations[0].score == 0.0
             assert evaluations[1].score == 1.0
+
+
+def test_evaluator_decorator():
+    @evaluator(name="test", annotator_kind=AnnotatorKind.CODE.value)
+    def can_i_count_this_high(x: int) -> bool:
+        return x < 3
+
+    assert can_i_count_this_high(3) is False
+    assert can_i_count_this_high(2) is True
+    assert isinstance(can_i_count_this_high, CanEvaluate)
+    assert can_i_count_this_high.name == "test"
+    assert can_i_count_this_high.annotator_kind == AnnotatorKind.CODE.value
+
+
+async def test_async_evaluator_decorator():
+    @evaluator(name="test", annotator_kind=AnnotatorKind.CODE.value)
+    async def can_i_count_this_high(x: int) -> bool:
+        return x < 3
+
+    assert await can_i_count_this_high(3) is False
+    assert await can_i_count_this_high(2) is True
+    assert isinstance(can_i_count_this_high, CanAsyncEvaluate)
+    assert can_i_count_this_high.name == "test"
+    assert can_i_count_this_high.annotator_kind == AnnotatorKind.CODE.value
+
+
+def test_binding_arguments_to_decorated_evaluators():
+    example = Example(
+        id="1",
+        input="the biggest number I know",
+        output="3",
+        metadata={},
+        updated_at=datetime.now(timezone.utc),
+    )
+    experiment_run = ExperimentRun(
+        start_time=datetime.now(timezone.utc),
+        end_time=datetime.now(timezone.utc),
+        experiment_id=1,
+        dataset_example_id=1,
+        repetition_number=1,
+        output=ExperimentResult(result=3),
+    )
+
+    @evaluator(name="test", annotator_kind=AnnotatorKind.CODE.value)
+    def can_i_count_this_high(x: int) -> bool:
+        return x == 3
+
+    @evaluator(name="test", annotator_kind=AnnotatorKind.CODE.value)
+    def can_i_evaluate_experiment_run_obj(experiment_run: ExperimentRun) -> bool:
+        return isinstance(experiment_run, ExperimentRun)
+
+    @evaluator(name="test", annotator_kind=AnnotatorKind.CODE.value)
+    def can_i_evaluate_example_obj(example: Example) -> bool:
+        return isinstance(example, Example)
+
+    @evaluator(name="test", annotator_kind=AnnotatorKind.CODE.value)
+    def can_i_evaluate_using_both_the_example_and_run(
+        experiment_run: ExperimentRun, example: Example
+    ) -> bool:
+        is_experiment_run = isinstance(experiment_run, ExperimentRun)
+        is_example = isinstance(example, Example)
+        return is_experiment_run and is_example
+
+    @evaluator(name="test", annotator_kind=AnnotatorKind.CODE.value)
+    def can_i_evaluate_using_both_the_example_and_run_2(
+        example: Example, experiment_run: ExperimentRun
+    ) -> bool:
+        is_experiment_run = isinstance(experiment_run, ExperimentRun)
+        is_example = isinstance(example, Example)
+        return is_experiment_run and is_example
+
+    evaluation = can_i_count_this_high.evaluate(example, experiment_run)
+    assert evaluation.score == 1.0, "With one argument, evaluates against output.result"
+
+    evaluation = can_i_evaluate_experiment_run_obj.evaluate(example, experiment_run)
+    assert (
+        evaluation.score == 1.0
+    ), "With experiment_run arg, evaluates against ExperimentRun object"
+
+    evaluation = can_i_evaluate_example_obj.evaluate(example, experiment_run)
+    assert evaluation.score == 1.0, "With example arg, evaluates against Example object"
+
+    evaluation = can_i_evaluate_using_both_the_example_and_run.evaluate(example, experiment_run)
+    assert evaluation.score == 1.0, "With two args, evaluates based on argument names"
+
+    evaluation = can_i_evaluate_using_both_the_example_and_run_2.evaluate(example, experiment_run)
+    assert evaluation.score == 1.0, "With two args, evaluates based on argument names"
