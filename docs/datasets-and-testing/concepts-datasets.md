@@ -8,7 +8,7 @@ description: There are many ways to build datasets for experimentation and evalu
 
 Datasets are an integral to evaluation and experimentation. They are collections of examples that provide the `inputs` and, optionally, expected `reference` outputs for assessing your application. Each example within a dataset represents a single data point, consisting of an `inputs` dictionary, an optional `output` dictionary, and an optional `metadata` dictionary. The `optional` output dictionary often contains the the expected LLM application output for the given input.
 
-Datasets allow you to collect data from production, staging, evaluations, and even manually. The examples collected is  to run experiments and evaluations to track improvements.
+Datasets allow you to collect data from production, staging, evaluations, and even manually. The examples collected are then used to run experiments and evaluations to track improvements.
 
 Use datasets to:
 
