@@ -7,6 +7,7 @@ from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Dict,
     List,
     Mapping,
@@ -23,11 +24,6 @@ from typing_extensions import TypeAlias
 class AnnotatorKind(Enum):
     CODE = "CODE"
     LLM = "LLM"
-
-
-class ScoreType(Enum):
-    FLOAT = "float"
-    BOOLEAN = "boolean"
 
 
 JSONSerializable: TypeAlias = Optional[Union[Dict[str, Any], List[Any], str, int, float, bool]]
@@ -205,6 +201,8 @@ class CanAsyncEvaluate(_HasName, _HasKind, Protocol):
 
 
 ExperimentEvaluator: TypeAlias = Union[CanEvaluate, CanAsyncEvaluate]
+EvaluatorCallable: TypeAlias = Callable[..., Any]
+EvaluatorOrCallable: TypeAlias = Union[ExperimentEvaluator, EvaluatorCallable]
 
 
 # Someday we'll do type checking in unit tests.

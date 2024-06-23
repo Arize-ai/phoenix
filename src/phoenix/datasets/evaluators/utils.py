@@ -1,22 +1,18 @@
 import functools
 import inspect
-from typing import Any, Callable
-
-from typing_extensions import TypeAlias
+from typing import Any, Callable, Optional
 
 from phoenix.datasets.types import (
     AnnotatorKind,
     CanAsyncEvaluate,
     CanEvaluate,
     EvaluationResult,
+    EvaluatorCallable,
     Example,
     ExperimentEvaluator,
     ExperimentRun,
     JSONSerializable,
-    ScoreType,
 )
-
-EvalCallable: TypeAlias = Callable[..., Any]
 
 
 def _unwrap_json(obj: JSONSerializable) -> JSONSerializable:
@@ -31,57 +27,71 @@ def _unwrap_json(obj: JSONSerializable) -> JSONSerializable:
     return obj
 
 
+def _validate_signature(sig: inspect.Signature) -> None:
+    # Check that the wrapped function has a valid signature for use as an evaluator
+    # If it does not, raise an error to exit early before running evaluations
+    params = sig.parameters
+    valid_named_params = {"input", "output", "reference", "metadata"}
+    if len(params) == 0:
+        raise ValueError("Evaluation function must have at least one parameter.")
+    if len(params) > 1:
+        not_found = set(params) - valid_named_params
+        if not_found:
+            raise ValueError(
+                (
+                    f"Invalid parameter names in evaluation function: {', '.join(not_found)}. "
+                    f"Parameters names must be any of: {', '.join(valid_named_params)}."
+                )
+            )
+
+
 def _bind_signature(
     sig: inspect.Signature, example: Example, experiment_run: ExperimentRun
 ) -> inspect.BoundArguments:
+    if experiment_run.output:
+        output = experiment_run.output.result
+    else:
+        output = None
+    parameter_mapping = {
+        "input": example.input,
+        "output": output,
+        "reference": example.output,
+        "metadata": example.metadata,
+    }
     params = sig.parameters
     if len(params) == 1:
-        if "example" in params:
-            return sig.bind_partial(example=example)
-        elif "experiment_run" in params:
-            return sig.bind_partial(experiment_run=experiment_run)
+        parameter_name = next(iter(params))
+        if parameter_name in parameter_mapping:
+            return sig.bind(parameter_mapping[parameter_name])
         else:
-            return sig.bind(experiment_run.output.result)
-    elif len(params) == 2:
-        if "example" in params and "experiment_run" in params:
-            return sig.bind_partial(example=example, experiment_run=experiment_run)
-        else:
-            raise ValueError(
-                (
-                    "Evaluation signature has two parameters, but they are not 'example' "
-                    "and 'experiment_run'."
-                )
-            )
+            return sig.bind(parameter_mapping["output"])
     else:
-        raise ValueError(
-            (
-                f"Evaluation signature has {len(params)} parameters, but only 1 or 2 parameters "
-                "are supported."
-            )
-        )
+        return sig.bind_partial(**{name: parameter_mapping[name] for name in params})
 
 
-def evaluator(
-    name: str, annotator_kind: AnnotatorKind, score_type: ScoreType = ScoreType.BOOLEAN
-) -> Callable[[EvalCallable], ExperimentEvaluator]:
-    if score_type == ScoreType.BOOLEAN:
-        result_processor = _process_boolean_eval
-    elif score_type == ScoreType.FLOAT:
-        result_processor = _process_float_eval
-    else:
-        raise ValueError(f"Unsupported score type: {score_type}")
+def create_evaluator(
+    annotator: AnnotatorKind = AnnotatorKind.CODE,
+    name: Optional[str] = None,
+    scorer: Optional[Callable[[Any], EvaluationResult]] = None,
+) -> Callable[[EvaluatorCallable], ExperimentEvaluator]:
+    if scorer is None:
+        scorer = _default_eval_scorer
 
-    def wrapper(func: EvalCallable) -> ExperimentEvaluator:
+    def wrapper(func: EvaluatorCallable, name: Optional[str] = name) -> ExperimentEvaluator:
+        if name is None:
+            name = func.__name__
+
         wrapped_signature = inspect.signature(func)
+        _validate_signature(wrapped_signature)
 
         if inspect.iscoroutinefunction(func):
             return _wrap_coroutine_evaluation_function(
-                name, annotator_kind, wrapped_signature, result_processor
+                name, annotator, wrapped_signature, scorer
             )(func)
         else:
-            return _wrap_sync_evaluation_function(
-                name, annotator_kind, wrapped_signature, result_processor
-            )(func)
+            return _wrap_sync_evaluation_function(name, annotator, wrapped_signature, scorer)(
+                func
+            )
 
     return wrapper
 
@@ -91,12 +101,12 @@ def _wrap_coroutine_evaluation_function(
     annotator_kind: AnnotatorKind,
     sig: inspect.Signature,
     convert_to_score: Callable[[Any], EvaluationResult],
-) -> Callable[[EvalCallable], CanAsyncEvaluate]:
-    def wrapper(func: EvalCallable) -> CanAsyncEvaluate:
+) -> Callable[[EvaluatorCallable], CanAsyncEvaluate]:
+    def wrapper(func: EvaluatorCallable) -> CanAsyncEvaluate:
         class AsyncEvaluator:
             def __init__(self) -> None:
                 self.name = name
-                self.annotator_kind = annotator_kind
+                self.annotator_kind = annotator_kind.value
 
             @functools.wraps(func)
             async def __call__(self, *args: Any, **kwargs: Any) -> Any:
@@ -121,12 +131,12 @@ def _wrap_sync_evaluation_function(
     annotator_kind: AnnotatorKind,
     sig: inspect.Signature,
     convert_to_score: Callable[[Any], EvaluationResult],
-) -> Callable[[EvalCallable], CanEvaluate]:
-    def wrapper(func: EvalCallable) -> CanEvaluate:
+) -> Callable[[EvaluatorCallable], CanEvaluate]:
+    def wrapper(func: EvaluatorCallable) -> CanEvaluate:
         class SyncEvaluator:
             def __init__(self) -> None:
                 self.name = name
-                self.annotator_kind = annotator_kind
+                self.annotator_kind = annotator_kind.value
 
             @functools.wraps(func)
             def __call__(self, *args: Any, **kwargs: Any) -> Any:
@@ -144,12 +154,12 @@ def _wrap_sync_evaluation_function(
     return wrapper
 
 
-def _process_float_eval(result: Any) -> EvaluationResult:
-    result = float(result)
-    bound_result = max(0.0, min(1.0, result))
-    return EvaluationResult(score=bound_result)
-
-
-def _process_boolean_eval(result: Any) -> EvaluationResult:
-    result = bool(result)
-    return EvaluationResult(score=float(result))
+def _default_eval_scorer(result: Any) -> EvaluationResult:
+    if isinstance(result, bool):
+        return EvaluationResult(score=float(result), label=str(result))
+    elif isinstance(result, (int, float)):
+        return EvaluationResult(score=float(result))
+    elif isinstance(result, EvaluationResult):
+        return result
+    else:
+        raise ValueError(f"Unsupported evaluation result type: {type(result)}")
