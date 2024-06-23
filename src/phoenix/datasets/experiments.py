@@ -95,7 +95,7 @@ def _get_experiment_url(*, dataset_id: str, experiment_id: str) -> str:
 
 
 def _get_dataset_experiments_url(*, dataset_id: str) -> str:
-    return f"{_get_base_url()}datasets/{dataset_id}/experiments"
+    return f"{_get_web_base_url()}datasets/{dataset_id}/experiments"
 
 
 def _phoenix_client() -> httpx.Client:
