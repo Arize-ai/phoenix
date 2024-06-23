@@ -61,6 +61,7 @@ from phoenix.datasets.types import (
 from phoenix.evals.executors import get_executor_on_sync_context
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.utils import get_tqdm_progress_bar_formatter
+from phoenix.session.session import active_session
 from phoenix.trace.attributes import flatten
 from phoenix.utilities.json import jsonify
 
@@ -78,12 +79,23 @@ def _get_base_url() -> str:
     return base_url if base_url.endswith("/") else base_url + "/"
 
 
+def _get_web_base_url() -> str:
+    """Return the web UI base URL.
+
+    Returns:
+        str: the web UI base URL
+    """
+    if session := active_session():
+        return session.url
+    return _get_base_url()
+
+
 def _get_experiment_url(*, dataset_id: str, experiment_id: str) -> str:
-    return f"{_get_base_url()}datasets/{dataset_id}/compare?experimentId={experiment_id}"
+    return f"{_get_web_base_url()}datasets/{dataset_id}/compare?experimentId={experiment_id}"
 
 
 def _get_dataset_experiments_url(*, dataset_id: str) -> str:
-    return f"{_get_base_url()}datasets/{dataset_id}/experiments"
+    return f"{_get_web_base_url()}datasets/{dataset_id}/experiments"
 
 
 def _phoenix_client() -> httpx.Client:
@@ -134,7 +146,9 @@ def run_experiment(
 
     dataset_experiments_url = _get_dataset_experiments_url(dataset_id=dataset.id)
     experiment_compare_url = _get_experiment_url(dataset_id=dataset.id, experiment_id=experiment_id)
-    print(f"🧪 Experiment started: {experiment_compare_url}")
+    print("🧪 Experiment started.")
+    print(f"📺 View dataset experiments: {dataset_experiments_url}")
+    print(f"🔗 View this experiment: {experiment_compare_url}")
 
     errors: Tuple[Optional[Type[BaseException]], ...]
     if not hasattr(rate_limit_errors, "__iter__"):
@@ -278,7 +292,8 @@ def run_experiment(
         project_name=project_name,
     )
 
-    print(f"✅ Task runs completed. View all experiments: {dataset_experiments_url}")
+    print("✅ Task runs completed.")
+    print("🧠 Evaluation started.")
 
     if evaluators is not None:
         _evaluate_experiment(experiment, evaluators, dataset.examples, client)
