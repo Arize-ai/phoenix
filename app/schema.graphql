@@ -1180,6 +1180,7 @@ enum SpanKind {
   embedding
   agent
   reranker
+  evaluator
   unknown
 }
 
