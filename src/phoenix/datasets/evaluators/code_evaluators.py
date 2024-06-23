@@ -1,6 +1,7 @@
 import json
 import re
 from typing import TYPE_CHECKING, List, Optional, Union
+from typing_extensions import Pattern
 
 from phoenix.datasets.evaluators._utils import _unwrap_json
 from phoenix.datasets.types import EvaluationResult, Example, ExperimentEvaluator, ExperimentRun
@@ -94,12 +95,12 @@ class ContainsAllKeywords:
 class MatchesRegex:
     annotator_kind = "CODE"
 
-    def __init__(self, pattern: Union[str, re.Pattern[str]], name: Optional[str] = None) -> None:
+    def __init__(self, pattern: Union[str, Pattern[str]], name: Optional[str] = None) -> None:
         if isinstance(pattern, str):
             pattern = re.compile(pattern)
         self.pattern = pattern
         assert isinstance(pattern, re.Pattern)
-        self.name = name or f"MatchesRegex({pattern})"
+        self.name = name or f"matches_({pattern})"
 
     def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
         assert exp_run.output is not None
