@@ -4,9 +4,9 @@ from unittest.mock import patch
 
 import nest_asyncio
 from phoenix.datasets.evaluators import (
+    ConcisenessEvaluator,
     ContainsKeyword,
-    LLMConcisenessEvaluator,
-    LLMHelpfulnessEvaluator,
+    HelpfulnessEvaluator,
 )
 from phoenix.datasets.experiments import run_experiment
 from phoenix.datasets.types import (
@@ -149,8 +149,8 @@ async def test_run_experiment_with_llm_eval(_, session, sync_test_client, simple
             experiment_description="test description",
             # repetitions=3,  # TODO: Enable repetitions #3584
             evaluators=[
-                LLMConcisenessEvaluator(model=NegativeFakeLLMModel()),
-                LLMHelpfulnessEvaluator(model=PostitiveFakeLLMModel()),
+                ConcisenessEvaluator(model=NegativeFakeLLMModel()),
+                HelpfulnessEvaluator(model=PostitiveFakeLLMModel()),
             ],
         )
         experiment_id = from_global_id_with_expected_type(

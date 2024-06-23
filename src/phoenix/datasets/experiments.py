@@ -458,6 +458,7 @@ def _evaluate_experiment(
         max_retries=0,
         exit_on_error=False,
         fallback_return_value=None,
+        tqdm_bar_format=get_tqdm_progress_bar_formatter("running experiment evaluations"),
     )
     evaluation_payloads, _execution_details = executor.run(evaluation_inputs)
     for payload in evaluation_payloads:
