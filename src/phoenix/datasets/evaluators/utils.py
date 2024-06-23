@@ -31,7 +31,7 @@ def _validate_signature(sig: inspect.Signature) -> None:
     # Check that the wrapped function has a valid signature for use as an evaluator
     # If it does not, raise an error to exit early before running evaluations
     params = sig.parameters
-    valid_named_params = {"input", "output", "reference", "metadata"}
+    valid_named_params = {"experiment_input", "output", "reference", "metadata"}
     if len(params) == 0:
         raise ValueError("Evaluation function must have at least one parameter.")
     if len(params) > 1:
@@ -53,7 +53,7 @@ def _bind_signature(
     else:
         output = None
     parameter_mapping = {
-        "input": example.input,
+        "experiment_input": example.input,
         "output": output,
         "reference": example.output,
         "metadata": example.metadata,
@@ -85,13 +85,11 @@ def create_evaluator(
         _validate_signature(wrapped_signature)
 
         if inspect.iscoroutinefunction(func):
-            return _wrap_coroutine_evaluation_function(
-                name, annotator, wrapped_signature, scorer
-            )(func)
-        else:
-            return _wrap_sync_evaluation_function(name, annotator, wrapped_signature, scorer)(
+            return _wrap_coroutine_evaluation_function(name, annotator, wrapped_signature, scorer)(
                 func
             )
+        else:
+            return _wrap_sync_evaluation_function(name, annotator, wrapped_signature, scorer)(func)
 
     return wrapper
 
