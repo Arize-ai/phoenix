@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
@@ -193,6 +194,16 @@ class CanAsyncEvaluate(_HasName, _HasKind, Protocol):
 
 
 ExperimentEvaluator: TypeAlias = Union[CanEvaluate, CanAsyncEvaluate]
+
+
+class AnnotatorKind(Enum):
+    CODE = "CODE"
+    LLM = "LLM"
+
+
+class ScoreType(Enum):
+    FLOAT = "float"
+    BOOLEAN = "boolean"
 
 
 # Someday we'll do type checking in unit tests.

@@ -2,13 +2,19 @@ import re
 from typing import Callable, Optional, Type
 
 from phoenix.datasets.evaluators.utils import _unwrap_json
-from phoenix.datasets.types import EvaluationResult, Example, ExperimentEvaluator, ExperimentRun
+from phoenix.datasets.types import (
+    AnnotatorKind,
+    EvaluationResult,
+    Example,
+    ExperimentEvaluator,
+    ExperimentRun,
+)
 from phoenix.evals.models.base import BaseModel as LLMBaseModel
 from phoenix.evals.utils import snap_to_rail
 
 
 class LLMCriteriaEvaluator:
-    annotator_kind = "LLM"
+    annotator_kind = AnnotatorKind.LLM.value
     _base_template = (
         "Determine if the following text is {criteria}. {description}"
         "First, explain step-by-step why you think the text is or is not {criteria}. Then provide "
@@ -138,7 +144,7 @@ def _parse_label_from_explanation(raw_string: str) -> str:
 
 
 class RelevanceEvaluator:
-    annotator_kind = "LLM"
+    annotator_kind = AnnotatorKind.LLM.value
     template = (
         "Determine if the following response is relevant to the query. In this context, "
         "'relevance' means that the response directly addresses the core question or topic of the "
