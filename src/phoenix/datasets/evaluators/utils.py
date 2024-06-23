@@ -1,6 +1,6 @@
 import functools
 import inspect
-from typing import Any, Callable, Coroutine, Union
+from typing import Any, Callable
 
 from typing_extensions import TypeAlias
 
@@ -29,6 +29,36 @@ def _unwrap_json(obj: JSONSerializable) -> JSONSerializable:
             ), "Output must be JSON serializable"
             return output
     return obj
+
+
+def _bind_signature(
+    sig: inspect.Signature, example: Example, experiment_run: ExperimentRun
+) -> inspect.BoundArguments:
+    params = sig.parameters
+    if len(params) == 1:
+        if "example" in params:
+            return sig.bind_partial(example=example)
+        elif "experiment_run" in params:
+            return sig.bind_partial(experiment_run=experiment_run)
+        else:
+            return sig.bind(experiment_run.output)
+    elif len(params) == 2:
+        if "example" in params and "experiment_run" in params:
+            return sig.bind_partial(example=example, experiment_run=experiment_run)
+        else:
+            raise ValueError(
+                (
+                    "Evaluation signature has two parameters, but they are not 'example' "
+                    "and 'experiment_run'."
+                )
+            )
+    else:
+        raise ValueError(
+            (
+                f"Evaluation signature has {len(params)} parameters, but only 1 or 2 parameters "
+                "are supported."
+            )
+        )
 
 
 def evaluator(
@@ -75,23 +105,9 @@ def _wrap_coroutine_evaluation_function(
             async def async_evaluate(
                 self, example: Example, experiment_run: ExperimentRun
             ) -> EvaluationResult:
-                bound_signature = self._bind(example, experiment_run)
+                bound_signature = _bind_signature(sig, example, experiment_run)
                 result = await func(*bound_signature.args, **bound_signature.kwargs)
                 return convert_to_score(result)
-
-            def _bind(
-                self, example: Example, experiment_run: ExperimentRun
-            ) -> inspect.BoundArguments:
-                params = sig.parameters
-                if len(params) == 1:
-                    if "example" in params:
-                        return sig.bind_partial(example=example)
-                    elif "experiment_run" in params:
-                        return sig.bind_partial(experiment_run=experiment_run)
-                    else:
-                        return sig.bind(experiment_run.output)
-                else:
-                    return sig.bind_partial(example=example, experiment_run=experiment_run)
 
         evaluator = AsyncEvaluator()
         assert isinstance(evaluator, CanAsyncEvaluate)
@@ -117,23 +133,9 @@ def _wrap_sync_evaluation_function(
                 return func(*args, **kwargs)
 
             def evaluate(self, example: Example, experiment_run: ExperimentRun) -> EvaluationResult:
-                bound_signature = self._bind(example, experiment_run)
+                bound_signature = _bind_signature(sig, example, experiment_run)
                 result = func(*bound_signature.args, **bound_signature.kwargs)
                 return convert_to_score(result)
-
-            def _bind(
-                self, example: Example, experiment_run: ExperimentRun
-            ) -> inspect.BoundArguments:
-                params = sig.parameters
-                if len(params) == 1:
-                    if "example" in params:
-                        return sig.bind_partial(example=example)
-                    elif "experiment_run" in params:
-                        return sig.bind_partial(experiment_run=experiment_run)
-                    else:
-                        return sig.bind(experiment_run.output)
-                else:
-                    return sig.bind_partial(example=example, experiment_run=experiment_run)
 
         evaluator = SyncEvaluator()
         assert isinstance(evaluator, CanEvaluate)
