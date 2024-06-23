@@ -29,8 +29,6 @@ class SpanKind(Enum):
     """
     SpanKind is loosely inspired by OpenTelemetry's SpanKind
     It captures the type of work that a Span encapsulates.
-
-    NB: this is actively under construction
     """
 
     TOOL = "TOOL"
@@ -40,6 +38,7 @@ class SpanKind(Enum):
     EMBEDDING = "EMBEDDING"
     AGENT = "AGENT"
     RERANKER = "RERANKER"
+    EVALUATOR = "EVALUATOR"
     UNKNOWN = "UNKNOWN"
 
     def __str__(self) -> str:
