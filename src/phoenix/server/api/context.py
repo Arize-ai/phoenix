@@ -23,6 +23,7 @@ from phoenix.server.api.dataloaders import (
     ExperimentSequenceNumberDataLoader,
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
+    ProjectByNameDataLoader,
     RecordCountDataLoader,
     SpanDescendantsDataLoader,
     SpanEvaluationsDataLoader,
@@ -53,6 +54,7 @@ class DataLoaders:
     token_counts: TokenCountDataLoader
     trace_evaluations: TraceEvaluationsDataLoader
     trace_row_ids: TraceRowIdsDataLoader
+    project_by_name: ProjectByNameDataLoader
 
 
 ProjectRowId: TypeAlias = int

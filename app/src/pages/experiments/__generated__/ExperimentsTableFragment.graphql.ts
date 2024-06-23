@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b7eb05fe40be690647b0148457c746fa>>
+ * @generated SignedSource<<a4fef9f01fbe3de31baf91deb0d90b87>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -28,6 +28,9 @@ export type ExperimentsTableFragment$data = {
         readonly id: string;
         readonly metadata: any;
         readonly name: string;
+        readonly project: {
+          readonly id: string;
+        } | null;
         readonly sequenceNumber: number;
       };
     }>;
@@ -191,6 +194,18 @@ return {
                 {
                   "alias": null,
                   "args": null,
+                  "concreteType": "Project",
+                  "kind": "LinkedField",
+                  "name": "project",
+                  "plural": false,
+                  "selections": [
+                    (v2/*: any*/)
+                  ],
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
                   "concreteType": "ExperimentAnnotationSummary",
                   "kind": "LinkedField",
                   "name": "annotationSummaries",
@@ -273,6 +288,6 @@ return {
 };
 })();
 
-(node as any).hash = "41018e1480ad0d5c0fe3534392668207";
+(node as any).hash = "0911261e5175626c0a4b4f91d60bc0d9";
 
 export default node;

@@ -151,7 +151,7 @@ class Project(Node):
         async with info.context.db() as session:
             if (id_attr := await session.scalar(stmt)) is None:
                 return None
-        return Trace(id_attr=id_attr, project_rowid=self.id_attr)
+        return Trace(id_attr=id_attr, trace_id=trace_id, project_rowid=self.id_attr)
 
     @strawberry.field
     async def spans(
