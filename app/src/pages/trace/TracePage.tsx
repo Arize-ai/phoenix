@@ -1371,7 +1371,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
     if (role === "user") {
       return {
         backgroundColor: "grey-100",
-        borderColor: "grey-700",
+        borderColor: "grey-500",
       };
     } else if (role === "assistant") {
       return {

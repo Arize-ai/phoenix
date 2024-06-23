@@ -59,6 +59,7 @@ class SpanKind(Enum):
     embedding = "EMBEDDING"
     agent = "AGENT"
     reranker = "RERANKER"
+    evaluator = "EVALUATOR"
     unknown = "UNKNOWN"
 
     @classmethod
