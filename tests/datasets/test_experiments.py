@@ -215,7 +215,7 @@ def test_evaluator_decorator():
 
 
 async def test_async_evaluator_decorator():
-    @create_evaluator(name="override", annotator=AnnotatorKind.LLM)
+    @create_evaluator(name="override", kind="LLM")
     async def can_i_count_this_high(x: int) -> bool:
         return x < 3
 
