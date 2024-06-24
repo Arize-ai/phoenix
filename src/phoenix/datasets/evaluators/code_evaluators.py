@@ -18,7 +18,7 @@ class JSONParsable:
     annotator_kind = AnnotatorKind.CODE.value
     name = "JSONParsable"
 
-    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+    def evaluate(self, exp_run: ExperimentRun, example: Example) -> EvaluationResult:
         assert exp_run.output is not None
         output = _unwrap_json(exp_run.output.result)
         assert isinstance(output, str), "Experiment run output must be a string"
@@ -39,7 +39,7 @@ class ContainsKeyword:
         self.keyword = keyword
         self.name = name or f"Contains({repr(keyword)})"
 
-    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+    def evaluate(self, exp_run: ExperimentRun, example: Example) -> EvaluationResult:
         assert exp_run.output is not None
         result = _unwrap_json(exp_run.output.result)
         assert isinstance(result, str), "Experiment run output must be a string"
@@ -60,7 +60,7 @@ class ContainsAnyKeyword:
         self.keywords = keywords
         self.name = name or f"ContainsAny({keywords})"
 
-    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+    def evaluate(self, exp_run: ExperimentRun, example: Example) -> EvaluationResult:
         assert exp_run.output is not None
         result = _unwrap_json(exp_run.output.result)
         assert isinstance(result, str), "Experiment run output must be a string"
@@ -82,7 +82,7 @@ class ContainsAllKeywords:
         self.keywords = keywords
         self.name = name or f"ContainsAll({keywords})"
 
-    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+    def evaluate(self, exp_run: ExperimentRun, example: Example) -> EvaluationResult:
         assert exp_run.output is not None
         result = _unwrap_json(exp_run.output.result)
         assert isinstance(result, str), "Experiment run output must be a string"
@@ -109,7 +109,7 @@ class MatchesRegex:
         assert isinstance(pattern, re.Pattern)
         self.name = name or f"matches_({pattern})"
 
-    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+    def evaluate(self, exp_run: ExperimentRun, example: Example) -> EvaluationResult:
         assert exp_run.output is not None
         result = _unwrap_json(exp_run.output.result)
         assert isinstance(result, str), "Experiment run output must be a string"
@@ -129,5 +129,5 @@ class MatchesRegex:
 # Someday we'll do typing checking in unit tests.
 if TYPE_CHECKING:
     _: ExperimentEvaluator
-    _ = JSONParsable()
     _ = ContainsKeyword("test")
+    _ = JSONParsable()

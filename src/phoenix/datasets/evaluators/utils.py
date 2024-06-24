@@ -117,7 +117,7 @@ def _wrap_coroutine_evaluation_function(
                 return await func(*args, **kwargs)
 
             async def async_evaluate(
-                self, example: Example, experiment_run: ExperimentRun
+                self, experiment_run: ExperimentRun, example: Example
             ) -> EvaluationResult:
                 bound_signature = _bind_signature(sig, example, experiment_run)
                 result = await func(*bound_signature.args, **bound_signature.kwargs)
@@ -146,7 +146,7 @@ def _wrap_sync_evaluation_function(
             def __call__(self, *args: Any, **kwargs: Any) -> Any:
                 return func(*args, **kwargs)
 
-            def evaluate(self, example: Example, experiment_run: ExperimentRun) -> EvaluationResult:
+            def evaluate(self, experiment_run: ExperimentRun, example: Example) -> EvaluationResult:
                 bound_signature = _bind_signature(sig, example, experiment_run)
                 result = func(*bound_signature.args, **bound_signature.kwargs)
                 return convert_to_score(result)

@@ -45,12 +45,12 @@ class LLMCriteriaEvaluator:
         self.template = self._format_base_template(self.criteria, self.description)
         self.name = name
 
-    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+    def evaluate(self, exp_run: ExperimentRun, example: Example) -> EvaluationResult:
         formatted_template = self._format_eval_template(exp_run)
         unparsed_response = self.model._generate(formatted_template)
         return self._parse_eval_output(unparsed_response)
 
-    async def async_evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+    async def async_evaluate(self, exp_run: ExperimentRun, example: Example) -> EvaluationResult:
         formatted_template = self._format_eval_template(exp_run)
         unparsed_response = await self.model._async_generate(formatted_template)
         return self._parse_eval_output(unparsed_response)
@@ -208,12 +208,12 @@ class RelevanceEvaluator:
         assert experiment_run.output is not None
         return str(_unwrap_json(experiment_run.output.result))
 
-    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+    def evaluate(self, exp_run: ExperimentRun, example: Example) -> EvaluationResult:
         formatted_template = self._format_eval_template(example, exp_run)
         unparsed_response = self.model._generate(formatted_template)
         return self._parse_eval_output(unparsed_response)
 
-    async def async_evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+    async def async_evaluate(self, exp_run: ExperimentRun, example: Example) -> EvaluationResult:
         formatted_template = self._format_eval_template(example, exp_run)
         unparsed_response = await self.model._async_generate(formatted_template)
         return self._parse_eval_output(unparsed_response)
