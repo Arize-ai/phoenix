@@ -530,14 +530,6 @@ def _evaluators_by_name(
     return evaluators_by_name
 
 
-def _get_eval_name(obj: ExperimentEvaluator) -> str:
-    if isinstance(obj, Evaluator):
-        return obj.name
-    if callable(obj) and hasattr(obj, "__self__"):
-        return obj.__qualname__
-    return obj.__name__
-
-
 def _str_trace_id(id_: int) -> str:
     return hexlify(id_.to_bytes(16, "big")).decode()
 
