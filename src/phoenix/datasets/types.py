@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Dict,
     List,
     Mapping,
@@ -17,6 +19,12 @@ from typing import (
 )
 
 from typing_extensions import TypeAlias
+
+
+class AnnotatorKind(Enum):
+    CODE = "CODE"
+    LLM = "LLM"
+
 
 JSONSerializable: TypeAlias = Optional[Union[Dict[str, Any], List[Any], str, int, float, bool]]
 
@@ -178,8 +186,8 @@ class _HasKind(Protocol):
 class CanEvaluate(_HasName, _HasKind, Protocol):
     def evaluate(
         self,
-        example: Example,
         experiment_run: ExperimentRun,
+        example: Example,
     ) -> EvaluationResult: ...
 
 
@@ -187,12 +195,14 @@ class CanEvaluate(_HasName, _HasKind, Protocol):
 class CanAsyncEvaluate(_HasName, _HasKind, Protocol):
     async def async_evaluate(
         self,
-        example: Example,
         experiment_run: ExperimentRun,
+        example: Example,
     ) -> EvaluationResult: ...
 
 
 ExperimentEvaluator: TypeAlias = Union[CanEvaluate, CanAsyncEvaluate]
+EvaluatorCallable: TypeAlias = Callable[..., Any]
+EvaluatorOrCallable: TypeAlias = Union[ExperimentEvaluator, EvaluatorCallable]
 
 
 # Someday we'll do type checking in unit tests.
@@ -202,10 +212,10 @@ if TYPE_CHECKING:
         annotator_kind: str
         name: str
 
-        def evaluate(self, _: Example, __: ExperimentRun) -> EvaluationResult:
+        def evaluate(self, _: ExperimentRun, __: Example) -> EvaluationResult:
             raise NotImplementedError
 
-        async def async_evaluate(self, _: Example, __: ExperimentRun) -> EvaluationResult:
+        async def async_evaluate(self, _: ExperimentRun, __: Example) -> EvaluationResult:
             raise NotImplementedError
 
     _: ExperimentEvaluator
