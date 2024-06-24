@@ -73,6 +73,11 @@ export function ExampleExperimentRunsTable({
                     label
                     score
                     explanation
+                    annotatorKind
+                    trace {
+                      traceId
+                      projectId
+                    }
                   }
                 }
               }
@@ -139,7 +144,15 @@ export function ExampleExperimentRunsTable({
           <Flex direction="row" gap="size-50" wrap="wrap">
             {row.original.annotations.edges.map((annotationEdge, index) => {
               const annotation = annotationEdge.annotation;
-              return <AnnotationLabel key={index} annotation={annotation} />;
+              return (
+                <AnnotationLabel
+                  key={index}
+                  annotation={annotation}
+                  onClick={() => {
+                    // TODO: implement annotation trace
+                  }}
+                />
+              );
             })}
           </Flex>
         );
