@@ -1,14 +1,20 @@
 import re
 from typing import Callable, Optional, Type
 
-from phoenix.datasets.evaluators._utils import _unwrap_json
-from phoenix.datasets.types import EvaluationResult, Example, ExperimentEvaluator, ExperimentRun
+from phoenix.datasets.evaluators.utils import _unwrap_json
+from phoenix.datasets.types import (
+    AnnotatorKind,
+    EvaluationResult,
+    Example,
+    ExperimentEvaluator,
+    ExperimentRun,
+)
 from phoenix.evals.models.base import BaseModel as LLMBaseModel
 from phoenix.evals.utils import snap_to_rail
 
 
 class LLMCriteriaEvaluator:
-    annotator_kind = "LLM"
+    annotator_kind = AnnotatorKind.LLM.value
     _base_template = (
         "Determine if the following text is {criteria}. {description}"
         "First, explain step-by-step why you think the text is or is not {criteria}. Then provide "
@@ -39,12 +45,12 @@ class LLMCriteriaEvaluator:
         self.template = self._format_base_template(self.criteria, self.description)
         self.name = name
 
-    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+    def evaluate(self, exp_run: ExperimentRun, example: Example) -> EvaluationResult:
         formatted_template = self._format_eval_template(exp_run)
         unparsed_response = self.model._generate(formatted_template)
         return self._parse_eval_output(unparsed_response)
 
-    async def async_evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+    async def async_evaluate(self, exp_run: ExperimentRun, example: Example) -> EvaluationResult:
         formatted_template = self._format_eval_template(exp_run)
         unparsed_response = await self.model._async_generate(formatted_template)
         return self._parse_eval_output(unparsed_response)
@@ -138,7 +144,7 @@ def _parse_label_from_explanation(raw_string: str) -> str:
 
 
 class RelevanceEvaluator:
-    annotator_kind = "LLM"
+    annotator_kind = AnnotatorKind.LLM.value
     template = (
         "Determine if the following response is relevant to the query. In this context, "
         "'relevance' means that the response directly addresses the core question or topic of the "
@@ -202,12 +208,12 @@ class RelevanceEvaluator:
         assert experiment_run.output is not None
         return str(_unwrap_json(experiment_run.output.result))
 
-    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+    def evaluate(self, exp_run: ExperimentRun, example: Example) -> EvaluationResult:
         formatted_template = self._format_eval_template(example, exp_run)
         unparsed_response = self.model._generate(formatted_template)
         return self._parse_eval_output(unparsed_response)
 
-    async def async_evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+    async def async_evaluate(self, exp_run: ExperimentRun, example: Example) -> EvaluationResult:
         formatted_template = self._format_eval_template(example, exp_run)
         unparsed_response = await self.model._async_generate(formatted_template)
         return self._parse_eval_output(unparsed_response)
