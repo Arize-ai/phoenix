@@ -256,8 +256,8 @@ def test_binding_arguments_to_decorated_evaluators():
         return reference == 99
 
     @create_evaluator()
-    def can_i_evaluate_the_input(experiment_input: str) -> bool:
-        return experiment_input == "the biggest number I know"
+    def can_i_evaluate_the_input(input: str) -> bool:
+        return input == "the biggest number I know"
 
     @create_evaluator()
     def can_i_evaluate_using_metadata(
@@ -267,9 +267,9 @@ def test_binding_arguments_to_decorated_evaluators():
 
     @create_evaluator()
     def can_i_evaluate_with_everything(
-        experiment_input: str, output: int, reference: int, metadata: JSONSerializable
+        input: str, output: int, reference: int, metadata: JSONSerializable
     ) -> bool:
-        check_input = experiment_input == "the biggest number I know"
+        check_input = input == "the biggest number I know"
         check_output = output == 3
         check_reference = reference == 99
         check_metadata = metadata == {"data": "there's nothing here"}
@@ -277,9 +277,9 @@ def test_binding_arguments_to_decorated_evaluators():
 
     @create_evaluator()
     def can_i_evaluate_with_everything_in_any_order(
-        reference: int, output: int, metadata: JSONSerializable, experiment_input: str
+        reference: int, output: int, metadata: JSONSerializable, input: str
     ) -> bool:
-        check_input = experiment_input == "the biggest number I know"
+        check_input = input == "the biggest number I know"
         check_output = output == 3
         check_reference = reference == 99
         check_metadata = metadata == {"data": "there's nothing here"}
@@ -295,7 +295,7 @@ def test_binding_arguments_to_decorated_evaluators():
     assert evaluation.score == 1.0, "With reference arg, evaluates against example.output"
 
     evaluation = can_i_evaluate_the_input.evaluate(experiment_run, example)
-    assert evaluation.score == 1.0, "With experiment_input arg, evaluates against example.input"
+    assert evaluation.score == 1.0, "With input arg, evaluates against example.input"
 
     evaluation = can_i_evaluate_using_metadata.evaluate(experiment_run, example)
     assert evaluation.score == 1.0, "With metadata arg, evaluates against example.metadata"

@@ -58,7 +58,7 @@ def _bind_signature(
     else:
         output = None
     parameter_mapping = {
-        "experiment_input": example.input,
+        "input": example.input,
         "output": output,
         "reference": example.output,
         "metadata": example.metadata,
