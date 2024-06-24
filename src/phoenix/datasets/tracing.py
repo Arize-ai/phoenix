@@ -26,10 +26,7 @@ class SpanModifier:
         Takes a span and merges in the resource attributes specified in the constructor.
 
         Args:
-          span: ReadableSpan:
-
-        Returns:
-
+          span: ReadableSpan: the span to modify
         """
         if (ctx := span._context) is None or ctx.span_id == INVALID_TRACE_ID:
             return
@@ -79,7 +76,7 @@ def capture_spans(resource: Resource) -> Iterator[SpanModifier]:
       resource: Resource: The resource to merge into the spans created within the context.
 
     Returns:
-
+        modifier: Iterator[SpanModifier]: The span modifier that is active within the context.
     """
     modifier = SpanModifier(resource)
     with _monkey_patch_span_init():
