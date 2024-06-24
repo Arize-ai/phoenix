@@ -51,7 +51,10 @@ def _bind_signature(
 ) -> inspect.BoundArguments:
     if experiment_run.output:
         raw_output = experiment_run.output.result
-        output = raw_output.get("result", raw_output)
+        if isinstance(raw_output, dict):
+            output = raw_output.get("result", raw_output)
+        else:
+            output = raw_output
     else:
         output = None
     parameter_mapping = {
