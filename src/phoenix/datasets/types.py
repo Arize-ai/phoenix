@@ -228,7 +228,7 @@ class ExperimentEvaluationRun:
 
 ExampleOutput: TypeAlias = Mapping[str, JSONSerializable]
 ExampleMetadata: TypeAlias = Mapping[str, JSONSerializable]
-ExampleInputs: TypeAlias = Mapping[str, JSONSerializable]
+ExampleInput: TypeAlias = Mapping[str, JSONSerializable]
 
 EvaluatorName: TypeAlias = str
 EvaluatorKind: TypeAlias = str
@@ -253,7 +253,7 @@ class Evaluator(ABC):
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Evaluator:
         if cls is Evaluator:
-            raise TypeError(f"{cls.__name__} is an abstract class.")
+            raise TypeError(f"{cls.__name__} should not be instantiated.")
         return object.__new__(cls)
 
     def evaluate(
@@ -262,7 +262,7 @@ class Evaluator(ABC):
         output: TaskOutput,
         expected: ExampleOutput,
         metadata: ExampleMetadata,
-        inputs: ExampleInputs,
+        input: ExampleInput,
         **kwargs: Any,
     ) -> EvaluationResult:
         raise NotImplementedError
@@ -273,14 +273,14 @@ class Evaluator(ABC):
         output: TaskOutput,
         expected: ExampleOutput,
         metadata: ExampleMetadata,
-        inputs: ExampleInputs,
+        input: ExampleInput,
         **kwargs: Any,
     ) -> EvaluationResult:
         return self.evaluate(
             output=output,
             expected=expected,
             metadata=metadata,
-            inputs=inputs,
+            input=input,
             **kwargs,
         )
 
@@ -352,7 +352,7 @@ class LLMEvaluator(Evaluator, is_abstract=True):
 
     def __new__(cls, *args: Any, **kwargs: Any) -> LLMEvaluator:
         if cls is LLMEvaluator:
-            raise TypeError(f"{cls.__name__} is an abstract class.")
+            raise TypeError(f"{cls.__name__} should not be instantiated.")
         return object.__new__(cls)
 
 

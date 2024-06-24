@@ -376,7 +376,7 @@ def _evaluate_experiment(
         example = examples_by_id.get(exp_run.dataset_example_id)
         if example:
             example_run_pairs.append((deepcopy(example), exp_run))
-    evaluation_inputs = [
+    evaluation_input = [
         (example, run, evaluator)
         for (example, run), evaluator in product(example_run_pairs, evaluators_by_name.values())
     ]
@@ -407,7 +407,7 @@ def _evaluate_experiment(
                 _output = evaluator.evaluate(
                     output=None if experiment_run.output is None else experiment_run.output.result,
                     expected=example.output,
-                    inputs=example.input,
+                    input=example.input,
                     metadata=example.metadata,
                 )
                 if isinstance(_output, Awaitable):
@@ -451,7 +451,7 @@ def _evaluate_experiment(
                 result = await evaluator.async_evaluate(
                     output=None if experiment_run.output is None else experiment_run.output.result,
                     expected=example.output,
-                    inputs=example.input,
+                    input=example.input,
                     metadata=example.metadata,
                 )
             except BaseException as exc:
@@ -483,7 +483,7 @@ def _evaluate_experiment(
         fallback_return_value=None,
         tqdm_bar_format=get_tqdm_progress_bar_formatter("running experiment evaluations"),
     )
-    evaluation_payloads, _execution_details = executor.run(evaluation_inputs)
+    evaluation_payloads, _execution_details = executor.run(evaluation_input)
     for payload in evaluation_payloads:
         if payload is not None:
             resp = client.post("/v1/experiment_evaluations", json=jsonify(payload))

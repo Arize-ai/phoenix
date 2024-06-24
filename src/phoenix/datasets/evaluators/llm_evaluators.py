@@ -4,7 +4,7 @@ from typing import Any, Callable, Optional, Type
 from phoenix.datasets.evaluators._utils import _unwrap_json
 from phoenix.datasets.types import (
     EvaluationResult,
-    ExampleInputs,
+    ExampleInput,
     ExampleMetadata,
     ExperimentEvaluator,
     LLMEvaluator,
@@ -167,7 +167,7 @@ class RelevanceEvaluator(LLMEvaluator):
     def __init__(
         self,
         model: LLMBaseModel,
-        get_query: Optional[Callable[[ExampleInputs, ExampleMetadata], str]] = None,
+        get_query: Optional[Callable[[ExampleInput, ExampleMetadata], str]] = None,
         get_response: Optional[Callable[[TaskOutput, ExampleMetadata], str]] = None,
         name: str = "RelevanceEvaluator",
     ):
@@ -179,11 +179,11 @@ class RelevanceEvaluator(LLMEvaluator):
     def _format_eval_template(
         self,
         output: TaskOutput,
-        inputs: ExampleInputs,
+        input: ExampleInput,
         metadata: ExampleMetadata,
     ) -> str:
         assert output is not None
-        query = self.get_query(inputs, metadata)
+        query = self.get_query(input, metadata)
         response = self.get_response(output, metadata)
         return self.template.format(query=query, response=response)
 
@@ -205,8 +205,8 @@ class RelevanceEvaluator(LLMEvaluator):
             metadata={},
         )
 
-    def _default_get_query(self, inputs: ExampleInputs, *args: Any, **kwargs: Any) -> str:
-        return str(inputs)
+    def _default_get_query(self, input: ExampleInput, *args: Any, **kwargs: Any) -> str:
+        return str(input)
 
     def _default_get_response(self, output: TaskOutput, *args: Any, **kwargs: Any) -> str:
         assert output is not None
@@ -217,10 +217,10 @@ class RelevanceEvaluator(LLMEvaluator):
         *,
         output: TaskOutput,
         metadata: ExampleMetadata,
-        inputs: ExampleInputs,
+        input: ExampleInput,
         **_: Any,
     ) -> EvaluationResult:
-        formatted_template = self._format_eval_template(output, inputs, metadata)
+        formatted_template = self._format_eval_template(output, input, metadata)
         unparsed_response = self.model._generate(formatted_template)
         return self._parse_eval_output(unparsed_response)
 
@@ -229,9 +229,9 @@ class RelevanceEvaluator(LLMEvaluator):
         *,
         output: TaskOutput,
         metadata: ExampleMetadata,
-        inputs: ExampleInputs,
+        input: ExampleInput,
         **_: Any,
     ) -> EvaluationResult:
-        formatted_template = self._format_eval_template(output, inputs, metadata)
+        formatted_template = self._format_eval_template(output, input, metadata)
         unparsed_response = await self.model._async_generate(formatted_template)
         return self._parse_eval_output(unparsed_response)

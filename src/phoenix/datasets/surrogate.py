@@ -22,7 +22,7 @@ class SurrogateEvaluator(Evaluator, ABC):
 
     def __new__(cls, *args: Any, **kwargs: Any) -> SurrogateEvaluator:
         if cls is SurrogateEvaluator:
-            raise TypeError(f"{cls.__name__} is an abstract class.")
+            raise TypeError(f"{cls.__name__} should not be instantiated.")
         return object.__new__(cls)
 
     def __init__(
