@@ -516,7 +516,12 @@ function ExperimentRunOutput(
           >
             {annotationsList.map((annotation) => (
               <li key={annotation.id}>
-                <AnnotationLabel annotation={annotation} />
+                <AnnotationLabel
+                  annotation={annotation}
+                  onClick={() => {
+                    // TODO: Implement annotation click
+                  }}
+                />
               </li>
             ))}
           </ul>
