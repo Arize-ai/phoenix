@@ -2,16 +2,18 @@ import React from "react";
 import { css } from "@emotion/react";
 
 import {
+  Button,
   Flex,
-  Label,
+  HelpTooltip,
+  Icon,
+  Icons,
   Text,
-  Tooltip,
   TooltipTrigger,
   TriggerWrap,
   View,
 } from "@arizeai/components";
 
-import { formatFloat } from "@phoenix/utils/numberFormatUtils";
+import { floatFormatter, formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import { AnnotationColorSwatch } from "./AnnotationColorSwatch";
 
@@ -20,6 +22,11 @@ interface Annotation {
   label?: string | null;
   score?: number | null;
   explanation?: string | null;
+  annotatorKind: string;
+  trace: {
+    traceId: string;
+    projectId: string;
+  } | null;
 }
 
 const textCSS = css`
@@ -33,7 +40,13 @@ const textCSS = css`
     text-overflow: ellipsis;
   }
 `;
-export function AnnotationLabel({ annotation }: { annotation: Annotation }) {
+export function AnnotationLabel({
+  annotation,
+  onClick,
+}: {
+  annotation: Annotation;
+  onClick?: () => void;
+}) {
   const labelValue =
     (typeof annotation.score == "number" && formatFloat(annotation.score)) ||
     annotation.label ||
@@ -42,8 +55,26 @@ export function AnnotationLabel({ annotation }: { annotation: Annotation }) {
   return (
     <TooltipTrigger delay={0} offset={3}>
       <TriggerWrap>
-        <Label color="grey-900" shape="badge">
-          <Flex direction="row" gap="size-50" alignItems="center">
+        <div
+          role="button"
+          css={css`
+            cursor: pointer;
+            border-radius: var(--ac-global-dimension-size-50);
+            border: 1px solid var(--ac-global-color-grey-400);
+            padding: var(--ac-global-dimension-size-50)
+              var(--ac-global-dimension-size-100);
+            transition: background-color 0.2s;
+            &:hover {
+              background-color: var(--ac-global-color-grey-300);
+            }
+            .ac-icon-wrap {
+              font-size: 12px;
+            }
+          `}
+          aria-label="Click to view the annotation trace"
+          onClick={onClick}
+        >
+          <Flex direction="row" gap="size-100" alignItems="center">
             <AnnotationColorSwatch annotationName={annotation.name} />
             <div css={textCSS}>
               <Text weight="heavy" textSize="small" color="inherit">
@@ -60,26 +91,59 @@ export function AnnotationLabel({ annotation }: { annotation: Annotation }) {
             >
               <Text textSize="small">{labelValue}</Text>
             </div>
+            {annotation.trace ? (
+              <Icon svg={<Icons.ArrowIosForwardOutline />} />
+            ) : null}
           </Flex>
-        </Label>
+        </div>
       </TriggerWrap>
-      <Tooltip>
-        <Flex direction="row" gap="size-100">
-          <Text weight="heavy" textSize="small" color="inherit">
-            {annotation.name}
-          </Text>
-          <Text textSize="small" color="inherit">
-            {labelValue}
-          </Text>
-        </Flex>
+      <HelpTooltip>
+        <Text weight="heavy" color="inherit" textSize="large" elementType="h3">
+          {annotation.name}
+        </Text>
+        <View paddingTop="size-50" minWidth="150px">
+          <Flex direction="row" justifyContent="space-between">
+            <Text weight="heavy" color="inherit">
+              score
+            </Text>
+            <Text color="inherit">{floatFormatter(annotation.score)}</Text>
+          </Flex>
+          <Flex direction="row" justifyContent="space-between">
+            <Text weight="heavy" color="inherit">
+              label
+            </Text>
+            <Text color="inherit">{annotation.label || "--"}</Text>
+          </Flex>
+          <Flex direction="row" justifyContent="space-between">
+            <Text weight="heavy" color="inherit">
+              kind
+            </Text>
+            <Text color="inherit">{annotation.annotatorKind}</Text>
+          </Flex>
+        </View>
         {annotation.explanation ? (
           <View paddingTop="size-50">
-            <Text textSize="small" color="inherit">
-              {annotation.explanation}
-            </Text>
+            <Flex direction="column">
+              <Text weight="heavy" color="inherit">
+                explanation
+              </Text>
+              <Text color="inherit">{annotation.explanation}</Text>
+            </Flex>
           </View>
         ) : null}
-      </Tooltip>
+        {annotation.trace ? (
+          <View paddingTop="size-50">
+            <Button
+              variant="primary"
+              onClick={onClick}
+              size="compact"
+              icon={<Icon svg={<Icons.Trace />} />}
+            >
+              View trace
+            </Button>
+          </View>
+        ) : null}
+      </HelpTooltip>
     </TooltipTrigger>
   );
 }
