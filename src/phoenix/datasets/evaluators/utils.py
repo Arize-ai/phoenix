@@ -90,9 +90,7 @@ def create_evaluator(
         _validate_signature(wrapped_signature)
 
         if inspect.iscoroutinefunction(func):
-            return _wrap_coroutine_evaluation_function(name, kind, wrapped_signature, scorer)(
-                func
-            )
+            return _wrap_coroutine_evaluation_function(name, kind, wrapped_signature, scorer)(func)
         else:
             return _wrap_sync_evaluation_function(name, kind, wrapped_signature, scorer)(func)
 
