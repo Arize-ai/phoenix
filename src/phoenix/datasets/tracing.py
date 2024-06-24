@@ -12,12 +12,25 @@ from wrapt import apply_patch, resolve_path, wrap_function_wrapper
 
 
 class SpanModifier:
+    """
+    A class that modifies spans with the specified resource attributes.
+    """
+
     __slots__ = ("_resource",)
 
     def __init__(self, resource: Resource) -> None:
         self._resource = resource
 
     def modify_resource(self, span: ReadableSpan) -> None:
+        """
+        Takes a span and merges in the resource attributes specified in the constructor.
+
+        Args:
+          span: ReadableSpan:
+
+        Returns:
+
+        """
         if (ctx := span._context) is None or ctx.span_id == INVALID_TRACE_ID:
             return
         span._resource = span._resource.merge(self._resource)
@@ -59,6 +72,15 @@ def _monkey_patch_span_init() -> Iterator[None]:
 
 @contextmanager
 def capture_spans(resource: Resource) -> Iterator[SpanModifier]:
+    """
+    A context manager that captures spans and modifies them with the specified resources.
+
+    Args:
+      resource: Resource: The resource to merge into the spans created within the context.
+
+    Returns:
+
+    """
     modifier = SpanModifier(resource)
     with _monkey_patch_span_init():
         token = _ACTIVE_MODIFIER.set(modifier)
