@@ -1,14 +1,20 @@
 import re
-from typing import Callable, Optional, Type
+from typing import Any, Callable, Optional, Type
 
 from phoenix.datasets.evaluators._utils import _unwrap_json
-from phoenix.datasets.types import EvaluationResult, Example, ExperimentEvaluator, ExperimentRun
+from phoenix.datasets.types import (
+    EvaluationResult,
+    ExampleInputs,
+    ExampleMetadata,
+    ExperimentEvaluator,
+    LLMEvaluator,
+    TaskOutput,
+)
 from phoenix.evals.models.base import BaseModel as LLMBaseModel
 from phoenix.evals.utils import snap_to_rail
 
 
-class LLMCriteriaEvaluator:
-    annotator_kind = "LLM"
+class LLMCriteriaEvaluator(LLMEvaluator):
     _base_template = (
         "Determine if the following text is {criteria}. {description}"
         "First, explain step-by-step why you think the text is or is not {criteria}. Then provide "
@@ -37,21 +43,21 @@ class LLMCriteriaEvaluator:
         self.criteria = criteria
         self.description = description
         self.template = self._format_base_template(self.criteria, self.description)
-        self.name = name
+        self._name = name
 
-    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
-        formatted_template = self._format_eval_template(exp_run)
+    def evaluate(self, *, output: TaskOutput, **_: Any) -> EvaluationResult:
+        formatted_template = self._format_eval_template(output)
         unparsed_response = self.model._generate(formatted_template)
         return self._parse_eval_output(unparsed_response)
 
-    async def async_evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
-        formatted_template = self._format_eval_template(exp_run)
+    async def async_evaluate(self, *, output: TaskOutput, **_: Any) -> EvaluationResult:
+        formatted_template = self._format_eval_template(output)
         unparsed_response = await self.model._async_generate(formatted_template)
         return self._parse_eval_output(unparsed_response)
 
-    def _format_eval_template(self, experiment_run: ExperimentRun) -> str:
-        assert experiment_run.output is not None
-        result = _unwrap_json(experiment_run.output.result)
+    def _format_eval_template(self, output: TaskOutput) -> str:
+        assert output is not None
+        result = _unwrap_json(output)
         return self.template.format(text=str(result))
 
     def _parse_eval_output(self, unparsed_response: str) -> EvaluationResult:
@@ -137,8 +143,7 @@ def _parse_label_from_explanation(raw_string: str) -> str:
     return raw_string
 
 
-class RelevanceEvaluator:
-    annotator_kind = "LLM"
+class RelevanceEvaluator(LLMEvaluator):
     template = (
         "Determine if the following response is relevant to the query. In this context, "
         "'relevance' means that the response directly addresses the core question or topic of the "
@@ -162,19 +167,24 @@ class RelevanceEvaluator:
     def __init__(
         self,
         model: LLMBaseModel,
-        get_query: Optional[Callable[[Example, ExperimentRun], str]] = None,
-        get_response: Optional[Callable[[Example, ExperimentRun], str]] = None,
+        get_query: Optional[Callable[[ExampleInputs, ExampleMetadata], str]] = None,
+        get_response: Optional[Callable[[TaskOutput, ExampleMetadata], str]] = None,
         name: str = "RelevanceEvaluator",
     ):
         self.model = model
-        self.name = name
+        self._name = name
         self.get_query = get_query or self._default_get_query
         self.get_response = get_response or self._default_get_response
 
-    def _format_eval_template(self, example: Example, experiment_run: ExperimentRun) -> str:
-        assert experiment_run.output is not None
-        query = self.get_query(example, experiment_run)
-        response = self.get_response(example, experiment_run)
+    def _format_eval_template(
+        self,
+        output: TaskOutput,
+        inputs: ExampleInputs,
+        metadata: ExampleMetadata,
+    ) -> str:
+        assert output is not None
+        query = self.get_query(inputs, metadata)
+        response = self.get_response(output, metadata)
         return self.template.format(query=query, response=response)
 
     def _parse_eval_output(self, unparsed_response: str) -> EvaluationResult:
@@ -195,19 +205,33 @@ class RelevanceEvaluator:
             metadata={},
         )
 
-    def _default_get_query(self, example: Example, experiment_run: ExperimentRun) -> str:
-        return str(example.input)
+    def _default_get_query(self, inputs: ExampleInputs, *args: Any, **kwargs: Any) -> str:
+        return str(inputs)
 
-    def _default_get_response(self, example: Example, experiment_run: ExperimentRun) -> str:
-        assert experiment_run.output is not None
-        return str(_unwrap_json(experiment_run.output.result))
+    def _default_get_response(self, output: TaskOutput, *args: Any, **kwargs: Any) -> str:
+        assert output is not None
+        return str(_unwrap_json(output))
 
-    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
-        formatted_template = self._format_eval_template(example, exp_run)
+    def evaluate(
+        self,
+        *,
+        output: TaskOutput,
+        metadata: ExampleMetadata,
+        inputs: ExampleInputs,
+        **_: Any,
+    ) -> EvaluationResult:
+        formatted_template = self._format_eval_template(output, inputs, metadata)
         unparsed_response = self.model._generate(formatted_template)
         return self._parse_eval_output(unparsed_response)
 
-    async def async_evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
-        formatted_template = self._format_eval_template(example, exp_run)
+    async def async_evaluate(
+        self,
+        *,
+        output: TaskOutput,
+        metadata: ExampleMetadata,
+        inputs: ExampleInputs,
+        **_: Any,
+    ) -> EvaluationResult:
+        formatted_template = self._format_eval_template(output, inputs, metadata)
         unparsed_response = await self.model._async_generate(formatted_template)
         return self._parse_eval_output(unparsed_response)

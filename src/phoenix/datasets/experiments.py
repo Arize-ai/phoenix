@@ -8,11 +8,10 @@ from itertools import product
 from typing import (
     Any,
     Awaitable,
-    Callable,
-    Coroutine,
     Iterable,
     Mapping,
     Optional,
+    Sequence,
     Tuple,
     Type,
     Union,
@@ -42,12 +41,14 @@ from phoenix.config import (
     get_env_host,
     get_env_port,
 )
+from phoenix.datasets.surrogate import SurrogateEvaluator
 from phoenix.datasets.tracing import capture_spans
 from phoenix.datasets.types import (
-    CanAsyncEvaluate,
-    CanEvaluate,
     Dataset,
     EvaluationResult,
+    Evaluator,
+    EvaluatorKind,
+    EvaluatorName,
     Example,
     Experiment,
     ExperimentEvaluationRun,
@@ -55,7 +56,7 @@ from phoenix.datasets.types import (
     ExperimentResult,
     ExperimentRun,
     ExperimentRunId,
-    JSONSerializable,
+    ExperimentTask,
     TestCase,
 )
 from phoenix.evals.executors import get_executor_on_sync_context
@@ -64,11 +65,6 @@ from phoenix.evals.utils import get_tqdm_progress_bar_formatter
 from phoenix.session.session import active_session
 from phoenix.trace.attributes import flatten
 from phoenix.utilities.json import jsonify
-
-ExperimentTask: TypeAlias = Union[
-    Callable[[Example], JSONSerializable],
-    Callable[[Example], Coroutine[None, None, JSONSerializable]],
-]
 
 
 def _get_base_url() -> str:
@@ -104,6 +100,13 @@ def _phoenix_client() -> httpx.Client:
     return client
 
 
+Evaluators: TypeAlias = Union[
+    ExperimentEvaluator,
+    Sequence[ExperimentEvaluator],
+    Mapping[EvaluatorName, ExperimentEvaluator],
+]
+
+
 def run_experiment(
     dataset: Dataset,
     task: ExperimentTask,
@@ -111,12 +114,18 @@ def run_experiment(
     experiment_name: Optional[str] = None,
     experiment_description: Optional[str] = None,
     experiment_metadata: Optional[Mapping[str, Any]] = None,
-    evaluators: Optional[Union[ExperimentEvaluator, Iterable[ExperimentEvaluator]]] = None,
+    evaluators: Optional[Evaluators] = None,
+    llm_evaluators: Optional[Evaluators] = None,
     rate_limit_errors: Optional[Union[Type[BaseException], Tuple[Type[BaseException], ...]]] = None,
 ) -> Experiment:
     # Add this to the params once supported in the UI
     repetitions = 1
     assert repetitions > 0, "Must run the experiment at least once."
+    evaluators_by_name = _evaluators_by_name(
+        llm_evaluators,
+        kind="LLM",
+        evaluators_by_name=_evaluators_by_name(evaluators),
+    )
 
     client = _phoenix_client()
 
@@ -295,15 +304,24 @@ def run_experiment(
     print("✅ Task runs completed.")
     print("🧠 Evaluation started.")
 
-    if evaluators is not None:
-        _evaluate_experiment(experiment, evaluators, dataset.examples, client)
+    if evaluators_by_name:
+        _evaluate_experiment(
+            experiment,
+            evaluators=evaluators_by_name,
+            dataset_examples=dataset.examples,
+            client=client,
+        )
 
     return experiment
 
 
 def evaluate_experiment(
     experiment: Experiment,
-    evaluators: Union[ExperimentEvaluator, Iterable[ExperimentEvaluator]],
+    evaluators: Union[
+        ExperimentEvaluator,
+        Sequence[ExperimentEvaluator],
+        Mapping[EvaluatorName, ExperimentEvaluator],
+    ],
 ) -> None:
     client = _phoenix_client()
     dataset_id = experiment.dataset_id
@@ -321,21 +339,29 @@ def evaluate_experiment(
             .get("examples", [])
         )
     ]
-    _evaluate_experiment(experiment, evaluators, dataset_examples, client)
-
-
-ExperimentEvaluatorName: TypeAlias = str
+    _evaluate_experiment(
+        experiment,
+        evaluators=evaluators,
+        dataset_examples=dataset_examples,
+        client=client,
+    )
 
 
 def _evaluate_experiment(
     experiment: Experiment,
-    evaluators: Union[ExperimentEvaluator, Iterable[ExperimentEvaluator]],
+    *,
+    evaluators: Optional[Evaluators] = None,
+    llm_evaluators: Optional[Evaluators] = None,
     dataset_examples: Iterable[Example],
     client: httpx.Client,
 ) -> None:
-    if isinstance(evaluators, (CanEvaluate, CanAsyncEvaluate)):
-        evaluators = [evaluators]
-
+    evaluators_by_name = _evaluators_by_name(
+        llm_evaluators,
+        kind="LLM",
+        evaluators_by_name=_evaluators_by_name(evaluators),
+    )
+    if not evaluators_by_name:
+        raise ValueError("Must specify at least one Evaluator")
     experiment_id = experiment.id
 
     experiment_runs = [
@@ -351,8 +377,8 @@ def _evaluate_experiment(
         if example:
             example_run_pairs.append((deepcopy(example), exp_run))
     evaluation_inputs = [
-        (example, run, evaluator.name, evaluator)
-        for (example, run), evaluator in product(example_run_pairs, evaluators)
+        (example, run, evaluator)
+        for (example, run), evaluator in product(example_run_pairs, evaluators_by_name.values())
     ]
 
     project_name = "evaluators"
@@ -365,25 +391,25 @@ def _evaluate_experiment(
     root_span_kind = "EVALUATOR"
 
     def sync_evaluate_run(
-        obj: Tuple[Example, ExperimentRun, ExperimentEvaluatorName, ExperimentEvaluator],
+        obj: Tuple[Example, ExperimentRun, Evaluator],
     ) -> ExperimentEvaluationRun:
-        example, experiment_run, name, evaluator = obj
+        example, experiment_run, evaluator = obj
         result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
         status = Status(StatusCode.OK)
-        root_span_name = f"Evaluation: {name}"
+        root_span_name = f"Evaluation: {evaluator.name}"
         with ExitStack() as stack:
             span: Span = stack.enter_context(
                 tracer.start_as_current_span(root_span_name, context=Context())
             )
             stack.enter_context(capture_spans(resource))
             try:
-                # Do not use keyword arguments, which can fail at runtime
-                # even when function obeys protocol, because keyword arguments
-                # are implementation details.
-                if not isinstance(evaluator, CanEvaluate):
-                    raise RuntimeError("Task is async but running in sync context")
-                _output = evaluator.evaluate(example, experiment_run)
+                _output = evaluator.evaluate(
+                    output=None if experiment_run.output is None else experiment_run.output.result,
+                    expected=example.output,
+                    inputs=example.input,
+                    metadata=example.metadata,
+                )
                 if isinstance(_output, Awaitable):
                     raise RuntimeError("Task is async but running in sync context")
                 result = _output
@@ -391,7 +417,8 @@ def _evaluate_experiment(
                 span.record_exception(exc)
                 status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
-            span.set_attributes(dict(flatten(jsonify(result), recurse_on_sequence=True)))
+            if result:
+                span.set_attributes(dict(flatten(jsonify(result), recurse_on_sequence=True)))
             span.set_attribute(OPENINFERENCE_SPAN_KIND, root_span_kind)
             span.set_status(status)
 
@@ -400,7 +427,7 @@ def _evaluate_experiment(
             start_time=_decode_unix_nano(cast(int, span.start_time)),
             end_time=_decode_unix_nano(cast(int, span.end_time)),
             name=evaluator.name,
-            annotator_kind=evaluator.annotator_kind,
+            annotator_kind=evaluator.kind,
             error=repr(error) if error else None,
             result=result,
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
@@ -408,35 +435,31 @@ def _evaluate_experiment(
         return evaluator_payload
 
     async def async_evaluate_run(
-        obj: Tuple[Example, ExperimentRun, ExperimentEvaluatorName, ExperimentEvaluator],
+        obj: Tuple[Example, ExperimentRun, Evaluator],
     ) -> ExperimentEvaluationRun:
-        example, experiment_run, name, evaluator = obj
+        example, experiment_run, evaluator = obj
         result: Optional[EvaluationResult] = None
         error: Optional[BaseException] = None
         status = Status(StatusCode.OK)
-        root_span_name = f"Evaluation: {name}"
+        root_span_name = f"Evaluation: {evaluator.name}"
         with ExitStack() as stack:
             span: Span = stack.enter_context(
                 tracer.start_as_current_span(root_span_name, context=Context())
             )
             stack.enter_context(capture_spans(resource))
             try:
-                # Do not use keyword arguments, which can fail at runtime
-                # even when function obeys protocol, because keyword arguments
-                # are implementation details.
-                if isinstance(evaluator, CanAsyncEvaluate):
-                    result = await evaluator.async_evaluate(example, experiment_run)
-                else:
-                    _output = evaluator.evaluate(example, experiment_run)
-                    if isinstance(_output, Awaitable):
-                        result = await _output
-                    else:
-                        result = _output
+                result = await evaluator.async_evaluate(
+                    output=None if experiment_run.output is None else experiment_run.output.result,
+                    expected=example.output,
+                    inputs=example.input,
+                    metadata=example.metadata,
+                )
             except BaseException as exc:
                 span.record_exception(exc)
                 status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
-            span.set_attributes(dict(flatten(jsonify(result), recurse_on_sequence=True)))
+            if result:
+                span.set_attributes(dict(flatten(jsonify(result), recurse_on_sequence=True)))
             span.set_attribute(OPENINFERENCE_SPAN_KIND, root_span_kind)
             span.set_status(status)
 
@@ -445,7 +468,7 @@ def _evaluate_experiment(
             start_time=_decode_unix_nano(cast(int, span.start_time)),
             end_time=_decode_unix_nano(cast(int, span.end_time)),
             name=evaluator.name,
-            annotator_kind=evaluator.annotator_kind,
+            annotator_kind=evaluator.kind,
             error=repr(error) if error else None,
             result=result,
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
@@ -465,6 +488,54 @@ def _evaluate_experiment(
         if payload is not None:
             resp = client.post("/v1/experiment_evaluations", json=jsonify(payload))
             resp.raise_for_status()
+
+
+class _Surrogate(SurrogateEvaluator): ...
+
+
+def _evaluators_by_name(
+    obj: Optional[
+        Union[
+            ExperimentEvaluator,
+            Sequence[ExperimentEvaluator],
+            Mapping[EvaluatorName, ExperimentEvaluator],
+        ]
+    ],
+    kind: Optional[EvaluatorKind] = None,
+    evaluators_by_name: Optional[Mapping[EvaluatorName, Evaluator]] = None,
+) -> Mapping[EvaluatorName, Evaluator]:
+    evaluators_by_name = dict(evaluators_by_name) if isinstance(evaluators_by_name, Mapping) else {}
+    if obj is None:
+        return evaluators_by_name
+    if isinstance(obj, Mapping):
+        for k, v in obj.items():
+            evaluator = _Surrogate(v, kind=kind, name=k)
+            name = evaluator.name
+            if name in evaluators_by_name:
+                raise ValueError(f"Two evaluators have the same name: {name}")
+            evaluators_by_name[name] = evaluator
+    elif isinstance(obj, Sequence):
+        for v in obj:
+            evaluator = _Surrogate(v, kind=kind)
+            name = evaluator.name
+            if name in evaluators_by_name:
+                raise ValueError(f"Two evaluators have the same name: {name}")
+            evaluators_by_name[name] = evaluator
+    else:
+        evaluator = _Surrogate(obj)
+        name = evaluator.name
+        if name in evaluators_by_name:
+            raise ValueError(f"Two evaluators have the same name: {name}")
+        evaluators_by_name[name] = evaluator
+    return evaluators_by_name
+
+
+def _get_eval_name(obj: ExperimentEvaluator) -> str:
+    if isinstance(obj, Evaluator):
+        return obj.name
+    if callable(obj) and hasattr(obj, "__self__"):
+        return obj.__qualname__
+    return obj.__name__
 
 
 def _str_trace_id(id_: int) -> str:

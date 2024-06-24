@@ -1,22 +1,33 @@
 from __future__ import annotations
 
+import inspect
+from abc import ABC
 from dataclasses import dataclass, field
 from datetime import datetime
-from types import MappingProxyType
+from functools import partial
 from typing import (
-    TYPE_CHECKING,
     Any,
+    Awaitable,
+    Callable,
     Dict,
     List,
     Mapping,
     Optional,
-    Protocol,
     Sequence,
+    Tuple,
     Union,
-    runtime_checkable,
 )
 
+import pandas as pd
 from typing_extensions import TypeAlias
+
+from phoenix.datasets.errors import (
+    EvaluatorHasInvalidParameterName,
+    EvaluatorHasPositionalOnlyParameter,
+    EvaluatorImplementationError,
+    EvaluatorIsMissingVariadicKeywordParameters,
+)
+from phoenix.utilities.json import ReadOnlyDict
 
 JSONSerializable: TypeAlias = Optional[Union[Dict[str, Any], List[Any], str, int, float, bool]]
 
@@ -28,6 +39,8 @@ RepetitionNumber: TypeAlias = int
 ExperimentRunId: TypeAlias = str
 TraceId: TypeAlias = str
 
+TaskOutput: TypeAlias = JSONSerializable
+
 
 @dataclass(frozen=True)
 class Example:
@@ -35,14 +48,14 @@ class Example:
     updated_at: datetime
     input: Mapping[str, JSONSerializable]
     output: Mapping[str, JSONSerializable]
-    metadata: Mapping[str, JSONSerializable] = field(default_factory=lambda: MappingProxyType({}))
+    metadata: Mapping[str, JSONSerializable] = field(default_factory=ReadOnlyDict)
 
     @classmethod
     def from_dict(cls, obj: Mapping[str, Any]) -> Example:
         return cls(
-            input=obj["input"],
-            output=obj["output"],
-            metadata=obj.get("metadata") or {},
+            input=ReadOnlyDict(obj["input"]),
+            output=ReadOnlyDict(obj["output"]),
+            metadata=ReadOnlyDict(obj.get("metadata")),
             id=obj["id"],
             updated_at=obj["updated_at"],
         )
@@ -53,6 +66,26 @@ class Dataset:
     id: DatasetId
     version_id: DatasetVersionId
     examples: Sequence[Example]
+
+    _df: Optional[pd.DataFrame] = field(init=False, default=None)
+
+    @property
+    def dataframe(self) -> pd.DataFrame:
+        if not self._df:
+            df = pd.DataFrame.from_records(
+                [
+                    {
+                        "example_id": example.id,
+                        "input": example.input,
+                        "output": example.output,
+                        "metadata": example.metadata,
+                    }
+                    for example in self.examples
+                ]
+            ).set_index("example_id")
+            object.__setattr__(self, "_df", df)
+        assert self._df is not None
+        return self._df.copy(deep=False)
 
 
 @dataclass(frozen=True)
@@ -67,11 +100,39 @@ class Experiment:
     dataset_id: DatasetId
     dataset_version_id: DatasetVersionId
     project_name: Optional[str] = None
+    runs: Tuple[ExperimentRun, ...] = field(default=())
+
+    _df: Optional[pd.DataFrame] = field(init=False, default=None)
+
+    @property
+    def dataframe(self) -> pd.DataFrame:
+        if not self._df:
+            df = (
+                pd.DataFrame.from_records(
+                    [
+                        {
+                            "example_id": experiment_run.dataset_example_id,
+                            "run_id": experiment_run.id,
+                            "repetition_number": experiment_run.repetition_number,
+                            "output": experiment_run.output.result
+                            if experiment_run.output
+                            else None,
+                            "error": experiment_run.error,
+                        }
+                        for experiment_run in self.runs
+                    ]
+                )
+                .sort_values(["example_id", "repetition_number"])
+                .set_index("example_id")
+            )
+            object.__setattr__(self, "_df", df)
+        assert self._df is not None
+        return self._df.copy(deep=False)
 
 
 @dataclass(frozen=True)
 class ExperimentResult:
-    result: JSONSerializable
+    result: TaskOutput
 
     @classmethod
     def from_dict(cls, obj: Optional[Mapping[str, Any]]) -> Optional[ExperimentResult]:
@@ -116,7 +177,7 @@ class EvaluationResult:
     score: Optional[float] = None
     label: Optional[str] = None
     explanation: Optional[str] = None
-    metadata: Mapping[str, JSONSerializable] = field(default_factory=lambda: MappingProxyType({}))
+    metadata: Mapping[str, JSONSerializable] = field(default_factory=ReadOnlyDict)
 
     @classmethod
     def from_dict(cls, obj: Optional[Mapping[str, Any]]) -> Optional[EvaluationResult]:
@@ -126,7 +187,7 @@ class EvaluationResult:
             score=obj.get("score"),
             label=obj.get("label"),
             explanation=obj.get("explanation"),
-            metadata=obj.get("metadata") or {},
+            metadata=ReadOnlyDict(obj.get("metadata") or {}),
         )
 
     def __post_init__(self) -> None:
@@ -165,48 +226,142 @@ class ExperimentEvaluationRun:
             ValueError("Must specify either result or error")
 
 
-class _HasName(Protocol):
-    name: str
+ExampleOutput: TypeAlias = Mapping[str, JSONSerializable]
+ExampleMetadata: TypeAlias = Mapping[str, JSONSerializable]
+ExampleInputs: TypeAlias = Mapping[str, JSONSerializable]
+
+EvaluatorName: TypeAlias = str
+EvaluatorKind: TypeAlias = str
+EvaluatorOutput: TypeAlias = Union[EvaluationResult, bool, int, float, str]
 
 
-class _HasKind(Protocol):
+class Evaluator(ABC):
+    _kind: EvaluatorKind
+    _name: EvaluatorName
+
     @property
-    def annotator_kind(self) -> str: ...
+    def name(self) -> EvaluatorName:
+        if hasattr(self, "_name"):
+            return self._name
+        return self.__class__.__name__
 
+    @property
+    def kind(self) -> EvaluatorKind:
+        if hasattr(self, "_kind"):
+            return self._kind
+        return "CODE"
 
-@runtime_checkable
-class CanEvaluate(_HasName, _HasKind, Protocol):
+    def __new__(cls, *args: Any, **kwargs: Any) -> Evaluator:
+        if cls is Evaluator:
+            raise TypeError(f"{cls.__name__} is an abstract class.")
+        return object.__new__(cls)
+
     def evaluate(
         self,
-        example: Example,
-        experiment_run: ExperimentRun,
-    ) -> EvaluationResult: ...
+        *,
+        output: TaskOutput,
+        expected: ExampleOutput,
+        metadata: ExampleMetadata,
+        inputs: ExampleInputs,
+        **kwargs: Any,
+    ) -> EvaluationResult:
+        raise NotImplementedError
 
-
-@runtime_checkable
-class CanAsyncEvaluate(_HasName, _HasKind, Protocol):
     async def async_evaluate(
         self,
-        example: Example,
-        experiment_run: ExperimentRun,
-    ) -> EvaluationResult: ...
+        *,
+        output: TaskOutput,
+        expected: ExampleOutput,
+        metadata: ExampleMetadata,
+        inputs: ExampleInputs,
+        **kwargs: Any,
+    ) -> EvaluationResult:
+        return self.evaluate(
+            output=output,
+            expected=expected,
+            metadata=metadata,
+            inputs=inputs,
+            **kwargs,
+        )
+
+    def __init_subclass__(cls, is_abstract: bool = False, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        if is_abstract:
+            return
+        evaluate_fn_signature = inspect.signature(Evaluator.evaluate)
+        for super_cls in inspect.getmro(cls):
+            if super_cls in (LLMEvaluator, Evaluator):
+                break
+            has_evaluate = callable(
+                evaluate := super_cls.__dict__.get(Evaluator.evaluate.__name__)
+            ) and validate_evaluate_fn_params(
+                partial(evaluate, None),  # skip first param, i.e. `self`
+                evaluate.__qualname__ if hasattr(evaluate, "__qualname__") else None,
+            )
+            has_async_evaluate = inspect.iscoroutinefunction(
+                async_evaluate := super_cls.__dict__.get(Evaluator.async_evaluate.__name__)
+            ) and validate_evaluate_fn_params(
+                partial(async_evaluate, None),  # skip first param, i.e. `self`
+                async_evaluate.__qualname__ if hasattr(async_evaluate, "__qualname__") else None,
+            )
+            if has_evaluate or has_async_evaluate:
+                return
+        raise EvaluatorImplementationError(
+            f"Evaluator must implement either "
+            f"`def evaluate{evaluate_fn_signature}` or "
+            f"`async def async_evaluate{evaluate_fn_signature}`"
+        )
 
 
-ExperimentEvaluator: TypeAlias = Union[CanEvaluate, CanAsyncEvaluate]
+def validate_evaluate_fn_params(
+    evaluate_fn: Callable[..., Any],
+    fn_name: Optional[str] = None,
+) -> bool:
+    if not fn_name:
+        fn_name = (
+            evaluate_fn.__qualname__ if hasattr(evaluate_fn, "__qualname__") else str(evaluate_fn)
+        )
+    fn_sig = inspect.signature(evaluate_fn)
+    params = fn_sig.parameters
+    expected = inspect.signature(
+        partial(Evaluator.evaluate, None),  # skip first param, i.e. `self`
+    ).parameters
+    has_variadic_keyword = False
+    valid_param_names = ", ".join(expected.keys())
+    for name, param in params.items():
+        if param.kind is inspect.Parameter.POSITIONAL_ONLY:
+            raise EvaluatorHasPositionalOnlyParameter(
+                f"`{fn_name}` should not have a positional-only parameter: {name=}"
+            )
+        if name not in params and param.default is inspect.Parameter.empty:
+            raise EvaluatorHasInvalidParameterName(
+                f"`{fn_name}` has an invalid parameter name: {name=}. "
+                f"Valid names for parameters are: {valid_param_names}"
+            )
+        if param.kind is inspect.Parameter.VAR_KEYWORD:
+            has_variadic_keyword = True
+    if not has_variadic_keyword:
+        raise EvaluatorIsMissingVariadicKeywordParameters(
+            f"`{fn_name}` should allow variadic keyword arguments `**kwargs`"
+        )
+    return True
 
 
-# Someday we'll do type checking in unit tests.
-if TYPE_CHECKING:
+class LLMEvaluator(Evaluator, is_abstract=True):
+    _kind: EvaluatorKind = "LLM"
 
-    class _EvaluatorDummy:
-        annotator_kind: str
-        name: str
+    def __new__(cls, *args: Any, **kwargs: Any) -> LLMEvaluator:
+        if cls is LLMEvaluator:
+            raise TypeError(f"{cls.__name__} is an abstract class.")
+        return object.__new__(cls)
 
-        def evaluate(self, _: Example, __: ExperimentRun) -> EvaluationResult:
-            raise NotImplementedError
 
-        async def async_evaluate(self, _: Example, __: ExperimentRun) -> EvaluationResult:
-            raise NotImplementedError
-
-    _: ExperimentEvaluator
-    _ = _EvaluatorDummy()
+ExperimentTask: TypeAlias = Union[
+    Callable[[Example], TaskOutput],
+    Callable[[Example], Awaitable[TaskOutput]],
+]
+ExperimentEvaluator: TypeAlias = Union[
+    Evaluator,
+    Callable[..., EvaluatorOutput],
+    Callable[..., Awaitable[EvaluatorOutput]],
+]

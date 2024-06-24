@@ -24,6 +24,7 @@ from urllib.parse import quote, urljoin
 import httpx
 import pandas as pd
 import pyarrow as pa
+from httpx import HTTPStatusError
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import ExportTraceServiceRequest
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
 from opentelemetry.proto.resource.v1.resource_pb2 import Resource
@@ -413,8 +414,8 @@ class Client(TraceDataExtractor):
         /,
         *,
         name: str,
-        input_keys: Iterable[str],
-        output_keys: Iterable[str],
+        input_keys: Iterable[str] = (),
+        output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
         description: Optional[str] = None,
         action: Literal["create", "append"] = "create",
@@ -470,7 +471,12 @@ class Client(TraceDataExtractor):
             },
             params={"sync": True},
         )
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except HTTPStatusError as e:
+            if msg := response.text:
+                raise DatasetUploadError(msg) from e
+            raise
         data = response.json()["data"]
         dataset_id = data["dataset_id"]
         response = self._client.get(
@@ -547,3 +553,6 @@ def _prepare_pyarrow(
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
     return value.isoformat() if value else None
+
+
+class DatasetUploadError(Exception): ...

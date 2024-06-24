@@ -1,0 +1,16 @@
+from __future__ import annotations
+
+
+class EvaluatorImplementationError(Exception): ...
+
+
+class EvaluatorHasPositionalOnlyParameter(EvaluatorImplementationError): ...
+
+
+class EvaluatorHasInvalidParameterName(EvaluatorImplementationError): ...
+
+
+class EvaluatorIsMissingVariadicKeywordParameters(EvaluatorImplementationError): ...
+
+
+class EvaluatorHasInvalidReturnAnnotation(EvaluatorImplementationError): ...

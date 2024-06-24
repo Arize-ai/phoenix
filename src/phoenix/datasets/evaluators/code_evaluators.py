@@ -2,19 +2,17 @@ from __future__ import annotations
 
 import json
 import re
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import Any, List, Optional, Union
 
-from phoenix.datasets.evaluators._utils import _unwrap_json
-from phoenix.datasets.types import EvaluationResult, Example, ExperimentEvaluator, ExperimentRun
+from phoenix.datasets.types import (
+    EvaluationResult,
+    Evaluator,
+    TaskOutput,
+)
 
 
-class JSONParsable:
-    annotator_kind = "CODE"
-    name = "JSONParsable"
-
-    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
-        assert exp_run.output is not None
-        output = _unwrap_json(exp_run.output.result)
+class JSONParsable(Evaluator):
+    def evaluate(self, *, output: TaskOutput, **_: Any) -> EvaluationResult:
         assert isinstance(output, str), "Experiment run output must be a string"
         try:
             json.loads(output)
@@ -26,18 +24,14 @@ class JSONParsable:
         )
 
 
-class ContainsKeyword:
-    annotator_kind = "CODE"
-
+class ContainsKeyword(Evaluator):
     def __init__(self, keyword: str, name: Optional[str] = None) -> None:
         self.keyword = keyword
-        self.name = name or f"Contains({repr(keyword)})"
+        self._name = name or f"Contains({repr(keyword)})"
 
-    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
-        assert exp_run.output is not None
-        result = _unwrap_json(exp_run.output.result)
-        assert isinstance(result, str), "Experiment run output must be a string"
-        found = self.keyword in result
+    def evaluate(self, *, output: TaskOutput, **_: Any) -> EvaluationResult:
+        assert isinstance(output, str), "Experiment run output must be a string"
+        found = self.keyword in output
         return EvaluationResult(
             score=float(found),
             explanation=(
@@ -47,18 +41,14 @@ class ContainsKeyword:
         )
 
 
-class ContainsAnyKeyword:
-    annotator_kind = "CODE"
-
+class ContainsAnyKeyword(Evaluator):
     def __init__(self, keywords: List[str], name: Optional[str] = None) -> None:
         self.keywords = keywords
-        self.name = name or f"ContainsAny({keywords})"
+        self._name = name or f"ContainsAny({keywords})"
 
-    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
-        assert exp_run.output is not None
-        result = _unwrap_json(exp_run.output.result)
-        assert isinstance(result, str), "Experiment run output must be a string"
-        found = [keyword for keyword in self.keywords if keyword in result]
+    def evaluate(self, *, output: TaskOutput, **_: Any) -> EvaluationResult:
+        assert isinstance(output, str), "Experiment run output must be a string"
+        found = [keyword for keyword in self.keywords if keyword in output]
         if found:
             explanation = f"the keywords {found} were found in the output"
         else:
@@ -69,18 +59,14 @@ class ContainsAnyKeyword:
         )
 
 
-class ContainsAllKeywords:
-    annotator_kind = "CODE"
-
+class ContainsAllKeywords(Evaluator):
     def __init__(self, keywords: List[str], name: Optional[str] = None) -> None:
         self.keywords = keywords
-        self.name = name or f"ContainsAll({keywords})"
+        self._name = name or f"ContainsAll({keywords})"
 
-    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
-        assert exp_run.output is not None
-        result = _unwrap_json(exp_run.output.result)
-        assert isinstance(result, str), "Experiment run output must be a string"
-        not_found = [keyword for keyword in self.keywords if keyword not in result]
+    def evaluate(self, *, output: TaskOutput, **_: Any) -> EvaluationResult:
+        assert isinstance(output, str), "Experiment run output must be a string"
+        not_found = [keyword for keyword in self.keywords if keyword not in output]
         if not_found:
             contains_all = False
             explanation = f"the keywords {not_found} were not found in the output"
@@ -93,21 +79,17 @@ class ContainsAllKeywords:
         )
 
 
-class MatchesRegex:
-    annotator_kind = "CODE"
-
+class MatchesRegex(Evaluator):
     def __init__(self, pattern: Union[str, re.Pattern[str]], name: Optional[str] = None) -> None:
         if isinstance(pattern, str):
             pattern = re.compile(pattern)
         self.pattern = pattern
         assert isinstance(pattern, re.Pattern)
-        self.name = name or f"matches_({pattern})"
+        self._name = name or f"matches_({pattern})"
 
-    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
-        assert exp_run.output is not None
-        result = _unwrap_json(exp_run.output.result)
-        assert isinstance(result, str), "Experiment run output must be a string"
-        matches = self.pattern.findall(result)
+    def evaluate(self, *, output: TaskOutput, **_: Any) -> EvaluationResult:
+        assert isinstance(output, str), "Experiment run output must be a string"
+        matches = self.pattern.findall(output)
         if matches:
             explanation = (
                 f"the substrings {matches} matched the regex pattern {self.pattern.pattern}"
@@ -118,10 +100,3 @@ class MatchesRegex:
             score=float(bool(matches)),
             explanation=explanation,
         )
-
-
-# Someday we'll do typing checking in unit tests.
-if TYPE_CHECKING:
-    _: ExperimentEvaluator
-    _ = JSONParsable()
-    _ = ContainsKeyword("test")
