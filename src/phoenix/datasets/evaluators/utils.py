@@ -40,7 +40,8 @@ def _validate_signature(sig: inspect.Signature) -> None:
             raise ValueError(
                 (
                     f"Invalid parameter names in evaluation function: {', '.join(not_found)}. "
-                    f"Parameters names must be any of: {', '.join(valid_named_params)}."
+                    "Parameters names for multi-argument functions must be "
+                    f"any of: {', '.join(valid_named_params)}."
                 )
             )
 
