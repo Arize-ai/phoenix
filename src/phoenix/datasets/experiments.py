@@ -397,7 +397,7 @@ def _evaluate_experiment(
                 # are implementation details.
                 if not isinstance(evaluator, CanEvaluate):
                     raise RuntimeError("Task is async but running in sync context")
-                _output = evaluator.evaluate(example, experiment_run)
+                _output = evaluator.evaluate(experiment_run, example)
                 if isinstance(_output, Awaitable):
                     raise RuntimeError("Task is async but running in sync context")
                 result = _output
@@ -439,9 +439,9 @@ def _evaluate_experiment(
                 # even when function obeys protocol, because keyword arguments
                 # are implementation details.
                 if isinstance(evaluator, CanAsyncEvaluate):
-                    result = await evaluator.async_evaluate(example, experiment_run)
+                    result = await evaluator.async_evaluate(experiment_run, example)
                 else:
-                    _output = evaluator.evaluate(example, experiment_run)
+                    _output = evaluator.evaluate(experiment_run, example)
                     if isinstance(_output, Awaitable):
                         result = await _output
                     else:

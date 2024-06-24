@@ -186,8 +186,8 @@ class _HasKind(Protocol):
 class CanEvaluate(_HasName, _HasKind, Protocol):
     def evaluate(
         self,
-        example: Example,
         experiment_run: ExperimentRun,
+        example: Example,
     ) -> EvaluationResult: ...
 
 
@@ -195,8 +195,8 @@ class CanEvaluate(_HasName, _HasKind, Protocol):
 class CanAsyncEvaluate(_HasName, _HasKind, Protocol):
     async def async_evaluate(
         self,
-        example: Example,
         experiment_run: ExperimentRun,
+        example: Example,
     ) -> EvaluationResult: ...
 
 
@@ -212,10 +212,10 @@ if TYPE_CHECKING:
         annotator_kind: str
         name: str
 
-        def evaluate(self, _: Example, __: ExperimentRun) -> EvaluationResult:
+        def evaluate(self, _: ExperimentRun, __: Example) -> EvaluationResult:
             raise NotImplementedError
 
-        async def async_evaluate(self, _: Example, __: ExperimentRun) -> EvaluationResult:
+        async def async_evaluate(self, _: ExperimentRun, __: Example) -> EvaluationResult:
             raise NotImplementedError
 
     _: ExperimentEvaluator

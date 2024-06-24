@@ -285,23 +285,23 @@ def test_binding_arguments_to_decorated_evaluators():
         check_metadata = metadata == {"data": "there's nothing here"}
         return check_input and check_output and check_reference and check_metadata
 
-    evaluation = can_i_count_this_high.evaluate(example, experiment_run)
+    evaluation = can_i_count_this_high.evaluate(experiment_run, example)
     assert evaluation.score == 1.0, "With one argument, evaluates against output.result"
 
-    evaluation = can_i_evaluate_the_output.evaluate(example, experiment_run)
+    evaluation = can_i_evaluate_the_output.evaluate(experiment_run, example)
     assert evaluation.score == 1.0, "With output arg, evaluates against output.result"
 
-    evaluation = can_i_evaluate_the_reference.evaluate(example, experiment_run)
+    evaluation = can_i_evaluate_the_reference.evaluate(experiment_run, example)
     assert evaluation.score == 1.0, "With reference arg, evaluates against example.output"
 
-    evaluation = can_i_evaluate_the_input.evaluate(example, experiment_run)
+    evaluation = can_i_evaluate_the_input.evaluate(experiment_run, example)
     assert evaluation.score == 1.0, "With experiment_input arg, evaluates against example.input"
 
-    evaluation = can_i_evaluate_using_metadata.evaluate(example, experiment_run)
+    evaluation = can_i_evaluate_using_metadata.evaluate(experiment_run, example)
     assert evaluation.score == 1.0, "With metadata arg, evaluates against example.metadata"
 
-    evaluation = can_i_evaluate_with_everything.evaluate(example, experiment_run)
+    evaluation = can_i_evaluate_with_everything.evaluate(experiment_run, example)
     assert evaluation.score == 1.0, "evaluates against named args in any order"
 
-    evaluation = can_i_evaluate_with_everything_in_any_order.evaluate(example, experiment_run)
+    evaluation = can_i_evaluate_with_everything_in_any_order.evaluate(experiment_run, example)
     assert evaluation.score == 1.0, "evaluates against named args in any order"
