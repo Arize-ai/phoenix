@@ -88,6 +88,23 @@ class Client(TraceDataExtractor):
         if warn_if_server_not_running:
             self._warn_if_phoenix_is_not_running()
 
+    @property
+    def web_url(self) -> str:
+        """
+        Return the web URL of the Phoenix UI. This is different from the base
+        URL in the cases where there is a proxy like colab
+
+
+        Returns:
+            str: A fully qualified URL to the Phoenix UI.
+        """
+        # Avoid circular import
+        from phoenix.session.session import active_session
+
+        if session := active_session():
+            return session.url
+        return self._base_url
+
     def query_spans(
         self,
         *queries: SpanQuery,
@@ -457,6 +474,7 @@ class Client(TraceDataExtractor):
             file = _prepare_csv(Path(table), keys)
         else:
             assert_never(table)
+        print("📤 Uploading dataset...")
         response = self._client.post(
             url=urljoin(self._base_url, "v1/datasets/upload"),
             files={"file": file},
@@ -480,6 +498,9 @@ class Client(TraceDataExtractor):
         data = response.json()["data"]
         version_id = data["version_id"]
         examples = data["examples"]
+        print(f"💾 Examples uploaded: {self.web_url}datasets/{dataset_id}/examples")
+        print(f"🗄️ Dataset version ID: {version_id}")
+
         return Dataset(
             id=dataset_id,
             version_id=version_id,
