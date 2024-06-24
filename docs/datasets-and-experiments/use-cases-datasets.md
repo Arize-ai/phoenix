@@ -8,4 +8,5 @@ Datasets and experiments can be used to improve and iterate on various LLM appli
 
 * Prompt Templates
 * LLM Messages
-* Retrieval steps for RAG
+* Txt2Sql
+* Function Callin

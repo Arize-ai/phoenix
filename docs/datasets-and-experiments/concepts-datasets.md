@@ -4,6 +4,10 @@ description: There are many ways to build datasets for experimentation and evalu
 
 # Concepts: Datasets
 
+{% hint style="info" %}
+Datasets is currently in pre-release
+{% endhint %}
+
 ## Datasets
 
 Datasets are an integral to evaluation and experimentation. They are collections of examples that provide the `inputs` and, optionally, expected `reference` outputs for assessing your application. Each example within a dataset represents a single data point, consisting of an `inputs` dictionary, an optional `output` dictionary, and an optional `metadata` dictionary. The `optional` output dictionary often contains the the expected LLM application output for the given input.
@@ -43,17 +47,57 @@ Once you have a few examples, you can try to artificially generate examples. It'
 
 While Phoenix doesn't have dataset types, conceptually you can contain:
 
-1. keys and values:
-   * "Inputs" and "outputs" are represented as arbitrary key-value pairs.
-   * This dataset type is ideal for evaluating prompts, functions ,and agents that require multiple inputs or generate multiple outputs.
-2. LLM inputs and outputs:
+1. Key-Value Pairs:
+   * Inputs and outputs are arbitrary key-value pairs.
+   * This dataset type is ideal for evaluating prompts, functions, and agents that require multiple inputs or generate multiple outputs.
+
+{% tabs %}
+{% tab title="Prompt Template" %}
+If you have a RAG prompt template such as:
+
+```
+Given the context information and not prior knowledge, answer the query.
+---------------------
+{context}
+---------------------
+
+Query: {query}
+Answer:  
+```
+
+Your dataset might look like:
+
+| Input                                                                                                                                                                      | Output                                                                                                                                                   |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <p>{</p><p>    "query": "What is Paul Graham known for?",</p><p>    "context": "Paul Graham is an investor, entrepreneur, and computer scientist known for..."</p><p>}</p> | <p>{</p><p>  "answer": "Paul Graham is known for co-founding Y Combinator, for his writing, and for his work on the Lisp programming language."<br>}</p> |
+{% endtab %}
+{% endtabs %}
+
+
+
+1. LLM inputs and outputs:
    * Simply capture the `input` and `output` as a single string to test the completion of an LLM.
    * The "inputs" dictionary contains a single "input" key mapped to the prompt string.
    * The "outputs" dictionary contains a single "output" key mapped to the corresponding response string.
-3. Messages or chat:
+
+| Input                                                                              | Output                                    |
+| ---------------------------------------------------------------------------------- | ----------------------------------------- |
+| <p>{ </p><p>"input":  "do you have to have two license plates in ontario"<br>}</p> | <p>{</p><p>  "output": "true"</p><p>}</p> |
+| <p>{ </p><p>"input":  "are black beans the same as turtle beans"<br>}</p>          | <p>{<br>  "output": "true"<br>}</p>       |
+
+
+
+1. Messages or chat:
    * This type of dataset is designed for evaluating LLM structured messages as inputs and outputs.
    * The "inputs" dictionary contains a a "messages" key mapped to a list of serialized chat messages
    * The "outputs" dictionary contains a a "messages" key mapped to a list of serialized chat messages.
    * This type of data is useful for evaluating conversational AI systems or chatbots.
+
+
+
+|                                                                                             |                                                                                                       |
+| ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| <p>{<br>  "messages": [{ "role": "system", "content": "You are an expert SQL..."}]<br>}</p> | <p>{<br>  "messages": [{ "role": "assistant", "content": "select * from users"}]<br>}</p>             |
+| <p>{<br>  "messages": [{ "role": "system", "content": "You are a helpful..."}]<br>}</p>     | <p>{<br>  "messages": [{ "role": "assistant", "content": "I don't know the answer to that"}]<br>}</p> |
 
 \

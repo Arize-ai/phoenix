@@ -73,14 +73,16 @@
   * [Online Evals](evaluation/how-to-evals/online-evals.md)
 * [Evaluation Models](evaluation/evaluation-models.md)
 
-## 🗄️ Datasets & Testing
+## 🗄️ Datasets & Experiments
 
-* [Overview: Datasets](datasets-and-testing/overview-datasets.md)
-* [Concepts: Datasets](datasets-and-testing/concepts-datasets.md)
-* [How-to: Datasets](datasets-and-testing/how-to-datasets/README.md)
-  * [Creating Datasets](datasets-and-testing/how-to-datasets/creating-datasets.md)
-  * [Exporting Datasets](datasets-and-testing/how-to-datasets/exporting-datasets.md)
-* [Use-Cases: Datasets](datasets-and-testing/use-cases-datasets.md)
+* [Overview: Datasets](datasets-and-experiments/overview-datasets.md)
+* [Concepts: Datasets](datasets-and-experiments/concepts-datasets.md)
+* [How-to: Datasets](datasets-and-experiments/how-to-datasets/README.md)
+  * [Creating Datasets](datasets-and-experiments/how-to-datasets/creating-datasets.md)
+  * [Exporting Datasets](datasets-and-experiments/how-to-datasets/exporting-datasets.md)
+  * [Run Experiments](datasets-and-experiments/how-to-datasets/run-experiments.md)
+  * [Using Evaluators](datasets-and-experiments/how-to-datasets/using-evaluators.md)
+* [Use-Cases: Datasets](datasets-and-experiments/use-cases-datasets.md)
 
 ## 🔎 Retrieval
 
