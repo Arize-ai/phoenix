@@ -52,9 +52,11 @@ One use-case for synthetic data creation is when you are wanting to test out you
 
 In the below example we will use phoenix's built-in llm\_generate, but you can leverage any synthetic dataset creation tool you'd like.
 
-Imagine you have a knowledge-base that contains the following documents:\
-\
+{% hint style="info" %}
+Before running this example, ensure you've set your `OPENAI_API_KEY` environment variable.
+{% endhint %}
 
+Imagine you have a knowledge-base that contains the following documents:
 
 ```python
 import pandas as pd
@@ -86,8 +88,9 @@ generate_questions_template = (
 
 Once your synthetic data has been created, this data can be uploaded to Phoenix for later re-use.
 
-<pre class="language-python"><code class="lang-python"><strong>import json
-</strong>
+```python
+import json
+
 from phoenix.evals import OpenAIModel, llm_generate
 
 
@@ -106,14 +109,20 @@ questions_df = llm_generate(
     concurrency=20,
 )
 questions_df["output"] = [None, None, None]
-</code></pre>
+```
+
+Once we've constructed a collection of synthetic questions, we can upload them to a Phoenix dataset.
 
 ```python
 import phoenix as px
 
 px.launch_app()
 client = px.Client()
-client.upload_dataset(questions_df, name="graham-questions", input_keys=["question"], output_keys=["output"])
+client.upload_dataset(
+    questions_df, name="graham-questions",
+    input_keys=["question"],
+    output_keys=["output"],
+)
 ```
 {% endtab %}
 {% endtabs %}
