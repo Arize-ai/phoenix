@@ -8,10 +8,17 @@ from phoenix.datasets.evaluators import (
     ContainsKeyword,
     HelpfulnessEvaluator,
 )
+from phoenix.datasets.evaluators.utils import create_evaluator
 from phoenix.datasets.experiments import run_experiment
 from phoenix.datasets.types import (
+    AnnotatorKind,
+    CanAsyncEvaluate,
+    CanEvaluate,
     Dataset,
     Example,
+    ExperimentResult,
+    ExperimentRun,
+    JSONSerializable,
 )
 from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -193,3 +200,108 @@ async def test_run_experiment_with_llm_eval(_, session, sync_test_client, simple
             assert len(evaluations) == 2
             assert evaluations[0].score == 0.0
             assert evaluations[1].score == 1.0
+
+
+def test_evaluator_decorator():
+    @create_evaluator()
+    def can_i_count_this_high(x: int) -> bool:
+        return x < 3
+
+    assert can_i_count_this_high(3) is False
+    assert can_i_count_this_high(2) is True
+    assert isinstance(can_i_count_this_high, CanEvaluate)
+    assert can_i_count_this_high.name == "can_i_count_this_high"
+    assert can_i_count_this_high.annotator_kind == AnnotatorKind.CODE.value
+
+
+async def test_async_evaluator_decorator():
+    @create_evaluator(name="override", kind="LLM")
+    async def can_i_count_this_high(x: int) -> bool:
+        return x < 3
+
+    assert await can_i_count_this_high(3) is False
+    assert await can_i_count_this_high(2) is True
+    assert isinstance(can_i_count_this_high, CanAsyncEvaluate)
+    assert can_i_count_this_high.name == "override"
+    assert can_i_count_this_high.annotator_kind == AnnotatorKind.LLM.value
+
+
+def test_binding_arguments_to_decorated_evaluators():
+    example = Example(
+        id="1",
+        input="the biggest number I know",
+        output=99,
+        metadata={"data": "there's nothing here"},
+        updated_at=datetime.now(timezone.utc),
+    )
+    experiment_run = ExperimentRun(
+        start_time=datetime.now(timezone.utc),
+        end_time=datetime.now(timezone.utc),
+        experiment_id=1,
+        dataset_example_id=1,
+        repetition_number=1,
+        output=ExperimentResult(result=3),
+    )
+
+    @create_evaluator()
+    def can_i_count_this_high(x: int) -> bool:
+        return x == 3
+
+    @create_evaluator()
+    def can_i_evaluate_the_output(output: int) -> bool:
+        return output == 3
+
+    @create_evaluator()
+    def can_i_evaluate_the_reference(reference: int) -> bool:
+        return reference == 99
+
+    @create_evaluator()
+    def can_i_evaluate_the_input(input: str) -> bool:
+        return input == "the biggest number I know"
+
+    @create_evaluator()
+    def can_i_evaluate_using_metadata(
+        metadata: JSONSerializable,
+    ) -> bool:
+        return metadata == {"data": "there's nothing here"}
+
+    @create_evaluator()
+    def can_i_evaluate_with_everything(
+        input: str, output: int, reference: int, metadata: JSONSerializable
+    ) -> bool:
+        check_input = input == "the biggest number I know"
+        check_output = output == 3
+        check_reference = reference == 99
+        check_metadata = metadata == {"data": "there's nothing here"}
+        return check_input and check_output and check_reference and check_metadata
+
+    @create_evaluator()
+    def can_i_evaluate_with_everything_in_any_order(
+        reference: int, output: int, metadata: JSONSerializable, input: str
+    ) -> bool:
+        check_input = input == "the biggest number I know"
+        check_output = output == 3
+        check_reference = reference == 99
+        check_metadata = metadata == {"data": "there's nothing here"}
+        return check_input and check_output and check_reference and check_metadata
+
+    evaluation = can_i_count_this_high.evaluate(experiment_run, example)
+    assert evaluation.score == 1.0, "With one argument, evaluates against output.result"
+
+    evaluation = can_i_evaluate_the_output.evaluate(experiment_run, example)
+    assert evaluation.score == 1.0, "With output arg, evaluates against output.result"
+
+    evaluation = can_i_evaluate_the_reference.evaluate(experiment_run, example)
+    assert evaluation.score == 1.0, "With reference arg, evaluates against example.output"
+
+    evaluation = can_i_evaluate_the_input.evaluate(experiment_run, example)
+    assert evaluation.score == 1.0, "With input arg, evaluates against example.input"
+
+    evaluation = can_i_evaluate_using_metadata.evaluate(experiment_run, example)
+    assert evaluation.score == 1.0, "With metadata arg, evaluates against example.metadata"
+
+    evaluation = can_i_evaluate_with_everything.evaluate(experiment_run, example)
+    assert evaluation.score == 1.0, "evaluates against named args in any order"
+
+    evaluation = can_i_evaluate_with_everything_in_any_order.evaluate(experiment_run, example)
+    assert evaluation.score == 1.0, "evaluates against named args in any order"

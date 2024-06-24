@@ -11,6 +11,7 @@ from typing import (
     Callable,
     Coroutine,
     Iterable,
+    List,
     Mapping,
     Optional,
     Tuple,
@@ -42,12 +43,14 @@ from phoenix.config import (
     get_env_host,
     get_env_port,
 )
+from phoenix.datasets.evaluators.utils import create_evaluator
 from phoenix.datasets.tracing import capture_spans
 from phoenix.datasets.types import (
     CanAsyncEvaluate,
     CanEvaluate,
     Dataset,
     EvaluationResult,
+    EvaluatorOrCallable,
     Example,
     Experiment,
     ExperimentEvaluationRun,
@@ -111,7 +114,7 @@ def run_experiment(
     experiment_name: Optional[str] = None,
     experiment_description: Optional[str] = None,
     experiment_metadata: Optional[Mapping[str, Any]] = None,
-    evaluators: Optional[Union[ExperimentEvaluator, Iterable[ExperimentEvaluator]]] = None,
+    evaluators: Optional[Union[EvaluatorOrCallable, Iterable[EvaluatorOrCallable]]] = None,
     rate_limit_errors: Optional[Union[Type[BaseException], Tuple[Type[BaseException], ...]]] = None,
 ) -> Experiment:
     # Add this to the params once supported in the UI
@@ -303,7 +306,7 @@ def run_experiment(
 
 def evaluate_experiment(
     experiment: Experiment,
-    evaluators: Union[ExperimentEvaluator, Iterable[ExperimentEvaluator]],
+    evaluators: Union[EvaluatorOrCallable, Iterable[EvaluatorOrCallable]],
 ) -> None:
     client = _phoenix_client()
     dataset_id = experiment.dataset_id
@@ -329,12 +332,23 @@ ExperimentEvaluatorName: TypeAlias = str
 
 def _evaluate_experiment(
     experiment: Experiment,
-    evaluators: Union[ExperimentEvaluator, Iterable[ExperimentEvaluator]],
+    evaluators: Union[EvaluatorOrCallable, Iterable[EvaluatorOrCallable]],
     dataset_examples: Iterable[Example],
     client: httpx.Client,
 ) -> None:
     if isinstance(evaluators, (CanEvaluate, CanAsyncEvaluate)):
         evaluators = [evaluators]
+
+    evaluators = cast(Iterable[EvaluatorOrCallable], evaluators)
+    validated_evaluators: List[ExperimentEvaluator] = []
+    for evaluator in evaluators:
+        if not isinstance(evaluator, (CanEvaluate, CanAsyncEvaluate)):
+            validated_evaluator = create_evaluator()(evaluator)
+            assert isinstance(validated_evaluator, (CanEvaluate, CanAsyncEvaluate))
+            validated_evaluators.append(validated_evaluator)
+        else:
+            assert isinstance(evaluator, (CanEvaluate, CanAsyncEvaluate))
+            validated_evaluators.append(evaluator)
 
     experiment_id = experiment.id
 
@@ -352,7 +366,7 @@ def _evaluate_experiment(
             example_run_pairs.append((deepcopy(example), exp_run))
     evaluation_inputs = [
         (example, run, evaluator.name, evaluator)
-        for (example, run), evaluator in product(example_run_pairs, evaluators)
+        for (example, run), evaluator in product(example_run_pairs, validated_evaluators)
     ]
 
     project_name = "evaluators"
@@ -383,7 +397,7 @@ def _evaluate_experiment(
                 # are implementation details.
                 if not isinstance(evaluator, CanEvaluate):
                     raise RuntimeError("Task is async but running in sync context")
-                _output = evaluator.evaluate(example, experiment_run)
+                _output = evaluator.evaluate(experiment_run, example)
                 if isinstance(_output, Awaitable):
                     raise RuntimeError("Task is async but running in sync context")
                 result = _output
@@ -425,9 +439,9 @@ def _evaluate_experiment(
                 # even when function obeys protocol, because keyword arguments
                 # are implementation details.
                 if isinstance(evaluator, CanAsyncEvaluate):
-                    result = await evaluator.async_evaluate(example, experiment_run)
+                    result = await evaluator.async_evaluate(experiment_run, example)
                 else:
-                    _output = evaluator.evaluate(example, experiment_run)
+                    _output = evaluator.evaluate(experiment_run, example)
                     if isinstance(_output, Awaitable):
                         result = await _output
                     else:

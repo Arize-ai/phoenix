@@ -4,15 +4,21 @@ import json
 import re
 from typing import TYPE_CHECKING, List, Optional, Union
 
-from phoenix.datasets.evaluators._utils import _unwrap_json
-from phoenix.datasets.types import EvaluationResult, Example, ExperimentEvaluator, ExperimentRun
+from phoenix.datasets.evaluators.utils import _unwrap_json
+from phoenix.datasets.types import (
+    AnnotatorKind,
+    EvaluationResult,
+    Example,
+    ExperimentEvaluator,
+    ExperimentRun,
+)
 
 
 class JSONParsable:
-    annotator_kind = "CODE"
+    annotator_kind = AnnotatorKind.CODE.value
     name = "JSONParsable"
 
-    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+    def evaluate(self, exp_run: ExperimentRun, example: Example) -> EvaluationResult:
         assert exp_run.output is not None
         output = _unwrap_json(exp_run.output.result)
         assert isinstance(output, str), "Experiment run output must be a string"
@@ -27,13 +33,13 @@ class JSONParsable:
 
 
 class ContainsKeyword:
-    annotator_kind = "CODE"
+    annotator_kind = AnnotatorKind.CODE.value
 
     def __init__(self, keyword: str, name: Optional[str] = None) -> None:
         self.keyword = keyword
         self.name = name or f"Contains({repr(keyword)})"
 
-    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+    def evaluate(self, exp_run: ExperimentRun, example: Example) -> EvaluationResult:
         assert exp_run.output is not None
         result = _unwrap_json(exp_run.output.result)
         assert isinstance(result, str), "Experiment run output must be a string"
@@ -48,13 +54,13 @@ class ContainsKeyword:
 
 
 class ContainsAnyKeyword:
-    annotator_kind = "CODE"
+    annotator_kind = AnnotatorKind.CODE.value
 
     def __init__(self, keywords: List[str], name: Optional[str] = None) -> None:
         self.keywords = keywords
         self.name = name or f"ContainsAny({keywords})"
 
-    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+    def evaluate(self, exp_run: ExperimentRun, example: Example) -> EvaluationResult:
         assert exp_run.output is not None
         result = _unwrap_json(exp_run.output.result)
         assert isinstance(result, str), "Experiment run output must be a string"
@@ -70,13 +76,13 @@ class ContainsAnyKeyword:
 
 
 class ContainsAllKeywords:
-    annotator_kind = "CODE"
+    annotator_kind = AnnotatorKind.CODE.value
 
     def __init__(self, keywords: List[str], name: Optional[str] = None) -> None:
         self.keywords = keywords
         self.name = name or f"ContainsAll({keywords})"
 
-    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+    def evaluate(self, exp_run: ExperimentRun, example: Example) -> EvaluationResult:
         assert exp_run.output is not None
         result = _unwrap_json(exp_run.output.result)
         assert isinstance(result, str), "Experiment run output must be a string"
@@ -94,7 +100,7 @@ class ContainsAllKeywords:
 
 
 class MatchesRegex:
-    annotator_kind = "CODE"
+    annotator_kind = AnnotatorKind.CODE.value
 
     def __init__(self, pattern: Union[str, re.Pattern[str]], name: Optional[str] = None) -> None:
         if isinstance(pattern, str):
@@ -103,7 +109,7 @@ class MatchesRegex:
         assert isinstance(pattern, re.Pattern)
         self.name = name or f"matches_({pattern})"
 
-    def evaluate(self, example: Example, exp_run: ExperimentRun) -> EvaluationResult:
+    def evaluate(self, exp_run: ExperimentRun, example: Example) -> EvaluationResult:
         assert exp_run.output is not None
         result = _unwrap_json(exp_run.output.result)
         assert isinstance(result, str), "Experiment run output must be a string"
@@ -123,5 +129,5 @@ class MatchesRegex:
 # Someday we'll do typing checking in unit tests.
 if TYPE_CHECKING:
     _: ExperimentEvaluator
-    _ = JSONParsable()
     _ = ContainsKeyword("test")
+    _ = JSONParsable()
