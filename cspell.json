@@ -36,6 +36,7 @@
         "OTLP",
         "postprocessors",
         "pydantic",
+        "pyment",
         "Quantile",
         "quickstart",
         "referer",
