@@ -15,9 +15,9 @@ The key steps of running an experiment are:
 1. Define/upload a `Dataset` (e.g. a dataframe).
    * Each record of the dataset is called an `Example`
 2. Define a task.
-   * A task is a function that takes each `Example` and ruturns an output.
+   * A task is a function that takes each `Example` and returns an output.
 3. Define Evaluators
-   * An `Evaluator` is a function looks at each output and scores
+   * An `Evaluator` is a function evaluates the output for each `Example`.
 4. Run the experiment
 
 We'll start by launching the Phoenix app.
