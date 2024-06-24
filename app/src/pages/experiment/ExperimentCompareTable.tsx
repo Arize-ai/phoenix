@@ -124,7 +124,12 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     name
                     score
                     label
+                    annotatorKind
                     explanation
+                    trace {
+                      traceId
+                      projectId
+                    }
                   }
                 }
               }
