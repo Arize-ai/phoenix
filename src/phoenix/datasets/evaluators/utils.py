@@ -1,6 +1,6 @@
 import functools
 import inspect
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Union
 
 from phoenix.datasets.types import (
     AnnotatorKind,
@@ -50,7 +50,8 @@ def _bind_signature(
     sig: inspect.Signature, example: Example, experiment_run: ExperimentRun
 ) -> inspect.BoundArguments:
     if experiment_run.output:
-        output = experiment_run.output.result
+        raw_output = experiment_run.output.result
+        output = raw_output.get("result", raw_output)
     else:
         output = None
     parameter_mapping = {
@@ -71,12 +72,15 @@ def _bind_signature(
 
 
 def create_evaluator(
-    annotator: AnnotatorKind = AnnotatorKind.CODE,
+    kind: Union[str, AnnotatorKind] = AnnotatorKind.CODE,
     name: Optional[str] = None,
     scorer: Optional[Callable[[Any], EvaluationResult]] = None,
 ) -> Callable[[EvaluatorCallable], ExperimentEvaluator]:
     if scorer is None:
         scorer = _default_eval_scorer
+
+    if isinstance(kind, str):
+        kind = AnnotatorKind(kind.upper())
 
     def wrapper(func: EvaluatorCallable, name: Optional[str] = name) -> ExperimentEvaluator:
         if name is None:
@@ -86,11 +90,11 @@ def create_evaluator(
         _validate_signature(wrapped_signature)
 
         if inspect.iscoroutinefunction(func):
-            return _wrap_coroutine_evaluation_function(name, annotator, wrapped_signature, scorer)(
+            return _wrap_coroutine_evaluation_function(name, kind, wrapped_signature, scorer)(
                 func
             )
         else:
-            return _wrap_sync_evaluation_function(name, annotator, wrapped_signature, scorer)(func)
+            return _wrap_sync_evaluation_function(name, kind, wrapped_signature, scorer)(func)
 
     return wrapper
 
