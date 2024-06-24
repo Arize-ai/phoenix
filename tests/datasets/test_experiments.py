@@ -289,9 +289,7 @@ def test_binding_arguments_to_decorated_evaluators():
     assert evaluation.score == 1.0, "With one argument, evaluates against output.result"
 
     evaluation = can_i_evaluate_the_output.evaluate(example, experiment_run)
-    assert (
-        evaluation.score == 1.0
-    ), "With output arg, evaluates against output.result"
+    assert evaluation.score == 1.0, "With output arg, evaluates against output.result"
 
     evaluation = can_i_evaluate_the_reference.evaluate(example, experiment_run)
     assert evaluation.score == 1.0, "With reference arg, evaluates against example.output"
