@@ -206,6 +206,7 @@ dependencies = [
 [tool.hatch.envs.docs]
 detached = true
 dependencies = [
+  "pyment",
   "interrogate",
 ]
 
