@@ -365,7 +365,7 @@ async def post_datasets_upload(request: Request) -> Response:
     requestBody:
       content:
         application/json:
-          schema
+          schema:
             type: object
             required:
               - name
@@ -386,7 +386,6 @@ async def post_datasets_upload(request: Request) -> Response:
                 type: array
                 items:
                   type: object
-                uniqueItems: true
               metadata:
                 type: array
                 items:
