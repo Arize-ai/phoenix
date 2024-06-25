@@ -116,10 +116,10 @@ Once we've constructed a collection of synthetic questions, we can upload them t
 ```python
 import phoenix as px
 
-px.launch_app()
+# Note that the below code assumes that phoenix is running and accessible
 client = px.Client()
 client.upload_dataset(
-    questions_df, name="graham-questions",
+    questions_df, name="paul-graham-questions",
     input_keys=["question"],
     output_keys=["output"],
 )
