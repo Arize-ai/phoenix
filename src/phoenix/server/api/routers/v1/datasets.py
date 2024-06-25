@@ -13,11 +13,12 @@ from typing import (
     Awaitable,
     Callable,
     Coroutine,
-    Dict,
     FrozenSet,
     Iterator,
     List,
+    Mapping,
     Optional,
+    Sequence,
     Tuple,
     Union,
     cast,
@@ -32,8 +33,8 @@ from starlette.datastructures import FormData, UploadFile
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.status import (
-    HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
+    HTTP_409_CONFLICT,
     HTTP_422_UNPROCESSABLE_ENTITY,
     HTTP_429_TOO_MANY_REQUESTS,
 )
@@ -44,6 +45,7 @@ from phoenix.db import models
 from phoenix.db.insertion.dataset import (
     DatasetAction,
     DatasetExampleAdditionEvent,
+    ExampleContent,
     add_dataset_examples,
 )
 from phoenix.server.api.types.Dataset import Dataset
@@ -350,7 +352,7 @@ async def get_dataset_versions(request: Request) -> Response:
 
 async def post_datasets_upload(request: Request) -> Response:
     """
-    summary: Upload CSV or PyArrow file as dataset
+    summary: Upload dataset as either JSON or file (CSV or PyArrow)
     operationId: uploadDataset
     tags:
       - datasets
@@ -362,6 +364,32 @@ async def post_datasets_upload(request: Request) -> Response:
           type: boolean
     requestBody:
       content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - name
+              - inputs
+            properties:
+              action:
+                type: string
+                enum: [create, append]
+              name:
+                type: string
+              description:
+                type: string
+              inputs:
+                type: array
+                items:
+                  type: object
+              outputs:
+                type: array
+                items:
+                  type: object
+              metadata:
+                type: array
+                items:
+                  type: object
         multipart/form-data:
           schema:
             type: object
@@ -401,22 +429,18 @@ async def post_datasets_upload(request: Request) -> Response:
         description: Success
       403:
         description: Forbidden
+      409:
+        description: Dataset of the same name already exists
       422:
         description: Request body is invalid
     """
-    if request.app.state.read_only:
-        return Response(status_code=HTTP_403_FORBIDDEN)
-    async with request.form() as form:
+    request_content_type = request.headers["content-type"]
+    examples: Union[Examples, Awaitable[Examples]]
+    if request_content_type.startswith("application/json"):
         try:
-            (
-                action,
-                name,
-                description,
-                input_keys,
-                output_keys,
-                metadata_keys,
-                file,
-            ) = await _parse_form_data(form)
+            examples, action, name, description = await run_in_threadpool(
+                _process_json, await request.json()
+            )
         except ValueError as e:
             return Response(
                 content=str(e),
@@ -427,23 +451,52 @@ async def post_datasets_upload(request: Request) -> Response:
                 if await _check_table_exists(session, name):
                     return Response(
                         content=f"Dataset with the same name already exists: {name=}",
-                        status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                        status_code=HTTP_409_CONFLICT,
                     )
-        content = await file.read()
-    try:
-        examples: Union[Examples, Awaitable[Examples]]
-        content_type = FileContentType(file.content_type)
-        if content_type is FileContentType.CSV:
-            encoding = FileContentEncoding(file.headers.get("content-encoding"))
-            examples, column_headers = await _process_csv(content, encoding)
-        elif content_type is FileContentType.PYARROW:
-            examples, column_headers = await _process_pyarrow(content)
-        else:
-            assert_never(content_type)
-        _check_keys_exist(column_headers, input_keys, output_keys, metadata_keys)
-    except ValueError as e:
+    elif request_content_type.startswith("multipart/form-data"):
+        async with request.form() as form:
+            try:
+                (
+                    action,
+                    name,
+                    description,
+                    input_keys,
+                    output_keys,
+                    metadata_keys,
+                    file,
+                ) = await _parse_form_data(form)
+            except ValueError as e:
+                return Response(
+                    content=str(e),
+                    status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+            if action is DatasetAction.CREATE:
+                async with request.app.state.db() as session:
+                    if await _check_table_exists(session, name):
+                        return Response(
+                            content=f"Dataset with the same name already exists: {name=}",
+                            status_code=HTTP_409_CONFLICT,
+                        )
+            content = await file.read()
+        try:
+            file_content_type = FileContentType(file.content_type)
+            if file_content_type is FileContentType.CSV:
+                encoding = FileContentEncoding(file.headers.get("content-encoding"))
+                examples = await _process_csv(
+                    content, encoding, input_keys, output_keys, metadata_keys
+                )
+            elif file_content_type is FileContentType.PYARROW:
+                examples = await _process_pyarrow(content, input_keys, output_keys, metadata_keys)
+            else:
+                assert_never(file_content_type)
+        except ValueError as e:
+            return Response(
+                content=str(e),
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+    else:
         return Response(
-            content=str(e),
+            content=str("Invalid request Content-Type"),
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
     operation = cast(
@@ -454,9 +507,6 @@ async def post_datasets_upload(request: Request) -> Response:
             action=action,
             name=name,
             description=description,
-            input_keys=input_keys,
-            output_keys=output_keys,
-            metadata_keys=metadata_keys,
         ),
     )
     if request.query_params.get("sync") == "true":
@@ -505,13 +555,48 @@ InputKeys: TypeAlias = FrozenSet[str]
 OutputKeys: TypeAlias = FrozenSet[str]
 MetadataKeys: TypeAlias = FrozenSet[str]
 DatasetId: TypeAlias = int
-Examples: TypeAlias = Iterator[Dict[str, Any]]
+Examples: TypeAlias = Iterator[ExampleContent]
+
+
+def _process_json(
+    data: Mapping[str, Any],
+) -> Tuple[Examples, DatasetAction, Name, Description]:
+    name = data.get("name")
+    if not name:
+        raise ValueError("Dataset name is required")
+    description = data.get("description") or ""
+    inputs = data.get("inputs")
+    if not inputs:
+        raise ValueError("input is required")
+    if not isinstance(inputs, list) or not _is_all_dict(inputs):
+        raise ValueError("Input should be a list containing only dictionary objects")
+    outputs, metadata = data.get("outputs"), data.get("metadata")
+    for k, v in {"outputs": outputs, "metadata": metadata}.items():
+        if v is not None and not (
+            isinstance(v, list) and len(v) == len(inputs) and _is_all_dict(v)
+        ):
+            raise ValueError(
+                f"{k} should be a list of same length as input containing only dictionary objects"
+            )
+    examples: List[ExampleContent] = []
+    for i, obj in enumerate(inputs):
+        example = ExampleContent(
+            input=obj,
+            output=outputs[i] if outputs else {},
+            metadata=metadata[i] if metadata else {},
+        )
+        examples.append(example)
+    action = DatasetAction(cast(Optional[str], data.get("action")) or "create")
+    return iter(examples), action, name, description
 
 
 async def _process_csv(
     content: bytes,
     content_encoding: FileContentEncoding,
-) -> Tuple[Examples, FrozenSet[str]]:
+    input_keys: InputKeys,
+    output_keys: OutputKeys,
+    metadata_keys: MetadataKeys,
+) -> Examples:
     if content_encoding is FileContentEncoding.GZIP:
         content = await run_in_threadpool(gzip.decompress, content)
     elif content_encoding is FileContentEncoding.DEFLATE:
@@ -525,22 +610,39 @@ async def _process_csv(
     if freq > 1:
         raise ValueError(f"Duplicated column header in CSV file: {header}")
     column_headers = frozenset(reader.fieldnames)
-    return reader, column_headers
+    _check_keys_exist(column_headers, input_keys, output_keys, metadata_keys)
+    return (
+        ExampleContent(
+            input={k: row.get(k) for k in input_keys},
+            output={k: row.get(k) for k in output_keys},
+            metadata={k: row.get(k) for k in metadata_keys},
+        )
+        for row in iter(reader)
+    )
 
 
 async def _process_pyarrow(
     content: bytes,
-) -> Tuple[Awaitable[Examples], FrozenSet[str]]:
+    input_keys: InputKeys,
+    output_keys: OutputKeys,
+    metadata_keys: MetadataKeys,
+) -> Awaitable[Examples]:
     try:
         reader = pa.ipc.open_stream(content)
     except pa.ArrowInvalid as e:
         raise ValueError("File is not valid pyarrow") from e
     column_headers = frozenset(reader.schema.names)
+    _check_keys_exist(column_headers, input_keys, output_keys, metadata_keys)
 
-    def get_examples() -> Iterator[Dict[str, Any]]:
-        yield from reader.read_pandas().to_dict(orient="records")
+    def get_examples() -> Iterator[ExampleContent]:
+        for row in reader.read_pandas().to_dict(orient="records"):
+            yield ExampleContent(
+                input={k: row.get(k) for k in input_keys},
+                output={k: row.get(k) for k in output_keys},
+                metadata={k: row.get(k) for k in metadata_keys},
+            )
 
-    return run_in_threadpool(get_examples), column_headers
+    return run_in_threadpool(get_examples)
 
 
 async def _check_table_exists(session: AsyncSession, name: str) -> bool:
@@ -859,3 +961,7 @@ async def _get_db_examples(request: Request) -> Tuple[str, List[models.DatasetEx
             raise ValueError("Dataset does not exist.")
         examples = [r async for r in await session.stream_scalars(stmt)]
     return dataset_name, examples
+
+
+def _is_all_dict(seq: Sequence[Any]) -> bool:
+    return all(map(lambda obj: isinstance(obj, dict), seq))

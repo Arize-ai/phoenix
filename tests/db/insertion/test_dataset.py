@@ -1,7 +1,7 @@
 from typing import AsyncContextManager, Callable
 
 from phoenix.db import models
-from phoenix.db.insertion.dataset import add_dataset_examples
+from phoenix.db.insertion.dataset import ExampleContent, add_dataset_examples
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,12 +13,9 @@ async def test_create_dataset(
         await add_dataset_examples(
             session=session,
             examples=[
-                {"x": 1, "y": 2, "z": 3, "zz": 4},
-                {"x": 11, "y": 22, "z": 33, "zz": 44},
+                ExampleContent(input={"x": 1, "y": 2}, output={"z": 3}, metadata={"zz": 4}),
+                ExampleContent(input={"x": 11, "y": 22}, output={"z": 33}, metadata={"zz": 44}),
             ],
-            input_keys=["x", "y"],
-            output_keys=["z"],
-            metadata_keys=["zz"],
             name="abc",
             description="xyz",
             metadata={"m": 0},
