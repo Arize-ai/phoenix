@@ -379,6 +379,53 @@ async def test_get_dataset_jsonl_openai_evals(test_client, dataset_with_messages
     }
 
 
+async def test_post_dataset_upload_json_create_then_append(test_client, session):
+    name = inspect.stack()[0][3]
+    response = await test_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"a": 1, "b": 2, "c": 3}],
+            "outputs": [{"b": "2", "c": "3", "d": "4"}],
+            "metadata": [{"c": 3, "d": 4, "e": 5}],
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+    del response, data
+    response = await test_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "append",
+            "name": name,
+            "inputs": [{"a": 11, "b": 22, "c": 33}],
+            "outputs": [{"b": "22", "c": "33", "d": "44"}],
+            "metadata": [{"c": 33, "d": 44, "e": 55}],
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert dataset_id == data.get("dataset_id")
+    revisions = list(
+        await session.scalars(
+            select(models.DatasetExampleRevision)
+            .join(models.DatasetExample)
+            .join_from(models.DatasetExample, models.Dataset)
+            .where(models.Dataset.name == name)
+            .order_by(models.DatasetExample.id)
+        )
+    )
+    assert len(revisions) == 2
+    assert revisions[0].input == {"a": 1, "b": 2, "c": 3}
+    assert revisions[0].output == {"b": "2", "c": "3", "d": "4"}
+    assert revisions[0].metadata_ == {"c": 3, "d": 4, "e": 5}
+    assert revisions[1].input == {"a": 11, "b": 22, "c": 33}
+    assert revisions[1].output == {"b": "22", "c": "33", "d": "44"}
+    assert revisions[1].metadata_ == {"c": 33, "d": 44, "e": 55}
+
+
 async def test_post_dataset_upload_csv_create_then_append(test_client, session):
     name = inspect.stack()[0][3]
     file = gzip.compress(b"a,b,c,d,e,f\n1,2,3,4,5,6\n")
