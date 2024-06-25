@@ -515,6 +515,9 @@ class Client(TraceDataExtractor):
             metadata (Iterable[Mapping[str, Any]]): List of dictionaries object each
                 corresponding to an example in the dataset.
             dataset_description: (Optional[str]): Description of the dataset.
+            action: (Literal["create", "append"]): Create new dataset or append to an
+                existing one. If action="append" and dataset does not exist, it'll
+                be created.
 
         Returns:
             A Dataset object with the uploaded examples.
@@ -657,8 +660,9 @@ class Client(TraceDataExtractor):
                 input_keys, output_keys, metadata_keys must be disjoint, and must
                 exist in CSV column headers.
             dataset_description: (Optional[str]): Description of the dataset.
-            action: (Literal["create", "append"): Create new dataset or append to an
-                existing dataset. If action=append, dataset name is required.
+            action: (Literal["create", "append"]): Create new dataset or append to an
+                existing one. If action="append" and dataset does not exist, it'll
+                be created.
 
         Returns:
             A Dataset object with the uploaded examples.
