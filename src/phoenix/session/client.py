@@ -431,34 +431,36 @@ class Client(TraceDataExtractor):
     def create_examples(
         self,
         *,
-        name: str,
-        inputs: Sequence[Mapping[str, Any]],
-        outputs: Sequence[Mapping[str, Any]] = (),
-        metadata: Sequence[Mapping[str, Any]] = (),
-        description: Optional[str] = None,
+        dataset_name: str,
+        inputs: Iterable[Mapping[str, Any]],
+        outputs: Iterable[Mapping[str, Any]] = (),
+        metadata: Iterable[Mapping[str, Any]] = (),
+        dataset_description: Optional[str] = None,
     ) -> Dataset:
         """
         Upload examples as dataset to the Phoenix server.
 
         Args:
-            name: (str): Name of the dataset
-            inputs (Sequence[Mapping[str, Any]]): List of dictionaries object each
-                representing a row in the dataset.
-            outputs (Sequence[Mapping[str, Any]]): List of dictionaries object each
-                representing a row in the dataset.
-            metadata (Sequence[Mapping[str, Any]]): List of dictionaries object each
-                representing a row in the dataset.
-            description: (Optional[str]): Description of the dataset.
+            dataset_name: (str): Name of the dataset
+            inputs (Iterable[Mapping[str, Any]]): List of dictionaries object each
+                corresponding to an example in the dataset.
+            outputs (Iterable[Mapping[str, Any]]): List of dictionaries object each
+                corresponding to an example in the dataset.
+            metadata (Iterable[Mapping[str, Any]]): List of dictionaries object each
+                corresponding to an example in the dataset.
+            dataset_description: (Optional[str]): Description of the dataset.
 
         Returns:
             A Dataset object with the uploaded examples.
         """
+        # convert to list to avoid issues with pandas Series
+        inputs, outputs, metadata = list(inputs), list(outputs), list(metadata)
         if not inputs or not _is_all_dict(inputs):
             raise ValueError(
                 "`inputs` should be a non-empty sequence containing only dictionary objects"
             )
         for name, seq in {"outputs": outputs, "metadata": metadata}.items():
-            if not seq or not _is_all_dict(seq) or len(seq) != len(inputs):
+            if seq and (not _is_all_dict(seq) or len(seq) != len(inputs)):
                 raise ValueError(
                     f"`{name}` should be a sequence of the same length as `inputs` "
                     "containing only dictionary objects"
@@ -470,8 +472,8 @@ class Client(TraceDataExtractor):
             headers={"Content-Encoding": "gzip"},
             json={
                 "action": action,
-                "name": name,
-                "description": description,
+                "name": dataset_name,
+                "description": dataset_description,
                 "inputs": inputs,
                 "outputs": outputs,
                 "metadata": metadata,

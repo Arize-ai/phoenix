@@ -178,7 +178,7 @@ async def add_dataset_examples(
                 created_at=created_at,
             )
         except Exception:
-            logger.exception(f"Fail to insert dataset: {name=}")
+            logger.exception(f"Failed to insert dataset: {name=}")
             raise
     try:
         dataset_version_id = await insert_dataset_version(
@@ -187,7 +187,7 @@ async def add_dataset_examples(
             created_at=created_at,
         )
     except Exception:
-        logger.exception(f"Fail to insert dataset version for {dataset_id=}")
+        logger.exception(f"Failed to insert dataset version for {dataset_id=}")
         raise
     for example in (await examples) if isinstance(examples, Awaitable) else examples:
         try:
@@ -197,7 +197,7 @@ async def add_dataset_examples(
                 created_at=created_at,
             )
         except Exception:
-            logger.exception(f"Fail to insert dataset example for {dataset_id=}")
+            logger.exception(f"Failed to insert dataset example for {dataset_id=}")
             raise
         try:
             await insert_dataset_example_revision(
@@ -211,7 +211,7 @@ async def add_dataset_examples(
             )
         except Exception:
             logger.exception(
-                f"Fail to insert dataset example revision for {dataset_version_id=}, "
+                f"Failed to insert dataset example revision for {dataset_version_id=}, "
                 f"{dataset_example_id=}"
             )
             raise
