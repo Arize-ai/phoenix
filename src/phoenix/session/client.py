@@ -460,7 +460,7 @@ class Client(TraceDataExtractor):
                 "`inputs` should be a non-empty sequence containing only dictionary objects"
             )
         for name, seq in {"outputs": outputs, "metadata": metadata}.items():
-            if seq and (not _is_all_dict(seq) or len(seq) != len(inputs)):
+            if seq and not (len(seq) == len(inputs) and _is_all_dict(seq)):
                 raise ValueError(
                     f"`{name}` should be a sequence of the same length as `inputs` "
                     "containing only dictionary objects"
