@@ -3,19 +3,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from types import MappingProxyType
 from typing import (
-    TYPE_CHECKING,
     Any,
+    Awaitable,
     Callable,
     Dict,
     List,
     Mapping,
     Optional,
-    Protocol,
     Sequence,
     Union,
-    runtime_checkable,
 )
 
 from typing_extensions import TypeAlias
@@ -36,6 +33,8 @@ RepetitionNumber: TypeAlias = int
 ExperimentRunId: TypeAlias = str
 TraceId: TypeAlias = str
 
+TaskOutput: TypeAlias = JSONSerializable
+
 
 @dataclass(frozen=True)
 class Example:
@@ -43,7 +42,7 @@ class Example:
     updated_at: datetime
     input: Mapping[str, JSONSerializable]
     output: Mapping[str, JSONSerializable]
-    metadata: Mapping[str, JSONSerializable] = field(default_factory=lambda: MappingProxyType({}))
+    metadata: Mapping[str, JSONSerializable] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, obj: Mapping[str, Any]) -> Example:
@@ -79,7 +78,7 @@ class Experiment:
 
 @dataclass(frozen=True)
 class ExperimentResult:
-    result: JSONSerializable
+    result: TaskOutput
 
     @classmethod
     def from_dict(cls, obj: Optional[Mapping[str, Any]]) -> Optional[ExperimentResult]:
@@ -124,7 +123,7 @@ class EvaluationResult:
     score: Optional[float] = None
     label: Optional[str] = None
     explanation: Optional[str] = None
-    metadata: Mapping[str, JSONSerializable] = field(default_factory=lambda: MappingProxyType({}))
+    metadata: Mapping[str, JSONSerializable] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, obj: Optional[Mapping[str, Any]]) -> Optional[EvaluationResult]:
@@ -173,50 +172,7 @@ class ExperimentEvaluationRun:
             ValueError("Must specify either result or error")
 
 
-class _HasName(Protocol):
-    name: str
-
-
-class _HasKind(Protocol):
-    @property
-    def annotator_kind(self) -> str: ...
-
-
-@runtime_checkable
-class CanEvaluate(_HasName, _HasKind, Protocol):
-    def evaluate(
-        self,
-        experiment_run: ExperimentRun,
-        example: Example,
-    ) -> EvaluationResult: ...
-
-
-@runtime_checkable
-class CanAsyncEvaluate(_HasName, _HasKind, Protocol):
-    async def async_evaluate(
-        self,
-        experiment_run: ExperimentRun,
-        example: Example,
-    ) -> EvaluationResult: ...
-
-
-ExperimentEvaluator: TypeAlias = Union[CanEvaluate, CanAsyncEvaluate]
-EvaluatorCallable: TypeAlias = Callable[..., Any]
-EvaluatorOrCallable: TypeAlias = Union[ExperimentEvaluator, EvaluatorCallable]
-
-
-# Someday we'll do type checking in unit tests.
-if TYPE_CHECKING:
-
-    class _EvaluatorDummy:
-        annotator_kind: str
-        name: str
-
-        def evaluate(self, _: ExperimentRun, __: Example) -> EvaluationResult:
-            raise NotImplementedError
-
-        async def async_evaluate(self, _: ExperimentRun, __: Example) -> EvaluationResult:
-            raise NotImplementedError
-
-    _: ExperimentEvaluator
-    _ = _EvaluatorDummy()
+ExperimentTask: TypeAlias = Union[
+    Callable[[Example], TaskOutput],
+    Callable[[Example], Awaitable[TaskOutput]],
+]
