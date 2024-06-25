@@ -25,7 +25,7 @@ from urllib.parse import quote, urljoin
 import httpx
 import pandas as pd
 import pyarrow as pa
-from httpx import HTTPStatusError
+from httpx import HTTPStatusError, Response
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import ExportTraceServiceRequest
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
 from opentelemetry.proto.resource.v1.resource_pb2 import Resource
@@ -453,6 +453,72 @@ class Client(TraceDataExtractor):
         Returns:
             A Dataset object with the uploaded examples.
         """
+        return self._upload_json_dataset(
+            dataset_name=dataset_name,
+            inputs=inputs,
+            outputs=outputs,
+            metadata=metadata,
+            dataset_description=dataset_description,
+        )
+
+    def append_examples(
+        self,
+        *,
+        dataset_name: str,
+        inputs: Iterable[Mapping[str, Any]],
+        outputs: Iterable[Mapping[str, Any]] = (),
+        metadata: Iterable[Mapping[str, Any]] = (),
+    ) -> Dataset:
+        """
+        Append examples to dataset on the Phoenix server. If dataset does
+        not exist, it'll be created.
+
+        Args:
+            dataset_name: (str): Name of the dataset
+            inputs (Iterable[Mapping[str, Any]]): List of dictionaries object each
+                corresponding to an example in the dataset.
+            outputs (Iterable[Mapping[str, Any]]): List of dictionaries object each
+                corresponding to an example in the dataset.
+            metadata (Iterable[Mapping[str, Any]]): List of dictionaries object each
+                corresponding to an example in the dataset.
+
+        Returns:
+            A Dataset object with its examples.
+        """
+        return self._upload_json_dataset(
+            dataset_name=dataset_name,
+            inputs=inputs,
+            outputs=outputs,
+            metadata=metadata,
+            action="append",
+        )
+
+    def _upload_json_dataset(
+        self,
+        *,
+        dataset_name: str,
+        inputs: Iterable[Mapping[str, Any]],
+        outputs: Iterable[Mapping[str, Any]] = (),
+        metadata: Iterable[Mapping[str, Any]] = (),
+        dataset_description: Optional[str] = None,
+        action: DatasetAction = "create",
+    ) -> Dataset:
+        """
+        Upload examples as dataset to the Phoenix server.
+
+        Args:
+            dataset_name: (str): Name of the dataset
+            inputs (Iterable[Mapping[str, Any]]): List of dictionaries object each
+                corresponding to an example in the dataset.
+            outputs (Iterable[Mapping[str, Any]]): List of dictionaries object each
+                corresponding to an example in the dataset.
+            metadata (Iterable[Mapping[str, Any]]): List of dictionaries object each
+                corresponding to an example in the dataset.
+            dataset_description: (Optional[str]): Description of the dataset.
+
+        Returns:
+            A Dataset object with the uploaded examples.
+        """
         # convert to list to avoid issues with pandas Series
         inputs, outputs, metadata = list(inputs), list(outputs), list(metadata)
         if not inputs or not _is_all_dict(inputs):
@@ -465,7 +531,6 @@ class Client(TraceDataExtractor):
                     f"`{name}` should be a sequence of the same length as `inputs` "
                     "containing only dictionary objects"
                 )
-        action: DatasetAction = "create"
         print("📤 Uploading dataset...")
         response = self._client.post(
             url=urljoin(self._base_url, "v1/datasets/upload"),
@@ -480,50 +545,18 @@ class Client(TraceDataExtractor):
             },
             params={"sync": True},
         )
-        try:
-            response.raise_for_status()
-        except HTTPStatusError as e:
-            if msg := response.text:
-                raise DatasetUploadError(msg) from e
-            raise
-        data = response.json()["data"]
-        dataset_id = data["dataset_id"]
-        response = self._client.get(
-            url=urljoin(self._base_url, f"v1/datasets/{dataset_id}/examples")
-        )
-        response.raise_for_status()
-        data = response.json()["data"]
-        version_id = data["version_id"]
-        examples = data["examples"]
-        print(f"💾 Examples uploaded: {self.web_url}datasets/{dataset_id}/examples")
-        print(f"🗄️ Dataset version ID: {version_id}")
-
-        return Dataset(
-            id=dataset_id,
-            version_id=version_id,
-            examples=[
-                Example(
-                    id=example["id"],
-                    input=example["input"],
-                    output=example["output"],
-                    metadata=example["metadata"],
-                    updated_at=datetime.fromisoformat(example["updated_at"]),
-                )
-                for example in examples
-            ],
-        )
+        return self._process_dataset_upload_response(response)
 
     def upload_dataset(
         self,
         table: Union[str, Path, pd.DataFrame],
         /,
         *,
-        name: str,
+        dataset_name: str,
         input_keys: Iterable[str],
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
-        description: Optional[str] = None,
-        action: Literal["create", "append"] = "create",
+        dataset_description: Optional[str] = None,
     ) -> Dataset:
         """
         Upload examples as dataset to the Phoenix server.
@@ -531,7 +564,7 @@ class Client(TraceDataExtractor):
         Args:
             table (str | Path | pd.DataFrame): Location of a CSV text file, or
                 pandas DataFrame.
-            name: (str): Name of the dataset. Required if action=append.
+            dataset_name: (str): Name of the dataset. Required if action=append.
             input_keys (Iterable[str]): List of column names used as input keys.
                 input_keys, output_keys, metadata_keys must be disjoint, and must
                 exist in CSV column headers.
@@ -541,7 +574,89 @@ class Client(TraceDataExtractor):
             metadata_keys (Iterable[str]): List of column names used as metadata keys.
                 input_keys, output_keys, metadata_keys must be disjoint, and must
                 exist in CSV column headers.
-            description: (Optional[str]): Description of the dataset.
+            dataset_description: (Optional[str]): Description of the dataset.
+
+        Returns:
+            A Dataset object with the uploaded examples.
+        """
+        return self._upload_tabular_dataset(
+            table,
+            dataset_name=dataset_name,
+            input_keys=input_keys,
+            output_keys=output_keys,
+            metadata_keys=metadata_keys,
+            dataset_description=dataset_description,
+        )
+
+    def append_dataset(
+        self,
+        table: Union[str, Path, pd.DataFrame],
+        /,
+        *,
+        dataset_name: str,
+        input_keys: Iterable[str],
+        output_keys: Iterable[str] = (),
+        metadata_keys: Iterable[str] = (),
+    ) -> Dataset:
+        """
+        Append examples to dataset on the Phoenix server. If dataset does
+        not exist, it'll be created.
+
+        Args:
+            table (str | Path | pd.DataFrame): Location of a CSV text file, or
+                pandas DataFrame.
+            dataset_name: (str): Name of the dataset. Required if action=append.
+            input_keys (Iterable[str]): List of column names used as input keys.
+                input_keys, output_keys, metadata_keys must be disjoint, and must
+                exist in CSV column headers.
+            output_keys (Iterable[str]): List of column names used as output keys.
+                input_keys, output_keys, metadata_keys must be disjoint, and must
+                exist in CSV column headers.
+            metadata_keys (Iterable[str]): List of column names used as metadata keys.
+                input_keys, output_keys, metadata_keys must be disjoint, and must
+                exist in CSV column headers.
+
+        Returns:
+            A Dataset object with its examples.
+        """
+        return self._upload_tabular_dataset(
+            table,
+            dataset_name=dataset_name,
+            input_keys=input_keys,
+            output_keys=output_keys,
+            metadata_keys=metadata_keys,
+            action="append",
+        )
+
+    def _upload_tabular_dataset(
+        self,
+        table: Union[str, Path, pd.DataFrame],
+        /,
+        *,
+        dataset_name: str,
+        input_keys: Iterable[str],
+        output_keys: Iterable[str] = (),
+        metadata_keys: Iterable[str] = (),
+        dataset_description: Optional[str] = None,
+        action: DatasetAction = "create",
+    ) -> Dataset:
+        """
+        Upload examples as dataset to the Phoenix server.
+
+        Args:
+            table (str | Path | pd.DataFrame): Location of a CSV text file, or
+                pandas DataFrame.
+            dataset_name: (str): Name of the dataset. Required if action=append.
+            input_keys (Iterable[str]): List of column names used as input keys.
+                input_keys, output_keys, metadata_keys must be disjoint, and must
+                exist in CSV column headers.
+            output_keys (Iterable[str]): List of column names used as output keys.
+                input_keys, output_keys, metadata_keys must be disjoint, and must
+                exist in CSV column headers.
+            metadata_keys (Iterable[str]): List of column names used as metadata keys.
+                input_keys, output_keys, metadata_keys must be disjoint, and must
+                exist in CSV column headers.
+            dataset_description: (Optional[str]): Description of the dataset.
             action: (Literal["create", "append"): Create new dataset or append to an
                 existing dataset. If action=append, dataset name is required.
 
@@ -550,7 +665,7 @@ class Client(TraceDataExtractor):
         """
         if action not in ("create", "append"):
             raise ValueError(f"Invalid action: {action}")
-        if not name:
+        if not dataset_name:
             raise ValueError("Dataset name must not be blank")
         keys = DatasetKeys(
             frozenset(input_keys),
@@ -569,14 +684,17 @@ class Client(TraceDataExtractor):
             files={"file": file},
             data={
                 "action": action,
-                "name": name,
-                "description": description,
+                "name": dataset_name,
+                "description": dataset_description,
                 "input_keys[]": sorted(keys.input),
                 "output_keys[]": sorted(keys.output),
                 "metadata_keys[]": sorted(keys.metadata),
             },
             params={"sync": True},
         )
+        return self._process_dataset_upload_response(response)
+
+    def _process_dataset_upload_response(self, response: Response) -> Dataset:
         try:
             response.raise_for_status()
         except HTTPStatusError as e:

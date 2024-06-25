@@ -245,11 +245,11 @@ def send_dataset_fixtures(
             if i % 2:
                 client.upload_dataset(
                     fixture.dataframe,
-                    name=fixture.name,
+                    dataset_name=fixture.name,
                     input_keys=fixture.input_keys,
                     output_keys=fixture.output_keys,
                     metadata_keys=fixture.metadata_keys,
-                    description=fixture.description,
+                    dataset_description=fixture.description,
                 )
             else:
                 with NamedTemporaryFile() as tf:
@@ -258,11 +258,11 @@ def send_dataset_fixtures(
                         f.flush()
                     client.upload_dataset(
                         tf.name,
-                        name=fixture.name,
+                        dataset_name=fixture.name,
                         input_keys=fixture.input_keys,
                         output_keys=fixture.output_keys,
                         metadata_keys=fixture.metadata_keys,
-                        description=fixture.description,
+                        dataset_description=fixture.description,
                     )
         except HTTPStatusError as e:
             print(e.response.content.decode())
