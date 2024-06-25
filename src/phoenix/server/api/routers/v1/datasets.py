@@ -426,7 +426,7 @@ async def post_datasets_upload(request: Request) -> Response:
             async with request.app.state.db() as session:
                 if await _check_table_exists(session, name):
                     return Response(
-                        content=f"Dataset already exists: {name=}",
+                        content=f"Dataset with the same name already exists: {name=}",
                         status_code=HTTP_422_UNPROCESSABLE_ENTITY,
                     )
         content = await file.read()
