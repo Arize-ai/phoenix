@@ -1,3 +1,4 @@
+import json
 from typing import Any, Dict, Literal, Mapping, Optional, Protocol
 
 from openinference.semconv.trace import (
@@ -128,14 +129,14 @@ def _get_generic_io_value(
     Makes a best-effort attempt to extract the input or output value from a span
     and returns it as a dictionary.
     """
-    if isinstance(io_value, str) and (
-        mime_type == OpenInferenceMimeTypeValues.TEXT.value or mime_type is None
-    ):
+    if mime_type == OpenInferenceMimeTypeValues.JSON.value:
+        parsed_value = json.loads(io_value)
+        if isinstance(parsed_value, dict):
+            return parsed_value
+        else:
+            return {kind: parsed_value}
+    if isinstance(io_value, str):
         return {kind: io_value}
-    if isinstance(io_value, dict) and (
-        mime_type == OpenInferenceMimeTypeValues.JSON.value or mime_type is None
-    ):
-        return io_value
     return {}
 
 

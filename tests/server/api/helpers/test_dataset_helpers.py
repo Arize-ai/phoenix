@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
@@ -152,7 +153,7 @@ class MockSpan:
         pytest.param(
             MockSpan(
                 span_kind="LLM",
-                input_value={"llm-span-input": "llm-input"},
+                input_value=json.dumps({"llm-span-input": "llm-input"}),
                 input_mime_type="application/json",
                 output_value="plain-text-output",
                 output_mime_type="text/plain",
@@ -186,7 +187,7 @@ class MockSpan:
         pytest.param(
             MockSpan(
                 span_kind="CHAIN",
-                input_value={"chain_input": "chain-input"},
+                input_value=json.dumps({"chain_input": "chain-input"}),
                 input_mime_type="application/json",
                 output_value="plain-text-output",
                 output_mime_type="text/plain",
@@ -249,7 +250,7 @@ def test_get_dataset_example_input(span: MockSpan, expected_input_value: Dict[st
                 span_kind="LLM",
                 input_value="plain-text-input",
                 input_mime_type="text/plain",
-                output_value={"llm-span-output": "value"},
+                output_value=json.dumps({"llm-span-output": "value"}),
                 output_mime_type="application/json",
                 llm_prompt_template_variables=None,
                 llm_input_messages=None,
@@ -292,9 +293,9 @@ def test_get_dataset_example_input(span: MockSpan, expected_input_value: Dict[st
         pytest.param(
             MockSpan(
                 span_kind="RETRIEVER",
-                input_value={"retriever-input": "retriever-input"},
+                input_value=json.dumps({"retriever-input": "retriever-input"}),
                 input_mime_type="application/json",
-                output_value={"retriever_output": "retriever-output"},
+                output_value=json.dumps({"retriever_output": "retriever-output"}),
                 output_mime_type="application/json",
                 llm_prompt_template_variables=None,
                 llm_input_messages=None,
@@ -322,9 +323,9 @@ def test_get_dataset_example_input(span: MockSpan, expected_input_value: Dict[st
         pytest.param(
             MockSpan(
                 span_kind="CHAIN",
-                input_value={"chain_input": "chain-input"},
+                input_value=json.dumps({"chain_input": "chain-input"}),
                 input_mime_type="application/json",
-                output_value={"chain_output": "chain-output"},
+                output_value=json.dumps({"chain_output": "chain-output"}),
                 output_mime_type="application/json",
                 llm_prompt_template_variables=None,
                 llm_input_messages=None,
