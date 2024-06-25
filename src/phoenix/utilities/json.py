@@ -1,25 +1,8 @@
-from __future__ import annotations
-
 import dataclasses
 import datetime
-from copy import deepcopy
 from enum import Enum
-from functools import singledispatch
 from pathlib import Path
-from typing import (
-    Any,
-    Dict,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    SupportsFloat,
-    Tuple,
-    Union,
-    get_args,
-    get_origin,
-)
+from typing import Any, Mapping, Sequence, SupportsFloat, Union, get_args, get_origin
 
 import numpy as np
 
@@ -76,42 +59,3 @@ def jsonify(obj: Any) -> Any:
             return jsonify(d)
     cls = obj.__class__
     return f"<{cls.__module__}.{cls.__name__} object>"
-
-
-class ReadOnlyDict(Dict[str, Any]):
-    def __init__(
-        self,
-        obj: Optional[Union[Mapping[str, Any], Iterable[Tuple[str, Any]]]] = None,
-    ) -> None:
-        super().__init__(_iterate(obj.items() if isinstance(obj, Mapping) else obj))
-
-    def __deepcopy__(self, memo: Any) -> Dict[str, Any]:
-        return {k: list(v) if isinstance(v, tuple) else deepcopy(v) for k, v in self.items()}
-
-    def __setitem__(self, *args: Any, **kwargs: Any) -> None:
-        raise RuntimeError("Object is read-only")
-
-    def __delitem__(self, *args: Any, **kwargs: Any) -> None:
-        raise RuntimeError("Object is read-only")
-
-    def pop(self, *args: Any, **kwargs: Any) -> None:
-        raise RuntimeError("Object is read-only")
-
-
-def _iterate(kv: Optional[Iterable[Tuple[str, Any]]] = None) -> Iterable[Tuple[str, Any]]:
-    return ((k, _read_only(v)) for k, v in (kv or ()))
-
-
-@singledispatch
-def _read_only(obj: Any) -> Any:
-    return obj
-
-
-@_read_only.register(list)
-def _(obj: List[Any]) -> Tuple[Any, ...]:
-    return tuple(_read_only(v) for v in obj)
-
-
-@_read_only.register(dict)
-def _(obj: Dict[str, Any]) -> Mapping[str, Any]:
-    return ReadOnlyDict(obj)

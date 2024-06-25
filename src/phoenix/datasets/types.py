@@ -15,10 +15,7 @@ from typing import (
     Union,
 )
 
-import pandas as pd
 from typing_extensions import TypeAlias
-
-from phoenix.utilities.json import ReadOnlyDict
 
 
 class AnnotatorKind(Enum):
@@ -45,14 +42,14 @@ class Example:
     updated_at: datetime
     input: Mapping[str, JSONSerializable]
     output: Mapping[str, JSONSerializable]
-    metadata: Mapping[str, JSONSerializable] = field(default_factory=ReadOnlyDict)
+    metadata: Mapping[str, JSONSerializable] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, obj: Mapping[str, Any]) -> Example:
         return cls(
-            input=ReadOnlyDict(obj["input"]),
-            output=ReadOnlyDict(obj["output"]),
-            metadata=ReadOnlyDict(obj.get("metadata")),
+            input=obj["input"],
+            output=obj["output"],
+            metadata=obj.get("metadata") or {},
             id=obj["id"],
             updated_at=obj["updated_at"],
         )
@@ -63,26 +60,6 @@ class Dataset:
     id: DatasetId
     version_id: DatasetVersionId
     examples: Sequence[Example]
-
-    _df: Optional[pd.DataFrame] = field(init=False, default=None)
-
-    @property
-    def dataframe(self) -> pd.DataFrame:
-        if not self._df:
-            df = pd.DataFrame.from_records(
-                [
-                    {
-                        "example_id": example.id,
-                        "input": example.input,
-                        "output": example.output,
-                        "metadata": example.metadata,
-                    }
-                    for example in self.examples
-                ]
-            ).set_index("example_id")
-            object.__setattr__(self, "_df", df)
-        assert self._df is not None
-        return self._df.copy(deep=False)
 
 
 @dataclass(frozen=True)
@@ -146,7 +123,7 @@ class EvaluationResult:
     score: Optional[float] = None
     label: Optional[str] = None
     explanation: Optional[str] = None
-    metadata: Mapping[str, JSONSerializable] = field(default_factory=ReadOnlyDict)
+    metadata: Mapping[str, JSONSerializable] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, obj: Optional[Mapping[str, Any]]) -> Optional[EvaluationResult]:
@@ -156,7 +133,7 @@ class EvaluationResult:
             score=obj.get("score"),
             label=obj.get("label"),
             explanation=obj.get("explanation"),
-            metadata=ReadOnlyDict(obj.get("metadata") or {}),
+            metadata=obj.get("metadata") or {},
         )
 
     def __post_init__(self) -> None:
