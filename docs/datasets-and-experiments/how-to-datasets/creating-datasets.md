@@ -48,9 +48,9 @@ One of the quicket way of getting started is to produce synthetic queries using 
 
 {% tabs %}
 {% tab title="Python" %}
-One use-case for synthetic data creation is when you are wanting to test out your RAG pipeline. You can leverage an LLM to synthesize hypothetical questions about your knowledge-base.
+One use case for synthetic data creation is when you want to test your RAG pipeline. You can leverage an LLM to synthesize hypothetical questions about your knowledge base.
 
-In the below example we will use phoenix's built-in llm\_generate, but you can leverage any synthetic dataset creation tool you'd like.
+In the below example we will use Phoenix's built-in `llm_generate`, but you can leverage any synthetic dataset creation tool you'd like.
 
 {% hint style="info" %}
 Before running this example, ensure you've set your `OPENAI_API_KEY` environment variable.

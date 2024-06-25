@@ -4,11 +4,11 @@
 Datasets is still in pre-release
 {% endhint %}
 
-## How to create a datasets
+## How to create datasets
 
 * [Create datasets from Pandas](creating-datasets.md#create-datasets-from-pandas)
 * Create datasets from spans&#x20;
-* [Create datasets using synthetic data](creating-datasets.md#create-dataset-using-syntetic-data)
+* [Create datasets using synthetic data](creating-datasets.md#syntetic-data)
 
 ## Exporting datasets
 

@@ -82,7 +82,7 @@
   * [Exporting Datasets](datasets-and-experiments/how-to-datasets/exporting-datasets.md)
   * [Run Experiments](datasets-and-experiments/how-to-datasets/run-experiments.md)
   * [Using Evaluators](datasets-and-experiments/how-to-datasets/using-evaluators.md)
-* [Use-Cases: Datasets](datasets-and-experiments/use-cases-datasets.md)
+* [Use Cases: Datasets](datasets-and-experiments/use-cases-datasets.md)
 
 ## 🔎 Retrieval
 

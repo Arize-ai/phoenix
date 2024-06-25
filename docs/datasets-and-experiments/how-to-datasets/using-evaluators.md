@@ -1,12 +1,12 @@
 # Using Evaluators
 
 {% hint style="info" %}
-datasets and experiments is currently in pre-release
+Datasets and Experiments are currently in pre-release
 {% endhint %}
 
 ## LLM Evaluators
 
-We provide LLM evaluators out of the box. These evaluators are vendor-agnostic, and can be instantiated with a Phoenix model wrapper.
+We provide LLM evaluators out of the box. These evaluators are vendor agnostic and can be instantiated with a Phoenix model wrapper:
 
 ```python
 from phoenix.datasets.evaluators import HelpfulnessEvaluator
@@ -47,7 +47,7 @@ The simplest way to create an evaluator is just to write a Python function. By d
 
 {% tabs %}
 {% tab title="Output in bounds" %}
-Imagine our experiment is testing a `task` that is intended to output a numeric value from 1-100. We can write a simple evaluator to check if the output is within the allowed range.
+Imagine our experiment is testing a `task` that is intended to output a numeric value from 1-100. We can write a simple evaluator to check if the output is within the allowed range:
 
 ```python
 def in_bounds(x):
@@ -66,7 +66,7 @@ These parameters can be used in any combination and any order to write custom co
 
 {% tabs %}
 {% tab title="Edit Distance" %}
-Below is an example of using the `editdistance` library to calculate how close the output is to the expected value.
+Below is an example of using the `editdistance` library to calculate how close the output is to the expected value:
 
 ```sh
 pip install editdistance

@@ -12,13 +12,13 @@ Datasets currently in pre-release
 
 The key steps of running an experiment are:
 
-1. Define/upload a `Dataset` (e.g. a dataframe).
+1. **Define/upload a `Dataset`** (e.g. a dataframe)
    * Each record of the dataset is called an `Example`
-2. Define a task.
-   * A task is a function that takes each `Example` and returns an output.
-3. Define Evaluators
-   * An `Evaluator` is a function evaluates the output for each `Example`.
-4. Run the experiment
+2. **Define a task**
+   * A task is a function that takes each `Example` and returns an output
+3. **Define Evaluators**
+   * An `Evaluator` is a function evaluates the output for each `Example`
+4. **Run the experiment**
 
 We'll start by launching the Phoenix app.
 
@@ -30,7 +30,7 @@ px.launch_app()
 
 ## Load a Dataset
 
-A Dataset could be as simple as a list of strings inside a dataframe. More sophisticated datasets can be also extracted from traces based on actual production data. Here we just have a small list of questions that we want to ask an LLM about the NBA games.
+A dataset can be as simple as a list of strings inside a dataframe. More sophisticated datasets can be also extracted from traces based on actual production data. Here we just have a small list of questions that we want to ask an LLM about the NBA games:
 
 #### Create pandas dataframe
 
@@ -48,7 +48,7 @@ df = pd.DataFrame(
 )
 ```
 
-The dataframe can be sent to `Phoenix` via the `Client`. `input_keys` and `output_keys` are column names of the dataframe, representing the input/output to the task in question. Here we have just questions, so we left the outputs blank.
+The dataframe can be sent to `Phoenix` via the `Client`. `input_keys` and `output_keys` are column names of the dataframe, representing the input/output to the task in question. Here we have just questions, so we left the outputs blank:
 
 #### Upload dataset to Phoenix
 
@@ -67,14 +67,14 @@ Each row of the dataset is called an `Example`.
 
 ## Create a Task
 
-A task is any function/process that takes an `Example` and returns an output. Task can also be an `async` function, but we used sync function here for simplicity.
+A task is any function/process that takes an `Example` and returns an output. Task can also be an `async` function, but we used sync function here for simplicity:
 
 ```python
 def task(example):
     return ...
 ```
 
-For our example here, we'll ask an LLM to build SQL queries based on our question, which we'll run on a database and obtain a set of results.
+For our example here, we'll ask an LLM to build SQL queries based on our question, which we'll run on a database and obtain a set of results:
 
 #### Set Up Database
 
@@ -133,7 +133,7 @@ def text2sql(question):
 
 #### Define `Task` as a Function
 
-Recall that each row of the dataset is encapsulated as `Example` object. Recall that the input keys were defined when we uploaded the dataset.
+Recall that each row of the dataset is encapsulated as `Example` object. Recall that the input keys were defined when we uploaded the dataset:
 
 ```python
 def task(example):
@@ -142,7 +142,7 @@ def task(example):
 
 ## Define Evaluators
 
-An evaluator is any function that takes the task output and return an assessment. Here we'll simply check if the queries succeeded in obtaining any result from the database.
+An evaluator is any function that takes the task output and return an assessment. Here we'll simply check if the queries succeeded in obtaining any result from the database:
 
 ```python
 def no_error(output) -> bool:
@@ -157,7 +157,7 @@ def has_results(output) -> bool:
 
 #### Instrument OpenAI
 
-Instrumenting the LLM will also give us the spans and traces that will be linked to the experiment, and can be examine in the Phoenix UI.
+Instrumenting the LLM will also give us the spans and traces that will be linked to the experiment, and can be examine in the Phoenix UI:
 
 ```python
 from phoenix.trace.openai import OpenAIInstrumentor
@@ -167,7 +167,7 @@ OpenAIInstrumentor().instrument()
 
 #### Run the Task and Evaluators
 
-Running an experiment is as easy as calling `run_experiment` with the components we defined above. The results of the experiment will be show up in Phoenix.
+Running an experiment is as easy as calling `run_experiment` with the components we defined above. The results of the experiment will be show up in Phoenix:
 
 ```python
 from phoenix.datasets.experiments import run_experiment
