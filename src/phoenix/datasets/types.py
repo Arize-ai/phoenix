@@ -244,7 +244,7 @@ EvaluatorOutput: TypeAlias = Union[EvaluationResult, bool, int, float, str]
 
 
 class Evaluator(ABC):
-    _kind: EvaluatorKind
+    _kind: AnnotatorKind
     _name: EvaluatorName
 
     @cached_property
@@ -256,7 +256,7 @@ class Evaluator(ABC):
     @cached_property
     def kind(self) -> EvaluatorKind:
         if hasattr(self, "_kind"):
-            return self._kind
+            return self._kind.value
         return AnnotatorKind.CODE.value
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Evaluator:
@@ -363,7 +363,7 @@ def validate_evaluate_fn_params(
 
 
 class LLMEvaluator(Evaluator, is_abstract=True):
-    _kind: EvaluatorKind = AnnotatorKind.LLM.value
+    _kind = AnnotatorKind.LLM
 
     def __new__(cls, *args: Any, **kwargs: Any) -> LLMEvaluator:
         if cls is LLMEvaluator:

@@ -42,13 +42,12 @@ from phoenix.config import (
     get_env_host,
     get_env_port,
 )
-from phoenix.datasets.surrogate import SurrogateEvaluator
+from phoenix.datasets.evaluators.utils import create_evaluator
 from phoenix.datasets.tracing import capture_spans
 from phoenix.datasets.types import (
     Dataset,
     EvaluationResult,
     Evaluator,
-    EvaluatorKind,
     EvaluatorName,
     Example,
     Experiment,
@@ -478,32 +477,29 @@ def _evaluate_experiment(
             resp.raise_for_status()
 
 
-class _Surrogate(SurrogateEvaluator): ...
-
-
-def _evaluators_by_name(
-    obj: Optional[Evaluators],
-    kind: Optional[EvaluatorKind] = None,
-) -> Mapping[EvaluatorName, Evaluator]:
+def _evaluators_by_name(obj: Optional[Evaluators]) -> Mapping[EvaluatorName, Evaluator]:
     evaluators_by_name: Dict[EvaluatorName, Evaluator] = {}
     if obj is None:
         return evaluators_by_name
-    if isinstance(obj, Mapping):
-        for k, v in obj.items():
-            evaluator = _Surrogate(v, kind=kind, name=k)
+    if isinstance(mapping := obj, Mapping):
+        for name, value in mapping.items():
+            evaluator = (
+                create_evaluator(name=name)(value) if not isinstance(value, Evaluator) else value
+            )
             name = evaluator.name
             if name in evaluators_by_name:
                 raise ValueError(f"Two evaluators have the same name: {name}")
             evaluators_by_name[name] = evaluator
-    elif isinstance(obj, Sequence):
-        for v in obj:
-            evaluator = _Surrogate(v, kind=kind)
+    elif isinstance(seq := obj, Sequence):
+        for value in seq:
+            evaluator = create_evaluator()(value) if not isinstance(value, Evaluator) else value
             name = evaluator.name
             if name in evaluators_by_name:
                 raise ValueError(f"Two evaluators have the same name: {name}")
             evaluators_by_name[name] = evaluator
     else:
-        evaluator = _Surrogate(obj)
+        assert not isinstance(obj, Mapping) and not isinstance(obj, Sequence)
+        evaluator = create_evaluator()(obj) if not isinstance(obj, Evaluator) else obj
         name = evaluator.name
         if name in evaluators_by_name:
             raise ValueError(f"Two evaluators have the same name: {name}")

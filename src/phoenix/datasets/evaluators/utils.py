@@ -6,7 +6,6 @@ from phoenix.datasets.types import (
     AnnotatorKind,
     EvaluationResult,
     Evaluator,
-    ExperimentEvaluator,
     JSONSerializable,
 )
 
@@ -64,16 +63,23 @@ def create_evaluator(
     kind: Union[str, AnnotatorKind] = AnnotatorKind.CODE,
     name: Optional[str] = None,
     scorer: Optional[Callable[[Any], EvaluationResult]] = None,
-) -> Callable[[Callable[..., Any]], ExperimentEvaluator]:
+) -> Callable[[Callable[..., Any]], Evaluator]:
     if scorer is None:
         scorer = _default_eval_scorer
 
     if isinstance(kind, str):
         kind = AnnotatorKind(kind.upper())
 
-    def wrapper(func: Callable[..., Any], name: Optional[str] = name) -> ExperimentEvaluator:
-        if name is None:
-            name = func.__name__
+    def wrapper(func: Callable[..., Any]) -> Evaluator:
+        nonlocal name
+        if not name:
+            if hasattr(func, "__self__"):
+                name = func.__self__.__class__.__name__
+            elif hasattr(func, "__name__"):
+                name = func.__name__
+            else:
+                name = str(func)
+        assert name is not None
 
         wrapped_signature = inspect.signature(func)
         _validate_signature(wrapped_signature)
@@ -96,7 +102,7 @@ def _wrap_coroutine_evaluation_function(
         class AsyncEvaluator(Evaluator):
             def __init__(self) -> None:
                 self._name = name
-                self._kind = annotator_kind.value
+                self._kind = annotator_kind
 
             @functools.wraps(func)
             async def __call__(self, *args: Any, **kwargs: Any) -> Any:
@@ -122,7 +128,7 @@ def _wrap_sync_evaluation_function(
         class SyncEvaluator(Evaluator):
             def __init__(self) -> None:
                 self._name = name
-                self._kind = annotator_kind.value
+                self._kind = annotator_kind
 
             @functools.wraps(func)
             def __call__(self, *args: Any, **kwargs: Any) -> Any:
