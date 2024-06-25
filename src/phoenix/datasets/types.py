@@ -4,7 +4,8 @@ import inspect
 from abc import ABC
 from dataclasses import dataclass, field
 from datetime import datetime
-from functools import partial
+from enum import Enum
+from functools import cached_property, partial
 from typing import (
     Any,
     Awaitable,
@@ -28,6 +29,12 @@ from phoenix.datasets.errors import (
     EvaluatorIsMissingVariadicKeywordParameters,
 )
 from phoenix.utilities.json import ReadOnlyDict
+
+
+class AnnotatorKind(Enum):
+    CODE = "CODE"
+    LLM = "LLM"
+
 
 JSONSerializable: TypeAlias = Optional[Union[Dict[str, Any], List[Any], str, int, float, bool]]
 
@@ -239,21 +246,21 @@ class Evaluator(ABC):
     _kind: EvaluatorKind
     _name: EvaluatorName
 
-    @property
+    @cached_property
     def name(self) -> EvaluatorName:
         if hasattr(self, "_name"):
             return self._name
         return self.__class__.__name__
 
-    @property
+    @cached_property
     def kind(self) -> EvaluatorKind:
         if hasattr(self, "_kind"):
             return self._kind
-        return "CODE"
+        return AnnotatorKind.CODE.value
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Evaluator:
         if cls is Evaluator:
-            raise TypeError(f"{cls.__name__} should not be instantiated.")
+            raise TypeError(f"{cls.__name__} is an abstract class and should not be instantiated.")
         return object.__new__(cls)
 
     def evaluate(
@@ -265,6 +272,8 @@ class Evaluator(ABC):
         input: ExampleInput,
         **kwargs: Any,
     ) -> EvaluationResult:
+        # For subclassing, one can implement either this sync version or the
+        # async version. Implementing both is recommended but not required.
         raise NotImplementedError
 
     async def async_evaluate(
@@ -276,6 +285,8 @@ class Evaluator(ABC):
         input: ExampleInput,
         **kwargs: Any,
     ) -> EvaluationResult:
+        # For subclassing, one can implement either this async version or the
+        # sync version. Implementing both is recommended but not required.
         return self.evaluate(
             output=output,
             expected=expected,
@@ -297,12 +308,14 @@ class Evaluator(ABC):
             ) and validate_evaluate_fn_params(
                 partial(evaluate, None),  # skip first param, i.e. `self`
                 evaluate.__qualname__ if hasattr(evaluate, "__qualname__") else None,
+                require_kwargs=True,
             )
             has_async_evaluate = inspect.iscoroutinefunction(
                 async_evaluate := super_cls.__dict__.get(Evaluator.async_evaluate.__name__)
             ) and validate_evaluate_fn_params(
                 partial(async_evaluate, None),  # skip first param, i.e. `self`
                 async_evaluate.__qualname__ if hasattr(async_evaluate, "__qualname__") else None,
+                require_kwargs=True,
             )
             if has_evaluate or has_async_evaluate:
                 return
@@ -316,6 +329,7 @@ class Evaluator(ABC):
 def validate_evaluate_fn_params(
     evaluate_fn: Callable[..., Any],
     fn_name: Optional[str] = None,
+    require_kwargs: bool = False,
 ) -> bool:
     if not fn_name:
         fn_name = (
@@ -340,7 +354,7 @@ def validate_evaluate_fn_params(
             )
         if param.kind is inspect.Parameter.VAR_KEYWORD:
             has_variadic_keyword = True
-    if not has_variadic_keyword:
+    if require_kwargs and not has_variadic_keyword:
         raise EvaluatorIsMissingVariadicKeywordParameters(
             f"`{fn_name}` should allow variadic keyword arguments `**kwargs`"
         )
@@ -352,7 +366,7 @@ class LLMEvaluator(Evaluator, is_abstract=True):
 
     def __new__(cls, *args: Any, **kwargs: Any) -> LLMEvaluator:
         if cls is LLMEvaluator:
-            raise TypeError(f"{cls.__name__} should not be instantiated.")
+            raise TypeError(f"{cls.__name__} is an abstract class and should not be instantiated.")
         return object.__new__(cls)
 
 

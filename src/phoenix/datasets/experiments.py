@@ -115,17 +115,12 @@ def run_experiment(
     experiment_description: Optional[str] = None,
     experiment_metadata: Optional[Mapping[str, Any]] = None,
     evaluators: Optional[Evaluators] = None,
-    llm_evaluators: Optional[Evaluators] = None,
     rate_limit_errors: Optional[Union[Type[BaseException], Tuple[Type[BaseException], ...]]] = None,
 ) -> Experiment:
     # Add this to the params once supported in the UI
     repetitions = 1
     assert repetitions > 0, "Must run the experiment at least once."
-    evaluators_by_name = _evaluators_by_name(
-        llm_evaluators,
-        kind="LLM",
-        evaluators_by_name=_evaluators_by_name(evaluators),
-    )
+    evaluators_by_name = _evaluators_by_name(evaluators)
 
     client = _phoenix_client()
 
@@ -302,7 +297,6 @@ def run_experiment(
     )
 
     print("✅ Task runs completed.")
-    print("🧠 Evaluation started.")
 
     if evaluators_by_name:
         _evaluate_experiment(
@@ -350,16 +344,11 @@ def evaluate_experiment(
 def _evaluate_experiment(
     experiment: Experiment,
     *,
-    evaluators: Optional[Evaluators] = None,
-    llm_evaluators: Optional[Evaluators] = None,
+    evaluators: Evaluators,
     dataset_examples: Iterable[Example],
     client: httpx.Client,
 ) -> None:
-    evaluators_by_name = _evaluators_by_name(
-        llm_evaluators,
-        kind="LLM",
-        evaluators_by_name=_evaluators_by_name(evaluators),
-    )
+    evaluators_by_name = _evaluators_by_name(evaluators)
     if not evaluators_by_name:
         raise ValueError("Must specify at least one Evaluator")
     experiment_id = experiment.id
@@ -404,15 +393,12 @@ def _evaluate_experiment(
             )
             stack.enter_context(capture_spans(resource))
             try:
-                _output = evaluator.evaluate(
+                result = evaluator.evaluate(
                     output=None if experiment_run.output is None else experiment_run.output.result,
                     expected=example.output,
                     input=example.input,
                     metadata=example.metadata,
                 )
-                if isinstance(_output, Awaitable):
-                    raise RuntimeError("Task is async but running in sync context")
-                result = _output
             except BaseException as exc:
                 span.record_exception(exc)
                 status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
@@ -483,6 +469,7 @@ def _evaluate_experiment(
         fallback_return_value=None,
         tqdm_bar_format=get_tqdm_progress_bar_formatter("running experiment evaluations"),
     )
+    print("🧠 Evaluation started.")
     evaluation_payloads, _execution_details = executor.run(evaluation_input)
     for payload in evaluation_payloads:
         if payload is not None:
@@ -494,17 +481,10 @@ class _Surrogate(SurrogateEvaluator): ...
 
 
 def _evaluators_by_name(
-    obj: Optional[
-        Union[
-            ExperimentEvaluator,
-            Sequence[ExperimentEvaluator],
-            Mapping[EvaluatorName, ExperimentEvaluator],
-        ]
-    ],
+    obj: Optional[Evaluators],
     kind: Optional[EvaluatorKind] = None,
-    evaluators_by_name: Optional[Mapping[EvaluatorName, Evaluator]] = None,
 ) -> Mapping[EvaluatorName, Evaluator]:
-    evaluators_by_name = dict(evaluators_by_name) if isinstance(evaluators_by_name, Mapping) else {}
+    evaluators_by_name = {}
     if obj is None:
         return evaluators_by_name
     if isinstance(obj, Mapping):

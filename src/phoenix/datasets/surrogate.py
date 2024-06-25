@@ -7,6 +7,7 @@ from typing import Any, Awaitable, Optional
 
 from phoenix.datasets.errors import EvaluatorImplementationError
 from phoenix.datasets.types import (
+    AnnotatorKind,
     EvaluationResult,
     Evaluator,
     EvaluatorKind,
@@ -43,14 +44,16 @@ class SurrogateEvaluator(Evaluator, ABC):
             _name = wrapped.name
         elif hasattr(wrapped, "__self__"):
             _name = wrapped.__self__.__class__.__name__
-        else:
+        elif hasattr(wrapped, "__name__"):
             _name = wrapped.__name__
+        else:
+            _name = str(wrapped)
         if kind:
             _kind = kind
         elif isinstance(wrapped, Evaluator):
             _kind = wrapped.kind
         else:
-            _kind = "CODE"
+            _kind = AnnotatorKind.CODE.value
         object.__setattr__(self, "_kind", _kind)
         object.__setattr__(self, "_name", _name)
         object.__setattr__(self, "__wrapped__", wrapped)
