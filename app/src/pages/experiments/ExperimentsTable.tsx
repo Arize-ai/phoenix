@@ -41,6 +41,7 @@ import {
 import { experimentsLoaderQuery$data } from "./__generated__/experimentsLoaderQuery.graphql";
 import type { ExperimentsTableFragment$key } from "./__generated__/ExperimentsTableFragment.graphql";
 import { ExperimentsTableQuery } from "./__generated__/ExperimentsTableQuery.graphql";
+import { ErrorRateCell } from "./ErrorRateCell";
 import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
 
 const PAGE_SIZE = 100;
@@ -95,6 +96,7 @@ export function ExperimentsTable({
                 description
                 createdAt
                 metadata
+                errorRate
                 project {
                   id
                 }
@@ -233,7 +235,20 @@ export function ExperimentsTable({
       };
     });
 
-  const actionColumns: ColumnDef<TableRow>[] = [
+  const tailColumns: ColumnDef<TableRow>[] = [
+    {
+      header: "error rate",
+      accessorKey: "errorRate",
+      meta: {
+        textAlign: "right",
+      },
+      cell: ErrorRateCell,
+    },
+    {
+      header: "metadata",
+      accessorKey: "metadata",
+      cell: CompactJSONCell,
+    },
     {
       id: "actions",
       cell: ({ row }) => {
@@ -243,7 +258,7 @@ export function ExperimentsTable({
     },
   ];
   const table = useReactTable<TableRow>({
-    columns: [...baseColumns, ...annotationColumns, ...actionColumns],
+    columns: [...baseColumns, ...annotationColumns, ...tailColumns],
     data: tableData,
     getCoreRowModel: getCoreRowModel(),
     state: {
