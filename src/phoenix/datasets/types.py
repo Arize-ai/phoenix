@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from functools import cached_property, partial
+from types import MappingProxyType
 from typing import (
     Any,
     Awaitable,
@@ -266,10 +267,10 @@ class Evaluator(ABC):
     def evaluate(
         self,
         *,
-        output: TaskOutput,
-        expected: ExampleOutput,
-        metadata: ExampleMetadata,
-        input: ExampleInput,
+        output: Optional[TaskOutput] = None,
+        expected: Optional[ExampleOutput] = None,
+        metadata: ExampleMetadata = MappingProxyType({}),
+        input: ExampleInput = MappingProxyType({}),
         **kwargs: Any,
     ) -> EvaluationResult:
         # For subclassing, one can implement either this sync version or the
@@ -279,10 +280,10 @@ class Evaluator(ABC):
     async def async_evaluate(
         self,
         *,
-        output: TaskOutput,
-        expected: ExampleOutput,
-        metadata: ExampleMetadata,
-        input: ExampleInput,
+        output: Optional[TaskOutput] = None,
+        expected: Optional[ExampleOutput] = None,
+        metadata: ExampleMetadata = MappingProxyType({}),
+        input: ExampleInput = MappingProxyType({}),
         **kwargs: Any,
     ) -> EvaluationResult:
         # For subclassing, one can implement either this async version or the
@@ -362,7 +363,7 @@ def validate_evaluate_fn_params(
 
 
 class LLMEvaluator(Evaluator, is_abstract=True):
-    _kind: EvaluatorKind = "LLM"
+    _kind: EvaluatorKind = AnnotatorKind.LLM.value
 
     def __new__(cls, *args: Any, **kwargs: Any) -> LLMEvaluator:
         if cls is LLMEvaluator:

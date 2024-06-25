@@ -8,6 +8,7 @@ from itertools import product
 from typing import (
     Any,
     Awaitable,
+    Dict,
     Iterable,
     Mapping,
     Optional,
@@ -484,7 +485,7 @@ def _evaluators_by_name(
     obj: Optional[Evaluators],
     kind: Optional[EvaluatorKind] = None,
 ) -> Mapping[EvaluatorName, Evaluator]:
-    evaluators_by_name = {}
+    evaluators_by_name: Dict[EvaluatorName, Evaluator] = {}
     if obj is None:
         return evaluators_by_name
     if isinstance(obj, Mapping):

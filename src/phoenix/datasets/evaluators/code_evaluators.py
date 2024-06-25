@@ -12,7 +12,7 @@ from phoenix.datasets.types import (
 
 
 class JSONParsable(Evaluator):
-    def evaluate(self, *, output: TaskOutput, **_: Any) -> EvaluationResult:
+    def evaluate(self, *, output: Optional[TaskOutput] = None, **_: Any) -> EvaluationResult:
         assert isinstance(output, str), "Experiment run output must be a string"
         try:
             json.loads(output)
@@ -29,7 +29,7 @@ class ContainsKeyword(Evaluator):
         self.keyword = keyword
         self._name = name or f"Contains({repr(keyword)})"
 
-    def evaluate(self, *, output: TaskOutput, **_: Any) -> EvaluationResult:
+    def evaluate(self, *, output: Optional[TaskOutput] = None, **_: Any) -> EvaluationResult:
         assert isinstance(output, str), "Experiment run output must be a string"
         found = self.keyword in output
         return EvaluationResult(
@@ -46,7 +46,7 @@ class ContainsAnyKeyword(Evaluator):
         self.keywords = keywords
         self._name = name or f"ContainsAny({keywords})"
 
-    def evaluate(self, *, output: TaskOutput, **_: Any) -> EvaluationResult:
+    def evaluate(self, *, output: Optional[TaskOutput] = None, **_: Any) -> EvaluationResult:
         assert isinstance(output, str), "Experiment run output must be a string"
         found = [keyword for keyword in self.keywords if keyword in output]
         if found:
@@ -64,7 +64,7 @@ class ContainsAllKeywords(Evaluator):
         self.keywords = keywords
         self._name = name or f"ContainsAll({keywords})"
 
-    def evaluate(self, *, output: TaskOutput, **_: Any) -> EvaluationResult:
+    def evaluate(self, *, output: Optional[TaskOutput] = None, **_: Any) -> EvaluationResult:
         assert isinstance(output, str), "Experiment run output must be a string"
         not_found = [keyword for keyword in self.keywords if keyword not in output]
         if not_found:
@@ -87,7 +87,7 @@ class MatchesRegex(Evaluator):
         assert isinstance(pattern, re.Pattern)
         self._name = name or f"matches_({pattern})"
 
-    def evaluate(self, *, output: TaskOutput, **_: Any) -> EvaluationResult:
+    def evaluate(self, *, output: Optional[TaskOutput] = None, **_: Any) -> EvaluationResult:
         assert isinstance(output, str), "Experiment run output must be a string"
         matches = self.pattern.findall(output)
         if matches:

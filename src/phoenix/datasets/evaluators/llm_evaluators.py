@@ -1,7 +1,8 @@
 import re
+from types import MappingProxyType
 from typing import Any, Callable, Optional, Type
 
-from phoenix.datasets.evaluators._utils import _unwrap_json
+from phoenix.datasets.evaluators.utils import _unwrap_json
 from phoenix.datasets.types import (
     EvaluationResult,
     ExampleInput,
@@ -45,12 +46,14 @@ class LLMCriteriaEvaluator(LLMEvaluator):
         self.template = self._format_base_template(self.criteria, self.description)
         self._name = name
 
-    def evaluate(self, *, output: TaskOutput, **_: Any) -> EvaluationResult:
+    def evaluate(self, *, output: Optional[TaskOutput] = None, **_: Any) -> EvaluationResult:
         formatted_template = self._format_eval_template(output)
         unparsed_response = self.model._generate(formatted_template)
         return self._parse_eval_output(unparsed_response)
 
-    async def async_evaluate(self, *, output: TaskOutput, **_: Any) -> EvaluationResult:
+    async def async_evaluate(
+        self, *, output: Optional[TaskOutput] = None, **_: Any
+    ) -> EvaluationResult:
         formatted_template = self._format_eval_template(output)
         unparsed_response = await self.model._async_generate(formatted_template)
         return self._parse_eval_output(unparsed_response)
@@ -168,7 +171,7 @@ class RelevanceEvaluator(LLMEvaluator):
         self,
         model: LLMBaseModel,
         get_query: Optional[Callable[[ExampleInput, ExampleMetadata], str]] = None,
-        get_response: Optional[Callable[[TaskOutput, ExampleMetadata], str]] = None,
+        get_response: Optional[Callable[[Optional[TaskOutput], ExampleMetadata], str]] = None,
         name: str = "RelevanceEvaluator",
     ):
         self.model = model
@@ -178,9 +181,9 @@ class RelevanceEvaluator(LLMEvaluator):
 
     def _format_eval_template(
         self,
-        output: TaskOutput,
-        input: ExampleInput,
-        metadata: ExampleMetadata,
+        output: Optional[TaskOutput] = None,
+        input: ExampleInput = MappingProxyType({}),
+        metadata: ExampleMetadata = MappingProxyType({}),
     ) -> str:
         assert output is not None
         query = self.get_query(input, metadata)
@@ -208,16 +211,18 @@ class RelevanceEvaluator(LLMEvaluator):
     def _default_get_query(self, input: ExampleInput, *args: Any, **kwargs: Any) -> str:
         return str(input)
 
-    def _default_get_response(self, output: TaskOutput, *args: Any, **kwargs: Any) -> str:
+    def _default_get_response(
+        self, output: Optional[TaskOutput] = None, *args: Any, **kwargs: Any
+    ) -> str:
         assert output is not None
         return str(_unwrap_json(output))
 
     def evaluate(
         self,
         *,
-        output: TaskOutput,
-        metadata: ExampleMetadata,
-        input: ExampleInput,
+        output: Optional[TaskOutput] = None,
+        metadata: ExampleMetadata = MappingProxyType({}),
+        input: ExampleInput = MappingProxyType({}),
         **_: Any,
     ) -> EvaluationResult:
         formatted_template = self._format_eval_template(output, input, metadata)
@@ -227,9 +232,9 @@ class RelevanceEvaluator(LLMEvaluator):
     async def async_evaluate(
         self,
         *,
-        output: TaskOutput,
-        metadata: ExampleMetadata,
-        input: ExampleInput,
+        output: Optional[TaskOutput] = None,
+        metadata: ExampleMetadata = MappingProxyType({}),
+        input: ExampleInput = MappingProxyType({}),
         **_: Any,
     ) -> EvaluationResult:
         formatted_template = self._format_eval_template(output, input, metadata)

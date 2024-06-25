@@ -1,17 +1,12 @@
 import functools
 import inspect
-from typing import Any, Awaitable, Callable, Optional, Union
-
-import wrapt
+from typing import Any, Callable, Optional, Union
 
 from phoenix.datasets.types import (
     AnnotatorKind,
     EvaluationResult,
     Evaluator,
-    EvaluatorOutput,
-    Example,
     ExperimentEvaluator,
-    ExperimentRun,
     JSONSerializable,
 )
 
@@ -28,14 +23,11 @@ def _unwrap_json(obj: JSONSerializable) -> JSONSerializable:
     return obj
 
 
-wrapt.decorator()
-
-
 def _validate_signature(sig: inspect.Signature) -> None:
     # Check that the wrapped function has a valid signature for use as an evaluator
     # If it does not, raise an error to exit early before running evaluations
     params = sig.parameters
-    valid_named_params = {"input", "output", "reference", "metadata"}
+    valid_named_params = {"input", "output", "expected", "metadata"}
     if len(params) == 0:
         raise ValueError("Evaluation function must have at least one parameter.")
     if len(params) > 1:
@@ -50,22 +42,12 @@ def _validate_signature(sig: inspect.Signature) -> None:
             )
 
 
-def _bind_signature(
-    sig: inspect.Signature, example: Example, experiment_run: ExperimentRun
-) -> inspect.BoundArguments:
-    if experiment_run.output:
-        raw_output = experiment_run.output.result
-        if isinstance(raw_output, dict):
-            output = raw_output.get("result", raw_output)
-        else:
-            output = raw_output
-    else:
-        output = None
+def _bind_signature(sig: inspect.Signature, **kwargs: Any) -> inspect.BoundArguments:
     parameter_mapping = {
-        "input": example.input,
-        "output": output,
-        "reference": example.output,
-        "metadata": example.metadata,
+        "input": kwargs.get("input"),
+        "output": kwargs.get("output"),
+        "expected": kwargs.get("expected"),
+        "metadata": kwargs.get("metadata"),
     }
     params = sig.parameters
     if len(params) == 1:
@@ -82,14 +64,14 @@ def create_evaluator(
     kind: Union[str, AnnotatorKind] = AnnotatorKind.CODE,
     name: Optional[str] = None,
     scorer: Optional[Callable[[Any], EvaluationResult]] = None,
-) -> Callable[[ExperimentEvaluator], ExperimentEvaluator]:
+) -> Callable[[Callable[..., Any]], ExperimentEvaluator]:
     if scorer is None:
         scorer = _default_eval_scorer
 
     if isinstance(kind, str):
         kind = AnnotatorKind(kind.upper())
 
-    def wrapper(func: Callable[..., EvaluatorOutput]) -> ExperimentEvaluator:
+    def wrapper(func: Callable[..., Any], name: Optional[str] = name) -> ExperimentEvaluator:
         if name is None:
             name = func.__name__
 
@@ -109,8 +91,8 @@ def _wrap_coroutine_evaluation_function(
     annotator_kind: AnnotatorKind,
     sig: inspect.Signature,
     convert_to_score: Callable[[Any], EvaluationResult],
-) -> Callable[[Callable[..., Awaitable[EvaluatorOutput]]], Evaluator]:
-    def wrapper(func: Callable[..., Awaitable[EvaluatorOutput]]) -> Evaluator:
+) -> Callable[[Callable[..., Any]], Evaluator]:
+    def wrapper(func: Callable[..., Any]) -> Evaluator:
         class AsyncEvaluator(Evaluator):
             def __init__(self) -> None:
                 self._name = name
@@ -135,8 +117,8 @@ def _wrap_sync_evaluation_function(
     annotator_kind: AnnotatorKind,
     sig: inspect.Signature,
     convert_to_score: Callable[[Any], EvaluationResult],
-) -> Callable[[Callable[..., EvaluatorOutput]], Evaluator]:
-    def wrapper(func: Callable[..., EvaluatorOutput]) -> Evaluator:
+) -> Callable[[Callable[..., Any]], Evaluator]:
+    def wrapper(func: Callable[..., Any]) -> Evaluator:
         class SyncEvaluator(Evaluator):
             def __init__(self) -> None:
                 self._name = name
