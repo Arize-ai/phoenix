@@ -1,17 +1,17 @@
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from itertools import chain
 from typing import (
     Any,
     Awaitable,
+    Dict,
     FrozenSet,
     Iterable,
     Iterator,
     Mapping,
     Optional,
-    Sequence,
     Union,
     cast,
 )
@@ -30,7 +30,16 @@ DatasetVersionId: TypeAlias = int
 DatasetExampleId: TypeAlias = int
 DatasetExampleRevisionId: TypeAlias = int
 SpanRowId: TypeAlias = int
-Examples: TypeAlias = Iterable[Mapping[str, Any]]
+
+
+@dataclass(frozen=True)
+class ExampleContent:
+    input: Dict[str, Any] = field(default_factory=dict)
+    output: Dict[str, Any] = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+Examples: TypeAlias = Iterable[ExampleContent]
 
 
 @dataclass(frozen=True)
@@ -149,14 +158,10 @@ async def add_dataset_examples(
     session: AsyncSession,
     name: str,
     examples: Union[Examples, Awaitable[Examples]],
-    input_keys: Sequence[str],
-    output_keys: Sequence[str],
-    metadata_keys: Sequence[str] = (),
     description: Optional[str] = None,
     metadata: Optional[Mapping[str, Any]] = None,
     action: DatasetAction = DatasetAction.CREATE,
 ) -> Optional[DatasetExampleAdditionEvent]:
-    keys = DatasetKeys(frozenset(input_keys), frozenset(output_keys), frozenset(metadata_keys))
     created_at = datetime.now(timezone.utc)
     dataset_id: Optional[DatasetId] = None
     if action is DatasetAction.APPEND and name:
@@ -173,9 +178,7 @@ async def add_dataset_examples(
                 created_at=created_at,
             )
         except Exception:
-            logger.exception(
-                f"Fail to insert dataset: {input_keys=}, {output_keys=}, {metadata_keys=}"
-            )
+            logger.exception(f"Failed to insert dataset: {name=}")
             raise
     try:
         dataset_version_id = await insert_dataset_version(
@@ -184,7 +187,7 @@ async def add_dataset_examples(
             created_at=created_at,
         )
     except Exception:
-        logger.exception(f"Fail to insert dataset version for {dataset_id=}")
+        logger.exception(f"Failed to insert dataset version for {dataset_id=}")
         raise
     for example in (await examples) if isinstance(examples, Awaitable) else examples:
         try:
@@ -194,21 +197,21 @@ async def add_dataset_examples(
                 created_at=created_at,
             )
         except Exception:
-            logger.exception(f"Fail to insert dataset example for {dataset_id=}")
+            logger.exception(f"Failed to insert dataset example for {dataset_id=}")
             raise
         try:
             await insert_dataset_example_revision(
                 session=session,
                 dataset_version_id=dataset_version_id,
                 dataset_example_id=dataset_example_id,
-                input={key: example.get(key) for key in keys.input},
-                output={key: example.get(key) for key in keys.output},
-                metadata={key: example.get(key) for key in keys.metadata},
+                input=example.input,
+                output=example.output,
+                metadata=example.metadata,
                 created_at=created_at,
             )
         except Exception:
             logger.exception(
-                f"Fail to insert dataset example revision for {dataset_version_id=}, "
+                f"Failed to insert dataset example revision for {dataset_version_id=}, "
                 f"{dataset_example_id=}"
             )
             raise

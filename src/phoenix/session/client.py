@@ -15,6 +15,7 @@ from typing import (
     Literal,
     Mapping,
     Optional,
+    Sequence,
     Tuple,
     Union,
     cast,
@@ -48,6 +49,8 @@ from phoenix.trace.dsl import SpanQuery
 from phoenix.trace.otel import encode_span_to_otlp
 
 logger = logging.getLogger(__name__)
+
+DatasetAction: TypeAlias = Literal["create", "append"]
 
 
 class Client(TraceDataExtractor):
@@ -425,6 +428,91 @@ class Client(TraceDataExtractor):
             index_col="example_id",
         )
 
+    def create_examples(
+        self,
+        *,
+        dataset_name: str,
+        inputs: Iterable[Mapping[str, Any]],
+        outputs: Iterable[Mapping[str, Any]] = (),
+        metadata: Iterable[Mapping[str, Any]] = (),
+        dataset_description: Optional[str] = None,
+    ) -> Dataset:
+        """
+        Upload examples as dataset to the Phoenix server.
+
+        Args:
+            dataset_name: (str): Name of the dataset
+            inputs (Iterable[Mapping[str, Any]]): List of dictionaries object each
+                corresponding to an example in the dataset.
+            outputs (Iterable[Mapping[str, Any]]): List of dictionaries object each
+                corresponding to an example in the dataset.
+            metadata (Iterable[Mapping[str, Any]]): List of dictionaries object each
+                corresponding to an example in the dataset.
+            dataset_description: (Optional[str]): Description of the dataset.
+
+        Returns:
+            A Dataset object with the uploaded examples.
+        """
+        # convert to list to avoid issues with pandas Series
+        inputs, outputs, metadata = list(inputs), list(outputs), list(metadata)
+        if not inputs or not _is_all_dict(inputs):
+            raise ValueError(
+                "`inputs` should be a non-empty sequence containing only dictionary objects"
+            )
+        for name, seq in {"outputs": outputs, "metadata": metadata}.items():
+            if seq and not (len(seq) == len(inputs) and _is_all_dict(seq)):
+                raise ValueError(
+                    f"`{name}` should be a sequence of the same length as `inputs` "
+                    "containing only dictionary objects"
+                )
+        action: DatasetAction = "create"
+        print("📤 Uploading dataset...")
+        response = self._client.post(
+            url=urljoin(self._base_url, "v1/datasets/upload"),
+            headers={"Content-Encoding": "gzip"},
+            json={
+                "action": action,
+                "name": dataset_name,
+                "description": dataset_description,
+                "inputs": inputs,
+                "outputs": outputs,
+                "metadata": metadata,
+            },
+            params={"sync": True},
+        )
+        try:
+            response.raise_for_status()
+        except HTTPStatusError as e:
+            if msg := response.text:
+                raise DatasetUploadError(msg) from e
+            raise
+        data = response.json()["data"]
+        dataset_id = data["dataset_id"]
+        response = self._client.get(
+            url=urljoin(self._base_url, f"v1/datasets/{dataset_id}/examples")
+        )
+        response.raise_for_status()
+        data = response.json()["data"]
+        version_id = data["version_id"]
+        examples = data["examples"]
+        print(f"💾 Examples uploaded: {self.web_url}datasets/{dataset_id}/examples")
+        print(f"🗄️ Dataset version ID: {version_id}")
+
+        return Dataset(
+            id=dataset_id,
+            version_id=version_id,
+            examples=[
+                Example(
+                    id=example["id"],
+                    input=example["input"],
+                    output=example["output"],
+                    metadata=example["metadata"],
+                    updated_at=datetime.fromisoformat(example["updated_at"]),
+                )
+                for example in examples
+            ],
+        )
+
     def upload_dataset(
         self,
         table: Union[str, Path, pd.DataFrame],
@@ -432,7 +520,7 @@ class Client(TraceDataExtractor):
         *,
         name: str,
         input_keys: Iterable[str],
-        output_keys: Iterable[str],
+        output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
         description: Optional[str] = None,
         action: Literal["create", "append"] = "create",
@@ -574,6 +662,10 @@ def _prepare_pyarrow(
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
     return value.isoformat() if value else None
+
+
+def _is_all_dict(seq: Sequence[Any]) -> bool:
+    return all(map(lambda obj: isinstance(obj, dict), seq))
 
 
 class DatasetUploadError(Exception): ...

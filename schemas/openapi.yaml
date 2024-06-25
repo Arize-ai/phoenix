@@ -73,6 +73,34 @@ paths:
           type: boolean
       requestBody:
         content:
+          application/json:
+            schema:
+              properties:
+                action:
+                  enum:
+                  - create
+                  - append
+                  type: string
+                description:
+                  type: string
+                inputs:
+                  items:
+                    type: object
+                  type: array
+                metadata:
+                  items:
+                    type: object
+                  type: array
+                name:
+                  type: string
+                outputs:
+                  items:
+                    type: object
+                  type: array
+              required:
+              - name
+              - inputs
+              type: object
           multipart/form-data:
             schema:
               properties:
@@ -114,9 +142,11 @@ paths:
           description: Success
         403:
           description: Forbidden
+        409:
+          description: Dataset of the same name already exists
         422:
           description: Request body is invalid
-      summary: Upload CSV or PyArrow file as dataset
+      summary: Upload dataset as either JSON or file (CSV or PyArrow)
       tags:
       - datasets
   /v1/datasets/{id}:
