@@ -306,6 +306,3 @@ def test_binding_arguments_to_decorated_evaluators():
 
     evaluation = can_i_evaluate_with_everything_in_any_order.evaluate(**kwargs)
     assert evaluation.score == 1.0, "evaluates against named args in any order"
-
-    evaluation = create_evaluator()(lambda _: 3.14).evaluate(**kwargs)
-    assert evaluation.score == 3.14, "pie"

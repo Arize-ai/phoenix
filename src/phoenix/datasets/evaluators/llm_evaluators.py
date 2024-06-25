@@ -2,13 +2,15 @@ import re
 from types import MappingProxyType
 from typing import Any, Callable, Optional, Type
 
-from phoenix.datasets.evaluators.utils import _unwrap_json
-from phoenix.datasets.types import (
-    EvaluationResult,
+from phoenix.datasets.evaluators.utils import (
     ExampleInput,
     ExampleMetadata,
     ExperimentEvaluator,
     LLMEvaluator,
+    _unwrap_json,
+)
+from phoenix.datasets.types import (
+    EvaluationResult,
     TaskOutput,
 )
 from phoenix.evals.models.base import BaseModel as LLMBaseModel

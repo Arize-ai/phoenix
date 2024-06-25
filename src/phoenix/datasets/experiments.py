@@ -42,17 +42,19 @@ from phoenix.config import (
     get_env_host,
     get_env_port,
 )
-from phoenix.datasets.evaluators.utils import create_evaluator
+from phoenix.datasets.evaluators.utils import (
+    Evaluator,
+    EvaluatorName,
+    ExperimentEvaluator,
+    create_evaluator,
+)
 from phoenix.datasets.tracing import capture_spans
 from phoenix.datasets.types import (
     Dataset,
     EvaluationResult,
-    Evaluator,
-    EvaluatorName,
     Example,
     Experiment,
     ExperimentEvaluationRun,
-    ExperimentEvaluator,
     ExperimentResult,
     ExperimentRun,
     ExperimentRunId,
