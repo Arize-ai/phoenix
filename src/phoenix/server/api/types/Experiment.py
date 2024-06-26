@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List, Optional
 
 import strawberry
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 from strawberry import UNSET, Private
 from strawberry.relay import Connection, Node, NodeID
@@ -74,6 +74,20 @@ class Experiment(Node):
                 )
             ).all()
         return connection_from_list([to_gql_experiment_run(run) for run in runs], args)
+
+    @strawberry.field
+    async def run_count(self, info: Info[Context, None]) -> int:
+        experiment_id = self.id_attr
+        async with info.context.db() as session:
+            if (
+                count := await session.scalar(
+                    select(func.count())
+                    .select_from(models.ExperimentRun)
+                    .where(models.ExperimentRun.experiment_id == experiment_id)
+                )
+            ) is None:
+                raise ValueError(f"Invalid experiment: {experiment_id}")
+        return count
 
     @strawberry.field
     async def annotation_summaries(

@@ -589,6 +589,7 @@ type Experiment implements Node {
   """Sequence number (1-based) of experiments belonging to the same dataset"""
   sequenceNumber: Int!
   runs(first: Int = 50, last: Int, after: String, before: String): ExperimentRunConnection!
+  runCount: Int!
   annotationSummaries: [ExperimentAnnotationSummary!]!
   errorRate: Float
   project: Project
