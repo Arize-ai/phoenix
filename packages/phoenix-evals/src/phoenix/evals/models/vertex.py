@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
@@ -19,6 +19,13 @@ MODEL_TOKEN_LIMIT_MAPPING = {
 @dataclass
 class GeminiModel(BaseModel):
     # The vertex SDK runs into connection pool limits at high concurrency
+    project: Optional[str] = None
+    "project (str): The default project to use when making API calls."
+    location: Optional[str] = None
+    "location (str): The default location to use when making API calls. If not "
+    "set defaults to us-central-1."
+    credentials: Optional["Credentials"] = None
+
     default_concurrency: int = 5
 
     model: str = "gemini-pro"
@@ -36,6 +43,7 @@ class GeminiModel(BaseModel):
 
     def __post_init__(self) -> None:
         self._init_client()
+        self._init_vertex_ai()
         self._init_rate_limiter()
 
     @property
@@ -49,7 +57,9 @@ class GeminiModel(BaseModel):
         try:
             from google.api_core import exceptions
             from vertexai.preview import generative_models as vertex  # type:ignore
+            import vertexai
 
+            self._vertexai = vertexai
             self._vertex = vertex
             self._gcp_exceptions = exceptions
             self._model = self._vertex.GenerativeModel(self.model)
@@ -57,6 +67,9 @@ class GeminiModel(BaseModel):
             self._raise_import_error(
                 package_name="vertexai",
             )
+    
+    def _init_vertex_ai(self) -> None:
+        self._vertexai.init(**self._init_params)
 
     def _init_rate_limiter(self) -> None:
         self._rate_limiter = RateLimiter(
@@ -75,6 +88,14 @@ class GeminiModel(BaseModel):
             "top_p": self.top_p,
             "top_k": self.top_k,
             "stop_sequences": self.stop_sequences,
+        }
+    
+    @property
+    def _init_params(self) -> Dict[str, Any]:
+        return {
+            "project": self.project,
+            "location": self.location,
+            "credentials": self.credentials,
         }
 
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
