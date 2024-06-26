@@ -483,7 +483,7 @@ class DatasetExample(Base):
         index=True,
     )
     span_rowid: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("spans.id"),
+        ForeignKey("spans.id", ondelete="SET NULL"),
         index=True,
         nullable=True,
     )

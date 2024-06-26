@@ -67,27 +67,23 @@ export function ProjectActionMenu({
     });
   }, [commitDelete, projectId, onProjectDelete]);
 
-  const handleClear = useCallback(
-    (endTime?: Date) => {
-      startTransition(() => {
-        commitClear({
-          variables: {
-            input: {
-              id: projectId,
-              endTime: endTime ? endTime.toISOString() : null,
-            },
+  const handleClear = useCallback(() => {
+    startTransition(() => {
+      commitClear({
+        variables: {
+          input: {
+            id: projectId,
           },
-          onCompleted: () => {
-            onProjectClear();
-          },
-          onError: (error) => {
-            alert("Failed to clear project: " + error);
-          },
-        });
+        },
+        onCompleted: () => {
+          onProjectClear();
+        },
+        onError: (error) => {
+          alert("Failed to clear project: " + error);
+        },
       });
-    },
-    [commitClear, projectId, onProjectClear]
-  );
+    });
+  }, [commitClear, projectId, onProjectClear]);
 
   const onDelete = useCallback(() => {
     setDialog(

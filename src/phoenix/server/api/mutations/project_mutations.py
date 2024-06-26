@@ -38,19 +38,15 @@ class ProjectMutationMixin:
             global_id=input.id, expected_type_name="Project"
         )
         delete_statement = delete(models.Trace).where(models.Trace.project_rowid == project_id)
-        print("delete query plan" + str(delete_statement))
         if input.end_time is not None:
-            print(input.end_time)
-            print("deleting traces")
-            delete_statement = delete_statement.where(models.Trace.end_time <= input.end_time)
+            delete_statement = delete_statement.where(models.Trace.start_time < input.end_time)
         async with info.context.db() as session:
             try:
                 await session.execute(delete_statement)
                 await session.commit()
-            except Exception as e:
+            except Exception:
                 await session.rollback()
-                print(e)
-                raise e
+                raise
             if cache := info.context.cache_for_dataloaders:
                 cache.invalidate(ClearProjectSpansEvent(project_rowid=project_id))
         return Query()

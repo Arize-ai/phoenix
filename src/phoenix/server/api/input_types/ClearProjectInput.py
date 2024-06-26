@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 import strawberry
@@ -8,4 +9,4 @@ from strawberry.relay import GlobalID
 @strawberry.input
 class ClearProjectInput:
     id: GlobalID
-    end_time: Optional[str] = UNSET
+    end_time: Optional[datetime] = UNSET
