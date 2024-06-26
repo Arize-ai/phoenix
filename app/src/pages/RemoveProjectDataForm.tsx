@@ -7,23 +7,23 @@ import { Button, Flex, Text, TextField, View } from "@arizeai/components";
 
 import { ONE_MONTH_MS } from "@phoenix/constants/timeConstants";
 
-import { RemoveProjectTracesFormMutation } from "./__generated__/RemoveProjectTracesFormMutation.graphql";
+import { RemoveProjectDataFormMutation } from "./__generated__/RemoveProjectDataFormMutation.graphql";
 
-type RemoveProjectTracesFormProps = {
+type RemoveProjectDataFormProps = {
   projectId: string;
   onComplete: () => void;
 };
 
-type RemoveProjectTracesFormParams = {
+type RemoveProjectDataFormParams = {
   endDate: string;
 };
 
-export function RemoveProjectTracesForm(props: RemoveProjectTracesFormProps) {
+export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
   const { projectId } = props;
   const formRef = useRef<HTMLFormElement>(null);
-  const [commit, isCommitting] = useMutation<RemoveProjectTracesFormMutation>(
+  const [commit, isCommitting] = useMutation<RemoveProjectDataFormMutation>(
     graphql`
-      mutation RemoveProjectTracesFormMutation($input: ClearProjectInput!) {
+      mutation RemoveProjectDataFormMutation($input: ClearProjectInput!) {
         clearProject(input: $input) {
           __typename
         }
@@ -40,11 +40,11 @@ export function RemoveProjectTracesForm(props: RemoveProjectTracesFormProps) {
     defaultValues: {
       // Need to remove the offset to be able to set the defaultValue
       endDate: new Date(Date.now() - ONE_MONTH_MS).toISOString().slice(0, 16),
-    } as RemoveProjectTracesFormParams,
+    } as RemoveProjectDataFormParams,
   });
 
   const onSubmit = useCallback(
-    (params: RemoveProjectTracesFormParams) => {
+    (params: RemoveProjectDataFormParams) => {
       // Validate date is a valid date
       const parsedDate = parseISO(params.endDate);
       if (!dateIsValid(parsedDate)) {
@@ -74,7 +74,7 @@ export function RemoveProjectTracesForm(props: RemoveProjectTracesFormProps) {
     <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
       <View padding="size-200">
         <Text color="danger">
-          {`You are about to remove traces up to the following date. This cannot be undone.`}
+          {`You are about to remove data up to the following date. This cannot be undone.`}
         </Text>
         <Controller
           name="endDate"
@@ -90,7 +90,7 @@ export function RemoveProjectTracesForm(props: RemoveProjectTracesFormProps) {
               label="End Date"
               type="datetime-local"
               name={name}
-              description={`The date up to which you want to remove traces`}
+              description={`The date up to which you want to remove data`}
               errorMessage={error?.message}
               validationState={invalid ? "invalid" : "valid"}
               onChange={onChange}

@@ -16,7 +16,7 @@ import {
 } from "@arizeai/components";
 import { ActionMenu, Flex, Item, Text } from "@arizeai/components";
 
-import { RemoveProjectTracesForm } from "../RemoveProjectTracesForm";
+import { RemoveProjectDataForm } from "../RemoveProjectDataForm";
 
 import { ProjectActionMenuClearMutation } from "./__generated__/ProjectActionMenuClearMutation.graphql";
 import { ProjectActionMenuDeleteMutation } from "./__generated__/ProjectActionMenuDeleteMutation.graphql";
@@ -149,8 +149,8 @@ export function ProjectActionMenu({
 
   const onClearUpTo = useCallback(() => {
     setDialog(
-      <Dialog size="M" title="Remove D Data">
-        <RemoveProjectTracesForm
+      <Dialog size="M" title="Remove Data">
+        <RemoveProjectDataForm
           projectId={projectId}
           onComplete={() => {
             onProjectRemoveTraces();
