@@ -117,7 +117,7 @@ export function ProjectActionMenu({
         </View>
       </Dialog>
     );
-  }, [Dialog, handleDelete, projectName]);
+  }, [handleDelete, projectName]);
 
   const onClear = useCallback(() => {
     setDialog(
