@@ -255,6 +255,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                       <TraceDetailsDialog
                         traceId={traceId}
                         projectId={projectId}
+                        title={`Experiment Run Trace`}
                       />
                     );
                   });
@@ -304,7 +305,11 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
 
         return run ? (
           <RunOutputWrap controls={runControls}>
-            <ExperimentRunOutput {...run} displayFullText={displayFullText} />
+            <ExperimentRunOutput
+              {...run}
+              displayFullText={displayFullText}
+              setDialog={setDialog}
+            />
           </RunOutputWrap>
         ) : (
           <NotRunText />
@@ -481,10 +486,20 @@ function ExperimentRowActionMenu(props: {
  * Display the output of an experiment run.
  */
 function ExperimentRunOutput(
-  props: ExperimentRun & { displayFullText: boolean }
+  props: ExperimentRun & {
+    displayFullText: boolean;
+    setDialog: (dialog: ReactNode) => void;
+  }
 ) {
-  const { output, error, startTime, endTime, annotations, displayFullText } =
-    props;
+  const {
+    output,
+    error,
+    startTime,
+    endTime,
+    annotations,
+    displayFullText,
+    setDialog,
+  } = props;
   if (error) {
     return <RunError error={error} />;
   }
@@ -511,7 +526,18 @@ function ExperimentRunOutput(
             <AnnotationLabel
               annotation={annotation}
               onClick={() => {
-                // TODO: Implement annotation click
+                const trace = annotation.trace;
+                if (trace) {
+                  startTransition(() => {
+                    setDialog(
+                      <TraceDetailsDialog
+                        traceId={trace.traceId}
+                        projectId={trace.projectId}
+                        title={`Evaluator Trace: ${annotation.name}`}
+                      />
+                    );
+                  });
+                }
               }}
             />
           </li>
@@ -748,6 +774,8 @@ function SelectedExampleDialog({
                                       );
                                       display: flex;
                                       flex-direction: column;
+                                      justify-content: flex-start;
+                                      align-items: flex-end;
                                       gap: var(
                                         --ac-global-dimension-static-size-100
                                       );
@@ -782,14 +810,16 @@ function SelectedExampleDialog({
 function TraceDetailsDialog({
   traceId,
   projectId,
+  title,
 }: {
   traceId: string;
   projectId: string;
+  title: string;
 }) {
   const navigate = useNavigate();
   return (
     <Dialog
-      title="Run Trace Details"
+      title={title}
       size="fullscreen"
       extra={
         <Button
