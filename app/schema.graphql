@@ -22,6 +22,8 @@ union Bin = NominalBin | IntervalBin | MissingValueBin
 
 input ClearProjectInput {
   id: GlobalID!
+
+  """The time up to which to purge data. Time is right-open /non-inclusive."""
   endTime: DateTime
 }
 

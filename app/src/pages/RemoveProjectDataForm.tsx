@@ -74,7 +74,7 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
     <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
       <View padding="size-200">
         <Text color="danger">
-          {`You are about to remove data up to the following date. This cannot be undone.`}
+          {`You are about to remove all data before the following date. This cannot be undone.`}
         </Text>
         <Controller
           name="endDate"
