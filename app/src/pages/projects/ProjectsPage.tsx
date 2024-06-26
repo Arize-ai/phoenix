@@ -124,6 +124,20 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
     [notify, refetch]
   );
 
+  const onRemoveTraces = useCallback(
+    (projectName: string) => {
+      startTransition(() => {
+        refetch({}, { fetchPolicy: "store-and-network" });
+        notify({
+          variant: "success",
+          title: "Project Traces Removed",
+          message: `Old traces from project ${projectName} have been removed.`,
+        });
+      });
+    },
+    [notify, refetch]
+  );
+
   return (
     <Flex direction="column" flex="1 1 auto">
       <View
@@ -160,6 +174,7 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
                   project={project}
                   onProjectDelete={() => onDelete(project.name)}
                   onProjectClear={() => onClear(project.name)}
+                  onProjectRemoveData={() => onRemoveTraces(project.name)}
                 />
               </Link>
             </li>
@@ -198,11 +213,13 @@ type ProjectItemProps = {
   project: ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"];
   onProjectDelete: () => void;
   onProjectClear: () => void;
+  onProjectRemoveData: () => void;
 };
 function ProjectItem({
   project,
   onProjectDelete,
   onProjectClear,
+  onProjectRemoveData,
 }: ProjectItemProps) {
   const {
     endTime,
@@ -263,6 +280,7 @@ function ProjectItem({
           projectName={project.name}
           onProjectDelete={onProjectDelete}
           onProjectClear={onProjectClear}
+          onProjectRemoveData={onProjectRemoveData}
         />
       </Flex>
 

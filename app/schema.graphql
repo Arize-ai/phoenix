@@ -20,6 +20,13 @@ enum AnnotatorKind {
 
 union Bin = NominalBin | IntervalBin | MissingValueBin
 
+input ClearProjectInput {
+  id: GlobalID!
+
+  """The time up to which to purge data. Time is right-open /non-inclusive."""
+  endTime: DateTime
+}
+
 type Cluster {
   """The ID of the cluster"""
   id: ID!
@@ -807,7 +814,7 @@ type Model {
 
 type Mutation {
   deleteProject(id: GlobalID!): Query!
-  clearProject(id: GlobalID!): Query!
+  clearProject(input: ClearProjectInput!): Query!
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
   patchDataset(input: PatchDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!
