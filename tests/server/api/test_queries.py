@@ -66,7 +66,7 @@ async def test_compare_experiments_returns_expected_comparisons(
                         "runs": [
                             {
                                 "id": str(GlobalID("ExperimentRun", str(4))),
-                                "output": {"run-4-output-key": "run-4-output-value"},
+                                "output": "",
                             },
                         ],
                     },
@@ -79,11 +79,11 @@ async def test_compare_experiments_returns_expected_comparisons(
                         "runs": [
                             {
                                 "id": str(GlobalID("ExperimentRun", str(7))),
-                                "output": {"run-7-output-key": "run-7-output-value"},
+                                "output": "run-7-output-value",
                             },
                             {
                                 "id": str(GlobalID("ExperimentRun", str(8))),
-                                "output": {"run-8-output-key": "run-8-output-value"},
+                                "output": 8,
                             },
                         ],
                     },
@@ -104,7 +104,7 @@ async def test_compare_experiments_returns_expected_comparisons(
                         "runs": [
                             {
                                 "id": str(GlobalID("ExperimentRun", str(3))),
-                                "output": {"run-3-output-key": "run-3-output-value"},
+                                "output": 3,
                             },
                         ],
                     },
@@ -113,7 +113,7 @@ async def test_compare_experiments_returns_expected_comparisons(
                         "runs": [
                             {
                                 "id": str(GlobalID("ExperimentRun", str(1))),
-                                "output": {"run-1-output-key": "run-1-output-value"},
+                                "output": {"output": "run-1-output-value"},
                             },
                         ],
                     },
@@ -122,11 +122,11 @@ async def test_compare_experiments_returns_expected_comparisons(
                         "runs": [
                             {
                                 "id": str(GlobalID("ExperimentRun", str(5))),
-                                "output": {"run-5-output-key": "run-5-output-value"},
+                                "output": None,
                             },
                             {
                                 "id": str(GlobalID("ExperimentRun", str(6))),
-                                "output": {"run-6-output-key": "run-6-output-value"},
+                                "output": {"output": "run-6-output-value"},
                             },
                         ],
                     },
@@ -297,9 +297,13 @@ async def comparison_experiments(session):
             [
                 {
                     **run,
-                    "output": {
-                        f"run-{run_index + 1}-output-key": f"run-{run_index + 1}-output-value"
-                    },
+                    "output": [
+                        {"result": {"output": f"run-{run_index + 1}-output-value"}},
+                        {"result": f"run-{run_index + 1}-output-value"},
+                        {"result": run_index + 1},
+                        {"result": ""},
+                        {},
+                    ][run_index % 5],
                 }
                 for run_index, run in enumerate(
                     [
