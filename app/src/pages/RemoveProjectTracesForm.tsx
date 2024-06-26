@@ -5,14 +5,14 @@ import { isValid as dateIsValid, parseISO } from "date-fns";
 
 import { Button, Flex, Text, TextField, View } from "@arizeai/components";
 
+import { ONE_MONTH_MS } from "@phoenix/constants/timeConstants";
+
 import { RemoveProjectTracesFormMutation } from "./__generated__/RemoveProjectTracesFormMutation.graphql";
 
 type RemoveProjectTracesFormProps = {
   projectId: string;
   onComplete: () => void;
 };
-
-const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 type RemoveProjectTracesFormParams = {
   endDate: string;
@@ -39,7 +39,7 @@ export function RemoveProjectTracesForm(props: RemoveProjectTracesFormProps) {
   } = useForm({
     defaultValues: {
       // Need to remove the offset to be able to set the defaultValue
-      endDate: new Date(Date.now() - ONE_DAY_MS).toISOString().slice(0, 16),
+      endDate: new Date(Date.now() - ONE_MONTH_MS).toISOString().slice(0, 16),
     } as RemoveProjectTracesFormParams,
   });
 
