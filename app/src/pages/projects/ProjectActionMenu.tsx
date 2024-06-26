@@ -16,12 +16,14 @@ import {
 } from "@arizeai/components";
 import { ActionMenu, Flex, Item, Text } from "@arizeai/components";
 
+import { RemoveProjectTracesForm } from "../RemoveProjectTracesForm";
+
 import { ProjectActionMenuClearMutation } from "./__generated__/ProjectActionMenuClearMutation.graphql";
 import { ProjectActionMenuDeleteMutation } from "./__generated__/ProjectActionMenuDeleteMutation.graphql";
-
 enum ProjectAction {
   DELETE = "deleteProject",
   CLEAR = "clearProject",
+  CLEAR_UP_TO = "clearProjectUpTo",
 }
 
 export function ProjectActionMenu({
@@ -33,9 +35,10 @@ export function ProjectActionMenu({
   projectId: string;
   projectName: string;
   onProjectClear: () => void;
+  onProjectRemoveTraces: () => void;
   onProjectDelete: () => void;
 }) {
-  const [confirmDialog, setConfirmDialog] = useState<ReactNode>(null);
+  const [dialog, setDialog] = useState<ReactNode>(null);
   const canDelete = projectName !== "default";
   const [commitDelete] = useMutation<ProjectActionMenuDeleteMutation>(graphql`
     mutation ProjectActionMenuDeleteMutation($projectId: GlobalID!) {
@@ -45,8 +48,8 @@ export function ProjectActionMenu({
     }
   `);
   const [commitClear] = useMutation<ProjectActionMenuClearMutation>(graphql`
-    mutation ProjectActionMenuClearMutation($projectId: GlobalID!) {
-      clearProject(id: $projectId) {
+    mutation ProjectActionMenuClearMutation($input: ClearProjectInput!) {
+      clearProject(input: $input) {
         __typename
       }
     }
@@ -63,20 +66,30 @@ export function ProjectActionMenu({
     });
   }, [commitDelete, projectId, onProjectDelete]);
 
-  const handleClear = useCallback(() => {
-    startTransition(() => {
-      commitClear({
-        variables: {
-          projectId: projectId,
-        },
+  const handleClear = useCallback(
+    (endTime?: Date) => {
+      startTransition(() => {
+        commitClear({
+          variables: {
+            input: {
+              id: projectId,
+              endTime: endTime ? endTime.toISOString() : null,
+            },
+          },
+          onCompleted: () => {
+            onProjectClear();
+          },
+          onError: (error) => {
+            alert("Failed to clear project: " + error);
+          },
+        });
       });
-
-      onProjectClear();
-    });
-  }, [commitClear, projectId, onProjectClear]);
+    },
+    [commitClear, projectId, onProjectClear]
+  );
 
   const onDelete = useCallback(() => {
-    setConfirmDialog(
+    setDialog(
       <Dialog size="S" title="Delete Project">
         <View padding="size-200">
           <Text color="danger">
@@ -95,7 +108,7 @@ export function ProjectActionMenu({
               variant="danger"
               onClick={() => {
                 handleDelete();
-                setConfirmDialog(null);
+                setDialog(null);
               }}
             >
               Delete Project
@@ -104,10 +117,10 @@ export function ProjectActionMenu({
         </View>
       </Dialog>
     );
-  }, [handleDelete, projectName]);
+  }, [Dialog, handleDelete, projectName]);
 
   const onClear = useCallback(() => {
-    setConfirmDialog(
+    setDialog(
       <Dialog size="S" title="Clear Project">
         <View padding="size-200">
           <Text color="danger">
@@ -126,7 +139,7 @@ export function ProjectActionMenu({
               variant="danger"
               onClick={() => {
                 handleClear();
-                setConfirmDialog(null);
+                setDialog(null);
               }}
             >
               Clear
@@ -136,6 +149,17 @@ export function ProjectActionMenu({
       </Dialog>
     );
   }, [handleClear, projectName]);
+
+  const onClearUpTo = useCallback(() => {
+    setDialog(
+      <Dialog size="M" title="Remove D Data">
+        <RemoveProjectTracesForm
+          projectId={projectId}
+          onComplete={() => setDialog(null)}
+        />
+      </Dialog>
+    );
+  }, [projectId]);
 
   return (
     <div
@@ -157,11 +181,14 @@ export function ProjectActionMenu({
             case ProjectAction.CLEAR: {
               return onClear();
             }
+            case ProjectAction.CLEAR_UP_TO: {
+              return onClearUpTo();
+            }
           }
         }}
         disabledKeys={canDelete ? [] : [ProjectAction.DELETE]}
       >
-        <Item key={ProjectAction.CLEAR}>
+        <Item key={ProjectAction.CLEAR} textValue="Clear Traces">
           <Flex
             direction={"row"}
             gap="size-75"
@@ -170,6 +197,17 @@ export function ProjectActionMenu({
           >
             <Icon svg={<Icons.Refresh />} />
             <Text>Clear Data</Text>
+          </Flex>
+        </Item>
+        <Item key={ProjectAction.CLEAR_UP_TO} textValue="Remove Data">
+          <Flex
+            direction={"row"}
+            gap="size-75"
+            justifyContent={"start"}
+            alignItems={"center"}
+          >
+            <Icon svg={<Icons.CloseCircleOutline />} />
+            <Text>Remove Data</Text>
           </Flex>
         </Item>
         {canDelete ? (
@@ -192,9 +230,9 @@ export function ProjectActionMenu({
       <DialogContainer
         type="modal"
         isDismissable
-        onDismiss={() => setConfirmDialog(null)}
+        onDismiss={() => setDialog(null)}
       >
-        {confirmDialog}
+        {dialog}
       </DialogContainer>
     </div>
   );
