@@ -20,6 +20,7 @@ from phoenix.server.api.dataloaders import (
     EvaluationSummaryDataLoader,
     ExperimentAnnotationSummaryDataLoader,
     ExperimentErrorRatesDataLoader,
+    ExperimentRunCountsDataLoader,
     ExperimentSequenceNumberDataLoader,
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
@@ -44,6 +45,7 @@ class DataLoaders:
     evaluation_summaries: EvaluationSummaryDataLoader
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
     experiment_error_rates: ExperimentErrorRatesDataLoader
+    experiment_run_counts: ExperimentRunCountsDataLoader
     experiment_sequence_number: ExperimentSequenceNumberDataLoader
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
