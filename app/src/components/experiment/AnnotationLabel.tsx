@@ -136,16 +136,14 @@ export function AnnotationLabel({
           </View>
         ) : null}
         {annotation.trace && clickable ? (
-          <View paddingTop="size-50">
+          <View paddingTop="size-100">
             <div
               css={css`
                 display: flex;
                 flex-direction: row;
                 align-items: center;
                 color: var(--ac-global-color-primary);
-                gap: var(--px-spacing-sm);
-
-                margin-top: var(--px-spacing-sm);
+                gap: var(--ac-global-dimension-size-50);
               `}
             >
               <Icon svg={<Icons.InfoOutline />} />
