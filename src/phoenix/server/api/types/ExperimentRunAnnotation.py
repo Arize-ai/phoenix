@@ -33,7 +33,7 @@ class ExperimentRunAnnotation(Node):
         if (trace := await dataloader.load(self.trace_id)) is None:
             return None
         trace_row_id, project_row_id = trace
-        return Trace(id_attr=trace_row_id, trace_id=trace.trace_id, project_rowid=project_row_id)
+        return Trace(id_attr=trace_row_id, trace_id=self.trace_id, project_rowid=project_row_id)
 
 
 def to_gql_experiment_run_annotation(
