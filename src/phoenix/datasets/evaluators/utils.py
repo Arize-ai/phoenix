@@ -35,7 +35,11 @@ def validate_signature(sig: inspect.Signature) -> None:
         raise ValueError("Evaluation function must have at least one parameter.")
     if len(params) > 1:
         for not_found in set(params) - valid_named_params:
-            if params[not_found].kind is inspect.Parameter.VAR_KEYWORD:
+            param = params[not_found]
+            if (
+                param.kind is inspect.Parameter.VAR_KEYWORD
+                or param.default is not inspect.Parameter.empty
+            ):
                 continue
             raise ValueError(
                 (
