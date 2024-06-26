@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TypedDict
 
 from sqlalchemy import (
     JSON,
@@ -91,6 +91,10 @@ class UtcTimeStamp(TypeDecorator[datetime]):
         return normalize_datetime(value, timezone.utc)
 
 
+class ExperimentResult(TypedDict, total=False):
+    result: Dict[str, Any]
+
+
 class Base(DeclarativeBase):
     # Enforce best practices for naming constraints
     # https://alembic.sqlalchemy.org/en/latest/naming.html#integration-of-naming-conventions-into-operations-autogenerate
@@ -106,6 +110,7 @@ class Base(DeclarativeBase):
     type_annotation_map = {
         Dict[str, Any]: JsonDict,
         List[Dict[str, Any]]: JsonList,
+        ExperimentResult: JsonDict,
     }
 
 
@@ -556,7 +561,7 @@ class ExperimentRun(Base):
     )
     repetition_number: Mapped[int]
     trace_id: Mapped[Optional[str]]
-    output: Mapped[Optional[Dict[str, Any]]]
+    output: Mapped[ExperimentResult]
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     prompt_token_count: Mapped[Optional[int]]

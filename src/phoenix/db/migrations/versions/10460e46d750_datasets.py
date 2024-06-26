@@ -198,7 +198,7 @@ def upgrade() -> None:
             sa.String,
             nullable=True,
         ),
-        sa.Column("output", JSON_, nullable=True),
+        sa.Column("output", JSON_, nullable=False),
         sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column(
