@@ -147,8 +147,8 @@ def run_experiment(
         SimpleSpanProcessor(OTLPSpanExporter(urljoin(f"{_get_base_url()}", "v1/traces")))
     )
     tracer = tracer_provider.get_tracer(__name__)
-    root_span_name = f"Task: {task.__qualname__}"
-    root_span_kind = CHAIN
+    root_span_name = f"Task: {_get_task_name(task)}"
+    root_span_kind = CHAIN.value
 
     dataset_experiments_url = _get_dataset_experiments_url(dataset_id=dataset.id)
     experiment_compare_url = _get_experiment_url(dataset_id=dataset.id, experiment_id=experiment_id)
@@ -515,6 +515,18 @@ def _str_trace_id(id_: int) -> str:
 
 def _decode_unix_nano(time_unix_nano: int) -> datetime:
     return datetime.fromtimestamp(time_unix_nano / 1e9, tz=timezone.utc)
+
+
+def _get_task_name(task: ExperimentTask) -> str:
+    """
+    Makes a best-effort attempt to get the name of the task.
+    """
+
+    if isinstance(task, functools.partial):
+        return task.func.__qualname__
+    if hasattr(task, "__qualname__"):
+        return task.__qualname__
+    return str(task)
 
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE
