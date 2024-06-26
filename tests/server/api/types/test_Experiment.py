@@ -114,6 +114,59 @@ async def test_runs_resolver_returns_runs_for_experiment(test_client, dataset_wi
     }
 
 
+async def test_run_count_resolver_returns_correct_counts(
+    test_client, experiments_with_runs_and_annotations
+):
+    query = """
+      query ($datasetId: GlobalID!) {
+        dataset: node(id: $datasetId) {
+          ... on Dataset {
+            experiments {
+              edges {
+                experiment: node {
+                  id
+                  runCount
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+    response = await test_client.post(
+        "/graphql",
+        json={
+            "query": query,
+            "variables": {
+                "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
+            },
+        },
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json.get("errors") is None
+    assert response_json["data"] == {
+        "dataset": {
+            "experiments": {
+                "edges": [
+                    {
+                        "experiment": {
+                            "id": str(GlobalID(type_name="Experiment", node_id=str(2))),
+                            "runCount": 4,
+                        }
+                    },
+                    {
+                        "experiment": {
+                            "id": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                            "runCount": 6,
+                        }
+                    },
+                ]
+            },
+        }
+    }
+
+
 class TestExperimentAnnotationSummaries:
     async def test_experiment_resolver_returns_expected_values(
         self, test_client, experiments_with_runs_and_annotations
