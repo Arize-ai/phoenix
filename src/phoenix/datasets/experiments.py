@@ -148,7 +148,7 @@ def run_experiment(
     )
     tracer = tracer_provider.get_tracer(__name__)
     root_span_name = f"Task: {task.__qualname__}"
-    root_span_kind = CHAIN.value
+    root_span_kind = CHAIN
 
     dataset_experiments_url = _get_dataset_experiments_url(dataset_id=dataset.id)
     experiment_compare_url = _get_experiment_url(dataset_id=dataset.id, experiment_id=experiment_id)
@@ -523,6 +523,6 @@ INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
 OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
 
-CHAIN = OpenInferenceSpanKindValues.CHAIN
-EVALUATOR = OpenInferenceSpanKindValues.EVALUATOR
+CHAIN = OpenInferenceSpanKindValues.CHAIN.value
+EVALUATOR = OpenInferenceSpanKindValues.EVALUATOR.value
 JSON = OpenInferenceMimeTypeValues.JSON
