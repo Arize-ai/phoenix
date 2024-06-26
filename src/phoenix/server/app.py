@@ -65,6 +65,7 @@ from phoenix.server.api.dataloaders import (
     EvaluationSummaryDataLoader,
     ExperimentAnnotationSummaryDataLoader,
     ExperimentErrorRatesDataLoader,
+    ExperimentRunCountsDataLoader,
     ExperimentSequenceNumberDataLoader,
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
@@ -208,6 +209,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
                 ),
                 experiment_annotation_summaries=ExperimentAnnotationSummaryDataLoader(self.db),
                 experiment_error_rates=ExperimentErrorRatesDataLoader(self.db),
+                experiment_run_counts=ExperimentRunCountsDataLoader(self.db),
                 experiment_sequence_number=ExperimentSequenceNumberDataLoader(self.db),
                 latency_ms_quantile=LatencyMsQuantileDataLoader(
                     self.db,
