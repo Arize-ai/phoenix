@@ -28,6 +28,9 @@ export function SpanKindLabel(props: { spanKind: string }) {
       case "tool":
         color = "yellow-1200";
         break;
+      case "guardrail":
+        color = "fuchsia-1200";
+        break;
     }
     return color;
   }, [spanKind]);
