@@ -148,7 +148,7 @@ def run_experiment(
     )
     tracer = tracer_provider.get_tracer(__name__)
     root_span_name = f"Task: {_get_task_name(task)}"
-    root_span_kind = CHAIN.value
+    root_span_kind = CHAIN
 
     dataset_experiments_url = _get_dataset_experiments_url(dataset_id=dataset.id)
     experiment_compare_url = _get_experiment_url(dataset_id=dataset.id, experiment_id=experiment_id)
