@@ -30,6 +30,7 @@
         "ndcg",
         "NDJSON",
         "numpy",
+        "ondelete",
         "openai",
         "openinference",
         "OTEL",

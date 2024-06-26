@@ -75,70 +75,68 @@ export function CreateDatasetForm(props: CreateDatasetFormProps) {
     [commit, onDatasetCreated, onDatasetCreateError]
   );
   return (
-    <>
-      <Form onSubmit={handleSubmit(onSubmit)}>
-        <View padding="size-200">
-          <Controller
-            name="name"
-            control={control}
-            rules={{
-              required: "field is required",
-            }}
-            render={({
-              field: { onChange, onBlur, value },
-              fieldState: { invalid, error },
-            }) => (
-              <TextField
-                label="Dataset Name"
-                description={`The name of the dataset`}
-                errorMessage={error?.message}
-                validationState={invalid ? "invalid" : "valid"}
-                onChange={onChange}
-                onBlur={onBlur}
-                value={value.toString()}
-              />
-            )}
-          />
-          <Controller
-            name="description"
-            control={control}
-            render={({
-              field: { onChange, onBlur, value },
-              fieldState: { invalid, error },
-            }) => (
-              <TextArea
-                label="description"
-                isRequired={false}
-                height={100}
-                errorMessage={error?.message}
-                validationState={invalid ? "invalid" : "valid"}
-                onChange={onChange}
-                onBlur={onBlur}
-                value={value.toString()}
-              />
-            )}
-          />
-        </View>
-        <View
-          paddingEnd="size-200"
-          paddingTop="size-100"
-          paddingBottom="size-100"
-          borderTopColor="light"
-          borderTopWidth="thin"
-        >
-          <Flex direction="row" justifyContent="end">
-            <Button
-              type="submit"
-              isDisabled={!isValid}
-              variant={isDirty ? "primary" : "default"}
-              size="compact"
-              loading={isCommitting}
-            >
-              {isCommitting ? "Creating..." : "Create Dataset"}
-            </Button>
-          </Flex>
-        </View>
-      </Form>
-    </>
+    <Form onSubmit={handleSubmit(onSubmit)}>
+      <View padding="size-200">
+        <Controller
+          name="name"
+          control={control}
+          rules={{
+            required: "field is required",
+          }}
+          render={({
+            field: { onChange, onBlur, value },
+            fieldState: { invalid, error },
+          }) => (
+            <TextField
+              label="Dataset Name"
+              description={`The name of the dataset`}
+              errorMessage={error?.message}
+              validationState={invalid ? "invalid" : "valid"}
+              onChange={onChange}
+              onBlur={onBlur}
+              value={value.toString()}
+            />
+          )}
+        />
+        <Controller
+          name="description"
+          control={control}
+          render={({
+            field: { onChange, onBlur, value },
+            fieldState: { invalid, error },
+          }) => (
+            <TextArea
+              label="description"
+              isRequired={false}
+              height={100}
+              errorMessage={error?.message}
+              validationState={invalid ? "invalid" : "valid"}
+              onChange={onChange}
+              onBlur={onBlur}
+              value={value.toString()}
+            />
+          )}
+        />
+      </View>
+      <View
+        paddingEnd="size-200"
+        paddingTop="size-100"
+        paddingBottom="size-100"
+        borderTopColor="light"
+        borderTopWidth="thin"
+      >
+        <Flex direction="row" justifyContent="end">
+          <Button
+            type="submit"
+            isDisabled={!isValid}
+            variant={isDirty ? "primary" : "default"}
+            size="compact"
+            loading={isCommitting}
+          >
+            {isCommitting ? "Creating..." : "Create Dataset"}
+          </Button>
+        </Flex>
+      </View>
+    </Form>
   );
 }
