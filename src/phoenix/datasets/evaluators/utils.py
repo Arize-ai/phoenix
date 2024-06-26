@@ -64,8 +64,9 @@ def _bind_signature(sig: inspect.Signature, **kwargs: Any) -> inspect.BoundArgum
             return sig.bind(parameter_mapping[parameter_name])
         else:
             return sig.bind(parameter_mapping["output"])
-    else:
-        return sig.bind_partial(**{name: parameter_mapping[name] for name in params})
+    return sig.bind_partial(
+        **{name: parameter_mapping[name] for name in set(parameter_mapping).intersection(params)}
+    )
 
 
 def create_evaluator(
