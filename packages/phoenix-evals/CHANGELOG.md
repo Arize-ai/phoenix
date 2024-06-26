@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.12.0...arize-phoenix-evals-v0.13.0) (2024-06-26)
+
+
+### Features
+
+* added SQLEvaluator ([#3577](https://github.com/Arize-ai/phoenix/issues/3577)) ([0a79535](https://github.com/Arize-ai/phoenix/commit/0a79535f20426072c8ffa60960b605a8dbb95a18))
+
+
+### Bug Fixes
+
+* add support for querying datetimes ([#3439](https://github.com/Arize-ai/phoenix/issues/3439)) ([90fd619](https://github.com/Arize-ai/phoenix/commit/90fd61927d11a0eaf151ca41b81f149b9fc8214f))
+* resolves the authentication issue for GeminiModel in evals model ([#3662](https://github.com/Arize-ai/phoenix/issues/3662)) ([b79d946](https://github.com/Arize-ai/phoenix/commit/b79d946cebd7447bcda7edbdf23603a2ceef5f03))
+
 ## [0.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.11.0...arize-phoenix-evals-v0.12.0) (2024-06-06)
 
 
