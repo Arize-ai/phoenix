@@ -1,10 +1,13 @@
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.utils import printif
+
+if TYPE_CHECKING:
+    from google.auth.credentials import Credentials
 
 logger = logging.getLogger(__name__)
 
@@ -55,9 +58,9 @@ class GeminiModel(BaseModel):
 
     def _init_client(self) -> None:
         try:
+            import vertexai
             from google.api_core import exceptions
             from vertexai.preview import generative_models as vertex  # type:ignore
-            import vertexai
 
             self._vertexai = vertexai
             self._vertex = vertex
@@ -67,7 +70,7 @@ class GeminiModel(BaseModel):
             self._raise_import_error(
                 package_name="vertexai",
             )
-    
+
     def _init_vertex_ai(self) -> None:
         self._vertexai.init(**self._init_params)
 
@@ -89,7 +92,7 @@ class GeminiModel(BaseModel):
             "top_k": self.top_k,
             "stop_sequences": self.stop_sequences,
         }
-    
+
     @property
     def _init_params(self) -> Dict[str, Any]:
         return {
