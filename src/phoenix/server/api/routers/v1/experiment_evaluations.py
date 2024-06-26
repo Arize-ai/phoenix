@@ -43,6 +43,7 @@ async def create_experiment_evaluation(request: Request) -> Response:
             metadata_=metadata,
             start_time=datetime.fromisoformat(start_time),
             end_time=datetime.fromisoformat(end_time),
+            trace_id=payload.get("trace_id"),
         )
         session.add(exp_eval_run)
         await session.flush()
