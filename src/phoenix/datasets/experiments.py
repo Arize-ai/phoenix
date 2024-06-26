@@ -153,7 +153,7 @@ def run_experiment(
     )
     tracer = tracer_provider.get_tracer(__name__)
     root_span_name = f"Task: {_get_task_name(task)}"
-    root_span_kind = CHAIN.value
+    root_span_kind = CHAIN
 
     dataset_experiments_url = _get_dataset_experiments_url(dataset_id=dataset.id)
     experiment_compare_url = _get_experiment_url(dataset_id=dataset.id, experiment_id=experiment_id)
@@ -387,7 +387,7 @@ def _evaluate_experiment(
         SimpleSpanProcessor(OTLPSpanExporter(urljoin(f"{_get_base_url()}", "v1/traces")))
     )
     tracer = tracer_provider.get_tracer(__name__)
-    root_span_kind = "EVALUATOR"
+    root_span_kind = EVALUATOR
 
     def sync_evaluate_run(
         obj: Tuple[Example, ExperimentRun, Evaluator],
@@ -545,5 +545,6 @@ INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
 OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
 
-CHAIN = OpenInferenceSpanKindValues.CHAIN
+CHAIN = OpenInferenceSpanKindValues.CHAIN.value
+EVALUATOR = OpenInferenceSpanKindValues.EVALUATOR.value
 JSON = OpenInferenceMimeTypeValues.JSON
