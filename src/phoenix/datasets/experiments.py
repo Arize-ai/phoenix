@@ -96,10 +96,15 @@ def _get_dataset_experiments_url(*, dataset_id: str) -> str:
     return f"{_get_web_base_url()}datasets/{dataset_id}/experiments"
 
 
-def _phoenix_client() -> httpx.Client:
+def _phoenix_clients() -> Tuple[httpx.Client, httpx.AsyncClient]:
     headers = get_env_client_headers()
-    client = httpx.Client(base_url=_get_base_url(), headers=headers)
-    return client
+    return httpx.Client(
+        base_url=_get_base_url(),
+        headers=headers,
+    ), httpx.AsyncClient(
+        base_url=_get_base_url(),
+        headers=headers,
+    )
 
 
 Evaluators: TypeAlias = Union[
@@ -124,9 +129,9 @@ def run_experiment(
     assert repetitions > 0, "Must run the experiment at least once."
     evaluators_by_name = _evaluators_by_name(evaluators)
 
-    client = _phoenix_client()
+    sync_client, async_client = _phoenix_clients()
 
-    experiment_response = client.post(
+    experiment_response = sync_client.post(
         f"/v1/datasets/{dataset.id}/experiments",
         json={
             "version-id": dataset.version_id,
@@ -213,6 +218,10 @@ def run_experiment(
             error=repr(error) if error else None,
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
+        resp = sync_client.post(
+            f"/v1/experiments/{experiment_id}/runs", json=jsonify(experiment_run)
+        )
+        resp.raise_for_status()
         return experiment_run
 
     async def async_run_experiment(test_case: TestCase) -> ExperimentRun:
@@ -263,6 +272,10 @@ def run_experiment(
             error=repr(error) if error else None,
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
+        resp = await async_client.post(
+            f"/v1/experiments/{experiment_id}/runs", json=jsonify(experiment_run)
+        )
+        resp.raise_for_status()
         return experiment_run
 
     rate_limited_sync_run_experiment = functools.reduce(
@@ -285,12 +298,7 @@ def run_experiment(
         TestCase(example=ex, repetition_number=rep)
         for ex, rep in product(dataset.examples, range(1, repetitions + 1))
     ]
-    experiment_payloads, _execution_details = executor.run(test_cases)
-    for payload in experiment_payloads:
-        if payload is not None:
-            resp = client.post(f"/v1/experiments/{experiment_id}/runs", json=jsonify(payload))
-            resp.raise_for_status()
-
+    _, _execution_details = executor.run(test_cases)
     experiment = Experiment(
         id=experiment_id,
         dataset_id=dataset.id,
@@ -305,7 +313,7 @@ def run_experiment(
             experiment,
             evaluators=evaluators_by_name,
             dataset_examples=dataset.examples,
-            client=client,
+            clients=(sync_client, async_client),
         )
 
     return experiment
@@ -319,14 +327,14 @@ def evaluate_experiment(
         Mapping[EvaluatorName, ExperimentEvaluator],
     ],
 ) -> None:
-    client = _phoenix_client()
+    sync_client, async_client = _phoenix_clients()
     dataset_id = experiment.dataset_id
     dataset_version_id = experiment.dataset_version_id
 
     dataset_examples = [
         Example.from_dict(ex)
         for ex in (
-            client.get(
+            sync_client.get(
                 f"/v1/datasets/{dataset_id}/examples",
                 params={"version-id": str(dataset_version_id)},
             )
@@ -339,7 +347,7 @@ def evaluate_experiment(
         experiment,
         evaluators=evaluators,
         dataset_examples=dataset_examples,
-        client=client,
+        clients=(sync_client, async_client),
     )
 
 
@@ -348,16 +356,16 @@ def _evaluate_experiment(
     *,
     evaluators: Evaluators,
     dataset_examples: Iterable[Example],
-    client: httpx.Client,
+    clients: Tuple[httpx.Client, httpx.AsyncClient],
 ) -> None:
     evaluators_by_name = _evaluators_by_name(evaluators)
     if not evaluators_by_name:
         raise ValueError("Must specify at least one Evaluator")
     experiment_id = experiment.id
-
+    sync_client, async_client = clients
     experiment_runs = [
         ExperimentRun.from_dict(exp_run)
-        for exp_run in client.get(f"/v1/experiments/{experiment_id}/runs").json()
+        for exp_run in sync_client.get(f"/v1/experiments/{experiment_id}/runs").json()
     ]
 
     # not all dataset examples have associated experiment runs, so we need to pair them up
@@ -420,6 +428,8 @@ def _evaluate_experiment(
             result=result,
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
+        resp = sync_client.post("/v1/experiment_evaluations", json=jsonify(evaluator_payload))
+        resp.raise_for_status()
         return evaluator_payload
 
     async def async_evaluate_run(
@@ -461,6 +471,10 @@ def _evaluate_experiment(
             result=result,
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
+        resp = await async_client.post(
+            "/v1/experiment_evaluations", json=jsonify(evaluator_payload)
+        )
+        resp.raise_for_status()
         return evaluator_payload
 
     executor = get_executor_on_sync_context(
@@ -472,11 +486,7 @@ def _evaluate_experiment(
         tqdm_bar_format=get_tqdm_progress_bar_formatter("running experiment evaluations"),
     )
     print("🧠 Evaluation started.")
-    evaluation_payloads, _execution_details = executor.run(evaluation_input)
-    for payload in evaluation_payloads:
-        if payload is not None:
-            resp = client.post("/v1/experiment_evaluations", json=jsonify(payload))
-            resp.raise_for_status()
+    _, _execution_details = executor.run(evaluation_input)
 
 
 def _evaluators_by_name(obj: Optional[Evaluators]) -> Mapping[EvaluatorName, Evaluator]:
