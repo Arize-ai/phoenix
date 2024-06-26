@@ -1,4 +1,10 @@
-import React, { ReactNode, startTransition, useMemo, useState } from "react";
+import React, {
+  PropsWithChildren,
+  ReactNode,
+  startTransition,
+  useMemo,
+  useState,
+} from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useNavigate } from "react-router";
@@ -258,48 +264,48 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             </TooltipTrigger>
           );
         }
+        const runControls = (
+          <div
+            css={css`
+              position: absolute;
+              top: 0;
+              right: 0;
+              display: flex;
+              flex-direction: column;
+              gap: var(--ac-global-dimension-static-size-100);
+            `}
+          >
+            <TooltipTrigger>
+              <Button
+                variant="default"
+                className="expand-button"
+                size="compact"
+                aria-label="View example run details"
+                icon={<Icon svg={<Icons.ExpandOutline />} />}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  startTransition(() => {
+                    setDialog(
+                      <SelectedExampleDialog
+                        selectedExample={row.original}
+                        datasetId={datasetId}
+                        experimentInfoById={experimentInfoById}
+                      />
+                    );
+                  });
+                }}
+              />
+              <Tooltip>View run details</Tooltip>
+            </TooltipTrigger>
+            {traceButton}
+          </div>
+        );
+
         return run ? (
-          <ExperimentRunOutput
-            {...run}
-            displayFullText={displayFullText}
-            extra={
-              <div
-                css={css`
-                  position: absolute;
-                  top: 0;
-                  right: 0;
-                  display: flex;
-                  flex-direction: column;
-                  gap: var(--ac-global-dimension-static-size-100);
-                `}
-              >
-                <TooltipTrigger>
-                  <Button
-                    variant="default"
-                    className="expand-button"
-                    size="compact"
-                    aria-label="View example run details"
-                    icon={<Icon svg={<Icons.ExpandOutline />} />}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      startTransition(() => {
-                        setDialog(
-                          <SelectedExampleDialog
-                            selectedExample={row.original}
-                            datasetId={datasetId}
-                            experimentInfoById={experimentInfoById}
-                          />
-                        );
-                      });
-                    }}
-                  />
-                  <Tooltip>View run details</Tooltip>
-                </TooltipTrigger>
-                {traceButton}
-              </div>
-            }
-          />
+          <RunOutputWrap controls={runControls}>
+            <ExperimentRunOutput {...run} displayFullText={displayFullText} />
+          </RunOutputWrap>
         ) : (
           <NotRunText />
         );
@@ -475,17 +481,10 @@ function ExperimentRowActionMenu(props: {
  * Display the output of an experiment run.
  */
 function ExperimentRunOutput(
-  props: ExperimentRun & { displayFullText: boolean; extra: ReactNode }
+  props: ExperimentRun & { displayFullText: boolean }
 ) {
-  const {
-    output,
-    error,
-    startTime,
-    endTime,
-    annotations,
-    displayFullText,
-    extra,
-  } = props;
+  const { output, error, startTime, endTime, annotations, displayFullText } =
+    props;
   if (error) {
     return <RunError error={error} />;
   }
@@ -494,43 +493,50 @@ function ExperimentRunOutput(
     : [];
 
   return (
-    <div
-      css={css`
-        position: relative;
-      `}
-    >
-      {extra}
-      <View paddingEnd="size-500">
-        <Flex direction="column" gap="size-100" height="100%">
-          <LargeTextWrap>
-            <JSONText json={output} space={displayFullText ? 2 : 0} />
-          </LargeTextWrap>
-          <RunLatency startTime={startTime} endTime={endTime} />
-          <ul
-            css={css`
-              display: flex;
-              flex-direction: row;
-              gap: var(--ac-global-dimension-static-size-100);
-              flex-wrap: wrap;
-            `}
-          >
-            {annotationsList.map((annotation) => (
-              <li key={annotation.id}>
-                <AnnotationLabel
-                  annotation={annotation}
-                  onClick={() => {
-                    // TODO: Implement annotation click
-                  }}
-                />
-              </li>
-            ))}
-          </ul>
-        </Flex>
-      </View>
-    </div>
+    <Flex direction="column" gap="size-100" height="100%">
+      <LargeTextWrap>
+        <JSONText json={output} space={displayFullText ? 2 : 0} />
+      </LargeTextWrap>
+      <RunLatency startTime={startTime} endTime={endTime} />
+      <ul
+        css={css`
+          display: flex;
+          flex-direction: row;
+          gap: var(--ac-global-dimension-static-size-100);
+          flex-wrap: wrap;
+        `}
+      >
+        {annotationsList.map((annotation) => (
+          <li key={annotation.id}>
+            <AnnotationLabel
+              annotation={annotation}
+              onClick={() => {
+                // TODO: Implement annotation click
+              }}
+            />
+          </li>
+        ))}
+      </ul>
+    </Flex>
   );
 }
 
+/**
+ * Provides space for the controls and output of a run.
+ */
+function RunOutputWrap(props: PropsWithChildren<{ controls: ReactNode }>) {
+  return (
+    <div
+      css={css`
+        position: relative;
+        min-height: 75px;
+      `}
+    >
+      {props.controls}
+      <View paddingEnd={"size-500"}>{props.children}</View>
+    </div>
+  );
+}
 function RunError({ error }: { error: string }) {
   return (
     <Flex direction="row" gap="size-50" alignItems="center">
