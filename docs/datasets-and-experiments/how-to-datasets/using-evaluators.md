@@ -92,8 +92,8 @@ from phoenix.datasets.evaluators.utils import create_evaluator
 # `name` corresponds to the metric name shown in the UI
 # `kind` indicates if the eval was made with a "CODE" or "LLM" evaluator
 @create_evaluator(name="shorter?", kind="CODE")
-def wordiness_evaluator(reference, output):
-    reference_length = len(reference.split())
+def wordiness_evaluator(expected, output):
+    reference_length = len(expected.split())
     output_length = len(output.split())
     return output_length < reference_length
 ```
