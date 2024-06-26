@@ -1,6 +1,6 @@
 import asyncio
 import contextlib
-from typing import AsyncContextManager, AsyncGenerator, AsyncIterator, Callable
+from typing import AsyncContextManager, AsyncGenerator, AsyncIterator, Callable, Tuple
 
 import httpx
 import pytest
@@ -170,7 +170,7 @@ async def test_client(dialect, db):
 
 
 @pytest.fixture
-def sync_test_client(dialect, db):
+def test_phoenix_clients(dialect, db) -> Tuple[httpx.Client, httpx.AsyncClient]:
     factory = SessionFactory(session_factory=db, dialect=dialect)
     app = create_app(
         db=factory,
@@ -202,7 +202,31 @@ def sync_test_client(dialect, db):
                 request=request,
             )
 
+    class AsyncTransport(httpx.AsyncBaseTransport):
+        def __init__(self, app, asgi_transport):
+            self.app = app
+            self.asgi_transport = asgi_transport
+
+        async def handle_async_request(self, request: Request) -> Response:
+            response = await self.asgi_transport.handle_async_request(request)
+
+            async def read_stream():
+                content = b""
+                async for chunk in response.stream:
+                    content += chunk
+                return content
+
+            content = await read_stream()
+            return Response(
+                status_code=response.status_code,
+                headers=response.headers,
+                content=content,
+                request=request,
+            )
+
     asgi_transport = httpx.ASGITransport(app=app)
-    transport = SyncTransport(app, asgi_transport=asgi_transport)
-    client = httpx.Client(transport=transport, base_url="http://test")
-    return client
+    sync_transport = SyncTransport(app, asgi_transport=asgi_transport)
+    sync_client = httpx.Client(transport=sync_transport, base_url="http://test")
+    async_transport = AsyncTransport(app, asgi_transport=asgi_transport)
+    async_client = httpx.AsyncClient(transport=async_transport, base_url="http://test")
+    return sync_client, async_client
