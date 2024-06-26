@@ -60,8 +60,13 @@ export function RemoveProjectTracesForm(props: RemoveProjectTracesFormProps) {
             endTime: new Date(parsedDate).toISOString(),
           },
         },
+        onCompleted: () => {
+          props.onComplete();
+        },
+        onError: (error) => {
+          alert("Failed to clear project traces: " + error);
+        },
       });
-      props.onComplete();
     },
     [commit, projectId, props, setError]
   );

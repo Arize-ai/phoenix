@@ -22,7 +22,7 @@ union Bin = NominalBin | IntervalBin | MissingValueBin
 
 input ClearProjectInput {
   id: GlobalID!
-  endTime: String
+  endTime: DateTime
 }
 
 type Cluster {

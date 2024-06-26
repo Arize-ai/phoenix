@@ -31,6 +31,7 @@ export function ProjectActionMenu({
   projectName,
   onProjectDelete,
   onProjectClear,
+  onProjectRemoveTraces,
 }: {
   projectId: string;
   projectName: string;
@@ -155,7 +156,10 @@ export function ProjectActionMenu({
       <Dialog size="M" title="Remove D Data">
         <RemoveProjectTracesForm
           projectId={projectId}
-          onComplete={() => setDialog(null)}
+          onComplete={() => {
+            onProjectRemoveTraces();
+            setDialog(null);
+          }}
         />
       </Dialog>
     );
