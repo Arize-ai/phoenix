@@ -402,7 +402,7 @@ async def test_post_dataset_upload_json_create_then_append(test_client, session)
             "name": name,
             "inputs": [{"a": 11, "b": 22, "c": 33}],
             "outputs": [{"b": "22", "c": "33", "d": "44"}],
-            "metadata": [{"c": 33, "d": 44, "e": 55}],
+            "metadata": [],
         },
     )
     assert response.status_code == 200
@@ -423,7 +423,7 @@ async def test_post_dataset_upload_json_create_then_append(test_client, session)
     assert revisions[0].metadata_ == {"c": 3, "d": 4, "e": 5}
     assert revisions[1].input == {"a": 11, "b": 22, "c": 33}
     assert revisions[1].output == {"b": "22", "c": "33", "d": "44"}
-    assert revisions[1].metadata_ == {"c": 33, "d": 44, "e": 55}
+    assert revisions[1].metadata_ == {}
 
 
 async def test_post_dataset_upload_csv_create_then_append(test_client, session):
