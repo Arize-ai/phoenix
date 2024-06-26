@@ -379,7 +379,7 @@ def _evaluate_experiment(
         SimpleSpanProcessor(OTLPSpanExporter(urljoin(f"{_get_base_url()}", "v1/traces")))
     )
     tracer = tracer_provider.get_tracer(__name__)
-    root_span_kind = "EVALUATOR"
+    root_span_kind = EVALUATOR
 
     def sync_evaluate_run(
         obj: Tuple[Example, ExperimentRun, Evaluator],
@@ -524,4 +524,5 @@ OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
 
 CHAIN = OpenInferenceSpanKindValues.CHAIN
+EVALUATOR = OpenInferenceSpanKindValues.EVALUATOR
 JSON = OpenInferenceMimeTypeValues.JSON
