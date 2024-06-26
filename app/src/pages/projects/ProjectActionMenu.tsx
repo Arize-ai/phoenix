@@ -23,7 +23,7 @@ import { ProjectActionMenuDeleteMutation } from "./__generated__/ProjectActionMe
 enum ProjectAction {
   DELETE = "deleteProject",
   CLEAR = "clearProject",
-  CLEAR_UP_TO = "clearProjectUpTo",
+  REMOVE_DATA = "removeProjectData",
 }
 
 export function ProjectActionMenu({
@@ -31,12 +31,12 @@ export function ProjectActionMenu({
   projectName,
   onProjectDelete,
   onProjectClear,
-  onProjectRemoveTraces,
+  onProjectRemoveData,
 }: {
   projectId: string;
   projectName: string;
   onProjectClear: () => void;
-  onProjectRemoveTraces: () => void;
+  onProjectRemoveData: () => void;
   onProjectDelete: () => void;
 }) {
   const [dialog, setDialog] = useState<ReactNode>(null);
@@ -147,19 +147,19 @@ export function ProjectActionMenu({
     );
   }, [handleClear, projectName]);
 
-  const onClearUpTo = useCallback(() => {
+  const onRemoveData = useCallback(() => {
     setDialog(
       <Dialog size="M" title="Remove Data">
         <RemoveProjectDataForm
           projectId={projectId}
           onComplete={() => {
-            onProjectRemoveTraces();
+            onProjectRemoveData();
             setDialog(null);
           }}
         />
       </Dialog>
     );
-  }, [projectId]);
+  }, [onProjectRemoveData, projectId]);
 
   return (
     <div
@@ -181,8 +181,8 @@ export function ProjectActionMenu({
             case ProjectAction.CLEAR: {
               return onClear();
             }
-            case ProjectAction.CLEAR_UP_TO: {
-              return onClearUpTo();
+            case ProjectAction.REMOVE_DATA: {
+              return onRemoveData();
             }
           }
         }}
@@ -199,7 +199,7 @@ export function ProjectActionMenu({
             <Text>Clear Data</Text>
           </Flex>
         </Item>
-        <Item key={ProjectAction.CLEAR_UP_TO} textValue="Remove Data">
+        <Item key={ProjectAction.REMOVE_DATA} textValue="Remove Data">
           <Flex
             direction={"row"}
             gap="size-75"

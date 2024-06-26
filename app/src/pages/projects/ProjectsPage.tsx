@@ -174,7 +174,7 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
                   project={project}
                   onProjectDelete={() => onDelete(project.name)}
                   onProjectClear={() => onClear(project.name)}
-                  onProjectRemoveTraces={() => onRemoveTraces(project.name)}
+                  onProjectRemoveData={() => onRemoveTraces(project.name)}
                 />
               </Link>
             </li>
@@ -213,13 +213,13 @@ type ProjectItemProps = {
   project: ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"];
   onProjectDelete: () => void;
   onProjectClear: () => void;
-  onProjectRemoveTraces: () => void;
+  onProjectRemoveData: () => void;
 };
 function ProjectItem({
   project,
   onProjectDelete,
   onProjectClear,
-  onProjectRemoveTraces,
+  onProjectRemoveData,
 }: ProjectItemProps) {
   const {
     endTime,
@@ -280,7 +280,7 @@ function ProjectItem({
           projectName={project.name}
           onProjectDelete={onProjectDelete}
           onProjectClear={onProjectClear}
-          onProjectRemoveTraces={onProjectRemoveTraces}
+          onProjectRemoveData={onProjectRemoveData}
         />
       </Flex>
 
