@@ -24,7 +24,6 @@ class AnnotatorKind(Enum):
 
 
 JSONSerializable: TypeAlias = Optional[Union[Dict[str, Any], List[Any], str, int, float, bool]]
-
 ExperimentId: TypeAlias = str
 DatasetId: TypeAlias = str
 DatasetVersionId: TypeAlias = str
@@ -34,6 +33,14 @@ ExperimentRunId: TypeAlias = str
 TraceId: TypeAlias = str
 
 TaskOutput: TypeAlias = JSONSerializable
+
+ExampleOutput: TypeAlias = Mapping[str, JSONSerializable]
+ExampleMetadata: TypeAlias = Mapping[str, JSONSerializable]
+ExampleInput: TypeAlias = Mapping[str, JSONSerializable]
+
+EvaluatorName: TypeAlias = str
+EvaluatorKind: TypeAlias = str
+EvaluatorOutput: TypeAlias = Union["EvaluationResult", bool, int, float, str]
 
 
 @dataclass(frozen=True)

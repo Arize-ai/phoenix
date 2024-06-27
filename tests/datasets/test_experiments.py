@@ -7,8 +7,8 @@ from phoenix.datasets.evaluators import (
     ConcisenessEvaluator,
     ContainsKeyword,
     HelpfulnessEvaluator,
+    create_evaluator,
 )
-from phoenix.datasets.evaluators.utils import create_evaluator
 from phoenix.datasets.experiments import run_experiment
 from phoenix.datasets.types import (
     AnnotatorKind,
