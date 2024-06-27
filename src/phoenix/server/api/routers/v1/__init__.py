@@ -80,7 +80,7 @@ V1_ROUTES = [
     ),
     Route(
         "/v1/experiment_evaluations",
-        experiment_evaluations.create_experiment_evaluation,
+        experiment_evaluations.upsert_experiment_evaluation,
         methods=["POST"],
     ),
 ]
