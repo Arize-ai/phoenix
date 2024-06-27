@@ -2,15 +2,15 @@ import re
 from types import MappingProxyType
 from typing import Any, Callable, Optional, Type
 
-from phoenix.datasets.evaluators.utils import (
-    ExampleInput,
-    ExampleMetadata,
+from phoenix.datasets.evaluators.base import (
     ExperimentEvaluator,
     LLMEvaluator,
-    _unwrap_json,
 )
+from phoenix.datasets.evaluators.utils import unwrap_json
 from phoenix.datasets.types import (
     EvaluationResult,
+    ExampleInput,
+    ExampleMetadata,
     TaskOutput,
 )
 from phoenix.evals.models.base import BaseModel as LLMBaseModel
@@ -62,7 +62,7 @@ class LLMCriteriaEvaluator(LLMEvaluator):
 
     def _format_eval_template(self, output: TaskOutput) -> str:
         assert output is not None
-        result = _unwrap_json(output)
+        result = unwrap_json(output)
         return self.template.format(text=str(result))
 
     def _parse_eval_output(self, unparsed_response: str) -> EvaluationResult:
@@ -217,7 +217,7 @@ class RelevanceEvaluator(LLMEvaluator):
         self, output: Optional[TaskOutput] = None, *args: Any, **kwargs: Any
     ) -> str:
         assert output is not None
-        return str(_unwrap_json(output))
+        return str(unwrap_json(output))
 
     def evaluate(
         self,
