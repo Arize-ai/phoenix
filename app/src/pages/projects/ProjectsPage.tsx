@@ -124,14 +124,14 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
     [notify, refetch]
   );
 
-  const onRemoveTraces = useCallback(
+  const onRemove = useCallback(
     (projectName: string) => {
       startTransition(() => {
         refetch({}, { fetchPolicy: "store-and-network" });
         notify({
           variant: "success",
-          title: "Project Traces Removed",
-          message: `Old traces from project ${projectName} have been removed.`,
+          title: "Project Data Removed",
+          message: `Old data from project ${projectName} have been removed.`,
         });
       });
     },
@@ -174,7 +174,7 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
                   project={project}
                   onProjectDelete={() => onDelete(project.name)}
                   onProjectClear={() => onClear(project.name)}
-                  onProjectRemoveData={() => onRemoveTraces(project.name)}
+                  onProjectRemoveData={() => onRemove(project.name)}
                 />
               </Link>
             </li>
