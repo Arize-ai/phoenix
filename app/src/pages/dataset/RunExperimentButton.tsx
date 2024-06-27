@@ -13,7 +13,7 @@ import {
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 
-const INSTALL_PHOENIX_PYTHON = `!pip install arize-phoenix==${window.Config.platformVersion}`;
+const INSTALL_PHOENIX_PYTHON = `pip install arize-phoenix>=${window.Config.platformVersion}`;
 // TODO: plumb though session URL from the backend
 const SET_BASE_URL_PYTHON =
   `import os\n` +
