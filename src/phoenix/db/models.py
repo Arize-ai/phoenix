@@ -92,7 +92,7 @@ class UtcTimeStamp(TypeDecorator[datetime]):
 
 
 class ExperimentResult(TypedDict, total=False):
-    result: Dict[str, Any]
+    result: Any
 
 
 class Base(DeclarativeBase):
