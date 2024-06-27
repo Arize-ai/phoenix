@@ -2,7 +2,7 @@ import re
 from types import MappingProxyType
 from typing import Any, Callable, Optional, Type
 
-from phoenix.datasets.evaluators.utils import (
+from phoenix.datasets.evaluators.base import (
     ExperimentEvaluator,
     LLMEvaluator,
     _unwrap_json,

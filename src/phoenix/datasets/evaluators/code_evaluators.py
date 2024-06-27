@@ -4,7 +4,7 @@ import json
 import re
 from typing import Any, List, Optional, Union
 
-from phoenix.datasets.evaluators.utils import Evaluator
+from phoenix.datasets.evaluators.base import Evaluator
 from phoenix.datasets.types import EvaluationResult, TaskOutput
 
 

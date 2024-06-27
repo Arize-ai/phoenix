@@ -42,7 +42,7 @@ from phoenix.config import (
     get_env_host,
     get_env_port,
 )
-from phoenix.datasets.evaluators.utils import (
+from phoenix.datasets.evaluators.base import (
     Evaluator,
     ExperimentEvaluator,
     create_evaluator,
