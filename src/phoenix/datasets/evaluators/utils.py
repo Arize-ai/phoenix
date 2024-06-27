@@ -2,13 +2,19 @@ import functools
 import inspect
 from abc import ABC
 from types import MappingProxyType
-from typing import Any, Awaitable, Callable, Mapping, Optional, Union
+from typing import Any, Awaitable, Callable, Optional, Union
 
 from typing_extensions import TypeAlias
 
 from phoenix.datasets.types import (
     AnnotatorKind,
     EvaluationResult,
+    EvaluatorKind,
+    EvaluatorName,
+    EvaluatorOutput,
+    ExampleInput,
+    ExampleMetadata,
+    ExampleOutput,
     JSONSerializable,
     TaskOutput,
 )
@@ -163,15 +169,6 @@ def _default_eval_scorer(result: Any) -> EvaluationResult:
         return result
     else:
         raise ValueError(f"Unsupported evaluation result type: {type(result)}")
-
-
-ExampleOutput: TypeAlias = Mapping[str, JSONSerializable]
-ExampleMetadata: TypeAlias = Mapping[str, JSONSerializable]
-ExampleInput: TypeAlias = Mapping[str, JSONSerializable]
-
-EvaluatorName: TypeAlias = str
-EvaluatorKind: TypeAlias = str
-EvaluatorOutput: TypeAlias = Union[EvaluationResult, bool, int, float, str]
 
 
 class Evaluator(ABC):

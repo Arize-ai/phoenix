@@ -44,7 +44,6 @@ from phoenix.config import (
 )
 from phoenix.datasets.evaluators.utils import (
     Evaluator,
-    EvaluatorName,
     ExperimentEvaluator,
     create_evaluator,
 )
@@ -52,6 +51,7 @@ from phoenix.datasets.tracing import capture_spans
 from phoenix.datasets.types import (
     Dataset,
     EvaluationResult,
+    EvaluatorName,
     Example,
     Experiment,
     ExperimentEvaluationRun,
