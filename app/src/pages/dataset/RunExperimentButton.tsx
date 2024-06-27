@@ -87,7 +87,7 @@ function RunExperimentExample() {
   return (
     <View padding="size-400">
       <View paddingBottom="size-100">
-        <Text>Install phoenix</Text>
+        <Text>Install Phoenix</Text>
       </View>
       <CodeWrap>
         <PythonBlockWithCopy value={INSTALL_PHOENIX_PYTHON} />
