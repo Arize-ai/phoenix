@@ -23,7 +23,7 @@ const TASK_PYTHON =
   `from phoenix.datasets.types import Example\n` +
   `# Define your task\n` +
   `# Typically should be an LLM call or a call to your application\n` +
-  `def my_task(example: Example) -> any:\n` +
+  `def my_task(example: Example) -> str:\n` +
   `    return f"Hello {example.input}"`;
 
 const EVALUATOR_PYTHON =
