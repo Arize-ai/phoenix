@@ -36,7 +36,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer
 from typing_extensions import TypeAlias
 
-from phoenix.config import get_env_client_headers
+from phoenix.config import get_base_url, get_env_client_headers
 from phoenix.datasets.evaluators import create_evaluator
 from phoenix.datasets.evaluators.base import (
     Evaluator,
@@ -45,14 +45,14 @@ from phoenix.datasets.evaluators.base import (
 from phoenix.datasets.tracing import capture_spans
 from phoenix.datasets.types import (
     Dataset,
-    EvaluationConfig,
+    EvaluationParameters,
     EvaluationResult,
     EvaluationSummary,
     EvaluatorName,
     Example,
     Experiment,
-    ExperimentConfig,
     ExperimentEvaluationRun,
+    ExperimentParameters,
     ExperimentResult,
     ExperimentRun,
     ExperimentRunId,
@@ -62,7 +62,7 @@ from phoenix.datasets.types import (
     TestCase,
     _asdict,
 )
-from phoenix.datasets.utils import get_base_url, get_dataset_experiments_url, get_experiment_url
+from phoenix.datasets.utils import get_dataset_experiments_url, get_experiment_url
 from phoenix.evals.executors import get_executor_on_sync_context
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.utils import get_tqdm_progress_bar_formatter
@@ -98,6 +98,7 @@ def run_experiment(
     evaluators: Optional[Evaluators] = None,
     rate_limit_errors: Optional[Union[Type[BaseException], Tuple[Type[BaseException], ...]]] = None,
     dry_run: bool = False,
+    print_summary: bool = True,
 ) -> RanExperiment:
     dataset_id, dataset_version_id = dataset.id, dataset.version_id
     if not dataset.examples:
@@ -275,18 +276,25 @@ def run_experiment(
     ]
     task_runs, _execution_details = executor.run(test_cases)
     print("✅ Task runs completed.")
-    config = ExperimentConfig(n_examples=len(dataset.examples), n_repetitions=repetitions)
-    task_summary = TaskSummary.from_task_runs(config, task_runs)
+    params = ExperimentParameters(n_examples=len(dataset.examples), n_repetitions=repetitions)
+    task_summary = TaskSummary.from_task_runs(params, task_runs)
     ran_experiment: RanExperiment = object.__new__(RanExperiment)
     ran_experiment.__init__(  # type: ignore[misc]
         dataset=dataset,
-        config=config,
+        params=params,
         runs=task_runs,
         task_summary=task_summary,
         **_asdict(experiment),
     )
     if evaluators_by_name:
-        return _evaluate_experiment(ran_experiment, evaluators=evaluators_by_name)
+        return evaluate_experiment(
+            ran_experiment,
+            evaluators=evaluators_by_name,
+            dry_run=dry_run,
+            print_summary=print_summary,
+        )
+    if print_summary:
+        print(ran_experiment)
     return ran_experiment
 
 
@@ -295,11 +303,12 @@ def evaluate_experiment(
     evaluators: Evaluators,
     *,
     dry_run: bool = False,
+    print_summary: bool = True,
 ) -> RanExperiment:
     evaluators_by_name = _evaluators_by_name(evaluators)
     if not evaluators_by_name:
         raise ValueError("Must specify at least one Evaluator")
-    sync_client, _ = _phoenix_clients()
+    sync_client, async_client = _phoenix_clients()
     dataset_id = experiment.dataset_id
     dataset_version_id = experiment.dataset_version_id
     if isinstance(experiment, RanExperiment):
@@ -321,35 +330,16 @@ def evaluate_experiment(
         )
         if not experiment_runs:
             raise ValueError("Experiment has not been run")
-        config = ExperimentConfig(n_examples=len(dataset.examples))
-        task_summary = TaskSummary.from_task_runs(config, experiment_runs)
+        params = ExperimentParameters(n_examples=len(dataset.examples))
+        task_summary = TaskSummary.from_task_runs(params, experiment_runs)
         ran_experiment = object.__new__(RanExperiment)
         ran_experiment.__init__(  # type: ignore[misc]
             dataset=dataset,
-            config=config,
+            params=params,
             runs=experiment_runs,
             task_summary=task_summary,
             **_asdict(experiment),
         )
-    return _evaluate_experiment(
-        ran_experiment,
-        evaluators=evaluators,
-        dry_run=dry_run,
-    )
-
-
-def _evaluate_experiment(
-    ran_experiment: RanExperiment,
-    evaluators: Evaluators,
-    *,
-    dry_run: bool = False,
-) -> RanExperiment:
-    if not isinstance(ran_experiment, RanExperiment):
-        raise ValueError("Experiment has not been run.")
-    evaluators_by_name = _evaluators_by_name(evaluators)
-    if not evaluators_by_name:
-        raise ValueError("Must specify at least one Evaluator")
-    sync_client, async_client = _phoenix_clients()
 
     # not all dataset examples have associated experiment runs, so we need to pair them up
     example_run_pairs = []
@@ -467,13 +457,16 @@ def _evaluate_experiment(
     print("🧠 Evaluation started.")
     eval_runs, _execution_details = executor.run(evaluation_input)
     eval_summary = EvaluationSummary.from_eval_runs(
-        EvaluationConfig(
+        EvaluationParameters(
             eval_names=frozenset(evaluators_by_name),
-            exp_config=ran_experiment.config,
+            exp_params=ran_experiment.params,
         ),
         eval_runs,
     )
-    return ran_experiment + eval_summary
+    ran_experiment += eval_summary
+    if print_summary:
+        print(ran_experiment)
+    return ran_experiment
 
 
 def _evaluators_by_name(obj: Optional[Evaluators]) -> Mapping[EvaluatorName, Evaluator]:

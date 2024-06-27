@@ -24,7 +24,7 @@ classifiers = [
 dependencies = [
   "scikit-learn",
   "numpy<2",  # https://github.com/scikit-learn-contrib/hdbscan/issues/642
-  "pandas",
+  "pandas>=1.0",
   "jinja2",
   "umap-learn",
   "hdbscan>=0.8.33",
@@ -166,6 +166,7 @@ dependencies = [
 dependencies = [
   "mypy==1.10.0",
   "tenacity",
+  "pandas>=1.0",
   "pandas-stubs==2.0.3.230814",
   "types-tabulate",
   "types-psutil",
@@ -362,6 +363,7 @@ module = [
   "wrapt",
   "langchain.*",
   "litellm",
+  "litellm.*",
   "nest_asyncio",
   "opentelemetry.*",
   "pyarrow",

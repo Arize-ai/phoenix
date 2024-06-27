@@ -211,7 +211,7 @@ ExperimentTask: TypeAlias = Union[
 
 
 @dataclass(frozen=True)
-class ExperimentConfig:
+class ExperimentParameters:
     n_examples: int
     n_repetitions: int = 1
 
@@ -221,9 +221,9 @@ class ExperimentConfig:
 
 
 @dataclass(frozen=True)
-class EvaluationConfig:
+class EvaluationParameters:
     eval_names: FrozenSet[str]
-    exp_config: ExperimentConfig
+    exp_params: ExperimentParameters
 
 
 @dataclass(frozen=True)
@@ -250,19 +250,25 @@ class _HasStats:
 
 @dataclass(frozen=True)
 class EvaluationSummary(_HasStats):
-    _title: str = "Evaluation Summary"
+    """
+    Summary statistics of experiment evaluations.
+
+    Users should not instantiate this directly.
+    """
+
+    _title: str = "Experiment Summary"
 
     @classmethod
     def from_eval_runs(
         cls,
-        config: EvaluationConfig,
+        params: EvaluationParameters,
         eval_runs: Iterable[Optional[ExperimentEvaluationRun]],
     ) -> EvaluationSummary:
         df = pd.DataFrame.from_records(
             [
                 {
                     "evaluator": run.name,
-                    "error": bool(run.error),
+                    "error": run.error,
                     "score": run.result.score if run.result else None,
                     "label": run.result.label if run.result else None,
                 }
@@ -274,11 +280,11 @@ class EvaluationSummary(_HasStats):
             df = pd.DataFrame.from_records(
                 [
                     {"evaluator": name, "error": True, "score": None, "label": None}
-                    for name in config.eval_names
+                    for name in params.eval_names
                 ]
             )
         stats = df.groupby("evaluator").agg(
-            n_errors=("error", "sum"),
+            n_errors=("error", "count"),
             **(
                 dict(
                     n_scores=("score", "count"),
@@ -298,12 +304,24 @@ class EvaluationSummary(_HasStats):
                 if df["label"].any()
                 else {}
             ),
+            **(
+                dict(
+                    top_error=(
+                        "error",
+                        lambda x: dict(Counter(x.str.slice(0, 20)).most_common(1))
+                        if x.any()
+                        else None,
+                    ),
+                )
+                if df["error"].any()
+                else {}
+            ),
         )  # type: ignore[call-overload]
-        sorted_eval_names = sorted(config.eval_names)
+        sorted_eval_names = sorted(params.eval_names)
         eval_names = pd.DataFrame(
             {
                 "evaluator": sorted_eval_names,
-                "n": [config.exp_config.count] * len(sorted_eval_names),
+                "n": [params.exp_params.count] * len(sorted_eval_names),
             }
         ).set_index("evaluator")
         stats = pd.concat([eval_names, stats], axis=1).reset_index()
@@ -324,30 +342,48 @@ class EvaluationSummary(_HasStats):
 
 @dataclass(frozen=True)
 class TaskSummary(_HasStats):
-    _title: str = "Experiment Summary"
+    """
+    Summary statistics of experiment task executions.
+
+    **Users should not instantiate this object directly.**
+    """
+
+    _title: str = "Tasks Summary"
 
     @classmethod
     def from_task_runs(
         cls,
-        config: ExperimentConfig,
+        params: ExperimentParameters,
         task_runs: Iterable[Optional[ExperimentRun]],
     ) -> "TaskSummary":
         df = pd.DataFrame.from_records(
             [
                 {
                     "example_id": run.dataset_example_id,
-                    "error": bool(run.error),
+                    "error": run.error,
                 }
                 for run in task_runs
                 if run is not None
             ]
         )
-        n_runs, n_errors = len(df), 0 if df.empty else df["error"].sum()
+        n_runs, n_errors = len(df), 0 if df.empty else df["error"].count()
         record = {
-            "n": config.count,
+            "n": params.count,
             "n_runs": n_runs,
             "n_errors": n_errors,
-            "pct_errors": n_errors / n_runs,
+            "pct_error": n_errors / n_runs,
+            **(
+                dict(
+                    top_error=(
+                        "error",
+                        lambda x: dict(Counter(x.str.slice(0, 20)).most_common(1))
+                        if x.any()
+                        else None,
+                    ),
+                )
+                if df["error"].any()
+                else {}
+            ),
         }
         stats = pd.DataFrame.from_records([record])
         summary: TaskSummary = object.__new__(cls)
@@ -367,7 +403,13 @@ class TaskSummary(_HasStats):
 
 @dataclass(frozen=True)
 class RanExperiment(Experiment):
-    config: ExperimentConfig
+    """
+    An experiment that has been run.
+
+    **Users should not instantiate this object directly.**
+    """
+
+    params: ExperimentParameters = field(repr=False)
     dataset: Dataset = field(repr=False)
     runs: Sequence[ExperimentRun] = field(repr=False)
     task_summary: TaskSummary = field(repr=False)
@@ -390,7 +432,7 @@ class RanExperiment(Experiment):
         return ran_experiment
 
     def __str__(self) -> str:
-        summaries = (self.task_summary, *self.eval_summaries)
+        summaries = (*self.eval_summaries, self.task_summary)
         return f"\n{self.info}\n\n" + "\n\n".join(map(str, summaries))
 
     @classmethod
@@ -404,6 +446,6 @@ class RanExperiment(Experiment):
         raise NotImplementedError
 
 
-def _asdict(dc: dataclass) -> Dict[str, Any]:
+def _asdict(dc: Any) -> Dict[str, Any]:
     # non-recursive version of `dataclasses.asdict()`
     return {field.name: getattr(dc, field.name) for field in fields(dc)}
