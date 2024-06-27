@@ -93,7 +93,7 @@ function RunExperimentExample() {
         <PythonBlockWithCopy value={INSTALL_PHOENIX_PYTHON} />
       </CodeWrap>
       <View paddingTop="size-100" paddingBottom="size-100">
-        <Text>Make sure to point this phoenix instance</Text>
+        <Text>Point to a running instance of Phoenix</Text>
       </View>
       <CodeWrap>
         <PythonBlockWithCopy value={SET_BASE_URL_PYTHON} />
