@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import OnConflict, insert_stmt
+from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.schemas import Span, SpanStatusCode
 
@@ -27,7 +27,7 @@ async def insert_span(
 ) -> Optional[SpanInsertionEvent]:
     dialect = SupportedSQLDialect(session.bind.dialect.name)
     project_rowid = await session.scalar(
-        insert_stmt(
+        insert_on_conflict(
             dialect=dialect,
             table=models.Project,
             constraint="uq_projects_name",
@@ -87,7 +87,7 @@ async def insert_span(
         cumulative_llm_token_count_prompt += cast(int, accumulation[1] or 0)
         cumulative_llm_token_count_completion += cast(int, accumulation[2] or 0)
     span_rowid = await session.scalar(
-        insert_stmt(
+        insert_on_conflict(
             dialect=dialect,
             table=models.Span,
             constraint="uq_spans_span_id",

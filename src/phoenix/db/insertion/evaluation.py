@@ -6,7 +6,7 @@ from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, num_docs_col
-from phoenix.db.insertion.helpers import OnConflict, insert_stmt
+from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.exceptions import PhoenixException
 from phoenix.trace import v1 as pb
 
@@ -91,7 +91,7 @@ async def _insert_trace_evaluation(
     set_.pop("metadata_")
     set_["metadata"] = values["metadata_"]  # `metadata` must match database
     await session.execute(
-        insert_stmt(
+        insert_on_conflict(
             dialect=dialect,
             table=models.TraceAnnotation,
             values=values,
@@ -139,7 +139,7 @@ async def _insert_span_evaluation(
     set_.pop("metadata_")
     set_["metadata"] = values["metadata_"]  # `metadata` must match database
     await session.execute(
-        insert_stmt(
+        insert_on_conflict(
             dialect=dialect,
             table=models.SpanAnnotation,
             values=values,
@@ -196,7 +196,7 @@ async def _insert_document_evaluation(
     set_.pop("metadata_")
     set_["metadata"] = values["metadata_"]  # `metadata` must match database
     await session.execute(
-        insert_stmt(
+        insert_on_conflict(
             dialect=dialect,
             table=models.DocumentAnnotation,
             values=values,

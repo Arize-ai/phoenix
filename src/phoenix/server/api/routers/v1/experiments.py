@@ -8,7 +8,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import insert_stmt
+from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
@@ -105,7 +105,7 @@ async def create_experiment(request: Request) -> Response:
 
         dialect = SupportedSQLDialect(session.bind.dialect.name)
         project_rowid = await session.scalar(
-            insert_stmt(
+            insert_on_conflict(
                 dialect=dialect,
                 table=models.Project,
                 constraint="uq_projects_name",
