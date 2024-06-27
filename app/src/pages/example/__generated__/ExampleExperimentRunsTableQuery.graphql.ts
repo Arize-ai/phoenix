@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<46a447dc8f3b5bb344d5fdbe17914403>>
+ * @generated SignedSource<<c8ec1e184e67c6fb2e29fa80864d7f7e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -74,6 +74,31 @@ v4 = {
   "args": null,
   "kind": "ScalarField",
   "name": "id",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "Trace",
+  "kind": "LinkedField",
+  "name": "trace",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "traceId",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "projectId",
+      "storageKey": null
+    }
+  ],
   "storageKey": null
 };
 return {
@@ -179,6 +204,7 @@ return {
                             "name": "output",
                             "storageKey": null
                           },
+                          (v5/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -239,31 +265,7 @@ return {
                                         "name": "annotatorKind",
                                         "storageKey": null
                                       },
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "concreteType": "Trace",
-                                        "kind": "LinkedField",
-                                        "name": "trace",
-                                        "plural": false,
-                                        "selections": [
-                                          {
-                                            "alias": null,
-                                            "args": null,
-                                            "kind": "ScalarField",
-                                            "name": "traceId",
-                                            "storageKey": null
-                                          },
-                                          {
-                                            "alias": null,
-                                            "args": null,
-                                            "kind": "ScalarField",
-                                            "name": "projectId",
-                                            "storageKey": null
-                                          }
-                                        ],
-                                        "storageKey": null
-                                      }
+                                      (v5/*: any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -345,16 +347,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b4735796f2da8ed425ca7e5c62603ba5",
+    "cacheID": "2ec7ead16e6df0877bc47db0ed7c7553",
     "id": null,
     "metadata": {},
     "name": "ExampleExperimentRunsTableQuery",
     "operationKind": "query",
-    "text": "query ExampleExperimentRunsTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExampleExperimentRunsTableFragment_2HEEH6\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ExampleExperimentRunsTableFragment_2HEEH6 on DatasetExample {\n  experimentRuns(first: $first, after: $after) {\n    edges {\n      run: node {\n        id\n        startTime\n        endTime\n        error\n        output\n        annotations {\n          edges {\n            annotation: node {\n              id\n              name\n              label\n              score\n              explanation\n              annotatorKind\n              trace {\n                traceId\n                projectId\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ExampleExperimentRunsTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExampleExperimentRunsTableFragment_2HEEH6\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ExampleExperimentRunsTableFragment_2HEEH6 on DatasetExample {\n  experimentRuns(first: $first, after: $after) {\n    edges {\n      run: node {\n        id\n        startTime\n        endTime\n        error\n        output\n        trace {\n          traceId\n          projectId\n        }\n        annotations {\n          edges {\n            annotation: node {\n              id\n              name\n              label\n              score\n              explanation\n              annotatorKind\n              trace {\n                traceId\n                projectId\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "76a1cfef71ac204c9fb56f0d7a2d6d7b";
+(node as any).hash = "6ca0f938b309407e8c184a1c13d1c52d";
 
 export default node;

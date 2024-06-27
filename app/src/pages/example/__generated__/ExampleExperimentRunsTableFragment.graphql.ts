@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<19e406b01d9f7b1022804da5dc0d6f60>>
+ * @generated SignedSource<<a64e2f9d71b5494e45a95504e5c2015d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -36,6 +36,10 @@ export type ExampleExperimentRunsTableFragment$data = {
         readonly id: string;
         readonly output: any | null;
         readonly startTime: string;
+        readonly trace: {
+          readonly projectId: string;
+          readonly traceId: string;
+        } | null;
       };
     }>;
   };
@@ -56,6 +60,31 @@ v1 = {
   "args": null,
   "kind": "ScalarField",
   "name": "id",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "Trace",
+  "kind": "LinkedField",
+  "name": "trace",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "traceId",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "projectId",
+      "storageKey": null
+    }
+  ],
   "storageKey": null
 };
 return {
@@ -155,6 +184,7 @@ return {
                   "name": "output",
                   "storageKey": null
                 },
+                (v2/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -215,31 +245,7 @@ return {
                               "name": "annotatorKind",
                               "storageKey": null
                             },
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "Trace",
-                              "kind": "LinkedField",
-                              "name": "trace",
-                              "plural": false,
-                              "selections": [
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "traceId",
-                                  "storageKey": null
-                                },
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "projectId",
-                                  "storageKey": null
-                                }
-                              ],
-                              "storageKey": null
-                            }
+                            (v2/*: any*/)
                           ],
                           "storageKey": null
                         }
@@ -315,6 +321,6 @@ return {
 };
 })();
 
-(node as any).hash = "76a1cfef71ac204c9fb56f0d7a2d6d7b";
+(node as any).hash = "6ca0f938b309407e8c184a1c13d1c52d";
 
 export default node;

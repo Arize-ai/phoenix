@@ -1,4 +1,10 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, {
+  ReactNode,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {
@@ -11,6 +17,8 @@ import { css } from "@emotion/react";
 
 import {
   ActionMenu,
+  Dialog,
+  DialogContainer,
   Flex,
   Heading,
   HelpTooltip,
@@ -24,6 +32,7 @@ import {
   View,
 } from "@arizeai/components";
 
+import { JSONBlock } from "@phoenix/components/code";
 import { AnnotationColorSwatch } from "@phoenix/components/experiment";
 import { SequenceNumberLabel } from "@phoenix/components/experiment/SequenceNumberLabel";
 import { Link } from "@phoenix/components/Link";
@@ -31,6 +40,7 @@ import { CompactJSONCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
+import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import {
@@ -183,11 +193,7 @@ export function ExperimentsTable({
     {
       header: "created at",
       accessorKey: "createdAt",
-    },
-    {
-      header: "metadata",
-      accessorKey: "metadata",
-      cell: CompactJSONCell,
+      cell: TimestampCell,
     },
   ];
   const annotationColumns: ColumnDef<TableRow>[] =
@@ -253,7 +259,13 @@ export function ExperimentsTable({
       id: "actions",
       cell: ({ row }) => {
         const project = row.original.project;
-        return <ExperimentActionMenu projectId={project?.id || null} />;
+        const metadata = row.original.metadata;
+        return (
+          <ExperimentActionMenu
+            projectId={project?.id || null}
+            metadata={metadata}
+          />
+        );
       },
     },
   ];
@@ -442,11 +454,16 @@ function AnnotationAggregationCell({
 
 export enum ExperimentAction {
   GO_TO_EXPERIMENT_RUN_TRACES = "GO_TO_EXPERIMENT_RUN_TRACES",
+  VIEW_METADATA = "VIEW_METADATA",
 }
 
-function ExperimentActionMenu(props: { projectId: string | null }) {
+function ExperimentActionMenu(props: {
+  projectId: string | null;
+  metadata: unknown;
+}) {
   const { projectId } = props;
   const navigate = useNavigate();
+  const [dialog, setDialog] = useState<ReactNode>(null);
   return (
     <div
       // TODO: add this logic to the ActionMenu component
@@ -468,6 +485,14 @@ function ExperimentActionMenu(props: { projectId: string | null }) {
             case ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES: {
               return navigate(`/projects/${projectId}`);
             }
+            case ExperimentAction.VIEW_METADATA: {
+              setDialog(
+                <Dialog title="Metadata" onDismiss={() => setDialog(null)}>
+                  <JSONBlock value={JSON.stringify(props.metadata, null, 2)} />
+                </Dialog>
+              );
+              break;
+            }
             default: {
               assertUnreachable(action);
             }
@@ -476,16 +501,36 @@ function ExperimentActionMenu(props: { projectId: string | null }) {
       >
         <Item key={ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES}>
           <Flex
-            direction={"row"}
+            direction="row"
             gap="size-75"
-            justifyContent={"start"}
-            alignItems={"center"}
+            justifyContent="start"
+            alignItems="center"
           >
             <Icon svg={<Icons.Trace />} />
             <Text>View run traces</Text>
           </Flex>
         </Item>
+        <Item key={ExperimentAction.VIEW_METADATA}>
+          <Flex
+            direction="row"
+            gap="size-75"
+            justifyContent="start"
+            alignItems="center"
+          >
+            <Icon svg={<Icons.InfoOutline />} />
+            <Text>View Metadata</Text>
+          </Flex>
+        </Item>
       </ActionMenu>
+      <DialogContainer
+        type="modal"
+        isDismissable
+        onDismiss={() => {
+          setDialog(null);
+        }}
+      >
+        {dialog}
+      </DialogContainer>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
+import { useNavigate } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -8,7 +9,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex, Text } from "@arizeai/components";
+import { Button, Flex, Icon, Icons, Text } from "@arizeai/components";
 
 import { AnnotationLabel } from "@phoenix/components/experiment";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -45,6 +46,7 @@ export function ExampleExperimentRunsTable({
   example: ExampleExperimentRunsTableFragment$key;
 }) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
   const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
     ExampleExperimentRunsTableQuery,
     ExampleExperimentRunsTableFragment$key
@@ -65,6 +67,10 @@ export function ExampleExperimentRunsTable({
               endTime
               error
               output
+              trace {
+                traceId
+                projectId
+              }
               annotations {
                 edges {
                   annotation: node {
@@ -149,13 +155,38 @@ export function ExampleExperimentRunsTable({
                   key={index}
                   annotation={annotation}
                   onClick={() => {
-                    // TODO: implement annotation trace
+                    if (annotation.trace) {
+                      navigate(
+                        `/projects/${annotation.trace.projectId}/traces/${annotation.trace.traceId}`
+                      );
+                    }
                   }}
                 />
               );
             })}
           </Flex>
         );
+      },
+    },
+    {
+      id: "actions",
+      cell: ({ row }) => {
+        const trace = row.original.trace;
+        if (trace) {
+          return (
+            <Button
+              variant="default"
+              size="compact"
+              icon={<Icon svg={<Icons.Trace />} />}
+              onClick={() => {
+                navigate(
+                  `/projects/${trace.projectId}/traces/${trace.traceId}`
+                );
+              }}
+              aria-label="view trace"
+            />
+          );
+        }
       },
     },
   ];
