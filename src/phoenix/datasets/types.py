@@ -261,7 +261,7 @@ class EvaluationSummary(_HasStats):
         df = pd.DataFrame.from_records(
             [
                 {
-                    "eval_name": run.name,
+                    "evaluator": run.name,
                     "error": bool(run.error),
                     "score": run.result.score if run.result else None,
                     "label": run.result.label if run.result else None,
@@ -273,11 +273,11 @@ class EvaluationSummary(_HasStats):
         if df.empty:
             df = pd.DataFrame.from_records(
                 [
-                    {"eval_name": name, "error": True, "score": None, "label": None}
+                    {"evaluator": name, "error": True, "score": None, "label": None}
                     for name in config.eval_names
                 ]
             )
-        stats = df.groupby("eval_name").agg(
+        stats = df.groupby("evaluator").agg(
             n_errors=("error", "sum"),
             **(
                 dict(
@@ -302,10 +302,10 @@ class EvaluationSummary(_HasStats):
         sorted_eval_names = sorted(config.eval_names)
         eval_names = pd.DataFrame(
             {
-                "eval_name": sorted_eval_names,
+                "evaluator": sorted_eval_names,
                 "n": [config.exp_config.count] * len(sorted_eval_names),
             }
-        ).set_index("eval_name")
+        ).set_index("evaluator")
         stats = pd.concat([eval_names, stats], axis=1).reset_index()
         summary: EvaluationSummary = object.__new__(cls)
         summary.__init__(stats=stats)  # type: ignore[misc]
@@ -345,7 +345,7 @@ class TaskSummary(_HasStats):
         n_runs, n_errors = len(df), 0 if df.empty else df["error"].sum()
         record = {
             "n": config.count,
-            "n_ran": n_runs,
+            "n_runs": n_runs,
             "n_errors": n_errors,
             "pct_errors": n_errors / n_runs,
         }
