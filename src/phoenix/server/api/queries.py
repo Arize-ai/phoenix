@@ -11,6 +11,7 @@ from strawberry.relay import Connection, GlobalID, Node
 from strawberry.types import Info
 from typing_extensions import Annotated, TypeAlias
 
+from phoenix.config import PHOENIX_DIR
 from phoenix.db import models
 from phoenix.db.models import (
     DatasetExample as OrmExample,
@@ -34,6 +35,7 @@ from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.context import Context
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
+from phoenix.server.api.input_types.CodeExample import CodeExample
 from phoenix.server.api.input_types.Coordinates import (
     InputCoordinate2D,
     InputCoordinate3D,
@@ -501,3 +503,9 @@ class Query:
         return to_gql_clusters(
             clustered_events=clustered_events,
         )
+
+    @strawberry.field
+    def code_example(self, example: CodeExample) -> str:
+        example_relative_path = example.value
+        with open(PHOENIX_DIR / example_relative_path) as example_file:
+            return example_file.read()
