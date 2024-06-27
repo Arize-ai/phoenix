@@ -42,10 +42,10 @@ from phoenix.config import (
     get_env_host,
     get_env_port,
 )
+from phoenix.datasets.evaluators import create_evaluator
 from phoenix.datasets.evaluators.base import (
     Evaluator,
     ExperimentEvaluator,
-    create_evaluator,
 )
 from phoenix.datasets.tracing import capture_spans
 from phoenix.datasets.types import (

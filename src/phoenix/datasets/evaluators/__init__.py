@@ -6,8 +6,10 @@ from phoenix.datasets.evaluators.llm_evaluators import (
     LLMCriteriaEvaluator,
     RelevanceEvaluator,
 )
+from phoenix.datasets.evaluators.utils import create_evaluator
 
 __all__ = [
+    "create_evaluator",
     "ContainsKeyword",
     "JSONParsable",
     "CoherenceEvaluator",
