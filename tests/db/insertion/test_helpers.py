@@ -105,6 +105,9 @@ class Test_insert_stmt:
 
 @pytest.fixture
 def prod_db(request, dialect) -> async_sessionmaker:
+    """
+    Instantiates DB in a manner similar to production.
+    """
     if dialect == "sqlite":
         return request.getfixturevalue("prod_sqlite_db")
     elif dialect == "postgresql":
@@ -116,6 +119,9 @@ def prod_db(request, dialect) -> async_sessionmaker:
 async def prod_sqlite_db(
     sqlite_engine: AsyncEngine,
 ) -> AsyncGenerator[Callable[[], AsyncContextManager[AsyncSession]], None]:
+    """
+    Instantiates SQLite in a manner similar to production.
+    """
     Session = async_sessionmaker(sqlite_engine, expire_on_commit=False)
 
     @contextlib.asynccontextmanager
@@ -130,6 +136,9 @@ async def prod_sqlite_db(
 async def prod_postgres_db(
     postgres_engine: AsyncEngine,
 ) -> AsyncGenerator[Callable[[], AsyncContextManager[AsyncSession]], None]:
+    """
+    Instantiates Postgres in a manner similar to production.
+    """
     Session = async_sessionmaker(postgres_engine, expire_on_commit=False)
 
     @contextlib.asynccontextmanager
