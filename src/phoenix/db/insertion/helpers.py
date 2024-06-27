@@ -25,7 +25,7 @@ class OnConflict(Enum):
     DO_UPDATE = auto()
 
 
-def insert_stmt(
+def insert_on_conflict(
     dialect: SupportedSQLDialect,
     table: Any,
     values: Mapping[str, Any],

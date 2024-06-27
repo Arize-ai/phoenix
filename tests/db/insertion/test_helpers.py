@@ -4,7 +4,7 @@ from typing import AsyncContextManager, AsyncGenerator, AsyncIterator, Callable
 import pytest
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import OnConflict, insert_stmt
+from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 
-class Test_insert_stmt:
+class Test_insert_on_conflict:
     @pytest.mark.parametrize(
         "on_conflict",
         [
@@ -34,7 +34,7 @@ class Test_insert_stmt:
             description="description",
         )
         await session.execute(
-            insert_stmt(
+            insert_on_conflict(
                 dialect=dialect,
                 table=models.Project,
                 values=values,
@@ -68,7 +68,7 @@ class Test_insert_stmt:
         self,
         on_conflict,
         expected_description,
-        prod_db,  # the insert_stmt function is sensitive to the way the DB is set up
+        prod_db,  # the insert_on_conflict function is sensitive to the way the DB is set up
     ):
         async with prod_db() as session:
             await session.execute(
@@ -86,7 +86,7 @@ class Test_insert_stmt:
                 description="updated-description",
             )
             await session.execute(
-                insert_stmt(
+                insert_on_conflict(
                     dialect=dialect,
                     table=models.Project,
                     values=values,
