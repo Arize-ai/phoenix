@@ -267,11 +267,26 @@ def _validate_sig(fn: Callable[..., Any], fn_name: str) -> None:
         raise ValueError(f"`{fn_name}` should allow variadic keyword arguments `**kwargs`")
 
 
+class CodeEvaluator(Evaluator, ABC, is_abstract=True):
+    """
+    A convenience super class for defining code evaluators.
+
+    This class is intended to be subclassed, and should not be instantiated directly.
+    """
+
+    _kind = AnnotatorKind.LLM
+
+    def __new__(cls, *args: Any, **kwargs: Any) -> "CodeEvaluator":
+        if cls is CodeEvaluator:
+            raise TypeError(f"{cls.__name__} is an abstract class and should not be instantiated.")
+        return object.__new__(cls)
+
+
 class LLMEvaluator(Evaluator, ABC, is_abstract=True):
     """
-    A convenience super class for setting `kind` as LLM.
+    A convenience super class for defining LLM evaluators.
 
-    This Class is intended to be subclassed, and should not be instantiated directly.
+    This class is intended to be subclassed, and should not be instantiated directly.
     """
 
     _kind = AnnotatorKind.LLM

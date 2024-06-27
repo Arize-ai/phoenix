@@ -4,11 +4,11 @@ import json
 import re
 from typing import Any, List, Optional, Union
 
-from phoenix.datasets.evaluators.base import Evaluator
+from phoenix.datasets.evaluators.base import CodeEvaluator
 from phoenix.datasets.types import EvaluationResult, TaskOutput
 
 
-class JSONParsable(Evaluator):
+class JSONParsable(CodeEvaluator):
     def evaluate(self, *, output: Optional[TaskOutput] = None, **_: Any) -> EvaluationResult:
         assert isinstance(output, str), "Experiment run output must be a string"
         try:
@@ -21,7 +21,7 @@ class JSONParsable(Evaluator):
         )
 
 
-class ContainsKeyword(Evaluator):
+class ContainsKeyword(CodeEvaluator):
     def __init__(self, keyword: str, name: Optional[str] = None) -> None:
         self.keyword = keyword
         self._name = name or f"Contains({repr(keyword)})"
@@ -38,7 +38,7 @@ class ContainsKeyword(Evaluator):
         )
 
 
-class ContainsAnyKeyword(Evaluator):
+class ContainsAnyKeyword(CodeEvaluator):
     def __init__(self, keywords: List[str], name: Optional[str] = None) -> None:
         self.keywords = keywords
         self._name = name or f"ContainsAny({keywords})"
@@ -56,7 +56,7 @@ class ContainsAnyKeyword(Evaluator):
         )
 
 
-class ContainsAllKeywords(Evaluator):
+class ContainsAllKeywords(CodeEvaluator):
     def __init__(self, keywords: List[str], name: Optional[str] = None) -> None:
         self.keywords = keywords
         self._name = name or f"ContainsAll({keywords})"
@@ -76,7 +76,7 @@ class ContainsAllKeywords(Evaluator):
         )
 
 
-class MatchesRegex(Evaluator):
+class MatchesRegex(CodeEvaluator):
     def __init__(self, pattern: Union[str, re.Pattern[str]], name: Optional[str] = None) -> None:
         if isinstance(pattern, str):
             pattern = re.compile(pattern)
