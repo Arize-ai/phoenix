@@ -1,20 +1,18 @@
 import functools
 import inspect
-from abc import ABC
-from types import MappingProxyType
-from typing import Any, Awaitable, Callable, Mapping, Optional, Union
-
-from typing_extensions import TypeAlias
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 from phoenix.datasets.types import (
     AnnotatorKind,
     EvaluationResult,
     JSONSerializable,
-    TaskOutput,
 )
 
+if TYPE_CHECKING:
+    from phoenix.datasets.evaluators.base import Evaluator
 
-def _unwrap_json(obj: JSONSerializable) -> JSONSerializable:
+
+def unwrap_json(obj: JSONSerializable) -> JSONSerializable:
     if isinstance(obj, dict):
         if len(obj) == 1:
             key = next(iter(obj.keys()))
@@ -80,7 +78,7 @@ def create_evaluator(
     if isinstance(kind, str):
         kind = AnnotatorKind(kind.upper())
 
-    def wrapper(func: Callable[..., Any]) -> Evaluator:
+    def wrapper(func: Callable[..., Any]) -> "Evaluator":
         nonlocal name
         if not name:
             if hasattr(func, "__self__"):
@@ -108,6 +106,8 @@ def _wrap_coroutine_evaluation_function(
     sig: inspect.Signature,
     convert_to_score: Callable[[Any], EvaluationResult],
 ) -> Callable[[Callable[..., Any]], "Evaluator"]:
+    from phoenix.datasets.evaluators.base import Evaluator
+
     def wrapper(func: Callable[..., Any]) -> "Evaluator":
         class AsyncEvaluator(Evaluator):
             def __init__(self) -> None:
@@ -134,6 +134,8 @@ def _wrap_sync_evaluation_function(
     sig: inspect.Signature,
     convert_to_score: Callable[[Any], EvaluationResult],
 ) -> Callable[[Callable[..., Any]], "Evaluator"]:
+    from phoenix.datasets.evaluators.base import Evaluator
+
     def wrapper(func: Callable[..., Any]) -> "Evaluator":
         class SyncEvaluator(Evaluator):
             def __init__(self) -> None:
@@ -163,130 +165,3 @@ def _default_eval_scorer(result: Any) -> EvaluationResult:
         return result
     else:
         raise ValueError(f"Unsupported evaluation result type: {type(result)}")
-
-
-ExampleOutput: TypeAlias = Mapping[str, JSONSerializable]
-ExampleMetadata: TypeAlias = Mapping[str, JSONSerializable]
-ExampleInput: TypeAlias = Mapping[str, JSONSerializable]
-
-EvaluatorName: TypeAlias = str
-EvaluatorKind: TypeAlias = str
-EvaluatorOutput: TypeAlias = Union[EvaluationResult, bool, int, float, str]
-
-
-class Evaluator(ABC):
-    """
-    A helper super class to guide the implementation of an `Evaluator` object.
-    Subclasses must implement either the `evaluate` or `async_evaluate` method.
-    Implementing both methods is recommended, but not required.
-
-    This Class is intended to be subclassed, and should not be instantiated directly.
-    """
-
-    _kind: AnnotatorKind
-    _name: EvaluatorName
-
-    @functools.cached_property
-    def name(self) -> EvaluatorName:
-        if hasattr(self, "_name"):
-            return self._name
-        return self.__class__.__name__
-
-    @functools.cached_property
-    def kind(self) -> EvaluatorKind:
-        if hasattr(self, "_kind"):
-            return self._kind.value
-        return AnnotatorKind.CODE.value
-
-    def __new__(cls, *args: Any, **kwargs: Any) -> "Evaluator":
-        if cls is Evaluator:
-            raise TypeError(f"{cls.__name__} is an abstract class and should not be instantiated.")
-        return object.__new__(cls)
-
-    def evaluate(
-        self,
-        *,
-        output: Optional[TaskOutput] = None,
-        expected: Optional[ExampleOutput] = None,
-        metadata: ExampleMetadata = MappingProxyType({}),
-        input: ExampleInput = MappingProxyType({}),
-        **kwargs: Any,
-    ) -> EvaluationResult:
-        # For subclassing, one should implement either this sync method or the
-        # async version. Implementing both is recommended but not required.
-        raise NotImplementedError
-
-    async def async_evaluate(
-        self,
-        *,
-        output: Optional[TaskOutput] = None,
-        expected: Optional[ExampleOutput] = None,
-        metadata: ExampleMetadata = MappingProxyType({}),
-        input: ExampleInput = MappingProxyType({}),
-        **kwargs: Any,
-    ) -> EvaluationResult:
-        # For subclassing, one should implement either this async method or the
-        # sync version. Implementing both is recommended but not required.
-        return self.evaluate(
-            output=output,
-            expected=expected,
-            metadata=metadata,
-            input=input,
-            **kwargs,
-        )
-
-    def __init_subclass__(cls, is_abstract: bool = False, **kwargs: Any) -> None:
-        super().__init_subclass__(**kwargs)
-        if is_abstract:
-            return
-        evaluate_fn_signature = inspect.signature(Evaluator.evaluate)
-        for super_cls in inspect.getmro(cls):
-            if super_cls in (LLMEvaluator, Evaluator):
-                break
-            if evaluate := super_cls.__dict__.get(Evaluator.evaluate.__name__):
-                assert callable(evaluate), "`evaluate()` method should be callable"
-                # need to remove the first param, i.e. `self`
-                _validate_sig(functools.partial(evaluate, None), "evaluate")
-                return
-            if async_evaluate := super_cls.__dict__.get(Evaluator.async_evaluate.__name__):
-                assert callable(async_evaluate), "`async_evaluate()` method should be callable"
-                # need to remove the first param, i.e. `self`
-                _validate_sig(functools.partial(async_evaluate, None), "async_evaluate")
-                return
-        raise ValueError(
-            f"Evaluator must implement either "
-            f"`def evaluate{evaluate_fn_signature}` or "
-            f"`async def async_evaluate{evaluate_fn_signature}`"
-        )
-
-
-def _validate_sig(fn: Callable[..., Any], fn_name: str) -> None:
-    sig = inspect.signature(fn)
-    validate_signature(sig)
-    for param in sig.parameters.values():
-        if param.kind is inspect.Parameter.VAR_KEYWORD:
-            return
-    else:
-        raise ValueError(f"`{fn_name}` should allow variadic keyword arguments `**kwargs`")
-
-
-class LLMEvaluator(Evaluator, ABC, is_abstract=True):
-    """
-    A convenience super class for setting `kind` as LLM.
-
-    This Class is intended to be subclassed, and should not be instantiated directly.
-    """
-
-    _kind = AnnotatorKind.LLM
-
-    def __new__(cls, *args: Any, **kwargs: Any) -> "LLMEvaluator":
-        if cls is LLMEvaluator:
-            raise TypeError(f"{cls.__name__} is an abstract class and should not be instantiated.")
-        return object.__new__(cls)
-
-
-ExperimentEvaluator: TypeAlias = Union[
-    Evaluator,
-    Callable[..., EvaluatorOutput],
-    Callable[..., Awaitable[EvaluatorOutput]],
-]
