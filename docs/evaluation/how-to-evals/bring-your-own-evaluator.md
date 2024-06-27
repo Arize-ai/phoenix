@@ -1,12 +1,20 @@
 # Bring Your Own Evaluator
 
-If your eval has categorical outputs, use llm\_classify.&#x20;
+### Preparing your data
 
-If your eval has numeric outputs, use llm\_generate.
+You will need a dataframe of results to evaluate. This dataframe can have any set of columns, as long as they match the template you provide. If you are already collecting traces with Phoenix, you can export these traces and use them as the dataframe to evaluate:
+
+```python
+trace_df = px.Client(endpoint="http://127.0.0.1:6006").get_spans_dataframe()
+```
+
+If your eval has categorical outputs, use `llm_classify`.&#x20;
+
+If your eval has numeric outputs, use `llm_generate`.
 
 ### Categorical - llm\_classify
 
-The "llm\_classify" function is designed for classification support both Binary and Multi-Class. The llm\_classify function ensures that the output is clean and is either one of the "classes" or "UNPARSABLE"&#x20;
+The `llm_classify` function is designed for classification support both Binary and Multi-Class. The llm\_classify function ensures that the output is clean and is either one of the "classes" or "UNPARSABLE"&#x20;
 
 A binary template looks like the following with only two values "irrelevant" and "relevant" that are expected from the LLM output:
 
@@ -49,7 +57,7 @@ relevance_classifications = llm_classify(
 )
 ```
 
-The classify uses a snap\_to\_rails function that searches the output string of the LLM for the classes in the classification list. It handles cases where no class is available, both classes are available or the string is a substring of the other class such as irrelevant and relevant.&#x20;
+The classify uses a `snap_to_rails` function that searches the output string of the LLM for the classes in the classification list. It handles cases where no class is available, both classes are available or the string is a substring of the other class such as irrelevant and relevant.&#x20;
 
 ```
 #Rails examples
@@ -100,7 +108,7 @@ Please return in a format that is "the score is: 10" or "the score is: 1"
 """
 ```
 
-We use the more generic llm\_generate function that can be used for almost any complex eval that doesn't fit into the categorical type.
+We use the more generic `llm_generate` function that can be used for almost any complex eval that doesn't fit into the categorical type.
 
 ```python
 test_results = llm_generate(
@@ -136,3 +144,21 @@ def find_score(self, output):
 ```
 
 The above is an example of how to run a score based Evaluation.&#x20;
+
+### Logging Evaluations to Phoenix
+
+Use the following method to log the results of either the `llm_classify` or `llm_generate` calls to Phoenix:
+
+```python
+from phoenix.trace import SpanEvaluations
+
+px.Client().log_evaluations(
+    SpanEvaluations(eval_name="Your Eval Display Name", dataframe=test_results)
+)
+```
+
+This method will show aggregate results in Phoenix.&#x20;
+
+{% hint style="info" %}
+In order for the results to show on a span level, make sure your `test_results` dataframe has a column `context.span_id` with the corresponding span id.
+{% endhint %}
