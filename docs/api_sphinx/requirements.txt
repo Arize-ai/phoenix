@@ -1,5 +1,6 @@
 myst_parser
 sphinx
 sphinx_rtd_theme
+arize-phoenix[evals]
 
 -e .
