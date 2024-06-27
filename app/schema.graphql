@@ -56,11 +56,6 @@ input ClusterInput {
   id: ID
 }
 
-enum CodeExample {
-  CODE_EVALUATOR_SUBCLASS
-  LLM_EVALUATOR_SUBCLASS
-}
-
 input CreateDatasetInput {
   name: String!
   description: String
@@ -999,7 +994,6 @@ type Query {
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
-  codeExample(example: CodeExample!): String!
 }
 
 type Retrieval {
