@@ -313,10 +313,12 @@ class EvaluationSummary(_HasStats):
 
     @classmethod
     def __new__(cls, *args: Any, **kwargs: Any) -> Any:
+        # Direct instantiation by users is discouraged.
         raise NotImplementedError
 
     @classmethod
     def __init_subclass__(cls, **kwargs: Any) -> None:
+        # Direct sub-classing by users is discouraged.
         raise NotImplementedError
 
 
@@ -354,10 +356,12 @@ class TaskSummary(_HasStats):
 
     @classmethod
     def __new__(cls, *args: Any, **kwargs: Any) -> Any:
+        # Direct instantiation by users is discouraged.
         raise NotImplementedError
 
     @classmethod
     def __init_subclass__(cls, **kwargs: Any) -> None:
+        # Direct sub-classing by users is discouraged.
         raise NotImplementedError
 
 
@@ -391,10 +395,12 @@ class RanExperiment(Experiment):
 
     @classmethod
     def __new__(cls, *args: Any, **kwargs: Any) -> Any:
+        # Direct instantiation by users is discouraged.
         raise NotImplementedError
 
     @classmethod
     def __init_subclass__(cls, **kwargs: Any) -> None:
+        # Direct sub-classing by users is discouraged.
         raise NotImplementedError
 
 
