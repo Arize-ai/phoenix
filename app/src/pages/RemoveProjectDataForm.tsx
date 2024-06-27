@@ -120,7 +120,7 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
               formRef.current?.requestSubmit();
             }}
           >
-            {isCommitting ? "Removing..." : "Remove Traces"}
+            {isCommitting ? "Removing..." : "Remove Data"}
           </Button>
         </Flex>
       </View>
