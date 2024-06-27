@@ -19,6 +19,10 @@ export interface DatasetStoreProps {
    */
   datasetId: string;
   /**
+   * The dataset name
+   */
+  datasetName: string;
+  /**
    * Tracks the latest version of the dataset
    * so that the UI stays consistent with any edits
    */
@@ -31,7 +35,7 @@ export interface DatasetStoreProps {
 
 export type InitialDatasetStoreProps = Pick<
   DatasetStoreProps,
-  "latestVersion" | "datasetId"
+  "latestVersion" | "datasetId" | "datasetName"
 >;
 
 export interface DatasetStoreState extends DatasetStoreProps {

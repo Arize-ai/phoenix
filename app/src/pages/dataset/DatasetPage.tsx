@@ -26,6 +26,7 @@ import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery
 import { AddDatasetExampleButton } from "./AddDatasetExampleButton";
 import { DatasetCodeDropdown } from "./DatasetCodeDropdown";
 import { DatasetHistoryButton } from "./DatasetHistoryButton";
+import { RunExperimentButton } from "./RunExperimentButton";
 
 export function DatasetPage() {
   const loaderData = useLoaderData() as datasetLoaderQuery$data;
@@ -40,6 +41,7 @@ export function DatasetPage() {
   return (
     <DatasetProvider
       datasetId={loaderData.dataset.id}
+      datasetName={loaderData.dataset.name as string}
       latestVersion={latestVersion}
     >
       <Suspense fallback={<Loading />}>
@@ -159,6 +161,7 @@ function DatasetPageContent({
             </ActionMenu>
             <DatasetHistoryButton datasetId={dataset.id} />
             <DatasetCodeDropdown />
+            <RunExperimentButton />
             <AddDatasetExampleButton
               datasetId={dataset.id}
               onAddExampleCompleted={() => {
