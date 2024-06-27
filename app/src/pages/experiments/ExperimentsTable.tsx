@@ -48,6 +48,8 @@ import {
   formatPercent,
 } from "@phoenix/utils/numberFormatUtils";
 
+import { RunExperimentButton } from "../dataset/RunExperimentButton";
+
 import { experimentsLoaderQuery$data } from "./__generated__/experimentsLoaderQuery.graphql";
 import type { ExperimentsTableFragment$key } from "./__generated__/ExperimentsTableFragment.graphql";
 import { ExperimentsTableQuery } from "./__generated__/ExperimentsTableQuery.graphql";
@@ -69,6 +71,7 @@ export function ExperimentsTableEmpty() {
         >
           No experiments for this dataset. To see how to run experiments on a
           dataset, check out the documentation.
+          <RunExperimentButton />
         </td>
       </tr>
     </tbody>
