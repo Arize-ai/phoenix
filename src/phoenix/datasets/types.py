@@ -234,7 +234,7 @@ class _HasStats:
 
     @property
     def title(self) -> str:
-        return f"{self._title} ({self.timestamp:%x %X})"
+        return f"{self._title} ({self.timestamp:%x %X %z})"
 
     def __str__(self) -> str:
         try:
@@ -284,7 +284,19 @@ class EvaluationSummary(_HasStats):
                 ]
             )
         stats = df.groupby("evaluator").agg(
-            n_errors=("error", "count"),
+            **(
+                dict(
+                    n_errors=("error", "count"),
+                    top_error=(
+                        "error",
+                        lambda s: Counter(s.dropna().str.slice(0, 100)).most_common(1)[0][0]
+                        if s.any()
+                        else None,
+                    ),
+                )
+                if df["error"].any()
+                else {}
+            ),
             **(
                 dict(
                     n_scores=("score", "count"),
@@ -302,18 +314,6 @@ class EvaluationSummary(_HasStats):
                     ),
                 )
                 if df["label"].any()
-                else {}
-            ),
-            **(
-                dict(
-                    top_error=(
-                        "error",
-                        lambda x: dict(Counter(x.str.slice(0, 20)).most_common(1))
-                        if x.any()
-                        else None,
-                    ),
-                )
-                if df["error"].any()
                 else {}
             ),
         )  # type: ignore[call-overload]
@@ -371,13 +371,12 @@ class TaskSummary(_HasStats):
             "n": params.count,
             "n_runs": n_runs,
             "n_errors": n_errors,
-            "pct_error": n_errors / n_runs,
             **(
                 dict(
                     top_error=(
                         "error",
-                        lambda x: dict(Counter(x.str.slice(0, 20)).most_common(1))
-                        if x.any()
+                        lambda s: Counter(s.dropna().str.slice(0, 100)).most_common(1)[0][0]
+                        if s.any()
                         else None,
                     ),
                 )
