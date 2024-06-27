@@ -1,21 +1,29 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime
+from collections import Counter
+from dataclasses import dataclass, field, fields
+from datetime import datetime, timezone
 from enum import Enum
+from importlib.metadata import version
 from typing import (
     Any,
     Awaitable,
     Callable,
     Dict,
+    FrozenSet,
+    Iterable,
     List,
     Mapping,
     Optional,
     Sequence,
+    Tuple,
     Union,
 )
 
+import pandas as pd
 from typing_extensions import TypeAlias
+
+from phoenix.datasets.utils import get_experiment_url
 
 
 class AnnotatorKind(Enum):
@@ -68,6 +76,14 @@ class Dataset:
     version_id: DatasetVersionId
     examples: Sequence[Example]
 
+    @classmethod
+    def from_dict(cls, obj: Mapping[str, Any]) -> Dataset:
+        return cls(
+            id=obj["id"],
+            version_id=obj["version_id"],
+            examples=tuple(map(Example.from_dict, obj.get("examples") or ())),
+        )
+
 
 @dataclass(frozen=True)
 class TestCase:
@@ -80,7 +96,16 @@ class Experiment:
     id: ExperimentId
     dataset_id: DatasetId
     dataset_version_id: DatasetVersionId
-    project_name: Optional[str] = None
+    repetitions: int
+
+    @classmethod
+    def from_dict(cls, obj: Mapping[str, Any]) -> Experiment:
+        return cls(
+            id=obj["id"],
+            dataset_id=obj["dataset_id"],
+            dataset_version_id=obj["dataset_version_id"],
+            repetitions=obj.get("repetitions") or 1,
+        )
 
 
 @dataclass(frozen=True)
@@ -183,3 +208,196 @@ ExperimentTask: TypeAlias = Union[
     Callable[[Example], TaskOutput],
     Callable[[Example], Awaitable[TaskOutput]],
 ]
+
+
+@dataclass(frozen=True)
+class ExperimentConfig:
+    n_examples: int
+    n_repetitions: int = 1
+
+    @property
+    def count(self) -> int:
+        return self.n_examples * self.n_repetitions
+
+
+@dataclass(frozen=True)
+class EvaluationConfig:
+    eval_names: FrozenSet[str]
+    exp_config: ExperimentConfig
+
+
+@dataclass(frozen=True)
+class _HasStats:
+    _title: str = field(repr=False, default="")
+    stats: pd.DataFrame = field(repr=False, default_factory=pd.DataFrame)
+    timestamp: datetime = field(repr=False, default_factory=lambda: datetime.now(timezone.utc))
+
+    @property
+    def title(self) -> str:
+        return f"{self._title} ({self.timestamp:%x %X})"
+
+    def __str__(self) -> str:
+        try:
+            assert int(version("pandas").split(".")[0]) >= 1
+            # `tabulate` is used by pandas >= 1.0 in DataFrame.to_markdown()
+            import tabulate  # noqa: F401
+        except (AssertionError, ImportError):
+            text = self.stats.__str__()
+        else:
+            text = self.stats.to_markdown(index=False)
+        return f"{self.title}\n{'-'*len(self.title)}\n" + text
+
+
+@dataclass(frozen=True)
+class EvaluationSummary(_HasStats):
+    _title: str = "Evaluation Summary"
+
+    @classmethod
+    def from_eval_runs(
+        cls,
+        config: EvaluationConfig,
+        eval_runs: Iterable[Optional[ExperimentEvaluationRun]],
+    ) -> EvaluationSummary:
+        df = pd.DataFrame.from_records(
+            [
+                {
+                    "eval_name": run.name,
+                    "error": bool(run.error),
+                    "score": run.result.score if run.result else None,
+                    "label": run.result.label if run.result else None,
+                }
+                for run in eval_runs
+                if run is not None
+            ]
+        )
+        if df.empty:
+            df = pd.DataFrame.from_records(
+                [
+                    {"eval_name": name, "error": True, "score": None, "label": None}
+                    for name in config.eval_names
+                ]
+            )
+        stats = df.groupby("eval_name").agg(
+            n_errors=("error", "sum"),
+            **(
+                dict(
+                    n_scores=("score", "count"),
+                    avg_score=("score", "mean"),
+                )
+                if df["score"].any()
+                else {}
+            ),
+            **(
+                dict(
+                    n_labels=("label", "count"),
+                    top_2_labels=(
+                        "label",
+                        lambda x: dict(Counter(x).most_common(2)) if x.any() else None,
+                    ),
+                )
+                if df["label"].any()
+                else {}
+            ),
+        )  # type: ignore[call-overload]
+        sorted_eval_names = sorted(config.eval_names)
+        eval_names = pd.DataFrame(
+            {
+                "eval_name": sorted_eval_names,
+                "n": [config.exp_config.count] * len(sorted_eval_names),
+            }
+        ).set_index("eval_name")
+        stats = pd.concat([eval_names, stats], axis=1).reset_index()
+        summary: EvaluationSummary = object.__new__(cls)
+        summary.__init__(stats=stats)  # type: ignore[misc]
+        return summary
+
+    @classmethod
+    def __new__(cls, *args: Any, **kwargs: Any) -> Any:
+        raise NotImplementedError
+
+    @classmethod
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        raise NotImplementedError
+
+
+@dataclass(frozen=True)
+class TaskSummary(_HasStats):
+    _title: str = "Experiment Summary"
+
+    @classmethod
+    def from_task_runs(
+        cls,
+        config: ExperimentConfig,
+        task_runs: Iterable[Optional[ExperimentRun]],
+    ) -> "TaskSummary":
+        df = pd.DataFrame.from_records(
+            [
+                {
+                    "example_id": run.dataset_example_id,
+                    "error": bool(run.error),
+                }
+                for run in task_runs
+                if run is not None
+            ]
+        )
+        n_runs, n_errors = len(df), 0 if df.empty else df["error"].sum()
+        record = {
+            "n": config.count,
+            "n_ran": n_runs,
+            "n_errors": n_errors,
+            "pct_errors": n_errors / n_runs,
+        }
+        stats = pd.DataFrame.from_records([record])
+        summary: TaskSummary = object.__new__(cls)
+        summary.__init__(stats=stats)  # type: ignore[misc]
+        return summary
+
+    @classmethod
+    def __new__(cls, *args: Any, **kwargs: Any) -> Any:
+        raise NotImplementedError
+
+    @classmethod
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        raise NotImplementedError
+
+
+@dataclass(frozen=True)
+class RanExperiment(Experiment):
+    config: ExperimentConfig
+    dataset: Dataset = field(repr=False)
+    runs: Sequence[ExperimentRun] = field(repr=False)
+    task_summary: TaskSummary = field(repr=False)
+    eval_summaries: Tuple[EvaluationSummary, ...] = field(repr=False, default=())
+
+    @property
+    def url(self) -> str:
+        return get_experiment_url(dataset_id=self.dataset.id, experiment_id=self.id)
+
+    @property
+    def info(self) -> str:
+        return f"🔗 View this experiment: {self.url}"
+
+    def __add__(self, eval_summary: EvaluationSummary) -> "RanExperiment":
+        eval_summaries = (eval_summary, *self.eval_summaries)
+        ran_experiment: RanExperiment = object.__new__(RanExperiment)
+        ran_experiment.__init__(  # type: ignore[misc]
+            **{**_asdict(self), "eval_summaries": eval_summaries}
+        )
+        return ran_experiment
+
+    def __str__(self) -> str:
+        summaries = (self.task_summary, *self.eval_summaries)
+        return f"\n{self.info}\n\n" + "\n\n".join(map(str, summaries))
+
+    @classmethod
+    def __new__(cls, *args: Any, **kwargs: Any) -> Any:
+        raise NotImplementedError
+
+    @classmethod
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        raise NotImplementedError
+
+
+def _asdict(dc: dataclass) -> Dict[str, Any]:
+    # non-recursive version of `dataclasses.asdict()`
+    return {field.name: getattr(dc, field.name) for field in fields(dc)}

@@ -3,13 +3,13 @@ import json
 from binascii import hexlify
 from contextlib import ExitStack
 from copy import deepcopy
+from dataclasses import replace
 from datetime import datetime, timezone
 from itertools import product
 from typing import (
     Any,
     Awaitable,
     Dict,
-    Iterable,
     Mapping,
     Optional,
     Sequence,
@@ -33,15 +33,10 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import Span
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from opentelemetry.trace import Status, StatusCode
+from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer
 from typing_extensions import TypeAlias
 
-from phoenix.config import (
-    get_env_client_headers,
-    get_env_collector_endpoint,
-    get_env_host,
-    get_env_port,
-)
+from phoenix.config import get_env_client_headers
 from phoenix.datasets.evaluators import create_evaluator
 from phoenix.datasets.evaluators.base import (
     Evaluator,
@@ -50,59 +45,38 @@ from phoenix.datasets.evaluators.base import (
 from phoenix.datasets.tracing import capture_spans
 from phoenix.datasets.types import (
     Dataset,
+    EvaluationConfig,
     EvaluationResult,
+    EvaluationSummary,
     EvaluatorName,
     Example,
     Experiment,
+    ExperimentConfig,
     ExperimentEvaluationRun,
     ExperimentResult,
     ExperimentRun,
     ExperimentRunId,
     ExperimentTask,
+    RanExperiment,
+    TaskSummary,
     TestCase,
+    _asdict,
 )
+from phoenix.datasets.utils import get_base_url, get_dataset_experiments_url, get_experiment_url
 from phoenix.evals.executors import get_executor_on_sync_context
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.utils import get_tqdm_progress_bar_formatter
-from phoenix.session.session import active_session
 from phoenix.trace.attributes import flatten
 from phoenix.utilities.json import jsonify
-
-
-def _get_base_url() -> str:
-    host = get_env_host()
-    if host == "0.0.0.0":
-        host = "127.0.0.1"
-    base_url = get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
-    return base_url if base_url.endswith("/") else base_url + "/"
-
-
-def _get_web_base_url() -> str:
-    """Return the web UI base URL.
-
-    Returns:
-        str: the web UI base URL
-    """
-    if session := active_session():
-        return session.url
-    return _get_base_url()
-
-
-def _get_experiment_url(*, dataset_id: str, experiment_id: str) -> str:
-    return f"{_get_web_base_url()}datasets/{dataset_id}/compare?experimentId={experiment_id}"
-
-
-def _get_dataset_experiments_url(*, dataset_id: str) -> str:
-    return f"{_get_web_base_url()}datasets/{dataset_id}/experiments"
 
 
 def _phoenix_clients() -> Tuple[httpx.Client, httpx.AsyncClient]:
     headers = get_env_client_headers()
     return httpx.Client(
-        base_url=_get_base_url(),
+        base_url=get_base_url(),
         headers=headers,
     ), httpx.AsyncClient(
-        base_url=_get_base_url(),
+        base_url=get_base_url(),
         headers=headers,
     )
 
@@ -123,7 +97,11 @@ def run_experiment(
     experiment_metadata: Optional[Mapping[str, Any]] = None,
     evaluators: Optional[Evaluators] = None,
     rate_limit_errors: Optional[Union[Type[BaseException], Tuple[Type[BaseException], ...]]] = None,
-) -> Experiment:
+    dry_run: bool = False,
+) -> RanExperiment:
+    dataset_id, dataset_version_id = dataset.id, dataset.version_id
+    if not dataset.examples:
+        raise ValueError(f"Dataset has no examples: {dataset_id=}, {dataset_version_id=}")
     # Add this to the params once supported in the UI
     repetitions = 1
     assert repetitions > 0, "Must run the experiment at least once."
@@ -132,9 +110,9 @@ def run_experiment(
     sync_client, async_client = _phoenix_clients()
 
     experiment_response = sync_client.post(
-        f"/v1/datasets/{dataset.id}/experiments",
+        f"/v1/datasets/{dataset_id}/experiments",
         json={
-            "version-id": dataset.version_id,
+            "version-id": dataset_version_id,
             "name": experiment_name,
             "description": experiment_description,
             "metadata": experiment_metadata,
@@ -143,20 +121,15 @@ def run_experiment(
     )
     experiment_response.raise_for_status()
     exp_json = experiment_response.json()
-    experiment_id = exp_json["id"]
-    project_name = exp_json["project_name"]
+    experiment = Experiment.from_dict(exp_json)
+    experiment_id = experiment.id
 
-    resource = Resource({ResourceAttributes.PROJECT_NAME: project_name} if project_name else {})
-    tracer_provider = trace_sdk.TracerProvider(resource=resource)
-    tracer_provider.add_span_processor(
-        SimpleSpanProcessor(OTLPSpanExporter(urljoin(f"{_get_base_url()}", "v1/traces")))
-    )
-    tracer = tracer_provider.get_tracer(__name__)
+    tracer, resource = _get_tracer(None if dry_run else exp_json["project_name"])
     root_span_name = f"Task: {_get_task_name(task)}"
     root_span_kind = CHAIN
 
-    dataset_experiments_url = _get_dataset_experiments_url(dataset_id=dataset.id)
-    experiment_compare_url = _get_experiment_url(dataset_id=dataset.id, experiment_id=experiment_id)
+    dataset_experiments_url = get_dataset_experiments_url(dataset_id=dataset_id)
+    experiment_compare_url = get_experiment_url(dataset_id=dataset.id, experiment_id=experiment_id)
     print("🧪 Experiment started.")
     print(f"📺 View dataset experiments: {dataset_experiments_url}")
     print(f"🔗 View this experiment: {experiment_compare_url}")
@@ -208,7 +181,7 @@ def run_experiment(
         assert isinstance(
             output, (dict, list, str, int, float, bool, type(None))
         ), "Output must be JSON serializable"
-        experiment_run = ExperimentRun(
+        exp_run = ExperimentRun(
             start_time=_decode_unix_nano(cast(int, span.start_time)),
             end_time=_decode_unix_nano(cast(int, span.end_time)),
             experiment_id=experiment_id,
@@ -218,11 +191,11 @@ def run_experiment(
             error=repr(error) if error else None,
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
-        resp = sync_client.post(
-            f"/v1/experiments/{experiment_id}/runs", json=jsonify(experiment_run)
-        )
-        resp.raise_for_status()
-        return experiment_run
+        if not dry_run:
+            resp = sync_client.post(f"/v1/experiments/{experiment_id}/runs", json=jsonify(exp_run))
+            resp.raise_for_status()
+            exp_run = replace(exp_run, id=resp.json()["data"]["id"])
+        return exp_run
 
     async def async_run_experiment(test_case: TestCase) -> ExperimentRun:
         example, repetition_number = test_case.example, test_case.repetition_number
@@ -262,7 +235,7 @@ def run_experiment(
         assert isinstance(
             output, (dict, list, str, int, float, bool, type(None))
         ), "Output must be JSON serializable"
-        experiment_run = ExperimentRun(
+        exp_run = ExperimentRun(
             start_time=_decode_unix_nano(cast(int, span.start_time)),
             end_time=_decode_unix_nano(cast(int, span.end_time)),
             experiment_id=experiment_id,
@@ -272,11 +245,13 @@ def run_experiment(
             error=repr(error) if error else None,
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
-        resp = await async_client.post(
-            f"/v1/experiments/{experiment_id}/runs", json=jsonify(experiment_run)
-        )
-        resp.raise_for_status()
-        return experiment_run
+        if not dry_run:
+            resp = await async_client.post(
+                f"/v1/experiments/{experiment_id}/runs", json=jsonify(exp_run)
+            )
+            resp.raise_for_status()
+            exp_run = replace(exp_run, id=resp.json()["data"]["id"])
+        return exp_run
 
     rate_limited_sync_run_experiment = functools.reduce(
         lambda fn, limiter: limiter.limit(fn), rate_limiters, sync_run_experiment
@@ -298,80 +273,88 @@ def run_experiment(
         TestCase(example=ex, repetition_number=rep)
         for ex, rep in product(dataset.examples, range(1, repetitions + 1))
     ]
-    _, _execution_details = executor.run(test_cases)
-    experiment = Experiment(
-        id=experiment_id,
-        dataset_id=dataset.id,
-        dataset_version_id=dataset.version_id,
-        project_name=project_name,
-    )
-
+    task_runs, _execution_details = executor.run(test_cases)
     print("✅ Task runs completed.")
-
+    config = ExperimentConfig(n_examples=len(dataset.examples), n_repetitions=repetitions)
+    task_summary = TaskSummary.from_task_runs(config, task_runs)
+    ran_experiment: RanExperiment = object.__new__(RanExperiment)
+    ran_experiment.__init__(  # type: ignore[misc]
+        dataset=dataset,
+        config=config,
+        runs=task_runs,
+        task_summary=task_summary,
+        **_asdict(experiment),
+    )
     if evaluators_by_name:
-        _evaluate_experiment(
-            experiment,
-            evaluators=evaluators_by_name,
-            dataset_examples=dataset.examples,
-            clients=(sync_client, async_client),
-        )
-
-    return experiment
+        return _evaluate_experiment(ran_experiment, evaluators=evaluators_by_name)
+    return ran_experiment
 
 
 def evaluate_experiment(
     experiment: Experiment,
-    evaluators: Union[
-        ExperimentEvaluator,
-        Sequence[ExperimentEvaluator],
-        Mapping[EvaluatorName, ExperimentEvaluator],
-    ],
-) -> None:
-    sync_client, async_client = _phoenix_clients()
+    evaluators: Evaluators,
+    *,
+    dry_run: bool = False,
+) -> RanExperiment:
+    evaluators_by_name = _evaluators_by_name(evaluators)
+    if not evaluators_by_name:
+        raise ValueError("Must specify at least one Evaluator")
+    sync_client, _ = _phoenix_clients()
     dataset_id = experiment.dataset_id
     dataset_version_id = experiment.dataset_version_id
-
-    dataset_examples = [
-        Example.from_dict(ex)
-        for ex in (
+    if isinstance(experiment, RanExperiment):
+        ran_experiment: RanExperiment = experiment
+    else:
+        dataset = Dataset.from_dict(
             sync_client.get(
                 f"/v1/datasets/{dataset_id}/examples",
                 params={"version-id": str(dataset_version_id)},
             )
             .json()
-            .get("data", {})
-            .get("examples", [])
+            .get("data")
         )
-    ]
-    _evaluate_experiment(
-        experiment,
+        if not dataset.examples:
+            raise ValueError(f"Dataset has no examples: {dataset_id=}, {dataset_version_id=}")
+        experiment_runs = tuple(
+            ExperimentRun.from_dict(exp_run)
+            for exp_run in sync_client.get(f"/v1/experiments/{experiment.id}/runs").json()
+        )
+        if not experiment_runs:
+            raise ValueError("Experiment has not been run")
+        config = ExperimentConfig(n_examples=len(dataset.examples))
+        task_summary = TaskSummary.from_task_runs(config, experiment_runs)
+        ran_experiment = object.__new__(RanExperiment)
+        ran_experiment.__init__(  # type: ignore[misc]
+            dataset=dataset,
+            config=config,
+            runs=experiment_runs,
+            task_summary=task_summary,
+            **_asdict(experiment),
+        )
+    return _evaluate_experiment(
+        ran_experiment,
         evaluators=evaluators,
-        dataset_examples=dataset_examples,
-        clients=(sync_client, async_client),
+        dry_run=dry_run,
     )
 
 
 def _evaluate_experiment(
-    experiment: Experiment,
-    *,
+    ran_experiment: RanExperiment,
     evaluators: Evaluators,
-    dataset_examples: Iterable[Example],
-    clients: Tuple[httpx.Client, httpx.AsyncClient],
-) -> None:
+    *,
+    dry_run: bool = False,
+) -> RanExperiment:
+    if not isinstance(ran_experiment, RanExperiment):
+        raise ValueError("Experiment has not been run.")
     evaluators_by_name = _evaluators_by_name(evaluators)
     if not evaluators_by_name:
         raise ValueError("Must specify at least one Evaluator")
-    experiment_id = experiment.id
-    sync_client, async_client = clients
-    experiment_runs = [
-        ExperimentRun.from_dict(exp_run)
-        for exp_run in sync_client.get(f"/v1/experiments/{experiment_id}/runs").json()
-    ]
+    sync_client, async_client = _phoenix_clients()
 
     # not all dataset examples have associated experiment runs, so we need to pair them up
     example_run_pairs = []
-    examples_by_id = {example.id: example for example in dataset_examples}
-    for exp_run in experiment_runs:
+    examples_by_id = {example.id: example for example in ran_experiment.dataset.examples}
+    for exp_run in ran_experiment.runs:
         example = examples_by_id.get(exp_run.dataset_example_id)
         if example:
             example_run_pairs.append((deepcopy(example), exp_run))
@@ -380,13 +363,7 @@ def _evaluate_experiment(
         for (example, run), evaluator in product(example_run_pairs, evaluators_by_name.values())
     ]
 
-    project_name = "evaluators"
-    resource = Resource({ResourceAttributes.PROJECT_NAME: project_name} if project_name else {})
-    tracer_provider = trace_sdk.TracerProvider(resource=resource)
-    tracer_provider.add_span_processor(
-        SimpleSpanProcessor(OTLPSpanExporter(urljoin(f"{_get_base_url()}", "v1/traces")))
-    )
-    tracer = tracer_provider.get_tracer(__name__)
+    tracer, resource = _get_tracer(None if dry_run else "evaluators")
     root_span_kind = EVALUATOR
 
     def sync_evaluate_run(
@@ -418,7 +395,7 @@ def _evaluate_experiment(
             span.set_attribute(OPENINFERENCE_SPAN_KIND, root_span_kind)
             span.set_status(status)
 
-        evaluator_payload = ExperimentEvaluationRun(
+        eval_run = ExperimentEvaluationRun(
             experiment_run_id=cast(ExperimentRunId, experiment_run.id),
             start_time=_decode_unix_nano(cast(int, span.start_time)),
             end_time=_decode_unix_nano(cast(int, span.end_time)),
@@ -428,9 +405,11 @@ def _evaluate_experiment(
             result=result,
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
-        resp = sync_client.post("/v1/experiment_evaluations", json=jsonify(evaluator_payload))
-        resp.raise_for_status()
-        return evaluator_payload
+        if not dry_run:
+            resp = sync_client.post("/v1/experiment_evaluations", json=jsonify(eval_run))
+            resp.raise_for_status()
+            eval_run = replace(eval_run, id=resp.json()["data"]["id"])
+        return eval_run
 
     async def async_evaluate_run(
         obj: Tuple[Example, ExperimentRun, Evaluator],
@@ -461,7 +440,7 @@ def _evaluate_experiment(
             span.set_attribute(OPENINFERENCE_SPAN_KIND, root_span_kind)
             span.set_status(status)
 
-        evaluator_payload = ExperimentEvaluationRun(
+        eval_run = ExperimentEvaluationRun(
             experiment_run_id=cast(ExperimentRunId, experiment_run.id),
             start_time=_decode_unix_nano(cast(int, span.start_time)),
             end_time=_decode_unix_nano(cast(int, span.end_time)),
@@ -471,11 +450,11 @@ def _evaluate_experiment(
             result=result,
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
-        resp = await async_client.post(
-            "/v1/experiment_evaluations", json=jsonify(evaluator_payload)
-        )
-        resp.raise_for_status()
-        return evaluator_payload
+        if not dry_run:
+            resp = await async_client.post("/v1/experiment_evaluations", json=jsonify(eval_run))
+            resp.raise_for_status()
+            eval_run = replace(eval_run, id=resp.json()["data"]["id"])
+        return eval_run
 
     executor = get_executor_on_sync_context(
         sync_evaluate_run,
@@ -486,7 +465,15 @@ def _evaluate_experiment(
         tqdm_bar_format=get_tqdm_progress_bar_formatter("running experiment evaluations"),
     )
     print("🧠 Evaluation started.")
-    _, _execution_details = executor.run(evaluation_input)
+    eval_runs, _execution_details = executor.run(evaluation_input)
+    eval_summary = EvaluationSummary.from_eval_runs(
+        EvaluationConfig(
+            eval_names=frozenset(evaluators_by_name),
+            exp_config=ran_experiment.config,
+        ),
+        eval_runs,
+    )
+    return ran_experiment + eval_summary
 
 
 def _evaluators_by_name(obj: Optional[Evaluators]) -> Mapping[EvaluatorName, Evaluator]:
@@ -517,6 +504,17 @@ def _evaluators_by_name(obj: Optional[Evaluators]) -> Mapping[EvaluatorName, Eva
             raise ValueError(f"Two evaluators have the same name: {name}")
         evaluators_by_name[name] = evaluator
     return evaluators_by_name
+
+
+def _get_tracer(project_name: Optional[str] = None) -> Tuple[Tracer, Resource]:
+    if not project_name:
+        return NoOpTracer(), Resource({})
+    resource = Resource({ResourceAttributes.PROJECT_NAME: project_name})
+    tracer_provider = trace_sdk.TracerProvider(resource=resource)
+    tracer_provider.add_span_processor(
+        SimpleSpanProcessor(OTLPSpanExporter(urljoin(f"{get_base_url()}", "v1/traces")))
+    )
+    return tracer_provider.get_tracer(__name__), resource
 
 
 def _str_trace_id(id_: int) -> str:

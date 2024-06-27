@@ -69,6 +69,9 @@ dev = [
   "jupyter",
   "nbqa",
   "ruff==0.4.9",
+  "pandas>=1.0",
+  "tabulate",  # used by DataFrame.to_markdown()
+  "types-tabulate",
   "pandas-stubs==2.2.2.240603; python_version>='3.9'",
   "pandas-stubs==2.0.3.230814; python_version<'3.9'",
   "pytest==8.2.2",
@@ -164,6 +167,7 @@ dependencies = [
   "mypy==1.10.0",
   "tenacity",
   "pandas-stubs==2.0.3.230814",
+  "types-tabulate",
   "types-psutil",
   "types-tqdm",
   "types-protobuf",
