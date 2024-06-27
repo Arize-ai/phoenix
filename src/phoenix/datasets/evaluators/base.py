@@ -274,7 +274,7 @@ class CodeEvaluator(Evaluator, ABC, is_abstract=True):
     This class is intended to be subclassed, and should not be instantiated directly.
     """
 
-    _kind = AnnotatorKind.LLM
+    _kind = AnnotatorKind.CODE
 
     def __new__(cls, *args: Any, **kwargs: Any) -> "CodeEvaluator":
         if cls is CodeEvaluator:
