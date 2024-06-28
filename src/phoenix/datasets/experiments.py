@@ -309,6 +309,11 @@ def run_experiment(
     print("✅ Task runs completed.")
 
     if evaluators_by_name:
+        # The same httpx client cannot be used in more than one event loop
+        # without nest_asyncio, so we must ensure that we have separate clients
+        # for running tasks and evaluators. For details, see:
+        # https://github.com/encode/httpx/discussions/2959#discussioncomment-7665278
+        sync_client, async_client = _phoenix_clients()
         _evaluate_experiment(
             experiment,
             evaluators=evaluators_by_name,
