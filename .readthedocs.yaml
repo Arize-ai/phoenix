@@ -16,7 +16,7 @@ build:
 
 # Build documentation in the "docs/" directory with Sphinx
 sphinx:
-    configuration: docs/api_reference/source/conf.py
+    configuration: api_reference/source/conf.py
     # You can configure Sphinx to use a different builder, for instance use the dirhtml builder for simpler URLs
     # builder: "dirhtml"
     # Fail on all warnings to avoid broken references
@@ -32,6 +32,6 @@ sphinx:
 # See https://docs.readthedocs.io/en/stable/guides/reproducible-builds.html
 python:
     install:
-        - requirements: docs/api_reference/requirements.txt
+        - requirements: api_reference/requirements.txt
         - method: pip
           path: .

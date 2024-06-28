@@ -1,6 +1,6 @@
 myst_parser
 sphinx
-sphinx_rtd_theme
+pydata-sphinx-theme
 arize-phoenix-evals
 
 -e .
