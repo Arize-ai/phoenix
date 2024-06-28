@@ -29,7 +29,7 @@ def setup(app):
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = "Arize Phoenix"
+project = "arize-phoenix"
 copyright = "2024, Arize AI"
 author = "Arize AI"
 
