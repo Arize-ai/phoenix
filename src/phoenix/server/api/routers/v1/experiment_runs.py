@@ -53,20 +53,8 @@ async def create_experiment_run(request: Request) -> Response:
         )
         session.add(exp_run)
         await session.flush()
-
-        run_gid = GlobalID("ExperimentRun", str(exp_run.id))
-        run_payload = ExperimentRun(
-            start_time=exp_run.start_time,
-            end_time=exp_run.end_time,
-            experiment_id=str(experiment_gid),
-            dataset_example_id=str(example_gid),
-            repetition_number=exp_run.repetition_number,
-            output=ExperimentResult.from_dict(exp_run.output) if exp_run.output else None,
-            error=exp_run.error,
-            id=str(run_gid),
-            trace_id=exp_run.trace_id,
-        )
-        return JSONResponse(content=jsonify(run_payload), status_code=200)
+    run_gid = GlobalID("ExperimentRun", str(exp_run.id))
+    return JSONResponse(content={"data": {"id": str(run_gid)}})
 
 
 async def list_experiment_runs(request: Request) -> Response:
@@ -105,4 +93,4 @@ async def list_experiment_runs(request: Request) -> Response:
                     trace_id=exp_run.trace_id,
                 )
             )
-        return JSONResponse(content=jsonify(runs), status_code=200)
+    return JSONResponse(content=jsonify(runs), status_code=200)
