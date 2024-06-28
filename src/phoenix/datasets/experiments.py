@@ -33,7 +33,7 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import Span
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer
+from opentelemetry.trace import Status, StatusCode, Tracer
 from typing_extensions import TypeAlias
 
 from phoenix.config import get_base_url, get_env_client_headers
@@ -44,6 +44,7 @@ from phoenix.datasets.evaluators.base import (
 )
 from phoenix.datasets.tracing import capture_spans
 from phoenix.datasets.types import (
+    DRY_RUN,
     Dataset,
     EvaluationParameters,
     EvaluationResult,
@@ -100,9 +101,8 @@ def run_experiment(
     dry_run: bool = False,
     print_summary: bool = True,
 ) -> RanExperiment:
-    dataset_id, dataset_version_id = dataset.id, dataset.version_id
     if not dataset.examples:
-        raise ValueError(f"Dataset has no examples: {dataset_id=}, {dataset_version_id=}")
+        raise ValueError(f"Dataset has no examples: {dataset.id=}, {dataset.version_id=}")
     # Add this to the params once supported in the UI
     repetitions = 1
     assert repetitions > 0, "Must run the experiment at least once."
@@ -110,30 +110,55 @@ def run_experiment(
 
     sync_client, async_client = _phoenix_clients()
 
-    experiment_response = sync_client.post(
-        f"/v1/datasets/{dataset_id}/experiments",
-        json={
-            "version-id": dataset_version_id,
-            "name": experiment_name,
-            "description": experiment_description,
-            "metadata": experiment_metadata,
-            "repetitions": repetitions,
-        },
-    )
-    experiment_response.raise_for_status()
-    exp_json = experiment_response.json()
-    experiment = Experiment.from_dict(exp_json)
-    experiment_id = experiment.id
+    payload = {
+        "version-id": dataset.version_id,
+        "name": experiment_name,
+        "description": experiment_description,
+        "metadata": experiment_metadata,
+        "repetitions": repetitions,
+    }
+    if not dry_run:
+        experiment_response = sync_client.post(
+            f"/v1/datasets/{dataset.id}/experiments",
+            json=payload,
+        )
+        experiment_response.raise_for_status()
+        exp_json = experiment_response.json()
+        project_name = exp_json["project_name"]
+        experiment = Experiment(
+            dataset_id=dataset.id,
+            dataset_version_id=dataset.version_id,
+            repetitions=repetitions,
+            id=exp_json["id"],
+            project_name=project_name,
+        )
+    else:
+        experiment = Experiment(
+            dataset_id=dataset.id,
+            dataset_version_id=dataset.version_id,
+            repetitions=repetitions,
+            id=DRY_RUN,
+            project_name="",
+        )
 
-    tracer, resource = _get_tracer(None if dry_run else exp_json["project_name"])
+    tracer, resource = _get_tracer(experiment.project_name)
     root_span_name = f"Task: {_get_task_name(task)}"
     root_span_kind = CHAIN
 
-    dataset_experiments_url = get_dataset_experiments_url(dataset_id=dataset_id)
-    experiment_compare_url = get_experiment_url(dataset_id=dataset.id, experiment_id=experiment_id)
     print("🧪 Experiment started.")
-    print(f"📺 View dataset experiments: {dataset_experiments_url}")
-    print(f"🔗 View this experiment: {experiment_compare_url}")
+    if dry_run:
+        max_sample_size = 3
+        print(f"🧊 This is a dry run (first {max_sample_size} examples).")
+        examples = dataset.examples[:max_sample_size]
+        dataset = replace(dataset, examples=examples)
+    else:
+        dataset_experiments_url = get_dataset_experiments_url(dataset_id=dataset.id)
+        experiment_compare_url = get_experiment_url(
+            dataset_id=dataset.id,
+            experiment_id=experiment.id,
+        )
+        print(f"📺 View dataset experiments: {dataset_experiments_url}")
+        print(f"🔗 View this experiment: {experiment_compare_url}")
 
     errors: Tuple[Optional[Type[BaseException]], ...]
     if not hasattr(rate_limit_errors, "__iter__"):
@@ -185,7 +210,7 @@ def run_experiment(
         exp_run = ExperimentRun(
             start_time=_decode_unix_nano(cast(int, span.start_time)),
             end_time=_decode_unix_nano(cast(int, span.end_time)),
-            experiment_id=experiment_id,
+            experiment_id=experiment.id,
             dataset_example_id=example.id,
             repetition_number=repetition_number,
             output=result,
@@ -193,7 +218,7 @@ def run_experiment(
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
         if not dry_run:
-            resp = sync_client.post(f"/v1/experiments/{experiment_id}/runs", json=jsonify(exp_run))
+            resp = sync_client.post(f"/v1/experiments/{experiment.id}/runs", json=jsonify(exp_run))
             resp.raise_for_status()
             exp_run = replace(exp_run, id=resp.json()["data"]["id"])
         return exp_run
@@ -239,7 +264,7 @@ def run_experiment(
         exp_run = ExperimentRun(
             start_time=_decode_unix_nano(cast(int, span.start_time)),
             end_time=_decode_unix_nano(cast(int, span.end_time)),
-            experiment_id=experiment_id,
+            experiment_id=experiment.id,
             dataset_example_id=example.id,
             repetition_number=repetition_number,
             output=result,
@@ -248,7 +273,7 @@ def run_experiment(
         )
         if not dry_run:
             resp = await async_client.post(
-                f"/v1/experiments/{experiment_id}/runs", json=jsonify(exp_run)
+                f"/v1/experiments/{experiment.id}/runs", json=jsonify(exp_run)
             )
             resp.raise_for_status()
             exp_run = replace(exp_run, id=resp.json()["data"]["id"])
@@ -280,8 +305,8 @@ def run_experiment(
     task_summary = TaskSummary.from_task_runs(params, task_runs)
     ran_experiment: RanExperiment = object.__new__(RanExperiment)
     ran_experiment.__init__(  # type: ignore[misc]
-        dataset=dataset,
         params=params,
+        dataset=dataset,
         runs=task_runs,
         task_summary=task_summary,
         **_asdict(experiment),
@@ -318,9 +343,7 @@ def evaluate_experiment(
             sync_client.get(
                 f"/v1/datasets/{dataset_id}/examples",
                 params={"version-id": str(dataset_version_id)},
-            )
-            .json()
-            .get("data")
+            ).json()["data"]
         )
         if not dataset.examples:
             raise ValueError(f"Dataset has no examples: {dataset_id=}, {dataset_version_id=}")
@@ -340,8 +363,12 @@ def evaluate_experiment(
             task_summary=task_summary,
             **_asdict(experiment),
         )
-
+    print("🧠 Evaluation started.")
     # not all dataset examples have associated experiment runs, so we need to pair them up
+    if dry_run:
+        max_sample_size = 3
+        print(f"🧊 This is a dry run (first {max_sample_size} examples).")
+        ran_experiment = _as_dry_run(ran_experiment, max_sample_size)
     example_run_pairs = []
     examples_by_id = {example.id: example for example in ran_experiment.dataset.examples}
     for exp_run in ran_experiment.runs:
@@ -454,7 +481,6 @@ def evaluate_experiment(
         fallback_return_value=None,
         tqdm_bar_format=get_tqdm_progress_bar_formatter("running experiment evaluations"),
     )
-    print("🧠 Evaluation started.")
     eval_runs, _execution_details = executor.run(evaluation_input)
     eval_summary = EvaluationSummary.from_eval_runs(
         EvaluationParameters(
@@ -463,7 +489,7 @@ def evaluate_experiment(
         ),
         eval_runs,
     )
-    ran_experiment += eval_summary
+    ran_experiment = ran_experiment.add(eval_summary)
     if print_summary:
         print(ran_experiment)
     return ran_experiment
@@ -500,13 +526,14 @@ def _evaluators_by_name(obj: Optional[Evaluators]) -> Mapping[EvaluatorName, Eva
 
 
 def _get_tracer(project_name: Optional[str] = None) -> Tuple[Tracer, Resource]:
-    if not project_name:
-        return NoOpTracer(), Resource({})
-    resource = Resource({ResourceAttributes.PROJECT_NAME: project_name})
+    resource = Resource({ResourceAttributes.PROJECT_NAME: project_name} if project_name else {})
     tracer_provider = trace_sdk.TracerProvider(resource=resource)
-    tracer_provider.add_span_processor(
+    span_processor = (
         SimpleSpanProcessor(OTLPSpanExporter(urljoin(f"{get_base_url()}", "v1/traces")))
+        if project_name
+        else _NoOpProcessor()
     )
+    tracer_provider.add_span_processor(span_processor)
     return tracer_provider.get_tracer(__name__), resource
 
 
@@ -528,6 +555,30 @@ def _get_task_name(task: ExperimentTask) -> str:
     if hasattr(task, "__qualname__"):
         return task.__qualname__
     return str(task)
+
+
+def _as_dry_run(obj: RanExperiment, max_sample_size: int = 3) -> RanExperiment:
+    ran_experiment = object.__new__(RanExperiment)
+    if obj.id == DRY_RUN:
+        ran_experiment.__init__(  # type: ignore[misc]
+            **_asdict(obj),
+        )
+    else:
+        dataset = obj.dataset
+        examples = dataset.examples[:max_sample_size]
+        ran_experiment.__init__(  # type: ignore[misc]
+            **{
+                **_asdict(obj),
+                "dataset": replace(dataset, examples=examples),
+                "id": DRY_RUN,
+            }
+        )
+    return ran_experiment
+
+
+class _NoOpProcessor(trace_sdk.SpanProcessor):
+    def force_flush(self, *_: Any) -> bool:
+        return True
 
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE

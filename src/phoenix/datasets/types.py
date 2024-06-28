@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass, field, fields
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from importlib.metadata import version
+from random import getrandbits
 from typing import (
     Any,
     Awaitable,
@@ -18,12 +19,14 @@ from typing import (
     Sequence,
     Tuple,
     Union,
+    cast,
 )
 
 import pandas as pd
 from typing_extensions import TypeAlias
 
 from phoenix.datasets.utils import get_experiment_url
+from phoenix.datetime_utils import local_now
 
 
 class AnnotatorKind(Enum):
@@ -49,6 +52,13 @@ ExampleInput: TypeAlias = Mapping[str, JSONSerializable]
 EvaluatorName: TypeAlias = str
 EvaluatorKind: TypeAlias = str
 EvaluatorOutput: TypeAlias = Union["EvaluationResult", bool, int, float, str]
+
+DRY_RUN: ExperimentId = "DRY_RUN"
+
+
+def _dummy_id() -> str:
+    suffix = getrandbits(32).to_bytes(4, "big").hex()
+    return f"DUMMY_ID_{suffix}"
 
 
 @dataclass(frozen=True)
@@ -78,10 +88,11 @@ class Dataset:
 
     @classmethod
     def from_dict(cls, obj: Mapping[str, Any]) -> Dataset:
+        examples = tuple(map(Example.from_dict, obj.get("examples") or ()))
         return cls(
             id=obj["id"],
             version_id=obj["version_id"],
-            examples=tuple(map(Example.from_dict, obj.get("examples") or ())),
+            examples=examples,
         )
 
 
@@ -93,18 +104,20 @@ class TestCase:
 
 @dataclass(frozen=True)
 class Experiment:
-    id: ExperimentId
     dataset_id: DatasetId
     dataset_version_id: DatasetVersionId
     repetitions: int
+    id: ExperimentId
+    project_name: str
 
     @classmethod
     def from_dict(cls, obj: Mapping[str, Any]) -> Experiment:
         return cls(
-            id=obj["id"],
             dataset_id=obj["dataset_id"],
             dataset_version_id=obj["dataset_version_id"],
             repetitions=obj.get("repetitions") or 1,
+            id=obj.get("id") or _dummy_id(),
+            project_name=obj.get("project_name") or "",
         )
 
 
@@ -230,11 +243,11 @@ class EvaluationParameters:
 class _HasStats:
     _title: str = field(repr=False, default="")
     stats: pd.DataFrame = field(repr=False, default_factory=pd.DataFrame)
-    timestamp: datetime = field(repr=False, default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(repr=False, default_factory=local_now)
 
     @property
     def title(self) -> str:
-        return f"{self._title} ({self.timestamp:%x %X %z})"
+        return f"{self._title} ({self.timestamp:%x %I:%M %p %z})"
 
     def __str__(self) -> str:
         try:
@@ -283,37 +296,25 @@ class EvaluationSummary(_HasStats):
                     for name in params.eval_names
                 ]
             )
+        has_error = bool(df.loc[:, "error"].astype(bool).sum())
+        has_score = bool(df.loc[:, "score"].dropna().count())
+        has_label = bool(df.loc[:, "label"].astype(bool).sum())
         stats = df.groupby("evaluator").agg(
             **(
-                dict(
-                    n_errors=("error", "count"),
-                    top_error=(
-                        "error",
-                        lambda s: Counter(s.dropna().str.slice(0, 100)).most_common(1)[0][0]
-                        if s.any()
-                        else None,
-                    ),
-                )
-                if df["error"].any()
+                dict(n_errors=("error", "count"), top_error=("error", _top_string))
+                if has_error
                 else {}
             ),
-            **(
-                dict(
-                    n_scores=("score", "count"),
-                    avg_score=("score", "mean"),
-                )
-                if df["score"].any()
-                else {}
-            ),
+            **(dict(n_scores=("score", "count"), avg_score=("score", "mean")) if has_score else {}),
             **(
                 dict(
                     n_labels=("label", "count"),
                     top_2_labels=(
                         "label",
-                        lambda s: dict(Counter(s.dropna()).most_common(2)) if s.any() else None,
+                        lambda s: (dict(Counter(s.dropna()).most_common(2)) or None),
                     ),
                 )
-                if df["label"].any()
+                if has_label
                 else {}
             ),
         )  # type: ignore[call-overload]
@@ -366,23 +367,13 @@ class TaskSummary(_HasStats):
                 if run is not None
             ]
         )
-        n_runs, n_errors = len(df), 0 if df.empty else df["error"].count()
+        n_runs = len(df)
+        n_errors = 0 if df.empty else df.loc[:, "error"].astype(bool).sum()
         record = {
             "n": params.count,
             "n_runs": n_runs,
             "n_errors": n_errors,
-            **(
-                dict(
-                    top_error=(
-                        "error",
-                        lambda s: Counter(s.dropna().str.slice(0, 100)).most_common(1)[0][0]
-                        if s.any()
-                        else None,
-                    ),
-                )
-                if df["error"].any()
-                else {}
-            ),
+            **(dict(top_error=_top_string(df.loc[:, "error"])) if n_errors else {}),
         }
         stats = pd.DataFrame.from_records([record])
         summary: TaskSummary = object.__new__(cls)
@@ -398,6 +389,12 @@ class TaskSummary(_HasStats):
     def __init_subclass__(cls, **kwargs: Any) -> None:
         # Direct sub-classing by users is discouraged.
         raise NotImplementedError
+
+
+def _top_string(s: "pd.Series[Any]", length: int = 100) -> Optional[str]:
+    if (cnt := s.dropna().str.slice(0, length).value_counts()).empty:
+        return None
+    return cast(str, cnt.sort_values(ascending=False).index[0])
 
 
 @dataclass(frozen=True)
@@ -422,7 +419,7 @@ class RanExperiment(Experiment):
     def info(self) -> str:
         return f"🔗 View this experiment: {self.url}"
 
-    def __add__(self, eval_summary: EvaluationSummary) -> "RanExperiment":
+    def add(self, eval_summary: EvaluationSummary) -> "RanExperiment":
         eval_summaries = (eval_summary, *self.eval_summaries)
         ran_experiment: RanExperiment = object.__new__(RanExperiment)
         ran_experiment.__init__(  # type: ignore[misc]
@@ -432,7 +429,11 @@ class RanExperiment(Experiment):
 
     def __str__(self) -> str:
         summaries = (*self.eval_summaries, self.task_summary)
-        return f"\n{self.info}\n\n" + "\n\n".join(map(str, summaries))
+        return (
+            "\n"
+            + ("" if self.id == DRY_RUN else f"{self.info}\n\n")
+            + "\n\n".join(map(str, summaries))
+        )
 
     @classmethod
     def __new__(cls, *args: Any, **kwargs: Any) -> Any:
