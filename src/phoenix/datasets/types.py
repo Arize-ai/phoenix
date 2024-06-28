@@ -5,7 +5,6 @@ from copy import deepcopy
 from dataclasses import dataclass, field, fields
 from datetime import datetime
 from enum import Enum
-from functools import cached_property
 from importlib.metadata import version
 from typing import (
     Any,
@@ -82,8 +81,7 @@ class Dataset:
     version_id: DatasetVersionId
     examples: Sequence[Example]
 
-    @cached_property
-    def dataframe(self) -> pd.DataFrame:
+    def as_dataframe(self) -> pd.DataFrame:
         return pd.DataFrame.from_records(
             [
                 {
