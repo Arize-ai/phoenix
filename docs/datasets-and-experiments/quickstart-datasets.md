@@ -8,7 +8,7 @@ Install Phoenix.
 
 
 ```python
-!pip install "arize-phoenix[evals]"
+pip install "arize-phoenix[evals]"
 ```
 
 Launch Phoenix.
