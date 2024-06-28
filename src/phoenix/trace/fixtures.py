@@ -244,8 +244,8 @@ def send_dataset_fixtures(
         try:
             if i % 2:
                 client.upload_dataset(
-                    fixture.dataframe,
                     dataset_name=fixture.name,
+                    dataframe=fixture.dataframe,
                     input_keys=fixture.input_keys,
                     output_keys=fixture.output_keys,
                     metadata_keys=fixture.metadata_keys,
@@ -257,8 +257,8 @@ def send_dataset_fixtures(
                         shutil.copyfileobj(fixture.csv, f)
                         f.flush()
                     client.upload_dataset(
-                        tf.name,
                         dataset_name=fixture.name,
+                        csv_file_path=tf.name,
                         input_keys=fixture.input_keys,
                         output_keys=fixture.output_keys,
                         metadata_keys=fixture.metadata_keys,

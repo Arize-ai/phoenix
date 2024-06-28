@@ -428,146 +428,32 @@ class Client(TraceDataExtractor):
             index_col="example_id",
         )
 
-    def create_examples(
-        self,
-        *,
-        dataset_name: str,
-        inputs: Iterable[Mapping[str, Any]],
-        outputs: Iterable[Mapping[str, Any]] = (),
-        metadata: Iterable[Mapping[str, Any]] = (),
-        dataset_description: Optional[str] = None,
-    ) -> Dataset:
-        """
-        Upload examples as dataset to the Phoenix server.
-
-        Args:
-            dataset_name: (str): Name of the dataset
-            inputs (Iterable[Mapping[str, Any]]): List of dictionaries object each
-                corresponding to an example in the dataset.
-            outputs (Iterable[Mapping[str, Any]]): List of dictionaries object each
-                corresponding to an example in the dataset.
-            metadata (Iterable[Mapping[str, Any]]): List of dictionaries object each
-                corresponding to an example in the dataset.
-            dataset_description: (Optional[str]): Description of the dataset.
-
-        Returns:
-            A Dataset object with the uploaded examples.
-        """
-        return self._upload_json_dataset(
-            dataset_name=dataset_name,
-            inputs=inputs,
-            outputs=outputs,
-            metadata=metadata,
-            dataset_description=dataset_description,
-        )
-
-    def append_examples(
-        self,
-        *,
-        dataset_name: str,
-        inputs: Iterable[Mapping[str, Any]],
-        outputs: Iterable[Mapping[str, Any]] = (),
-        metadata: Iterable[Mapping[str, Any]] = (),
-    ) -> Dataset:
-        """
-        Append examples to dataset on the Phoenix server. If dataset does
-        not exist, it'll be created.
-
-        Args:
-            dataset_name: (str): Name of the dataset
-            inputs (Iterable[Mapping[str, Any]]): List of dictionaries object each
-                corresponding to an example in the dataset.
-            outputs (Iterable[Mapping[str, Any]]): List of dictionaries object each
-                corresponding to an example in the dataset.
-            metadata (Iterable[Mapping[str, Any]]): List of dictionaries object each
-                corresponding to an example in the dataset.
-
-        Returns:
-            A Dataset object with its examples.
-        """
-        return self._upload_json_dataset(
-            dataset_name=dataset_name,
-            inputs=inputs,
-            outputs=outputs,
-            metadata=metadata,
-            action="append",
-        )
-
-    def _upload_json_dataset(
-        self,
-        *,
-        dataset_name: str,
-        inputs: Iterable[Mapping[str, Any]],
-        outputs: Iterable[Mapping[str, Any]] = (),
-        metadata: Iterable[Mapping[str, Any]] = (),
-        dataset_description: Optional[str] = None,
-        action: DatasetAction = "create",
-    ) -> Dataset:
-        """
-        Upload examples as dataset to the Phoenix server.
-
-        Args:
-            dataset_name: (str): Name of the dataset
-            inputs (Iterable[Mapping[str, Any]]): List of dictionaries object each
-                corresponding to an example in the dataset.
-            outputs (Iterable[Mapping[str, Any]]): List of dictionaries object each
-                corresponding to an example in the dataset.
-            metadata (Iterable[Mapping[str, Any]]): List of dictionaries object each
-                corresponding to an example in the dataset.
-            dataset_description: (Optional[str]): Description of the dataset.
-            action: (Literal["create", "append"]): Create new dataset or append to an
-                existing one. If action="append" and dataset does not exist, it'll
-                be created.
-
-        Returns:
-            A Dataset object with the uploaded examples.
-        """
-        # convert to list to avoid issues with pandas Series
-        inputs, outputs, metadata = list(inputs), list(outputs), list(metadata)
-        if not inputs or not _is_all_dict(inputs):
-            raise ValueError(
-                "`inputs` should be a non-empty sequence containing only dictionary objects"
-            )
-        for name, seq in {"outputs": outputs, "metadata": metadata}.items():
-            if seq and not (len(seq) == len(inputs) and _is_all_dict(seq)):
-                raise ValueError(
-                    f"`{name}` should be a sequence of the same length as `inputs` "
-                    "containing only dictionary objects"
-                )
-        print("📤 Uploading dataset...")
-        response = self._client.post(
-            url=urljoin(self._base_url, "v1/datasets/upload"),
-            headers={"Content-Encoding": "gzip"},
-            json={
-                "action": action,
-                "name": dataset_name,
-                "description": dataset_description,
-                "inputs": inputs,
-                "outputs": outputs,
-                "metadata": metadata,
-            },
-            params={"sync": True},
-        )
-        return self._process_dataset_upload_response(response)
-
     def upload_dataset(
         self,
-        table: Union[str, Path, pd.DataFrame],
-        /,
         *,
         dataset_name: str,
-        input_keys: Iterable[str],
+        dataframe: Optional[pd.DataFrame] = None,
+        csv_file_path: Optional[Union[str, Path]] = None,
+        input_keys: Iterable[str] = (),
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
+        inputs: Iterable[Mapping[str, Any]] = (),
+        outputs: Iterable[Mapping[str, Any]] = (),
+        metadata: Iterable[Mapping[str, Any]] = (),
         dataset_description: Optional[str] = None,
     ) -> Dataset:
         """
-        Upload examples as dataset to the Phoenix server.
+        Upload examples as dataset to the Phoenix server. If `dataframe` or
+        `csv_file_path` are provided, must also provide `input_keys` (and
+        optionally with `output_keys` or `metadata_keys` or both), which is a
+        list of strings denoting the column names in the dataframe or the csv
+        file. On the other hand, a sequence of dictionaries can also be provided
+        via `inputs` (and optionally with `outputs` or `metadat` or both), each
+        item of which represents a separate example in the dataset.
 
         Args:
-            table (str | Path | pd.DataFrame): Location of a CSV text file, or
-                pandas DataFrame.
-            dataset_name: (str): Name of the dataset. Required if action=append.
+            dataframe (pd.DataFrame): pandas DataFrame.
+            csv_file_path (str | Path): Location of a CSV text file
             input_keys (Iterable[str]): List of column names used as input keys.
                 input_keys, output_keys, metadata_keys must be disjoint, and must
                 exist in CSV column headers.
@@ -577,38 +463,72 @@ class Client(TraceDataExtractor):
             metadata_keys (Iterable[str]): List of column names used as metadata keys.
                 input_keys, output_keys, metadata_keys must be disjoint, and must
                 exist in CSV column headers.
+            inputs (Iterable[Mapping[str, Any]]): List of dictionaries object each
+                corresponding to an example in the dataset.
+            outputs (Iterable[Mapping[str, Any]]): List of dictionaries object each
+                corresponding to an example in the dataset.
+            metadata (Iterable[Mapping[str, Any]]): List of dictionaries object each
+                corresponding to an example in the dataset.
+            dataset_name: (str): Name of the dataset. Required if action=append.
             dataset_description: (Optional[str]): Description of the dataset.
 
         Returns:
             A Dataset object with the uploaded examples.
         """
-        return self._upload_tabular_dataset(
-            table,
+        if dataframe is not None or csv_file_path is not None:
+            if dataframe is not None and csv_file_path is not None:
+                raise ValueError(
+                    "Please provide either `dataframe` or `csv_file_path`, but not both"
+                )
+            if list(inputs) or list(outputs) or list(metadata):
+                option = "dataframe" if dataframe is not None else "csv_file_path"
+                raise ValueError(
+                    f"Please provide only either `{option}` or list of dictionaries "
+                    f"via `inputs` (with `outputs` and `metadata`) but not both."
+                )
+            table = dataframe if dataframe is not None else csv_file_path
+            assert table is not None  # for type-checker
+            return self._upload_tabular_dataset(
+                table,
+                dataset_name=dataset_name,
+                input_keys=input_keys,
+                output_keys=output_keys,
+                metadata_keys=metadata_keys,
+                dataset_description=dataset_description,
+            )
+        return self._upload_json_dataset(
             dataset_name=dataset_name,
-            input_keys=input_keys,
-            output_keys=output_keys,
-            metadata_keys=metadata_keys,
+            inputs=inputs,
+            outputs=outputs,
+            metadata=metadata,
             dataset_description=dataset_description,
         )
 
     def append_dataset(
         self,
-        table: Union[str, Path, pd.DataFrame],
-        /,
-        *,
         dataset_name: str,
-        input_keys: Iterable[str],
+        dataframe: Optional[pd.DataFrame] = None,
+        csv_file_path: Optional[Union[str, Path]] = None,
+        input_keys: Iterable[str] = (),
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
+        inputs: Iterable[Mapping[str, Any]] = (),
+        outputs: Iterable[Mapping[str, Any]] = (),
+        metadata: Iterable[Mapping[str, Any]] = (),
+        dataset_description: Optional[str] = None,
     ) -> Dataset:
         """
-        Append examples to dataset on the Phoenix server. If dataset does
-        not exist, it'll be created.
+        Append examples to dataset on the Phoenix server. If `dataframe` or
+        `csv_file_path` are provided, must also provide `input_keys` (and
+        optionally with `output_keys` or `metadata_keys` or both), which is a
+        list of strings denoting the column names in the dataframe or the csv
+        file. On the other hand, a sequence of dictionaries can also be provided
+        via `inputs` (and optionally with `outputs` or `metadat` or both), each
+        item of which represents a separate example in the dataset.
 
         Args:
-            table (str | Path | pd.DataFrame): Location of a CSV text file, or
-                pandas DataFrame.
-            dataset_name: (str): Name of the dataset. Required if action=append.
+            dataframe (pd.DataFrame): pandas DataFrame.
+            csv_file_path (str | Path): Location of a CSV text file
             input_keys (Iterable[str]): List of column names used as input keys.
                 input_keys, output_keys, metadata_keys must be disjoint, and must
                 exist in CSV column headers.
@@ -618,16 +538,46 @@ class Client(TraceDataExtractor):
             metadata_keys (Iterable[str]): List of column names used as metadata keys.
                 input_keys, output_keys, metadata_keys must be disjoint, and must
                 exist in CSV column headers.
+            inputs (Iterable[Mapping[str, Any]]): List of dictionaries object each
+                corresponding to an example in the dataset.
+            outputs (Iterable[Mapping[str, Any]]): List of dictionaries object each
+                corresponding to an example in the dataset.
+            metadata (Iterable[Mapping[str, Any]]): List of dictionaries object each
+                corresponding to an example in the dataset.
+            dataset_name: (str): Name of the dataset. Required if action=append.
+            dataset_description: (Optional[str]): Description of the dataset.
 
         Returns:
             A Dataset object with its examples.
         """
-        return self._upload_tabular_dataset(
-            table,
+        if dataframe is not None or csv_file_path is not None:
+            if dataframe is not None and csv_file_path is not None:
+                raise ValueError(
+                    "Please provide either `dataframe` or `csv_file_path`, but not both"
+                )
+            if list(inputs) or list(outputs) or list(metadata):
+                option = "dataframe" if dataframe is not None else "csv_file_path"
+                raise ValueError(
+                    f"Please provide only either `{option}` or list of dictionaries "
+                    f"via `inputs` (with `outputs` and `metadata`) but not both."
+                )
+            table = dataframe if dataframe is not None else csv_file_path
+            assert table is not None  # for type-checker
+            return self._upload_tabular_dataset(
+                table,
+                dataset_name=dataset_name,
+                input_keys=input_keys,
+                output_keys=output_keys,
+                metadata_keys=metadata_keys,
+                dataset_description=dataset_description,
+                action="append",
+            )
+        return self._upload_json_dataset(
             dataset_name=dataset_name,
-            input_keys=input_keys,
-            output_keys=output_keys,
-            metadata_keys=metadata_keys,
+            inputs=inputs,
+            outputs=outputs,
+            metadata=metadata,
+            dataset_description=dataset_description,
             action="append",
         )
 
@@ -693,6 +643,63 @@ class Client(TraceDataExtractor):
                 "input_keys[]": sorted(keys.input),
                 "output_keys[]": sorted(keys.output),
                 "metadata_keys[]": sorted(keys.metadata),
+            },
+            params={"sync": True},
+        )
+        return self._process_dataset_upload_response(response)
+
+    def _upload_json_dataset(
+        self,
+        *,
+        dataset_name: str,
+        inputs: Iterable[Mapping[str, Any]],
+        outputs: Iterable[Mapping[str, Any]] = (),
+        metadata: Iterable[Mapping[str, Any]] = (),
+        dataset_description: Optional[str] = None,
+        action: DatasetAction = "create",
+    ) -> Dataset:
+        """
+        Upload examples as dataset to the Phoenix server.
+
+        Args:
+            dataset_name: (str): Name of the dataset
+            inputs (Iterable[Mapping[str, Any]]): List of dictionaries object each
+                corresponding to an example in the dataset.
+            outputs (Iterable[Mapping[str, Any]]): List of dictionaries object each
+                corresponding to an example in the dataset.
+            metadata (Iterable[Mapping[str, Any]]): List of dictionaries object each
+                corresponding to an example in the dataset.
+            dataset_description: (Optional[str]): Description of the dataset.
+            action: (Literal["create", "append"]): Create new dataset or append to an
+                existing one. If action="append" and dataset does not exist, it'll
+                be created.
+
+        Returns:
+            A Dataset object with the uploaded examples.
+        """
+        # convert to list to avoid issues with pandas Series
+        inputs, outputs, metadata = list(inputs), list(outputs), list(metadata)
+        if not inputs or not _is_all_dict(inputs):
+            raise ValueError(
+                "`inputs` should be a non-empty sequence containing only dictionary objects"
+            )
+        for name, seq in {"outputs": outputs, "metadata": metadata}.items():
+            if seq and not (len(seq) == len(inputs) and _is_all_dict(seq)):
+                raise ValueError(
+                    f"`{name}` should be a sequence of the same length as `inputs` "
+                    "containing only dictionary objects"
+                )
+        print("📤 Uploading dataset...")
+        response = self._client.post(
+            url=urljoin(self._base_url, "v1/datasets/upload"),
+            headers={"Content-Encoding": "gzip"},
+            json={
+                "action": action,
+                "name": dataset_name,
+                "description": dataset_description,
+                "inputs": inputs,
+                "outputs": outputs,
+                "metadata": metadata,
             },
             params={"sync": True},
         )
