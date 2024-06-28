@@ -10,10 +10,10 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useNavigate } from "react-router";
 import {
   CellContext,
-  Column,
   ColumnDef,
   flexRender,
   getCoreRowModel,
+  Table,
   useReactTable,
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
@@ -43,11 +43,7 @@ import { AnnotationLabel } from "@phoenix/components/experiment";
 import { SequenceNumberLabel } from "@phoenix/components/experiment/SequenceNumberLabel";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { CompactJSONCell } from "@phoenix/components/table";
-import {
-  borderedTableCSS,
-  getCommonPinningStyles,
-  tableCSS,
-} from "@phoenix/components/table/styles";
+import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -95,6 +91,18 @@ const defaultCardProps: Partial<CardProps> = {
     padding: 0,
   },
 };
+
+const tableWrapCSS = css`
+  flex: 1 1 auto;
+  overflow: auto;
+  // Make sure the table fills up the remaining space
+  table {
+    min-width: 100%;
+    td {
+      vertical-align: top;
+    }
+  }
+`;
 
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const { datasetId, experimentIds, displayFullText } = props;
@@ -196,21 +204,25 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   );
 
   const [dialog, setDialog] = useState<ReactNode>(null);
-  const baseColumns: ColumnDef<TableRow>[] = [
-    {
-      header: "input",
-      accessorKey: "input",
-      cell: displayFullText ? JSONCell : CompactJSONCell,
-    },
-    {
-      header: "reference output",
-      accessorKey: "referenceOutput",
-      cell: displayFullText ? JSONCell : CompactJSONCell,
-    },
-  ];
+  const baseColumns: ColumnDef<TableRow>[] = useMemo(() => {
+    return [
+      {
+        header: "input",
+        accessorKey: "input",
+        minWidth: 300,
+        cell: displayFullText ? JSONCell : CompactJSONCell,
+      },
+      {
+        header: "reference output",
+        accessorKey: "referenceOutput",
+        minWidth: 300,
+        cell: displayFullText ? JSONCell : CompactJSONCell,
+      },
+    ];
+  }, [displayFullText]);
 
-  const experimentColumns: ColumnDef<TableRow>[] = experimentIds.map(
-    (experimentId) => ({
+  const experimentColumns: ColumnDef<TableRow>[] = useMemo(() => {
+    return experimentIds.map((experimentId) => ({
       header: () => {
         const name = experimentInfoById[experimentId]?.name;
         const sequenceNumber =
@@ -223,6 +235,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         );
       },
       accessorKey: experimentId,
+      minSize: 500,
       cell: ({ row }) => {
         const runComparisonItem = row.original.runComparisonMap[experimentId];
         const numRuns = runComparisonItem?.runs.length || 0;
@@ -266,16 +279,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           );
         }
         const runControls = (
-          <div
-            css={css`
-              position: absolute;
-              top: 0;
-              right: 0;
-              display: flex;
-              flex-direction: column;
-              gap: var(--ac-global-dimension-static-size-100);
-            `}
-          >
+          <>
             <TooltipTrigger>
               <Button
                 variant="default"
@@ -300,7 +304,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               <Tooltip>View run details</Tooltip>
             </TooltipTrigger>
             {traceButton}
-          </div>
+          </>
         );
 
         return run ? (
@@ -315,50 +319,66 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           <NotRunText />
         );
       },
-    })
-  );
+    }));
+  }, [experimentIds, experimentInfoById, datasetId, displayFullText]);
 
-  const actionColumns: ColumnDef<TableRow>[] = [
-    {
-      id: "actions",
-      cell: ({ row }) => (
-        <ExperimentRowActionMenu
-          datasetId={datasetId}
-          exampleId={row.original.id}
-        />
-      ),
-      size: 10,
-    },
-  ];
+  const actionColumns: ColumnDef<TableRow>[] = useMemo(() => {
+    return [
+      {
+        id: "actions",
+        cell: ({ row }) => (
+          <ExperimentRowActionMenu
+            datasetId={datasetId}
+            exampleId={row.original.id}
+          />
+        ),
+      },
+    ];
+  }, [datasetId]);
+
+  const columns = useMemo(() => {
+    return [...baseColumns, ...experimentColumns, ...actionColumns];
+  }, [baseColumns, experimentColumns, actionColumns]);
+
   const table = useReactTable<TableRow>({
-    columns: [...baseColumns, ...experimentColumns, ...actionColumns],
+    columns: columns,
     data: tableData,
     getCoreRowModel: getCoreRowModel(),
     columnResizeMode: "onChange",
-    defaultColumn: {
-      size: 50,
-      minSize: 50,
-    },
   });
+
+  /**
+   * Instead of calling `column.getSize()` on every render for every header
+   * and especially every data cell (very expensive),
+   * we will calculate all column sizes at once at the root table level in a useMemo
+   * and pass the column sizes down as CSS variables to the <table> element.
+   */
+  const columnSizeVars = React.useMemo(() => {
+    const headers = table.getFlatHeaders();
+    const colSizes: { [key: string]: number } = {};
+    for (let i = 0; i < headers.length; i++) {
+      const header = headers[i]!;
+      colSizes[`--header-${header.id}-size`] = header.getSize();
+      colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
+    }
+    return colSizes;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [table.getState().columnSizingInfo, table.getState().columnSizing]);
+
   const rows = table.getRowModel().rows;
 
   const isEmpty = rows.length === 0;
 
   // Make sure the table is at least 1280px wide
-  const tableTotalSize =
-    table.getTotalSize() > 1280 ? table.getTotalSize() + "px" : "100%";
 
   return (
-    <div
-      css={css`
-        flex: 1 1 auto;
-        overflow: auto;
-      `}
-    >
+    <div css={tableWrapCSS}>
       <table
         css={(theme) => css(tableCSS(theme), borderedTableCSS)}
         style={{
-          width: tableTotalSize,
+          ...columnSizeVars,
+          width: table.getTotalSize(),
+          minWidth: "100%",
         }}
       >
         <thead>
@@ -367,9 +387,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               {headerGroup.headers.map((header) => (
                 <th
                   key={header.id}
-                  colSpan={header.colSpan}
                   style={{
-                    ...getCommonPinningStyles(header.column as Column<unknown>),
+                    width: `calc(var(--header-${header?.id}-size) * 1px)`,
                   }}
                 >
                   <div>
@@ -394,30 +413,11 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         </thead>
         {isEmpty ? (
           <TableEmpty />
+        ) : /* When resizing any column we will render this special memoized version of our table body */
+        table.getState().columnSizingInfo.isResizingColumn ? (
+          <MemoizedTableBody table={table} />
         ) : (
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id}>
-                {row.getVisibleCells().map((cell) => {
-                  return (
-                    <td
-                      key={cell.id}
-                      style={{
-                        ...getCommonPinningStyles(
-                          cell.column as Column<unknown>
-                        ),
-                      }}
-                    >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
+          <TableBody table={table} />
         )}
       </table>
       <DialogContainer
@@ -432,6 +432,35 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     </div>
   );
 }
+
+//un-memoized normal table body component - see memoized version below
+function TableBody<T>({ table }: { table: Table<T> }) {
+  return (
+    <tbody>
+      {table.getRowModel().rows.map((row) => (
+        <tr key={row.id}>
+          {row.getVisibleCells().map((cell) => {
+            return (
+              <td
+                key={cell.id}
+                style={{
+                  width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                }}
+              >
+                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              </td>
+            );
+          })}
+        </tr>
+      ))}
+    </tbody>
+  );
+}
+//special memoized wrapper for our table body that we will use during column resizing
+export const MemoizedTableBody = React.memo(
+  TableBody,
+  (prev, next) => prev.table.options.data === next.table.options.data
+) as typeof TableBody;
 
 enum ExperimentRowAction {
   GO_TO_EXAMPLE = "gotoExample",
@@ -510,7 +539,7 @@ function ExperimentRunOutput(
   return (
     <Flex direction="column" gap="size-100" height="100%">
       <LargeTextWrap>
-        <JSONText json={output} space={displayFullText ? 2 : 0} />
+        <JSONText json={output} disableTitle space={displayFullText ? 2 : 0} />
       </LargeTextWrap>
       <RunLatency startTime={startTime} endTime={endTime} />
       <ul
@@ -547,19 +576,41 @@ function ExperimentRunOutput(
   );
 }
 
+const runOutputWrapCSS = css`
+  position: relative;
+  min-height: 75px;
+  .run-output-controls {
+    display: none;
+    z-index: 1;
+  }
+  &:hover .run-output-controls {
+    display: flex;
+    // make them stand out
+    .ac-button {
+      border-color: var(--ac-global-color-primary);
+    }
+  }
+`;
+
+const runOutputControlsCSS = css`
+  position: absolute;
+  top: -22px;
+  right: -32px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ac-global-dimension-static-size-100);
+`;
+
 /**
  * Provides space for the controls and output of a run.
  */
 function RunOutputWrap(props: PropsWithChildren<{ controls: ReactNode }>) {
   return (
-    <div
-      css={css`
-        position: relative;
-        min-height: 75px;
-      `}
-    >
-      {props.controls}
-      <View paddingEnd={"size-500"}>{props.children}</View>
+    <div css={runOutputWrapCSS}>
+      <div css={runOutputControlsCSS} className="run-output-controls">
+        {props.controls}
+      </div>
+      {props.children}
     </div>
   );
 }

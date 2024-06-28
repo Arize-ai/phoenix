@@ -25,7 +25,7 @@ const TASK_PYTHON =
   `# Typically should be an LLM call or a call to your application\n` +
   `def my_task(example: Example) -> str:\n` +
   `    # This is just an example of how to return a JSON serializable value\n` +
-  `    return f"Hello {example.input.person}"`;
+  `    return f"Hello {example.input["person"]}"`;
 
 const EVALUATOR_PYTHON =
   `# Define an evaluator. This just an example.\n` +
