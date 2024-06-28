@@ -7,7 +7,7 @@ Phoenix helps you run experiments over your AI and LLM applications to evaluate 
 Install Phoenix.
 
 
-```python
+```shell
 pip install "arize-phoenix[evals]"
 ```
 
