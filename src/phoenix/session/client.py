@@ -146,7 +146,10 @@ class Client(TraceDataExtractor):
             end_time = end_time or stop_time
         response = self._client.post(
             url=urljoin(self._base_url, "v1/spans"),
-            params={"project-name": project_name},
+            params={
+                "project_name": project_name,
+                "project-name": project_name,  # for backward-compatibility
+            },
             json={
                 "queries": [q.to_dict() for q in queries],
                 "start_time": _to_iso_format(normalize_datetime(start_time)),
