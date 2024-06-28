@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { json } from "@codemirror/lang-json";
 import { EditorView } from "@codemirror/view";
 import { nord } from "@uiw/codemirror-theme-nord";
@@ -499,20 +499,27 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
 function AddSpanToDatasetButton({ span }: { span: Span }) {
   const [dialog, setDialog] = useState<ReactNode>(null);
   const notifySuccess = useNotifySuccess();
+  const navigate = useNavigate();
   const onAddSpanToDataset = useCallback(() => {
     setDialog(
       <SpanToDatasetExampleDialog
         spanId={span.id}
-        onCompleted={() => {
+        onCompleted={(datasetId) => {
           setDialog(null);
           notifySuccess({
-            title: "Add to Dataset",
+            title: "Span Added to Dataset",
             message: "Successfully added span to dataset",
+            action: {
+              text: "View Dataset",
+              onClick: () => {
+                navigate(`/datasets/${datasetId}/examples`);
+              },
+            },
           });
         }}
       />
     );
-  }, [span, notifySuccess]);
+  }, [span.id, notifySuccess, navigate]);
   return (
     <>
       <Button
