@@ -36,7 +36,7 @@ author = "Arize AI"
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ["sphinx.ext.autodoc", "sphinx.ext.napoleon"]
+extensions = ["sphinx.ext.autodoc", "sphinx.ext.napoleon", "pydata-sphinx-theme"]
 
 # Napoleon settings
 napoleon_google_docstring = True
