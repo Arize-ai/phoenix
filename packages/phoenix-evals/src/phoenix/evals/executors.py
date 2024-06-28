@@ -419,7 +419,7 @@ def get_executor_on_sync_context(
             )
         else:
             logger.warning(
-                "🐌!! If running llm_classify inside a notebook, patching the event loop with "
+                "🐌!! If running inside a notebook, patching the event loop with "
                 "nest_asyncio will allow asynchronous eval submission, and is significantly "
                 "faster. To patch the event loop, run `nest_asyncio.apply()`."
             )
