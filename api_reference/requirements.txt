@@ -1,5 +1,5 @@
 myst_parser
-sphinx
+sphinx==7.3.7
 pydata-sphinx-theme
 arize-phoenix-evals
 
