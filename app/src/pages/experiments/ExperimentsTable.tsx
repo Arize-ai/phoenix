@@ -398,13 +398,18 @@ function AnnotationAggregationCell({
   min?: number | null;
   max?: number | null;
 }) {
-  min = typeof min === "number" ? min : 0;
-  max = typeof max === "number" ? max : 1;
   const color = useWordColor(annotationName);
   const percentile = useMemo(() => {
+    // Assume a 0 to 1 range if min and max are not provided
+    const correctedMin = typeof min === "number" ? min : 0;
+    const correctedMax = typeof max === "number" ? max : 1;
+    if (correctedMin === correctedMax && correctedMax === value) {
+      // All the values are the same, so we want to display it as full rather than empty
+      return 100;
+    }
     // Avoid division by zero
-    const range = max - min || 1;
-    return ((value - min) / range) * 100;
+    const range = correctedMin - correctedMax || 1;
+    return ((value - correctedMin) / range) * 100;
   }, [value, min, max]);
   return (
     <TooltipTrigger>
@@ -421,7 +426,7 @@ function AnnotationAggregationCell({
         >
           {floatFormatter(value)}
           <ProgressBar
-            width="30px"
+            width="40px"
             value={percentile}
             aria-label="where the mean score lands between overall min max"
           />
