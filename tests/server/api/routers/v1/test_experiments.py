@@ -14,7 +14,7 @@ async def test_experiments_api(test_client, simple_dataset):
     created_experiment = (
         await test_client.post(
             f"/v1/datasets/{dataset_gid}/experiments",
-            json={"version-id": None, "repetitions": 1},
+            json={"version_id": None, "repetitions": 1},
         )
     ).json()
 
@@ -25,7 +25,7 @@ async def test_experiments_api(test_client, simple_dataset):
     dataset_examples = (
         await test_client.get(
             f"/v1/datasets/{dataset_gid}/examples",
-            params={"version-id": str(version_gid)},
+            params={"version_id": str(version_gid)},
         )
     ).json()["data"]["examples"]
 
@@ -81,7 +81,7 @@ async def test_experiments_api(test_client, simple_dataset):
 async def test_experiment_404s_with_missing_dataset(test_client, simple_dataset):
     incorrect_dataset_gid = GlobalID("Dataset", "1")
     response = await test_client.post(
-        f"/v1/datasets/{incorrect_dataset_gid}/experiments", json={"version-id": None}
+        f"/v1/datasets/{incorrect_dataset_gid}/experiments", json={"version_id": None}
     )
     assert response.status_code == 404
 
@@ -91,7 +91,7 @@ async def test_experiment_404s_with_missing_version(test_client, simple_dataset)
     incorrect_version_gid = GlobalID("DatasetVersion", "9000")
     response = await test_client.post(
         f"/v1/datasets/{correct_dataset_gid}/experiments",
-        json={"version-id": str(incorrect_version_gid)},
+        json={"version_id": str(incorrect_version_gid)},
     )
     assert response.status_code == 404
 
