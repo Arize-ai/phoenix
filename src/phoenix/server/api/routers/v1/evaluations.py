@@ -116,7 +116,7 @@ async def get_evaluations(request: Request) -> Response:
     """
     project_name = (
         request.query_params.get("project_name")
-        or request.query_params.get("project-name")  # read from dash for backward compatibility
+        or request.query_params.get("project-name")  # for backward compatibility
         or request.headers.get("project-name")  # read from headers for backwards compatibility
         or DEFAULT_PROJECT_NAME
     )
