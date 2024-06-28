@@ -201,7 +201,7 @@ paths:
           type: string
       - description: Dataset version ID. If omitted, returns the latest version.
         in: query
-        name: version
+        name: version_id
         schema:
           type: string
       responses:
@@ -305,7 +305,7 @@ paths:
           type: string
       - description: Dataset version ID. If omitted, returns the latest version.
         in: query
-        name: version
+        name: version_id
         schema:
           type: string
       responses:
@@ -338,7 +338,7 @@ paths:
           type: string
       - description: Dataset version ID. If omitted, returns the latest version.
         in: query
-        name: version
+        name: version_id
         schema:
           type: string
       responses:
