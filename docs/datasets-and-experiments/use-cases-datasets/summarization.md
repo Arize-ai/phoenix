@@ -19,7 +19,7 @@ Let's get started!
 Install requirements and import libraries.
 
 
-```python
+```shell
 pip install anthropic arize-phoenix openai openinference-instrumentation-openai rouge tiktoken
 ```
 
