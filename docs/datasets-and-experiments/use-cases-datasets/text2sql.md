@@ -281,7 +281,7 @@ Sure enough the LLM agrees with our scoring. Pretty neat trick! This can come in
 
 We now have a simple text2sql pipeline that can be used to generate SQL queries from natural language questions. Since Phoenix has been tracing the entire pipeline, we can now use the Phoenix UI to convert the spans that generated successful queries into examples to use in **Golden Dataset** for regression testing!
 
-![](https://storage.googleapis.com/arize-assets/phoenix/assets/images/golden\_dataset.png)
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/golden_dataset.png" alt=""><figcaption></figcaption></figure>
 
 ### Generating more data
 
@@ -400,7 +400,11 @@ experiment = run_experiment(
 
 Interesting! It looks like the smaller model is able to do decently well but we might want to ensure it follows instructions as well as a larger model. We can actually grab all the LLM spans from our previous GPT40 runs and use them to generate a OpenAI fine-tuning JSONL file!
 
-![](https://storage.googleapis.com/arize-assets/phoenix/assets/images/fine\_tining\_nba.png) ![](https://storage.googleapis.com/arize-assets/phoenix/assets/images/openai\_ft.png)
+&#x20;
+
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/fine_tining_nba.png" alt=""><figcaption></figcaption></figure>
+
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/openai_ft.png" alt=""><figcaption></figcaption></figure>
 
 ### Conclusion
 
