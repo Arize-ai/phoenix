@@ -506,6 +506,7 @@ class Client(TraceDataExtractor):
 
     def append_dataset(
         self,
+        *,
         dataset_name: str,
         dataframe: Optional[pd.DataFrame] = None,
         csv_file_path: Optional[Union[str, Path]] = None,
