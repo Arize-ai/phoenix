@@ -8,6 +8,7 @@ const preCSS = css`
   white-space: pre-wrap;
   word-wrap: break-word;
 `;
+
 /**
  * Truncates the text if it is too long.
  * @param {string} text The text to truncate
@@ -34,15 +35,19 @@ export function JSONText({
     () => JSON.stringify(json, null, space),
     [json, space]
   );
+  const fullValueFormatted = useMemo(
+    () => JSON.stringify(json, null, 2),
+    [json]
+  );
   if (!isObject(json)) {
     // Just show text and log a warning
     // eslint-disable-next-line no-console
     console.warn("JSONText component received a non-object value", json);
-    return <span title={fullValue}>{String(json)}</span>;
+    return <span title={fullValueFormatted}>{String(json)}</span>;
   }
   const obj = json as Record<string, unknown>;
   if (Object.keys(obj).length === 0) {
-    return <span title={fullValue}>--</span>;
+    return <span title={fullValueFormatted}>--</span>;
   }
   // If the object has only one key and the value is a string, show the string
   if (Object.keys(obj).length === 1) {
@@ -52,14 +57,14 @@ export function JSONText({
       const singleValueStr: string = hasMaxLength
         ? formatText(singleValue, maxLength)
         : singleValue;
-      return <span title={fullValue}>{singleValueStr}</span>;
+      return <span title={fullValueFormatted}>{singleValueStr}</span>;
     }
   }
   const textValue = hasMaxLength ? formatText(fullValue, maxLength) : fullValue;
   const Element = hasMaxLength ? "span" : "pre";
-  const cssStyles = hasMaxLength ? undefined : preCSS;
+  const additionalCSS = hasMaxLength ? undefined : preCSS;
   return (
-    <Element title={fullValue} css={cssStyles}>
+    <Element title={fullValueFormatted} css={additionalCSS}>
       {textValue}
     </Element>
   );

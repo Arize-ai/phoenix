@@ -72,7 +72,7 @@ def upgrade() -> None:
         sa.Column(
             "span_rowid",
             sa.Integer,
-            sa.ForeignKey("spans.id"),
+            sa.ForeignKey("spans.id", ondelete="SET NULL"),
             nullable=True,
             index=True,
         ),
@@ -198,7 +198,7 @@ def upgrade() -> None:
             sa.String,
             nullable=True,
         ),
-        sa.Column("output", JSON_, nullable=True),
+        sa.Column("output", JSON_, nullable=False),
         sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=False),
         sa.Column(

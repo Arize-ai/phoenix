@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a4fef9f01fbe3de31baf91deb0d90b87>>
+ * @generated SignedSource<<68bc3a9733c1a4dc7453119bc9b7f342>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -25,12 +25,14 @@ export type ExperimentsTableFragment$data = {
         }>;
         readonly createdAt: string;
         readonly description: string | null;
+        readonly errorRate: number | null;
         readonly id: string;
         readonly metadata: any;
         readonly name: string;
         readonly project: {
           readonly id: string;
         } | null;
+        readonly runCount: number;
         readonly sequenceNumber: number;
       };
     }>;
@@ -194,6 +196,20 @@ return {
                 {
                   "alias": null,
                   "args": null,
+                  "kind": "ScalarField",
+                  "name": "errorRate",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "runCount",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
                   "concreteType": "Project",
                   "kind": "LinkedField",
                   "name": "project",
@@ -288,6 +304,6 @@ return {
 };
 })();
 
-(node as any).hash = "0911261e5175626c0a4b4f91d60bc0d9";
+(node as any).hash = "29b8e65c08054958a5f5cefd4b148616";
 
 export default node;

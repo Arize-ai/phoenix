@@ -14,6 +14,10 @@ from pandas.core.dtypes.common import (
 _LOCAL_TIMEZONE = datetime.now(timezone.utc).astimezone().tzinfo
 
 
+def local_now() -> datetime:
+    return datetime.now(timezone.utc).astimezone(tz=_LOCAL_TIMEZONE)
+
+
 def normalize_datetime(
     dt: Optional[datetime],
     tz: Optional[tzinfo] = None,

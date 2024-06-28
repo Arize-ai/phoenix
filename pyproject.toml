@@ -24,7 +24,7 @@ classifiers = [
 dependencies = [
   "scikit-learn",
   "numpy<2",  # https://github.com/scikit-learn-contrib/hdbscan/issues/642
-  "pandas",
+  "pandas>=1.0",
   "jinja2",
   "umap-learn",
   "hdbscan>=0.8.33",
@@ -46,7 +46,7 @@ dependencies = [
   "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
   "opentelemetry-exporter-otlp",
   "opentelemetry-semantic-conventions",
-  "openinference-semantic-conventions>=0.1.5",
+  "openinference-semantic-conventions>=0.1.9",
   "openinference-instrumentation",
   "openinference-instrumentation-langchain>=0.1.12",
   "openinference-instrumentation-llama-index>=1.2.0",
@@ -69,6 +69,9 @@ dev = [
   "jupyter",
   "nbqa",
   "ruff==0.4.9",
+  "pandas>=1.0",
+  "tabulate",  # used by DataFrame.to_markdown()
+  "types-tabulate",
   "pandas-stubs==2.2.2.240603; python_version>='3.9'",
   "pandas-stubs==2.0.3.230814; python_version<'3.9'",
   "pytest==8.2.2",
@@ -163,7 +166,9 @@ dependencies = [
 dependencies = [
   "mypy==1.10.0",
   "tenacity",
+  "pandas>=1.0",
   "pandas-stubs==2.0.3.230814",
+  "types-tabulate",
   "types-psutil",
   "types-tqdm",
   "types-protobuf",
@@ -358,6 +363,7 @@ module = [
   "wrapt",
   "langchain.*",
   "litellm",
+  "litellm.*",
   "nest_asyncio",
   "opentelemetry.*",
   "pyarrow",

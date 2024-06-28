@@ -44,12 +44,12 @@ async def test_experiments_api(test_client, simple_dataset):
         "end_time": datetime.datetime.now().isoformat(),
         "error": "an error message, if applicable",
     }
-    experiment_run = (
+    run_payload["id"] = (
         await test_client.post(
             f"/v1/experiments/{experiment_gid}/runs",
             json=run_payload,
         )
-    ).json()
+    ).json()["data"]["id"]
 
     # experiment runs can be listed for evaluations
     experiment_runs = (await test_client.get(f"/v1/experiments/{experiment_gid}/runs")).json()
@@ -58,7 +58,7 @@ async def test_experiments_api(test_client, simple_dataset):
 
     # each experiment run can be evaluated
     evaluation_payload = {
-        "experiment_run_id": experiment_run["id"],
+        "experiment_run_id": run_payload["id"],
         "trace_id": "placeholder-id",
         "name": "some evaluation name",
         "annotator_kind": "LLM",

@@ -76,6 +76,11 @@ class Experiment(Node):
         return connection_from_list([to_gql_experiment_run(run) for run in runs], args)
 
     @strawberry.field
+    async def run_count(self, info: Info[Context, None]) -> int:
+        experiment_id = self.id_attr
+        return await info.context.data_loaders.experiment_run_counts.load(experiment_id)
+
+    @strawberry.field
     async def annotation_summaries(
         self, info: Info[Context, None]
     ) -> List[ExperimentAnnotationSummary]:

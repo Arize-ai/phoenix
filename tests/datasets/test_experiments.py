@@ -7,8 +7,8 @@ from phoenix.datasets.evaluators import (
     ConcisenessEvaluator,
     ContainsKeyword,
     HelpfulnessEvaluator,
+    create_evaluator,
 )
-from phoenix.datasets.evaluators.utils import create_evaluator
 from phoenix.datasets.experiments import run_experiment
 from phoenix.datasets.types import (
     AnnotatorKind,
@@ -25,7 +25,7 @@ from strawberry.relay import GlobalID
 
 
 @patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
-async def test_run_experiment(_, session, sync_test_client, simple_dataset):
+async def test_run_experiment(_, session, test_phoenix_clients, simple_dataset):
     nest_asyncio.apply()
 
     nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
@@ -45,7 +45,7 @@ async def test_run_experiment(_, session, sync_test_client, simple_dataset):
         ],
     )
 
-    with patch("phoenix.datasets.experiments._phoenix_client", return_value=sync_test_client):
+    with patch("phoenix.datasets.experiments._phoenix_clients", return_value=test_phoenix_clients):
 
         def experiment_task(example: Example) -> str:
             return "doesn't matter, this is the output"
@@ -104,7 +104,7 @@ async def test_run_experiment(_, session, sync_test_client, simple_dataset):
 
 
 @patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
-async def test_run_experiment_with_llm_eval(_, session, sync_test_client, simple_dataset):
+async def test_run_experiment_with_llm_eval(_, session, test_phoenix_clients, simple_dataset):
     nest_asyncio.apply()
 
     nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
@@ -142,7 +142,7 @@ async def test_run_experiment_with_llm_eval(_, session, sync_test_client, simple
         async def _async_generate(self, prompt: str, **kwargs: Any) -> str:
             return " doesn't matter I can't think!\nLABEL: false"
 
-    with patch("phoenix.datasets.experiments._phoenix_client", return_value=sync_test_client):
+    with patch("phoenix.datasets.experiments._phoenix_clients", return_value=test_phoenix_clients):
 
         def experiment_task(input):
             return "doesn't matter, this is the output"

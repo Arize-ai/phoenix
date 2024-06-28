@@ -2,7 +2,6 @@ import React from "react";
 import { css } from "@emotion/react";
 
 import {
-  Button,
   Flex,
   HelpTooltip,
   Icon,
@@ -47,13 +46,14 @@ export function AnnotationLabel({
   annotation: Annotation;
   onClick?: () => void;
 }) {
+  const clickable = typeof onClick == "function";
   const labelValue =
     (typeof annotation.score == "number" && formatFloat(annotation.score)) ||
     annotation.label ||
     "n/a";
 
   return (
-    <TooltipTrigger delay={0} offset={3}>
+    <TooltipTrigger delay={2} offset={3}>
       <TriggerWrap>
         <div
           role="button"
@@ -72,7 +72,11 @@ export function AnnotationLabel({
             }
           `}
           aria-label="Click to view the annotation trace"
-          onClick={onClick}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onClick && onClick();
+          }}
         >
           <Flex direction="row" gap="size-100" alignItems="center">
             <AnnotationColorSwatch annotationName={annotation.name} />
@@ -91,7 +95,7 @@ export function AnnotationLabel({
             >
               <Text textSize="small">{labelValue}</Text>
             </div>
-            {annotation.trace ? (
+            {annotation.trace && clickable ? (
               <Icon svg={<Icons.ArrowIosForwardOutline />} />
             ) : null}
           </Flex>
@@ -131,16 +135,20 @@ export function AnnotationLabel({
             </Flex>
           </View>
         ) : null}
-        {annotation.trace ? (
-          <View paddingTop="size-50">
-            <Button
-              variant="primary"
-              onClick={onClick}
-              size="compact"
-              icon={<Icon svg={<Icons.Trace />} />}
+        {annotation.trace && clickable ? (
+          <View paddingTop="size-100">
+            <div
+              css={css`
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                color: var(--ac-global-color-primary);
+                gap: var(--ac-global-dimension-size-50);
+              `}
             >
-              View trace
-            </Button>
+              <Icon svg={<Icons.InfoOutline />} />
+              <span>Click to view evaluator trace</span>
+            </div>
           </View>
         ) : null}
       </HelpTooltip>

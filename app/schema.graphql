@@ -20,6 +20,13 @@ enum AnnotatorKind {
 
 union Bin = NominalBin | IntervalBin | MissingValueBin
 
+input ClearProjectInput {
+  id: GlobalID!
+
+  """The time up to which to purge data. Time is right-open /non-inclusive."""
+  endTime: DateTime
+}
+
 type Cluster {
   """The ID of the cluster"""
   id: ID!
@@ -582,6 +589,7 @@ type Experiment implements Node {
   """Sequence number (1-based) of experiments belonging to the same dataset"""
   sequenceNumber: Int!
   runs(first: Int = 50, last: Int, after: String, before: String): ExperimentRunConnection!
+  runCount: Int!
   annotationSummaries: [ExperimentAnnotationSummary!]!
   errorRate: Float
   project: Project
@@ -807,7 +815,7 @@ type Model {
 
 type Mutation {
   deleteProject(id: GlobalID!): Query!
-  clearProject(id: GlobalID!): Query!
+  clearProject(input: ClearProjectInput!): Query!
   createDataset(input: CreateDatasetInput!): DatasetMutationPayload!
   patchDataset(input: PatchDatasetInput!): DatasetMutationPayload!
   addSpansToDataset(input: AddSpansToDatasetInput!): DatasetMutationPayload!

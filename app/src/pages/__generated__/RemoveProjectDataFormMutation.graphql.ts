@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d06a9adc933db9f1e71f48141f140d28>>
+ * @generated SignedSource<<74d916e97c00bfa76497de4cce3ba9a5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,17 +13,17 @@ export type ClearProjectInput = {
   endTime?: string | null;
   id: string;
 };
-export type ProjectActionMenuClearMutation$variables = {
+export type RemoveProjectDataFormMutation$variables = {
   input: ClearProjectInput;
 };
-export type ProjectActionMenuClearMutation$data = {
+export type RemoveProjectDataFormMutation$data = {
   readonly clearProject: {
     readonly __typename: "Query";
   };
 };
-export type ProjectActionMenuClearMutation = {
-  response: ProjectActionMenuClearMutation$data;
-  variables: ProjectActionMenuClearMutation$variables;
+export type RemoveProjectDataFormMutation = {
+  response: RemoveProjectDataFormMutation$data;
+  variables: RemoveProjectDataFormMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -65,7 +65,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "ProjectActionMenuClearMutation",
+    "name": "RemoveProjectDataFormMutation",
     "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -74,20 +74,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "ProjectActionMenuClearMutation",
+    "name": "RemoveProjectDataFormMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "63319b4e42b499db2447817f1dc821fb",
+    "cacheID": "1b27a3f7535c3f3943b0f2248d1505a6",
     "id": null,
     "metadata": {},
-    "name": "ProjectActionMenuClearMutation",
+    "name": "RemoveProjectDataFormMutation",
     "operationKind": "mutation",
-    "text": "mutation ProjectActionMenuClearMutation(\n  $input: ClearProjectInput!\n) {\n  clearProject(input: $input) {\n    __typename\n  }\n}\n"
+    "text": "mutation RemoveProjectDataFormMutation(\n  $input: ClearProjectInput!\n) {\n  clearProject(input: $input) {\n    __typename\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c43eec4d6b882468c611dd9ebf3b095e";
+(node as any).hash = "212501fe2d6367ec1503bd7a00c1730f";
 
 export default node;

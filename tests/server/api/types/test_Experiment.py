@@ -80,7 +80,7 @@ async def test_runs_resolver_returns_runs_for_experiment(test_client, dataset_wi
                             "id": str(GlobalID(type_name="ExperimentRun", node_id=str(3))),
                             "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
                             "traceId": None,
-                            "output": {"run-3-output-key": "run-3-output-value"},
+                            "output": 12345,
                             "startTime": "2020-01-01T00:00:00+00:00",
                             "endTime": "2020-01-01T00:00:00+00:00",
                             "error": None,
@@ -102,7 +102,7 @@ async def test_runs_resolver_returns_runs_for_experiment(test_client, dataset_wi
                             "id": str(GlobalID(type_name="ExperimentRun", node_id=str(1))),
                             "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
                             "traceId": None,
-                            "output": {"run-1-output-key": "run-1-output-value"},
+                            "output": "run-1-output-value",
                             "startTime": "2020-01-01T00:00:00+00:00",
                             "endTime": "2020-01-01T00:00:00+00:00",
                             "error": None,
@@ -110,6 +110,59 @@ async def test_runs_resolver_returns_runs_for_experiment(test_client, dataset_wi
                     },
                 ]
             }
+        }
+    }
+
+
+async def test_run_count_resolver_returns_correct_counts(
+    test_client, experiments_with_runs_and_annotations
+):
+    query = """
+      query ($datasetId: GlobalID!) {
+        dataset: node(id: $datasetId) {
+          ... on Dataset {
+            experiments {
+              edges {
+                experiment: node {
+                  id
+                  runCount
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+    response = await test_client.post(
+        "/graphql",
+        json={
+            "query": query,
+            "variables": {
+                "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
+            },
+        },
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json.get("errors") is None
+    assert response_json["data"] == {
+        "dataset": {
+            "experiments": {
+                "edges": [
+                    {
+                        "experiment": {
+                            "id": str(GlobalID(type_name="Experiment", node_id=str(2))),
+                            "runCount": 4,
+                        }
+                    },
+                    {
+                        "experiment": {
+                            "id": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                            "runCount": 6,
+                        }
+                    },
+                ]
+            },
         }
     }
 
@@ -413,7 +466,7 @@ async def dataset_with_experiment_runs(session):
         .values(
             experiment_id=experiment_id,
             dataset_example_id=example_id,
-            output={"run-1-output-key": "run-1-output-value"},
+            output={"result": "run-1-output-value"},
             repetition_number=1,
             start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
             end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
@@ -427,7 +480,7 @@ async def dataset_with_experiment_runs(session):
         .values(
             experiment_id=experiment_id,
             dataset_example_id=example_id,
-            output={"run-2-output-key": "run-2-output-value"},
+            output={"result": {"run-2-output-key": "run-2-output-value"}},
             trace_id="trace-id",
             repetition_number=2,
             start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
@@ -442,7 +495,7 @@ async def dataset_with_experiment_runs(session):
         .values(
             experiment_id=experiment_id,
             dataset_example_id=example_id,
-            output={"run-3-output-key": "run-3-output-value"},
+            output={"result": 12345},
             trace_id="non-existent-trace-id",
             repetition_number=3,
             start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
