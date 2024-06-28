@@ -1,6 +1,5 @@
 myst_parser
-sphinx>=5
-sphinx-autobuild
-sphinx_rtd_theme==1.0.0
+sphinx
+sphinx_rtd_theme
 
 -e .
