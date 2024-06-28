@@ -135,7 +135,7 @@ async def create_experiment(request: Request) -> Response:
             "created_at": experiment.created_at.isoformat(),
             "updated_at": experiment.updated_at.isoformat(),
         }
-        return JSONResponse(content=experiment_payload, status_code=200)
+    return JSONResponse(content=experiment_payload)
 
 
 async def read_experiment(request: Request) -> Response:
@@ -171,4 +171,4 @@ async def read_experiment(request: Request) -> Response:
             "created_at": experiment.created_at.isoformat(),
             "updated_at": experiment.updated_at.isoformat(),
         }
-        return JSONResponse(content=experiment_payload, status_code=200)
+    return JSONResponse(content=experiment_payload)
