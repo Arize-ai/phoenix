@@ -5,7 +5,6 @@ from dataclasses import dataclass, field, fields
 from datetime import datetime
 from enum import Enum
 from importlib.metadata import version
-from random import getrandbits
 from typing import (
     Any,
     Awaitable,
@@ -56,11 +55,6 @@ EvaluatorOutput: TypeAlias = Union["EvaluationResult", bool, int, float, str]
 DRY_RUN: ExperimentId = "DRY_RUN"
 
 
-def _dummy_id() -> str:
-    suffix = getrandbits(32).to_bytes(4, "big").hex()
-    return f"DUMMY_ID_{suffix}"
-
-
 @dataclass(frozen=True)
 class Example:
     id: ExampleId
@@ -104,19 +98,19 @@ class TestCase:
 
 @dataclass(frozen=True)
 class Experiment:
+    id: ExperimentId
     dataset_id: DatasetId
     dataset_version_id: DatasetVersionId
     repetitions: int
-    id: ExperimentId
     project_name: str
 
     @classmethod
     def from_dict(cls, obj: Mapping[str, Any]) -> Experiment:
         return cls(
+            id=obj["id"],
             dataset_id=obj["dataset_id"],
             dataset_version_id=obj["dataset_version_id"],
             repetitions=obj.get("repetitions") or 1,
-            id=obj.get("id") or _dummy_id(),
             project_name=obj.get("project_name") or "",
         )
 
@@ -242,12 +236,12 @@ class EvaluationParameters:
 @dataclass(frozen=True)
 class _HasStats:
     _title: str = field(repr=False, default="")
+    _timestamp: datetime = field(repr=False, default_factory=local_now)
     stats: pd.DataFrame = field(repr=False, default_factory=pd.DataFrame)
-    timestamp: datetime = field(repr=False, default_factory=local_now)
 
     @property
     def title(self) -> str:
-        return f"{self._title} ({self.timestamp:%x %I:%M %p %z})"
+        return f"{self._title} ({self._timestamp:%x %I:%M %p %z})"
 
     def __str__(self) -> str:
         try:
