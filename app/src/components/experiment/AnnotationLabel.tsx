@@ -53,7 +53,7 @@ export function AnnotationLabel({
     "n/a";
 
   return (
-    <TooltipTrigger delay={2} offset={3}>
+    <TooltipTrigger delay={500} offset={3}>
       <TriggerWrap>
         <div
           role="button"

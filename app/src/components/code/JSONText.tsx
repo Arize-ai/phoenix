@@ -25,10 +25,12 @@ export function JSONText({
   json,
   maxLength,
   space = 0,
+  disableTitle = false,
 }: {
   json: unknown;
   maxLength?: number;
   space?: number;
+  disableTitle?: boolean;
 }) {
   const hasMaxLength = typeof maxLength === "number";
   const fullValue = useMemo(
@@ -39,15 +41,16 @@ export function JSONText({
     () => JSON.stringify(json, null, 2),
     [json]
   );
+  const title = disableTitle ? undefined : fullValueFormatted;
   if (!isObject(json)) {
     // Just show text and log a warning
     // eslint-disable-next-line no-console
     console.warn("JSONText component received a non-object value", json);
-    return <span title={fullValueFormatted}>{String(json)}</span>;
+    return <span title={title}>{String(json)}</span>;
   }
   const obj = json as Record<string, unknown>;
   if (Object.keys(obj).length === 0) {
-    return <span title={fullValueFormatted}>--</span>;
+    return <span title={title}>--</span>;
   }
   // If the object has only one key and the value is a string, show the string
   if (Object.keys(obj).length === 1) {
@@ -57,14 +60,14 @@ export function JSONText({
       const singleValueStr: string = hasMaxLength
         ? formatText(singleValue, maxLength)
         : singleValue;
-      return <span title={fullValueFormatted}>{singleValueStr}</span>;
+      return <span title={title}>{singleValueStr}</span>;
     }
   }
   const textValue = hasMaxLength ? formatText(fullValue, maxLength) : fullValue;
   const Element = hasMaxLength ? "span" : "pre";
   const additionalCSS = hasMaxLength ? undefined : preCSS;
   return (
-    <Element title={fullValueFormatted} css={additionalCSS}>
+    <Element title={title} css={additionalCSS}>
       {textValue}
     </Element>
   );

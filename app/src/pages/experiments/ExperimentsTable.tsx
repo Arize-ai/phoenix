@@ -64,9 +64,14 @@ export function ExperimentsTableEmpty() {
       <tr>
         <td
           colSpan={100}
-          css={(theme) => css`
+          css={css`
             text-align: center;
-            padding: ${theme.spacing.margin24}px ${theme.spacing.margin24}px !important;
+            padding: var(--ac-global-dimension-size-400) !important;
+            .ac-button {
+              margin-top: var(--ac-global-dimension-size-200);
+              margin-left: auto;
+              margin-right: auto;
+            }
           `}
         >
           No experiments for this dataset. To see how to run experiments on a
