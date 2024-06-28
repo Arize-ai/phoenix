@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from copy import deepcopy
 from dataclasses import dataclass, field, fields
 from datetime import datetime
 from enum import Enum
@@ -79,6 +80,19 @@ class Dataset:
     id: DatasetId
     version_id: DatasetVersionId
     examples: Sequence[Example]
+
+    def as_dataframe(self) -> pd.DataFrame:
+        return pd.DataFrame.from_records(
+            [
+                {
+                    "example_id": example.id,
+                    "input": deepcopy(example.input),
+                    "output": deepcopy(example.output),
+                    "metadata": deepcopy(example.metadata),
+                }
+                for example in self.examples
+            ]
+        ).set_index("example_id")
 
     @classmethod
     def from_dict(cls, obj: Mapping[str, Any]) -> Dataset:
