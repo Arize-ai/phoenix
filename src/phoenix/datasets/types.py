@@ -310,7 +310,7 @@ class EvaluationSummary(_HasStats):
                     n_labels=("label", "count"),
                     top_2_labels=(
                         "label",
-                        lambda x: dict(Counter(x).most_common(2)) if x.any() else None,
+                        lambda s: dict(Counter(s.dropna()).most_common(2)) if s.any() else None,
                     ),
                 )
                 if df["label"].any()
