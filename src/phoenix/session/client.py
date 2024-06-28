@@ -452,6 +452,7 @@ class Client(TraceDataExtractor):
         item of which represents a separate example in the dataset.
 
         Args:
+            dataset_name: (str): Name of the dataset.
             dataframe (pd.DataFrame): pandas DataFrame.
             csv_file_path (str | Path): Location of a CSV text file
             input_keys (Iterable[str]): List of column names used as input keys.
@@ -469,7 +470,6 @@ class Client(TraceDataExtractor):
                 corresponding to an example in the dataset.
             metadata (Iterable[Mapping[str, Any]]): List of dictionaries object each
                 corresponding to an example in the dataset.
-            dataset_name: (str): Name of the dataset. Required if action=append.
             dataset_description: (Optional[str]): Description of the dataset.
 
         Returns:
@@ -527,6 +527,7 @@ class Client(TraceDataExtractor):
         item of which represents a separate example in the dataset.
 
         Args:
+            dataset_name: (str): Name of the dataset.
             dataframe (pd.DataFrame): pandas DataFrame.
             csv_file_path (str | Path): Location of a CSV text file
             input_keys (Iterable[str]): List of column names used as input keys.
@@ -544,7 +545,6 @@ class Client(TraceDataExtractor):
                 corresponding to an example in the dataset.
             metadata (Iterable[Mapping[str, Any]]): List of dictionaries object each
                 corresponding to an example in the dataset.
-            dataset_name: (str): Name of the dataset. Required if action=append.
             dataset_description: (Optional[str]): Description of the dataset.
 
         Returns:
