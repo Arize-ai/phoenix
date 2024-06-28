@@ -1,18 +1,10 @@
-# Quickstart: Datasets & Experiments
+# Quickstart: Datasets
 
 Phoenix helps you run experiments over your AI and LLM applications to evaluate and iteratively improve their performance. This quickstart shows you how to get up and running quickly.
 
 ## Setup
 
-Install Phoenix.
-
-
-```shell
-pip install "arize-phoenix[evals]"
-```
-
-Launch Phoenix.
-
+Launch phoenix in a notebook. If you already have phoenix server running, skip this step.
 
 ```python
 import phoenix as px
@@ -23,7 +15,6 @@ px.launch_app()
 ## Datasets
 
 Upload a dataset.
-
 
 ```python
 import pandas as pd
@@ -52,7 +43,6 @@ dataset = phoenix_client.upload_dataset(
 
 Create a task to evaluate.
 
-
 ```python
 from openai import OpenAI
 from phoenix.datasets.types import Example
@@ -75,7 +65,6 @@ def task(example: Example) -> str:
 
 Use pre-built evaluators to grade task output with code...
 
-
 ```python
 from phoenix.datasets.evaluators import ContainsAnyKeyword
 
@@ -83,7 +72,6 @@ contains_keyword = ContainsAnyKeyword(keywords=["Y Combinator", "YC"])
 ```
 
 or LLMs.
-
 
 ```python
 from phoenix.datasets.evaluators import ConcisenessEvaluator
@@ -94,7 +82,6 @@ conciseness = ConcisenessEvaluator(model=model)
 ```
 
 Define custom evaluators with code...
-
 
 ```python
 from typing import Any, Dict
@@ -110,7 +97,6 @@ def jaccard_similarity(output: str, expected: Dict[str, Any]) -> float:
 ```
 
 or LLMs.
-
 
 ```python
 from phoenix.datasets.evaluators import create_evaluator
@@ -145,7 +131,6 @@ def accuracy(input: Dict[str, Any], output: str, expected: Dict[str, Any]) -> fl
 
 Run an experiment and evaluate the results.
 
-
 ```python
 from phoenix.datasets.experiments import run_experiment
 
@@ -158,7 +143,6 @@ experiment = run_experiment(
 ```
 
 Run more evaluators after the fact.
-
 
 ```python
 from phoenix.datasets.experiments import evaluate_experiment
