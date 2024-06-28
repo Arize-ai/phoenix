@@ -73,6 +73,21 @@
   * [Online Evals](evaluation/how-to-evals/online-evals.md)
 * [Evaluation Models](evaluation/evaluation-models.md)
 
+## 🗄️ Datasets & Experiments
+
+* [Overview: Datasets](datasets-and-experiments/overview-datasets.md)
+* [Quickstart: Datasets](datasets-and-experiments/quickstart-datasets.md)
+* [Concepts: Datasets](datasets-and-experiments/concepts-datasets.md)
+* [How-to: Datasets](datasets-and-experiments/how-to-datasets/README.md)
+  * [Creating Datasets](datasets-and-experiments/how-to-datasets/creating-datasets.md)
+  * [Exporting Datasets](datasets-and-experiments/how-to-datasets/exporting-datasets.md)
+  * [Run Experiments](datasets-and-experiments/how-to-datasets/run-experiments.md)
+  * [Using Evaluators](datasets-and-experiments/how-to-datasets/using-evaluators.md)
+* [Use Cases: Datasets](datasets-and-experiments/use-cases-datasets/README.md)
+  * [Text2SQL](datasets-and-experiments/use-cases-datasets/text2sql.md)
+  * [Summarization](datasets-and-experiments/use-cases-datasets/summarization.md)
+  * [Email Extraction](datasets-and-experiments/use-cases-datasets/email-extraction.md)
+
 ## 🔎 Retrieval
 
 * [Overview: Retrieval](retrieval/overview-retrieval.md)

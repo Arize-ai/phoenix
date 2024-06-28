@@ -99,11 +99,9 @@ relevance_classifications = llm_classify(
 
 <figure><img src="../../../.gitbook/assets/huamn_vs_ai_gpt-4 turbo .png" alt=""><figcaption></figcaption></figure>
 
-
-
-|           | GPT-4                                  | GPT-4 Turbo                            | Gemini Pro                             |
-| --------- | -------------------------------------- | -------------------------------------- | -------------------------------------- |
-| Precision | <mark style="color:green;">0.92</mark> | <mark style="color:green;">0.87</mark> | <mark style="color:green;">0.78</mark> |
-| Recall    | <mark style="color:green;">0.74</mark> | <mark style="color:green;">0.69</mark> | <mark style="color:green;">0.87</mark> |
-| F1        | <mark style="color:green;">0.82</mark> | <mark style="color:green;">0.77</mark> | <mark style="color:green;">0.82</mark> |
+|           | GPT-4o                                 | GPT-4                                  | GPT-4 Turbo                            | Gemini Pro                             |
+| --------- | -------------------------------------- | -------------------------------------- | -------------------------------------- | -------------------------------------- |
+| Precision | <mark style="color:green;">0.90</mark> | <mark style="color:green;">0.92</mark> | <mark style="color:green;">0.87</mark> | <mark style="color:green;">0.78</mark> |
+| Recall    | <mark style="color:green;">0.56</mark> | <mark style="color:green;">0.74</mark> | <mark style="color:green;">0.69</mark> | <mark style="color:green;">0.87</mark> |
+| F1        | <mark style="color:green;">0.69</mark> | <mark style="color:green;">0.82</mark> | <mark style="color:green;">0.77</mark> | <mark style="color:green;">0.82</mark> |
 
