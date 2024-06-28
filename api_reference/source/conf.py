@@ -1,9 +1,9 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath("../../../"))
-sys.path.insert(0, os.path.abspath("../../../src/phoenix"))
-# sys.path.insert(0, os.path.abspath('../../packages/phoenix-evals/src/phoenix/evals'))
+sys.path.insert(0, os.path.abspath("../"))
+sys.path.insert(0, os.path.abspath("../src/phoenix"))
+# sys.path.insert(0, os.path.abspath('../packages/phoenix-evals/src/phoenix/evals'))
 
 
 # https://stackoverflow.com/questions/57610288/showing-only-private-methods-with-sphinx-autodoc
@@ -29,9 +29,9 @@ def setup(app):
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = "Phoenix"
-copyright = "2024, Arize"
-author = "Arize"
+project = "Arize Phoenix"
+copyright = "2024, Arize AI"
+author = "Arize AI"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -49,5 +49,5 @@ exclude_patterns = []
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = "sphinx_rtd_theme"
+html_theme = "pydata-sphinx-theme"
 html_static_path = ["_static"]
