@@ -27,7 +27,11 @@ export function NotificationProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [notify, holder] = useNotification();
+  const [notify, holder] = useNotification({
+    style: {
+      zIndex: 1000,
+    },
+  });
 
   const notifyError = useCallback(
     (notice: NoticeConfigWithoutVariant) => {

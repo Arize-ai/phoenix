@@ -10,8 +10,8 @@ import {
   CardProps,
   Dialog,
   Flex,
-  Item,
-  Picker,
+  Icon,
+  Icons,
   View,
 } from "@arizeai/components";
 
@@ -19,6 +19,7 @@ import { JSONEditor } from "@phoenix/components/code";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
 import { SpanToDatasetExampleDialogQuery } from "./__generated__/SpanToDatasetExampleDialogQuery.graphql";
+import { DatasetPicker } from "./DatasetPicker";
 
 const defaultCardProps: Partial<CardProps> = {
   backgroundColor: "light",
@@ -39,13 +40,11 @@ export function SpanToDatasetExampleDialog({
   onCompleted,
 }: {
   spanId: string;
-  onCompleted: () => void;
+  onCompleted: (datasetId: string) => void;
 }) {
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const {
-    span: { revision },
-    datasets,
-  } = useLazyLoadQuery<SpanToDatasetExampleDialogQuery>(
+
+  const data = useLazyLoadQuery<SpanToDatasetExampleDialogQuery>(
     graphql`
       query SpanToDatasetExampleDialogQuery($spanId: GlobalID!) {
         span: node(id: $spanId) {
@@ -57,18 +56,15 @@ export function SpanToDatasetExampleDialog({
             }
           }
         }
-        datasets {
-          edges {
-            dataset: node {
-              id
-              name
-            }
-          }
-        }
+        ...DatasetPicker__datasets
       }
     `,
-    { spanId }
+    { spanId },
+    { fetchPolicy: "store-and-network" }
   );
+  const {
+    span: { revision },
+  } = data;
   const [commit, isCommitting] = useMutation(graphql`
     mutation SpanToDatasetExampleDialogAddExampleToDatasetMutation(
       $input: AddExamplesToDatasetInput!
@@ -130,7 +126,7 @@ export function SpanToDatasetExampleDialog({
           },
         },
         onCompleted: () => {
-          onCompleted();
+          onCompleted(newExample.datasetId);
         },
         onError: (error) => {
           setSubmitError(error.message);
@@ -150,6 +146,7 @@ export function SpanToDatasetExampleDialog({
           disabled={!isValid || isCommitting}
           loading={isCommitting}
           onClick={handleSubmit(onSubmit)}
+          icon={<Icon svg={<Icons.PlusCircleOutline />} />}
         >
           Add Example
         </Button>
@@ -175,6 +172,7 @@ export function SpanToDatasetExampleDialog({
               {submitError ? (
                 <Alert variant="danger">{submitError}</Alert>
               ) : null}
+
               <Controller
                 control={control}
                 name="datasetId"
@@ -182,27 +180,16 @@ export function SpanToDatasetExampleDialog({
                   field: { onChange, onBlur },
                   fieldState: { invalid, error },
                 }) => (
-                  <Picker
-                    label="dataset"
-                    data-testid="dataset-picker"
-                    className="dataset-picker"
-                    width="100%"
-                    aria-label={`The dataset to add the example to`}
-                    onSelectionChange={(key) => {
-                      onChange(key);
-                    }}
-                    placeholder="Select a dataset"
+                  <DatasetPicker
+                    onSelectionChange={onChange}
                     onBlur={onBlur}
-                    isRequired
                     validationState={invalid ? "invalid" : "valid"}
                     errorMessage={error?.message}
-                  >
-                    {datasets.edges.map(({ dataset }) => (
-                      <Item key={dataset.id}>{dataset.name}</Item>
-                    ))}
-                  </Picker>
+                    query={data}
+                  />
                 )}
               />
+
               <Controller
                 control={control}
                 name={"input"}
