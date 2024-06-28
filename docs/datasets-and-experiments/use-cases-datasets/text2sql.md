@@ -4,7 +4,7 @@ Let's work through a Text2SQL use case where we are starting from scratch withou
 
 
 ```python
-!pip install arize-phoenix openai duckdb datasets pyarrow pydantic nest_asyncio --quiet
+pip install arize-phoenix openai duckdb datasets pyarrow pydantic nest_asyncio --quiet
 ```
 
 Let's first start a phoenix server. Note that this is not necessary if you have a phoenix server running already.
