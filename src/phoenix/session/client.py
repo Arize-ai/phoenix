@@ -356,7 +356,7 @@ class Client(TraceDataExtractor):
 
         response = self._client.get(
             urljoin(self._base_url, f"/v1/datasets/{quote(id)}/examples"),
-            params={"version-id": version_id} if version_id else None,
+            params={"version_id": version_id} if version_id else None,
         )
         response.raise_for_status()
         data = response.json()["data"]
