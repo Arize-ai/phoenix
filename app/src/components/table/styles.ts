@@ -17,6 +17,7 @@ export const tableCSS = (theme: Theme) => css`
         background-color: var(--ac-global-color-grey-100);
         position: relative;
         text-align: left;
+        user-select: none;
         border-bottom: 1px solid var(--ac-global-border-color-default);
         &:not(:last-of-type) {
           border-right: 1px solid var(--ac-global-border-color-default);
@@ -60,7 +61,7 @@ export const tableCSS = (theme: Theme) => css`
         }
       }
       &:hover {
-        background-color: rgba(var(--ac-global-color-grey-300-rgb), 0.5);
+        background-color: rgba(var(--ac-global-color-grey-300-rgb), 0.3);
       }
       & > td {
         padding: ${theme.spacing.margin8}px ${theme.spacing.margin16}px;
@@ -127,7 +128,7 @@ export function getCommonPinningStyles<Row>(
     right: isPinned === "right" ? `${column.getAfter("right")}px` : undefined,
     opacity: isPinned ? 0.95 : 1,
     position: isPinned ? "sticky" : "relative",
-    width: column.getSize() + "px",
+    width: column.getSize(),
     zIndex: isPinned ? 1 : 0,
   };
 }
