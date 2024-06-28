@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from collections import Counter
+from copy import deepcopy
 from dataclasses import dataclass, field, fields
 from datetime import datetime
 from enum import Enum
+from functools import cached_property
 from importlib.metadata import version
 from typing import (
     Any,
@@ -79,6 +81,20 @@ class Dataset:
     id: DatasetId
     version_id: DatasetVersionId
     examples: Sequence[Example]
+
+    @cached_property
+    def dataframe(self) -> pd.DataFrame:
+        return pd.DataFrame.from_records(
+            [
+                {
+                    "example_id": example.id,
+                    "input": deepcopy(example.input),
+                    "output": deepcopy(example.output),
+                    "metadata": deepcopy(example.metadata),
+                }
+                for example in self.examples
+            ]
+        ).set_index("example_id")
 
     @classmethod
     def from_dict(cls, obj: Mapping[str, Any]) -> Dataset:
