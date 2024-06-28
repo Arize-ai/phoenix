@@ -85,7 +85,7 @@
   * [Using Evaluators](datasets-and-experiments/how-to-datasets/using-evaluators.md)
 * [Use Cases: Datasets](datasets-and-experiments/use-cases-datasets/README.md)
   * [Text2SQL](datasets-and-experiments/use-cases-datasets/text2sql.md)
-  * [Sumerization](datasets-and-experiments/use-cases-datasets/sumerization.md)
+  * [Summarization](datasets-and-experiments/use-cases-datasets/summarization.md)
   * [Email Extraction](datasets-and-experiments/use-cases-datasets/email-extraction.md)
 
 ## 🔎 Retrieval

@@ -1,4 +1,16 @@
-# Quickstart: Datasets & Experiments
+<center>
+    <p style="text-align:center">
+        <img alt="phoenix logo" src="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/9e6101d95936f4bd4d390efc9ce646dc6937fb2d/images/socal/github-large-banner-phoenix.jpg" width="1000"/>
+        <br>
+        <br>
+        <a href="https://docs.arize.com/phoenix/">Docs</a>
+        |
+        <a href="https://github.com/Arize-ai/phoenix">GitHub</a>
+        |
+        <a href="https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q">Community</a>
+    </p>
+</center>
+<h1 align="center">Quickstart: Datasets and Experiments</h1>
 
 Phoenix helps you run experiments over your AI and LLM applications to evaluate and iteratively improve their performance. This quickstart shows you how to get up and running quickly.
 

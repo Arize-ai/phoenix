@@ -1,4 +1,16 @@
-# Text2SQL
+<center>
+    <p style="text-align:center">
+        <img alt="phoenix logo" src="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/9e6101d95936f4bd4d390efc9ce646dc6937fb2d/images/socal/github-large-banner-phoenix.jpg" width="1000"/>
+        <br>
+        <br>
+        <a href="https://docs.arize.com/phoenix/">Docs</a>
+        |
+        <a href="https://github.com/Arize-ai/phoenix">GitHub</a>
+        |
+        <a href="https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q">Community</a>
+    </p>
+</center>
+<h1 align="center">Experiments: Text2SQL</h1>
 
 Let's work through a Text2SQL use case where we are starting from scratch without a nice and clean dataset of questions, SQL queries, or expected responses.
 
@@ -450,3 +462,6 @@ In this example, we walked through the process of building a dataset for a text2
 Happy evaluations!
 
 
+```python
+
+```
