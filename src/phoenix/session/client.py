@@ -426,7 +426,7 @@ class Client(TraceDataExtractor):
         url = f"v1/datasets/{dataset_id}/csv"
         response = httpx.get(
             url=urljoin(self._base_url, url),
-            params={"version": dataset_version_id} if dataset_version_id else {},
+            params={"version_id": dataset_version_id} if dataset_version_id else {},
         )
         response.raise_for_status()
         return pd.read_csv(
