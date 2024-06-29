@@ -2,6 +2,7 @@ import React, {
   PropsWithChildren,
   ReactNode,
   startTransition,
+  Suspense,
   useMemo,
   useState,
 } from "react";
@@ -46,6 +47,7 @@ import { CompactJSONCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { TraceDetails } from "../trace";
@@ -102,6 +104,34 @@ const tableWrapCSS = css`
       vertical-align: top;
     }
   }
+`;
+
+const cellWithControlsWrapCSS = css`
+  position: relative;
+  min-height: 75px;
+  .controls {
+    transition: opacity 0.2s ease-in-out;
+    opacity: 0;
+    display: none;
+    z-index: 1;
+  }
+  &:hover .controls {
+    opacity: 1;
+    display: flex;
+    // make them stand out
+    .ac-button {
+      border-color: var(--ac-global-color-primary);
+    }
+  }
+`;
+
+const cellControlsCSS = css`
+  position: absolute;
+  top: -23px;
+  right: 0px;
+  display: flex;
+  flex-direction: row;
+  gap: var(--ac-global-dimension-static-size-100);
 `;
 
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
@@ -209,13 +239,50 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       {
         header: "input",
         accessorKey: "input",
-        minWidth: 300,
-        cell: displayFullText ? JSONCell : CompactJSONCell,
+        minWidth: 500,
+        cell: ({ row }) => {
+          return (
+            <div css={cellWithControlsWrapCSS}>
+              <LargeTextWrap>
+                <JSONText
+                  json={row.original.input}
+                  disableTitle
+                  space={displayFullText ? 2 : 0}
+                />
+              </LargeTextWrap>
+              <div className="controls" css={cellControlsCSS}>
+                <TooltipTrigger>
+                  <Button
+                    variant="default"
+                    size="compact"
+                    aria-label="View example details"
+                    icon={<Icon svg={<Icons.ExternalLinkOutline />} />}
+                    onClick={() => {
+                      startTransition(() => {
+                        setDialog(
+                          <Suspense>
+                            <ExampleDetailsDialog
+                              exampleId={row.original.example.id}
+                              onDismiss={() => {
+                                setDialog(null);
+                              }}
+                            />
+                          </Suspense>
+                        );
+                      });
+                    }}
+                  />
+                  <Tooltip>View Example</Tooltip>
+                </TooltipTrigger>
+              </div>
+            </div>
+          );
+        },
       },
       {
         header: "reference output",
         accessorKey: "referenceOutput",
-        minWidth: 300,
+        minWidth: 500,
         cell: displayFullText ? JSONCell : CompactJSONCell,
       },
     ];
@@ -322,23 +389,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     }));
   }, [experimentIds, experimentInfoById, datasetId, displayFullText]);
 
-  const actionColumns: ColumnDef<TableRow>[] = useMemo(() => {
-    return [
-      {
-        id: "actions",
-        cell: ({ row }) => (
-          <ExperimentRowActionMenu
-            datasetId={datasetId}
-            exampleId={row.original.id}
-          />
-        ),
-      },
-    ];
-  }, [datasetId]);
-
   const columns = useMemo(() => {
-    return [...baseColumns, ...experimentColumns, ...actionColumns];
-  }, [baseColumns, experimentColumns, actionColumns]);
+    return [...baseColumns, ...experimentColumns];
+  }, [baseColumns, experimentColumns]);
 
   const table = useReactTable<TableRow>({
     columns: columns,
@@ -576,38 +629,13 @@ function ExperimentRunOutput(
   );
 }
 
-const runOutputWrapCSS = css`
-  position: relative;
-  min-height: 75px;
-  .run-output-controls {
-    display: none;
-    z-index: 1;
-  }
-  &:hover .run-output-controls {
-    display: flex;
-    // make them stand out
-    .ac-button {
-      border-color: var(--ac-global-color-primary);
-    }
-  }
-`;
-
-const runOutputControlsCSS = css`
-  position: absolute;
-  top: -22px;
-  right: -32px;
-  display: flex;
-  flex-direction: column;
-  gap: var(--ac-global-dimension-static-size-100);
-`;
-
 /**
  * Provides space for the controls and output of a run.
  */
 function RunOutputWrap(props: PropsWithChildren<{ controls: ReactNode }>) {
   return (
-    <div css={runOutputWrapCSS}>
-      <div css={runOutputControlsCSS} className="run-output-controls">
+    <div css={cellWithControlsWrapCSS}>
+      <div css={cellControlsCSS} className="controls">
         {props.controls}
       </div>
       {props.children}
