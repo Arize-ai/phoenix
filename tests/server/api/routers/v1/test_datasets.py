@@ -306,7 +306,7 @@ async def test_get_dataset_download_specific_version(test_client, dataset_with_r
     dataset_global_id = GlobalID("Dataset", str(2))
     dataset_version_global_id = GlobalID("DatasetVersion", str(8))
     response = await test_client.get(
-        f"/v1/datasets/{dataset_global_id}/csv?version={dataset_version_global_id}"
+        f"/v1/datasets/{dataset_global_id}/csv?version_id={dataset_version_global_id}"
     )
     assert response.status_code == 200
     assert response.headers.get("content-type") == "text/csv"
