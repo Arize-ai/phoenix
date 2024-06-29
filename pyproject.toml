@@ -326,6 +326,7 @@ disallow_untyped_defs = true
 disallow_incomplete_defs  = true
 strict = true
 exclude = [
+  "api_reference",
   "packages/",
   "src/phoenix/evals/",
   "dist/",
