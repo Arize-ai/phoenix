@@ -179,7 +179,7 @@ async def test_average_run_latency_resolver_returns_correct_values(
               edges {
                 experiment: node {
                   id
-                  averageRunLatency
+                  averageRunLatencyMs
                 }
               }
             }
@@ -206,13 +206,13 @@ async def test_average_run_latency_resolver_returns_correct_values(
                     {
                         "experiment": {
                             "id": str(GlobalID(type_name="Experiment", node_id=str(2))),
-                            "averageRunLatency": mean((1, 2)),
+                            "averageRunLatencyMs": mean((1, 2)) * 1000,
                         }
                     },
                     {
                         "experiment": {
                             "id": str(GlobalID(type_name="Experiment", node_id=str(1))),
-                            "averageRunLatency": mean((1, 2, 3)),
+                            "averageRunLatencyMs": mean((1, 2, 3)) * 1000,
                         }
                     },
                 ]
