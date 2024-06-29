@@ -11,6 +11,7 @@ from typing_extensions import TypeAlias
 
 from phoenix.core.model_schema import Model
 from phoenix.server.api.dataloaders import (
+    AverageExperimentRunLatencyDataLoader,
     CacheForDataLoaders,
     DatasetExampleRevisionsDataLoader,
     DatasetExampleSpansDataLoader,
@@ -37,6 +38,7 @@ from phoenix.server.api.dataloaders import (
 
 @dataclass
 class DataLoaders:
+    average_experiment_run_latency: AverageExperimentRunLatencyDataLoader
     dataset_example_revisions: DatasetExampleRevisionsDataLoader
     dataset_example_spans: DatasetExampleSpansDataLoader
     document_evaluation_summaries: DocumentEvaluationSummaryDataLoader

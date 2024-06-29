@@ -34,7 +34,7 @@ export function LatencyText({
       direction="row"
       alignItems="center"
       justifyContent="start"
-      gap="size-25"
+      gap="size-50"
     >
       <Text color={color} textSize={textSize}>
         <Icon svg={<Icons.ClockOutline />} />

@@ -41,6 +41,7 @@ import { IndeterminateCheckboxCell } from "@phoenix/components/table/Indetermina
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import {
@@ -116,6 +117,7 @@ export function ExperimentsTable({
                 metadata
                 errorRate
                 runCount
+                averageRunLatencyMs
                 project {
                   id
                 }
@@ -179,6 +181,7 @@ export function ExperimentsTable({
     {
       header: "name",
       accessorKey: "name",
+      minSize: 200,
       cell: ({ getValue, row }) => {
         const experimentId = row.original.id;
         const sequenceNumber = row.original.sequenceNumber;
@@ -197,6 +200,7 @@ export function ExperimentsTable({
     {
       header: "description",
       accessorKey: "description",
+      minSize: 300,
       cell: TextCell,
     },
     {
@@ -217,8 +221,8 @@ export function ExperimentsTable({
             alignItems="center"
             justifyContent="end"
           >
-            <AnnotationColorSwatch annotationName={annotationName} />
             <Text>{annotationName}</Text>
+            <AnnotationColorSwatch annotationName={annotationName} />
           </Flex>
         ),
         id: `annotation-${annotationName}`,
@@ -260,6 +264,20 @@ export function ExperimentsTable({
       cell: IntCell,
     },
     {
+      header: "avg latency",
+      accessorKey: "averageRunLatencyMs",
+      meta: {
+        textAlign: "right",
+      },
+      cell: ({ getValue }) => {
+        const value = getValue();
+        if (value === null || typeof value !== "number") {
+          return "--";
+        }
+        return <LatencyText latencyMs={value} />;
+      },
+    },
+    {
       header: "error rate",
       accessorKey: "errorRate",
       meta: {
@@ -270,6 +288,7 @@ export function ExperimentsTable({
     {
       header: "metadata",
       accessorKey: "metadata",
+      minSize: 200,
       cell: CompactJSONCell,
     },
     {
@@ -326,6 +345,7 @@ export function ExperimentsTable({
       css={css`
         flex: 1 1 auto;
         overflow: auto;
+        width: table.getTotalSize();
       `}
       ref={tableContainerRef}
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
