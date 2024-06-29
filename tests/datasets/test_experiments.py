@@ -4,13 +4,13 @@ from unittest.mock import patch
 
 import nest_asyncio
 from phoenix.db import models
+from phoenix.experiments import run_experiment
 from phoenix.experiments.evaluators import (
     ConcisenessEvaluator,
     ContainsKeyword,
     HelpfulnessEvaluator,
     create_evaluator,
 )
-from phoenix.experiments.experiments import run_experiment
 from phoenix.experiments.types import (
     AnnotatorKind,
     Dataset,
@@ -45,9 +45,7 @@ async def test_run_experiment(_, session, test_phoenix_clients, simple_dataset):
         ],
     )
 
-    with patch(
-        "phoenix.experiments.experiments._phoenix_clients", return_value=test_phoenix_clients
-    ):
+    with patch("phoenix.experiments.functions._phoenix_clients", return_value=test_phoenix_clients):
 
         def experiment_task(example: Example) -> str:
             return "doesn't matter, this is the output"
@@ -144,9 +142,7 @@ async def test_run_experiment_with_llm_eval(_, session, test_phoenix_clients, si
         async def _async_generate(self, prompt: str, **kwargs: Any) -> str:
             return " doesn't matter I can't think!\nLABEL: false"
 
-    with patch(
-        "phoenix.experiments.experiments._phoenix_clients", return_value=test_phoenix_clients
-    ):
+    with patch("phoenix.experiments.functions._phoenix_clients", return_value=test_phoenix_clients):
 
         def experiment_task(input):
             return "doesn't matter, this is the output"
