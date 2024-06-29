@@ -45,13 +45,6 @@ async def post_evaluations(request: Request) -> Response:
     operationId: addEvaluations
     tags:
       - private
-    parameters:
-      - name: project-name
-        in: query
-        schema:
-          type: string
-          default: default
-        description: The project name to add the evaluation to
     requestBody:
       required: true
       content:
@@ -107,7 +100,7 @@ async def get_evaluations(request: Request) -> Response:
     tags:
       - private
     parameters:
-      - name: project-name
+      - name: project_name
         in: query
         schema:
           type: string
@@ -122,9 +115,9 @@ async def get_evaluations(request: Request) -> Response:
         description: Not found
     """
     project_name = (
-        request.query_params.get("project-name")
-        # read from headers for backwards compatibility
-        or request.headers.get("project-name")
+        request.query_params.get("project_name")
+        or request.query_params.get("project-name")  # for backward compatibility
+        or request.headers.get("project-name")  # read from headers for backwards compatibility
         or DEFAULT_PROJECT_NAME
     )
 

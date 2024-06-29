@@ -111,7 +111,7 @@ def run_experiment(
     sync_client, async_client = _phoenix_clients()
 
     payload = {
-        "version-id": dataset.version_id,
+        "version_id": dataset.version_id,
         "name": experiment_name,
         "description": experiment_description,
         "metadata": experiment_metadata,
@@ -342,7 +342,7 @@ def evaluate_experiment(
         dataset = Dataset.from_dict(
             sync_client.get(
                 f"/v1/datasets/{dataset_id}/examples",
-                params={"version-id": str(dataset_version_id)},
+                params={"version_id": str(dataset_version_id)},
             ).json()["data"]
         )
         if not dataset.examples:

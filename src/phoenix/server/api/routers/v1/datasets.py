@@ -713,7 +713,7 @@ async def get_dataset_csv(request: Request) -> Response:
           type: string
         description: Dataset ID
       - in: query
-        name: version
+        name: version_id
         schema:
           type: string
         description: Dataset version ID. If omitted, returns the latest version.
@@ -762,7 +762,7 @@ async def get_dataset_jsonl_openai_ft(request: Request) -> Response:
           type: string
         description: Dataset ID
       - in: query
-        name: version
+        name: version_id
         schema:
           type: string
         description: Dataset version ID. If omitted, returns the latest version.
@@ -811,7 +811,7 @@ async def get_dataset_jsonl_openai_evals(request: Request) -> Response:
           type: string
         description: Dataset ID
       - in: query
-        name: version
+        name: version_id
         schema:
           type: string
         description: Dataset version ID. If omitted, returns the latest version.
@@ -915,9 +915,9 @@ async def _get_db_examples(request: Request) -> Tuple[str, List[models.DatasetEx
         raise ValueError("Missing Dataset ID")
     dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id_), Dataset.__name__)
     dataset_version_id: Optional[int] = None
-    if version := request.query_params.get("version"):
+    if version_id := request.query_params.get("version_id"):
         dataset_version_id = from_global_id_with_expected_type(
-            GlobalID.from_id(version),
+            GlobalID.from_id(version_id),
             DatasetVersion.__name__,
         )
     latest_version = (
