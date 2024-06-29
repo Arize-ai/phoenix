@@ -201,7 +201,7 @@ paths:
           type: string
       - description: Dataset version ID. If omitted, returns the latest version.
         in: query
-        name: version
+        name: version_id
         schema:
           type: string
       responses:
@@ -234,7 +234,7 @@ paths:
           type: string
       - description: Dataset version ID. If omitted, returns the latest version.
         in: query
-        name: version-id
+        name: version_id
         schema:
           type: string
       responses:
@@ -305,7 +305,7 @@ paths:
           type: string
       - description: Dataset version ID. If omitted, returns the latest version.
         in: query
-        name: version
+        name: version_id
         schema:
           type: string
       responses:
@@ -338,7 +338,7 @@ paths:
           type: string
       - description: Dataset version ID. If omitted, returns the latest version.
         in: query
-        name: version
+        name: version_id
         schema:
           type: string
       responses:
@@ -417,7 +417,7 @@ paths:
       parameters:
       - description: The project name to get evaluations from
         in: query
-        name: project-name
+        name: project_name
         schema:
           default: default
           type: string
@@ -433,13 +433,6 @@ paths:
       - private
     post:
       operationId: addEvaluations
-      parameters:
-      - description: The project name to add the evaluation to
-        in: query
-        name: project-name
-        schema:
-          default: default
-          type: string
       requestBody:
         content:
           application/x-pandas-arrow:
@@ -470,7 +463,7 @@ paths:
       parameters:
       - description: The project name to get evaluations from
         in: query
-        name: project-name
+        name: project_name
         schema:
           default: default
           type: string

@@ -230,7 +230,7 @@ def test_download_dataset_examples_specific_version(
     dataset_global_id = GlobalID("Dataset", str(999))
     dataset_version_global_id = GlobalID("DatasetVersion", str(888))
     url = urljoin(
-        endpoint, f"v1/datasets/{dataset_global_id}/csv?version={dataset_version_global_id}"
+        endpoint, f"v1/datasets/{dataset_global_id}/csv?version_id={dataset_version_global_id}"
     )
     content = gzip.compress("example_id,a,b,c\nRGF0YXNldEV4YW1wbGU6MQ==,x,y,z\n".encode())
     respx_mock.get(url).mock(

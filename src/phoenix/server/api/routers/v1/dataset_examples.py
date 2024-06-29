@@ -21,7 +21,7 @@ async def list_dataset_examples(request: Request) -> Response:
           type: string
         description: Dataset ID
       - in: query
-        name: version-id
+        name: version_id
         schema:
           type: string
         description: Dataset version ID. If omitted, returns the latest version.
@@ -79,7 +79,7 @@ async def list_dataset_examples(request: Request) -> Response:
         description: Dataset does not exist.
     """
     dataset_id = GlobalID.from_id(request.path_params["id"])
-    raw_version_id = request.query_params.get("version-id")
+    raw_version_id = request.query_params.get("version_id")
     version_id = GlobalID.from_id(raw_version_id) if raw_version_id else None
 
     if (dataset_type := dataset_id.type_name) != "Dataset":

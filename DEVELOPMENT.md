@@ -1,26 +1,26 @@
 # Developer's Guide
 
--   [Developer's Guide](#developers-guide)
-    -   [Setting Up Your macOS Development Environment](#setting-up-your-macos-development-environment)
-    -   [Testing and Linting](#testing-and-linting)
-    -   [Installing Pre-Commit Hooks](#installing-pre-commit-hooks)
-    -   [Building the Package](#building-the-package)
-    -   [Installing a Phoenix Build](#installing-a-phoenix-build)
-    -   [Installing a `git` Branch on Colab](#installing-a-git-branch-on-colab)
-    -   [Setting Up Your Windows Test Environment](#setting-up-your-windows-test-environment)
-        -   [Selecting a Virtualization Option](#selecting-a-virtualization-option)
-        -   [Installing Python and Phoenix](#installing-python-and-phoenix)
-        -   [Configuring a Remote Interpreter](#configuring-a-remote-interpreter)
-        -   [Troubleshooting](#troubleshooting)
-    -   [Publishing a New Release](#publishing-a-new-release)
-    -   [Best Practices](#best-practices)
-        -   [REST API](#rest-api)
-            -   [HTTP Methods](#http-methods)
-            -   [Status Codes](#status-codes)
-            -   [Path Structure](#path-structure)
-            -   [Query Parameters](#query-parameters)
-            -   [Pagination](#pagination)
-            -   [Response Format](#response-format)
+- [Developer's Guide](#developers-guide)
+  - [Setting Up Your macOS Development Environment](#setting-up-your-macos-development-environment)
+  - [Testing and Linting](#testing-and-linting)
+  - [Installing Pre-Commit Hooks](#installing-pre-commit-hooks)
+  - [Building the Package](#building-the-package)
+  - [Installing a Phoenix Build](#installing-a-phoenix-build)
+  - [Installing a `git` Branch on Colab](#installing-a-git-branch-on-colab)
+  - [Setting Up Your Windows Test Environment](#setting-up-your-windows-test-environment)
+    - [Selecting a Virtualization Option](#selecting-a-virtualization-option)
+    - [Installing Python and Phoenix](#installing-python-and-phoenix)
+    - [Configuring a Remote Interpreter](#configuring-a-remote-interpreter)
+    - [Troubleshooting](#troubleshooting)
+  - [Publishing a New Release](#publishing-a-new-release)
+  - [Best Practices](#best-practices)
+    - [REST API](#rest-api)
+      - [HTTP Methods](#http-methods)
+      - [Status Codes](#status-codes)
+      - [Path Structure](#path-structure)
+      - [Query Parameters](#query-parameters)
+      - [Pagination](#pagination)
+      - [Response Format](#response-format)
 
 ## Setting Up Your macOS Development Environment
 
@@ -349,7 +349,7 @@ To publish a new release, follow the steps below.
 
 #### Query Parameters
 
-Use query parameters for filtering, sorting, and pagination. Query parameters should use `-` as a separator (see [recommendations](https://developers.google.com/search/docs/specialty/ecommerce/designing-a-url-structure-for-ecommerce-sites)).
+Use query parameters for filtering, sorting, and pagination. Query parameters should use `_` as a separator.
 
 #### Pagination
 
