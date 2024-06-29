@@ -592,7 +592,7 @@ type Experiment implements Node {
   runCount: Int!
   annotationSummaries: [ExperimentAnnotationSummary!]!
   errorRate: Float
-  averageRunLatency: Float!
+  averageRunLatencyMs: Float!
   project: Project
 }
 

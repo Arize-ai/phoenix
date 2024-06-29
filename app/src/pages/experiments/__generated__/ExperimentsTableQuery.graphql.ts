@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<03f54dfa6ed3c57ceb72d6f632c011cb>>
+ * @generated SignedSource<<05dbde558a09bf7e4418980c51c3d7ed>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -237,7 +237,7 @@ return {
                             "alias": null,
                             "args": null,
                             "kind": "ScalarField",
-                            "name": "averageRunLatency",
+                            "name": "averageRunLatencyMs",
                             "storageKey": null
                           },
                           {
@@ -343,16 +343,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f4361220ff398f0a31af93721c4a146a",
+    "cacheID": "1db5ce5523fa9a472c91d093b0e6160e",
     "id": null,
     "metadata": {},
     "name": "ExperimentsTableQuery",
     "operationKind": "query",
-    "text": "query ExperimentsTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExperimentsTableFragment_2HEEH6\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ExperimentsTableFragment_2HEEH6 on Dataset {\n  experimentAnnotationSummaries {\n    annotationName\n    minScore\n    maxScore\n  }\n  experiments(first: $first, after: $after) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        createdAt\n        metadata\n        errorRate\n        runCount\n        averageRunLatency\n        project {\n          id\n        }\n        annotationSummaries {\n          annotationName\n          meanScore\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ExperimentsTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExperimentsTableFragment_2HEEH6\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ExperimentsTableFragment_2HEEH6 on Dataset {\n  experimentAnnotationSummaries {\n    annotationName\n    minScore\n    maxScore\n  }\n  experiments(first: $first, after: $after) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        createdAt\n        metadata\n        errorRate\n        runCount\n        averageRunLatencyMs\n        project {\n          id\n        }\n        annotationSummaries {\n          annotationName\n          meanScore\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "29ca281d1c87d19cebfe8a2d2baae016";
+(node as any).hash = "c7c7580fe40888ceb86a1701fe4eedf4";
 
 export default node;

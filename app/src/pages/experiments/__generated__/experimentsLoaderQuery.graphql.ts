@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8c77c34255537ab2fdcd131e59d51217>>
+ * @generated SignedSource<<24ac28c3b89913f501fdf6249aa26ca8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -225,7 +225,7 @@ return {
                             "alias": null,
                             "args": null,
                             "kind": "ScalarField",
-                            "name": "averageRunLatency",
+                            "name": "averageRunLatencyMs",
                             "storageKey": null
                           },
                           {
@@ -331,12 +331,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "622b92731d21a0bf0d881c0d7ed6d1e8",
+    "cacheID": "91f92395f5df4858554b124deed3f47a",
     "id": null,
     "metadata": {},
     "name": "experimentsLoaderQuery",
     "operationKind": "query",
-    "text": "query experimentsLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      ...ExperimentsTableFragment\n    }\n  }\n}\n\nfragment ExperimentsTableFragment on Dataset {\n  experimentAnnotationSummaries {\n    annotationName\n    minScore\n    maxScore\n  }\n  experiments(first: 100) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        createdAt\n        metadata\n        errorRate\n        runCount\n        averageRunLatency\n        project {\n          id\n        }\n        annotationSummaries {\n          annotationName\n          meanScore\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query experimentsLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      ...ExperimentsTableFragment\n    }\n  }\n}\n\nfragment ExperimentsTableFragment on Dataset {\n  experimentAnnotationSummaries {\n    annotationName\n    minScore\n    maxScore\n  }\n  experiments(first: 100) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        createdAt\n        metadata\n        errorRate\n        runCount\n        averageRunLatencyMs\n        project {\n          id\n        }\n        annotationSummaries {\n          annotationName\n          meanScore\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();

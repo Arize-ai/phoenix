@@ -104,8 +104,11 @@ class Experiment(Node):
         return await info.context.data_loaders.experiment_error_rates.load(self.id_attr)
 
     @strawberry.field
-    async def average_run_latency(self, info: Info[Context, None]) -> float:
-        return await info.context.data_loaders.average_experiment_run_latency.load(self.id_attr)
+    async def average_run_latency_ms(self, info: Info[Context, None]) -> float:
+        latency_seconds = await info.context.data_loaders.average_experiment_run_latency.load(
+            self.id_attr
+        )
+        return latency_seconds * 1000
 
     @strawberry.field
     async def project(self, info: Info[Context, None]) -> Optional[Project]:
