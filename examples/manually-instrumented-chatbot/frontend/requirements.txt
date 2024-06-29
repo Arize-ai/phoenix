@@ -110,7 +110,7 @@ toml==0.10.2
     # via streamlit
 toolz==0.12.1
     # via altair
-tornado==6.4
+tornado==6.4.1
     # via streamlit
 typing-extensions==4.11.0
     # via
