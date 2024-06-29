@@ -68,7 +68,7 @@ jobs:
         if: ${{ needs.changes.outputs.phoenix == 'true' }}
         steps:
             - name: Checkout Repository
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
             - name: Set up python 3.8
               uses: actions/setup-python@v4
               with:
@@ -111,7 +111,7 @@ jobs:
                 python-version: ["3.8"]
         steps:
             - name: Checkout Repository
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
 
             - name: Set up python ${{ matrix.python-version }}
               uses: actions/setup-python@v4
