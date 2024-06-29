@@ -188,7 +188,7 @@ Now let's run the evaluation experiment.
 
 ```python
 import phoenix as px
-from phoenix.datasets.experiments import run_experiment
+from phoenix.experiments import run_experiment
 
 
 # Define the task to run text2sql on the input question
@@ -264,7 +264,7 @@ Amazing. It looks like we removed one of the errors, and got a result for the in
 
 ```python
 from phoenix.datasets.evaluators.llm_evaluators import LLMCriteriaEvaluator
-from phoenix.datasets.experiments import evaluate_experiment
+from phoenix.experiments import evaluate_experiment
 from phoenix.evals.models import OpenAIModel
 
 llm_evaluator = LLMCriteriaEvaluator(

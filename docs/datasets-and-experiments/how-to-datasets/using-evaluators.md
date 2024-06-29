@@ -9,7 +9,7 @@ Datasets and Experiments are currently in pre-release
 We provide LLM evaluators out of the box. These evaluators are vendor agnostic and can be instantiated with a Phoenix model wrapper:
 
 ```python
-from phoenix.datasets.evaluators import HelpfulnessEvaluator
+from phoenix.experiments.evaluators import HelpfulnessEvaluator
 from phoenix.evals.models import OpenAIModel
 
 helpfulness_evaluator = HelpfulnessEvaluator(model=OpenAIModel())
@@ -21,7 +21,7 @@ helpfulness_evaluator = HelpfulnessEvaluator(model=OpenAIModel())
 
 Code evaluators are functions that evaluate the output of your LLM task that don't use another LLM as a judge. An example might be checking for whether or not a given output contains a link - which can be implemented as a RegEx match.
 
-`phoenix.datasets.evaluators` contains some pre-built code evaluators that can be passed to the `evaluators` parameter in experiments.
+`phoenix.experiments.evaluators` contains some pre-built code evaluators that can be passed to the `evaluators` parameter in experiments.
 
 {% tabs %}
 {% tab title="Python" %}
@@ -86,7 +86,7 @@ For even more customization, use the `create_evaluator` decorator to further cus
 {% tabs %}
 {% tab title="Python" %}
 ```python
-from phoenix.datasets.evaluators.utils import create_evaluator
+from phoenix.experiments.evaluators import create_evaluator
 
 # the decorator can be used to set display properties
 # `name` corresponds to the metric name shown in the UI

@@ -219,7 +219,7 @@ Run your first experiment and follow the link in the cell output to inspect the 
 
 
 ```python
-from phoenix.datasets.experiments import run_experiment
+from phoenix.experiments import run_experiment
 
 experiment_results = run_experiment(
     dataset,
