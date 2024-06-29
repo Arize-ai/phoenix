@@ -264,7 +264,7 @@ export function ExperimentsTable({
       cell: IntCell,
     },
     {
-      header: "latency",
+      header: "avg latency",
       accessorKey: "averageRunLatencyMs",
       meta: {
         textAlign: "right",
