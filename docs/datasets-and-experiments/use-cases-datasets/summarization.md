@@ -85,10 +85,10 @@ df = (
 )
 now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 dataset = px.Client().upload_dataset(
-    df,
+    dataframe=df,
     input_keys=["article"],
     output_keys=["summary"],
-    name=f"news-article-summaries-{now}",
+    dataset_name=f"news-article-summaries-{now}",
 )
 ```
 

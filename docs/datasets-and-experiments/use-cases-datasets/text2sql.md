@@ -136,10 +136,10 @@ Let's store the data above as a versioned dataset in phoenix.
 import pandas as pd
 
 ds = px.Client().upload_dataset(
-    pd.DataFrame([{"question": question} for question in questions]),
+    dataframe=pd.DataFrame([{"question": question} for question in questions]),
     input_keys=["question"],
     output_keys=[],
-    name="nba-questions",
+    dataset_name="nba-questions",
 )
 
 # If you have already uploaded the dataset, you can fetch it using the following line
