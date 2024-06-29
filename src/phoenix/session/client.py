@@ -146,7 +146,10 @@ class Client(TraceDataExtractor):
             end_time = end_time or stop_time
         response = self._client.post(
             url=urljoin(self._base_url, "v1/spans"),
-            params={"project-name": project_name},
+            params={
+                "project_name": project_name,
+                "project-name": project_name,  # for backward-compatibility
+            },
             json={
                 "queries": [q.to_dict() for q in queries],
                 "start_time": _to_iso_format(normalize_datetime(start_time)),
@@ -193,7 +196,10 @@ class Client(TraceDataExtractor):
         project_name = project_name or get_env_project_name()
         response = self._client.get(
             url=urljoin(self._base_url, "v1/evaluations"),
-            params={"project-name": project_name},
+            params={
+                "project_name": project_name,
+                "project-name": project_name,  # for backward-compatibility
+            },
         )
         if response.status_code == 404:
             logger.info("No evaluations found.")
@@ -350,7 +356,7 @@ class Client(TraceDataExtractor):
 
         response = self._client.get(
             urljoin(self._base_url, f"/v1/datasets/{quote(id)}/examples"),
-            params={"version-id": version_id} if version_id else None,
+            params={"version_id": version_id} if version_id else None,
         )
         response.raise_for_status()
         data = response.json()["data"]
@@ -420,7 +426,7 @@ class Client(TraceDataExtractor):
         url = f"v1/datasets/{dataset_id}/csv"
         response = httpx.get(
             url=urljoin(self._base_url, url),
-            params={"version": dataset_version_id} if dataset_version_id else {},
+            params={"version_id": dataset_version_id} if dataset_version_id else {},
         )
         response.raise_for_status()
         return pd.read_csv(
