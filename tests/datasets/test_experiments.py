@@ -3,14 +3,15 @@ from typing import Any
 from unittest.mock import patch
 
 import nest_asyncio
-from phoenix.datasets.evaluators import (
+from phoenix.db import models
+from phoenix.experiments.evaluators import (
     ConcisenessEvaluator,
     ContainsKeyword,
     HelpfulnessEvaluator,
     create_evaluator,
 )
-from phoenix.datasets.experiments import run_experiment
-from phoenix.datasets.types import (
+from phoenix.experiments.experiments import run_experiment
+from phoenix.experiments.types import (
     AnnotatorKind,
     Dataset,
     Example,
@@ -18,7 +19,6 @@ from phoenix.datasets.types import (
     ExperimentRun,
     JSONSerializable,
 )
-from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from sqlalchemy import select
 from strawberry.relay import GlobalID
@@ -45,7 +45,9 @@ async def test_run_experiment(_, session, test_phoenix_clients, simple_dataset):
         ],
     )
 
-    with patch("phoenix.datasets.experiments._phoenix_clients", return_value=test_phoenix_clients):
+    with patch(
+        "phoenix.experiments.experiments._phoenix_clients", return_value=test_phoenix_clients
+    ):
 
         def experiment_task(example: Example) -> str:
             return "doesn't matter, this is the output"
@@ -142,7 +144,9 @@ async def test_run_experiment_with_llm_eval(_, session, test_phoenix_clients, si
         async def _async_generate(self, prompt: str, **kwargs: Any) -> str:
             return " doesn't matter I can't think!\nLABEL: false"
 
-    with patch("phoenix.datasets.experiments._phoenix_clients", return_value=test_phoenix_clients):
+    with patch(
+        "phoenix.experiments.experiments._phoenix_clients", return_value=test_phoenix_clients
+    ):
 
         def experiment_task(input):
             return "doesn't matter, this is the output"

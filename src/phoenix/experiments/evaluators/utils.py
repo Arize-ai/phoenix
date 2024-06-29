@@ -2,14 +2,14 @@ import functools
 import inspect
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
-from phoenix.datasets.types import (
+from phoenix.experiments.types import (
     AnnotatorKind,
     EvaluationResult,
     JSONSerializable,
 )
 
 if TYPE_CHECKING:
-    from phoenix.datasets.evaluators.base import Evaluator
+    from phoenix.experiments.evaluators.base import Evaluator
 
 
 def unwrap_json(obj: JSONSerializable) -> JSONSerializable:
@@ -106,7 +106,7 @@ def _wrap_coroutine_evaluation_function(
     sig: inspect.Signature,
     convert_to_score: Callable[[Any], EvaluationResult],
 ) -> Callable[[Callable[..., Any]], "Evaluator"]:
-    from phoenix.datasets.evaluators.base import Evaluator
+    from phoenix.experiments.evaluators.base import Evaluator
 
     def wrapper(func: Callable[..., Any]) -> "Evaluator":
         class AsyncEvaluator(Evaluator):
@@ -134,7 +134,7 @@ def _wrap_sync_evaluation_function(
     sig: inspect.Signature,
     convert_to_score: Callable[[Any], EvaluationResult],
 ) -> Callable[[Callable[..., Any]], "Evaluator"]:
-    from phoenix.datasets.evaluators.base import Evaluator
+    from phoenix.experiments.evaluators.base import Evaluator
 
     def wrapper(func: Callable[..., Any]) -> "Evaluator":
         class SyncEvaluator(Evaluator):

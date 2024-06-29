@@ -4,8 +4,8 @@ import json
 import re
 from typing import Any, List, Optional, Union
 
-from phoenix.datasets.evaluators.base import CodeEvaluator
-from phoenix.datasets.types import EvaluationResult, TaskOutput
+from phoenix.experiments.evaluators.base import CodeEvaluator
+from phoenix.experiments.types import EvaluationResult, TaskOutput
 
 
 class JSONParsable(CodeEvaluator):
