@@ -2,19 +2,19 @@ import re
 from types import MappingProxyType
 from typing import Any, Callable, Optional, Type
 
-from phoenix.datasets.evaluators.base import (
+from phoenix.evals.models.base import BaseModel as LLMBaseModel
+from phoenix.evals.utils import snap_to_rail
+from phoenix.experiments.evaluators.base import (
     ExperimentEvaluator,
     LLMEvaluator,
 )
-from phoenix.datasets.evaluators.utils import unwrap_json
-from phoenix.datasets.types import (
+from phoenix.experiments.evaluators.utils import unwrap_json
+from phoenix.experiments.types import (
     EvaluationResult,
     ExampleInput,
     ExampleMetadata,
     TaskOutput,
 )
-from phoenix.evals.models.base import BaseModel as LLMBaseModel
-from phoenix.evals.utils import snap_to_rail
 
 
 class LLMCriteriaEvaluator(LLMEvaluator):

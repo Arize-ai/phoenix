@@ -6,8 +6,8 @@ from typing import Any, Awaitable, Callable, Optional, Union
 
 from typing_extensions import TypeAlias
 
-from phoenix.datasets.evaluators.utils import validate_signature
-from phoenix.datasets.types import (
+from phoenix.experiments.evaluators.utils import validate_signature
+from phoenix.experiments.types import (
     AnnotatorKind,
     EvaluationResult,
     EvaluatorKind,

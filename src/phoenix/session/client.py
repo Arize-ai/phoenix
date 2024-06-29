@@ -40,9 +40,9 @@ from phoenix.config import (
     get_env_port,
     get_env_project_name,
 )
-from phoenix.datasets.types import Dataset, Example
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.insertion.dataset import DatasetKeys
+from phoenix.experiments.types import Dataset, Example
 from phoenix.session.data_extractor import DEFAULT_SPAN_LIMIT, TraceDataExtractor
 from phoenix.trace import Evaluations, TraceDataset
 from phoenix.trace.dsl import SpanQuery

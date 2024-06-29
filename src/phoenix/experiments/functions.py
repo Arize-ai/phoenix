@@ -37,13 +37,16 @@ from opentelemetry.trace import Status, StatusCode, Tracer
 from typing_extensions import TypeAlias
 
 from phoenix.config import get_base_url, get_env_client_headers
-from phoenix.datasets.evaluators import create_evaluator
-from phoenix.datasets.evaluators.base import (
+from phoenix.evals.executors import get_executor_on_sync_context
+from phoenix.evals.models.rate_limiters import RateLimiter
+from phoenix.evals.utils import get_tqdm_progress_bar_formatter
+from phoenix.experiments.evaluators import create_evaluator
+from phoenix.experiments.evaluators.base import (
     Evaluator,
     ExperimentEvaluator,
 )
-from phoenix.datasets.tracing import capture_spans
-from phoenix.datasets.types import (
+from phoenix.experiments.tracing import capture_spans
+from phoenix.experiments.types import (
     DRY_RUN,
     Dataset,
     EvaluationParameters,
@@ -63,10 +66,7 @@ from phoenix.datasets.types import (
     TestCase,
     _asdict,
 )
-from phoenix.datasets.utils import get_dataset_experiments_url, get_experiment_url
-from phoenix.evals.executors import get_executor_on_sync_context
-from phoenix.evals.models.rate_limiters import RateLimiter
-from phoenix.evals.utils import get_tqdm_progress_bar_formatter
+from phoenix.experiments.utils import get_dataset_experiments_url, get_experiment_url
 from phoenix.trace.attributes import flatten
 from phoenix.utilities.json import jsonify
 

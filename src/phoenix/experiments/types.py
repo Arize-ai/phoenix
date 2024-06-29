@@ -25,8 +25,8 @@ from typing import (
 import pandas as pd
 from typing_extensions import TypeAlias
 
-from phoenix.datasets.utils import get_experiment_url
 from phoenix.datetime_utils import local_now
+from phoenix.experiments.utils import get_experiment_url
 
 
 class AnnotatorKind(Enum):
