@@ -56,10 +56,10 @@ The dataframe can be sent to `Phoenix` via the `Client`. `input_keys` and `outpu
 import phoenix as px
 
 dataset = px.Client().upload_dataset(
-    df,
+    dataframe=df,
     input_keys=["question"],
     output_keys=[],
-    name="nba-questions",
+    dataset_name="nba-questions",
 )
 ```
 

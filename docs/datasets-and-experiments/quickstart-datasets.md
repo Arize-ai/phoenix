@@ -31,8 +31,8 @@ df = pd.DataFrame(
 )
 phoenix_client = px.Client()
 dataset = phoenix_client.upload_dataset(
-    df,
-    name="test-dataset",
+    dataframe=df,
+    dataset_name="test-dataset",
     input_keys=["question"],
     output_keys=["answer"],
     metadata_keys=["metadata"],
