@@ -32,8 +32,8 @@ dataset_df = pd.DataFrame(data={"query": queries, "responses": responses})
 px.launch_app()
 client = px.Client()
 dataset = client.upload_dataset(
-    dataset_df,
-    name="physics-questions",
+    dataframe=dataset_df,
+    dataset_name="physics-questions",
     input_keys=["query"],
     output_keys=["responses"],
 )
@@ -119,7 +119,7 @@ import phoenix as px
 # Note that the below code assumes that phoenix is running and accessible
 client = px.Client()
 client.upload_dataset(
-    questions_df, name="paul-graham-questions",
+    dataframe=questions_df, dataset_name="paul-graham-questions",
     input_keys=["question"],
     output_keys=["output"],
 )
