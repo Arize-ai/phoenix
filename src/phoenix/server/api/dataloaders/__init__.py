@@ -8,6 +8,7 @@ from phoenix.db.insertion.evaluation import (
 )
 from phoenix.db.insertion.span import ClearProjectSpansEvent, SpanInsertionEvent
 
+from .average_experiment_run_latency import AverageExperimentRunLatencyDataLoader
 from .dataset_example_revisions import DatasetExampleRevisionsDataLoader
 from .dataset_example_spans import DatasetExampleSpansDataLoader
 from .document_evaluation_summaries import (
@@ -34,6 +35,7 @@ from .trace_row_ids import TraceRowIdsDataLoader
 
 __all__ = [
     "CacheForDataLoaders",
+    "AverageExperimentRunLatencyDataLoader",
     "DatasetExampleRevisionsDataLoader",
     "DatasetExampleSpansDataLoader",
     "DocumentEvaluationSummaryDataLoader",

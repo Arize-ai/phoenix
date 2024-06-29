@@ -1,4 +1,5 @@
 from datetime import datetime
+from statistics import mean
 from typing import List
 
 import pytest
@@ -159,6 +160,59 @@ async def test_run_count_resolver_returns_correct_counts(
                         "experiment": {
                             "id": str(GlobalID(type_name="Experiment", node_id=str(1))),
                             "runCount": 6,
+                        }
+                    },
+                ]
+            },
+        }
+    }
+
+
+async def test_average_run_latency_resolver_returns_correct_values(
+    test_client, experiments_with_runs_and_annotations
+):
+    query = """
+      query ($datasetId: GlobalID!) {
+        dataset: node(id: $datasetId) {
+          ... on Dataset {
+            experiments {
+              edges {
+                experiment: node {
+                  id
+                  averageRunLatency
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+    response = await test_client.post(
+        "/graphql",
+        json={
+            "query": query,
+            "variables": {
+                "datasetId": str(GlobalID(type_name="Dataset", node_id=str(1))),
+            },
+        },
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json.get("errors") is None
+    assert response_json["data"] == {
+        "dataset": {
+            "experiments": {
+                "edges": [
+                    {
+                        "experiment": {
+                            "id": str(GlobalID(type_name="Experiment", node_id=str(2))),
+                            "averageRunLatency": mean((1, 2)),
+                        }
+                    },
+                    {
+                        "experiment": {
+                            "id": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                            "averageRunLatency": mean((1, 2, 3)),
                         }
                     },
                 ]
@@ -605,10 +659,22 @@ async def experiments_with_runs_and_annotations(session):
                             "output": {"output-key": "output-value"},
                             "repetition_number": repetition_number,
                             "start_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                year=2020,
+                                month=1,
+                                day=1,
+                                hour=0,
+                                minute=0,
+                                second=0,
+                                tzinfo=pytz.utc,
                             ),
                             "end_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                year=2020,
+                                month=1,
+                                day=1,
+                                hour=0,
+                                minute=0,
+                                second=repetition_number,
+                                tzinfo=pytz.utc,
                             ),
                         }
                         for repetition_number in range(1, 4)
@@ -622,10 +688,22 @@ async def experiments_with_runs_and_annotations(session):
                             "output": {"output-key": "output-value"},
                             "repetition_number": repetition_number,
                             "start_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                year=2020,
+                                month=1,
+                                day=1,
+                                hour=0,
+                                minute=0,
+                                second=0,
+                                tzinfo=pytz.utc,
                             ),
                             "end_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                year=2020,
+                                month=1,
+                                day=1,
+                                hour=0,
+                                minute=0,
+                                second=repetition_number,
+                                tzinfo=pytz.utc,
                             ),
                         }
                         for repetition_number in range(1, 3)

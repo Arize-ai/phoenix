@@ -56,6 +56,7 @@ from phoenix.exceptions import PhoenixMigrationError
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
+    AverageExperimentRunLatencyDataLoader,
     CacheForDataLoaders,
     DatasetExampleRevisionsDataLoader,
     DatasetExampleSpansDataLoader,
@@ -191,6 +192,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
             export_path=self.export_path,
             streaming_last_updated_at=self.streaming_last_updated_at,
             data_loaders=DataLoaders(
+                average_experiment_run_latency=AverageExperimentRunLatencyDataLoader(self.db),
                 dataset_example_revisions=DatasetExampleRevisionsDataLoader(self.db),
                 dataset_example_spans=DatasetExampleSpansDataLoader(self.db),
                 document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(

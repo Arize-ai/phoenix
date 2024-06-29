@@ -36,7 +36,7 @@ import { JSONBlock } from "@phoenix/components/code";
 import { AnnotationColorSwatch } from "@phoenix/components/experiment";
 import { SequenceNumberLabel } from "@phoenix/components/experiment/SequenceNumberLabel";
 import { Link } from "@phoenix/components/Link";
-import { CompactJSONCell, IntCell } from "@phoenix/components/table";
+import { CompactJSONCell, FloatCell, IntCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
@@ -116,6 +116,7 @@ export function ExperimentsTable({
                 metadata
                 errorRate
                 runCount
+                averageRunLatency
                 project {
                   id
                 }
@@ -258,6 +259,14 @@ export function ExperimentsTable({
         textAlign: "right",
       },
       cell: IntCell,
+    },
+    {
+      header: "avg run latency",
+      accessorKey: "averageRunLatency",
+      meta: {
+        textAlign: "right",
+      },
+      cell: FloatCell,
     },
     {
       header: "error rate",
