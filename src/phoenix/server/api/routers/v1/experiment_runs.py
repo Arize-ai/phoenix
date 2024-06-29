@@ -6,8 +6,8 @@ from starlette.responses import JSONResponse, Response
 from starlette.status import HTTP_404_NOT_FOUND
 from strawberry.relay import GlobalID
 
-from phoenix.datasets.types import ExperimentResult, ExperimentRun
 from phoenix.db import models
+from phoenix.experiments.types import ExperimentResult, ExperimentRun
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.utilities.json import jsonify
 
