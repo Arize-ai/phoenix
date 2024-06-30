@@ -180,6 +180,7 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
         flex: 1 1 auto;
         flex-direction: column;
         overflow: auto;
+        padding-bottom: var(--ac-global-dimension-size-750);
       `}
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
       ref={tableContainerRef}
