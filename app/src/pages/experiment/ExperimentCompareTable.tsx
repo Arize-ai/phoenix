@@ -256,7 +256,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     variant="default"
                     size="compact"
                     aria-label="View example details"
-                    icon={<Icon svg={<Icons.ExternalLinkOutline />} />}
+                    icon={<Icon svg={<Icons.ExpandOutline />} />}
                     onClick={() => {
                       startTransition(() => {
                         setDialog(
@@ -590,19 +590,27 @@ function ExperimentRunOutput(
     : [];
 
   return (
-    <Flex direction="column" gap="size-100" height="100%">
+    <Flex
+      direction="column"
+      gap="size-100"
+      height="100%"
+      justifyContent="space-between"
+    >
       <LargeTextWrap>
         <JSONText json={output} disableTitle space={displayFullText ? 2 : 0} />
       </LargeTextWrap>
-      <RunLatency startTime={startTime} endTime={endTime} />
       <ul
         css={css`
           display: flex;
           flex-direction: row;
           gap: var(--ac-global-dimension-static-size-100);
+          align-items: center;
           flex-wrap: wrap;
         `}
       >
+        <li key="run-latency">
+          <RunLatency startTime={startTime} endTime={endTime} />
+        </li>
         {annotationsList.map((annotation) => (
           <li key={annotation.id}>
             <AnnotationLabel
@@ -635,10 +643,10 @@ function ExperimentRunOutput(
 function RunOutputWrap(props: PropsWithChildren<{ controls: ReactNode }>) {
   return (
     <div css={cellWithControlsWrapCSS}>
+      {props.children}
       <div css={cellControlsCSS} className="controls">
         {props.controls}
       </div>
-      {props.children}
     </div>
   );
 }
