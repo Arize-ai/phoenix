@@ -58,7 +58,7 @@ dependencies = [
   "sqlean.py>=3.45.1",
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
-  "arize-phoenix-evals>=0.3.0",
+  "arize-phoenix-evals>=0.13.1",
 ]
 dynamic = ["version"]
 
