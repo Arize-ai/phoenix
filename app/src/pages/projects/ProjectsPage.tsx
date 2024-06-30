@@ -1,5 +1,11 @@
-import React, { startTransition, Suspense, useCallback, useMemo } from "react";
-import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
+import React, {
+  startTransition,
+  Suspense,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
+import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
 import { formatDistance } from "date-fns";
 import { css } from "@emotion/react";
 
@@ -29,6 +35,7 @@ import { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
 import { ProjectActionMenu } from "./ProjectActionMenu";
 
 const REFRESH_INTERVAL_MS = 10000;
+const PAGE_SIZE = 100;
 
 export function ProjectsPage() {
   const { timeRange } = useLastNTimeRange();
@@ -60,14 +67,25 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
       timeRange: timeRangeVariable,
     }
   );
-  const [projectsData, refetch] = useRefetchableFragment<
+  const {
+    data: projectsData,
+    loadNext,
+    hasNext,
+    isLoadingNext,
+    refetch,
+  } = usePaginationFragment<
     ProjectsPageProjectsQuery,
     ProjectsPageProjectsFragment$key
   >(
     graphql`
       fragment ProjectsPageProjectsFragment on Query
-      @refetchable(queryName: "ProjectsPageProjectsQuery") {
-        projects {
+      @refetchable(queryName: "ProjectsPageProjectsQuery")
+      @argumentDefinitions(
+        after: { type: "String", defaultValue: null }
+        first: { type: "Int", defaultValue: 100 }
+      ) {
+        projects(first: $first, after: $after)
+          @connection(key: "ProjectsPage_projects") {
           edges {
             project: node {
               id
@@ -89,6 +107,24 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
     data
   );
   const projects = projectsData.projects.edges.map((p) => p.project);
+
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const fetchMoreOnBottomReached = useCallback(
+    (containerRefElement?: HTMLDivElement | null) => {
+      if (containerRefElement) {
+        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
+        //once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
+        if (
+          scrollHeight - scrollTop - clientHeight < 300 &&
+          !isLoadingNext &&
+          hasNext
+        ) {
+          loadNext(PAGE_SIZE);
+        }
+      }
+    },
+    [hasNext, isLoadingNext, loadNext]
+  );
 
   useInterval(() => {
     startTransition(() => {
@@ -139,7 +175,15 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
   );
 
   return (
-    <Flex direction="column" flex="1 1 auto">
+    <div
+      css={css`
+        flex: 1 1 auto;
+        flex-direction: column;
+        overflow: auto;
+      `}
+      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+      ref={tableContainerRef}
+    >
       <View
         paddingStart="size-200"
         paddingEnd="size-200"
@@ -182,7 +226,7 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
         </ul>
       </View>
       {holder}
-    </Flex>
+    </div>
   );
 }
 
