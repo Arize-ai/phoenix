@@ -1,0 +1,7 @@
+.navbar-nav .nav-link {
+    text-transform: capitalize;
+}
+
+.ethical-sidebar {
+    display: none;
+}
