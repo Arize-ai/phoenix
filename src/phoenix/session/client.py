@@ -1,6 +1,7 @@
 import csv
 import gzip
 import logging
+import re
 import weakref
 from collections import Counter
 from datetime import datetime
@@ -360,8 +361,8 @@ class Client(TraceDataExtractor):
         )
         response.raise_for_status()
         data = response.json()["data"]
-        examples = [
-            Example(
+        examples = {
+            example["id"]: Example(
                 id=example["id"],
                 input=example["input"],
                 output=example["output"],
@@ -369,7 +370,7 @@ class Client(TraceDataExtractor):
                 updated_at=datetime.fromisoformat(example["updated_at"]),
             )
             for example in data["examples"]
-        ]
+        }
         resolved_dataset_id = data["dataset_id"]
         resolved_version_id = data["version_id"]
         return Dataset(
@@ -628,6 +629,12 @@ class Client(TraceDataExtractor):
             raise ValueError(f"Invalid action: {action}")
         if not dataset_name:
             raise ValueError("Dataset name must not be blank")
+        input_keys, output_keys, metadata_keys = (
+            (keys,) if isinstance(keys, str) else (keys or ())
+            for keys in (input_keys, output_keys, metadata_keys)
+        )
+        if not any(map(bool, (input_keys, output_keys, metadata_keys))):
+            input_keys, output_keys, metadata_keys = _infer_keys(table)
         keys = DatasetKeys(
             frozenset(input_keys),
             frozenset(output_keys),
@@ -734,8 +741,8 @@ class Client(TraceDataExtractor):
         return Dataset(
             id=dataset_id,
             version_id=version_id,
-            examples=[
-                Example(
+            examples={
+                example["id"]: Example(
                     id=example["id"],
                     input=example["input"],
                     output=example["output"],
@@ -743,7 +750,7 @@ class Client(TraceDataExtractor):
                     updated_at=datetime.fromisoformat(example["updated_at"]),
                 )
                 for example in examples
-            ],
+            },
         )
 
 
@@ -753,20 +760,25 @@ FileType: TypeAlias = str
 FileHeaders: TypeAlias = Dict[str, str]
 
 
-def _prepare_csv(
-    path: Path,
-    keys: DatasetKeys,
-) -> Tuple[FileName, FilePointer, FileType, FileHeaders]:
+def _get_csv_column_headers(path: Path) -> Tuple[str, ...]:
     path = path.resolve()
     if not path.is_file():
         raise FileNotFoundError(f"File does not exist: {path}")
     with open(path, "r") as f:
         rows = csv.reader(f)
         try:
-            column_headers = next(rows)
+            column_headers = tuple(next(rows))
             _ = next(rows)
         except StopIteration:
             raise ValueError("csv file has no data")
+    return column_headers
+
+
+def _prepare_csv(
+    path: Path,
+    keys: DatasetKeys,
+) -> Tuple[FileName, FilePointer, FileType, FileHeaders]:
+    column_headers = _get_csv_column_headers(path)
     (header, freq), *_ = Counter(column_headers).most_common(1)
     if freq > 1:
         raise ValueError(f"Duplicated column header in CSV file: {header}")
@@ -794,6 +806,29 @@ def _prepare_pyarrow(
         writer.write_table(table)
     file = BytesIO(sink.getvalue().to_pybytes())
     return "pandas", file, "application/x-pandas-pyarrow", {}
+
+
+_response_header = re.compile(r"(?i)(response|answer)s*$")
+
+
+def _infer_keys(
+    table: Union[str, Path, pd.DataFrame],
+) -> Tuple[Tuple[str, ...], Tuple[str, ...], Tuple[str, ...]]:
+    column_headers = (
+        tuple(table.columns)
+        if isinstance(table, pd.DataFrame)
+        else _get_csv_column_headers(Path(table))
+    )
+    for i, header in enumerate(column_headers):
+        if _response_header.search(header):
+            break
+    else:
+        i = len(column_headers)
+    return (
+        column_headers[:i],
+        column_headers[i : i + 1],
+        column_headers[i + 1 :],
+    )
 
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:

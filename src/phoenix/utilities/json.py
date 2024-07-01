@@ -2,7 +2,7 @@ import dataclasses
 import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Mapping, Sequence, SupportsFloat, Union, get_args, get_origin
+from typing import Any, Mapping, Sequence, Union, get_args, get_origin
 
 import numpy as np
 
@@ -15,10 +15,10 @@ def jsonify(obj: Any) -> Any:
         return jsonify(obj.value)
     if isinstance(obj, (str, int, float, bool)) or obj is None:
         return obj
-    if isinstance(obj, np.ndarray):
+    if isinstance(obj, (list, set, frozenset, Sequence)):
         return [jsonify(v) for v in obj]
-    if isinstance(obj, SupportsFloat):
-        return float(obj)
+    if isinstance(obj, (dict, Mapping)):
+        return {jsonify(k): jsonify(v) for k, v in obj.items()}
     if dataclasses.is_dataclass(obj):
         return {
             k: jsonify(v)
@@ -29,10 +29,6 @@ def jsonify(obj: Any) -> Any:
                 and type(None) in get_args(field)
             )
         }
-    if isinstance(obj, (Sequence, set, frozenset)):
-        return [jsonify(v) for v in obj]
-    if isinstance(obj, Mapping):
-        return {jsonify(k): jsonify(v) for k, v in obj.items()}
     if isinstance(obj, (datetime.date, datetime.datetime, datetime.time)):
         return obj.isoformat()
     if isinstance(obj, datetime.timedelta):
@@ -41,6 +37,10 @@ def jsonify(obj: Any) -> Any:
         return str(obj)
     if isinstance(obj, BaseException):
         return str(obj)
+    if isinstance(obj, np.ndarray):
+        return [jsonify(v) for v in obj]
+    if hasattr(obj, "__float__"):
+        return float(obj)
     if hasattr(obj, "model_dump") and callable(obj.model_dump):
         # pydantic v2
         try:
