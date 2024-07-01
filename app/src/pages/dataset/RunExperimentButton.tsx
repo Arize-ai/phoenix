@@ -53,7 +53,7 @@ export function RunExperimentButton() {
       <Button
         size="compact"
         variant="default"
-        icon={<Icon svg={<Icons.PlayCircleOutline />} />}
+        icon={<Icon svg={<Icons.ExperimentOutline />} />}
         onClick={onRunExample}
       >
         Run Experiment
@@ -86,7 +86,7 @@ function RunExperimentExample() {
   }, [datasetName, version]);
 
   return (
-    <View padding="size-400">
+    <View padding="size-400" overflow="auto">
       <View paddingBottom="size-100">
         <Text>Install Phoenix</Text>
       </View>
