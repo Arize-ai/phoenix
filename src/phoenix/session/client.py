@@ -641,7 +641,7 @@ class Client(TraceDataExtractor):
             assert_never(table)
         print("📤 Uploading dataset...")
         response = self._client.post(
-            url=urljoin(self._base_url, "v1/datasets/upload"),
+            url=urljoin(self._base_url, "v1/datasets"),
             files={"file": file},
             data={
                 "action": action,
@@ -698,7 +698,7 @@ class Client(TraceDataExtractor):
                 )
         print("📤 Uploading dataset...")
         response = self._client.post(
-            url=urljoin(self._base_url, "v1/datasets/upload"),
+            url=urljoin(self._base_url, "v1/datasets"),
             headers={"Content-Encoding": "gzip"},
             json={
                 "action": action,

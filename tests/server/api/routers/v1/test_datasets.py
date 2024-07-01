@@ -382,7 +382,7 @@ async def test_get_dataset_jsonl_openai_evals(test_client, dataset_with_messages
 async def test_post_dataset_upload_json_create_then_append(test_client, session):
     name = inspect.stack()[0][3]
     response = await test_client.post(
-        url="v1/datasets/upload?sync=true",
+        url="v1/datasets?sync=true",
         json={
             "action": "create",
             "name": name,
@@ -396,7 +396,7 @@ async def test_post_dataset_upload_json_create_then_append(test_client, session)
     assert (dataset_id := data.get("dataset_id"))
     del response, data
     response = await test_client.post(
-        url="v1/datasets/upload?sync=true",
+        url="v1/datasets?sync=true",
         json={
             "action": "append",
             "name": name,
@@ -430,7 +430,7 @@ async def test_post_dataset_upload_csv_create_then_append(test_client, session):
     name = inspect.stack()[0][3]
     file = gzip.compress(b"a,b,c,d,e,f\n1,2,3,4,5,6\n")
     response = await test_client.post(
-        url="v1/datasets/upload?sync=true",
+        url="v1/datasets?sync=true",
         files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
         data={
             "action": "create",
@@ -446,7 +446,7 @@ async def test_post_dataset_upload_csv_create_then_append(test_client, session):
     del response, file, data
     file = gzip.compress(b"a,b,c,d,e,f\n11,22,33,44,55,66\n")
     response = await test_client.post(
-        url="v1/datasets/upload?sync=true",
+        url="v1/datasets?sync=true",
         files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
         data={
             "action": "append",
@@ -486,7 +486,7 @@ async def test_post_dataset_upload_pyarrow_create_then_append(test_client, sessi
         writer.write_table(table)
     file = BytesIO(sink.getvalue().to_pybytes())
     response = await test_client.post(
-        url="v1/datasets/upload?sync=true",
+        url="v1/datasets?sync=true",
         files={"file": (" ", file, "application/x-pandas-pyarrow", {})},
         data={
             "action": "create",
@@ -507,7 +507,7 @@ async def test_post_dataset_upload_pyarrow_create_then_append(test_client, sessi
         writer.write_table(table)
     file = BytesIO(sink.getvalue().to_pybytes())
     response = await test_client.post(
-        url="v1/datasets/upload?sync=true",
+        url="v1/datasets?sync=true",
         files={"file": (" ", file, "application/x-pandas-pyarrow", {})},
         data={
             "action": "append",
