@@ -175,7 +175,7 @@ async def list_experiment_runs(request: Request) -> Response:
                         description: The output of the experiment run
                       error:
                         type: string
-                        description: Optional error message if the experiment run encountered an error
+                        description: Error message if the experiment run encountered an error
                       trace_id:
                         type: string
                         description: Optional trace ID for tracking
