@@ -283,7 +283,7 @@ def test_binding_arguments_to_decorated_evaluators():
         check_metadata = metadata == {"data": "there's nothing here"}
         return check_input and check_output and check_expected and check_metadata
 
-    output = experiment_run.output.result
+    output = experiment_run.task_output
     expected, metadata, input = example.output["output"], example.metadata, example.input["input"]
     kwargs = dict(output=output, expected=expected, metadata=metadata, input=input, extra="junk")
     evaluation = can_i_count_this_high.evaluate(**kwargs)

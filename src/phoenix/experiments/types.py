@@ -225,7 +225,7 @@ class ExperimentRun:
     trace_id: Optional[TraceId] = None
 
     @property
-    def result(self) -> Optional[TaskOutput]:
+    def task_output(self) -> Optional[TaskOutput]:
         return deepcopy(self.output.result) if self.output else None
 
     @classmethod
@@ -710,7 +710,13 @@ class _ExperimentRunWithExample(ObjectProxy):  # type: ignore[misc]
             .replace("\n", f"\n{spaces}")
             .replace(' "..."\n', " ...\n")
             + ","
-            for k in ("error", "result", "expected", "input", "metadata")
-            if (v := getattr(self, k, None))
+            for k, v in {
+                "error": self.error,
+                "output": self.task_output,
+                "expected": self.expected,
+                "input": self.input,
+                "metadata": self.metadata,
+            }.items()
+            if v
         ]
         return "\n".join([f"{name}(", *identifiers, *contents, ")"])

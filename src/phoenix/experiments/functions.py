@@ -422,8 +422,7 @@ def evaluate_experiment(
             stack.enter_context(capture_spans(resource))
             try:
                 result = evaluator.evaluate(
-                    output=None if experiment_run.output is None else experiment_run.output.result,
-                    result=experiment_run.result,
+                    output=experiment_run.task_output,
                     expected=example.output,
                     input=example.input,
                     metadata=example.metadata,
@@ -468,8 +467,7 @@ def evaluate_experiment(
             stack.enter_context(capture_spans(resource))
             try:
                 result = await evaluator.async_evaluate(
-                    output=None if experiment_run.output is None else experiment_run.output.result,
-                    result=experiment_run.result,
+                    output=experiment_run.task_output,
                     expected=example.output,
                     input=example.input,
                     metadata=example.metadata,
