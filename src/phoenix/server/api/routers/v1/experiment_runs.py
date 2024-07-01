@@ -13,6 +13,73 @@ from phoenix.utilities.json import jsonify
 
 
 async def create_experiment_run(request: Request) -> Response:
+    """
+    summary: Create a new experiment run for a specific experiment
+    operationId: createExperimentRun
+    tags:
+      - experiments
+    parameters:
+      - in: path
+        name: experiment_id
+        required: true
+        description: The ID of the experiment for which the run is being created
+        schema:
+          type: string
+    requestBody:
+      description: Details of the experiment run to be created
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              dataset_example_id:
+                type: string
+                description: The ID of the dataset example used in the experiment run
+              trace_id:
+                type: string
+                description: Optional trace ID for tracking
+              output:
+                type: string
+                description: The output of the experiment run
+              repetition_number:
+                type: integer
+                description: The repetition number of the experiment run
+              start_time:
+                type: string
+                format: date-time
+                description: The start time of the experiment run in ISO format
+              end_time:
+                type: string
+                format: date-time
+                description: The end time of the experiment run in ISO format
+              error:
+                type: string
+                description: Optional error message if the experiment run encountered an error
+                nullable: true
+            required:
+              - dataset_example_id
+              - output
+              - repetition_number
+              - start_time
+              - end_time
+    responses:
+      200:
+        description: Experiment run created successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      description: The ID of the created experiment run
+      404:
+        description: Experiment or DatasetExample not found
+    """
     experiment_gid = GlobalID.from_id(request.path_params["experiment_id"])
     try:
         experiment_id = from_global_id_with_expected_type(experiment_gid, "Experiment")
@@ -58,6 +125,63 @@ async def create_experiment_run(request: Request) -> Response:
 
 
 async def list_experiment_runs(request: Request) -> Response:
+    """
+    summary: List all runs for a specific experiment
+    operationId: listExperimentRuns
+    tags:
+      - experiments
+    parameters:
+      - in: path
+        name: experiment_id
+        required: true
+        description: The ID of the experiment to list runs for
+        schema:
+          type: string
+    responses:
+      200:
+        description: Experiment runs retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        description: The ID of the experiment run
+                      experiment_id:
+                        type: string
+                        description: The ID of the experiment
+                      dataset_example_id:
+                        type: string
+                        description: The ID of the dataset example
+                      repetition_number:
+                        type: integer
+                        description: The repetition number of the experiment run
+                      start_time:
+                        type: string
+                        format: date-time
+                        description: The start time of the experiment run in ISO format
+                      end_time:
+                        type: string
+                        format: date-time
+                        description: The end time of the experiment run in ISO format
+                      output:
+                        type: object
+                        description: The output of the experiment run
+                      error:
+                        type: string
+                        description: Optional error message if the experiment run encountered an error
+                      trace_id:
+                        type: string
+                        description: Optional trace ID for tracking
+      404:
+        description: Experiment not found
+    """
     experiment_gid = GlobalID.from_id(request.path_params["experiment_id"])
     try:
         experiment_id = from_global_id_with_expected_type(experiment_gid, "Experiment")
