@@ -90,6 +90,9 @@ Evaluators: TypeAlias = Union[
 ]
 
 
+RateLimitErrors: TypeAlias = Union[Type[BaseException], Sequence[Type[BaseException]]]
+
+
 def run_experiment(
     dataset: Dataset,
     task: ExperimentTask,
@@ -98,7 +101,7 @@ def run_experiment(
     experiment_name: Optional[str] = None,
     experiment_description: Optional[str] = None,
     experiment_metadata: Optional[Mapping[str, Any]] = None,
-    rate_limit_errors: Optional[Union[Type[BaseException], Tuple[Type[BaseException], ...]]] = None,
+    rate_limit_errors: Optional[RateLimitErrors] = None,
     dry_run: Union[bool, int] = False,
     print_summary: bool = True,
 ) -> RanExperiment:
@@ -165,15 +168,6 @@ def run_experiment(
         )
         print(f"📺 View dataset experiments: {dataset_experiments_url}")
         print(f"🔗 View this experiment: {experiment_compare_url}")
-
-    errors: Tuple[Optional[Type[BaseException]], ...]
-    if not hasattr(rate_limit_errors, "__iter__"):
-        errors = (rate_limit_errors,)
-    else:
-        rate_limit_errors = cast(Tuple[Type[BaseException], ...], rate_limit_errors)
-        errors = rate_limit_errors
-
-    rate_limiters = [RateLimiter(rate_limit_error=rate_limit_error) for rate_limit_error in errors]
 
     def sync_run_experiment(test_case: TestCase) -> ExperimentRun:
         example, repetition_number = test_case.example, test_case.repetition_number
@@ -287,6 +281,14 @@ def run_experiment(
             exp_run = replace(exp_run, id=resp.json()["data"]["id"])
         return exp_run
 
+    _errors: Tuple[Type[BaseException], ...]
+    if not hasattr(rate_limit_errors, "__iter__"):
+        _errors = (rate_limit_errors,) if rate_limit_errors is not None else ()
+    else:
+        rate_limit_errors = cast(Sequence[Type[BaseException]], rate_limit_errors)
+        _errors = tuple(filter(None, rate_limit_errors))
+    rate_limiters = [RateLimiter(rate_limit_error=rate_limit_error) for rate_limit_error in _errors]
+
     rate_limited_sync_run_experiment = functools.reduce(
         lambda fn, limiter: limiter.limit(fn), rate_limiters, sync_run_experiment
     )
@@ -325,6 +327,7 @@ def run_experiment(
             evaluators=evaluators_by_name,
             dry_run=dry_run,
             print_summary=print_summary,
+            rate_limit_errors=rate_limit_errors,
         )
     if print_summary:
         print(ran_experiment)
@@ -337,6 +340,7 @@ def evaluate_experiment(
     *,
     dry_run: Union[bool, int] = False,
     print_summary: bool = True,
+    rate_limit_errors: Optional[RateLimitErrors] = None,
 ) -> RanExperiment:
     if not dry_run and _is_dry_run(experiment):
         dry_run = True
@@ -495,9 +499,24 @@ def evaluate_experiment(
             eval_run = replace(eval_run, id=resp.json()["data"]["id"])
         return eval_run
 
+    _errors: Tuple[Type[BaseException], ...]
+    if not hasattr(rate_limit_errors, "__iter__"):
+        _errors = (rate_limit_errors,) if rate_limit_errors is not None else ()
+    else:
+        rate_limit_errors = cast(Sequence[Type[BaseException]], rate_limit_errors)
+        _errors = tuple(filter(None, rate_limit_errors))
+    rate_limiters = [RateLimiter(rate_limit_error=rate_limit_error) for rate_limit_error in _errors]
+
+    rate_limited_sync_evaluate_run = functools.reduce(
+        lambda fn, limiter: limiter.limit(fn), rate_limiters, sync_evaluate_run
+    )
+    rate_limited_async_evaluate_run = functools.reduce(
+        lambda fn, limiter: limiter.alimit(fn), rate_limiters, async_evaluate_run
+    )
+
     executor = get_executor_on_sync_context(
-        sync_evaluate_run,
-        async_evaluate_run,
+        rate_limited_sync_evaluate_run,
+        rate_limited_async_evaluate_run,
         max_retries=0,
         exit_on_error=False,
         fallback_return_value=None,

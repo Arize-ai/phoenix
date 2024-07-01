@@ -511,7 +511,7 @@ class Client(TraceDataExtractor):
             dataset_description=dataset_description,
         )
 
-    def append_dataset(
+    def append_to_dataset(
         self,
         *,
         dataset_name: str,

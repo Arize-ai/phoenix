@@ -483,31 +483,31 @@ async def test_project_spans(
     llama_index_rag_spans,
 ) -> None:
     query = """
-query ($projectId: GlobalID!, $after: String = null, $before: String = null, $filterCondition: String = null, $first: Int = null, $last: Int = null, $sort: SpanSort = null) {
-  node(id: $projectId) {
-    ... on Project {
-      spans(
-        after: $after
-        before: $before
-        filterCondition: $filterCondition
-        first: $first
-        last: $last
-        rootSpansOnly: false
-        sort: $sort
-      ) {
-        edges {
-          cursor
-        }
-        pageInfo {
-          hasNextPage
-          startCursor
-          endCursor
+      query ($projectId: GlobalID!, $after: String = null, $before: String = null, $filterCondition: String = null, $first: Int = null, $last: Int = null, $sort: SpanSort = null) {
+        node(id: $projectId) {
+          ... on Project {
+            spans(
+              after: $after
+              before: $before
+              filterCondition: $filterCondition
+              first: $first
+              last: $last
+              rootSpansOnly: false
+              sort: $sort
+            ) {
+              edges {
+                cursor
+              }
+              pageInfo {
+                hasNextPage
+                startCursor
+                endCursor
+              }
+            }
+          }
         }
       }
-    }
-  }
-}
-"""
+    """
     response = await test_client.post(
         "/graphql",
         json={
