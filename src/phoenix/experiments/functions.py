@@ -185,7 +185,13 @@ def run_experiment(
                 # are implementation details.
                 _output = task(example)
                 if isinstance(_output, Awaitable):
-                    raise RuntimeError("Task is async but running in sync context")
+                    sync_error_message = (
+                        "Task is async and cannot be run within an existing event loop. "
+                        "Consider the following options:\n\n"
+                        "1. Pass in a synchronous task callable.\n"
+                        "2. Use `nest_asyncio.apply()` to allow nesting event loops."
+                    )
+                    raise RuntimeError(sync_error_message)
                 else:
                     output = _output
             except BaseException as exc:
