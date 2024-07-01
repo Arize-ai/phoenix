@@ -86,7 +86,7 @@ function RunExperimentExample() {
   }, [datasetName, version]);
 
   return (
-    <View padding="size-400">
+    <View padding="size-400" overflow="auto">
       <View paddingBottom="size-100">
         <Text>Install Phoenix</Text>
       </View>
