@@ -1,5 +1,6 @@
 import functools
 import inspect
+from itertools import chain, islice, repeat
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 from phoenix.experiments.types import (
@@ -157,11 +158,32 @@ def _wrap_sync_evaluation_function(
 
 
 def _default_eval_scorer(result: Any) -> EvaluationResult:
+    if isinstance(result, EvaluationResult):
+        return result
     if isinstance(result, bool):
         return EvaluationResult(score=float(result), label=str(result))
-    elif isinstance(result, (int, float)):
+    if hasattr(result, "__float__"):
         return EvaluationResult(score=float(result))
-    elif isinstance(result, EvaluationResult):
-        return result
-    else:
-        raise ValueError(f"Unsupported evaluation result type: {type(result)}")
+    if isinstance(result, str):
+        return EvaluationResult(label=result)
+    if isinstance(result, (tuple, list)) and 0 < len(result) <= 3:
+        # Possible interpretations are:
+        # - 3-tuple: (Score, Label, Explanation)
+        # - 2-tuple: (Score, Explanation) or (Label, Explanation)
+        # - 1-tuple: (Score, ) or (Label, )
+        # Note that (Score, Label) conflicts with (Score, Explanation) and we
+        # pick the latter because it's probably more prevalent. To get
+        # (Score, Label), use a 3-tuple instead, i.e. (Score, Label, None).
+        a, b, c = islice(chain(result, repeat(None)), 3)
+        score, label, explanation = None, a, b
+        if hasattr(a, "__float__"):
+            try:
+                score = float(a)
+            except ValueError:
+                pass
+            else:
+                label, explanation = (None, b) if len(result) < 3 else (b, c)
+        return EvaluationResult(score=score, label=label, explanation=explanation)
+    if result is None:
+        return EvaluationResult(score=0)
+    raise ValueError(f"Unsupported evaluation result type: {type(result)}")
