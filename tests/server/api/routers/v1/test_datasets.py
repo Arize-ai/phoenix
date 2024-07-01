@@ -20,7 +20,7 @@ async def test_get_simple_dataset(test_client, simple_dataset):
     global_id = GlobalID("Dataset", str(0))
     response = await test_client.get(f"/v1/datasets/{global_id}")
     assert response.status_code == 200
-    dataset_json = response.json()
+    dataset_json = response.json()["data"]
 
     assert "created_at" in dataset_json
     assert "updated_at" in dataset_json
@@ -38,7 +38,7 @@ async def test_get_empty_dataset(test_client, empty_dataset):
     global_id = GlobalID("Dataset", str(1))
     response = await test_client.get(f"/v1/datasets/{global_id}")
     assert response.status_code == 200
-    dataset_json = response.json()
+    dataset_json = response.json()["data"]
 
     assert "created_at" in dataset_json
     assert "updated_at" in dataset_json
@@ -56,7 +56,7 @@ async def test_get_dataset_with_revisions(test_client, dataset_with_revisions):
     global_id = GlobalID("Dataset", str(2))
     response = await test_client.get(f"/v1/datasets/{global_id}")
     assert response.status_code == 200
-    dataset_json = response.json()
+    dataset_json = response.json()["data"]
 
     assert "created_at" in dataset_json
     assert "updated_at" in dataset_json

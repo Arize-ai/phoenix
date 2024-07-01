@@ -233,7 +233,7 @@ async def get_dataset_by_id(request: Request) -> Response:
             "updated_at": dataset.updated_at.isoformat(),
             "example_count": example_count,
         }
-        return JSONResponse(content=output_dict)
+        return JSONResponse(content={"data": output_dict})
 
 
 async def get_dataset_versions(request: Request) -> Response:

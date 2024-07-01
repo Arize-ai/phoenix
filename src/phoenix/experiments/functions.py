@@ -127,7 +127,7 @@ def run_experiment(
             json=payload,
         )
         experiment_response.raise_for_status()
-        exp_json = experiment_response.json()
+        exp_json = experiment_response.json()["data"]
         project_name = exp_json["project_name"]
         experiment = Experiment(
             dataset_id=dataset.id,
