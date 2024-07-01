@@ -149,6 +149,82 @@ paths:
       summary: Upload dataset as either JSON or file (CSV or PyArrow)
       tags:
       - datasets
+  /v1/datasets/{dataset_id}/experiments:
+    post:
+      operationId: createExperiment
+      parameters:
+      - description: The ID of the dataset to create an experiment for
+        in: path
+        name: dataset_id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                metadata:
+                  additionalProperties:
+                    type: string
+                  description: Metadata for the experiment
+                  type: object
+                repetitions:
+                  default: 1
+                  description: Number of times the experiment should be repeated for
+                    each example
+                  type: integer
+                version_id:
+                  description: ID of the dataset version to use
+                  type: string
+              type: object
+        description: Details of the experiment to be created
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    properties:
+                      created_at:
+                        description: The creation timestamp of the experiment
+                        format: date-time
+                        type: string
+                      dataset_id:
+                        description: The ID of the dataset associated with the experiment
+                        type: string
+                      dataset_version_id:
+                        description: The ID of the dataset version associated with
+                          the experiment
+                        type: string
+                      id:
+                        description: The ID of the experiment
+                        type: string
+                      metadata:
+                        additionalProperties:
+                          type: string
+                        description: Metadata of the experiment
+                        type: object
+                      project_name:
+                        description: The name of the project associated with the experiment
+                        type: string
+                      repetitions:
+                        description: Number of times the experiment is repeated
+                        type: integer
+                      updated_at:
+                        description: The last update timestamp of the experiment
+                        format: date-time
+                        type: string
+                    type: object
+                type: object
+          description: Experiment retrieved successfully
+        404:
+          description: Dataset or DatasetVersion not found
+      summary: Create an experiment using a dataset
+      tags:
+      - experiments
   /v1/datasets/{id}:
     get:
       operationId: getDatasetById
@@ -457,6 +533,267 @@ paths:
       summary: Add evaluations to a span, trace, or document
       tags:
       - private
+  /v1/experiment_evaluations:
+    post:
+      operationId: upsertExperimentEvaluation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                annotator_kind:
+                  description: The kind of annotator used for the evaluation
+                  type: string
+                end_time:
+                  description: The end time of the evaluation in ISO format
+                  format: date-time
+                  type: string
+                error:
+                  description: Optional error message if the evaluation encountered
+                    an error
+                  type: string
+                experiment_run_id:
+                  description: The ID of the experiment run being evaluated
+                  type: string
+                metadata:
+                  additionalProperties:
+                    type: string
+                  description: Metadata for the evaluation
+                  type: object
+                name:
+                  description: The name of the evaluation
+                  type: string
+                result:
+                  description: The result of the evaluation
+                  properties:
+                    explanation:
+                      description: Explanation of the evaluation result
+                      type: string
+                    label:
+                      description: The label assigned by the evaluation
+                      type: string
+                    score:
+                      description: The score assigned by the evaluation
+                      format: float
+                      type: number
+                  type: object
+                start_time:
+                  description: The start time of the evaluation in ISO format
+                  format: date-time
+                  type: string
+                trace_id:
+                  description: Optional trace ID for tracking
+                  type: string
+              required:
+              - experiment_run_id
+              - name
+              - annotator_kind
+              - start_time
+              - end_time
+              type: object
+        description: Details of the experiment evaluation to be upserted
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    properties:
+                      id:
+                        description: The ID of the upserted experiment evaluation
+                        type: string
+                    type: object
+                type: object
+          description: Experiment evaluation upserted successfully
+        404:
+          description: ExperimentRun not found
+      summary: Create an evaluation for a specific experiment run
+      tags:
+      - experiments
+  /v1/experiments/{experiment_id}:
+    get:
+      operationId: getExperiment
+      parameters:
+      - description: The ID of the experiment to retrieve
+        in: path
+        name: experiment_id
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    properties:
+                      created_at:
+                        description: The creation timestamp of the experiment
+                        format: date-time
+                        type: string
+                      dataset_id:
+                        description: The ID of the dataset associated with the experiment
+                        type: string
+                      dataset_version_id:
+                        description: The ID of the dataset version associated with
+                          the experiment
+                        type: string
+                      id:
+                        description: The ID of the experiment
+                        type: string
+                      metadata:
+                        additionalProperties:
+                          type: string
+                        description: Metadata of the experiment
+                        type: object
+                      project_name:
+                        description: The name of the project associated with the experiment
+                        type: string
+                      repetitions:
+                        description: Number of times the experiment is repeated
+                        type: integer
+                      updated_at:
+                        description: The last update timestamp of the experiment
+                        format: date-time
+                        type: string
+                    type: object
+                type: object
+          description: Experiment retrieved successfully
+        404:
+          description: Experiment not found
+      summary: Get details of a specific experiment
+      tags:
+      - experiments
+  /v1/experiments/{experiment_id}/runs:
+    get:
+      operationId: listExperimentRuns
+      parameters:
+      - description: The ID of the experiment to list runs for
+        in: path
+        name: experiment_id
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    items:
+                      properties:
+                        dataset_example_id:
+                          description: The ID of the dataset example
+                          type: string
+                        end_time:
+                          description: The end time of the experiment run in ISO format
+                          format: date-time
+                          type: string
+                        error:
+                          description: Error message if the experiment run encountered
+                            an error
+                          type: string
+                        experiment_id:
+                          description: The ID of the experiment
+                          type: string
+                        id:
+                          description: The ID of the experiment run
+                          type: string
+                        output:
+                          description: The output of the experiment run
+                          type: object
+                        repetition_number:
+                          description: The repetition number of the experiment run
+                          type: integer
+                        start_time:
+                          description: The start time of the experiment run in ISO
+                            format
+                          format: date-time
+                          type: string
+                        trace_id:
+                          description: Optional trace ID for tracking
+                          type: string
+                      type: object
+                    type: array
+                type: object
+          description: Experiment runs retrieved successfully
+        404:
+          description: Experiment not found
+      summary: List all runs for a specific experiment
+      tags:
+      - experiments
+    post:
+      operationId: createExperimentRun
+      parameters:
+      - description: The ID of the experiment for which the run is being created
+        in: path
+        name: experiment_id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                dataset_example_id:
+                  description: The ID of the dataset example used in the experiment
+                    run
+                  type: string
+                end_time:
+                  description: The end time of the experiment run in ISO format
+                  format: date-time
+                  type: string
+                error:
+                  description: Optional error message if the experiment run encountered
+                    an error
+                  nullable: true
+                  type: string
+                output:
+                  description: The output of the experiment run
+                  type: string
+                repetition_number:
+                  description: The repetition number of the experiment run
+                  type: integer
+                start_time:
+                  description: The start time of the experiment run in ISO format
+                  format: date-time
+                  type: string
+                trace_id:
+                  description: Optional trace ID for tracking
+                  type: string
+              required:
+              - dataset_example_id
+              - output
+              - repetition_number
+              - start_time
+              - end_time
+              type: object
+        description: Details of the experiment run to be created
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    properties:
+                      id:
+                        description: The ID of the created experiment run
+                        type: string
+                    type: object
+                type: object
+          description: Experiment run created successfully
+        404:
+          description: Experiment or DatasetExample not found
+      summary: Create a new experiment run for a specific experiment
+      tags:
+      - experiments
   /v1/spans:
     post:
       operationId: querySpans

@@ -25,6 +25,80 @@ def _generate_experiment_name(dataset_name: str) -> str:
 
 
 async def create_experiment(request: Request) -> Response:
+    """
+    summary: Create an experiment using a dataset
+    operationId: createExperiment
+    tags:
+      - experiments
+    parameters:
+      - in: path
+        name: dataset_id
+        required: true
+        description: The ID of the dataset to create an experiment for
+        schema:
+          type: string
+    requestBody:
+      description: Details of the experiment to be created
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              repetitions:
+                type: integer
+                description: Number of times the experiment should be repeated for each example
+                default: 1
+              metadata:
+                type: object
+                description: Metadata for the experiment
+                additionalProperties:
+                  type: string
+              version_id:
+                type: string
+                description: ID of the dataset version to use
+    responses:
+      200:
+        description: Experiment retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      description: The ID of the experiment
+                    dataset_id:
+                      type: string
+                      description: The ID of the dataset associated with the experiment
+                    dataset_version_id:
+                      type: string
+                      description: The ID of the dataset version associated with the experiment
+                    repetitions:
+                      type: integer
+                      description: Number of times the experiment is repeated
+                    metadata:
+                      type: object
+                      description: Metadata of the experiment
+                      additionalProperties:
+                        type: string
+                    project_name:
+                      type: string
+                      description: The name of the project associated with the experiment
+                    created_at:
+                      type: string
+                      format: date-time
+                      description: The creation timestamp of the experiment
+                    updated_at:
+                      type: string
+                      format: date-time
+                      description: The last update timestamp of the experiment
+      404:
+        description: Dataset or DatasetVersion not found
+    """
     dataset_globalid = GlobalID.from_id(request.path_params["dataset_id"])
     try:
         dataset_id = from_global_id_with_expected_type(dataset_globalid, "Dataset")
@@ -139,6 +213,60 @@ async def create_experiment(request: Request) -> Response:
 
 
 async def read_experiment(request: Request) -> Response:
+    """
+    summary: Get details of a specific experiment
+    operationId: getExperiment
+    tags:
+      - experiments
+    parameters:
+      - in: path
+        name: experiment_id
+        required: true
+        description: The ID of the experiment to retrieve
+        schema:
+          type: string
+    responses:
+      200:
+        description: Experiment retrieved successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      description: The ID of the experiment
+                    dataset_id:
+                      type: string
+                      description: The ID of the dataset associated with the experiment
+                    dataset_version_id:
+                      type: string
+                      description: The ID of the dataset version associated with the experiment
+                    repetitions:
+                      type: integer
+                      description: Number of times the experiment is repeated
+                    metadata:
+                      type: object
+                      description: Metadata of the experiment
+                      additionalProperties:
+                        type: string
+                    project_name:
+                      type: string
+                      description: The name of the project associated with the experiment
+                    created_at:
+                      type: string
+                      format: date-time
+                      description: The creation timestamp of the experiment
+                    updated_at:
+                      type: string
+                      format: date-time
+                      description: The last update timestamp of the experiment
+      404:
+        description: Experiment not found
+    """
     experiment_globalid = GlobalID.from_id(request.path_params["experiment_id"])
     try:
         experiment_id = from_global_id_with_expected_type(experiment_globalid, "Experiment")
