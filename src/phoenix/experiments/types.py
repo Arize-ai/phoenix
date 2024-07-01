@@ -109,7 +109,9 @@ class Example:
                 ensure_ascii=False,
                 sort_keys=True,
                 indent=len(spaces),
-            ).replace("\n", f"\n{spaces}")
+            )
+            .replace("\n", f"\n{spaces}")
+            .replace(' "..."\n', " ...\n")
             + ","
             for k in ("input", "output", "metadata")
             if (v := getattr(self, k, None))
@@ -462,7 +464,7 @@ class TaskSummary(_HasStats):
         n_runs = len(df)
         n_errors = 0 if df.empty else df.loc[:, "error"].astype(bool).sum()
         record = {
-            "n_ex": params.count,
+            "n_examples": params.count,
             "n_runs": n_runs,
             "n_errors": n_errors,
             **(dict(top_error=_top_string(df.loc[:, "error"])) if n_errors else {}),
@@ -587,17 +589,11 @@ class RanExperiment(Experiment):
         eval_summary: EvaluationSummary,
         *eval_runs: Optional[ExperimentEvaluationRun],
     ) -> "RanExperiment":
-        eval_runs = (*self.eval_runs, *filter(bool, eval_runs))
-        eval_summaries = (*self.eval_summaries, eval_summary)
-        ran_experiment: RanExperiment = object.__new__(RanExperiment)
-        ran_experiment.__init__(  # type: ignore[misc]
-            **{
-                **_asdict(self),
-                "eval_runs": eval_runs,
-                "eval_summaries": eval_summaries,
-            }
+        return _replace(
+            self,
+            eval_runs=(*self.eval_runs, *filter(bool, eval_runs)),
+            eval_summaries=(*self.eval_summaries, eval_summary),
         )
-        return ran_experiment
 
     def __str__(self) -> str:
         summaries = (*reversed(self.eval_summaries), self.task_summary)
@@ -605,8 +601,6 @@ class RanExperiment(Experiment):
             "\n"
             + ("" if self.id.startswith(DRY_RUN) else f"{self.info}\n\n")
             + "\n\n".join(map(str, summaries))
-            + "\n\nFootnotes"
-            + "\n1. n_ex = number of examples\n"
         )
 
     @classmethod
