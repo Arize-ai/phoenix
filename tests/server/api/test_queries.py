@@ -7,6 +7,42 @@ from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
 
+async def test_projects_omits_experiment_projects(
+    test_client, projects_with_and_without_experiments
+):
+    query = """
+      query {
+        projects {
+          edges {
+            project: node {
+              id
+              name
+            }
+          }
+        }
+      }
+    """
+    response = await test_client.post(
+        "/graphql",
+        json={"query": query},
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json.get("errors") is None
+    assert response_json["data"] == {
+        "projects": {
+            "edges": [
+                {
+                    "project": {
+                        "id": str(GlobalID("Project", str(1))),
+                        "name": "non-experiment-project-name",
+                    }
+                }
+            ]
+        }
+    }
+
+
 async def test_compare_experiments_returns_expected_comparisons(
     test_client, comparison_experiments
 ):
@@ -134,6 +170,51 @@ async def test_compare_experiments_returns_expected_comparisons(
             },
         ]
     }
+
+
+@pytest.fixture
+async def projects_with_and_without_experiments(session):
+    """
+    Insert two projects, one that contains traces from an experiment and the other that does not.
+    """
+    await session.scalar(
+        insert(models.Project)
+        .returning(models.Project.id)
+        .values(
+            name="non-experiment-project-name",
+            description="non-experiment-project-description",
+        )
+    )
+    await session.scalar(
+        insert(models.Project)
+        .returning(models.Project.id)
+        .values(
+            name="experiment-project-name",
+            description="experiment-project-description",
+        )
+    )
+    dataset_id = await session.scalar(
+        insert(models.Dataset)
+        .returning(models.Dataset.id)
+        .values(name="dataset-name", metadata_={})
+    )
+    version_id = await session.scalar(
+        insert(models.DatasetVersion)
+        .returning(models.DatasetVersion.id)
+        .values(dataset_id=dataset_id, metadata_={})
+    )
+    await session.scalar(
+        insert(models.Experiment)
+        .returning(models.Experiment.id)
+        .values(
+            dataset_id=dataset_id,
+            dataset_version_id=version_id,
+            name="experiment-name",
+            repetitions=1,
+            metadata_={},
+            project_name="experiment-project-name",
+        )
+    )
 
 
 @pytest.fixture
