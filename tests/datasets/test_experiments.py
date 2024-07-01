@@ -34,15 +34,15 @@ async def test_run_experiment(_, session, test_phoenix_clients, simple_dataset):
     test_dataset = Dataset(
         id=str(GlobalID("Dataset", "0")),
         version_id=str(GlobalID("DatasetVersion", "0")),
-        examples=[
-            Example(
-                id=str(GlobalID("DatasetExample", "0")),
+        examples={
+            (id_ := str(GlobalID("DatasetExample", "0"))): Example(
+                id=id_,
                 input={"input": "fancy input 1"},
                 output={},
                 metadata={},
                 updated_at=datetime.now(timezone.utc),
             )
-        ],
+        },
     )
 
     with patch("phoenix.experiments.functions._phoenix_clients", return_value=test_phoenix_clients):
@@ -113,15 +113,15 @@ async def test_run_experiment_with_llm_eval(_, session, test_phoenix_clients, si
     test_dataset = Dataset(
         id=str(GlobalID("Dataset", "0")),
         version_id=str(GlobalID("DatasetVersion", "0")),
-        examples=[
-            Example(
-                id=str(GlobalID("DatasetExample", "0")),
+        examples={
+            (id_ := str(GlobalID("DatasetExample", "0"))): Example(
+                id=id_,
                 input={"input": "fancy input 1"},
                 output={},
                 metadata={},
                 updated_at=datetime.now(timezone.utc),
             )
-        ],
+        },
     )
 
     class PostitiveFakeLLMModel:

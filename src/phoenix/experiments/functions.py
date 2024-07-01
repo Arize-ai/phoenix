@@ -22,6 +22,7 @@ from urllib.parse import urljoin
 
 import httpx
 import opentelemetry.sdk.trace as trace_sdk
+import pandas as pd
 from openinference.semconv.resource import ResourceAttributes
 from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
@@ -59,12 +60,12 @@ from phoenix.experiments.types import (
     ExperimentParameters,
     ExperimentResult,
     ExperimentRun,
-    ExperimentRunId,
     ExperimentTask,
     RanExperiment,
     TaskSummary,
     TestCase,
     _asdict,
+    _replace,
 )
 from phoenix.experiments.utils import get_dataset_experiments_url, get_experiment_url
 from phoenix.trace.attributes import flatten
@@ -92,13 +93,13 @@ Evaluators: TypeAlias = Union[
 def run_experiment(
     dataset: Dataset,
     task: ExperimentTask,
+    evaluators: Optional[Evaluators] = None,
     *,
     experiment_name: Optional[str] = None,
     experiment_description: Optional[str] = None,
     experiment_metadata: Optional[Mapping[str, Any]] = None,
-    evaluators: Optional[Evaluators] = None,
     rate_limit_errors: Optional[Union[Type[BaseException], Tuple[Type[BaseException], ...]]] = None,
-    dry_run: bool = False,
+    dry_run: Union[bool, int] = False,
     print_summary: bool = True,
 ) -> RanExperiment:
     if not dataset.examples:
@@ -147,9 +148,14 @@ def run_experiment(
 
     print("🧪 Experiment started.")
     if dry_run:
-        max_sample_size = 3
-        print(f"🧊 This is a dry run (first {max_sample_size} examples).")
-        examples = dataset.examples[:max_sample_size]
+        examples = {
+            (ex := dataset[i]).id: ex
+            for i in pd.Series(range(len(dataset)))
+            .sample(min(len(dataset), int(dry_run)), random_state=42)
+            .sort_values()
+        }
+        id_selection = "\n".join(examples)
+        print(f"🌵️ This is a dry-run for these example IDs:\n{id_selection}")
         dataset = replace(dataset, examples=examples)
     else:
         dataset_experiments_url = get_dataset_experiments_url(dataset_id=dataset.id)
@@ -192,6 +198,7 @@ def run_experiment(
                 span.record_exception(exc)
                 status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
+            output = jsonify(output)
             span.set_attribute(INPUT_VALUE, json.dumps(example.input, ensure_ascii=False))
             span.set_attribute(INPUT_MIME_TYPE, JSON.value)
             if result := ExperimentResult(result=output) if output is not None else None:
@@ -246,6 +253,7 @@ def run_experiment(
                 span.record_exception(exc)
                 status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
+            output = jsonify(output)
             span.set_attribute(INPUT_VALUE, json.dumps(example.input, ensure_ascii=False))
             span.set_attribute(INPUT_MIME_TYPE, JSON.value)
             if result := ExperimentResult(result=output) if output is not None else None:
@@ -296,8 +304,8 @@ def run_experiment(
     )
 
     test_cases = [
-        TestCase(example=ex, repetition_number=rep)
-        for ex, rep in product(dataset.examples, range(1, repetitions + 1))
+        TestCase(example=deepcopy(ex), repetition_number=rep)
+        for ex, rep in product(dataset.examples.values(), range(1, repetitions + 1))
     ]
     task_runs, _execution_details = executor.run(test_cases)
     print("✅ Task runs completed.")
@@ -307,7 +315,7 @@ def run_experiment(
     ran_experiment.__init__(  # type: ignore[misc]
         params=params,
         dataset=dataset,
-        runs=task_runs,
+        runs={r.id: r for r in task_runs},
         task_summary=task_summary,
         **_asdict(experiment),
     )
@@ -327,9 +335,11 @@ def evaluate_experiment(
     experiment: Experiment,
     evaluators: Evaluators,
     *,
-    dry_run: bool = False,
+    dry_run: Union[bool, int] = False,
     print_summary: bool = True,
 ) -> RanExperiment:
+    if not dry_run and _is_dry_run(experiment):
+        dry_run = True
     evaluators_by_name = _evaluators_by_name(evaluators)
     if not evaluators_by_name:
         raise ValueError("Must specify at least one Evaluator")
@@ -349,7 +359,7 @@ def evaluate_experiment(
             raise ValueError(f"Dataset has no examples: {dataset_id=}, {dataset_version_id=}")
         experiment_runs = tuple(
             ExperimentRun.from_dict(exp_run)
-            for exp_run in sync_client.get(f"/v1/experiments/{experiment.id}/runs").json()
+            for exp_run in sync_client.get(f"/v1/experiments/{experiment.id}/runs").json()["data"]
         )
         if not experiment_runs:
             raise ValueError("Experiment has not been run")
@@ -364,15 +374,25 @@ def evaluate_experiment(
             **_asdict(experiment),
         )
     print("🧠 Evaluation started.")
-    # not all dataset examples have associated experiment runs, so we need to pair them up
+    examples = ran_experiment.dataset.examples
     if dry_run:
-        max_sample_size = 3
-        print(f"🧊 This is a dry run (first {max_sample_size} examples).")
-        ran_experiment = _as_dry_run(ran_experiment, max_sample_size)
+        if not _is_dry_run(ran_experiment):
+            dataset = ran_experiment.dataset
+            examples = {
+                (ex := dataset[i]).id: ex
+                for i in pd.Series(range(len(dataset)))
+                .sample(min(len(dataset), int(dry_run)), random_state=42)
+                .sort_values()
+            }
+            dataset = replace(ran_experiment.dataset, examples=examples)
+            ran_experiment = _replace(ran_experiment, id=DRY_RUN, dataset=dataset)
+        id_selection = "\n".join(examples)
+        print(f"🌵️ This is a dry-run for these example IDs:\n{id_selection}")
+    # not all dataset examples have associated experiment runs, so we need to pair them up
     example_run_pairs = []
-    examples_by_id = {example.id: example for example in ran_experiment.dataset.examples}
-    for exp_run in ran_experiment.runs:
-        example = examples_by_id.get(exp_run.dataset_example_id)
+    examples = ran_experiment.dataset.examples
+    for exp_run in ran_experiment.runs.values():
+        example = examples.get(exp_run.dataset_example_id)
         if example:
             example_run_pairs.append((deepcopy(example), exp_run))
     evaluation_input = [
@@ -399,6 +419,7 @@ def evaluate_experiment(
             try:
                 result = evaluator.evaluate(
                     output=None if experiment_run.output is None else experiment_run.output.result,
+                    result=experiment_run.result,
                     expected=example.output,
                     input=example.input,
                     metadata=example.metadata,
@@ -413,7 +434,7 @@ def evaluate_experiment(
             span.set_status(status)
 
         eval_run = ExperimentEvaluationRun(
-            experiment_run_id=cast(ExperimentRunId, experiment_run.id),
+            experiment_run_id=experiment_run.id,
             start_time=_decode_unix_nano(cast(int, span.start_time)),
             end_time=_decode_unix_nano(cast(int, span.end_time)),
             name=evaluator.name,
@@ -444,6 +465,7 @@ def evaluate_experiment(
             try:
                 result = await evaluator.async_evaluate(
                     output=None if experiment_run.output is None else experiment_run.output.result,
+                    result=experiment_run.result,
                     expected=example.output,
                     input=example.input,
                     metadata=example.metadata,
@@ -458,7 +480,7 @@ def evaluate_experiment(
             span.set_status(status)
 
         eval_run = ExperimentEvaluationRun(
-            experiment_run_id=cast(ExperimentRunId, experiment_run.id),
+            experiment_run_id=experiment_run.id,
             start_time=_decode_unix_nano(cast(int, span.start_time)),
             end_time=_decode_unix_nano(cast(int, span.end_time)),
             name=evaluator.name,
@@ -487,9 +509,9 @@ def evaluate_experiment(
             eval_names=frozenset(evaluators_by_name),
             exp_params=ran_experiment.params,
         ),
-        eval_runs,
+        *eval_runs,
     )
-    ran_experiment = ran_experiment.add(eval_summary)
+    ran_experiment = ran_experiment.add(eval_summary, *eval_runs)
     if print_summary:
         print(ran_experiment)
     return ran_experiment
@@ -557,23 +579,8 @@ def _get_task_name(task: ExperimentTask) -> str:
     return str(task)
 
 
-def _as_dry_run(obj: RanExperiment, max_sample_size: int = 3) -> RanExperiment:
-    ran_experiment = object.__new__(RanExperiment)
-    if obj.id == DRY_RUN:
-        ran_experiment.__init__(  # type: ignore[misc]
-            **_asdict(obj),
-        )
-    else:
-        dataset = obj.dataset
-        examples = dataset.examples[:max_sample_size]
-        ran_experiment.__init__(  # type: ignore[misc]
-            **{
-                **_asdict(obj),
-                "dataset": replace(dataset, examples=examples),
-                "id": DRY_RUN,
-            }
-        )
-    return ran_experiment
+def _is_dry_run(obj: Any) -> bool:
+    return hasattr(obj, "id") and isinstance(obj.id, str) and obj.id.startswith(DRY_RUN)
 
 
 class _NoOpProcessor(trace_sdk.SpanProcessor):

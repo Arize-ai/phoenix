@@ -93,4 +93,4 @@ async def list_experiment_runs(request: Request) -> Response:
                     trace_id=exp_run.trace_id,
                 )
             )
-    return JSONResponse(content=jsonify(runs), status_code=200)
+    return JSONResponse({"data": jsonify(runs)})

@@ -289,7 +289,7 @@ def test_get_dataset_returns_expected_dataset(
     assert dataset.id == dataset_id
     assert dataset.version_id == str(GlobalID("DatasetVersion", str(1)))
     assert dataset.examples
-    example = dataset.examples[0]
+    example = next(iter(dataset.examples.values()), None)
     assert example.id == str(GlobalID("DatasetExample", str(1)))
     assert example.input == {"input": "input"}
     assert example.output == {"output": "output"}

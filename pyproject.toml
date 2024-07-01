@@ -93,7 +93,10 @@ dev = [
 evals = []
 experimental = []
 llama-index = [
-  "llama-index==0.10.44",  # always pin to a version that keeps our notebooks working
+  "llama-index==0.10.51",  # always pin to a version that keeps our notebooks working
+  "llama-index-readers-file",
+  "llama-index-llms-openai",
+  "llama-index-embeddings-openai",
 ]
 pg = [
   "asyncpg",

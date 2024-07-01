@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import json
+import textwrap
 from collections import Counter
-from copy import deepcopy
+from copy import copy, deepcopy
 from dataclasses import dataclass, field, fields
 from datetime import datetime
 from enum import Enum
+from functools import cached_property
 from importlib.metadata import version
+from random import getrandbits
 from typing import (
     Any,
     Awaitable,
@@ -13,17 +17,20 @@ from typing import (
     Dict,
     FrozenSet,
     Iterable,
+    Iterator,
     List,
     Mapping,
     Optional,
-    Sequence,
     Tuple,
+    TypeVar,
     Union,
     cast,
+    overload,
 )
 
 import pandas as pd
 from typing_extensions import TypeAlias
+from wrapt import ObjectProxy
 
 from phoenix.datetime_utils import local_now
 from phoenix.experiments.utils import get_experiment_url
@@ -49,20 +56,36 @@ ExampleOutput: TypeAlias = Mapping[str, JSONSerializable]
 ExampleMetadata: TypeAlias = Mapping[str, JSONSerializable]
 ExampleInput: TypeAlias = Mapping[str, JSONSerializable]
 
+Score: TypeAlias = Optional[Union[bool, int, float]]
+Label: TypeAlias = Optional[str]
+Explanation: TypeAlias = Optional[str]
+
 EvaluatorName: TypeAlias = str
 EvaluatorKind: TypeAlias = str
-EvaluatorOutput: TypeAlias = Union["EvaluationResult", bool, int, float, str]
+EvaluatorOutput: TypeAlias = Union[
+    "EvaluationResult", bool, int, float, str, Tuple[Score, Label, Explanation]
+]
 
 DRY_RUN: ExperimentId = "DRY_RUN"
+
+
+def _dry_run_id() -> str:
+    suffix = getrandbits(24).to_bytes(3, "big").hex()
+    return f"{DRY_RUN}_{suffix}"
 
 
 @dataclass(frozen=True)
 class Example:
     id: ExampleId
     updated_at: datetime
-    input: Mapping[str, JSONSerializable]
-    output: Mapping[str, JSONSerializable]
+    input: Mapping[str, JSONSerializable] = field(default_factory=dict)
+    output: Mapping[str, JSONSerializable] = field(default_factory=dict)
     metadata: Mapping[str, JSONSerializable] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "input", _make_read_only(self.input))
+        object.__setattr__(self, "output", _make_read_only(self.output))
+        object.__setattr__(self, "metadata", _make_read_only(self.metadata))
 
     @classmethod
     def from_dict(cls, obj: Mapping[str, Any]) -> Example:
@@ -74,15 +97,56 @@ class Example:
             updated_at=obj["updated_at"],
         )
 
+    def __repr__(self) -> str:
+        spaces = " " * 4
+        name = self.__class__.__name__
+        identifiers = [f'{spaces}id="{self.id}",']
+        contents = [
+            spaces
+            + f"{k}="
+            + json.dumps(
+                _shorten(v),
+                ensure_ascii=False,
+                sort_keys=True,
+                indent=len(spaces),
+            ).replace("\n", f"\n{spaces}")
+            + ","
+            for k in ("input", "output", "metadata")
+            if (v := getattr(self, k, None))
+        ]
+        return "\n".join([f"{name}(", *identifiers, *contents, ")"])
+
 
 @dataclass(frozen=True)
 class Dataset:
     id: DatasetId
     version_id: DatasetVersionId
-    examples: Sequence[Example]
+    examples: Mapping[ExampleId, Example] = field(repr=False, default_factory=dict)
 
-    def as_dataframe(self) -> pd.DataFrame:
-        return pd.DataFrame.from_records(
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "examples", _ReadOnly(self.examples))
+
+    def __len__(self) -> int:
+        return len(self.examples)
+
+    def __iter__(self) -> Iterator[Example]:
+        return iter(self.examples.values())
+
+    @cached_property
+    def _keys(self) -> Tuple[str, ...]:
+        return tuple(self.examples.keys())
+
+    @overload
+    def __getitem__(self, key: int) -> Example: ...
+    @overload
+    def __getitem__(self, key: slice) -> List[Example]: ...
+    def __getitem__(self, key: Union[int, slice]) -> Union[Example, List[Example]]:
+        if isinstance(key, int):
+            return self.examples[self._keys[key]]
+        return [self.examples[k] for k in self._keys[key]]
+
+    def as_dataframe(self, drop_empty_columns: bool = True) -> pd.DataFrame:
+        df = pd.DataFrame.from_records(
             [
                 {
                     "example_id": example.id,
@@ -90,9 +154,12 @@ class Dataset:
                     "output": deepcopy(example.output),
                     "metadata": deepcopy(example.metadata),
                 }
-                for example in self.examples
+                for example in self.examples.values()
             ]
         ).set_index("example_id")
+        if drop_empty_columns:
+            return df.reindex([k for k, v in df.items() if v.astype(bool).any()], axis=1)
+        return df
 
     @classmethod
     def from_dict(cls, obj: Mapping[str, Any]) -> Dataset:
@@ -100,7 +167,7 @@ class Dataset:
         return cls(
             id=obj["id"],
             version_id=obj["version_id"],
-            examples=examples,
+            examples={ex.id: ex for ex in examples},
         )
 
 
@@ -116,7 +183,7 @@ class Experiment:
     dataset_id: DatasetId
     dataset_version_id: DatasetVersionId
     repetitions: int
-    project_name: str
+    project_name: str = field(repr=False)
 
     @classmethod
     def from_dict(cls, obj: Mapping[str, Any]) -> Experiment:
@@ -132,6 +199,9 @@ class Experiment:
 @dataclass(frozen=True)
 class ExperimentResult:
     result: TaskOutput
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "result", _make_read_only(self.result))
 
     @classmethod
     def from_dict(cls, obj: Optional[Mapping[str, Any]]) -> Optional[ExperimentResult]:
@@ -149,8 +219,12 @@ class ExperimentRun:
     repetition_number: RepetitionNumber
     output: Optional[ExperimentResult] = None
     error: Optional[str] = None
-    id: Optional[ExperimentRunId] = None
+    id: ExperimentRunId = field(default_factory=_dry_run_id)
     trace_id: Optional[TraceId] = None
+
+    @property
+    def result(self) -> Optional[TaskOutput]:
+        return deepcopy(self.output.result) if self.output else None
 
     @classmethod
     def from_dict(cls, obj: Mapping[str, Any]) -> ExperimentRun:
@@ -162,7 +236,7 @@ class ExperimentRun:
             repetition_number=obj.get("repetition_number") or 1,
             output=ExperimentResult.from_dict(obj["output"]),
             error=obj.get("error"),
-            id=obj.get("id"),
+            id=obj["id"],
             trace_id=obj.get("trace_id"),
         )
 
@@ -190,8 +264,13 @@ class EvaluationResult:
         )
 
     def __post_init__(self) -> None:
-        if self.score is None and not self.label and not self.explanation:
-            ValueError("Must specify one of score, label, or explanation")
+        if self.score is None and not self.label:
+            ValueError("Must specify score or label, or both")
+        if self.score is None and not self.label:
+            object.__setattr__(self, "score", 0)
+        for k in ("label", "explanation"):
+            if (v := getattr(self, k, None)) is not None:
+                object.__setattr__(self, k, str(v) or None)
 
 
 @dataclass(frozen=True)
@@ -203,7 +282,7 @@ class ExperimentEvaluationRun:
     annotator_kind: str
     error: Optional[str] = None
     result: Optional[EvaluationResult] = None
-    id: Optional[str] = None
+    id: str = field(default_factory=_dry_run_id)
     trace_id: Optional[TraceId] = None
 
     @classmethod
@@ -216,7 +295,7 @@ class ExperimentEvaluationRun:
             annotator_kind=obj["annotator_kind"],
             error=obj.get("error"),
             result=EvaluationResult.from_dict(obj.get("result")),
-            id=obj.get("id"),
+            id=obj["id"],
             trace_id=obj.get("trace_id"),
         )
 
@@ -283,7 +362,7 @@ class EvaluationSummary(_HasStats):
     def from_eval_runs(
         cls,
         params: EvaluationParameters,
-        eval_runs: Iterable[Optional[ExperimentEvaluationRun]],
+        *eval_runs: Optional[ExperimentEvaluationRun],
     ) -> EvaluationSummary:
         df = pd.DataFrame.from_records(
             [
@@ -307,7 +386,7 @@ class EvaluationSummary(_HasStats):
         has_error = bool(df.loc[:, "error"].astype(bool).sum())
         has_score = bool(df.loc[:, "score"].dropna().count())
         has_label = bool(df.loc[:, "label"].astype(bool).sum())
-        stats = df.groupby("evaluator").agg(
+        agg = {
             **(
                 dict(n_errors=("error", "count"), top_error=("error", _top_string))
                 if has_error
@@ -325,7 +404,12 @@ class EvaluationSummary(_HasStats):
                 if has_label
                 else {}
             ),
-        )  # type: ignore[call-overload]
+        }
+        stats = (
+            df.groupby("evaluator").agg(**agg)  # type: ignore[call-overload]
+            if agg
+            else pd.DataFrame()
+        )
         sorted_eval_names = sorted(params.eval_names)
         eval_names = pd.DataFrame(
             {
@@ -378,7 +462,7 @@ class TaskSummary(_HasStats):
         n_runs = len(df)
         n_errors = 0 if df.empty else df.loc[:, "error"].astype(bool).sum()
         record = {
-            "n": params.count,
+            "n_ex": params.count,
             "n_runs": n_runs,
             "n_errors": n_errors,
             **(dict(top_error=_top_string(df.loc[:, "error"])) if n_errors else {}),
@@ -415,7 +499,8 @@ class RanExperiment(Experiment):
 
     params: ExperimentParameters = field(repr=False)
     dataset: Dataset = field(repr=False)
-    runs: Sequence[ExperimentRun] = field(repr=False)
+    runs: Mapping[ExperimentRunId, ExperimentRun] = field(repr=False)
+    eval_runs: Tuple[ExperimentEvaluationRun, ...] = field(repr=False, default=())
     task_summary: TaskSummary = field(repr=False)
     eval_summaries: Tuple[EvaluationSummary, ...] = field(repr=False, default=())
 
@@ -427,20 +512,101 @@ class RanExperiment(Experiment):
     def info(self) -> str:
         return f"🔗 View this experiment: {self.url}"
 
-    def add(self, eval_summary: EvaluationSummary) -> "RanExperiment":
-        eval_summaries = (eval_summary, *self.eval_summaries)
+    def __post_init__(self) -> None:
+        runs = {
+            id_: (
+                _ExperimentRunWithExample(run, example)
+                if (example := self.dataset.examples.get(run.dataset_example_id))
+                else run
+            )
+            for id_, run in self.runs.items()
+        }
+        object.__setattr__(self, "runs", runs)
+
+    def __len__(self) -> int:
+        return len(self.runs)
+
+    def __iter__(self) -> Iterator[ExperimentRun]:
+        return iter(self.runs.values())
+
+    @cached_property
+    def _keys(self) -> Tuple[str, ...]:
+        return tuple(self.runs.keys())
+
+    @overload
+    def __getitem__(self, key: int) -> ExperimentRun: ...
+    @overload
+    def __getitem__(self, key: slice) -> List[ExperimentRun]: ...
+    def __getitem__(self, key: Union[int, slice]) -> Union[ExperimentRun, List[ExperimentRun]]:
+        if isinstance(key, int):
+            return self.runs[self._keys[key]]
+        return [self.runs[k] for k in self._keys[key]]
+
+    def get_evaluations(
+        self,
+        drop_empty_columns: bool = True,
+    ) -> pd.DataFrame:
+        df = pd.DataFrame.from_records(
+            [
+                {
+                    "run_id": run.experiment_run_id,
+                    "name": run.name,
+                    "error": run.error,
+                    "score": run.result.score if run.result else None,
+                    "label": run.result.label if run.result else None,
+                    "explanation": run.result.explanation if run.result else None,
+                }
+                for run in self.eval_runs
+            ]
+        ).set_index("run_id")
+        if drop_empty_columns:
+            df = df.reindex([k for k, v in df.items() if v.astype(bool).any()], axis=1)
+        return df.join(self.as_dataframe())
+
+    def as_dataframe(self, drop_empty_columns: bool = True) -> pd.DataFrame:
+        df = pd.DataFrame.from_records(
+            [
+                {
+                    "run_id": run.id,
+                    "error": run.error,
+                    "result": deepcopy(run.output.result) if run.output else None,
+                    "input": deepcopy((ex := self.dataset.examples[run.dataset_example_id]).input),
+                    "expected": deepcopy(ex.output),
+                    "metadata": deepcopy(ex.metadata),
+                    "example_id": run.dataset_example_id,
+                }
+                for run in self.runs.values()
+            ]
+        ).set_index("run_id")
+        if drop_empty_columns:
+            return df.reindex([k for k, v in df.items() if v.astype(bool).any()], axis=1)
+        return df
+
+    def add(
+        self,
+        eval_summary: EvaluationSummary,
+        *eval_runs: Optional[ExperimentEvaluationRun],
+    ) -> "RanExperiment":
+        eval_runs = (*self.eval_runs, *filter(bool, eval_runs))
+        eval_summaries = (*self.eval_summaries, eval_summary)
         ran_experiment: RanExperiment = object.__new__(RanExperiment)
         ran_experiment.__init__(  # type: ignore[misc]
-            **{**_asdict(self), "eval_summaries": eval_summaries}
+            **{
+                **_asdict(self),
+                "eval_runs": eval_runs,
+                "eval_summaries": eval_summaries,
+            }
         )
         return ran_experiment
 
     def __str__(self) -> str:
-        summaries = (*self.eval_summaries, self.task_summary)
+        summaries = (*reversed(self.eval_summaries), self.task_summary)
         return (
             "\n"
-            + ("" if self.id == DRY_RUN else f"{self.info}\n\n")
+            + ("" if self.id.startswith(DRY_RUN) else f"{self.info}\n\n")
             + "\n\n".join(map(str, summaries))
+            + "\n\nFootnotes"
+            + "\n1. n_ex = number of examples\n"
         )
 
     @classmethod
@@ -457,3 +623,100 @@ class RanExperiment(Experiment):
 def _asdict(dc: Any) -> Dict[str, Any]:
     # non-recursive version of `dataclasses.asdict()`
     return {field.name: getattr(dc, field.name) for field in fields(dc)}
+
+
+T = TypeVar("T")
+
+
+def _replace(obj: T, **kwargs: Any) -> T:
+    new_obj = object.__new__(obj.__class__)
+    new_obj.__init__(**{**_asdict(obj), **kwargs})  # type: ignore[misc]
+    return new_obj
+
+
+def _shorten(obj: Any, width: int = 50) -> Any:
+    if isinstance(obj, str):
+        return textwrap.shorten(obj, width=width, placeholder="...")
+    if isinstance(obj, dict):
+        return {k: _shorten(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        if len(obj) > 2:
+            return [_shorten(v) for v in obj[:2]] + ["..."]
+        return [_shorten(v) for v in obj]
+    return obj
+
+
+def _make_read_only(obj: Any) -> Any:
+    if isinstance(obj, dict):
+        return _ReadOnly({k: _make_read_only(v) for k, v in obj.items()})
+    if isinstance(obj, str):
+        return obj
+    if isinstance(obj, list):
+        return _ReadOnly(list(map(_make_read_only, obj)))
+    return obj
+
+
+class _ReadOnly(ObjectProxy):  # type: ignore[misc]
+    def __setitem__(self, *args: Any, **kwargs: Any) -> Any:
+        raise NotImplementedError
+
+    def __delitem__(self, *args: Any, **kwargs: Any) -> Any:
+        raise NotImplementedError
+
+    def __iadd__(self, *args: Any, **kwargs: Any) -> Any:
+        raise NotImplementedError
+
+    def pop(self, *args: Any, **kwargs: Any) -> Any:
+        raise NotImplementedError
+
+    def append(self, *args: Any, **kwargs: Any) -> Any:
+        raise NotImplementedError
+
+    def __copy__(self, *args: Any, **kwargs: Any) -> Any:
+        return copy(self.__wrapped__)
+
+    def __deepcopy__(self, *args: Any, **kwargs: Any) -> Any:
+        return deepcopy(self.__wrapped__)
+
+    def __repr__(self) -> str:
+        return repr(self.__wrapped__)
+
+    def __str__(self) -> str:
+        return str(self.__wrapped__)
+
+
+class _ExperimentRunWithExample(ObjectProxy):  # type: ignore[misc]
+    def __init__(self, wrapped: ExperimentRun, example: Example) -> None:
+        super().__init__(wrapped)
+        self._self_example = example
+
+    @property
+    def expected(self) -> ExampleOutput:
+        return deepcopy(self._self_example.output)
+
+    @property
+    def input(self) -> ExampleInput:
+        return deepcopy(self._self_example.input)
+
+    @property
+    def metadata(self) -> ExampleMetadata:
+        return deepcopy(self._self_example.metadata)
+
+    def __repr__(self) -> str:
+        spaces = " " * 4
+        name = self.__class__.__name__
+        identifiers = [
+            f'{spaces}id="{self.id}",',
+            f'{spaces}example_id="{self.dataset_example_id}",',
+        ]
+        contents = [
+            spaces
+            + f"{k}="
+            + json.dumps(_shorten(v), ensure_ascii=False, sort_keys=True, indent=len(spaces))
+            .replace("\n", f"\n{spaces}")
+            .replace(' "..."\n', " ...\n")
+            + ","
+            for k in ("error", "result", "expected", "input", "metadata")
+            if (v := getattr(self, k, None))
+        ]
+        return "\n".join([f"{name}(", *identifiers, *contents, ")"])
