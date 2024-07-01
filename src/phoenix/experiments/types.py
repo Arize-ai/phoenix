@@ -500,8 +500,8 @@ class RanExperiment(Experiment):
     params: ExperimentParameters = field(repr=False)
     dataset: Dataset = field(repr=False)
     runs: Mapping[ExperimentRunId, ExperimentRun] = field(repr=False)
-    eval_runs: Tuple[ExperimentEvaluationRun, ...] = field(repr=False, default=())
     task_summary: TaskSummary = field(repr=False)
+    eval_runs: Tuple[ExperimentEvaluationRun, ...] = field(repr=False, default=())
     eval_summaries: Tuple[EvaluationSummary, ...] = field(repr=False, default=())
 
     @property
