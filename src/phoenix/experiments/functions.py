@@ -126,7 +126,7 @@ def run_experiment(
             json=payload,
         )
         experiment_response.raise_for_status()
-        exp_json = experiment_response.json()
+        exp_json = experiment_response.json()["data"]
         project_name = exp_json["project_name"]
         experiment = Experiment(
             dataset_id=dataset.id,
@@ -353,7 +353,7 @@ def evaluate_experiment(
             raise ValueError(f"Dataset has no examples: {dataset_id=}, {dataset_version_id=}")
         experiment_runs = tuple(
             ExperimentRun.from_dict(exp_run)
-            for exp_run in sync_client.get(f"/v1/experiments/{experiment.id}/runs").json()
+            for exp_run in sync_client.get(f"/v1/experiments/{experiment.id}/runs").json()["data"]
         )
         if not experiment_runs:
             raise ValueError("Experiment has not been run")
