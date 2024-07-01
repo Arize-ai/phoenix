@@ -16,7 +16,7 @@ async def test_experiments_api(test_client, simple_dataset):
             f"/v1/datasets/{dataset_gid}/experiments",
             json={"version_id": None, "repetitions": 1},
         )
-    ).json()
+    ).json()["data"]
 
     experiment_gid = created_experiment["id"]
     version_gid = created_experiment["dataset_version_id"]
@@ -30,7 +30,7 @@ async def test_experiments_api(test_client, simple_dataset):
     ).json()["data"]["examples"]
 
     # experiments can be read using the GET /experiments route
-    experiment = (await test_client.get(f"/v1/experiments/{experiment_gid}")).json()
+    experiment = (await test_client.get(f"/v1/experiments/{experiment_gid}")).json()["data"]
     assert experiment
     assert created_experiment["repetitions"] == 1
 
@@ -52,7 +52,9 @@ async def test_experiments_api(test_client, simple_dataset):
     ).json()["data"]["id"]
 
     # experiment runs can be listed for evaluations
-    experiment_runs = (await test_client.get(f"/v1/experiments/{experiment_gid}/runs")).json()
+    experiment_runs = (await test_client.get(f"/v1/experiments/{experiment_gid}/runs")).json()[
+        "data"
+    ]
     assert experiment_runs
     assert len(experiment_runs) == 1
 
@@ -102,7 +104,7 @@ async def test_reading_experiments(test_client, dataset_with_experiments_without
     dataset_version_gid = GlobalID("DatasetVersion", "1")
     response = await test_client.get(f"/v1/experiments/{experiment_gid}")
     assert response.status_code == 200
-    experiment = response.json()
+    experiment = response.json()["data"]
     assert "created_at" in experiment
     assert "updated_at" in experiment
     expected = {
