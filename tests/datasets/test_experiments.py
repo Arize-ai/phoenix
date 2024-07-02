@@ -16,8 +16,8 @@ from phoenix.experiments.types import (
     AnnotatorKind,
     Dataset,
     Example,
-    ExperimentResult,
     ExperimentRun,
+    ExperimentRunOutput,
     JSONSerializable,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -104,7 +104,7 @@ async def test_run_experiment(_, session, test_phoenix_clients, simple_dataset):
         )
         assert len(experiment_runs) == 1, "The experiment was configured to have 1 repetition"
         for run in experiment_runs:
-            assert run.output == {"result": {"doesn't matter": "this is the output"}}
+            assert run.output == {"task_output": {"doesn't matter": "this is the output"}}
 
             evaluations = (
                 (
@@ -202,7 +202,7 @@ async def test_run_experiment_with_llm_eval(_, session, test_phoenix_clients, si
         )
         assert len(experiment_runs) == 1, "The experiment was configured to have 1 repetition"
         for run in experiment_runs:
-            assert run.output == {"result": "doesn't matter, this is the output"}
+            assert run.output == {"task_output": "doesn't matter, this is the output"}
 
         for run in experiment_runs:
             evaluations = (
@@ -259,7 +259,7 @@ def test_binding_arguments_to_decorated_evaluators():
         experiment_id="1",
         dataset_example_id="1",
         repetition_number=1,
-        output=ExperimentResult(result=3),
+        experiment_run_output=ExperimentRunOutput(task_output=3),
     )
 
     @create_evaluator()
@@ -304,7 +304,7 @@ def test_binding_arguments_to_decorated_evaluators():
         check_metadata = metadata == {"data": "there's nothing here"}
         return check_input and check_output and check_expected and check_metadata
 
-    output = experiment_run.task_output
+    output = experiment_run.output
     expected, metadata, input = example.output["output"], example.metadata, example.input["input"]
     kwargs = dict(output=output, expected=expected, metadata=metadata, input=input, extra="junk")
     evaluation = can_i_count_this_high.evaluate(**kwargs)

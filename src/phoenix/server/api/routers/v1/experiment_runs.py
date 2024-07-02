@@ -7,7 +7,7 @@ from starlette.status import HTTP_404_NOT_FOUND
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.experiments.types import ExperimentResult, ExperimentRun
+from phoenix.experiments.types import ExperimentRun, ExperimentRunOutput
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.utilities.json import jsonify
 
@@ -39,7 +39,7 @@ async def create_experiment_run(request: Request) -> Response:
               trace_id:
                 type: string
                 description: Optional trace ID for tracking
-              output:
+              experiment_run_output:
                 type: string
                 description: The output of the experiment run
               repetition_number:
@@ -101,7 +101,7 @@ async def create_experiment_run(request: Request) -> Response:
         )
 
     trace_id = payload.get("trace_id", None)
-    output = payload["output"]
+    output = payload["experiment_run_output"]
     repetition_number = payload["repetition_number"]
     start_time = payload["start_time"]
     end_time = payload["end_time"]
@@ -170,7 +170,7 @@ async def list_experiment_runs(request: Request) -> Response:
                         type: string
                         format: date-time
                         description: The end time of the experiment run in ISO format
-                      output:
+                      experiment_run_output:
                         type: object
                         description: The output of the experiment run
                       error:
@@ -211,7 +211,7 @@ async def list_experiment_runs(request: Request) -> Response:
                     experiment_id=str(experiment_gid),
                     dataset_example_id=str(example_gid),
                     repetition_number=exp_run.repetition_number,
-                    output=ExperimentResult.from_dict(exp_run.output) if exp_run.output else None,
+                    experiment_run_output=ExperimentRunOutput.from_dict(exp_run.output),
                     error=exp_run.error,
                     id=str(run_gid),
                     trace_id=exp_run.trace_id,

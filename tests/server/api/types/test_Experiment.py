@@ -520,7 +520,7 @@ async def dataset_with_experiment_runs(session):
         .values(
             experiment_id=experiment_id,
             dataset_example_id=example_id,
-            output={"result": "run-1-output-value"},
+            output={"task_output": "run-1-output-value"},
             repetition_number=1,
             start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
             end_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
@@ -534,7 +534,7 @@ async def dataset_with_experiment_runs(session):
         .values(
             experiment_id=experiment_id,
             dataset_example_id=example_id,
-            output={"result": {"run-2-output-key": "run-2-output-value"}},
+            output={"task_output": {"run-2-output-key": "run-2-output-value"}},
             trace_id="trace-id",
             repetition_number=2,
             start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
@@ -549,7 +549,7 @@ async def dataset_with_experiment_runs(session):
         .values(
             experiment_id=experiment_id,
             dataset_example_id=example_id,
-            output={"result": 12345},
+            output={"task_output": 12345},
             trace_id="non-existent-trace-id",
             repetition_number=3,
             start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),

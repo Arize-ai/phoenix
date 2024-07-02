@@ -379,10 +379,10 @@ async def comparison_experiments(session):
                 {
                     **run,
                     "output": [
-                        {"result": {"output": f"run-{run_index + 1}-output-value"}},
-                        {"result": f"run-{run_index + 1}-output-value"},
-                        {"result": run_index + 1},
-                        {"result": ""},
+                        {"task_output": {"output": f"run-{run_index + 1}-output-value"}},
+                        {"task_output": f"run-{run_index + 1}-output-value"},
+                        {"task_output": run_index + 1},
+                        {"task_output": ""},
                         {},
                     ][run_index % 5],
                 }
