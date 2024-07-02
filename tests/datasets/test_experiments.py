@@ -17,7 +17,6 @@ from phoenix.experiments.types import (
     Dataset,
     Example,
     ExperimentRun,
-    ExperimentRunOutput,
     JSONSerializable,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -263,7 +262,7 @@ def test_binding_arguments_to_decorated_evaluators():
         experiment_id="1",
         dataset_example_id="1",
         repetition_number=1,
-        experiment_run_output=ExperimentRunOutput(task_output=3),
+        output=3,
     )
 
     @create_evaluator()

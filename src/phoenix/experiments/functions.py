@@ -62,7 +62,6 @@ from phoenix.experiments.types import (
     ExperimentEvaluationRun,
     ExperimentParameters,
     ExperimentRun,
-    ExperimentRunOutput,
     ExperimentTask,
     RanExperiment,
     TaskSummary,
@@ -284,7 +283,7 @@ def run_experiment(
             experiment_id=experiment.id,
             dataset_example_id=example.id,
             repetition_number=repetition_number,
-            experiment_run_output=ExperimentRunOutput(task_output=output),
+            output=output,
             error=repr(error) if error else None,
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
@@ -345,7 +344,7 @@ def run_experiment(
             experiment_id=experiment.id,
             dataset_example_id=example.id,
             repetition_number=repetition_number,
-            experiment_run_output=ExperimentRunOutput(task_output=output),
+            output=output,
             error=repr(error) if error else None,
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )

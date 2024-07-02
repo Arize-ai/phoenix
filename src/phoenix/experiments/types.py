@@ -199,34 +199,16 @@ class Experiment:
 
 
 @dataclass(frozen=True)
-class ExperimentRunOutput:
-    task_output: TaskOutput
-
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "task_output", _make_read_only(self.task_output))
-
-    @classmethod
-    def from_dict(cls, obj: Optional[Mapping[str, Any]]) -> ExperimentRunOutput:
-        if not obj:
-            return cls(task_output=None)
-        return cls(task_output=obj["task_output"])
-
-
-@dataclass(frozen=True)
 class ExperimentRun:
     start_time: datetime
     end_time: datetime
     experiment_id: ExperimentId
     dataset_example_id: ExampleId
     repetition_number: RepetitionNumber
-    experiment_run_output: ExperimentRunOutput
+    output: JSONSerializable
     error: Optional[str] = None
     id: ExperimentRunId = field(default_factory=_dry_run_id)
     trace_id: Optional[TraceId] = None
-
-    @property
-    def output(self) -> Optional[TaskOutput]:
-        return deepcopy(self.experiment_run_output.task_output)
 
     @classmethod
     def from_dict(cls, obj: Mapping[str, Any]) -> ExperimentRun:
@@ -236,14 +218,14 @@ class ExperimentRun:
             experiment_id=obj["experiment_id"],
             dataset_example_id=obj["dataset_example_id"],
             repetition_number=obj.get("repetition_number") or 1,
-            experiment_run_output=ExperimentRunOutput.from_dict(obj["experiment_run_output"]),
+            output=obj.get("output"),
             error=obj.get("error"),
             id=obj["id"],
             trace_id=obj.get("trace_id"),
         )
 
     def __post_init__(self) -> None:
-        if bool(self.experiment_run_output) == bool(self.error):
+        if bool(self.output) == bool(self.error):
             ValueError("Must specify exactly one of experiment_run_output or error")
 
 
@@ -571,7 +553,7 @@ class RanExperiment(Experiment):
                 {
                     "run_id": run.id,
                     "error": run.error,
-                    "output": deepcopy(run.experiment_run_output.task_output),
+                    "output": deepcopy(run.output),
                     "input": deepcopy((ex := self.dataset.examples[run.dataset_example_id]).input),
                     "expected": deepcopy(ex.output),
                     "metadata": deepcopy(ex.metadata),
