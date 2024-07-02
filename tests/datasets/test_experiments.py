@@ -47,7 +47,8 @@ async def test_run_experiment(_, session, test_phoenix_clients, simple_dataset):
 
     with patch("phoenix.experiments.functions._phoenix_clients", return_value=test_phoenix_clients):
 
-        def experiment_task(example: Example) -> str:
+        def experiment_task(x: Example) -> str:
+            assert x == {"input": "fancy input 1"}
             return "doesn't matter, this is the output"
 
         experiment = run_experiment(
@@ -144,7 +145,10 @@ async def test_run_experiment_with_llm_eval(_, session, test_phoenix_clients, si
 
     with patch("phoenix.experiments.functions._phoenix_clients", return_value=test_phoenix_clients):
 
-        def experiment_task(input):
+        def experiment_task(input, example, metadata):
+            assert input == {"input": "fancy input 1"}
+            assert metadata == {}
+            assert isinstance(example, Example)
             return "doesn't matter, this is the output"
 
         experiment = run_experiment(

@@ -1,4 +1,5 @@
 import functools
+import inspect
 import json
 from binascii import hexlify
 from contextlib import ExitStack
@@ -105,6 +106,58 @@ def run_experiment(
     dry_run: Union[bool, int] = False,
     print_summary: bool = True,
 ) -> RanExperiment:
+    """
+    Orchestrates running an experiment on a dataset and evaluates the results.
+
+    An experiment is a user-defined task that runs on each example in a dataset. The results from
+    each experiment can be evaluated using any number of evaluators to measure the behavior of the
+    task. The experiment and evaluation results are stored in the Phoenix database for comparison
+    and analysis.
+
+    A `task` is either a synchronous or asynchronous function that returns a JSON serializable
+    output. If the `task` is a function of one argument then that argument will be bound to the
+    `input` field of the dataset example. Alternatively, the `task` can be a function of special
+    argument names that will be bound to special values:
+        `input`: The input field of the dataset example
+        `expected`: The expected or reference output of the dataset example
+        `reference`: An alias for `expected`
+        `metadata`: Metadata associated with the dataset example
+        `example`: The dataset `Example` object with all associated fields
+
+    An `evaluator` is either a synchronous or asynchronous function that returns either a boolean
+    or numeric "score". If the `evaluator` is a function of one argument then that argument will be
+    bound to the `output` of the task. Alternatively, the `evaluator` can be a function of special
+    argument names that will be bound to special values:
+        `input`: The input field of the dataset example
+        `output`: The output of the task
+        `expected`: The expected or reference output of the dataset example
+        `reference`: An alias for `expected`
+        `metadata`: Metadata associated with the dataset example
+
+    Phoenix also provides pre-built evaluators in the `phoenix.experiments.evaluators` module.
+
+    Args:
+        dataset (Dataset): The dataset on which to run the experiment.
+        task (ExperimentTask): The task to run on each example in the dataset.
+        evaluators (Optional[Evaluators]): A single evaluator or sequence of evaluators used to
+            evaluate the results of the experiment. Defaults to None.
+        experiment_name (Optional[str]): The name of the experiment. Defaults to None.
+        experiment_description (Optional[str]): A description of the experiment. Defaults to None.
+        experiment_metadata (Optional[Mapping[str, Any]]): Metadata to associate with the
+            experiment. Defaults to None.
+        rate_limit_errors (Optional[BaseException | Sequence[BaseException]]): An exception or
+            sequence of exceptions to adaptively throttle on. Defaults to None.
+        dry_run (bool | int): Whether to run the experiment in dry-run mode. Defaults to
+            False.
+        print_summary (bool): Whether to print a summary of the experiment and evaluation results.
+            Defaults to True.
+
+    Returns:
+        RanExperiment: The results of the experiment and evaluation.
+    """
+    task_signature = inspect.signature(task)
+    _validate_task_signature(task_signature)
+
     if not dataset.examples:
         raise ValueError(f"Dataset has no examples: {dataset.id=}, {dataset.version_id=}")
     # Add this to the params once supported in the UI
@@ -183,7 +236,8 @@ def run_experiment(
                 # Do not use keyword arguments, which can fail at runtime
                 # even when function obeys protocol, because keyword arguments
                 # are implementation details.
-                _output = task(example)
+                bound_task_args = _bind_task_signature(task_signature, example)
+                _output = task(*bound_task_args.args, **bound_task_args.kwargs)
                 if isinstance(_output, Awaitable):
                     sync_error_message = (
                         "Task is async and cannot be run within an existing event loop. "
@@ -244,7 +298,8 @@ def run_experiment(
                 # Do not use keyword arguments, which can fail at runtime
                 # even when function obeys protocol, because keyword arguments
                 # are implementation details.
-                _output = task(example)
+                bound_task_args = _bind_task_signature(task_signature, example)
+                _output = task(*bound_task_args.args, **bound_task_args.kwargs)
                 if isinstance(_output, Awaitable):
                     output = await _output
                 else:
@@ -604,6 +659,50 @@ def _get_task_name(task: ExperimentTask) -> str:
 
 def _is_dry_run(obj: Any) -> bool:
     return hasattr(obj, "id") and isinstance(obj.id, str) and obj.id.startswith(DRY_RUN)
+
+
+def _validate_task_signature(sig: inspect.Signature) -> None:
+    # Check that the function signature has a valid signature for use as a task
+    # If it does not, raise an error to exit early before running an experiment
+    params = sig.parameters
+    valid_named_params = {"input", "expected", "reference", "metadata", "example"}
+    if len(params) == 0:
+        raise ValueError("Task function must have at least one parameter.")
+    if len(params) > 1:
+        for not_found in set(params) - valid_named_params:
+            param = params[not_found]
+            if (
+                param.kind is inspect.Parameter.VAR_KEYWORD
+                or param.default is not inspect.Parameter.empty
+            ):
+                continue
+            raise ValueError(
+                (
+                    f"Invalid parameter names in task function: {', '.join(not_found)}. "
+                    "Parameters names for multi-argument functions must be "
+                    f"any of: {', '.join(valid_named_params)}."
+                )
+            )
+
+
+def _bind_task_signature(sig: inspect.Signature, example: Example) -> inspect.BoundArguments:
+    parameter_mapping = {
+        "input": example.input,
+        "expected": example.output,
+        "reference": example.output,  # Alias for "expected"
+        "metadata": example.metadata,
+        "example": example,
+    }
+    params = sig.parameters
+    if len(params) == 1:
+        parameter_name = next(iter(params))
+        if parameter_name in parameter_mapping:
+            return sig.bind(parameter_mapping[parameter_name])
+        else:
+            return sig.bind(parameter_mapping["input"])
+    return sig.bind_partial(
+        **{name: parameter_mapping[name] for name in set(parameter_mapping).intersection(params)}
+    )
 
 
 class _NoOpProcessor(trace_sdk.SpanProcessor):

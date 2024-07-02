@@ -25,11 +25,11 @@ def unwrap_json(obj: JSONSerializable) -> JSONSerializable:
     return obj
 
 
-def validate_signature(sig: inspect.Signature) -> None:
+def validate_evaluator_signature(sig: inspect.Signature) -> None:
     # Check that the wrapped function has a valid signature for use as an evaluator
     # If it does not, raise an error to exit early before running evaluations
     params = sig.parameters
-    valid_named_params = {"input", "output", "expected", "metadata"}
+    valid_named_params = {"input", "output", "expected", "reference", "metadata"}
     if len(params) == 0:
         raise ValueError("Evaluation function must have at least one parameter.")
     if len(params) > 1:
@@ -49,11 +49,12 @@ def validate_signature(sig: inspect.Signature) -> None:
             )
 
 
-def _bind_signature(sig: inspect.Signature, **kwargs: Any) -> inspect.BoundArguments:
+def _bind_evaluator_signature(sig: inspect.Signature, **kwargs: Any) -> inspect.BoundArguments:
     parameter_mapping = {
         "input": kwargs.get("input"),
         "output": kwargs.get("output"),
         "expected": kwargs.get("expected"),
+        "reference": kwargs.get("expected"),  # Alias for "expected"
         "metadata": kwargs.get("metadata"),
     }
     params = sig.parameters
@@ -91,7 +92,7 @@ def create_evaluator(
         assert name is not None
 
         wrapped_signature = inspect.signature(func)
-        validate_signature(wrapped_signature)
+        validate_evaluator_signature(wrapped_signature)
 
         if inspect.iscoroutinefunction(func):
             return _wrap_coroutine_evaluation_function(name, kind, wrapped_signature, scorer)(func)
@@ -120,7 +121,7 @@ def _wrap_coroutine_evaluation_function(
                 return await func(*args, **kwargs)
 
             async def async_evaluate(self, **kwargs: Any) -> EvaluationResult:
-                bound_signature = _bind_signature(sig, **kwargs)
+                bound_signature = _bind_evaluator_signature(sig, **kwargs)
                 result = await func(*bound_signature.args, **bound_signature.kwargs)
                 return convert_to_score(result)
 
@@ -148,7 +149,7 @@ def _wrap_sync_evaluation_function(
                 return func(*args, **kwargs)
 
             def evaluate(self, **kwargs: Any) -> EvaluationResult:
-                bound_signature = _bind_signature(sig, **kwargs)
+                bound_signature = _bind_evaluator_signature(sig, **kwargs)
                 result = func(*bound_signature.args, **bound_signature.kwargs)
                 return convert_to_score(result)
 
