@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.6.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.6.0...arize-phoenix-v4.6.1) (2024-07-02)
+
+
+### Documentation
+
+* txt2sql ([4322b7d](https://github.com/Arize-ai/phoenix/commit/4322b7db04b951a70f1aa31f2ac97089394d4a4b))
+
 ## [4.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.5.0...arize-phoenix-v4.6.0) (2024-07-02)
 
 
