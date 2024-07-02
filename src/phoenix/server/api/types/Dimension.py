@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 import strawberry
 from strawberry import UNSET
+from strawberry.relay import Node, NodeID
 from strawberry.types import Info
 from typing_extensions import Annotated
 
@@ -17,12 +18,11 @@ from ..context import Context
 from ..input_types.Granularity import Granularity
 from ..input_types.TimeRange import TimeRange
 from .DataQualityMetric import DataQualityMetric
-from .DatasetRole import DatasetRole
 from .DatasetValues import DatasetValues
 from .DimensionDataType import DimensionDataType
 from .DimensionShape import DimensionShape
 from .DimensionType import DimensionType
-from .node import Node
+from .InferencesRole import InferencesRole
 from .ScalarDriftMetricEnum import ScalarDriftMetric
 from .Segments import (
     GqlBinFactory,
@@ -40,6 +40,7 @@ from .TimeSeries import (
 
 @strawberry.type
 class Dimension(Node):
+    id_attr: NodeID[int]
     name: str = strawberry.field(description="The name of the dimension (a.k.a. the column name)")
     type: DimensionType = strawberry.field(
         description="Whether the dimension represents a feature, tag, prediction, or actual."
@@ -62,16 +63,16 @@ class Dimension(Node):
         """
         Computes a drift metric between all reference data and the primary data
         belonging to the input time range (inclusive of the time range start and
-        exclusive of the time range end). Returns None if no reference dataset
-        exists, if no primary data exists in the input time range, or if the
+        exclusive of the time range end). Returns None if no reference inferences
+        exist, if no primary data exists in the input time range, or if the
         input time range is invalid.
         """
         model = info.context.model
         if model[REFERENCE].empty:
             return None
-        dataset = model[PRIMARY]
+        inferences = model[PRIMARY]
         time_range, granularity = ensure_timeseries_parameters(
-            dataset,
+            inferences,
             time_range,
         )
         data = get_drift_timeseries_data(
@@ -92,18 +93,18 @@ class Dimension(Node):
         info: Info[Context, None],
         metric: DataQualityMetric,
         time_range: Optional[TimeRange] = UNSET,
-        dataset_role: Annotated[
-            Optional[DatasetRole],
+        inferences_role: Annotated[
+            Optional[InferencesRole],
             strawberry.argument(
-                description="The dataset (primary or reference) to query",
+                description="The inferences (primary or reference) to query",
             ),
-        ] = DatasetRole.primary,
+        ] = InferencesRole.primary,
     ) -> Optional[float]:
-        if not isinstance(dataset_role, DatasetRole):
-            dataset_role = DatasetRole.primary
-        dataset = info.context.model[dataset_role.value]
+        if not isinstance(inferences_role, InferencesRole):
+            inferences_role = InferencesRole.primary
+        inferences = info.context.model[inferences_role.value]
         time_range, granularity = ensure_timeseries_parameters(
-            dataset,
+            inferences,
             time_range,
         )
         data = get_data_quality_timeseries_data(
@@ -111,7 +112,7 @@ class Dimension(Node):
             metric,
             time_range,
             granularity,
-            dataset_role,
+            inferences_role,
         )
         return data[0].value if len(data) else None
 
@@ -139,18 +140,18 @@ class Dimension(Node):
         metric: DataQualityMetric,
         time_range: TimeRange,
         granularity: Granularity,
-        dataset_role: Annotated[
-            Optional[DatasetRole],
+        inferences_role: Annotated[
+            Optional[InferencesRole],
             strawberry.argument(
-                description="The dataset (primary or reference) to query",
+                description="The inferences (primary or reference) to query",
             ),
-        ] = DatasetRole.primary,
+        ] = InferencesRole.primary,
     ) -> DataQualityTimeSeries:
-        if not isinstance(dataset_role, DatasetRole):
-            dataset_role = DatasetRole.primary
-        dataset = info.context.model[dataset_role.value]
+        if not isinstance(inferences_role, InferencesRole):
+            inferences_role = InferencesRole.primary
+        inferences = info.context.model[inferences_role.value]
         time_range, granularity = ensure_timeseries_parameters(
-            dataset,
+            inferences,
             time_range,
             granularity,
         )
@@ -160,7 +161,7 @@ class Dimension(Node):
                 metric,
                 time_range,
                 granularity,
-                dataset_role,
+                inferences_role,
             )
         )
 
@@ -182,9 +183,9 @@ class Dimension(Node):
         model = info.context.model
         if model[REFERENCE].empty:
             return DriftTimeSeries(data=[])
-        dataset = model[PRIMARY]
+        inferences = model[PRIMARY]
         time_range, granularity = ensure_timeseries_parameters(
-            dataset,
+            inferences,
             time_range,
             granularity,
         )
@@ -202,7 +203,7 @@ class Dimension(Node):
         )
 
     @strawberry.field(
-        description="Returns the segments across both datasets and returns the counts per segment",
+        description="The segments across both inference sets and returns the counts per segment",
     )  # type: ignore
     def segments_comparison(
         self,
@@ -249,8 +250,8 @@ class Dimension(Node):
         if isinstance(binning_method, binning.IntervalBinning) and binning_method.bins is not None:
             all_bins = all_bins.union(binning_method.bins)
         for bin in all_bins:
-            values: Dict[ms.DatasetRole, Any] = defaultdict(lambda: None)
-            for role in ms.DatasetRole:
+            values: Dict[ms.InferencesRole, Any] = defaultdict(lambda: None)
+            for role in ms.InferencesRole:
                 if model[role].empty:
                     continue
                 try:

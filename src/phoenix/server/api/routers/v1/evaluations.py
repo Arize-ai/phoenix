@@ -44,14 +44,7 @@ async def post_evaluations(request: Request) -> Response:
     summary: Add evaluations to a span, trace, or document
     operationId: addEvaluations
     tags:
-      - evaluations
-    parameters:
-      - name: project-name
-        in: query
-        schema:
-          type: string
-          default: default
-        description: The project name to add the evaluation to
+      - private
     requestBody:
       required: true
       content:
@@ -105,9 +98,9 @@ async def get_evaluations(request: Request) -> Response:
     summary: Get evaluations from Phoenix
     operationId: getEvaluation
     tags:
-      - evaluations
+      - private
     parameters:
-      - name: project-name
+      - name: project_name
         in: query
         schema:
           type: string
@@ -116,13 +109,15 @@ async def get_evaluations(request: Request) -> Response:
     responses:
       200:
         description: Success
+      403:
+        description: Forbidden
       404:
         description: Not found
     """
     project_name = (
-        request.query_params.get("project-name")
-        # read from headers for backwards compatibility
-        or request.headers.get("project-name")
+        request.query_params.get("project_name")
+        or request.query_params.get("project-name")  # for backward compatibility
+        or request.headers.get("project-name")  # read from headers for backwards compatibility
         or DEFAULT_PROJECT_NAME
     )
 

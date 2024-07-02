@@ -24,7 +24,7 @@ classifiers = [
 dependencies = [
   "scikit-learn",
   "numpy<2",  # https://github.com/scikit-learn-contrib/hdbscan/issues/642
-  "pandas",
+  "pandas>=1.0",
   "jinja2",
   "umap-learn",
   "hdbscan>=0.8.33",
@@ -41,12 +41,12 @@ dependencies = [
   "protobuf>=3.20, <6.0",
   "grpcio",
   "tqdm",
-  "requests",
+  "httpx",
   "opentelemetry-sdk",
   "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
   "opentelemetry-exporter-otlp",
   "opentelemetry-semantic-conventions",
-  "openinference-semantic-conventions>=0.1.5",
+  "openinference-semantic-conventions>=0.1.9",
   "openinference-instrumentation",
   "openinference-instrumentation-langchain>=0.1.12",
   "openinference-instrumentation-llama-index>=1.2.0",
@@ -57,6 +57,9 @@ dependencies = [
   "aioitertools",
   "sqlean.py>=3.45.1",
   "cachetools",
+  "python-multipart",  # see https://www.starlette.io/#dependencies
+  "arize-phoenix-evals>=0.13.1",
+  "pyyaml", # for OpenAPI
 ]
 dynamic = ["version"]
 
@@ -67,6 +70,9 @@ dev = [
   "jupyter",
   "nbqa",
   "ruff==0.4.9",
+  "pandas>=1.0",
+  "tabulate",  # used by DataFrame.to_markdown()
+  "types-tabulate",
   "pandas-stubs==2.2.2.240603; python_version>='3.9'",
   "pandas-stubs==2.0.3.230814; python_version<'3.9'",
   "pytest==8.2.2",
@@ -85,14 +91,14 @@ dev = [
   "anthropic",
   "prometheus_client",
 ]
-evals = [
-  "arize-phoenix-evals>=0.3.0",
-]
-experimental = [
-  "tenacity",
-]
+evals = []
+experimental = []
 llama-index = [
-  "llama-index==0.10.44",  # always pin to a version that keeps our notebooks working
+  "llama-index==0.10.51",  # always pin to a version that keeps our notebooks working
+  "llama-index-readers-file==0.1.25",
+  "llama-index-llms-openai==0.1.24",
+  "llama-index-embeddings-openai==0.1.10",
+  "llama-index-agent-openai==0.2.7",
 ]
 pg = [
   "asyncpg",
@@ -150,7 +156,6 @@ dependencies = [
   "litellm>=1.0.3",
   "openai>=1.0.0",
   "tenacity",
-  "requests",
   "protobuf==3.20",  # version minimum (for tests)
   "responses",
   "tiktoken",
@@ -166,11 +171,11 @@ dependencies = [
 dependencies = [
   "mypy==1.10.0",
   "tenacity",
-  "pandas-stubs==2.2.2.240603; python_version>='3.9'",
-  "pandas-stubs==2.0.3.230814; python_version<'3.9'",
+  "pandas>=1.0",
+  "pandas-stubs==2.0.3.230814",
+  "types-tabulate",
   "types-psutil",
   "types-tqdm",
-  "types-requests",
   "types-protobuf",
   "types-setuptools",
   "types-cachetools",
@@ -187,13 +192,20 @@ dependencies = [
   "opentelemetry-instrumentation-grpc",
   "py-grpc-prometheus",
   "strawberry-graphql[opentelemetry]==0.235.0",  # need to pin version because we're monkey-patching
+  "requests",  # this is needed to type-check third-party packages
 ]
+
+[[tool.hatch.envs.type.matrix]]
+python = ["3.8", "3.9", "3.12"]
 
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
   "ruff==0.4.9",
 ]
+
+[[tool.hatch.envs.style.matrix]]
+python = ["3.8", "3.9", "3.12"]
 
 [tool.hatch.envs.notebooks]
 detached = true
@@ -204,6 +216,7 @@ dependencies = [
 [tool.hatch.envs.docs]
 detached = true
 dependencies = [
+  "pyment",
   "interrogate",
 ]
 
@@ -292,6 +305,14 @@ dependencies = [
 [tool.hatch.envs.gql.scripts]
 build = 'strawberry export-schema phoenix.server.api.schema:schema > app/schema.graphql'
 
+[tool.hatch.envs.openapi]
+dependencies = [
+  "pyyaml",
+]
+
+[tool.hatch.envs.openapi.scripts]
+build = 'python -m phoenix.server.api.openapi.main > schemas/openapi.yaml'
+
 [tool.hatch.envs.proto]
 detached = true
 dependencies = [
@@ -348,6 +369,7 @@ module = [
   "wrapt",
   "langchain.*",
   "litellm",
+  "litellm.*",
   "nest_asyncio",
   "opentelemetry.*",
   "pyarrow",

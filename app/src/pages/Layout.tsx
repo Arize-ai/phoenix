@@ -36,6 +36,7 @@ const contentCSS = css`
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: hidden;
 `;
 
 const bottomLinksCSS = css`
@@ -85,7 +86,7 @@ function SideNav() {
               <NavLink
                 to="/model"
                 text="Model"
-                icon={<Icon svg={<Icons.Cube />} />}
+                icon={<Icon svg={<Icons.CubeOutline />} />}
               />
             </li>
           )}
@@ -93,7 +94,21 @@ function SideNav() {
             <NavLink
               to="/projects"
               text="Projects"
-              icon={<Icon svg={<Icons.Grid />} />}
+              icon={<Icon svg={<Icons.GridOutline />} />}
+            />
+          </li>
+          <li>
+            <NavLink
+              to="/datasets"
+              text="Datasets"
+              icon={<Icon svg={<Icons.DatabaseOutline />} />}
+            />
+          </li>
+          <li>
+            <NavLink
+              to="/apis"
+              text="APIs"
+              icon={<Icon svg={<Icons.Code />} />}
             />
           </li>
         </ul>

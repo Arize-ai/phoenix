@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<403c587087714464973de2bbe42708ea>>
+ * @generated SignedSource<<d06a9adc933db9f1e71f48141f140d28>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,8 +9,12 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Mutation } from 'relay-runtime';
+export type ClearProjectInput = {
+  endTime?: string | null;
+  id: string;
+};
 export type ProjectActionMenuClearMutation$variables = {
-  projectId: string;
+  input: ClearProjectInput;
 };
 export type ProjectActionMenuClearMutation$data = {
   readonly clearProject: {
@@ -27,7 +31,7 @@ var v0 = [
   {
     "defaultValue": null,
     "kind": "LocalArgument",
-    "name": "projectId"
+    "name": "input"
   }
 ],
 v1 = [
@@ -36,8 +40,8 @@ v1 = [
     "args": [
       {
         "kind": "Variable",
-        "name": "id",
-        "variableName": "projectId"
+        "name": "input",
+        "variableName": "input"
       }
     ],
     "concreteType": "Query",
@@ -74,16 +78,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "df98f55f45a3f0fd18cce292075de372",
+    "cacheID": "63319b4e42b499db2447817f1dc821fb",
     "id": null,
     "metadata": {},
     "name": "ProjectActionMenuClearMutation",
     "operationKind": "mutation",
-    "text": "mutation ProjectActionMenuClearMutation(\n  $projectId: GlobalID!\n) {\n  clearProject(id: $projectId) {\n    __typename\n  }\n}\n"
+    "text": "mutation ProjectActionMenuClearMutation(\n  $input: ClearProjectInput!\n) {\n  clearProject(input: $input) {\n    __typename\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "797829dd3e5805e9484727123e51b5c3";
+(node as any).hash = "c43eec4d6b882468c611dd9ebf3b095e";
 
 export default node;

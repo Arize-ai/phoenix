@@ -1,22 +1,32 @@
 import json
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, List, Mapping, Optional, Sized, cast
+from typing import TYPE_CHECKING, Any, List, Mapping, Optional, Sized, cast
 
 import numpy as np
 import strawberry
 from openinference.semconv.trace import EmbeddingAttributes, SpanAttributes
 from strawberry import ID, UNSET
+from strawberry.relay import Node, NodeID
 from strawberry.types import Info
+from typing_extensions import Annotated
 
 import phoenix.trace.schemas as trace_schema
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.helpers.dataset_helpers import (
+    get_dataset_example_input,
+    get_dataset_example_output,
+)
 from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
 from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluation
+from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
 from phoenix.server.api.types.MimeType import MimeType
-from phoenix.server.api.types.node import Node
 from phoenix.trace.attributes import get_attribute_value
+
+if TYPE_CHECKING:
+    from phoenix.server.api.types.Project import Project
 
 EMBEDDING_EMBEDDINGS = SpanAttributes.EMBEDDING_EMBEDDINGS
 EMBEDDING_VECTOR = EmbeddingAttributes.EMBEDDING_VECTOR
@@ -25,6 +35,9 @@ INPUT_VALUE = SpanAttributes.INPUT_VALUE
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
+LLM_PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
+LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
+LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
 METADATA = SpanAttributes.METADATA
 OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
@@ -46,6 +59,7 @@ class SpanKind(Enum):
     embedding = "EMBEDDING"
     agent = "AGENT"
     reranker = "RERANKER"
+    evaluator = "EVALUATOR"
     unknown = "UNKNOWN"
 
     @classmethod
@@ -102,7 +116,13 @@ class SpanEvent:
 
 
 @strawberry.type
+class SpanAsExampleRevision(ExampleRevision): ...
+
+
+@strawberry.type
 class Span(Node):
+    id_attr: NodeID[int]
+    db_span: strawberry.Private[models.Span]
     name: str
     status_code: SpanStatusCode
     status_message: str
@@ -188,6 +208,44 @@ class Span(Node):
         spans = await info.context.data_loaders.span_descendants.load(span_id)
         return [to_gql_span(span) for span in spans]
 
+    @strawberry.field(
+        description="The span's attributes translated into an example revision for a dataset",
+    )  # type: ignore
+    def as_example_revision(self) -> SpanAsExampleRevision:
+        db_span = self.db_span
+        attributes = db_span.attributes
+        span_io = _SpanIO(
+            span_kind=db_span.span_kind,
+            input_value=get_attribute_value(attributes, INPUT_VALUE),
+            input_mime_type=get_attribute_value(attributes, INPUT_MIME_TYPE),
+            output_value=get_attribute_value(attributes, OUTPUT_VALUE),
+            output_mime_type=get_attribute_value(attributes, OUTPUT_MIME_TYPE),
+            llm_prompt_template_variables=get_attribute_value(
+                attributes, LLM_PROMPT_TEMPLATE_VARIABLES
+            ),
+            llm_input_messages=get_attribute_value(attributes, LLM_INPUT_MESSAGES),
+            llm_output_messages=get_attribute_value(attributes, LLM_OUTPUT_MESSAGES),
+            retrieval_documents=get_attribute_value(attributes, RETRIEVAL_DOCUMENTS),
+        )
+        return SpanAsExampleRevision(
+            input=get_dataset_example_input(span_io),
+            output=get_dataset_example_output(span_io),
+            metadata=attributes,
+        )
+
+    @strawberry.field(description="The project that this span belongs to.")  # type: ignore
+    async def project(
+        self,
+        info: Info[Context, None],
+    ) -> Annotated[
+        "Project", strawberry.lazy("phoenix.server.api.types.Project")
+    ]:  # use lazy types to avoid circular import: https://strawberry.rocks/docs/types/lazy
+        from phoenix.server.api.types.Project import to_gql_project
+
+        span_id = self.id_attr
+        project = await info.context.data_loaders.span_projects.load(span_id)
+        return to_gql_project(project)
+
 
 def to_gql_span(span: models.Span) -> Span:
     events: List[SpanEvent] = list(map(SpanEvent.from_dict, span.events))
@@ -197,6 +255,7 @@ def to_gql_span(span: models.Span) -> Span:
     num_documents = len(retrieval_documents) if isinstance(retrieval_documents, Sized) else None
     return Span(
         id_attr=span.id,
+        db_span=span,
         name=span.name,
         status_code=SpanStatusCode(span.status_code),
         status_message=span.status_message,
@@ -302,3 +361,21 @@ def _convert_metadata_to_string(metadata: Any) -> Optional[str]:
         return json.dumps(metadata)
     except Exception:
         return str(metadata)
+
+
+@dataclass
+class _SpanIO:
+    """
+    An class that contains the information needed to extract dataset example
+    input and output values from a span.
+    """
+
+    span_kind: Optional[str]
+    input_value: Any
+    input_mime_type: Optional[str]
+    output_value: Any
+    output_mime_type: Optional[str]
+    llm_prompt_template_variables: Any
+    llm_input_messages: Any
+    llm_output_messages: Any
+    retrieval_documents: Any

@@ -1,9 +1,17 @@
+import asyncio
 import contextlib
-from typing import AsyncContextManager, AsyncGenerator, AsyncIterator, Callable
+from typing import AsyncContextManager, AsyncGenerator, AsyncIterator, Callable, Tuple
 
+import httpx
 import pytest
+from httpx import Request, Response
+from phoenix.config import EXPORT_DIR
+from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import models
 from phoenix.db.engines import aio_sqlite_engine
+from phoenix.inferences.inferences import EMPTY_INFERENCES
+from phoenix.pointcloud.umap_parameters import get_umap_parameters
+from phoenix.server.app import SessionFactory, create_app
 from psycopg import Connection
 from pytest_postgresql import factories
 from sqlalchemy import make_url
@@ -28,11 +36,8 @@ def pytest_collection_modifyitems(config, items):
     skip_postgres = pytest.mark.skip(reason="Skipping Postgres tests")
     if not config.getoption("--run-postgres"):
         for item in items:
-            if "session" in item.fixturenames:
-                if "postgres_session" in item.callspec.params.values():
-                    item.add_marker(skip_postgres)
-            elif "db" in item.fixturenames:
-                if "postgres_db" in item.callspec.params.values():
+            if "dialect" in item.fixturenames:
+                if "postgresql" in item.callspec.params.values():
                     item.add_marker(skip_postgres)
 
 
@@ -66,6 +71,11 @@ async def postgres_engine(phoenix_postgresql: Connection) -> AsyncGenerator[Asyn
     await engine.dispose()
 
 
+@pytest.fixture(params=["sqlite", "postgresql"])
+def dialect(request):
+    return request.param
+
+
 @pytest.fixture
 async def sqlite_engine() -> AsyncEngine:
     engine = aio_sqlite_engine(make_url("sqlite+aiosqlite://"), migrate=False, shared_cache=False)
@@ -74,40 +84,51 @@ async def sqlite_engine() -> AsyncEngine:
     return engine
 
 
-@pytest.fixture(params=["sqlite_session", "postgres_session"])
-def session(request) -> AsyncSession:
-    return request.getfixturevalue(request.param)
-
-
-@pytest.fixture(params=["sqlite_db", "postgres_db"])
-def db(request) -> async_sessionmaker:
-    return request.getfixturevalue(request.param)
+@pytest.fixture
+def session(request, dialect) -> AsyncSession:
+    if dialect == "sqlite":
+        return request.getfixturevalue("sqlite_session")
+    elif dialect == "postgresql":
+        return request.getfixturevalue("postgres_session")
+    raise ValueError(f"Unknown session fixture: {dialect}")
 
 
 @pytest.fixture
-async def sqlite_db(sqlite_engine: AsyncEngine) -> Callable[[], AsyncContextManager[AsyncSession]]:
+def db(request, dialect) -> async_sessionmaker:
+    if dialect == "sqlite":
+        return request.getfixturevalue("sqlite_db")
+    elif dialect == "postgresql":
+        return request.getfixturevalue("postgres_db")
+    raise ValueError(f"Unknown db fixture: {dialect}")
+
+
+@pytest.fixture
+async def sqlite_db(
+    sqlite_engine: AsyncEngine,
+) -> AsyncGenerator[Callable[[], AsyncContextManager[AsyncSession]], None]:
     Session = async_sessionmaker(sqlite_engine, expire_on_commit=False)
 
-    @contextlib.asynccontextmanager
-    async def factory() -> AsyncIterator[AsyncSession]:
-        async with Session.begin() as session:
+    async with Session.begin() as session:
+
+        @contextlib.asynccontextmanager
+        async def factory() -> AsyncIterator[AsyncSession]:
             yield session
 
-    return factory
+        yield factory
 
 
 @pytest.fixture
 async def postgres_db(
     postgres_engine: AsyncEngine,
-) -> Callable[[], AsyncContextManager[AsyncSession]]:
+) -> AsyncGenerator[Callable[[], AsyncContextManager[AsyncSession]], None]:
     Session = async_sessionmaker(postgres_engine, expire_on_commit=False)
+    async with Session.begin() as session:
 
-    @contextlib.asynccontextmanager
-    async def factory() -> AsyncIterator[AsyncSession]:
-        async with Session.begin() as session:
+        @contextlib.asynccontextmanager
+        async def factory() -> AsyncIterator[AsyncSession]:
             yield session
 
-    return factory
+        yield factory
 
 
 @pytest.fixture
@@ -130,3 +151,82 @@ async def postgres_session(
 async def project(session: AsyncSession) -> None:
     project = models.Project(name="test_project")
     session.add(project)
+
+
+@pytest.fixture
+async def test_client(dialect, db):
+    factory = SessionFactory(session_factory=db, dialect=dialect)
+    app = create_app(
+        db=factory,
+        model=create_model_from_inferences(EMPTY_INFERENCES, None),
+        export_path=EXPORT_DIR,
+        umap_params=get_umap_parameters(None),
+        serve_ui=False,
+    )
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        yield client
+
+
+@pytest.fixture
+def test_phoenix_clients(dialect, db) -> Tuple[httpx.Client, httpx.AsyncClient]:
+    factory = SessionFactory(session_factory=db, dialect=dialect)
+    app = create_app(
+        db=factory,
+        model=create_model_from_inferences(EMPTY_INFERENCES, None),
+        export_path=EXPORT_DIR,
+        umap_params=get_umap_parameters(None),
+        serve_ui=False,
+    )
+
+    class SyncTransport(httpx.BaseTransport):
+        def __init__(self, app, asgi_transport):
+            self.app = app
+            self.asgi_transport = asgi_transport
+
+        def handle_request(self, request: Request) -> Response:
+            response = asyncio.run(self.asgi_transport.handle_async_request(request))
+
+            async def read_stream():
+                content = b""
+                async for chunk in response.stream:
+                    content += chunk
+                return content
+
+            content = asyncio.run(read_stream())
+            return Response(
+                status_code=response.status_code,
+                headers=response.headers,
+                content=content,
+                request=request,
+            )
+
+    class AsyncTransport(httpx.AsyncBaseTransport):
+        def __init__(self, app, asgi_transport):
+            self.app = app
+            self.asgi_transport = asgi_transport
+
+        async def handle_async_request(self, request: Request) -> Response:
+            response = await self.asgi_transport.handle_async_request(request)
+
+            async def read_stream():
+                content = b""
+                async for chunk in response.stream:
+                    content += chunk
+                return content
+
+            content = await read_stream()
+            return Response(
+                status_code=response.status_code,
+                headers=response.headers,
+                content=content,
+                request=request,
+            )
+
+    asgi_transport = httpx.ASGITransport(app=app)
+    sync_transport = SyncTransport(app, asgi_transport=asgi_transport)
+    sync_client = httpx.Client(transport=sync_transport, base_url="http://test")
+    async_transport = AsyncTransport(app, asgi_transport=asgi_transport)
+    async_client = httpx.AsyncClient(transport=async_transport, base_url="http://test")
+    return sync_client, async_client

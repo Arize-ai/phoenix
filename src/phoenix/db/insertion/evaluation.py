@@ -6,7 +6,7 @@ from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, num_docs_col
-from phoenix.db.insertion.helpers import OnConflict, insert_stmt
+from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.exceptions import PhoenixException
 from phoenix.trace import v1 as pb
 
@@ -15,24 +15,24 @@ class InsertEvaluationError(PhoenixException):
     pass
 
 
-class EvaluationInsertionResult(NamedTuple):
+class EvaluationInsertionEvent(NamedTuple):
     project_rowid: int
     evaluation_name: str
 
 
-class SpanEvaluationInsertionEvent(EvaluationInsertionResult): ...
+class SpanEvaluationInsertionEvent(EvaluationInsertionEvent): ...
 
 
-class TraceEvaluationInsertionEvent(EvaluationInsertionResult): ...
+class TraceEvaluationInsertionEvent(EvaluationInsertionEvent): ...
 
 
-class DocumentEvaluationInsertionEvent(EvaluationInsertionResult): ...
+class DocumentEvaluationInsertionEvent(EvaluationInsertionEvent): ...
 
 
 async def insert_evaluation(
     session: AsyncSession,
     evaluation: pb.Evaluation,
-) -> Optional[EvaluationInsertionResult]:
+) -> Optional[EvaluationInsertionEvent]:
     evaluation_name = evaluation.name
     result = evaluation.result
     label = result.label.value if result.HasField("label") else None
@@ -91,7 +91,7 @@ async def _insert_trace_evaluation(
     set_.pop("metadata_")
     set_["metadata"] = values["metadata_"]  # `metadata` must match database
     await session.execute(
-        insert_stmt(
+        insert_on_conflict(
             dialect=dialect,
             table=models.TraceAnnotation,
             values=values,
@@ -139,7 +139,7 @@ async def _insert_span_evaluation(
     set_.pop("metadata_")
     set_["metadata"] = values["metadata_"]  # `metadata` must match database
     await session.execute(
-        insert_stmt(
+        insert_on_conflict(
             dialect=dialect,
             table=models.SpanAnnotation,
             values=values,
@@ -160,7 +160,7 @@ async def _insert_document_evaluation(
     label: Optional[str],
     score: Optional[float],
     explanation: Optional[str],
-) -> EvaluationInsertionResult:
+) -> EvaluationInsertionEvent:
     dialect = SupportedSQLDialect(session.bind.dialect.name)
     stmt = (
         select(
@@ -196,7 +196,7 @@ async def _insert_document_evaluation(
     set_.pop("metadata_")
     set_["metadata"] = values["metadata_"]  # `metadata` must match database
     await session.execute(
-        insert_stmt(
+        insert_on_conflict(
             dialect=dialect,
             table=models.DocumentAnnotation,
             values=values,

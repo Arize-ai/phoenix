@@ -1,17 +1,18 @@
+from __future__ import annotations
+
 from typing import List, Optional
 
 import strawberry
 from sqlalchemy import desc, select
 from sqlalchemy.orm import contains_eager
-from strawberry import UNSET
+from strawberry import UNSET, Private
+from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.Evaluation import TraceEvaluation
-from phoenix.server.api.types.node import Node
 from phoenix.server.api.types.pagination import (
-    Connection,
     ConnectionArgs,
     CursorString,
     connection_from_list,
@@ -21,6 +22,16 @@ from phoenix.server.api.types.Span import Span, to_gql_span
 
 @strawberry.type
 class Trace(Node):
+    id_attr: NodeID[int]
+    project_rowid: Private[int]
+    trace_id: str
+
+    @strawberry.field
+    async def project_id(self) -> GlobalID:
+        from phoenix.server.api.types.Project import Project
+
+        return GlobalID(type_name=Project.__name__, node_id=str(self.project_rowid))
+
     @strawberry.field
     async def spans(
         self,
@@ -40,7 +51,7 @@ class Trace(Node):
             select(models.Span)
             .join(models.Trace)
             .where(models.Trace.id == self.id_attr)
-            .options(contains_eager(models.Span.trace))
+            .options(contains_eager(models.Span.trace).load_only(models.Trace.trace_id))
             # Sort descending because the root span tends to show up later
             # in the ingestion process.
             .order_by(desc(models.Span.id))

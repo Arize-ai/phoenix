@@ -33,7 +33,6 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import FileResponse, PlainTextResponse, Response
 from starlette.routing import Mount, Route
-from starlette.schemas import SchemaGenerator
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 from starlette.types import Scope, StatefulLifespan
@@ -57,19 +56,30 @@ from phoenix.exceptions import PhoenixMigrationError
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
+    AverageExperimentRunLatencyDataLoader,
     CacheForDataLoaders,
+    DatasetExampleRevisionsDataLoader,
+    DatasetExampleSpansDataLoader,
     DocumentEvaluationsDataLoader,
     DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
     EvaluationSummaryDataLoader,
+    ExperimentAnnotationSummaryDataLoader,
+    ExperimentErrorRatesDataLoader,
+    ExperimentRunCountsDataLoader,
+    ExperimentSequenceNumberDataLoader,
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
+    ProjectByNameDataLoader,
     RecordCountDataLoader,
     SpanDescendantsDataLoader,
     SpanEvaluationsDataLoader,
+    SpanProjectsDataLoader,
     TokenCountDataLoader,
     TraceEvaluationsDataLoader,
+    TraceRowIdsDataLoader,
 )
+from phoenix.server.api.openapi.schema import OPENAPI_SCHEMA_GENERATOR
 from phoenix.server.api.routers.v1 import V1_ROUTES
 from phoenix.server.api.schema import schema
 from phoenix.server.grpc_server import GrpcServer
@@ -83,10 +93,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
-
-schemas = SchemaGenerator(
-    {"openapi": "3.0.0", "info": {"title": "ArizePhoenix API", "version": "1.0"}}
-)
 
 
 class AppConfig(NamedTuple):
@@ -126,6 +132,7 @@ class Static(StaticFiles):
                     "n_neighbors": self._app_config.n_neighbors,
                     "n_samples": self._app_config.n_samples,
                     "basename": request.scope.get("root_path", ""),
+                    "platform_version": phoenix.__version__,
                     "request": request,
                 },
             )
@@ -185,6 +192,9 @@ class GraphQLWithContext(GraphQL):  # type: ignore
             export_path=self.export_path,
             streaming_last_updated_at=self.streaming_last_updated_at,
             data_loaders=DataLoaders(
+                average_experiment_run_latency=AverageExperimentRunLatencyDataLoader(self.db),
+                dataset_example_revisions=DatasetExampleRevisionsDataLoader(self.db),
+                dataset_example_spans=DatasetExampleSpansDataLoader(self.db),
                 document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
                     self.db,
                     cache_map=self.cache_for_dataloaders.document_evaluation_summary
@@ -199,6 +209,10 @@ class GraphQLWithContext(GraphQL):  # type: ignore
                     if self.cache_for_dataloaders
                     else None,
                 ),
+                experiment_annotation_summaries=ExperimentAnnotationSummaryDataLoader(self.db),
+                experiment_error_rates=ExperimentErrorRatesDataLoader(self.db),
+                experiment_run_counts=ExperimentRunCountsDataLoader(self.db),
+                experiment_sequence_number=ExperimentSequenceNumberDataLoader(self.db),
                 latency_ms_quantile=LatencyMsQuantileDataLoader(
                     self.db,
                     cache_map=self.cache_for_dataloaders.latency_ms_quantile
@@ -219,6 +233,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
                 ),
                 span_descendants=SpanDescendantsDataLoader(self.db),
                 span_evaluations=SpanEvaluationsDataLoader(self.db),
+                span_projects=SpanProjectsDataLoader(self.db),
                 token_counts=TokenCountDataLoader(
                     self.db,
                     cache_map=self.cache_for_dataloaders.token_count
@@ -226,6 +241,8 @@ class GraphQLWithContext(GraphQL):  # type: ignore
                     else None,
                 ),
                 trace_evaluations=TraceEvaluationsDataLoader(self.db),
+                trace_row_ids=TraceRowIdsDataLoader(self.db),
+                project_by_name=ProjectByNameDataLoader(self.db),
             ),
             cache_for_dataloaders=self.cache_for_dataloaders,
             read_only=self.read_only,
@@ -272,7 +289,11 @@ def _lifespan(
 ) -> StatefulLifespan[Starlette]:
     @contextlib.asynccontextmanager
     async def lifespan(_: Starlette) -> AsyncIterator[Dict[str, Any]]:
-        async with bulk_inserter as (queue_span, queue_evaluation), GrpcServer(
+        async with bulk_inserter as (
+            queue_span,
+            queue_evaluation,
+            enqueue_operation,
+        ), GrpcServer(
             queue_span,
             disabled=read_only,
             tracer_provider=tracer_provider,
@@ -281,6 +302,7 @@ def _lifespan(
             yield {
                 "queue_span_for_bulk_insert": queue_span,
                 "queue_evaluation_for_bulk_insert": queue_evaluation,
+                "enqueue_operation": enqueue_operation,
             }
         for clean_up in clean_ups:
             clean_up()
@@ -293,37 +315,31 @@ async def check_healthz(_: Request) -> PlainTextResponse:
 
 
 async def openapi_schema(request: Request) -> Response:
-    return schemas.OpenAPIResponse(request=request)
+    return OPENAPI_SCHEMA_GENERATOR.OpenAPIResponse(request=request)
 
 
 async def api_docs(request: Request) -> Response:
     return get_swagger_ui_html(openapi_url="/schema", title="arize-phoenix API")
 
 
-def create_app(
+class SessionFactory:
+    def __init__(
+        self,
+        session_factory: Callable[[], AsyncContextManager[AsyncSession]],
+        dialect: str,
+    ):
+        self.session_factory = session_factory
+        self.dialect = SupportedSQLDialect(dialect)
+
+    def __call__(self) -> AsyncContextManager[AsyncSession]:
+        return self.session_factory()
+
+
+def create_engine_and_run_migrations(
     database_url: str,
-    export_path: Path,
-    model: Model,
-    umap_params: UMAPParameters,
-    corpus: Optional[Model] = None,
-    debug: bool = False,
-    read_only: bool = False,
-    enable_prometheus: bool = False,
-    initial_spans: Optional[Iterable[Union[Span, Tuple[Span, str]]]] = None,
-    initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
-) -> Starlette:
-    clean_ups: List[Callable[[], None]] = []  # To be called at app shutdown.
-    initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
-        ()
-        if initial_spans is None
-        else (
-            ((item, DEFAULT_PROJECT_NAME) if isinstance(item, Span) else item)
-            for item in initial_spans
-        )
-    )
-    initial_batch_of_evaluations = () if initial_evaluations is None else initial_evaluations
+) -> AsyncEngine:
     try:
-        engine = create_engine(database_url)
+        return create_engine(database_url)
     except PhoenixMigrationError as e:
         msg = (
             "\n\n⚠️⚠️ Phoenix failed to migrate the database to the latest version. ⚠️⚠️\n\n"
@@ -338,12 +354,50 @@ def create_app(
             ""
         )
         raise PhoenixMigrationError(msg) from e
-    cache_for_dataloaders = (
-        CacheForDataLoaders()
-        if SupportedSQLDialect(engine.dialect.name) is SupportedSQLDialect.SQLITE
-        else None
+
+
+def instrument_engine_if_enabled(engine: AsyncEngine) -> List[Callable[[], None]]:
+    instrumentation_cleanups = []
+    if server_instrumentation_is_enabled():
+        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+
+        tracer_provider = initialize_opentelemetry_tracer_provider()
+        SQLAlchemyInstrumentor().instrument(
+            engine=engine.sync_engine,
+            tracer_provider=tracer_provider,
+        )
+        instrumentation_cleanups.append(SQLAlchemyInstrumentor().uninstrument)
+    return instrumentation_cleanups
+
+
+def create_app(
+    db: SessionFactory,
+    export_path: Path,
+    model: Model,
+    umap_params: UMAPParameters,
+    corpus: Optional[Model] = None,
+    debug: bool = False,
+    read_only: bool = False,
+    enable_prometheus: bool = False,
+    initial_spans: Optional[Iterable[Union[Span, Tuple[Span, str]]]] = None,
+    initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
+    serve_ui: bool = True,
+    clean_up_callbacks: List[Callable[[], None]] = [],
+) -> Starlette:
+    clean_ups: List[Callable[[], None]] = clean_up_callbacks  # To be called at app shutdown.
+    initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
+        ()
+        if initial_spans is None
+        else (
+            ((item, DEFAULT_PROJECT_NAME) if isinstance(item, Span) else item)
+            for item in initial_spans
+        )
     )
-    db = _db(engine)
+    initial_batch_of_evaluations = () if initial_evaluations is None else initial_evaluations
+    cache_for_dataloaders = (
+        CacheForDataLoaders() if db.dialect is SupportedSQLDialect.SQLITE else None
+    )
+
     bulk_inserter = BulkInserter(
         db,
         enable_prometheus=enable_prometheus,
@@ -354,16 +408,9 @@ def create_app(
     tracer_provider = None
     strawberry_extensions = schema.get_extensions()
     if server_instrumentation_is_enabled():
-        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
         from opentelemetry.trace import TracerProvider
         from strawberry.extensions.tracing import OpenTelemetryExtension
 
-        tracer_provider = initialize_opentelemetry_tracer_provider()
-        SQLAlchemyInstrumentor().instrument(
-            engine=engine.sync_engine,
-            tracer_provider=tracer_provider,
-        )
-        clean_ups.append(SQLAlchemyInstrumentor().uninstrument)
         if TYPE_CHECKING:
             # Type-check the class before monkey-patching its private attribute.
             assert OpenTelemetryExtension._tracer
@@ -377,6 +424,7 @@ def create_app(
                 self._tracer = cast(TracerProvider, tracer_provider).get_tracer("strawberry")
 
         strawberry_extensions.append(_OpenTelemetryExtension)
+
     graphql = GraphQLWithContext(
         db=db,
         schema=strawberry.Schema(
@@ -433,21 +481,27 @@ def create_app(
                 "/graphql",
                 graphql,
             ),
-            Mount(
-                "/",
-                app=Static(
-                    directory=SERVER_DIR / "static",
-                    app_config=AppConfig(
-                        has_inferences=model.is_empty is not True,
-                        has_corpus=corpus is not None,
-                        min_dist=umap_params.min_dist,
-                        n_neighbors=umap_params.n_neighbors,
-                        n_samples=umap_params.n_samples,
+        ]
+        + (
+            [
+                Mount(
+                    "/",
+                    app=Static(
+                        directory=SERVER_DIR / "static",
+                        app_config=AppConfig(
+                            has_inferences=model.is_empty is not True,
+                            has_corpus=corpus is not None,
+                            min_dist=umap_params.min_dist,
+                            n_neighbors=umap_params.n_neighbors,
+                            n_samples=umap_params.n_samples,
+                        ),
                     ),
+                    name="static",
                 ),
-                name="static",
-            ),
-        ],
+            ]
+            if serve_ui
+            else []
+        ),
     )
     app.state.read_only = read_only
     app.state.db = db

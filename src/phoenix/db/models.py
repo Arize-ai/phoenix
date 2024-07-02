@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TypedDict
 
 from sqlalchemy import (
     JSON,
@@ -15,12 +15,14 @@ from sqlalchemy import (
     String,
     TypeDecorator,
     UniqueConstraint,
+    case,
     func,
     insert,
+    select,
     text,
 )
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import (
@@ -59,6 +61,24 @@ JSON_ = (
 )
 
 
+class JsonDict(TypeDecorator[Dict[str, Any]]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(self, value: Optional[Dict[str, Any]], _: Dialect) -> Dict[str, Any]:
+        return value if isinstance(value, dict) else {}
+
+
+class JsonList(TypeDecorator[List[Any]]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(self, value: Optional[List[Any]], _: Dialect) -> List[Any]:
+        return value if isinstance(value, list) else []
+
+
 class UtcTimeStamp(TypeDecorator[datetime]):
     # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
@@ -69,6 +89,10 @@ class UtcTimeStamp(TypeDecorator[datetime]):
 
     def process_result_value(self, value: Optional[Any], _: Dialect) -> Optional[datetime]:
         return normalize_datetime(value, timezone.utc)
+
+
+class ExperimentRunOutput(TypedDict, total=False):
+    task_output: Any
 
 
 class Base(DeclarativeBase):
@@ -84,8 +108,9 @@ class Base(DeclarativeBase):
         }
     )
     type_annotation_map = {
-        Dict[str, Any]: JSON_,
-        List[Dict[str, Any]]: JSON_,
+        Dict[str, Any]: JsonDict,
+        List[Dict[str, Any]]: JsonList,
+        ExperimentRunOutput: JsonDict,
     }
 
 
@@ -154,6 +179,10 @@ class Trace(Base):
         cascade="all, delete-orphan",
         uselist=True,
     )
+    experiment_runs: Mapped[List["ExperimentRun"]] = relationship(
+        primaryjoin="foreign(ExperimentRun.trace_id) == Trace.trace_id",
+        back_populates="trace",
+    )
     __table_args__ = (
         UniqueConstraint(
             "trace_id",
@@ -203,6 +232,7 @@ class Span(Base):
 
     trace: Mapped["Trace"] = relationship("Trace", back_populates="spans")
     document_annotations: Mapped[List["DocumentAnnotation"]] = relationship(back_populates="span")
+    dataset_examples: Mapped[List["DatasetExample"]] = relationship(back_populates="span")
 
     __table_args__ = (
         UniqueConstraint(
@@ -374,5 +404,207 @@ class DocumentAnnotation(Base):
             "name",
             "span_rowid",
             "document_position",
+        ),
+    )
+
+
+class Dataset(Base):
+    __tablename__ = "datasets"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(unique=True)
+    description: Mapped[Optional[str]]
+    metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    @hybrid_property
+    def example_count(self) -> Optional[int]:
+        if hasattr(self, "_example_count_value"):
+            assert isinstance(self._example_count_value, int)
+            return self._example_count_value
+        return None
+
+    @example_count.inplace.expression
+    def _example_count(cls) -> ColumnElement[int]:
+        return (
+            select(
+                func.sum(
+                    case(
+                        (DatasetExampleRevision.revision_kind == "CREATE", 1),
+                        (DatasetExampleRevision.revision_kind == "DELETE", -1),
+                        else_=0,
+                    )
+                )
+            )
+            .select_from(DatasetExampleRevision)
+            .join(
+                DatasetExample,
+                onclause=DatasetExample.id == DatasetExampleRevision.dataset_example_id,
+            )
+            .filter(DatasetExample.dataset_id == cls.id)
+            .label("example_count")
+        )
+
+    async def load_example_count(self, session: AsyncSession) -> None:
+        if not hasattr(self, "_example_count_value"):
+            self._example_count_value = await session.scalar(
+                select(
+                    func.sum(
+                        case(
+                            (DatasetExampleRevision.revision_kind == "CREATE", 1),
+                            (DatasetExampleRevision.revision_kind == "DELETE", -1),
+                            else_=0,
+                        )
+                    )
+                )
+                .select_from(DatasetExampleRevision)
+                .join(
+                    DatasetExample,
+                    onclause=DatasetExample.id == DatasetExampleRevision.dataset_example_id,
+                )
+                .filter(DatasetExample.dataset_id == self.id)
+            )
+
+
+class DatasetVersion(Base):
+    __tablename__ = "dataset_versions"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    dataset_id: Mapped[int] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"),
+        index=True,
+    )
+    description: Mapped[Optional[str]]
+    metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+
+class DatasetExample(Base):
+    __tablename__ = "dataset_examples"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    dataset_id: Mapped[int] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"),
+        index=True,
+    )
+    span_rowid: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("spans.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+    span: Mapped[Optional[Span]] = relationship(back_populates="dataset_examples")
+
+
+class DatasetExampleRevision(Base):
+    __tablename__ = "dataset_example_revisions"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    dataset_example_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_examples.id", ondelete="CASCADE"),
+        index=True,
+    )
+    dataset_version_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_versions.id", ondelete="CASCADE"),
+        index=True,
+    )
+    input: Mapped[Dict[str, Any]]
+    output: Mapped[Dict[str, Any]]
+    metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    revision_kind: Mapped[str] = mapped_column(
+        CheckConstraint(
+            "revision_kind IN ('CREATE', 'PATCH', 'DELETE')", name="valid_revision_kind"
+        ),
+    )
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint(
+            "dataset_example_id",
+            "dataset_version_id",
+        ),
+    )
+
+
+class Experiment(Base):
+    __tablename__ = "experiments"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    dataset_id: Mapped[int] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"),
+        index=True,
+    )
+    dataset_version_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_versions.id", ondelete="CASCADE"),
+        index=True,
+    )
+    name: Mapped[str]
+    description: Mapped[Optional[str]]
+    repetitions: Mapped[int]
+    metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    project_name: Mapped[Optional[str]] = mapped_column(index=True)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+
+class ExperimentRun(Base):
+    __tablename__ = "experiment_runs"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    experiment_id: Mapped[int] = mapped_column(
+        ForeignKey("experiments.id", ondelete="CASCADE"),
+        index=True,
+    )
+    dataset_example_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_examples.id", ondelete="CASCADE"),
+        index=True,
+    )
+    repetition_number: Mapped[int]
+    trace_id: Mapped[Optional[str]]
+    output: Mapped[ExperimentRunOutput]
+    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
+    end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
+    prompt_token_count: Mapped[Optional[int]]
+    completion_token_count: Mapped[Optional[int]]
+    error: Mapped[Optional[str]]
+
+    trace: Mapped["Trace"] = relationship(
+        primaryjoin="foreign(ExperimentRun.trace_id) == Trace.trace_id",
+        back_populates="experiment_runs",
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "experiment_id",
+            "dataset_example_id",
+            "repetition_number",
+        ),
+    )
+
+
+class ExperimentRunAnnotation(Base):
+    __tablename__ = "experiment_run_annotations"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    experiment_run_id: Mapped[int] = mapped_column(
+        ForeignKey("experiment_runs.id", ondelete="CASCADE"),
+        index=True,
+    )
+    name: Mapped[str]
+    annotator_kind: Mapped[str] = mapped_column(
+        CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
+    )
+    label: Mapped[Optional[str]]
+    score: Mapped[Optional[float]]
+    explanation: Mapped[Optional[str]]
+    trace_id: Mapped[Optional[str]]
+    error: Mapped[Optional[str]]
+    metadata_: Mapped[Dict[str, Any]] = mapped_column("metadata")
+    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
+    end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "experiment_run_id",
+            "name",
         ),
     )

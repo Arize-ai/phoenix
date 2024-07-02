@@ -1,6 +1,10 @@
 import operator
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import (
+    Any,
+    List,
+    Optional,
+)
 
 import strawberry
 from aioitertools.itertools import islice
@@ -8,6 +12,7 @@ from sqlalchemy import and_, desc, distinct, select
 from sqlalchemy.orm import contains_eager
 from sqlalchemy.sql.expression import tuple_
 from strawberry import ID, UNSET
+from strawberry.relay import Connection, Node, NodeID
 from strawberry.types import Info
 
 from phoenix.datetime_utils import right_open_time_range
@@ -17,13 +22,11 @@ from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortConfig
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
 from phoenix.server.api.types.EvaluationSummary import EvaluationSummary
-from phoenix.server.api.types.node import Node
 from phoenix.server.api.types.pagination import (
-    Connection,
     Cursor,
     CursorSortColumn,
     CursorString,
-    connections,
+    connection_from_cursors_and_nodes,
 )
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
@@ -31,11 +34,10 @@ from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.trace.dsl import SpanFilter
 
-SPANS_LIMIT = 1000
-
 
 @strawberry.type
 class Project(Node):
+    id_attr: NodeID[int]
     name: str
     gradient_start_color: str
     gradient_end_color: str
@@ -149,7 +151,7 @@ class Project(Node):
         async with info.context.db() as session:
             if (id_attr := await session.scalar(stmt)) is None:
                 return None
-        return Trace(id_attr=id_attr)
+        return Trace(id_attr=id_attr, trace_id=trace_id, project_rowid=self.id_attr)
 
     @strawberry.field
     async def spans(
@@ -168,7 +170,7 @@ class Project(Node):
             select(models.Span)
             .join(models.Trace)
             .where(models.Trace.project_rowid == self.id_attr)
-            .options(contains_eager(models.Span.trace))
+            .options(contains_eager(models.Span.trace).load_only(models.Trace.trace_id))
         )
         if time_range:
             stmt = stmt.where(
@@ -213,7 +215,7 @@ class Project(Node):
                 first + 1  # overfetch by one to determine whether there's a next page
             )
         stmt = stmt.order_by(cursor_rowid_column)
-        data = []
+        cursors_and_nodes = []
         async with info.context.db() as session:
             span_records = await session.execute(stmt)
             async for span_record in islice(span_records, first):
@@ -230,15 +232,15 @@ class Project(Node):
                         else None
                     ),
                 )
-                data.append((cursor, to_gql_span(span)))
+                cursors_and_nodes.append((cursor, to_gql_span(span)))
             has_next_page = True
             try:
                 next(span_records)
             except StopIteration:
                 has_next_page = False
 
-        return connections(
-            data,
+        return connection_from_cursors_and_nodes(
+            cursors_and_nodes,
             has_previous_page=False,
             has_next_page=has_next_page,
         )
@@ -355,3 +357,15 @@ class Project(Node):
                 is_valid=False,
                 error_message=e.msg,
             )
+
+
+def to_gql_project(project: models.Project) -> Project:
+    """
+    Converts an ORM project to a GraphQL Project.
+    """
+    return Project(
+        id_attr=project.id,
+        name=project.name,
+        gradient_start_color=project.gradient_start_color,
+        gradient_end_color=project.gradient_end_color,
+    )

@@ -2,7 +2,9 @@ import os
 import tempfile
 from logging import getLogger
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
+
+from .utilities.re import parse_env_headers
 
 logger = getLogger(__name__)
 
@@ -12,6 +14,12 @@ ENV_PHOENIX_GRPC_PORT = "PHOENIX_GRPC_PORT"
 ENV_PHOENIX_HOST = "PHOENIX_HOST"
 ENV_PHOENIX_HOST_ROOT_PATH = "PHOENIX_HOST_ROOT_PATH"
 ENV_NOTEBOOK_ENV = "PHOENIX_NOTEBOOK_ENV"
+ENV_PHOENIX_CLIENT_HEADERS = "PHOENIX_CLIENT_HEADERS"
+"""
+The headers to include in Phoenix client requests.
+Note: This overrides OTEL_EXPORTER_OTLP_HEADERS in the case where
+phoenix.trace instrumentors are used.
+"""
 ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
 """
 The endpoint traces and evals are sent to. This must be set if the Phoenix
@@ -105,15 +113,15 @@ GRPC_PORT = 4317
 """The port the gRPC server will run on after launch_app is called.
 The default network port for OTLP/gRPC is 4317.
 See https://opentelemetry.io/docs/specs/otlp/#otlpgrpc-default-port"""
-GENERATED_DATASET_NAME_PREFIX = "phoenix_dataset_"
+GENERATED_INFERENCES_NAME_PREFIX = "phoenix_inferences_"
 """The prefix of datasets that are auto-assigned a name."""
 WORKING_DIR = get_working_dir()
-"""The work directory for saving, loading, and exporting datasets."""
+"""The work directory for saving, loading, and exporting data."""
 
 ROOT_DIR = WORKING_DIR
 EXPORT_DIR = ROOT_DIR / "exports"
-DATASET_DIR = ROOT_DIR / "datasets"
-TRACE_DATASET_DIR = ROOT_DIR / "trace_datasets"
+INFERENCES_DIR = ROOT_DIR / "inferences"
+TRACE_DATASETS_DIR = ROOT_DIR / "trace_datasets"
 
 
 def ensure_working_dir() -> None:
@@ -126,8 +134,8 @@ def ensure_working_dir() -> None:
         for path in (
             ROOT_DIR,
             EXPORT_DIR,
-            DATASET_DIR,
-            TRACE_DATASET_DIR,
+            INFERENCES_DIR,
+            TRACE_DATASETS_DIR,
         ):
             path.mkdir(parents=True, exist_ok=True)
     except Exception as e:
@@ -217,6 +225,33 @@ def get_env_enable_prometheus() -> bool:
         f"Invalid value for environment variable {ENV_PHOENIX_ENABLE_PROMETHEUS}: "
         f"{enable_promotheus}. Value values are 'TRUE' and 'FALSE' (case-insensitive)."
     )
+
+
+def get_env_client_headers() -> Optional[Dict[str, str]]:
+    if headers_str := os.getenv(ENV_PHOENIX_CLIENT_HEADERS):
+        return parse_env_headers(headers_str)
+    return None
+
+
+def get_base_url() -> str:
+    host = get_env_host()
+    if host == "0.0.0.0":
+        host = "127.0.0.1"
+    base_url = get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
+    return base_url if base_url.endswith("/") else base_url + "/"
+
+
+def get_web_base_url() -> str:
+    """Return the web UI base URL.
+
+    Returns:
+        str: the web UI base URL
+    """
+    from phoenix.session.session import active_session
+
+    if session := active_session():
+        return session.url
+    return get_base_url()
 
 
 DEFAULT_PROJECT_NAME = "default"

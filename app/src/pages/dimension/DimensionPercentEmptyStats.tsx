@@ -24,7 +24,7 @@ export function DimensionPercentEmptyStats(props: {
         )
         referencePercentEmpty: dataQualityMetric(
           metric: percentEmpty
-          datasetRole: reference
+          inferencesRole: reference
         ) @include(if: $hasReference)
       }
     `,
