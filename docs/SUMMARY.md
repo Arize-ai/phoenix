@@ -83,7 +83,7 @@
   * [Exporting Datasets](datasets-and-experiments/how-to-datasets/exporting-datasets.md)
   * [Run Experiments](datasets-and-experiments/how-to-datasets/run-experiments.md)
   * [Using Evaluators](datasets-and-experiments/how-to-datasets/using-evaluators.md)
-* [Use Cases: Datasets](datasets-and-experiments/use-cases-datasets/README.md)
+* [Use Cases: Experiments](datasets-and-experiments/use-cases-datasets/README.md)
   * [Text2SQL](datasets-and-experiments/use-cases-datasets/text2sql.md)
   * [Summarization](datasets-and-experiments/use-cases-datasets/summarization.md)
   * [Email Extraction](datasets-and-experiments/use-cases-datasets/email-extraction.md)
