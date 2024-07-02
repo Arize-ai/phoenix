@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4b18018d5ea6f754fd9c0b1591bcc4a2>>
+ * @generated SignedSource<<5f7cb042516e798d0a5abb7256a20683>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -33,16 +33,29 @@ export type ProjectsPageProjectsFragment$key = {
 };
 
 const node: ReaderFragment = (function(){
-var v0 = {
+var v0 = [
+  "projects"
+],
+v1 = {
   "kind": "Variable",
   "name": "timeRange",
   "variableName": "timeRange"
 },
-v1 = [
-  (v0/*: any*/)
+v2 = [
+  (v1/*: any*/)
 ];
 return {
   "argumentDefinitions": [
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "after"
+    },
+    {
+      "defaultValue": 100,
+      "kind": "LocalArgument",
+      "name": "first"
+    },
     {
       "kind": "RootArgument",
       "name": "timeRange"
@@ -50,8 +63,23 @@ return {
   ],
   "kind": "Fragment",
   "metadata": {
+    "connection": [
+      {
+        "count": "first",
+        "cursor": "after",
+        "direction": "forward",
+        "path": (v0/*: any*/)
+      }
+    ],
     "refetch": {
-      "connection": null,
+      "connection": {
+        "forward": {
+          "count": "first",
+          "cursor": "after"
+        },
+        "backward": null,
+        "path": (v0/*: any*/)
+      },
       "fragmentPathInResult": [],
       "operation": require('./ProjectsPageProjectsQuery.graphql')
     }
@@ -59,11 +87,11 @@ return {
   "name": "ProjectsPageProjectsFragment",
   "selections": [
     {
-      "alias": null,
+      "alias": "projects",
       "args": null,
       "concreteType": "ProjectConnection",
       "kind": "LinkedField",
-      "name": "projects",
+      "name": "__ProjectsPage_projects_connection",
       "plural": false,
       "selections": [
         {
@@ -112,7 +140,7 @@ return {
                 },
                 {
                   "alias": null,
-                  "args": (v1/*: any*/),
+                  "args": (v2/*: any*/),
                   "kind": "ScalarField",
                   "name": "traceCount",
                   "storageKey": null
@@ -132,7 +160,7 @@ return {
                       "name": "probability",
                       "value": 0.5
                     },
-                    (v0/*: any*/)
+                    (v1/*: any*/)
                   ],
                   "kind": "ScalarField",
                   "name": "latencyMsQuantile",
@@ -140,12 +168,62 @@ return {
                 },
                 {
                   "alias": null,
-                  "args": (v1/*: any*/),
+                  "args": (v2/*: any*/),
                   "kind": "ScalarField",
                   "name": "tokenCountTotal",
                   "storageKey": null
                 }
               ],
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "cursor",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "Project",
+              "kind": "LinkedField",
+              "name": "node",
+              "plural": false,
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "__typename",
+                  "storageKey": null
+                }
+              ],
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "PageInfo",
+          "kind": "LinkedField",
+          "name": "pageInfo",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "endCursor",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "hasNextPage",
               "storageKey": null
             }
           ],
@@ -160,6 +238,6 @@ return {
 };
 })();
 
-(node as any).hash = "eed3bc970f109d273b6235f9eb0811ae";
+(node as any).hash = "720b12837ec779f66a493b8c4f993cba";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2a8c4f4e6dc6baf963fd2dd708dc5909>>
+ * @generated SignedSource<<d3eeb69b848003c2ca8a1929c7274270>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,6 +15,8 @@ export type TimeRange = {
   start: string;
 };
 export type ProjectsPageProjectsQuery$variables = {
+  after?: string | null;
+  first?: number | null;
   timeRange?: TimeRange | null;
 };
 export type ProjectsPageProjectsQuery$data = {
@@ -30,16 +32,38 @@ var v0 = [
   {
     "defaultValue": null,
     "kind": "LocalArgument",
+    "name": "after"
+  },
+  {
+    "defaultValue": 100,
+    "kind": "LocalArgument",
+    "name": "first"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
     "name": "timeRange"
   }
 ],
-v1 = {
+v1 = [
+  {
+    "kind": "Variable",
+    "name": "after",
+    "variableName": "after"
+  },
+  {
+    "kind": "Variable",
+    "name": "first",
+    "variableName": "first"
+  }
+],
+v2 = {
   "kind": "Variable",
   "name": "timeRange",
   "variableName": "timeRange"
 },
-v2 = [
-  (v1/*: any*/)
+v3 = [
+  (v2/*: any*/)
 ];
 return {
   "fragment": {
@@ -49,7 +73,7 @@ return {
     "name": "ProjectsPageProjectsQuery",
     "selections": [
       {
-        "args": null,
+        "args": (v1/*: any*/),
         "kind": "FragmentSpread",
         "name": "ProjectsPageProjectsFragment"
       }
@@ -65,7 +89,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": null,
+        "args": (v1/*: any*/),
         "concreteType": "ProjectConnection",
         "kind": "LinkedField",
         "name": "projects",
@@ -117,7 +141,7 @@ return {
                   },
                   {
                     "alias": null,
-                    "args": (v2/*: any*/),
+                    "args": (v3/*: any*/),
                     "kind": "ScalarField",
                     "name": "traceCount",
                     "storageKey": null
@@ -137,7 +161,7 @@ return {
                         "name": "probability",
                         "value": 0.5
                       },
-                      (v1/*: any*/)
+                      (v2/*: any*/)
                     ],
                     "kind": "ScalarField",
                     "name": "latencyMsQuantile",
@@ -145,9 +169,34 @@ return {
                   },
                   {
                     "alias": null,
-                    "args": (v2/*: any*/),
+                    "args": (v3/*: any*/),
                     "kind": "ScalarField",
                     "name": "tokenCountTotal",
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "cursor",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "Project",
+                "kind": "LinkedField",
+                "name": "node",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "__typename",
                     "storageKey": null
                   }
                 ],
@@ -155,23 +204,57 @@ return {
               }
             ],
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "PageInfo",
+            "kind": "LinkedField",
+            "name": "pageInfo",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "endCursor",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "hasNextPage",
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
           }
         ],
         "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": (v1/*: any*/),
+        "filters": null,
+        "handle": "connection",
+        "key": "ProjectsPage_projects",
+        "kind": "LinkedHandle",
+        "name": "projects"
       }
     ]
   },
   "params": {
-    "cacheID": "b7b294ef46695c71a41287c42ec9392f",
+    "cacheID": "dd65be0e4921fda8c7330e4b91d0d016",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageProjectsQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageProjectsQuery(\n  $timeRange: TimeRange\n) {\n  ...ProjectsPageProjectsFragment\n}\n\nfragment ProjectsPageProjectsFragment on Query {\n  projects {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        traceCount(timeRange: $timeRange)\n        endTime\n        latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n        tokenCountTotal(timeRange: $timeRange)\n      }\n    }\n  }\n}\n"
+    "text": "query ProjectsPageProjectsQuery(\n  $after: String = null\n  $first: Int = 100\n  $timeRange: TimeRange\n) {\n  ...ProjectsPageProjectsFragment_2HEEH6\n}\n\nfragment ProjectsPageProjectsFragment_2HEEH6 on Query {\n  projects(first: $first, after: $after) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        traceCount(timeRange: $timeRange)\n        endTime\n        latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n        tokenCountTotal(timeRange: $timeRange)\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "eed3bc970f109d273b6235f9eb0811ae";
+(node as any).hash = "720b12837ec779f66a493b8c4f993cba";
 
 export default node;
