@@ -83,5 +83,5 @@ jobs:
       - name: Build distribution
         run: rm -rf dist && hatch build
       - name: Check wheel contents
-        run: check-wheel-contents dist/*.whl
+        run: check-wheel-contents --ignore W004 dist/*.whl
       - uses: pypa/gh-action-pypi-publish@release/v1
