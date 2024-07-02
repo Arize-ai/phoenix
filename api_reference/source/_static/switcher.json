@@ -1,0 +1,8 @@
+[
+    {
+        "name": "latest",
+        "version": "dev",
+        "url": "https://arize-phoenix.readthedocs.io/en/latest/",
+        "preferred": true
+    }
+]
