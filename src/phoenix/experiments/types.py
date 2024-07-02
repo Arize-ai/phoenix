@@ -103,9 +103,9 @@ class Example:
         identifiers = [f'{spaces}id="{self.id}",']
         contents = [
             spaces
-            + f"{k}="
+            + f"{_blue(key)}="
             + json.dumps(
-                _shorten(v),
+                _shorten(value),
                 ensure_ascii=False,
                 sort_keys=True,
                 indent=len(spaces),
@@ -113,8 +113,8 @@ class Example:
             .replace("\n", f"\n{spaces}")
             .replace(' "..."\n', " ...\n")
             + ","
-            for k in ("input", "output", "metadata")
-            if (v := getattr(self, k, None))
+            for key in ("input", "output", "metadata")
+            if (value := getattr(self, key, None))
         ]
         return "\n".join([f"{name}(", *identifiers, *contents, ")"])
 
@@ -689,6 +689,10 @@ class _ExperimentRunWithExample(ObjectProxy):  # type: ignore[misc]
         return deepcopy(self._self_example.output)
 
     @property
+    def reference(self) -> ExampleOutput:
+        return deepcopy(self._self_example.output)
+
+    @property
     def input(self) -> ExampleInput:
         return deepcopy(self._self_example.input)
 
@@ -703,20 +707,47 @@ class _ExperimentRunWithExample(ObjectProxy):  # type: ignore[misc]
             f'{spaces}id="{self.id}",',
             f'{spaces}example_id="{self.dataset_example_id}",',
         ]
-        contents = [
+        outputs = [
+            *([f'{spaces}error="{self.error}",'] if self.error else []),
+            *(
+                [
+                    f"{spaces}{_blue('output')}="
+                    + json.dumps(
+                        _shorten(self.task_output),
+                        ensure_ascii=False,
+                        sort_keys=True,
+                        indent=len(spaces),
+                    )
+                    .replace("\n", f"\n{spaces}")
+                    .replace(' "..."\n', " ...\n")
+                ]
+                if not self.error
+                else []
+            ),
+        ]
+        dicts = [
             spaces
-            + f"{k}="
-            + json.dumps(_shorten(v), ensure_ascii=False, sort_keys=True, indent=len(spaces))
+            + f"{_blue(alias)}={{"
+            + (f" # {comment}" if comment else "")
+            + json.dumps(
+                _shorten(value),
+                ensure_ascii=False,
+                sort_keys=True,
+                indent=len(spaces),
+            )[1:]
             .replace("\n", f"\n{spaces}")
             .replace(' "..."\n', " ...\n")
             + ","
-            for k, v in {
-                "error": self.error,
-                "output": self.task_output,
-                "expected": self.expected,
-                "input": self.input,
-                "metadata": self.metadata,
-            }.items()
-            if v
+            for alias, value, comment in (
+                ("expected", self.expected, f"alias for the example.{_blue('output')} dict"),
+                ("reference", self.reference, f"alias for the example.{_blue('output')} dict"),
+                ("input", self.input, f"alias for the example.{_blue('input')} dict"),
+                ("metadata", self.metadata, f"alias for the example.{_blue('metadata')} dict"),
+            )
+            if value
         ]
-        return "\n".join([f"{name}(", *identifiers, *contents, ")"])
+        return "\n".join([f"{name}(", *identifiers, *outputs, *dicts, ")"])
+
+
+def _blue(text: str) -> str:
+    return f"\033[1m\033[94m{text}\033[0m"
