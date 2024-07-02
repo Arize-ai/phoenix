@@ -244,7 +244,7 @@ class ExperimentRun:
 
     def __post_init__(self) -> None:
         if bool(self.experiment_run_output) == bool(self.error):
-            ValueError("Must specify either result or error")
+            ValueError("Must specify exactly one of experiment_run_output or error")
 
 
 @dataclass(frozen=True)
