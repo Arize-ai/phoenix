@@ -647,7 +647,8 @@ def _print_experiment_error(
         f"{kind} failed for example id {repr(example_id)}, " f"repetition {repr(repetition_number)}"
     )
     display_error.__cause__ = error
-    print("\033[91m" + "".join(traceback.format_exception(display_error)) + "\033[0m")
+    formatted_exception = "".join(traceback.format_exception(display_error))  # type: ignore[arg-type, call-arg, unused-ignore]
+    print("\033[91m" + formatted_exception + "\033[0m")
 
 
 class _NoOpProcessor(trace_sdk.SpanProcessor):
