@@ -1,5 +1,6 @@
 import functools
 import json
+import traceback
 from binascii import hexlify
 from contextlib import ExitStack
 from copy import deepcopy
@@ -10,6 +11,7 @@ from typing import (
     Any,
     Awaitable,
     Dict,
+    Literal,
     Mapping,
     Optional,
     Sequence,
@@ -198,6 +200,12 @@ def run_experiment(
                 span.record_exception(exc)
                 status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
+                _print_experiment_error(
+                    exc,
+                    example_id=example.id,
+                    repetition_number=repetition_number,
+                    kind="task",
+                )
             output = jsonify(output)
             span.set_attribute(INPUT_VALUE, json.dumps(example.input, ensure_ascii=False))
             span.set_attribute(INPUT_MIME_TYPE, JSON.value)
@@ -253,6 +261,12 @@ def run_experiment(
                 span.record_exception(exc)
                 status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
+                _print_experiment_error(
+                    exc,
+                    example_id=example.id,
+                    repetition_number=repetition_number,
+                    kind="task",
+                )
             output = jsonify(output)
             span.set_attribute(INPUT_VALUE, json.dumps(example.input, ensure_ascii=False))
             span.set_attribute(INPUT_MIME_TYPE, JSON.value)
@@ -437,6 +451,12 @@ def evaluate_experiment(
                 span.record_exception(exc)
                 status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
+                _print_experiment_error(
+                    exc,
+                    example_id=example.id,
+                    repetition_number=experiment_run.repetition_number,
+                    kind="evaluator",
+                )
             if result:
                 span.set_attributes(dict(flatten(jsonify(result), recurse_on_sequence=True)))
             span.set_attribute(OPENINFERENCE_SPAN_KIND, root_span_kind)
@@ -482,6 +502,12 @@ def evaluate_experiment(
                 span.record_exception(exc)
                 status = Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}")
                 error = exc
+                _print_experiment_error(
+                    exc,
+                    example_id=example.id,
+                    repetition_number=experiment_run.repetition_number,
+                    kind="evaluator",
+                )
             if result:
                 span.set_attributes(dict(flatten(jsonify(result), recurse_on_sequence=True)))
             span.set_attribute(OPENINFERENCE_SPAN_KIND, root_span_kind)
@@ -604,6 +630,24 @@ def _get_task_name(task: ExperimentTask) -> str:
 
 def _is_dry_run(obj: Any) -> bool:
     return hasattr(obj, "id") and isinstance(obj.id, str) and obj.id.startswith(DRY_RUN)
+
+
+def _print_experiment_error(
+    error: BaseException,
+    /,
+    *,
+    example_id: str,
+    repetition_number: int,
+    kind: Literal["evaluator", "task"],
+) -> None:
+    """
+    Prints an experiment error in red.
+    """
+    display_error = RuntimeError(
+        f"{kind} failed for example id {repr(example_id)}, " f"repetition {repr(repetition_number)}"
+    )
+    display_error.__cause__ = error
+    print("\033[91m" + "".join(traceback.format_exception(display_error)) + "\033[0m")
 
 
 class _NoOpProcessor(trace_sdk.SpanProcessor):
