@@ -12,16 +12,15 @@ import sys
 
 sys.path.insert(0, os.path.abspath("../../"))
 sys.path.insert(0, os.path.abspath("../../src/phoenix"))
-sys.path.insert(0, os.path.abspath('../packages/phoenix-evals/src/phoenix'))
+sys.path.insert(0, os.path.abspath("../packages/phoenix-evals/src/phoenix"))
 
 # -- Generation setup --------------------------------------------------------
 
 # Define which modules, classes, and their respective methods to include
 INCLUDE_MEMBERS = {
-    'inferences.inferences': {
-        'Inferences': ['__init__']
-    },
+    "inferences.inferences": {"Inferences": ["__init__"]},
 }
+
 
 def include_only_tagged(app, what, name, obj, skip, options):
     inclusion_tag_format = ".. only:: {}"  # can be any pattern here, choose what works for you
@@ -30,10 +29,11 @@ def include_only_tagged(app, what, name, obj, skip, options):
             return False
     return True
 
+
 def skip_member(app, what, name, obj, skip, options):
-    module_name = obj.__module__ if hasattr(obj, '__module__') else ''
-    class_name = obj.__class__.__name__ if hasattr(obj, '__class__') else ''
-    member_name = name.split('.')[-1]  # Get the last part of the name
+    module_name = obj.__module__ if hasattr(obj, "__module__") else ""
+    class_name = obj.__class__.__name__ if hasattr(obj, "__class__") else ""
+    member_name = name.split(".")[-1]  # Get the last part of the name
 
     # Check if the module is in the include list
     if module_name in INCLUDE_MEMBERS:
@@ -45,42 +45,44 @@ def skip_member(app, what, name, obj, skip, options):
     # Skip all other modules not specifically included
     return True
 
+
 def filter_rst(app, docname, source):
     if source:
         processed = []
         in_automodule = False
-        
+
         # Iterate over each line in the source
-        for line in source[0].split('\n'):
+        for line in source[0].split("\n"):
             # Check for the start of the automodule block
-            if '.. automodule::' in line:
+            if ".. automodule::" in line:
                 in_automodule = True
 
             # If line is empty and we are in the automodule block, continue to consider it inside
-            if in_automodule and line.strip() == '':
+            if in_automodule and line.strip() == "":
                 processed.append(line)
                 continue  # Skip the reset of in_automodule until out of relevant content
 
             # Set in_automodule to false once out of the block
-            if in_automodule and line.strip() and not line.startswith('   '):
+            if in_automodule and line.strip() and not line.startswith("   "):
                 in_automodule = False
 
             # Replace the unwanted text outside automodule blocks
             if not in_automodule:
-                if 'Submodules' in line:
-                    continue 
-                if 'Module contents' in line:
-                    continue 
-                if ' package' in line:
-                    line = line.replace(' package', '')  # Remove ' package'
-                if ' module' in line:
-                    line = line.replace(' module', '')  # Remove ' module'
+                if "Submodules" in line:
+                    continue
+                if "Module contents" in line:
+                    continue
+                if " package" in line:
+                    line = line.replace(" package", "")  # Remove ' package'
+                if " module" in line:
+                    line = line.replace(" module", "")  # Remove ' module'
 
             # Append potentially modified line to new output
             processed.append(line)
 
         # Join the modified lines back into a single string
-        source[0] = '\n'.join(processed)
+        source[0] = "\n".join(processed)
+
 
 def setup(app):
     # if len(app.tags.tags) > 0:
@@ -88,7 +90,7 @@ def setup(app):
     # app.connect("autodoc-skip-member", skip_member)
 
     # Remove unnecessary headers
-    app.connect('source-read', filter_rst)
+    app.connect("source-read", filter_rst)
 
 
 # -- Project information -----------------------------------------------------
@@ -101,12 +103,12 @@ author = "Arize AI"
 
 # -- General configuration ---------------------------------------------------
 
-source_suffix = ['.rst', '.md', '.txt']
+source_suffix = [".rst", ".md", ".txt"]
 
 extensions = [
-    "sphinx.ext.autodoc", 
+    "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
-    "sphinx.ext.napoleon", 
+    "sphinx.ext.napoleon",
     "myst_parser",
 ]
 
@@ -133,7 +135,7 @@ autosummary_generate = True
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 
-# List of patterns, relative to source directory, that match files and directories 
+# List of patterns, relative to source directory, that match files and directories
 # to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
@@ -155,7 +157,7 @@ language = "en"
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'pydata_sphinx_theme'
+html_theme = "pydata_sphinx_theme"
 pygments_style = "sphinx"  # The name of the Pygments (syntax highlighting) style to use.
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
@@ -180,13 +182,10 @@ html_theme_options = {
     ],
     "external_links": [
         {"name": "Docs", "url": "https://docs.arize.com/phoenix"},
-    ], 
+    ],
     "navbar_align": "content",
     "navbar_start": ["navbar-logo"],
     "header_links_before_dropdown": 5,
-    
 }
 
-html_sidebars = {
-    "**": ["sidebar-nav-bs"]
-}
+html_sidebars = {"**": ["sidebar-nav-bs"]}
