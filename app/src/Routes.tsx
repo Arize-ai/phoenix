@@ -2,18 +2,34 @@ import React from "react";
 import { createRoutesFromElements, Route, RouterProvider } from "react-router";
 import { createBrowserRouter } from "react-router-dom";
 
+import { datasetLoaderQuery$data } from "./pages/dataset/__generated__/datasetLoaderQuery.graphql";
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
-import { TracingHomePage } from "./pages/tracing";
+import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
 import {
+  APIsPage,
+  datasetLoader,
+  DatasetPage,
+  DatasetsPage,
   dimensionLoader,
   DimensionPage,
   embeddingLoader,
   EmbeddingPage,
   ErrorElement,
+  ExamplePage,
+  examplesLoader,
+  ExamplesPage,
+  experimentCompareLoader,
+  ExperimentComparePage,
+  experimentsLoader,
+  ExperimentsPage,
   homeLoader,
   Layout,
   ModelPage,
   ModelRoot,
+  projectLoader,
+  ProjectPage,
+  ProjectsPage,
+  ProjectsRoot,
   TracePage,
   TracingRoot,
 } from "./pages";
@@ -53,17 +69,70 @@ const router = createBrowserRouter(
         </Route>
       </Route>
       <Route
-        path="/tracing"
-        handle={{ crumb: () => "tracing" }}
-        element={<TracingRoot />}
+        path="/projects"
+        handle={{ crumb: () => "projects" }}
+        element={<ProjectsRoot />}
       >
-        <Route index element={<TracingHomePage />} />
-        <Route element={<TracingHomePage />}>
-          <Route path="traces">
-            <Route path=":traceId" element={<TracePage />} />
+        <Route index element={<ProjectsPage />} />
+        <Route
+          path=":projectId"
+          element={<TracingRoot />}
+          loader={projectLoader}
+          handle={{
+            crumb: (data: projectLoaderQuery$data) => data.project.name,
+          }}
+        >
+          <Route index element={<ProjectPage />} />
+          <Route element={<ProjectPage />}>
+            <Route path="traces/:traceId" element={<TracePage />} />
           </Route>
         </Route>
       </Route>
+      <Route path="/datasets" handle={{ crumb: () => "datasets" }}>
+        <Route index element={<DatasetsPage />} />
+        <Route
+          path=":datasetId"
+          loader={datasetLoader}
+          handle={{
+            crumb: (data: datasetLoaderQuery$data) => data.dataset.name,
+          }}
+        >
+          <Route element={<DatasetPage />} loader={datasetLoader}>
+            <Route
+              index
+              element={<ExperimentsPage />}
+              loader={experimentsLoader}
+            />
+            <Route
+              path="experiments"
+              element={<ExperimentsPage />}
+              loader={experimentsLoader}
+            />
+            <Route
+              path="examples"
+              element={<ExamplesPage />}
+              loader={examplesLoader}
+            >
+              <Route path=":exampleId" element={<ExamplePage />} />
+            </Route>
+          </Route>
+          <Route
+            path="compare"
+            handle={{
+              crumb: () => "compare",
+            }}
+            loader={experimentCompareLoader}
+            element={<ExperimentComparePage />}
+          />
+        </Route>
+      </Route>
+      <Route
+        path="/apis"
+        element={<APIsPage />}
+        handle={{
+          crumb: () => "APIs",
+        }}
+      />
     </Route>
   ),
   {

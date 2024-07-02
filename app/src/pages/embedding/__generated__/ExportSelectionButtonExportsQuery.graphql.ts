@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f7ee9d3574969ba690b28c0473c3959f>>
+ * @generated SignedSource<<28eea2320d6b7e29ea9d04c777c2fbc8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Query } from 'relay-runtime';
-export type ExportSelectionButtonExportsQuery$variables = {};
+export type ExportSelectionButtonExportsQuery$variables = Record<PropertyKey, never>;
 export type ExportSelectionButtonExportsQuery$data = {
   readonly model: {
     readonly exportedFiles: ReadonlyArray<{

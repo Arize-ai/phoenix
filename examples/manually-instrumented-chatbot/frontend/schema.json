@@ -1,0 +1,149 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "Chat Service Schema",
+        "description": "API schema for chat-service",
+        "version": "1.0.0"
+    },
+    "paths": {
+        "/messages/": {
+            "post": {
+                "summary": "Messages",
+                "operationId": "messages_messages__post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MessagesPayload"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessagesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "HTTPValidationError": {
+                "properties": {
+                    "detail": {
+                        "items": {
+                            "$ref": "#/components/schemas/ValidationError"
+                        },
+                        "type": "array",
+                        "title": "Detail"
+                    }
+                },
+                "type": "object",
+                "title": "HTTPValidationError"
+            },
+            "Message": {
+                "properties": {
+                    "role": {
+                        "type": "string",
+                        "enum": [
+                            "system",
+                            "assistant",
+                            "user"
+                        ],
+                        "title": "Role"
+                    },
+                    "content": {
+                        "type": "string",
+                        "title": "Content"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "role",
+                    "content"
+                ],
+                "title": "Message"
+            },
+            "MessagesPayload": {
+                "properties": {
+                    "messages": {
+                        "items": {
+                            "$ref": "#/components/schemas/Message"
+                        },
+                        "type": "array",
+                        "title": "Messages"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "messages"
+                ],
+                "title": "MessagesPayload"
+            },
+            "MessagesResponse": {
+                "properties": {
+                    "message": {
+                        "$ref": "#/components/schemas/Message"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "message"
+                ],
+                "title": "MessagesResponse"
+            },
+            "ValidationError": {
+                "properties": {
+                    "loc": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "integer"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Location"
+                    },
+                    "msg": {
+                        "type": "string",
+                        "title": "Message"
+                    },
+                    "type": {
+                        "type": "string",
+                        "title": "Error Type"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "loc",
+                    "msg",
+                    "type"
+                ],
+                "title": "ValidationError"
+            }
+        }
+    }
+}

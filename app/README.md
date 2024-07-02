@@ -4,19 +4,19 @@ The Phoenix application is a web application built to enable rapid troubleshooti
 
 ## Installation
 
-To build and develop the web application, you must first install the dependencies via `npm` (node package manager). This will require a recent install of [nodejs](https://nodejs.org/en). Once installed, install the dependencies using the following command:
+To build and develop the web application, you must first install the dependencies via `pnpm` (performant node package manager). Once [installed](https://pnpm.io/installation), install the dependencies using the following command:
 
 ```shell
-npm ci
+pnpm install --frozen-lockfile
 ```
-NB: `ci` stands for clean install and will not re-build the `package-lock.json` file.
+NB: The `--frozen-lockfile` flag forces `pnpm` to install the exact versions specified in `pnpm-lock.yaml` and will not re-build the lockfile.
 
 ## Develop
 
 To develop the UI, you must run the `app` in conjunction with the backend server. You can start the application in development mode via the following:
 
 ```
-npm run dev
+pnpm run dev
 ```
 
 Depending on what flows you are trying to build features for, you may want to adjust the scripts block within the (package.json)[./package.json] file so that the server is serving the appropriate fixture data.
@@ -33,13 +33,13 @@ The web build ensures that the UI as well as the data-fetching layer is fully ty
 
 ## Test
 
-The Phoenix app is statically analyzed for type safety via `typescript`, statically analyzed for best practices via [eslint](https://eslint.org/), and the formatting is enforced via the `prettier` code formatter. In addition to static type checking, the app also leverages [jest](https://jestjs.io/) as a unit testing framework. The following `npm` commands correspond to the above safeguards.
+The Phoenix app is statically analyzed for type safety via `typescript`, statically analyzed for best practices via [eslint](https://eslint.org/), and the formatting is enforced via the `prettier` code formatter. In addition to static type checking, the app also leverages [jest](https://jestjs.io/) as a unit testing framework. The following `pnpm` commands correspond to the above safeguards.
 
 ```shell
-npm run typecheck
-npm run lint
-npm run prettier:check
-npm run test
+pnpm run typecheck
+pnpm run lint
+pnpm run prettier:check
+pnpm test
 ```
 NB: [prettier](https://prettier.io/) is also enforced via [pre-commit](https://pre-commit.com/) hooks.
 

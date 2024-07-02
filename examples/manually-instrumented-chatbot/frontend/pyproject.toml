@@ -1,0 +1,24 @@
+[project]
+name = "frontend"
+version = "0.1.0"
+dependencies = [
+  "streamlit",
+  "httpx",
+  "pydantic",
+]
+requires-python = ">=3.8"
+
+[project.optional-dependencies]
+dev = [
+  "pyright",
+  "ruff",
+  "datamodel-code-generator",
+]
+
+[tool.ruff]
+exclude = [
+  "frontend/request_types.py",
+]
+
+[tool.ruff.lint]
+extend-select = ["I"]

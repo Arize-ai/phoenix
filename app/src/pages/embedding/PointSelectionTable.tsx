@@ -14,7 +14,7 @@ import { ExternalLink, LinkButton } from "@phoenix/components";
 import { Shape, ShapeIcon } from "@phoenix/components/pointcloud";
 import { FloatCell, TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
-import { useDatasets, usePointCloudContext } from "@phoenix/contexts";
+import { useInferences, usePointCloudContext } from "@phoenix/contexts";
 
 import { ModelEvent } from "./types";
 import { useDefaultColorScheme } from "./useDefaultColorScheme";
@@ -32,7 +32,7 @@ export function PointSelectionTable({
   data: ModelEvent[];
   onPointSelected: (pointId: string) => void;
 }) {
-  const { primaryDataset, referenceDataset } = useDatasets();
+  const { primaryInferences, referenceInferences } = useInferences();
   const metric = usePointCloudContext((state) => state.metric);
   const [sorting, setSorting] = useState<SortingState>([]);
   const { columns, tableData } = useMemo<{
@@ -71,18 +71,18 @@ export function PointSelectionTable({
 
     // Columns that are only visible if certain data is available
     const dataDrivenColumns: ColumnDef<TableDataItem>[] = [];
-    if (referenceDataset) {
-      // Only need to show the dataset if there are two
+    if (referenceInferences) {
+      // Only need to show the inferences if there are two
       dataDrivenColumns.push({
-        header: "Dataset",
+        header: "Inference Set",
         accessorKey: "id",
         size: 50,
         cell: ({ getValue }) => {
           return (
-            <EventDatasetCell
+            <EventInferencesRoleCell
               id={getValue() as string}
-              primaryDatasetName={primaryDataset.name}
-              referenceDatasetName={referenceDataset?.name ?? "reference"}
+              primaryInferencesName={primaryInferences.name}
+              referenceInferencesName={referenceInferences?.name ?? "reference"}
             />
           );
         },
@@ -178,7 +178,7 @@ export function PointSelectionTable({
       },
     ];
     return { columns, tableData };
-  }, [data, onPointSelected, primaryDataset, referenceDataset, metric]);
+  }, [data, onPointSelected, primaryInferences, referenceInferences, metric]);
 
   const table = useReactTable<TableDataItem>({
     columns,
@@ -266,14 +266,14 @@ export function PointSelectionTable({
   );
 }
 
-function EventDatasetCell({
+function EventInferencesRoleCell({
   id,
-  primaryDatasetName,
-  referenceDatasetName,
+  primaryInferencesName,
+  referenceInferencesName,
 }: {
   id: string;
-  primaryDatasetName: string;
-  referenceDatasetName: string;
+  primaryInferencesName: string;
+  referenceInferencesName: string;
 }) {
   const isPrimary = id.includes("PRIMARY");
   const DEFAULT_COLOR_SCHEME = useDefaultColorScheme();
@@ -283,7 +283,7 @@ function EventDatasetCell({
         shape={Shape.circle}
         color={DEFAULT_COLOR_SCHEME[isPrimary ? 0 : 1]}
       />
-      {isPrimary ? primaryDatasetName : referenceDatasetName}
+      {isPrimary ? primaryInferencesName : referenceInferencesName}
     </Flex>
   );
 }

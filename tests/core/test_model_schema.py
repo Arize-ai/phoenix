@@ -19,9 +19,9 @@ from phoenix.core.model_schema import (
     RESPONSE,
     TAG,
     TIMESTAMP,
-    DatasetRole,
     Dimension,
     Embedding,
+    InferencesRole,
     InvalidRole,
     MultiDimensionalRole,
     Schema,
@@ -62,9 +62,9 @@ def test_column_names_coerced_to_str():
 
 def test_df_padding():
     model = Schema()(pd.DataFrame({"A": [1]}))
-    ds_roles = iter(DatasetRole)
-    assert not model[next(ds_roles)].empty
-    for role in ds_roles:
+    inf_roles = iter(InferencesRole)
+    assert not model[next(inf_roles)].empty
+    for role in inf_roles:
         df = model[role]
         assert isinstance(df, pd.DataFrame)
         assert df.empty
@@ -72,7 +72,7 @@ def test_df_padding():
 
 def test_df_column_insertion():
     model = Schema()(pd.DataFrame())
-    for ds_role in DatasetRole:
+    for ds_role in InferencesRole:
         df = model[ds_role]
         assert model[TIMESTAMP].name in df.columns
         for dim_role in SingularDimensionalRole:
@@ -288,7 +288,7 @@ def test_tag_names(
     "schema,dataframes",
     [
         (Schema(), ()),
-        (Schema(), [pd.DataFrame()] * (1 + len(DatasetRole))),
+        (Schema(), [pd.DataFrame()] * (1 + len(InferencesRole))),
     ],
 )
 def test_wrong_number_of_df(

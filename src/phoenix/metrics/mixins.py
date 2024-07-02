@@ -3,6 +3,7 @@ Mixins are behavioral building blocks of metrics. All metrics inherit from
 BaseMetric. Other mixins provide specialized functionalities. Mixins rely
 on cooperative multiple inheritance and method resolution order in Python.
 """
+
 import collections
 import inspect
 from abc import ABC, abstractmethod

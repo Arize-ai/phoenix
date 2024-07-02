@@ -80,7 +80,7 @@ class DocumentEvaluationSummary:
             return result
         values = self.metrics_collection.apply(lambda m: m.precision(k))
         result = (values.mean(), values.count())
-        self._cached_average_ndcg_results[k] = result
+        self._cached_average_precision_results[k] = result
         return result
 
     @cached_property

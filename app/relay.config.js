@@ -5,9 +5,10 @@ module.exports = {
   schema: "./schema.graphql",
   exclude: ["**/node_modules/**", "**/__mocks__/**", "**/__generated__/**"],
   noFutureProofEnums: true,
-  customScalars: {
+  customScalarTypes: {
     GlobalID: "string",
     DateTime: "string",
     UUID: "string",
   },
+  typescriptExcludeUndefinedFromNullableUnion: true,
 };

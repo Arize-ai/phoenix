@@ -2,37 +2,85 @@ import atexit
 import logging
 import os
 from argparse import ArgumentParser
-from pathlib import Path
-from random import random
+from pathlib import Path, PosixPath
 from threading import Thread
 from time import sleep, time
-from typing import Iterable, Optional, Protocol, TypeVar
+from typing import List, Optional
 
+import pkg_resources
 from uvicorn import Config, Server
 
-from phoenix.config import EXPORT_DIR, get_env_host, get_env_port, get_pids_path
-from phoenix.core.evals import Evals
-from phoenix.core.model_schema_adapter import create_model_from_datasets
-from phoenix.core.traces import Traces
-from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
-from phoenix.datasets.fixtures import FIXTURES, get_datasets
+import phoenix.trace.v1 as pb
+from phoenix.config import (
+    EXPORT_DIR,
+    get_env_database_connection_str,
+    get_env_enable_prometheus,
+    get_env_grpc_port,
+    get_env_host,
+    get_env_host_root_path,
+    get_env_port,
+    get_pids_path,
+    get_working_dir,
+)
+from phoenix.core.model_schema_adapter import create_model_from_inferences
+from phoenix.db import get_printable_db_url
+from phoenix.inferences.fixtures import FIXTURES, get_inferences
+from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
 from phoenix.pointcloud.umap_parameters import (
     DEFAULT_MIN_DIST,
     DEFAULT_N_NEIGHBORS,
     DEFAULT_N_SAMPLES,
     UMAPParameters,
 )
-from phoenix.server.app import create_app
+from phoenix.server.app import (
+    SessionFactory,
+    _db,
+    create_app,
+    create_engine_and_run_migrations,
+    instrument_engine_if_enabled,
+)
+from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
-    _download_traces_fixture,
-    _get_trace_fixture_by_name,
+    download_traces_fixture,
+    get_dataset_fixtures,
     get_evals_from_fixture,
+    get_trace_fixture_by_name,
+    reset_fixture_span_ids_and_timestamps,
+    send_dataset_fixtures,
 )
-from phoenix.trace.otel import encode
+from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
+from phoenix.trace.schemas import Span
 from phoenix.trace.span_json_decoder import json_string_to_span
 
 logger = logging.getLogger(__name__)
+
+_WELCOME_MESSAGE = """
+
+██████╗ ██╗  ██╗ ██████╗ ███████╗███╗   ██╗██╗██╗  ██╗
+██╔══██╗██║  ██║██╔═══██╗██╔════╝████╗  ██║██║╚██╗██╔╝
+██████╔╝███████║██║   ██║█████╗  ██╔██╗ ██║██║ ╚███╔╝
+██╔═══╝ ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║██║ ██╔██╗
+██║     ██║  ██║╚██████╔╝███████╗██║ ╚████║██║██╔╝ ██╗
+╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝ v{version}
+
+|
+|  🌎 Join our Community 🌎
+|  https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q
+|
+|  ⭐️ Leave us a Star ⭐️
+|  https://github.com/Arize-ai/phoenix
+|
+|  📚 Documentation 📚
+|  https://docs.arize.com/phoenix
+|
+|  🚀 Phoenix Server 🚀
+|  Phoenix UI: {ui_path}
+|  Log traces:
+|    - gRPC: {grpc_path}
+|    - HTTP: {http_path}
+|  Storage: {storage}
+"""
 
 
 def _write_pid_file_when_ready(
@@ -56,41 +104,26 @@ def _get_pid_file() -> Path:
     return get_pids_path() / str(os.getpid())
 
 
-_Item = TypeVar("_Item", contravariant=True)
-
-
-class _SupportsPut(Protocol[_Item]):
-    def put(self, item: _Item) -> None:
-        ...
-
-
-def _load_items(
-    queue: _SupportsPut[_Item],
-    items: Iterable[_Item],
-    simulate_streaming: Optional[bool] = False,
-) -> None:
-    for item in items:
-        if simulate_streaming:
-            sleep(random())
-        queue.put(item)
-
-
 DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_SAMPLES}"
 
 if __name__ == "__main__":
-    primary_dataset_name: str
-    reference_dataset_name: Optional[str]
+    primary_inferences_name: str
+    reference_inferences_name: Optional[str]
     trace_dataset_name: Optional[str] = None
     simulate_streaming: Optional[bool] = None
 
-    primary_dataset: Dataset = EMPTY_DATASET
-    reference_dataset: Optional[Dataset] = None
-    corpus_dataset: Optional[Dataset] = None
+    primary_inferences: Inferences = EMPTY_INFERENCES
+    reference_inferences: Optional[Inferences] = None
+    corpus_inferences: Optional[Inferences] = None
+
+    # Initialize the settings for the Server
+    Settings.log_migrations = True
 
     # automatically remove the pid file when the process is being gracefully terminated
     atexit.register(_remove_pid_file)
 
     parser = ArgumentParser()
+    parser.add_argument("--database-url", required=False)
     parser.add_argument("--export_path")
     parser.add_argument("--host", type=str, required=False)
     parser.add_argument("--port", type=int, required=False)
@@ -120,86 +153,131 @@ if __name__ == "__main__":
     )
     demo_parser.add_argument("--simulate-streaming", action="store_true")
     args = parser.parse_args()
+    db_connection_str = (
+        args.database_url if args.database_url else get_env_database_connection_str()
+    )
     export_path = Path(args.export_path) if args.export_path else EXPORT_DIR
     if args.command == "datasets":
-        primary_dataset_name = args.primary
-        reference_dataset_name = args.reference
-        corpus_dataset_name = args.corpus
-        primary_dataset = Dataset.from_name(primary_dataset_name)
-        reference_dataset = (
-            Dataset.from_name(reference_dataset_name)
-            if reference_dataset_name is not None
+        primary_inferences_name = args.primary
+        reference_inferences_name = args.reference
+        corpus_inferences_name = args.corpus
+        primary_inferences = Inferences.from_name(primary_inferences_name)
+        reference_inferences = (
+            Inferences.from_name(reference_inferences_name)
+            if reference_inferences_name is not None
             else None
         )
-        corpus_dataset = (
-            None if corpus_dataset_name is None else Dataset.from_name(corpus_dataset_name)
+        corpus_inferences = (
+            None if corpus_inferences_name is None else Inferences.from_name(corpus_inferences_name)
         )
     elif args.command == "fixture":
         fixture_name = args.fixture
         primary_only = args.primary_only
-        primary_dataset, reference_dataset, corpus_dataset = get_datasets(
+        primary_inferences, reference_inferences, corpus_inferences = get_inferences(
             fixture_name,
             args.no_internet,
         )
         if primary_only:
-            reference_dataset_name = None
-            reference_dataset = None
+            reference_inferences_name = None
+            reference_inferences = None
     elif args.command == "trace-fixture":
         trace_dataset_name = args.fixture
         simulate_streaming = args.simulate_streaming
     elif args.command == "demo":
         fixture_name = args.fixture
-        primary_dataset, reference_dataset, corpus_dataset = get_datasets(
+        primary_inferences, reference_inferences, corpus_inferences = get_inferences(
             fixture_name,
             args.no_internet,
         )
         trace_dataset_name = args.trace_fixture
         simulate_streaming = args.simulate_streaming
 
-    model = create_model_from_datasets(
-        primary_dataset,
-        reference_dataset,
+    host: Optional[str] = args.host or get_env_host()
+    display_host = host or "localhost"
+    # If the host is "::", the convention is to bind to all interfaces. However, uvicorn
+    # does not support this directly unless the host is set to None.
+    if host and ":" in host:
+        # format IPv6 hosts in brackets
+        display_host = f"[{host}]"
+    if host == "::":
+        # TODO(dustin): why is this necessary? it's not type compliant
+        host = None
+
+    port = args.port or get_env_port()
+    host_root_path = get_env_host_root_path()
+    read_only = args.read_only
+
+    model = create_model_from_inferences(
+        primary_inferences,
+        reference_inferences,
     )
-    traces = Traces()
-    evals = Evals()
+
+    fixture_spans: List[Span] = []
+    fixture_evals: List[pb.Evaluation] = []
     if trace_dataset_name is not None:
-        fixture_spans = list(
-            encode(json_string_to_span(json_span))
-            for json_span in _download_traces_fixture(
-                _get_trace_fixture_by_name(trace_dataset_name)
-            )
+        fixture_spans, fixture_evals = reset_fixture_span_ids_and_timestamps(
+            (
+                # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
+                # `encode` removes the hyphens in the UUIDs.
+                decode_otlp_span(encode_span_to_otlp(json_string_to_span(json_span)))
+                for json_span in download_traces_fixture(
+                    get_trace_fixture_by_name(trace_dataset_name)
+                )
+            ),
+            get_evals_from_fixture(trace_dataset_name),
         )
-        Thread(
-            target=_load_items,
-            args=(traces, fixture_spans, simulate_streaming),
-            daemon=True,
-        ).start()
-        fixture_evals = list(get_evals_from_fixture(trace_dataset_name))
-        Thread(
-            target=_load_items,
-            args=(evals, fixture_evals, simulate_streaming),
-            daemon=True,
-        ).start()
+        dataset_fixtures = list(get_dataset_fixtures(trace_dataset_name))
+        if not read_only:
+            Thread(
+                target=send_dataset_fixtures,
+                args=(f"http://{host}:{port}", dataset_fixtures),
+            ).start()
     umap_params_list = args.umap_params.split(",")
     umap_params = UMAPParameters(
         min_dist=float(umap_params_list[0]),
         n_neighbors=int(umap_params_list[1]),
         n_samples=int(umap_params_list[2]),
     )
-    read_only = args.read_only
+
     logger.info(f"Server umap params: {umap_params}")
+    if enable_prometheus := get_env_enable_prometheus():
+        from phoenix.server.prometheus import start_prometheus
+
+        start_prometheus()
+
+    working_dir = get_working_dir().resolve()
+    engine = create_engine_and_run_migrations(db_connection_str)
+    instrumentation_cleanups = instrument_engine_if_enabled(engine)
+    factory = SessionFactory(session_factory=_db(engine), dialect=engine.dialect.name)
     app = create_app(
+        db=factory,
         export_path=export_path,
         model=model,
         umap_params=umap_params,
-        traces=traces,
-        evals=evals,
-        corpus=None if corpus_dataset is None else create_model_from_datasets(corpus_dataset),
+        corpus=None
+        if corpus_inferences is None
+        else create_model_from_inferences(corpus_inferences),
         debug=args.debug,
         read_only=read_only,
+        enable_prometheus=enable_prometheus,
+        initial_spans=fixture_spans,
+        initial_evaluations=fixture_evals,
+        clean_up_callbacks=instrumentation_cleanups,
     )
-    host = args.host or get_env_host()
-    port = args.port or get_env_port()
-    server = Server(config=Config(app, host=host, port=port))
+    server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
+
+    # Print information about the server
+    phoenix_version = pkg_resources.get_distribution("arize-phoenix").version
+    print(
+        _WELCOME_MESSAGE.format(
+            version=phoenix_version,
+            ui_path=PosixPath(f"http://{host}:{port}", host_root_path),
+            grpc_path=f"http://{host}:{get_env_grpc_port()}",
+            http_path=PosixPath(f"http://{host}:{port}", host_root_path, "v1/traces"),
+            storage=get_printable_db_url(db_connection_str),
+        )
+    )
+
+    # Start the server
     server.run()

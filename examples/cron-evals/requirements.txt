@@ -1,0 +1,5 @@
+arize-phoenix-evals>=3.16.3
+bs4
+langchain
+langchain-openai
+qdrant-client

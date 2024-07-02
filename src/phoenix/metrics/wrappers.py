@@ -12,6 +12,7 @@ function, the wrappers need to perform a variety of preprocessing steps, e.g.
     So, after the missing values are removed, we still need to coerce the dtype
     to that of the first non-missing value in the series.
 """
+
 import inspect
 from abc import ABC
 from enum import Enum

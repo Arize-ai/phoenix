@@ -3,8 +3,8 @@ import { css } from "@emotion/react";
 
 import { Flex, Text, View } from "@arizeai/components";
 
-import { SpanStatusCode } from "@phoenix/pages/tracing/__generated__/SpansTable_spans.graphql";
-import { TokenCount } from "@phoenix/pages/tracing/TokenCount";
+import { SpanStatusCode } from "@phoenix/pages/project/__generated__/SpansTable_spans.graphql";
+import { TokenCount } from "@phoenix/pages/project/TokenCount";
 
 import { LatencyText } from "./LatencyText";
 import { SpanKindLabel } from "./SpanKindLabel";

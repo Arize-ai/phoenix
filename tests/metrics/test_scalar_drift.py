@@ -41,7 +41,7 @@ def test_psi_interval_binning():
         binning_method=binning.IntervalBinning(
             bins=pd.IntervalIndex(
                 (
-                    pd.Interval(np.NINF, 1.0, closed="left"),
+                    pd.Interval(-np.inf, 1.0, closed="left"),
                     pd.Interval(1.0, 2.0, closed="left"),
                     pd.Interval(2.0, np.inf, closed="left"),
                 )

@@ -5,7 +5,14 @@ from enum import Enum
 from typing import Any, List
 from uuid import UUID
 
-from phoenix.trace.schemas import Span, SpanContext, SpanConversationAttributes, SpanEvent
+import numpy as np
+
+from phoenix.trace.schemas import (
+    Span,
+    SpanContext,
+    SpanConversationAttributes,
+    SpanEvent,
+)
 
 
 class SpanJSONEncoder(json.JSONEncoder):
@@ -40,6 +47,12 @@ class SpanJSONEncoder(json.JSONEncoder):
             }
         elif isinstance(obj, SpanConversationAttributes):
             return {"conversation_id": str(obj.conversation_id)}
+        elif isinstance(obj, np.ndarray):
+            return list(obj)
+        elif isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
         return super().default(obj)
 
 

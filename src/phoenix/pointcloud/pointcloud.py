@@ -14,13 +14,11 @@ RowIndex: TypeAlias = int
 
 
 class DimensionalityReducer(Protocol):
-    def project(self, mat: Matrix, n_components: int) -> Matrix:
-        ...
+    def project(self, mat: Matrix, n_components: int) -> Matrix: ...
 
 
 class ClustersFinder(Protocol):
-    def find_clusters(self, mat: Matrix) -> List[RawCluster]:
-        ...
+    def find_clusters(self, mat: Matrix) -> List[RawCluster]: ...
 
 
 @dataclass(frozen=True)

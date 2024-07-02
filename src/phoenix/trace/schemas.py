@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, List, Mapping, NamedTuple, Optional
 from uuid import UUID
 
 EXCEPTION_TYPE = "exception.type"
@@ -29,8 +29,6 @@ class SpanKind(Enum):
     """
     SpanKind is loosely inspired by OpenTelemetry's SpanKind
     It captures the type of work that a Span encapsulates.
-
-    NB: this is actively under construction
     """
 
     TOOL = "TOOL"
@@ -40,6 +38,7 @@ class SpanKind(Enum):
     EMBEDDING = "EMBEDDING"
     AGENT = "AGENT"
     RERANKER = "RERANKER"
+    EVALUATOR = "EVALUATOR"
     UNKNOWN = "UNKNOWN"
 
     def __str__(self) -> str:
@@ -47,16 +46,14 @@ class SpanKind(Enum):
 
     @classmethod
     def _missing_(cls, v: Any) -> Optional["SpanKind"]:
-        if v and isinstance(v, str) and not v.isupper():
+        if v and isinstance(v, str) and v.isascii() and not v.isupper():
             return cls(v.upper())
-        return None if v else cls.UNKNOWN
+        return cls.UNKNOWN
 
 
 TraceID = str
 SpanID = str
-AttributePrimitiveValue = Union[str, bool, float, int]
-AttributeValue = Union[AttributePrimitiveValue, List[AttributePrimitiveValue]]
-SpanAttributes = Dict[str, AttributeValue]
+SpanAttributes = Mapping[str, Any]
 
 
 @dataclass(frozen=True)
@@ -73,7 +70,7 @@ class SpanConversationAttributes:
 
 
 @dataclass(frozen=True)
-class SpanEvent(Dict[str, Any]):
+class SpanEvent:
     """
     A Span Event can be thought of as a structured log message (or annotation)
     on a Span, typically used to denote a meaningful, singular point in time
@@ -142,7 +139,7 @@ class Span:
     "If the parent_id is None, this is the root span"
     parent_id: Optional[SpanID]
     start_time: datetime
-    end_time: Optional[datetime]
+    end_time: datetime
     status_code: SpanStatusCode
     status_message: str
     """
@@ -196,11 +193,17 @@ COMPUTED_PREFIX = "__computed__."
 
 class ComputedAttributes(Enum):
     # Enum value must be string prefixed by COMPUTED_PREFIX
-    LATENCY_MS = (
-        COMPUTED_PREFIX + "latency_ms"
-    )  # The latency (or duration) of the span in milliseconds
-    CUMULATIVE_LLM_TOKEN_COUNT_TOTAL = COMPUTED_PREFIX + "cumulative_token_count.total"
-    CUMULATIVE_LLM_TOKEN_COUNT_PROMPT = COMPUTED_PREFIX + "cumulative_token_count.prompt"
-    CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION = COMPUTED_PREFIX + "cumulative_token_count.completion"
-    ERROR_COUNT = COMPUTED_PREFIX + "error_count"
-    CUMULATIVE_ERROR_COUNT = COMPUTED_PREFIX + "cumulative_error_count"
+    LATENCY_MS = "latency_ms"  # The latency (or duration) of the span in milliseconds
+    CUMULATIVE_LLM_TOKEN_COUNT_TOTAL = "cumulative_token_count.total"
+    CUMULATIVE_LLM_TOKEN_COUNT_PROMPT = "cumulative_token_count.prompt"
+    CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION = "cumulative_token_count.completion"
+    ERROR_COUNT = "error_count"
+    CUMULATIVE_ERROR_COUNT = "cumulative_error_count"
+
+
+class ComputedValues(NamedTuple):
+    latency_ms: float
+    cumulative_error_count: int
+    cumulative_llm_token_count_prompt: int
+    cumulative_llm_token_count_completion: int
+    cumulative_llm_token_count_total: int

@@ -6,7 +6,10 @@ import {
   Store,
 } from "relay-runtime";
 
-const graphQLPath = window.Config.basename + "/graphql";
+import { BASE_URL } from "@phoenix/config";
+
+const graphQLPath = BASE_URL + "/graphql";
+
 /**
  * Relay requires developers to configure a "fetch" function that tells Relay how to load
  * the results of GraphQL queries from your server (or other data source). See more at

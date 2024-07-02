@@ -1,18 +1,26 @@
 # Developer's Guide
 
--   [Developer's Guide](#developers-guide)
-    -   [Setting Up Your macOS Development Environment](#setting-up-your-macos-development-environment)
-    -   [Testing and Linting](#testing-and-linting)
-    -   [Installing Pre-Commit Hooks](#installing-pre-commit-hooks)
-    -   [Building the Package](#building-the-package)
-    -   [Installing a Phoenix Build](#installing-a-phoenix-build)
-    -   [Installing a `git` Branch on Colab](#installing-a-git-branch-on-colab)
-    -   [Setting Up Your Windows Test Environment](#setting-up-your-windows-test-environment)
-        -   [Selecting a Virtualization Option](#selecting-a-virtualization-option)
-        -   [Installing Python and Phoenix](#installing-python-and-phoenix)
-        -   [Configuring a Remote Interpreter](#configuring-a-remote-interpreter)
-        -   [Troubleshooting](#troubleshooting)
-    -   [Publishing a New Release](#publishing-a-new-release)
+- [Developer's Guide](#developers-guide)
+  - [Setting Up Your macOS Development Environment](#setting-up-your-macos-development-environment)
+  - [Testing and Linting](#testing-and-linting)
+  - [Installing Pre-Commit Hooks](#installing-pre-commit-hooks)
+  - [Building the Package](#building-the-package)
+  - [Installing a Phoenix Build](#installing-a-phoenix-build)
+  - [Installing a `git` Branch on Colab](#installing-a-git-branch-on-colab)
+  - [Setting Up Your Windows Test Environment](#setting-up-your-windows-test-environment)
+    - [Selecting a Virtualization Option](#selecting-a-virtualization-option)
+    - [Installing Python and Phoenix](#installing-python-and-phoenix)
+    - [Configuring a Remote Interpreter](#configuring-a-remote-interpreter)
+    - [Troubleshooting](#troubleshooting)
+  - [Publishing a New Release](#publishing-a-new-release)
+  - [Best Practices](#best-practices)
+    - [REST API](#rest-api)
+      - [HTTP Methods](#http-methods)
+      - [Status Codes](#status-codes)
+      - [Path Structure](#path-structure)
+      - [Query Parameters](#query-parameters)
+      - [Pagination](#pagination)
+      - [Response Format](#response-format)
 
 ## Setting Up Your macOS Development Environment
 
@@ -32,17 +40,25 @@ Create a new virtual environment with a Phoenix-compatible Python version. For e
 conda create --name phoenix python=3.8
 ```
 
-Install web build dependancies
-[NPM via nvm](https://github.com/nvm-sh/nvm) - LTS should work in most cases
-Make sure you have npm (node package manager) available on your terminal as well
+Install web build dependencies
+[nodejs via nvm](https://github.com/nvm-sh/nvm) - LTS should work in most cases
+[pnpm](https://pnpm.io/) - `npm install -g pnpm`
+Make sure you have pnpm (node package manager) available on your terminal as well
 
-Install `phoenix` in development mode (using the `-e` flag) and with development dependencies (using the `[dev]` extra) by running
+Install `phoenix` in development mode (using the `-e` flag) and with development dependencies (using the `[dev,test]` extra) by running
 
 ```bash
-pip install -e ".[dev,experimental]"
+pip install -e ".[dev,test]"
 ```
 
 from the repository root.
+
+You will also need to build the web app. Change directory to `app` and run:
+
+```bash
+pnpm install
+pnpm run build
+```
 
 If you are working on our LLM orchestration framework integrations, you may also wish to install LlamaIndex or LangChain from source. To install LlamaIndex from source,
 
@@ -61,6 +77,23 @@ To install LangChain from source,
 -   Run `pip install -e .` from `libs/langchain`.
 
 ## Testing and Linting
+
+Phoenix is backed with either a `sqlite` or `postgresql` database. By default, tests that involve
+persistence in some way run against both backends. Ensure that `postgresql` is installed on your
+system.
+
+```bash
+brew install postgresql
+```
+
+Ensure your environment is set up so that `pg_config` points to the correct binary.
+
+```bash
+pg_config --bindir
+```
+
+This command should point to the `homebrew` install of `postgresql`, if it doesn't, try creating
+a fresh Python environment or modifying your `PATH`.
 
 Phoenix uses `hatch` as the project management tool to lint and test source code and to build the package. After creating and activating your `phoenix` virtual environment, view your `hatch` environments, dependencies and, scripts defined in `pyproject.toml` with
 
@@ -86,10 +119,17 @@ To format your code, run
 hatch run style:fix
 ```
 
-To run tests with coverage, run
+To run tests
 
 ```bash
-hatch run test:coverage
+hatch run tests
+```
+
+By default, database tests only run against `sqlite`, in order to run database tests against
+a `postgresql` database as well, use the `--run-postgres` flag
+
+```bash
+hatch run tests --run-postgres
 ```
 
 The following resources are helpful to learn more about the capabilities of `hatch` and to familiarize yourself with the CLI.
@@ -109,7 +149,15 @@ Once installed, the pre-commit hooks configured in `.pre-commit-config.yaml` wil
 
 ## Building the Package
 
-To build Phoenix, run
+To build Phoenix, you must build the `app` and the python package.
+
+To build the `app`, navigate to the `app` directory and run
+
+```bash
+pnpm run build
+```
+
+Then, from the root directory of the repo, run
 
 ```bash
 hatch build
@@ -271,3 +319,43 @@ To publish a new release, follow the steps below.
 9. Using the [GitHub CLI](https://cli.github.com/), create a draft release with `gh release create <version> --generate-notes --draft`
 10. Edit the release notes as needed and publish the release. This will trigger a slack notification to the `#phoenix-releases` channel.
 11. A conda-forge PR will be automatically created. If the PR is not created, you can create it manually by following the instructions [here](https://conda-forge.org/docs/maintainer/updating_pkgs.html#forking-and-pull-requests).
+
+## Best Practices
+
+### REST API
+
+-   The API should communicate over JSON unless otherwise specified by the URL.
+-   The API should be versioned. If a backwards incompatible change is made, the new route should be nested under a new version.
+
+#### HTTP Methods
+
+-   **GET** Used to retrieve a representation of a resource.
+-   **POST** Used to create new resources and sub-resources.
+-   **PUT** Used to update existing resources. Use PUT when you want to replace a resource.
+-   **PATCH** Used to update existing resources. Use PATCH when you want to apply a partial update to the resource.
+-   **DELETE** Used to delete existing resources.
+
+#### Status Codes
+
+-   **4xx** The client application behaved erroneously - client error
+-   **5xx** The API behaved erroneously - server error
+-   **2xx** The client and API worked
+
+#### Path Structure
+
+-   Use nouns for resources and sub-resources.
+-   Avoid using verbs in the path.
+-   Nouns should be pluralized and followed by a globally unique identifier for specific resources (e.g., `/datasets/:dataset_id` where the dataset ID is the globally unique identifier consistent with the GraphQL API).
+
+#### Query Parameters
+
+Use query parameters for filtering, sorting, and pagination. Query parameters should use `_` as a separator.
+
+#### Pagination
+
+Use cursor-based pagination. Each request gives a cursor to the next page of results.
+
+#### Response Format
+
+-   The response should be a JSON object with a `data` key.
+-   Payload content should use snake case to make it easier to work with when translating to objects.

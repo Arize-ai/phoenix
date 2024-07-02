@@ -1,10 +1,11 @@
 """
-A set of **highly experimental** helper functions to
+A set of helper functions to
   - extract spans from Phoenix for evaluation
     - explode retrieved documents from (horizontal) lists to a (vertical) series
       indexed by `context.span_id` and `document_position`
   - ingest evaluation results into Phoenix via HttpExporter
 """
+
 import logging
 import math
 from typing import (
@@ -16,7 +17,6 @@ from typing import (
     Union,
     cast,
 )
-from urllib.parse import urljoin
 
 import pandas as pd
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
@@ -72,7 +72,6 @@ def _extract_subject_id_from_index(
     value: Union[str, Sequence[Any]],
 ) -> pb.Evaluation.SubjectId:
     """
-    (**Highly Experimental**)
     Returns `SubjectId` given the format of `index_names`. Allowed formats are:
         - DocumentRetrievalId
             - index_names=["context.span_id", "document_position"]
@@ -147,8 +146,5 @@ def log_evaluations(
     if host == "0.0.0.0":
         host = "127.0.0.1"
     port = port or get_env_port()
-    endpoint = endpoint or urljoin(
-        get_env_collector_endpoint() or f"http://{host}:{port}",
-        "/v1/traces",
-    )
+    endpoint = endpoint or get_env_collector_endpoint() or f"http://{host}:{port}"
     Client(endpoint=endpoint).log_evaluations(*evals)

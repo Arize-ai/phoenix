@@ -2,8 +2,8 @@
 name = "arize-phoenix-evals"
 description = "LLM Evaluations"
 readme = "README.md"
-requires-python = ">=3.8, <3.12"
-license = "Elastic-2.0"
+requires-python = ">=3.8, <3.13"
+license = {text="Elastic-2.0"}
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
   "Observability",
@@ -19,13 +19,41 @@ classifiers = [
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
 ]
-dynamic = ["version"]
+version = "0.13.1"
 dependencies = [
+  "pandas",
+  "tqdm",
+  "typing-extensions>=4.5, <5",
 ]
 
 [project.optional-dependencies]
+dev = [
+  "anthropic>0.18.0",
+  "boto3",
+  "litellm>=1.28.9",
+  "openai>=1.0.0",
+  "vertexai",
+  "mistralai",
+]
 test = [
+  "openinference-semantic-conventions",
+  "pandas",
+  "tqdm",
+  "typing-extensions>=4.5, <5",
+  "anthropic>=0.18.0",
+  "boto3",
+  "litellm>=1.28.9",
+  "openai>=1.0.0",
+  "mistralai",
+  "vertexai",
+  "respx",
+  "nest_asyncio",
+  "pytest==7.4.4",
+  "pytest-asyncio",
+  "pandas-stubs<=2.0.2.230605",
+  "types-tqdm",
 ]
 
 [project.urls]
@@ -33,15 +61,15 @@ Documentation = "https://docs.arize.com/phoenix/"
 Issues = "https://github.com/Arize-ai/phoenix/issues"
 Source = "https://github.com/Arize-ai/phoenix"
 
-[tool.hatch.version]
-path = "src/phoenix/evals/version.py"
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/phoenix"]
+
+[tool.hatch.build]
+only-packages = true
 
 [tool.hatch.envs.publish]
 dependencies = [
@@ -76,5 +104,18 @@ force-single-line = false
 "*.ipynb" = ["E402", "E501"]
 
 [tool.mypy]
-strict = true
 explicit_package_bases = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs  = true
+strict = true
+exclude = [
+  "dist/",
+  "tests/",
+]
+
+[[tool.mypy.overrides]]
+module = [
+  "litellm",
+]
+ignore_missing_imports = true

@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: phoenix
+spec:
+  template:
+    spec:
+      containers:
+         - name: phoenix
+           env:
+            - name: PHOENIX_SQL_DATABASE_URL
+              value: "postgresql://postgres:postgres123@postgres:5432/postgres"
+         

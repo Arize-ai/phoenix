@@ -2,5 +2,9 @@ class PhoenixException(Exception):
     pass
 
 
-class PhoenixContextLimitExceeded(PhoenixException):
+class PhoenixEvaluationNameIsMissing(PhoenixException):
+    pass
+
+
+class PhoenixMigrationError(PhoenixException):
     pass

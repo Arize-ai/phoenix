@@ -25,8 +25,7 @@ class BinningMethod(ABC):
     missing values will be grouped into a bin of their own)"""
 
     @abstractmethod
-    def histogram(self, data: "pd.Series[Any]") -> Histogram:
-        ...
+    def histogram(self, data: "pd.Series[Any]") -> Histogram: ...
 
     @abstractmethod
     def segmented_summary(
@@ -34,8 +33,7 @@ class BinningMethod(ABC):
         group_by: Column,
         dataframe: pd.DataFrame,
         metrics: Iterable[Metric],
-    ) -> pd.DataFrame:
-        ...
+    ) -> pd.DataFrame: ...
 
 
 NumericBin: TypeAlias = "pd.Interval[float]"
@@ -80,7 +78,7 @@ class IntervalBinning(BinningMethod):
             else pd.IntervalIndex(
                 (
                     pd.Interval(
-                        np.NINF,
+                        -np.inf,
                         np.inf,
                         closed="neither",
                     ),
@@ -210,7 +208,7 @@ class QuantileBinning(IntervalBinning):
         # Extend min and max to infinities, unless len(breaks) < 3,
         # in which case the min is kept and two bins are created.
         breaks = breaks[1:-1] if len(breaks) > 2 else breaks[:1]
-        breaks = [np.NINF] + breaks + [np.inf]
+        breaks = [-np.inf] + breaks + [np.inf]
         return pd.IntervalIndex.from_breaks(
             breaks,
             closed="left",
@@ -296,8 +294,7 @@ class Normalizer(ABC):
     """A function that normalizes counts/frequencies to probabilities."""
 
     @abstractmethod
-    def __call__(self, counts: Histogram) -> Distribution:
-        ...
+    def __call__(self, counts: Histogram) -> Distribution: ...
 
 
 @dataclass(frozen=True)

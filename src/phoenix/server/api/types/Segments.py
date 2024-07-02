@@ -34,16 +34,14 @@ class IntervalBin:
 
 @dataclass(frozen=True)
 class GqlBinFactory:
-    numeric_lbound: float = np.NINF
+    numeric_lbound: float = -np.inf
     numeric_ubound: float = np.inf
 
     @overload
-    def __call__(self, bin: "pd.Interval[float]") -> IntervalBin:
-        ...
+    def __call__(self, bin: "pd.Interval[float]") -> IntervalBin: ...
 
     @overload
-    def __call__(self, bin: Union[str, int, float]) -> Union[NominalBin, MissingValueBin]:
-        ...
+    def __call__(self, bin: Union[str, int, float]) -> Union[NominalBin, MissingValueBin]: ...
 
     def __call__(self, bin: Any) -> Union[NominalBin, IntervalBin, MissingValueBin]:
         if isinstance(bin, pd.Interval):

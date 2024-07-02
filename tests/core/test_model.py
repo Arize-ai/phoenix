@@ -3,11 +3,11 @@ import pandas as pd
 import pytest
 from pandas import DataFrame, Timestamp
 from phoenix.core.model import EmbeddingDimension, _get_embedding_dimensions
-from phoenix.datasets.dataset import Dataset, EmbeddingColumnNames, Schema
+from phoenix.inferences.inferences import EmbeddingColumnNames, Inferences, Schema
 
 
 @pytest.fixture
-def dataset_with_large_embedding_vector():
+def inferences_with_large_embedding_vector():
     num_records = 3
     embedding_dimensions = 7
 
@@ -44,11 +44,11 @@ def dataset_with_large_embedding_vector():
             ),
         },
     )
-    return Dataset(dataframe=input_dataframe, schema=input_schema)
+    return Inferences(dataframe=input_dataframe, schema=input_schema)
 
 
 @pytest.fixture
-def dataset_with_embedding_vector():
+def inferences_with_embedding_vector():
     num_records = 3
     embedding_dimensions = 5
 
@@ -82,21 +82,21 @@ def dataset_with_embedding_vector():
             ),
         },
     )
-    return Dataset(dataframe=input_dataframe, schema=input_schema)
+    return Inferences(dataframe=input_dataframe, schema=input_schema)
 
 
 def test_invalid_model_embeddings_primary_and_ref_embedding_size_mismatch(
-    dataset_with_embedding_vector, dataset_with_large_embedding_vector
+    inferences_with_embedding_vector, inferences_with_large_embedding_vector
 ):
     with pytest.raises(ValueError):
         _ = _get_embedding_dimensions(
-            dataset_with_embedding_vector, dataset_with_large_embedding_vector
+            inferences_with_embedding_vector, inferences_with_large_embedding_vector
         )
 
 
-def test_valid_model_embeddings(dataset_with_embedding_vector):
+def test_valid_model_embeddings(inferences_with_embedding_vector):
     embedding_dimensions = _get_embedding_dimensions(
-        dataset_with_embedding_vector, dataset_with_embedding_vector
+        inferences_with_embedding_vector, inferences_with_embedding_vector
     )
     assert len(embedding_dimensions) == 2
     assert embedding_dimensions == [
@@ -105,8 +105,8 @@ def test_valid_model_embeddings(dataset_with_embedding_vector):
     ]
 
 
-def test_valid_model_embeddings_one_dataset_missing_embeddings_feature(
-    dataset_with_embedding_vector,
+def test_valid_model_embeddings_one_inferences_missing_embeddings_feature(
+    inferences_with_embedding_vector,
 ):
     num_records = 3
     input_dataframe = DataFrame(
@@ -121,10 +121,12 @@ def test_valid_model_embeddings_one_dataset_missing_embeddings_feature(
         prediction_label_column_name="prediction_label",
         timestamp_column_name="timestamp",
     )
-    dataset_with_missing_embedding_vector = Dataset(dataframe=input_dataframe, schema=input_schema)
+    inferences_with_missing_embedding_vector = Inferences(
+        dataframe=input_dataframe, schema=input_schema
+    )
 
     embedding_dimensions = _get_embedding_dimensions(
-        dataset_with_embedding_vector, dataset_with_missing_embedding_vector
+        inferences_with_embedding_vector, inferences_with_missing_embedding_vector
     )
     assert len(embedding_dimensions) == 2
     assert embedding_dimensions == [
@@ -133,11 +135,11 @@ def test_valid_model_embeddings_one_dataset_missing_embeddings_feature(
     ]
 
 
-def test_valid_model_with_nan_embeddings(dataset_with_embedding_vector):
-    dataset_with_embedding_vector.dataframe["embedding_vector0"] = np.nan
+def test_valid_model_with_nan_embeddings(inferences_with_embedding_vector):
+    inferences_with_embedding_vector.dataframe["embedding_vector0"] = np.nan
     embedding_dimensions = _get_embedding_dimensions(
-        dataset_with_embedding_vector,
-        dataset_with_embedding_vector,
+        inferences_with_embedding_vector,
+        inferences_with_embedding_vector,
     )
     assert len(embedding_dimensions) == 2
     assert embedding_dimensions == [

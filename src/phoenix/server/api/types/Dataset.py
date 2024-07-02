@@ -1,77 +1,299 @@
-from typing import Iterable, List, Optional, Set, Union
+from datetime import datetime
+from typing import AsyncIterable, List, Optional, Tuple, cast
 
 import strawberry
-from strawberry.scalars import ID
-from strawberry.unset import UNSET
+from sqlalchemy import and_, func, select
+from sqlalchemy.sql.functions import count
+from strawberry import UNSET
+from strawberry.relay import Connection, GlobalID, Node, NodeID
+from strawberry.scalars import JSON
+from strawberry.types import Info
 
-import phoenix.core.model_schema as ms
-from phoenix.core.model_schema import FEATURE, TAG, ScalarDimension
-
-from ..input_types.DimensionInput import DimensionInput
-from .DatasetInfo import DatasetInfo
-from .DatasetRole import AncillaryDatasetRole, DatasetRole
-from .Dimension import Dimension, to_gql_dimension
-from .Event import Event, create_event, create_event_id, parse_event_ids_by_dataset_role
+from phoenix.db import models
+from phoenix.server.api.context import Context
+from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
+from phoenix.server.api.types.DatasetExample import DatasetExample
+from phoenix.server.api.types.DatasetVersion import DatasetVersion
+from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
+from phoenix.server.api.types.ExperimentAnnotationSummary import ExperimentAnnotationSummary
+from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.pagination import (
+    ConnectionArgs,
+    CursorString,
+    connection_from_list,
+)
+from phoenix.server.api.types.SortDir import SortDir
 
 
 @strawberry.type
-class Dataset(DatasetInfo):
-    dataset: strawberry.Private[ms.Dataset]
-    dataset_role: strawberry.Private[Union[DatasetRole, AncillaryDatasetRole]]
-    model: strawberry.Private[ms.Model]
-
-    # type ignored here to get around the following: https://github.com/strawberry-graphql/strawberry/issues/1929
-    @strawberry.field(description="Returns a human friendly name for the dataset.")  # type: ignore
-    def name(self) -> str:
-        return self.dataset.display_name
+class Dataset(Node):
+    id_attr: NodeID[int]
+    name: str
+    description: Optional[str]
+    metadata: JSON
+    created_at: datetime
+    updated_at: datetime
 
     @strawberry.field
-    def events(
+    async def versions(
         self,
-        event_ids: List[ID],
-        dimensions: Optional[List[DimensionInput]] = UNSET,
-    ) -> List[Event]:
-        """
-        Returns events for specific event IDs and dimensions. If no input
-        dimensions are provided, returns all features and tags.
-        """
-        if not event_ids:
-            return []
-        row_ids = parse_event_ids_by_dataset_role(event_ids)
-        if len(row_ids) > 1 or self.dataset_role not in row_ids:
-            raise ValueError("eventIds contains IDs from incorrect dataset.")
-        events = self.dataset[row_ids[self.dataset_role]]
-        requested_gql_dimensions = _get_requested_features_and_tags(
-            core_dimensions=self.model.scalar_dimensions,
-            requested_dimension_names=set(dim.name for dim in dimensions)
-            if isinstance(dimensions, list)
-            else None,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+        sort: Optional[DatasetVersionSort] = UNSET,
+    ) -> Connection[DatasetVersion]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
         )
-        return [
-            create_event(
-                event_id=create_event_id(event.id.row_id, self.dataset_role),
-                event=event,
-                dimensions=requested_gql_dimensions,
-                is_document_record=self.dataset_role is AncillaryDatasetRole.corpus,
+        async with info.context.db() as session:
+            stmt = select(models.DatasetVersion).filter_by(dataset_id=self.id_attr)
+            if sort:
+                # For now assume the the column names match 1:1 with the enum values
+                sort_col = getattr(models.DatasetVersion, sort.col.value)
+                if sort.dir is SortDir.desc:
+                    stmt = stmt.order_by(sort_col.desc(), models.DatasetVersion.id.desc())
+                else:
+                    stmt = stmt.order_by(sort_col.asc(), models.DatasetVersion.id.asc())
+            else:
+                stmt = stmt.order_by(models.DatasetVersion.created_at.desc())
+            versions = await session.scalars(stmt)
+        data = [
+            DatasetVersion(
+                id_attr=version.id,
+                description=version.description,
+                metadata=version.metadata_,
+                created_at=version.created_at,
             )
-            for event in events
+            for version in versions
         ]
+        return connection_from_list(data=data, args=args)
+
+    @strawberry.field(
+        description="Number of examples in a specific version if version is specified, or in the "
+        "latest version if version is not specified."
+    )  # type: ignore
+    async def example_count(
+        self,
+        info: Info[Context, None],
+        dataset_version_id: Optional[GlobalID] = UNSET,
+    ) -> int:
+        dataset_id = self.id_attr
+        version_id = (
+            from_global_id_with_expected_type(
+                global_id=dataset_version_id,
+                expected_type_name=DatasetVersion.__name__,
+            )
+            if dataset_version_id
+            else None
+        )
+        revision_ids = (
+            select(func.max(models.DatasetExampleRevision.id))
+            .join(models.DatasetExample)
+            .where(models.DatasetExample.dataset_id == dataset_id)
+            .group_by(models.DatasetExampleRevision.dataset_example_id)
+        )
+        if version_id:
+            version_id_subquery = (
+                select(models.DatasetVersion.id)
+                .where(models.DatasetVersion.dataset_id == dataset_id)
+                .where(models.DatasetVersion.id == version_id)
+                .scalar_subquery()
+            )
+            revision_ids = revision_ids.where(
+                models.DatasetExampleRevision.dataset_version_id <= version_id_subquery
+            )
+        stmt = (
+            select(count(models.DatasetExampleRevision.id))
+            .where(models.DatasetExampleRevision.id.in_(revision_ids))
+            .where(models.DatasetExampleRevision.revision_kind != "DELETE")
+        )
+        async with info.context.db() as session:
+            return (await session.scalar(stmt)) or 0
+
+    @strawberry.field
+    async def examples(
+        self,
+        info: Info[Context, None],
+        dataset_version_id: Optional[GlobalID] = UNSET,
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[DatasetExample]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        dataset_id = self.id_attr
+        version_id = (
+            from_global_id_with_expected_type(
+                global_id=dataset_version_id, expected_type_name=DatasetVersion.__name__
+            )
+            if dataset_version_id
+            else None
+        )
+        revision_ids = (
+            select(func.max(models.DatasetExampleRevision.id))
+            .join(models.DatasetExample)
+            .where(models.DatasetExample.dataset_id == dataset_id)
+            .group_by(models.DatasetExampleRevision.dataset_example_id)
+        )
+        if version_id:
+            version_id_subquery = (
+                select(models.DatasetVersion.id)
+                .where(models.DatasetVersion.dataset_id == dataset_id)
+                .where(models.DatasetVersion.id == version_id)
+                .scalar_subquery()
+            )
+            revision_ids = revision_ids.where(
+                models.DatasetExampleRevision.dataset_version_id <= version_id_subquery
+            )
+        query = (
+            select(models.DatasetExample)
+            .join(
+                models.DatasetExampleRevision,
+                onclause=models.DatasetExample.id
+                == models.DatasetExampleRevision.dataset_example_id,
+            )
+            .where(
+                and_(
+                    models.DatasetExampleRevision.id.in_(revision_ids),
+                    models.DatasetExampleRevision.revision_kind != "DELETE",
+                )
+            )
+            .order_by(models.DatasetExampleRevision.dataset_example_id.desc())
+        )
+        async with info.context.db() as session:
+            dataset_examples = [
+                DatasetExample(
+                    id_attr=example.id,
+                    version_id=version_id,
+                    created_at=example.created_at,
+                )
+                async for example in await session.stream_scalars(query)
+            ]
+        return connection_from_list(data=dataset_examples, args=args)
+
+    @strawberry.field(
+        description="Number of experiments for a specific version if version is specified, "
+        "or for all versions if version is not specified."
+    )  # type: ignore
+    async def experiment_count(
+        self,
+        info: Info[Context, None],
+        dataset_version_id: Optional[GlobalID] = UNSET,
+    ) -> int:
+        stmt = select(count(models.Experiment.id)).where(
+            models.Experiment.dataset_id == self.id_attr
+        )
+        version_id = (
+            from_global_id_with_expected_type(
+                global_id=dataset_version_id,
+                expected_type_name=DatasetVersion.__name__,
+            )
+            if dataset_version_id
+            else None
+        )
+        if version_id is not None:
+            stmt = stmt.where(models.Experiment.dataset_version_id == version_id)
+        async with info.context.db() as session:
+            return (await session.scalar(stmt)) or 0
+
+    @strawberry.field
+    async def experiments(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[Experiment]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        dataset_id = self.id_attr
+        row_number = func.row_number().over(order_by=models.Experiment.id).label("row_number")
+        query = (
+            select(models.Experiment, row_number)
+            .where(models.Experiment.dataset_id == dataset_id)
+            .order_by(models.Experiment.id.desc())
+        )
+        async with info.context.db() as session:
+            experiments = [
+                to_gql_experiment(experiment, sequence_number)
+                async for experiment, sequence_number in cast(
+                    AsyncIterable[Tuple[models.Experiment, int]],
+                    await session.stream(query),
+                )
+            ]
+        return connection_from_list(data=experiments, args=args)
+
+    @strawberry.field
+    async def experiment_annotation_summaries(
+        self, info: Info[Context, None]
+    ) -> List[ExperimentAnnotationSummary]:
+        dataset_id = self.id_attr
+        query = (
+            select(
+                models.ExperimentRunAnnotation.name,
+                func.min(models.ExperimentRunAnnotation.score),
+                func.max(models.ExperimentRunAnnotation.score),
+                func.avg(models.ExperimentRunAnnotation.score),
+                func.count(),
+                func.count(models.ExperimentRunAnnotation.error),
+            )
+            .join(
+                models.ExperimentRun,
+                models.ExperimentRunAnnotation.experiment_run_id == models.ExperimentRun.id,
+            )
+            .join(
+                models.Experiment,
+                models.ExperimentRun.experiment_id == models.Experiment.id,
+            )
+            .where(models.Experiment.dataset_id == dataset_id)
+            .group_by(models.ExperimentRunAnnotation.name)
+            .order_by(models.ExperimentRunAnnotation.name)
+        )
+        async with info.context.db() as session:
+            return [
+                ExperimentAnnotationSummary(
+                    annotation_name=annotation_name,
+                    min_score=min_score,
+                    max_score=max_score,
+                    mean_score=mean_score,
+                    count=count_,
+                    error_count=error_count,
+                )
+                async for (
+                    annotation_name,
+                    min_score,
+                    max_score,
+                    mean_score,
+                    count_,
+                    error_count,
+                ) in await session.stream(query)
+            ]
 
 
-def _get_requested_features_and_tags(
-    core_dimensions: Iterable[ScalarDimension],
-    requested_dimension_names: Optional[Set[str]] = UNSET,
-) -> List[Dimension]:
+def to_gql_dataset(dataset: models.Dataset) -> Dataset:
     """
-    Returns requested features and tags as a list of strawberry Datasets. If no
-    dimensions are explicitly requested, returns all features and tags.
+    Converts an ORM dataset to a GraphQL dataset.
     """
-    requested_features_and_tags: List[Dimension] = []
-    for id, dim in enumerate(core_dimensions):
-        is_requested = (
-            not isinstance(requested_dimension_names, Set)
-        ) or dim.name in requested_dimension_names
-        is_feature_or_tag = dim.role in (FEATURE, TAG)
-        if is_requested and is_feature_or_tag:
-            requested_features_and_tags.append(to_gql_dimension(id_attr=id, dimension=dim))
-    return requested_features_and_tags
+    return Dataset(
+        id_attr=dataset.id,
+        name=dataset.name,
+        description=dataset.description,
+        metadata=dataset.metadata_,
+        created_at=dataset.created_at,
+        updated_at=dataset.updated_at,
+    )

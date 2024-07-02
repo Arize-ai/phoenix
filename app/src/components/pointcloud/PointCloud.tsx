@@ -23,7 +23,7 @@ import {
 
 import { UNKNOWN_COLOR } from "@phoenix/constants/pointCloudConstants";
 import {
-  DatasetsContext,
+  InferencesContext,
   PointCloudContext,
   ThemeContext,
   usePointCloudContext,
@@ -31,7 +31,7 @@ import {
 } from "@phoenix/contexts";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
 import { CanvasMode } from "@phoenix/store";
-import { splitEventIdsByDataset } from "@phoenix/utils/pointCloudUtils";
+import { splitEventIdsByInferenceSet } from "@phoenix/utils/pointCloudUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import { CanvasDisplaySettingsDropdown } from "./CanvasDisplaySettingsDropdown";
@@ -58,7 +58,7 @@ const PointCloudInfo = function PointCloudInfo() {
   const umapParameters = usePointCloudContext((state) => state.umapParameters);
   const [numPrimary, numReference, numCorpus] = useMemo(() => {
     const { primaryEventIds, referenceEventIds, corpusEventIds } =
-      splitEventIdsByDataset(points.map((point) => point.eventId));
+      splitEventIdsByInferenceSet(points.map((point) => point.eventId));
     return [
       primaryEventIds.length,
       referenceEventIds.length,
@@ -131,7 +131,7 @@ const PointCloudInfo = function PointCloudInfo() {
           <dd>{umapParameters.nNeighbors}</dd>
         </div>
         <div>
-          <dt>n samples per dataset</dt>
+          <dt>n samples per inferences</dt>
           <dd>{umapParameters.nSamples}</dd>
         </div>
       </dl>
@@ -248,8 +248,8 @@ const Projection = React.memo(function Projection() {
     (state) => state.pointGroupVisibility
   );
   const { theme } = useTheme();
-  const datasetVisibility = usePointCloudContext(
-    (state) => state.datasetVisibility
+  const inferencesVisibility = usePointCloudContext(
+    (state) => state.inferencesVisibility
   );
 
   // AutoRotate the canvas on initial load
@@ -325,13 +325,13 @@ const Projection = React.memo(function Projection() {
 
   // Keep track of all the points in the view, minus the ones filtered out by visibility controls
   const allVisiblePoints = useMemo(() => {
-    const visiblePrimaryPoints = datasetVisibility.primary
+    const visiblePrimaryPoints = inferencesVisibility.primary
       ? filteredPrimaryData
       : [];
-    const visibleReferencePoints = datasetVisibility.reference
+    const visibleReferencePoints = inferencesVisibility.reference
       ? filteredReferenceData
       : [];
-    const visibleCorpusPoints = datasetVisibility.corpus
+    const visibleCorpusPoints = inferencesVisibility.corpus
       ? filteredCorpusData
       : [];
     const visiblePoints = [
@@ -344,13 +344,13 @@ const Projection = React.memo(function Projection() {
     filteredPrimaryData,
     filteredReferenceData,
     filteredCorpusData,
-    datasetVisibility,
+    inferencesVisibility,
   ]);
 
   // Context cannot be passed through multiple reconcilers. Bridge the context
   const ContextBridge = useContextBridge(
     PointCloudContext,
-    DatasetsContext,
+    InferencesContext,
     EmotionThemeContext,
     ThemeContext
   );
