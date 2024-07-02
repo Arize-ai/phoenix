@@ -8,6 +8,7 @@ from phoenix.experiments.types import (
     EvaluationResult,
     JSONSerializable,
 )
+from phoenix.experiments.utils import get_func_name
 
 if TYPE_CHECKING:
     from phoenix.experiments.evaluators.base import Evaluator
@@ -29,7 +30,7 @@ def validate_signature(sig: inspect.Signature) -> None:
     # Check that the wrapped function has a valid signature for use as an evaluator
     # If it does not, raise an error to exit early before running evaluations
     params = sig.parameters
-    valid_named_params = {"input", "output", "expected", "metadata"}
+    valid_named_params = {"input", "output", "expected", "reference", "metadata"}
     if len(params) == 0:
         raise ValueError("Evaluation function must have at least one parameter.")
     if len(params) > 1:
@@ -54,6 +55,7 @@ def _bind_signature(sig: inspect.Signature, **kwargs: Any) -> inspect.BoundArgum
         "input": kwargs.get("input"),
         "output": kwargs.get("output"),
         "expected": kwargs.get("expected"),
+        "reference": kwargs.get("reference"),  # `reference` is an alias for `expected`
         "metadata": kwargs.get("metadata"),
     }
     params = sig.parameters
@@ -82,12 +84,7 @@ def create_evaluator(
     def wrapper(func: Callable[..., Any]) -> "Evaluator":
         nonlocal name
         if not name:
-            if hasattr(func, "__self__"):
-                name = func.__self__.__class__.__name__
-            elif hasattr(func, "__name__"):
-                name = func.__name__
-            else:
-                name = str(func)
+            name = get_func_name(func)
         assert name is not None
 
         wrapped_signature = inspect.signature(func)

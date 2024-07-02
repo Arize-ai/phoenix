@@ -1,5 +1,6 @@
+import json
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Dict
 from unittest.mock import patch
 
 import nest_asyncio
@@ -31,35 +32,53 @@ async def test_run_experiment(_, session, test_phoenix_clients, simple_dataset):
     nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
     assert not nonexistent_experiment, "There should be no experiments in the database"
 
+    example_input = {"input": "fancy input 1"}
+    example_output = {"output": "fancy output 1"}
+    example_metadata = {"metadata": "fancy metadata 1"}
     test_dataset = Dataset(
         id=str(GlobalID("Dataset", "0")),
         version_id=str(GlobalID("DatasetVersion", "0")),
         examples={
             (id_ := str(GlobalID("DatasetExample", "0"))): Example(
                 id=id_,
-                input={"input": "fancy input 1"},
-                output={},
-                metadata={},
+                input=example_input,
+                output=example_output,
+                metadata=example_metadata,
                 updated_at=datetime.now(timezone.utc),
             )
         },
     )
 
     with patch("phoenix.experiments.functions._phoenix_clients", return_value=test_phoenix_clients):
+        task_output = {"doesn't matter": "this is the output"}
 
-        def experiment_task(example: Example) -> str:
-            return "doesn't matter, this is the output"
+        def experiment_task(example: Example) -> Dict[str, str]:
+            return task_output
 
+        evaluators = [
+            lambda output: ContainsKeyword(keyword="correct").evaluate(output=json.dumps(output)),
+            lambda output: ContainsKeyword(keyword="doesn't matter").evaluate(
+                output=json.dumps(output)
+            ),
+            lambda output: output == task_output,
+            lambda output: output is not task_output,
+            lambda input: input == example_input,
+            lambda input: input is not example_input,
+            lambda expected: expected == example_output,
+            lambda expected: expected is not example_output,
+            lambda metadata: metadata == example_metadata,
+            lambda metadata: metadata is not example_metadata,
+            lambda reference, expected: expected == reference,
+            lambda reference, expected: expected is reference,
+        ]
         experiment = run_experiment(
             dataset=test_dataset,
             task=experiment_task,
             experiment_name="test",
             experiment_description="test description",
             # repetitions=3, TODO: Enable repetitions #3584
-            evaluators=[
-                ContainsKeyword(keyword="correct"),
-                ContainsKeyword(keyword="doesn't matter"),
-            ],
+            evaluators=evaluators,
+            print_summary=False,
         )
         experiment_id = from_global_id_with_expected_type(
             GlobalID.from_id(experiment.id), "Experiment"
@@ -85,7 +104,7 @@ async def test_run_experiment(_, session, test_phoenix_clients, simple_dataset):
         )
         assert len(experiment_runs) == 1, "The experiment was configured to have 1 repetition"
         for run in experiment_runs:
-            assert run.output == {"result": "doesn't matter, this is the output"}
+            assert run.output == {"result": {"doesn't matter": "this is the output"}}
 
             evaluations = (
                 (
@@ -98,9 +117,11 @@ async def test_run_experiment(_, session, test_phoenix_clients, simple_dataset):
                 .scalars()
                 .all()
             )
-            assert len(evaluations) == 2
+            assert len(evaluations) == len(evaluators)
             assert evaluations[0].score == 0.0
             assert evaluations[1].score == 1.0
+            for evaluation in evaluations[2:]:
+                assert evaluation.score == 1.0
 
 
 @patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
