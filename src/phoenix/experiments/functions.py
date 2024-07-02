@@ -107,7 +107,7 @@ def run_experiment(
     print_summary: bool = True,
 ) -> RanExperiment:
     """
-    Orchestrates running an experiment on a dataset and evaluates the results.
+    Runs an experiment using a given set of dataset of examples.
 
     An experiment is a user-defined task that runs on each example in a dataset. The results from
     each experiment can be evaluated using any number of evaluators to measure the behavior of the
@@ -116,8 +116,8 @@ def run_experiment(
 
     A `task` is either a synchronous or asynchronous function that returns a JSON serializable
     output. If the `task` is a function of one argument then that argument will be bound to the
-    `input` field of the dataset example. Alternatively, the `task` can be a function of special
-    argument names that will be bound to special values:
+    `input` field of the dataset example. Alternatively, the `task` can be a function of any
+    combination of specific argument names that will be bound to special values:
         `input`: The input field of the dataset example
         `expected`: The expected or reference output of the dataset example
         `reference`: An alias for `expected`
@@ -126,8 +126,8 @@ def run_experiment(
 
     An `evaluator` is either a synchronous or asynchronous function that returns either a boolean
     or numeric "score". If the `evaluator` is a function of one argument then that argument will be
-    bound to the `output` of the task. Alternatively, the `evaluator` can be a function of special
-    argument names that will be bound to special values:
+    bound to the `output` of the task. Alternatively, the `evaluator` can be a function of any
+    combination of specific argument names that will be bound to special values:
         `input`: The input field of the dataset example
         `output`: The output of the task
         `expected`: The expected or reference output of the dataset example
@@ -147,13 +147,16 @@ def run_experiment(
             experiment. Defaults to None.
         rate_limit_errors (Optional[BaseException | Sequence[BaseException]]): An exception or
             sequence of exceptions to adaptively throttle on. Defaults to None.
-        dry_run (bool | int): Whether to run the experiment in dry-run mode. Defaults to
-            False.
+        dry_run (bool | int): R the experiment in dry-run mode. When set, experiment results will
+            not be recorded in Phoenix. If True, the experiment will run on a random dataset
+            example. If an integer, the experiment will run on a random sample of the dataset
+            examples of the given size. Defaults to False.
         print_summary (bool): Whether to print a summary of the experiment and evaluation results.
             Defaults to True.
 
     Returns:
-        RanExperiment: The results of the experiment and evaluation.
+        RanExperiment: The results of the experiment and evaluation. Additional evaluations can be
+            added to the experiment using the `evaluate_experiment` function.
     """
     task_signature = inspect.signature(task)
     _validate_task_signature(task_signature)
