@@ -66,7 +66,7 @@ def task(example: Example) -> str:
 Use pre-built evaluators to grade task output with code...
 
 ```python
-from phoenix.datasets.evaluators import ContainsAnyKeyword
+from phoenix.experiments.evaluators import ContainsAnyKeyword
 
 contains_keyword = ContainsAnyKeyword(keywords=["Y Combinator", "YC"])
 ```
@@ -74,7 +74,7 @@ contains_keyword = ContainsAnyKeyword(keywords=["Y Combinator", "YC"])
 or LLMs.
 
 ```python
-from phoenix.datasets.evaluators import ConcisenessEvaluator
+from phoenix.experiments.evaluators import ConcisenessEvaluator
 from phoenix.evals.models import OpenAIModel
 
 model = OpenAIModel(model="gpt-4o")
@@ -99,7 +99,7 @@ def jaccard_similarity(output: str, expected: Dict[str, Any]) -> float:
 or LLMs.
 
 ```python
-from phoenix.datasets.evaluators import create_evaluator
+from phoenix.experiments.evaluators import create_evaluator
 
 eval_prompt_template = """
 Given the QUESTION and REFERENCE_ANSWER, determine whether the ANSWER is accurate.
@@ -132,7 +132,7 @@ def accuracy(input: Dict[str, Any], output: str, expected: Dict[str, Any]) -> fl
 Run an experiment and evaluate the results.
 
 ```python
-from phoenix.datasets.experiments import run_experiment
+from phoenix.experiments import run_experiment
 
 experiment = run_experiment(
     dataset,
@@ -145,7 +145,7 @@ experiment = run_experiment(
 Run more evaluators after the fact.
 
 ```python
-from phoenix.datasets.experiments import evaluate_experiment
+from phoenix.experiments import evaluate_experiment
 
 experiment = evaluate_experiment(experiment, evaluators=[contains_keyword, conciseness])
 ```

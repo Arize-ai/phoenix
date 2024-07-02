@@ -1,12 +1,8 @@
 # Creating Datasets
 
-{% hint style="info" %}
-Datasets is currently in pre-release
-{% endhint %}
-
 ## From CSV
 
-When manually creating a dataset (let's say collecting hypothetical questions and answers), the easiest way to start is by using a spreadsheet. Once you've collected the information, you can simply upload the CSV of your data to the Phoenix platform using the UI.
+When manually creating a dataset (let's say collecting hypothetical questions and answers), the easiest way to start is by using a spreadsheet. Once you've collected the information, you can simply upload the CSV of your data to the Phoenix platform using the UI. You can also programmatically upload tabular data using Pandas as [seen below.](creating-datasets.md#from-pandas)
 
 ## From Pandas
 
@@ -42,9 +38,26 @@ dataset = client.upload_dataset(
 {% endtab %}
 {% endtabs %}
 
-## Syntetic Data
+## From Objects
 
-One of the quicket way of getting started is to produce synthetic queries using an LLM.
+Sometimes you just want to upload datasets using plain objects as CSVs and DataFrames can be too restrictive about the keys.&#x20;
+
+{% tabs %}
+{% tab title="Python" %}
+```python
+
+ds = px.Client().upload_dataset(
+    dataset_name="my-synthetic-dataset",
+    inputs=[{ "question": "hello" }, { "question": "good morning" }],
+    outputs=[{ "answer": "hi" }, { "answer": "good morning" }],
+);
+```
+{% endtab %}
+{% endtabs %}
+
+## Synthetic Data
+
+One of the quicket way of getting started is to produce synthetic queries using an LLM.&#x20;
 
 {% tabs %}
 {% tab title="Python" %}
@@ -126,3 +139,18 @@ client.upload_dataset(
 ```
 {% endtab %}
 {% endtabs %}
+
+
+
+## From Spans
+
+If you have an application that is traced using instrumentation, you can quickly add any span or group of spans using the Phoenix UI.
+
+To add a single span to a dataset, simply select the span in the trace details view. You should see an add to dataset button on the top right. From there you can select the dataset you would like to add it to and make any changes you might need to make before saving the example.
+
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/add_span_to_dataset.png" alt=""><figcaption><p>Add a specific span as a golden dataset or an example for further testing</p></figcaption></figure>
+
+\
+You can also use the filters on the spans table and select multiple spans to add to a specific dataset.
+
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/add_llm_spans_for_ft.png" alt=""><figcaption><p>Add LLM spans for fine tuning to a dataset</p></figcaption></figure>

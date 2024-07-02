@@ -170,7 +170,7 @@ OpenAIInstrumentor().instrument()
 Running an experiment is as easy as calling `run_experiment` with the components we defined above. The results of the experiment will be show up in Phoenix:
 
 ```python
-from phoenix.datasets.experiments import run_experiment
+from phoenix.experiments import run_experiment
 
 run_experiment(ds, task=task, evaluators=[no_error, has_results])
 ```
