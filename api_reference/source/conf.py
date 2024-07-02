@@ -100,7 +100,7 @@ def setup(app):
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-project = "Phoenix API"
+project = "Phoenix API Reference"
 copyright = "2024, Arize AI"
 author = "Arize AI"
 
