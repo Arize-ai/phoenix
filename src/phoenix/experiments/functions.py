@@ -67,7 +67,7 @@ from phoenix.experiments.types import (
     _asdict,
     _replace,
 )
-from phoenix.experiments.utils import get_dataset_experiments_url, get_experiment_url
+from phoenix.experiments.utils import get_dataset_experiments_url, get_experiment_url, get_func_name
 from phoenix.trace.attributes import flatten
 from phoenix.utilities.json import jsonify
 
@@ -146,7 +146,7 @@ def run_experiment(
         )
 
     tracer, resource = _get_tracer(experiment.project_name)
-    root_span_name = f"Task: {_get_task_name(task)}"
+    root_span_name = f"Task: {get_func_name(task)}"
     root_span_kind = CHAIN
 
     print("🧪 Experiment started.")
@@ -430,6 +430,7 @@ def evaluate_experiment(
                 result = evaluator.evaluate(
                     output=experiment_run.task_output,
                     expected=example.output,
+                    reference=example.output,
                     input=example.input,
                     metadata=example.metadata,
                 )
@@ -475,6 +476,7 @@ def evaluate_experiment(
                 result = await evaluator.async_evaluate(
                     output=experiment_run.task_output,
                     expected=example.output,
+                    reference=example.output,
                     input=example.input,
                     metadata=example.metadata,
                 )
@@ -588,18 +590,6 @@ def _str_trace_id(id_: int) -> str:
 
 def _decode_unix_nano(time_unix_nano: int) -> datetime:
     return datetime.fromtimestamp(time_unix_nano / 1e9, tz=timezone.utc)
-
-
-def _get_task_name(task: ExperimentTask) -> str:
-    """
-    Makes a best-effort attempt to get the name of the task.
-    """
-
-    if isinstance(task, functools.partial):
-        return task.func.__qualname__
-    if hasattr(task, "__qualname__"):
-        return task.__qualname__
-    return str(task)
 
 
 def _is_dry_run(obj: Any) -> bool:
