@@ -433,7 +433,7 @@ function AnnotationAggregationCell({
       return 100;
     }
     // Avoid division by zero
-    const range = correctedMin - correctedMax || 1;
+    const range = correctedMax - correctedMin || 1;
     return ((value - correctedMin) / range) * 100;
   }, [value, min, max]);
   return (
