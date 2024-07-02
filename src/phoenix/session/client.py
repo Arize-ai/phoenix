@@ -808,7 +808,7 @@ def _prepare_pyarrow(
     return "pandas", file, "application/x-pandas-pyarrow", {}
 
 
-_response_header = re.compile(r"(?i)(response|answer)s*$")
+_response_header = re.compile(r"(?i)(response|answer|output)s*$")
 
 
 def _infer_keys(

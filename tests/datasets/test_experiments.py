@@ -156,6 +156,7 @@ async def test_run_experiment_with_llm_eval(_, session, test_phoenix_clients, si
             evaluators=[
                 ConcisenessEvaluator(model=NegativeFakeLLMModel()),
                 HelpfulnessEvaluator(model=PostitiveFakeLLMModel()),
+                lambda reference, expected: reference == expected,
             ],
         )
         experiment_id = from_global_id_with_expected_type(
@@ -195,9 +196,10 @@ async def test_run_experiment_with_llm_eval(_, session, test_phoenix_clients, si
                 .scalars()
                 .all()
             )
-            assert len(evaluations) == 2
+            assert len(evaluations) == 3
             assert evaluations[0].score == 0.0
             assert evaluations[1].score == 1.0
+            assert evaluations[2].score == 1.0
 
 
 def test_evaluator_decorator():

@@ -430,6 +430,7 @@ def evaluate_experiment(
                 result = evaluator.evaluate(
                     output=experiment_run.task_output,
                     expected=example.output,
+                    reference=example.output,
                     input=example.input,
                     metadata=example.metadata,
                 )
@@ -475,6 +476,7 @@ def evaluate_experiment(
                 result = await evaluator.async_evaluate(
                     output=experiment_run.task_output,
                     expected=example.output,
+                    reference=example.output,
                     input=example.input,
                     metadata=example.metadata,
                 )
