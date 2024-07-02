@@ -224,7 +224,7 @@ paths:
           description: Dataset or DatasetVersion not found
       summary: Create an experiment using a dataset
       tags:
-      - experiments
+      - private
   /v1/datasets/{id}:
     get:
       operationId: getDatasetById
@@ -611,7 +611,7 @@ paths:
           description: ExperimentRun not found
       summary: Create an evaluation for a specific experiment run
       tags:
-      - experiments
+      - private
   /v1/experiments/{experiment_id}:
     get:
       operationId: getExperiment
@@ -666,7 +666,7 @@ paths:
           description: Experiment not found
       summary: Get details of a specific experiment
       tags:
-      - experiments
+      - private
   /v1/experiments/{experiment_id}/runs:
     get:
       operationId: listExperimentRuns
@@ -725,7 +725,7 @@ paths:
           description: Experiment not found
       summary: List all runs for a specific experiment
       tags:
-      - experiments
+      - private
     post:
       operationId: createExperimentRun
       parameters:
@@ -793,7 +793,7 @@ paths:
           description: Experiment or DatasetExample not found
       summary: Create a new experiment run for a specific experiment
       tags:
-      - experiments
+      - private
   /v1/spans:
     post:
       operationId: querySpans

@@ -17,7 +17,7 @@ async def create_experiment_run(request: Request) -> Response:
     summary: Create a new experiment run for a specific experiment
     operationId: createExperimentRun
     tags:
-      - experiments
+      - private
     parameters:
       - in: path
         name: experiment_id
@@ -129,7 +129,7 @@ async def list_experiment_runs(request: Request) -> Response:
     summary: List all runs for a specific experiment
     operationId: listExperimentRuns
     tags:
-      - experiments
+      - private
     parameters:
       - in: path
         name: experiment_id

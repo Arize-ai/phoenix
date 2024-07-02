@@ -16,7 +16,7 @@ async def upsert_experiment_evaluation(request: Request) -> Response:
     summary: Create an evaluation for a specific experiment run
     operationId: upsertExperimentEvaluation
     tags:
-      - experiments
+      - private
     requestBody:
       description: Details of the experiment evaluation to be upserted
       required: true
