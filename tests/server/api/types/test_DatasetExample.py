@@ -320,7 +320,7 @@ async def example_with_experiment_runs(session) -> None:
         insert(models.ExperimentRun).values(
             experiment_id=experiment_1_id,
             dataset_example_id=example_id,
-            output={"result": "experiment-1-run-1-output"},
+            output={"task_output": "experiment-1-run-1-output"},
             repetition_number=1,
             start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
             end_time=datetime(year=2020, month=1, day=1, hour=0, minute=1, tzinfo=pytz.utc),
@@ -346,7 +346,7 @@ async def example_with_experiment_runs(session) -> None:
         insert(models.ExperimentRun).values(
             experiment_id=experiment_2_id,
             dataset_example_id=example_id,
-            output={"result": {"output": "experiment-2-run-1-output"}},
+            output={"task_output": {"output": "experiment-2-run-1-output"}},
             repetition_number=1,
             start_time=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
             end_time=datetime(year=2020, month=1, day=1, hour=0, minute=1, tzinfo=pytz.utc),

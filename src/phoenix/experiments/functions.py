@@ -61,8 +61,8 @@ from phoenix.experiments.types import (
     Experiment,
     ExperimentEvaluationRun,
     ExperimentParameters,
-    ExperimentResult,
     ExperimentRun,
+    ExperimentRunOutput,
     ExperimentTask,
     RanExperiment,
     TaskSummary,
@@ -266,13 +266,12 @@ def run_experiment(
             output = jsonify(output)
             span.set_attribute(INPUT_VALUE, json.dumps(example.input, ensure_ascii=False))
             span.set_attribute(INPUT_MIME_TYPE, JSON.value)
-            if result := ExperimentResult(result=output) if output is not None else None:
+            if output is not None:
                 if isinstance(output, str):
                     span.set_attribute(OUTPUT_VALUE, output)
                 else:
                     span.set_attribute(OUTPUT_VALUE, json.dumps(output, ensure_ascii=False))
                     span.set_attribute(OUTPUT_MIME_TYPE, JSON.value)
-                span.set_attributes(dict(flatten(jsonify(result), recurse_on_sequence=True)))
             span.set_attribute(SpanAttributes.OPENINFERENCE_SPAN_KIND, root_span_kind)
             span.set_status(status)
 
@@ -285,7 +284,7 @@ def run_experiment(
             experiment_id=experiment.id,
             dataset_example_id=example.id,
             repetition_number=repetition_number,
-            output=result,
+            experiment_run_output=ExperimentRunOutput(task_output=output),
             error=repr(error) if error else None,
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
@@ -328,13 +327,12 @@ def run_experiment(
             output = jsonify(output)
             span.set_attribute(INPUT_VALUE, json.dumps(example.input, ensure_ascii=False))
             span.set_attribute(INPUT_MIME_TYPE, JSON.value)
-            if result := ExperimentResult(result=output) if output is not None else None:
+            if output is not None:
                 if isinstance(output, str):
                     span.set_attribute(OUTPUT_VALUE, output)
                 else:
                     span.set_attribute(OUTPUT_VALUE, json.dumps(output, ensure_ascii=False))
                     span.set_attribute(OUTPUT_MIME_TYPE, JSON.value)
-                span.set_attributes(dict(flatten(jsonify(result), recurse_on_sequence=True)))
             span.set_attribute(OPENINFERENCE_SPAN_KIND, root_span_kind)
             span.set_status(status)
 
@@ -347,7 +345,7 @@ def run_experiment(
             experiment_id=experiment.id,
             dataset_example_id=example.id,
             repetition_number=repetition_number,
-            output=result,
+            experiment_run_output=ExperimentRunOutput(task_output=output),
             error=repr(error) if error else None,
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
@@ -500,7 +498,7 @@ def evaluate_experiment(
             stack.enter_context(capture_spans(resource))
             try:
                 result = evaluator.evaluate(
-                    output=experiment_run.task_output,
+                    output=experiment_run.output,
                     expected=example.output,
                     reference=example.output,
                     input=example.input,
@@ -552,7 +550,7 @@ def evaluate_experiment(
             stack.enter_context(capture_spans(resource))
             try:
                 result = await evaluator.async_evaluate(
-                    output=experiment_run.task_output,
+                    output=experiment_run.output,
                     expected=example.output,
                     reference=example.output,
                     input=example.input,

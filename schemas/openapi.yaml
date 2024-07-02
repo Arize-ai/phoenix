@@ -700,12 +700,12 @@ paths:
                         experiment_id:
                           description: The ID of the experiment
                           type: string
+                        experiment_run_output:
+                          description: The output of the experiment run
+                          type: object
                         id:
                           description: The ID of the experiment run
                           type: string
-                        output:
-                          description: The output of the experiment run
-                          type: object
                         repetition_number:
                           description: The repetition number of the experiment run
                           type: integer
@@ -753,9 +753,9 @@ paths:
                     an error
                   nullable: true
                   type: string
-                output:
+                experiment_run_output:
                   description: The output of the experiment run
-                  type: string
+                  type: object
                 repetition_number:
                   description: The repetition number of the experiment run
                   type: integer

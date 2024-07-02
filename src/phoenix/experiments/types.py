@@ -199,17 +199,17 @@ class Experiment:
 
 
 @dataclass(frozen=True)
-class ExperimentResult:
-    result: TaskOutput
+class ExperimentRunOutput:
+    task_output: TaskOutput
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "result", _make_read_only(self.result))
+        object.__setattr__(self, "task_output", _make_read_only(self.task_output))
 
     @classmethod
-    def from_dict(cls, obj: Optional[Mapping[str, Any]]) -> Optional[ExperimentResult]:
+    def from_dict(cls, obj: Optional[Mapping[str, Any]]) -> ExperimentRunOutput:
         if not obj:
-            return None
-        return cls(result=obj["result"])
+            return cls(task_output=None)
+        return cls(task_output=obj["task_output"])
 
 
 @dataclass(frozen=True)
@@ -219,14 +219,14 @@ class ExperimentRun:
     experiment_id: ExperimentId
     dataset_example_id: ExampleId
     repetition_number: RepetitionNumber
-    output: Optional[ExperimentResult] = None
+    experiment_run_output: ExperimentRunOutput
     error: Optional[str] = None
     id: ExperimentRunId = field(default_factory=_dry_run_id)
     trace_id: Optional[TraceId] = None
 
     @property
-    def task_output(self) -> Optional[TaskOutput]:
-        return deepcopy(self.output.result) if self.output else None
+    def output(self) -> Optional[TaskOutput]:
+        return deepcopy(self.experiment_run_output.task_output)
 
     @classmethod
     def from_dict(cls, obj: Mapping[str, Any]) -> ExperimentRun:
@@ -236,15 +236,15 @@ class ExperimentRun:
             experiment_id=obj["experiment_id"],
             dataset_example_id=obj["dataset_example_id"],
             repetition_number=obj.get("repetition_number") or 1,
-            output=ExperimentResult.from_dict(obj["output"]),
+            experiment_run_output=ExperimentRunOutput.from_dict(obj["experiment_run_output"]),
             error=obj.get("error"),
             id=obj["id"],
             trace_id=obj.get("trace_id"),
         )
 
     def __post_init__(self) -> None:
-        if bool(self.output) == bool(self.error):
-            ValueError("Must specify either result or error")
+        if bool(self.experiment_run_output) == bool(self.error):
+            ValueError("Must specify exactly one of experiment_run_output or error")
 
 
 @dataclass(frozen=True)
@@ -571,7 +571,7 @@ class RanExperiment(Experiment):
                 {
                     "run_id": run.id,
                     "error": run.error,
-                    "result": deepcopy(run.output.result) if run.output else None,
+                    "output": deepcopy(run.experiment_run_output.task_output),
                     "input": deepcopy((ex := self.dataset.examples[run.dataset_example_id]).input),
                     "expected": deepcopy(ex.output),
                     "metadata": deepcopy(ex.metadata),
@@ -713,7 +713,7 @@ class _ExperimentRunWithExample(ObjectProxy):  # type: ignore[misc]
                 [
                     f"{spaces}{_blue('output')}="
                     + json.dumps(
-                        _shorten(self.task_output),
+                        _shorten(self.output),
                         ensure_ascii=False,
                         sort_keys=True,
                         indent=len(spaces),
