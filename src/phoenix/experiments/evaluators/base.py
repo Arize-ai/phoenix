@@ -6,7 +6,7 @@ from typing import Any, Awaitable, Callable, Optional, Union
 
 from typing_extensions import TypeAlias
 
-from phoenix.experiments.evaluators.utils import validate_signature
+from phoenix.experiments.evaluators.utils import validate_evaluator_signature
 from phoenix.experiments.types import (
     AnnotatorKind,
     EvaluationResult,
@@ -108,7 +108,7 @@ class Evaluator(ABC):
 
 def _validate_sig(fn: Callable[..., Any], fn_name: str) -> None:
     sig = inspect.signature(fn)
-    validate_signature(sig)
+    validate_evaluator_signature(sig)
     for param in sig.parameters.values():
         if param.kind is inspect.Parameter.VAR_KEYWORD:
             return
