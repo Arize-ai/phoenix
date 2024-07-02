@@ -8,6 +8,7 @@ from phoenix.experiments.types import (
     EvaluationResult,
     JSONSerializable,
 )
+from phoenix.experiments.utils import get_func_name
 
 if TYPE_CHECKING:
     from phoenix.experiments.evaluators.base import Evaluator
@@ -83,12 +84,7 @@ def create_evaluator(
     def wrapper(func: Callable[..., Any]) -> "Evaluator":
         nonlocal name
         if not name:
-            if hasattr(func, "__self__"):
-                name = func.__self__.__class__.__name__
-            elif hasattr(func, "__name__"):
-                name = func.__name__
-            else:
-                name = str(func)
+            name = get_func_name(func)
         assert name is not None
 
         wrapped_signature = inspect.signature(func)
