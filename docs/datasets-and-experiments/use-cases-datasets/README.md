@@ -6,6 +6,6 @@ Datasets and Experiments are released as of Phoenix version 4.6.0!
 
 Datasets and experiments can be used to improve and iterate on various LLM application parts:
 
-* Optimizing Document Summarization
-* Optimizing Txt2Sql
-* Optimizing Email Extraction
+* [Optimizing Txt2Sql](text2sql.md)
+* [Optimizing Document Summarization](summarization.md)
+* [Optimizing Email Extraction](email-extraction.md)
