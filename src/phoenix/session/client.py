@@ -5,7 +5,7 @@ import re
 import weakref
 from collections import Counter
 from datetime import datetime
-from io import BytesIO, StringIO
+from io import BytesIO
 from pathlib import Path
 from typing import (
     Any,
@@ -405,35 +405,6 @@ class Client(TraceDataExtractor):
         df = pd.DataFrame.from_records(records, index="version_id")
         df["created_at"] = pd.to_datetime(df.created_at)
         return df
-
-    def download_dataset_examples(
-        self,
-        dataset_id: str,
-        /,
-        *,
-        dataset_version_id: Optional[str] = None,
-    ) -> pd.DataFrame:
-        """
-        Download dataset examples as pandas DataFrame.
-
-        Args:
-            dataset_id (str): dataset ID
-            dataset_version_id (Optional[str]): dataset version ID, if omitted,
-               the latest version is returned.
-
-        Returns:
-            pandas DataFrame
-        """
-        url = f"v1/datasets/{dataset_id}/csv"
-        response = httpx.get(
-            url=urljoin(self._base_url, url),
-            params={"version_id": dataset_version_id} if dataset_version_id else {},
-        )
-        response.raise_for_status()
-        return pd.read_csv(
-            StringIO(response.content.decode()),
-            index_col="example_id",
-        )
 
     def upload_dataset(
         self,
