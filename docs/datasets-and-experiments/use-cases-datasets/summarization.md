@@ -1,5 +1,7 @@
 # Summarization
 
+<a href="https://colab.research.google.com/github/arize-ai/phoenix/blob/main/tutorials/experiments/summarization.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
+
 Imagine you're deploying a service for your media company's summarization model that condenses daily news into concise summaries to be displayed online. One challenge of using LLMs for summarization is that even the best models tend to be verbose.
 
 In this tutorial, you will construct a dataset and run experiments to engineer a prompt template that produces concise yet accurate summaries. You will:
@@ -20,7 +22,7 @@ Install requirements and import libraries.
 
 
 ```shell
-pip install anthropic arize-phoenix openai openinference-instrumentation-openai rouge tiktoken
+pip install anthropic "arize-phoenix>=4.6.0" openai openinference-instrumentation-openai rouge tiktoken
 ```
 
 
