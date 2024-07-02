@@ -49,7 +49,7 @@ def normalize_timestamps(
             timezone.utc,
         )
     if is_object_dtype(timestamps):
-        timestamps = to_datetime(timestamps)
+        timestamps = to_datetime(timestamps, format="ISO8601")
         if timestamps.dt.tz is None:
             timestamps = timestamps.dt.tz_localize(
                 datetime.now().astimezone().tzinfo,
