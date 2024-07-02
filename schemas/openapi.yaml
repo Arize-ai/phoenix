@@ -755,7 +755,7 @@ paths:
                   type: string
                 experiment_run_output:
                   description: The output of the experiment run
-                  type: string
+                  type: object
                 repetition_number:
                   description: The repetition number of the experiment run
                   type: integer

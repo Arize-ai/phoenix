@@ -40,7 +40,7 @@ async def create_experiment_run(request: Request) -> Response:
                 type: string
                 description: Optional trace ID for tracking
               experiment_run_output:
-                type: string
+                type: object
                 description: The output of the experiment run
               repetition_number:
                 type: integer
