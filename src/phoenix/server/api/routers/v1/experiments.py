@@ -29,7 +29,7 @@ async def create_experiment(request: Request) -> Response:
     summary: Create an experiment using a dataset
     operationId: createExperiment
     tags:
-      - experiments
+      - private
     parameters:
       - in: path
         name: dataset_id
@@ -217,7 +217,7 @@ async def read_experiment(request: Request) -> Response:
     summary: Get details of a specific experiment
     operationId: getExperiment
     tags:
-      - experiments
+      - private
     parameters:
       - in: path
         name: experiment_id
