@@ -3,6 +3,11 @@
 ## [4.6.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.6.0...arize-phoenix-v4.6.1) (2024-07-02)
 
 
+### Bug Fixes
+
+* ignore W004 check on invalid filenames for db migration files ([#3801](https://github.com/Arize-ai/phoenix/issues/3801)) ([8d45305](https://github.com/Arize-ai/phoenix/commit/8d45305202f69eaba26989534eb5f0eb374180a9))
+
+
 ### Documentation
 
 * txt2sql ([4322b7d](https://github.com/Arize-ai/phoenix/commit/4322b7db04b951a70f1aa31f2ac97089394d4a4b))
