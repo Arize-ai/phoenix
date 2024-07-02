@@ -1,9 +1,5 @@
 # Using Evaluators
 
-{% hint style="info" %}
-Datasets and Experiments are released as of Phoenix version 4.6.0!
-{% endhint %}
-
 ## LLM Evaluators
 
 We provide LLM evaluators out of the box. These evaluators are vendor agnostic and can be instantiated with a Phoenix model wrapper:

@@ -1,8 +1,4 @@
-# Use Cases: Datasets
-
-{% hint style="info" %}
-Datasets and Experiments are released as of Phoenix version 4.6.0!
-{% endhint %}
+# Use Cases: Experiments
 
 Datasets and experiments can be used to improve and iterate on various LLM application parts:
 

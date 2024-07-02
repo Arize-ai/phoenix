@@ -1,9 +1,5 @@
 # Exporting Datasets
 
-{% hint style="info" %}
-Datasets and Experiments are released as of Phoenix version 4.6.0!
-{% endhint %}
-
 ## Exporting for Fine-Tuning
 
 Fine-tuning lets you get more out of the models available by providing:

@@ -1,9 +1,5 @@
 # Overview: Datasets
 
-{% hint style="info" %}
-Datasets and Experiments are released as of Phoenix version 4.6.0!
-{% endhint %}
-
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/evaluator.png" alt=""><figcaption><p>How Datasets are used to test changes to your AI application</p></figcaption></figure>
 
 The velocity of AI application development is bottlenecked by quality evaluations because AI engineers are often faced with hard tradeoffs: which prompt or LLM best balances performance, latency, and cost. High quality evaluations are critical as they can help developers answer these types of questions with greater confidence.

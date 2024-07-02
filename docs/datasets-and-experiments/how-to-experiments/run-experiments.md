@@ -6,10 +6,6 @@ description: >-
 
 # Run Experiments
 
-{% hint style="info" %}
-Datasets and Experiments are released as of Phoenix version 4.6.0!
-{% endhint %}
-
 The key steps of running an experiment are:
 
 1. **Define/upload a `Dataset`** (e.g. a dataframe)
