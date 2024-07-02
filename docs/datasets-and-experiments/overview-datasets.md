@@ -1,7 +1,7 @@
 # Overview: Datasets
 
 {% hint style="info" %}
-Phoenix Datasets are currently in pre-release.
+Datasets and Experiments are released as of Phoenix version 4.6.0!
 {% endhint %}
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/evaluator.png" alt=""><figcaption><p>How Datasets are used to test changes to your AI application</p></figcaption></figure>

@@ -1,5 +1,9 @@
 # Creating Datasets
 
+{% hint style="info" %}
+Datasets and Experiments are released as of Phoenix version 4.6.0!
+{% endhint %}
+
 ## From CSV
 
 When manually creating a dataset (let's say collecting hypothetical questions and answers), the easiest way to start is by using a spreadsheet. Once you've collected the information, you can simply upload the CSV of your data to the Phoenix platform using the UI. You can also programmatically upload tabular data using Pandas as [seen below.](creating-datasets.md#from-pandas)

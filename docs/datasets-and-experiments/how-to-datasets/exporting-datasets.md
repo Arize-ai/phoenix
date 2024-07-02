@@ -1,7 +1,7 @@
 # Exporting Datasets
 
 {% hint style="info" %}
-Datasets is currently in pre-release
+Datasets and Experiments are released as of Phoenix version 4.6.0!
 {% endhint %}
 
 ## Exporting for Fine-Tuning

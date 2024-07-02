@@ -7,7 +7,7 @@ description: >-
 # Run Experiments
 
 {% hint style="info" %}
-Datasets currently in pre-release
+Datasets and Experiments are released as of Phoenix version 4.6.0!
 {% endhint %}
 
 The key steps of running an experiment are:
