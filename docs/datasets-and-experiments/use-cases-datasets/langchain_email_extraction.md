@@ -1,3 +1,5 @@
+<a href="https://colab.research.google.com/github/arize-ai/phoenix/blob/main/tutorials/experiments/langchain_email_extraction.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
+
 ```shell
 pip install -Uqqq "arize-phoenix>=4.6" langchain langchain-core langchain-community langchain-benchmarks nest_asyncio jarowinkler
 ```

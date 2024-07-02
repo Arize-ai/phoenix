@@ -1,4 +1,6 @@
-```shel
+<a href="https://colab.research.google.com/github/arize-ai/phoenix/blob/main/tutorials/experiments/run_experiments_with_llama_index.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
+
+```shell
 pip install -Uqqq "arize-phoenix[llama-index]>=4.6" sentence-transformers torch
 ```
 
