@@ -641,14 +641,14 @@ def _print_experiment_error(
     kind: Literal["evaluator", "task"],
 ) -> None:
     """
-    Prints an experiment error in red.
+    Prints an experiment error.
     """
     display_error = RuntimeError(
         f"{kind} failed for example id {repr(example_id)}, " f"repetition {repr(repetition_number)}"
     )
     display_error.__cause__ = error
     formatted_exception = "".join(traceback.format_exception(display_error))  # type: ignore[arg-type, call-arg, unused-ignore]
-    print("\033[91m" + formatted_exception + "\033[0m")
+    print("\033[91m" + formatted_exception + "\033[0m")  # prints in red
 
 
 class _NoOpProcessor(trace_sdk.SpanProcessor):
