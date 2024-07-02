@@ -21,11 +21,6 @@ INCLUDE_MEMBERS = {
     'inferences.inferences': {
         'Inferences': ['__init__']
     },
-    # Add more here:
-    # 'module_name': {
-    #     'class_name': ['method_to_include'],
-    #     'class_name': ['method_to_include']
-    # }
 }
 
 def include_only_tagged(app, what, name, obj, skip, options):
