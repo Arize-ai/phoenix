@@ -53,7 +53,7 @@ class ExperimentRun(Node):
                 await session.scalars(
                     select(models.ExperimentRunAnnotation)
                     .where(models.ExperimentRunAnnotation.experiment_run_id == run_id)
-                    .order_by(models.ExperimentRunAnnotation.id.desc())
+                    .order_by(models.ExperimentRunAnnotation.name.desc())
                 )
             ).all()
         return connection_from_list(
