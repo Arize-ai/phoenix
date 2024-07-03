@@ -53,7 +53,7 @@ Returns spans in a pandas.dataframe. Filters can be applied. See [LLM Traces](..
 ## _**query\_spans**_
 
 \-> Optional\[Union\[pandas.DataFrame, List\[pandas.DataFrame]]\
-
+\
 Extract values from spans in a pandas.dataframe. See [extract-data-from-spans.md](../tracing/how-to-tracing/extract-data-from-spans.md "mention")for more details.\
 \
 **Parameters**
@@ -97,7 +97,7 @@ Returns the trace dataset containing spans and evaluations.\
 \-> None\
 \
 Send evaluations to Phoenix. See [#logging-multiple-evaluation-dataframes](../tracing/how-to-tracing/llm-evaluations.md#logging-multiple-evaluation-dataframes "mention")for usage.\
-
+\
 **Parameters**
 
 * **\*evaluations** (Evaluations): A collection of Evaluations. See [llm-evaluations.md](../tracing/how-to-tracing/llm-evaluations.md "mention")for more details.
@@ -108,7 +108,7 @@ Send evaluations to Phoenix. See [#logging-multiple-evaluation-dataframes](../tr
 \-> pandas.DataFrame\
 \
 Get dataset versions as pandas DataFrame.\
-
+\
 **Parameters**
 
 * **dataset_id** (str): Dataset ID.
@@ -119,7 +119,7 @@ Get dataset versions as pandas DataFrame.\
 \-> Dataset\
 \
 Upload a dataset to Phoenix. See [Usage](client.md#usage) below for examples. It can upload a pandas dataframe, a CSV text file, or a series of dictionary objects, and only one of these options should be specified.\
-
+\
 **Parameters**
 
 * **dataset_name** (str): The name of the dataset.
