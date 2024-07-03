@@ -1,4 +1,5 @@
 import logging
+import os
 import warnings
 from dataclasses import dataclass, field, fields
 from typing import (
@@ -160,6 +161,21 @@ class OpenAIModel(BaseModel):
         self._client: Union[self._openai.OpenAI, self._openai.AzureOpenAI]  # type: ignore
         self._async_client: Union[self._openai.AsyncOpenAI, self._openai.AsyncAzureOpenAI]  # type: ignore
         if self._is_azure:
+            using_openai_api_key_env_var_for_azure = (
+                self.api_key is None
+                and (api_key := os.environ.get("OPENAI_API_KEY"))
+                and self.azure_ad_token is None
+                and self.azure_ad_token_provider is None
+                and "AZURE_OPENAI_AD_TOKEN" not in os.environ
+                and "AZURE_OPENAI_API_KEY" not in os.environ
+            )
+            if using_openai_api_key_env_var_for_azure:
+                # todo #3821: deprecate this legacy behavior
+                logger.warning(
+                    "Please store your Azure OpenAI API key in the AZURE_OPENAI_API_KEY env var "
+                    "instead of OPENAI_API_KEY."
+                )
+                self.api_key = api_key
             # Validate the azure options and construct a client
             azure_options = self._get_azure_options()
             self._client = self._openai.AzureOpenAI(
