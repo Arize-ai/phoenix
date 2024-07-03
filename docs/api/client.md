@@ -23,7 +23,7 @@ class Client:
 
 A client for making HTTP requests to the Phoenix server for extracting/downloading data. See [#usage](client.md#usage "mention")for examples.
 
-**\[**[**source**](https://github.com/Arize-ai/phoenix/blob/29800e4ed4a901ad19874ba049638e13d8c67b87/src/phoenix/session/client.py#L22)**]**
+**\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/session/client.py)**]**
 
 ### Parameters
 
@@ -37,14 +37,14 @@ A client for making HTTP requests to the Phoenix server for extracting/downloadi
 \-> Optional\[pandas.DataFrame]
 
 ```python
-phoenix.Client(endpoint="http://127.0.0.1:6006").get_spans_dataframe()
+px.Client(endpoint="http://127.0.0.1:6006").get_spans_dataframe()
 ```
 
 Returns spans in a pandas.dataframe. Filters can be applied. See [LLM Traces](../concepts/llm-traces.md) for more about tracing your LLM application.\
 \
 **Parameters**
 
-* **filter\_condition** (Optional\[str]): A Python expression for filtering spans. See [Usage](client.md#usage-3) below for examples.
+* **filter\_condition** (Optional\[str]): A Python expression for filtering spans. See [Usage](client.md#usage) below for examples.
 * **start\_time** (Optional\[datetime]): A Python datetime object for filtering spans by time.
 * **stop\_time** (Optional\[datetime]): A Python datetime object for filtering spans by time.
 * **root\_spans\_only** (Optional\[bool]): Whether to return only root spans, i.e. spans without parents. Defaults to `False`.
