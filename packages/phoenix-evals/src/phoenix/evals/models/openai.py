@@ -55,7 +55,7 @@ class OpenAIModel(BaseModel):
     This class wraps the OpenAI SDK library for use with Phoenix LLM evaluations. Calls to the
     OpenAI API are dynamically throttled when encountering rate limit errors. Requires the
     `openai` package to be installed.
-    
+
     Additionally, OpenAIModel supports Azure OpenAI API. To use Azure OpenAI API, you need to
     provide the `azure_endpoint` and `azure_deployment` parameters. You can also provide the
     `azure_ad_token` or `azure_ad_token_provider` to authenticate with Azure OpenAI API.
@@ -105,11 +105,11 @@ class OpenAIModel(BaseModel):
 
             from phoenix.evals import OpenAIModel
             model = OpenAIModel(model="gpt-4o")
-        
+
         Using OpenAI models via Azure is similar:
         .. code-block:: python
             # Set the AZURE_OPENAI_API_KEY environment variable
-        
+
             from phoenix.evals import OpenAIModel
             model = OpenAIModel(
                 model="gpt-35-turbo-16k",
