@@ -28,16 +28,14 @@ def clean_doc_output(app, docname, source):
 
             # Clean up text outside automodule blocks
             if not in_automodule:
-                if "Submodules" in line:
-                    continue
-                if "Module contents" in line:
-                    continue
-                if " package" in line:
-                    line = line.replace(" package", "")
-                if " module" in line:
-                    line = line.replace(" module", "")
-                if "Subpackages" in line:
-                    line = line.replace("Subpackages", "")
+                if 'Submodules' in line:
+                    continue 
+                if ' package' in line:
+                    line = line.replace(' package', '')
+                if ' module' in line:
+                    line = line.replace(' module', '')
+                if 'Subpackages' in line:
+                    line = line.replace('Subpackages', '')
 
             processed.append(line)
 

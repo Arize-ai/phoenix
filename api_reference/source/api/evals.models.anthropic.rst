@@ -3,5 +3,5 @@ evals.models.anthropic module
 
 .. automodule:: evals.models.anthropic
    :members:
-   :undoc-members:
    :show-inheritance:
+   :exclude-members: anthropic_version
