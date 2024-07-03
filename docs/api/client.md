@@ -136,7 +136,7 @@ Upload a dataset to Phoenix. See [Usage](client.md#usage) below for examples. It
 ## _**append\_dataset**_
 
 \-> Dataset\
-
+\
 Method signature is identical to that of the _upload_dataset_ method. If dataset doesn't already exist on the Phoenix server, it will be created.
 
 ### Usage
