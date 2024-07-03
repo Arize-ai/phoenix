@@ -10,21 +10,25 @@ https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 import os
 import sys
-import phoenix
 
-# Path setup for autodoc
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(BASE_DIR, 'src', 'phoenix'))
-sys.path.insert(0, os.path.join(BASE_DIR, 'packages', 'phoenix-evals', 'src', 'phoenix'))
+import phoenix
 
 # Sphinx-related utility functions
 import utils
 
+# Path setup for autodoc
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(BASE_DIR, "src", "phoenix"))
+sys.path.insert(0, os.path.join(BASE_DIR, "packages", "phoenix-evals", "src", "phoenix"))
+
+
 # -- Generation setup --------------------------------------------------------
 
+
 def setup(app):
-    app.connect('source-read', utils.clean_doc_output)  # Remove unnecessary headers
+    app.connect("source-read", utils.clean_doc_output)  # Remove unnecessary headers
+
 
 # -- Project information -----------------------------------------------------
 
@@ -34,19 +38,19 @@ author = "Arize AI"
 
 # -- General configuration ---------------------------------------------------
 
-source_suffix = ['.rst', '.md', '.txt']
+source_suffix = [".rst", ".md", ".txt"]
 
 extensions = [
-    "sphinx.ext.autodoc", 
+    "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
-    "sphinx.ext.napoleon", 
+    "sphinx.ext.napoleon",
     "myst_parser",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 
-# List of patterns, relative to source directory, that match files 
+# List of patterns, relative to source directory, that match files
 # and directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
@@ -62,7 +66,7 @@ napoleon_numpy_docstring = True
 # Autosummary
 autosummary_generate = True  # Generate API documentation when building
 
-# MyST 
+# MyST
 # This allows us to use ::: to denote directives, useful for admonitions
 myst_enable_extensions = ["colon_fence", "linkify", "substitution"]
 myst_heading_anchors = 2
@@ -102,7 +106,7 @@ elif version_match == "stable":
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'pydata_sphinx_theme'
+html_theme = "pydata_sphinx_theme"
 pygments_style = "sphinx"  # Name of the Pygments (syntax highlighting) style to use.
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
@@ -127,7 +131,7 @@ html_theme_options = {
     ],
     "external_links": [
         {"name": "Docs", "url": "https://docs.arize.com/phoenix"},
-    ], 
+    ],
     "navbar_align": "content",
     "navbar_start": ["navbar-logo", "version-switcher"],
     "header_links_before_dropdown": 5,
@@ -137,6 +141,4 @@ html_theme_options = {
     },
 }
 
-html_sidebars = {
-    "**": ["sidebar-nav-bs"]
-}
+html_sidebars = {"**": ["sidebar-nav-bs"]}
