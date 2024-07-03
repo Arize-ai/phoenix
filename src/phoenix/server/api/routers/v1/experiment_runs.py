@@ -8,9 +8,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.models import ExperimentRunOutput
-from phoenix.experiments.types import ExperimentRun
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.utilities.json import jsonify
 
 
 async def create_experiment_run(request: Request) -> Response:
@@ -204,9 +202,9 @@ async def list_experiment_runs(request: Request) -> Response:
             experiment_gid = GlobalID("Experiment", str(exp_run.experiment_id))
             example_gid = GlobalID("DatasetExample", str(exp_run.dataset_example_id))
             runs.append(
-                ExperimentRun(
-                    start_time=exp_run.start_time,
-                    end_time=exp_run.end_time,
+                dict(
+                    start_time=exp_run.start_time.isoformat(),
+                    end_time=exp_run.end_time.isoformat(),
                     experiment_id=str(experiment_gid),
                     dataset_example_id=str(example_gid),
                     repetition_number=exp_run.repetition_number,
@@ -216,4 +214,4 @@ async def list_experiment_runs(request: Request) -> Response:
                     trace_id=exp_run.trace_id,
                 )
             )
-    return JSONResponse(content={"data": jsonify(runs)}, status_code=200)
+    return JSONResponse(content={"data": runs}, status_code=200)
