@@ -3,7 +3,6 @@ evals package
 
 .. automodule:: evals
    :members:
-   :undoc-members:
    :show-inheritance:
 
 Subpackages

@@ -1,7 +1,32 @@
+@import 'pydata_sphinx_theme.scss';
+
+/* -- navbar display --------------------------------------------------------- */
+
 .navbar-nav .nav-link {
     text-transform: capitalize;
 }
 
-.ethical-sidebar {
-    display: none;
+/* -- signature display ------------------------------------------------------ */
+
+.sig.sig-object.py{
+    font-style: normal !important;
+    font-feature-settings: "kern";
+    font-family: "Roboto Mono", "Courier New", Courier, monospace;
+    background: #f8f8f8;
 }
+
+.sig.sig-object.py .sig-param, .sig-paren{
+    font-weight: normal;
+}
+
+.sig.sig-object.py em { 
+    font-style: normal;
+}
+
+/* .sig.sig-object.py .sig-name.descname { 
+    color: #A52A2A;
+} */
+
+/* .field-list.simple .field-odd ul.simple li p strong {
+    font-weight: normal;
+} */

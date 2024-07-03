@@ -7,7 +7,6 @@ To import Client, use::
 
 .. automodule:: session
    :members:
-   :undoc-members:
    :show-inheritance:
 
 Submodules

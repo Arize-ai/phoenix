@@ -1,8 +1,7 @@
-db package
+datasets package
 ==========
 
 .. automodule:: db
-   :undoc-members:
    :show-inheritance:
 
 -----------

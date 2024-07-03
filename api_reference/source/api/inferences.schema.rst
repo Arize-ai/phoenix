@@ -1,7 +1,6 @@
-inferences.schema module
+inferences.schema
 ========================
 
 .. automodule:: inferences.schema
    :members:
-   :undoc-members:
    :show-inheritance:

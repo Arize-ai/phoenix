@@ -49,12 +49,20 @@ def skip_member(app, what, name, obj, skip, options):
     Exclude members not explicitly listed in INCLUDE_MEMBERS from the documentation.
     """
 
-    module_name = obj.__module__ if hasattr(obj, "__module__") else ""
-    class_name = obj.__class__.__name__ if hasattr(obj, "__class__") else ""
-    member_name = name.split(".")[-1]
+    # module_name = obj.__module__ if hasattr(obj, '__module__') else ''
+    # class_name = obj.__class__.__name__ if hasattr(obj, '__class__') else ''
+    # member_name = name.split('.')[-1]
 
-    if module_name in INCLUDE_MEMBERS:
-        if class_name in INCLUDE_MEMBERS[module_name]:
-            return member_name not in INCLUDE_MEMBERS[module_name][class_name]
+    # if module_name in INCLUDE_MEMBERS:
+    #     if class_name in INCLUDE_MEMBERS[module_name]:
+    #         return member_name not in INCLUDE_MEMBERS[module_name][class_name]
+    #     return True
+    # return True
+    
+    if name == "__init__":
         return True
-    return True
+    if name.startswith("_"):
+        return True
+    if what == "attribute":
+        return True
+    return False

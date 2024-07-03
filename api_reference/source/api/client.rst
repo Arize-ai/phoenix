@@ -9,5 +9,4 @@ To import Client, use::
 
 .. automodule:: session.client
    :members:
-   :undoc-members:
    :show-inheritance:
