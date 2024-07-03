@@ -1606,7 +1606,7 @@ function MessageContent({
           {text}
         </pre>
       ) : null}
-      {imageUrl ? <img src={imageUrl} alt="image" css={imageCSS} /> : null}
+      {imageUrl ? <img src={imageUrl} css={imageCSS} /> : null}
     </Flex>
   );
 }
