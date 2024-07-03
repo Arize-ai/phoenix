@@ -98,13 +98,24 @@ class OpenAIModel(BaseModel):
         default_headers (Mapping[str, str], optional): Default headers required by AzureOpenAI.
             Defaults to None.
 
-    Example:
+    Examples:
         .. code-block:: python
 
             # Set the OPENAI_API_KEY environment variable
 
             from phoenix.evals import OpenAIModel
             model = OpenAIModel(model="gpt-4o")
+        
+        Using OpenAI models via Azure is similar:
+        .. code-block:: python
+            # Set the AZURE_OPENAI_API_KEY environment variable
+        
+            from phoenix.evals import OpenAIModel
+            model = OpenAIModel(
+                model="gpt-35-turbo-16k",
+                azure_endpoint="https://your-endpoint.azure.com/",
+                api_version="2023-09-15-preview",
+            )
     """
 
     api_key: Optional[str] = field(repr=False, default=None)
