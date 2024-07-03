@@ -19,7 +19,6 @@ from phoenix.evals.exceptions import PhoenixContextLimitExceeded
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
 
-OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
 MINIMUM_OPENAI_VERSION = "1.0.0"
 MODEL_TOKEN_LIMIT_MAPPING = {
     "gpt-3.5-turbo-instruct": 4096,
@@ -152,20 +151,6 @@ class OpenAIModel(BaseModel):
         self._is_azure = bool(self.azure_endpoint)
 
         self._model_uses_legacy_completion_api = self.model.startswith(LEGACY_COMPLETION_API_MODELS)
-        if self.api_key is None:
-            api_key = os.getenv(OPENAI_API_KEY_ENVVAR_NAME)
-            if api_key is None:
-                # TODO: Create custom AuthenticationError
-                if self._is_azure:
-                    raise RuntimeError(
-                        "Azure API key not provided. Pass it as an argument to 'api_key' "
-                        "or set it in your environment: 'export OPENAI_API_KEY=****'"
-                    )
-                raise RuntimeError(
-                    "OpenAI's API key not provided. Pass it as an argument to 'api_key' "
-                    "or set it in your environment: 'export OPENAI_API_KEY=sk-****'"
-                )
-            self.api_key = api_key
 
         # Set the version, organization, and base_url - default to openAI
         self.api_version = self.api_version or self._openai.api_version
@@ -176,6 +161,21 @@ class OpenAIModel(BaseModel):
         self._client: Union[self._openai.OpenAI, self._openai.AzureOpenAI]  # type: ignore
         self._async_client: Union[self._openai.AsyncOpenAI, self._openai.AsyncAzureOpenAI]  # type: ignore
         if self._is_azure:
+            using_openai_api_key_env_var_for_azure = (
+                self.api_key is None
+                and (api_key := os.environ.get("OPENAI_API_KEY"))
+                and self.azure_ad_token is None
+                and self.azure_ad_token_provider is None
+                and "AZURE_OPENAI_AD_TOKEN" not in os.environ
+                and "AZURE_OPENAI_API_KEY" not in os.environ
+            )
+            if using_openai_api_key_env_var_for_azure:
+                # todo #3821: deprecate this legacy behavior
+                logger.warning(
+                    "Please store your Azure OpenAI API key in the AZURE_OPENAI_API_KEY env var "
+                    "instead of OPENAI_API_KEY."
+                )
+                self.api_key = api_key
             # Validate the azure options and construct a client
             azure_options = self._get_azure_options()
             self._client = self._openai.AzureOpenAI(
