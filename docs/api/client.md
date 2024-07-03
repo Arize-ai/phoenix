@@ -52,7 +52,7 @@ Returns spans in a pandas.dataframe. Filters can be applied. See [LLM Traces](..
 
 ## _**query\_spans**_
 
-\-> Optional\[Union\[pandas.DataFrame, List\[pandas.DataFrame]]\\
+\-> Optional\[Union\[pandas.DataFrame, List\[pandas.DataFrame]]\
 
 Extract values from spans in a pandas.dataframe. See [extract-data-from-spans.md](../tracing/how-to-tracing/extract-data-from-spans.md "mention")for more details.\
 \
@@ -96,7 +96,7 @@ Returns the trace dataset containing spans and evaluations.\
 
 \-> None\
 \
-Send evaluations to Phoenix. See [#logging-multiple-evaluation-dataframes](../tracing/how-to-tracing/llm-evaluations.md#logging-multiple-evaluation-dataframes "mention")for usage.\\
+Send evaluations to Phoenix. See [#logging-multiple-evaluation-dataframes](../tracing/how-to-tracing/llm-evaluations.md#logging-multiple-evaluation-dataframes "mention")for usage.\
 
 **Parameters**
 
@@ -107,7 +107,7 @@ Send evaluations to Phoenix. See [#logging-multiple-evaluation-dataframes](../tr
 
 \-> pandas.DataFrame\
 \
-Get dataset versions as pandas DataFrame.\\
+Get dataset versions as pandas DataFrame.\
 
 **Parameters**
 
@@ -118,7 +118,7 @@ Get dataset versions as pandas DataFrame.\\
 
 \-> Dataset\
 \
-Upload a dataset to Phoenix. See [Usage](client.md#usage) below for examples. It can upload a pandas dataframe, a CSV text file, or a series of dictionary objects, and only one of these options should be specified.\\
+Upload a dataset to Phoenix. See [Usage](client.md#usage) below for examples. It can upload a pandas dataframe, a CSV text file, or a series of dictionary objects, and only one of these options should be specified.\
 
 **Parameters**
 
