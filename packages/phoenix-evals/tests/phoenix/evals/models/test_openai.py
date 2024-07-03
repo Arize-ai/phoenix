@@ -2,7 +2,10 @@ from unittest import mock
 
 import pytest
 from openai import AzureOpenAI, OpenAI
-from phoenix.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME, OpenAIModel
+from phoenix.evals.models.openai import OpenAIModel
+
+OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
+AZURE_OPENAI_API_KEY_ENVVAR_NAME = "AZURE_OPENAI_API_KEY"
 
 
 def test_openai_model(monkeypatch):
@@ -19,7 +22,7 @@ def test_openai_model(monkeypatch):
 
 
 def test_azure_openai_model(monkeypatch):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    monkeypatch.setenv(AZURE_OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     model = OpenAIModel(
         model="gpt-4-turbo-preview",
         api_version="2023-07-01-preview",
@@ -29,7 +32,7 @@ def test_azure_openai_model(monkeypatch):
 
 
 def test_azure_openai_model_added_custom_header(monkeypatch):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    monkeypatch.setenv(AZURE_OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     header_key = "header"
     header_value = "my-example-header-value"
     default_headers = {header_key: header_value}
@@ -65,7 +68,7 @@ def test_azure_fails_when_missing_options(monkeypatch):
 
 
 def test_azure_supports_function_calling(monkeypatch):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    monkeypatch.setenv(AZURE_OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     model = OpenAIModel(
         model="gpt-4-turbo-preview",
         api_version="2023-07-01-preview",
