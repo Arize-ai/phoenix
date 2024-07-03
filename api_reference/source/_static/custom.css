@@ -5,3 +5,71 @@
 .ethical-sidebar {
     display: none;
 }
+
+
+/* Adjust the font size and weight of module names */
+/* .module-name {
+    font-size: 1.5em;
+    font-weight: bold;
+} */
+
+.py-class-title {
+    font-size: 1.4em;  /* Adjust the font size as needed */
+}
+
+/* Adjust the font size and weight of function/method names */
+.py-function-title {
+    font-size: 1.4em;
+    font-weight: bold;
+}
+
+.py-method-title {
+    font-size: 1.2em;
+    font-weight: bold;
+
+}
+
+/* Adjust the font size and weight of class names */
+.py-class {
+    font-size: 1.0em;
+    font-weight: bold;
+}
+
+/* Adjust the font size and weight of function/method names */
+.py-function {
+    font-size: 1.4em;
+    font-weight: bold;
+}
+
+.py-method {
+    font-size: 1.2em;
+    font-weight: bold;
+
+}
+
+/* Adjust the font size and weight of parameter names */
+.field-odd, .field-even {
+    font-size: 1.2em;
+    font-weight: normal;
+}
+
+/* Additional adjustments for clarity */
+.sig-name {
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+.sig-param {
+    font-size: 1.1em;
+    font-weight: normal;
+}
+
+.descclassname {
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+.descname {
+    font-size: 1.2em;
+    font-weight: bold;
+}

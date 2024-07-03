@@ -16,12 +16,6 @@ sys.path.insert(0, os.path.abspath("../packages/phoenix-evals/src/phoenix"))
 
 # -- Generation setup --------------------------------------------------------
 
-# Define which modules, classes, and their respective methods to include
-INCLUDE_MEMBERS = {
-    "inferences.inferences": {"Inferences": ["__init__"]},
-}
-
-
 def include_only_tagged(app, what, name, obj, skip, options):
     inclusion_tag_format = ".. only:: {}"  # can be any pattern here, choose what works for you
     for tag in app.tags.tags:
@@ -31,19 +25,17 @@ def include_only_tagged(app, what, name, obj, skip, options):
 
 
 def skip_member(app, what, name, obj, skip, options):
-    module_name = obj.__module__ if hasattr(obj, "__module__") else ""
-    class_name = obj.__class__.__name__ if hasattr(obj, "__class__") else ""
-    member_name = name.split(".")[-1]  # Get the last part of the name
 
-    # Check if the module is in the include list
-    if module_name in INCLUDE_MEMBERS:
-        if class_name in INCLUDE_MEMBERS[module_name]:
-            # Check if the member is in the include list for this class
-            return member_name not in INCLUDE_MEMBERS[module_name][class_name]
-        # Skip all other classes not specifically included
+    if name == "__init__":
         return True
-    # Skip all other modules not specifically included
-    return True
+
+    if name.startswith("_"):
+        return True
+
+    if what == "attribute":
+        return True
+
+    return False
 
 
 def filter_rst(app, docname, source):
@@ -87,9 +79,7 @@ def filter_rst(app, docname, source):
 def setup(app):
     # if len(app.tags.tags) > 0:
     #     app.connect("autodoc-skip-member", include_only_tagged)
-    # app.connect("autodoc-skip-member", skip_member)
-
-    # Remove unnecessary headers
+    app.connect("autodoc-skip-member", skip_member)
     app.connect("source-read", filter_rst)
 
 
@@ -118,6 +108,19 @@ napoleon_numpy_docstring = True
 
 # Generate API documentation when building
 autosummary_generate = True
+
+autodoc_class_signature = 'separated'  # Separate the signature from the class title
+autoclass_content = 'class'  # Only include the class docstring, not the __init__ method docstring
+
+
+autodoc_default_options = {
+    'members': True,
+    'private-members': False,
+    'special-members': '__init__',
+    'undoc-members': False,
+    'inherited-members': False,
+    'show-inheritance': True,
+}
 
 # autodoc_pydantic_model_show_json = False
 # autodoc_pydantic_field_list_validators = False

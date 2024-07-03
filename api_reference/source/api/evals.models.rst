@@ -3,7 +3,6 @@ evals.models package
 
 .. automodule:: evals.models
    :members:
-   :undoc-members:
    :show-inheritance:
 
 Submodules
