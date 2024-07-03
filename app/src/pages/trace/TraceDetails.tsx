@@ -56,6 +56,7 @@ import {
 } from "@arizeai/openinference-semantic-conventions/src/trace/SemanticConventions";
 
 import { CopyToClipboardButton, ExternalLink } from "@phoenix/components";
+import { ErrorBoundary } from "@phoenix/components/ErrorBoundary";
 import {
   ConnectedMarkdownBlock,
   MarkdownDisplayProvider,
@@ -75,6 +76,7 @@ import {
   AttributeEmbeddingEmbedding,
   AttributeLlm,
   AttributeMessage,
+  AttributeMessageContent,
   AttributePromptTemplate,
   AttributeReranker,
   AttributeRetrieval,
@@ -1375,6 +1377,8 @@ function DocumentItem({
 
 function LLMMessage({ message }: { message: AttributeMessage }) {
   const messageContent = message[MessageAttributePostfixes.content];
+  // as of multi-modal models, a message can also be a list
+  const messagesContents = message[MessageAttributePostfixes.contents];
   const toolCalls =
     message[MessageAttributePostfixes.tool_calls]
       ?.map((obj) => obj[SemanticAttributePrefixes.tool_call])
@@ -1431,6 +1435,11 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
           </Flex>
         }
       >
+        <ErrorBoundary>
+          {messagesContents ? (
+            <MessageContentsList messageContents={messagesContents} />
+          ) : null}
+        </ErrorBoundary>
         <Flex direction="column" alignItems="start">
           {messageContent ? (
             <ConnectedMarkdownBlock>{messageContent}</ConnectedMarkdownBlock>
@@ -1532,6 +1541,73 @@ function LLMPromptsList({ prompts }: { prompts: string[] }) {
         );
       })}
     </ul>
+  );
+}
+
+/**
+ * A list of message contents. Used for multi-modal models.
+ */
+function MessageContentsList({
+  messageContents,
+}: {
+  messageContents: AttributeMessageContent[];
+}) {
+  return (
+    <ul
+      css={css`
+        display: flex;
+        flex-direction: column;
+        gap: var(--ac-global-dimension-size-100);
+      `}
+    >
+      {messageContents.map((messageContent, idx) => {
+        return (
+          <li key={idx}>
+            <MessageContent messageContentAttribute={messageContent} />
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+const imageCSS = css`
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: cover;
+`;
+
+/**
+ * Displays multi-modal message content. Typically an image or text.
+ * Examples:
+ * {"message_content":{"text":"What is in this image?","type":"text"}}
+ * {"message_content":{"type":"image","image":{"image":{"url":"https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg"}}}}
+ */
+function MessageContent({
+  messageContentAttribute,
+}: {
+  messageContentAttribute: AttributeMessageContent;
+}) {
+  const { message_content } = messageContentAttribute;
+  const text = message_content?.text;
+  const image = message_content?.image;
+  const imageUrl = image?.image?.url;
+
+  return (
+    <Flex direction="column">
+      {text ? (
+        <pre
+          css={css`
+            white-space: pre-wrap;
+            padding: 0;
+            margin: 0;
+          `}
+        >
+          {text}
+        </pre>
+      ) : null}
+      {imageUrl ? <img src={imageUrl} alt="image" css={imageCSS} /> : null}
+    </Flex>
   );
 }
 

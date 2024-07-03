@@ -1,8 +1,10 @@
 import {
   EmbeddingAttributePostfixes,
+  ImageAttributesPostfixes,
   LLMAttributePostfixes,
   LLMPromptTemplateAttributePostfixes,
   MessageAttributePostfixes,
+  MessageContentsAttributePostfixes,
   RerankerAttributePostfixes,
   RetrievalAttributePostfixes,
   ToolAttributePostfixes,
@@ -30,12 +32,27 @@ export type AttributeMessages = {
 export type AttributeMessage = {
   [MessageAttributePostfixes.role]?: string;
   [MessageAttributePostfixes.content]?: string;
+  [MessageAttributePostfixes.contents]?: AttributeMessageContent[];
   [MessageAttributePostfixes.name]?: string;
   [MessageAttributePostfixes.function_call_name]?: string;
   [MessageAttributePostfixes.function_call_arguments_json]?: string;
   [MessageAttributePostfixes.tool_calls]?: {
     [SemanticAttributePrefixes.tool_call]?: AttributeToolCall;
   }[];
+};
+
+export type AttributeMessageContent = {
+  [SemanticAttributePrefixes.message_content]: {
+    [MessageContentsAttributePostfixes.type]?: string;
+    [MessageContentsAttributePostfixes.text]?: string;
+    [MessageContentsAttributePostfixes.image]?: AttributeImage;
+  };
+};
+
+export type AttributeImage = {
+  [MessageContentsAttributePostfixes.image]?: {
+    [ImageAttributesPostfixes.url]?: string;
+  };
 };
 
 export type AttributeRetrieval = {
