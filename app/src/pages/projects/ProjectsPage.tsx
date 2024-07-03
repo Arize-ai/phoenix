@@ -179,7 +179,8 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
       css={css`
         flex: 1 1 auto;
         flex-direction: column;
-        overflow: auto;
+        overflow-y: auto;
+        overflow-x: hidden;
         padding-bottom: var(--ac-global-dimension-size-750);
       `}
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
