@@ -108,12 +108,12 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
   );
   const projects = projectsData.projects.edges.map((p) => p.project);
 
-  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const projectsContainerRef = useRef<HTMLDivElement>(null);
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
         const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
-        //once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
+        //once the user has scrolled within 300px of the bottom of the scrollable container, fetch more data if there is any
         if (
           scrollHeight - scrollTop - clientHeight < 300 &&
           !isLoadingNext &&
@@ -178,13 +178,12 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
     <div
       css={css`
         flex: 1 1 auto;
-        flex-direction: column;
         overflow-y: auto;
         overflow-x: hidden;
         padding-bottom: var(--ac-global-dimension-size-750);
       `}
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
-      ref={tableContainerRef}
+      ref={projectsContainerRef}
     >
       <View
         paddingStart="size-200"
