@@ -46,7 +46,7 @@ Returns spans in a pandas.dataframe. Filters can be applied. See [LLM Traces](..
 
 * **filter\_condition** (Optional\[str]): A Python expression for filtering spans. See [Usage](client.md#usage) below for examples.
 * **start\_time** (Optional\[datetime]): A Python datetime object for filtering spans by time.
-* **stop\_time** (Optional\[datetime]): A Python datetime object for filtering spans by time.
+* **end\_time** (Optional\[datetime]): A Python datetime object for filtering spans by time.
 * **root\_spans\_only** (Optional\[bool]): Whether to return only root spans, i.e. spans without parents. Defaults to `False`.
 * **project\_name** (Optional\[str]): The name of the project to retrieve spans for. It can also be specified via an environment variable, or if left blank, defaults to the default project name.
 
@@ -60,7 +60,7 @@ Extract values from spans in a pandas.dataframe. See [extract-data-from-spans.md
 
 * **\*queries** (SpanQuery): One or more SpanQuery object. See [extract-data-from-spans.md](../tracing/how-to-tracing/extract-data-from-spans.md "mention")for more details.
 * **start\_time** (Optional\[datetime]): A Python datetime object for filtering spans by time.
-* **stop\_time** (Optional\[datetime]): A Python datetime object for filtering spans by time.
+* **end\_time** (Optional\[datetime]): A Python datetime object for filtering spans by time.
 * **root\_spans\_only** (Optional\[bool]): Whether to return only root spans, i.e. spans without parents. Defaults to `False`.
 * **project\_name** (Optional\[str]): The name of the project to retrieve spans for. It can also be specified via an environment variable, or if left blank, defaults to the default project name.
 
