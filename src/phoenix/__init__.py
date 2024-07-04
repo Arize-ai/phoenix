@@ -33,13 +33,13 @@ Here are just a few of the things that phoenix does well:
 
 __all__ = [
     "__version__",
+    "active_session",
     "Inferences",
     "EmbeddingColumnNames",
     "RetrievalEmbeddingColumnNames",
     "Schema",
     "load_example",
     "ExampleInferences",
-    "active_session",
     "close_app",
     "launch_app",
     "delete_all",
