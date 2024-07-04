@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.7.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.7.0...arize-phoenix-v4.7.1) (2024-07-04)
+
+
+### Bug Fixes
+
+* ensure experiment errors messages work on python 3.8 and 3.9 ([#3841](https://github.com/Arize-ai/phoenix/issues/3841)) ([2595cfb](https://github.com/Arize-ai/phoenix/commit/2595cfb4fda91887c3e18fb6d680efdf852362e0))
+
 ## [4.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.6.3...arize-phoenix-v4.7.0) (2024-07-03)
 
 
