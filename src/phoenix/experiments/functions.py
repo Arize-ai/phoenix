@@ -737,7 +737,9 @@ def _print_experiment_error(
         f"{kind} failed for example id {repr(example_id)}, " f"repetition {repr(repetition_number)}"
     )
     display_error.__cause__ = error
-    formatted_exception = "".join(traceback.format_exception(display_error))  # type: ignore[arg-type, call-arg, unused-ignore]
+    formatted_exception = "".join(
+        traceback.format_exception(type(display_error), display_error, display_error.__traceback__)
+    )
     print("\033[91m" + formatted_exception + "\033[0m")  # prints in red
 
 
