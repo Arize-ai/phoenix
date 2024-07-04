@@ -1,5 +1,31 @@
 # Changelog
 
+## [4.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.6.3...arize-phoenix-v4.7.0) (2024-07-03)
+
+
+### Features
+
+* **image:** add image rendering on messages ([#3832](https://github.com/Arize-ai/phoenix/issues/3832)) ([f219523](https://github.com/Arize-ai/phoenix/commit/f219523d79cd2aa112dcfa39935f98293ce889a1))
+
+
+### Bug Fixes
+
+* allow invocations of OpenAIModel without api key ([#3820](https://github.com/Arize-ai/phoenix/issues/3820)) ([4dd8c0e](https://github.com/Arize-ai/phoenix/commit/4dd8c0e15308971fe42c5fd11f04f80b18c55746))
+
+## [4.6.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.6.2...arize-phoenix-v4.6.3) (2024-07-03)
+
+
+### Bug Fixes
+
+* **UI:** explanation overflow ([#3818](https://github.com/Arize-ai/phoenix/issues/3818)) ([7356c8a](https://github.com/Arize-ai/phoenix/commit/7356c8a6c9eab5eab15c893f672f7d213dbe84a3))
+
+## [4.6.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.6.1...arize-phoenix-v4.6.2) (2024-07-02)
+
+
+### Bug Fixes
+
+* **experiments:** order annotations by name to make output deterministic ([#3806](https://github.com/Arize-ai/phoenix/issues/3806)) ([256035f](https://github.com/Arize-ai/phoenix/commit/256035f9c403e21d9c3551c7eaa5ae801941b629))
+
 ## [4.6.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.6.0...arize-phoenix-v4.6.1) (2024-07-02)
 
 

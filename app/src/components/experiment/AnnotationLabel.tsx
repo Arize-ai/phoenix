@@ -131,7 +131,9 @@ export function AnnotationLabel({
               <Text weight="heavy" color="inherit">
                 explanation
               </Text>
-              <Text color="inherit">{annotation.explanation}</Text>
+              <View maxHeight="300px" overflow="auto">
+                <Text color="inherit">{annotation.explanation}</Text>
+              </View>
             </Flex>
           </View>
         ) : null}

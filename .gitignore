@@ -21,6 +21,7 @@ sdist
 
 # Testing
 coverage.xml
+.tox
 
 # devtools
 pyrightconfig.json

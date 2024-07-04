@@ -19,7 +19,6 @@ from phoenix.evals.exceptions import PhoenixContextLimitExceeded
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
 
-OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
 MINIMUM_OPENAI_VERSION = "1.0.0"
 MODEL_TOKEN_LIMIT_MAPPING = {
     "gpt-3.5-turbo-instruct": 4096,
@@ -50,57 +49,95 @@ class AzureOptions:
 
 @dataclass
 class OpenAIModel(BaseModel):
+    """
+    An interface for using OpenAI models.
+
+    This class wraps the OpenAI SDK library for use with Phoenix LLM evaluations. Calls to the
+    OpenAI API are dynamically throttled when encountering rate limit errors. Requires the
+    `openai` package to be installed.
+
+    Additionally, OpenAIModel supports Azure OpenAI API. To use Azure OpenAI API, you need to
+    provide the `azure_endpoint` and `azure_deployment` parameters. You can also provide the
+    `azure_ad_token` or `azure_ad_token_provider` to authenticate with Azure OpenAI API.
+
+    Supports Async: ✅
+        If possible, makes LLM calls concurrently.
+
+    Args:
+        api_key (str, optional): Your OpenAI key. If not provided, will be read from the
+            environment variable. Defaults to None.
+        organization (str, optional): The organization to use for the OpenAI API. If not provided,
+            will default to what's configured in OpenAI. Defaults to None.
+        base_url (str, optional): An optional base URL to use for the OpenAI API. If not provided,
+            will default to what's configured in OpenAI. Defaults to None.
+        model (str, optional): Model name to use. In of azure, this is the deployment name such as
+            gpt-35-instant. Defaults to "gpt-4".
+        temperature (float, optional): What sampling temperature to use. Defaults to 0.0.
+        max_tokens (int, optional): The maximum number of tokens to generate in the completion.
+            -1 returns as many tokens as possible given the prompt and the models maximal context
+            size. Defaults to 256.
+        top_p (float, optional): Total probability mass of tokens to consider at each step.
+            Defaults to 1.
+        frequency_penalty (float, optional): Penalizes repeated tokens according to frequency.
+            Defaults to 0.
+        presence_penalty (float, optional): Penalizes repeated tokens. Defaults to 0.
+        n (int, optional): How many completions to generate for each prompt. Defaults to 1.
+        model_kwargs (Dict[str, Any], optional): Holds any model parameters valid for `create` call
+            not explicitly specified. Defaults to an empty dictionary.
+        request_timeout (Optional[Union[float, Tuple[float, float]]], optional): Timeout for
+            requests to OpenAI completion API. Default is 600 seconds. Defaults to None.
+        api_version (str, optional): The version of the Azure API to use. Defaults to None.
+            https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#rest-api-versioning
+        azure_endpoint (str, optional): The endpoint to use for azure openai. Available in the
+            Azure portal. Defaults to None.
+        azure_deployment (str, optional): The deployment to use for azure openai. Defaults to None.
+        azure_ad_token (str, optional): The azure AD token to use for azure openai. Defaults to
+            None.
+        azure_ad_token_provider (Callable[[], str], optional): A callable that returns the azure ad
+            token to use for azure openai. Defaults to None.
+        default_headers (Mapping[str, str], optional): Default headers required by AzureOpenAI.
+            Defaults to None.
+
+    Examples:
+        .. code-block:: python
+
+            # Set the OPENAI_API_KEY environment variable
+
+            from phoenix.evals import OpenAIModel
+            model = OpenAIModel(model="gpt-4o")
+
+        Using OpenAI models via Azure is similar:
+        .. code-block:: python
+            # Set the AZURE_OPENAI_API_KEY environment variable
+
+            from phoenix.evals import OpenAIModel
+            model = OpenAIModel(
+                model="gpt-35-turbo-16k",
+                azure_endpoint="https://your-endpoint.azure.com/",
+                api_version="2023-09-15-preview",
+            )
+    """
+
     api_key: Optional[str] = field(repr=False, default=None)
-    """Your OpenAI key. If not provided, will be read from the environment variable"""
     organization: Optional[str] = field(repr=False, default=None)
-    """
-    The organization to use for the OpenAI API. If not provided, will default
-    to what's configured in OpenAI
-    """
     base_url: Optional[str] = field(repr=False, default=None)
-    """
-    An optional base URL to use for the OpenAI API. If not provided, will default
-    to what's configured in OpenAI
-    """
     model: str = "gpt-4"
-    """
-    Model name to use. In of azure, this is the deployment name such as gpt-35-instant
-    """
     temperature: float = 0.0
-    """What sampling temperature to use."""
     max_tokens: int = 256
-    """The maximum number of tokens to generate in the completion.
-    -1 returns as many tokens as possible given the prompt and
-    the models maximal context size."""
     top_p: float = 1
-    """Total probability mass of tokens to consider at each step."""
     frequency_penalty: float = 0
-    """Penalizes repeated tokens according to frequency."""
     presence_penalty: float = 0
-    """Penalizes repeated tokens."""
     n: int = 1
-    """How many completions to generate for each prompt."""
     model_kwargs: Dict[str, Any] = field(default_factory=dict)
-    """Holds any model parameters valid for `create` call not explicitly specified."""
-    batch_size: int = 20
-    # TODO: IMPLEMENT BATCHING
-    """Batch size to use when passing multiple documents to generate."""
     request_timeout: Optional[Union[float, Tuple[float, float]]] = None
-    """Timeout for requests to OpenAI completion API. Default is 600 seconds."""
 
     # Azure options
     api_version: Optional[str] = field(default=None)
-    """https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#rest-api-versioning"""
     azure_endpoint: Optional[str] = field(default=None)
-    """
-    The endpoint to use for azure openai. Available in the azure portal.
-    https://learn.microsoft.com/en-us/azure/cognitive-services/openai/how-to/create-resource?pivots=web-portal#create-a-resource
-    """
     azure_deployment: Optional[str] = field(default=None)
     azure_ad_token: Optional[str] = field(default=None)
     azure_ad_token_provider: Optional[Callable[[], str]] = field(default=None)
     default_headers: Optional[Mapping[str, str]] = field(default=None)
-    """Default headers required by AzureOpenAI"""
 
     # Deprecated fields
     model_name: Optional[str] = field(default=None)
@@ -152,20 +189,6 @@ class OpenAIModel(BaseModel):
         self._is_azure = bool(self.azure_endpoint)
 
         self._model_uses_legacy_completion_api = self.model.startswith(LEGACY_COMPLETION_API_MODELS)
-        if self.api_key is None:
-            api_key = os.getenv(OPENAI_API_KEY_ENVVAR_NAME)
-            if api_key is None:
-                # TODO: Create custom AuthenticationError
-                if self._is_azure:
-                    raise RuntimeError(
-                        "Azure API key not provided. Pass it as an argument to 'api_key' "
-                        "or set it in your environment: 'export OPENAI_API_KEY=****'"
-                    )
-                raise RuntimeError(
-                    "OpenAI's API key not provided. Pass it as an argument to 'api_key' "
-                    "or set it in your environment: 'export OPENAI_API_KEY=sk-****'"
-                )
-            self.api_key = api_key
 
         # Set the version, organization, and base_url - default to openAI
         self.api_version = self.api_version or self._openai.api_version
@@ -176,6 +199,21 @@ class OpenAIModel(BaseModel):
         self._client: Union[self._openai.OpenAI, self._openai.AzureOpenAI]  # type: ignore
         self._async_client: Union[self._openai.AsyncOpenAI, self._openai.AsyncAzureOpenAI]  # type: ignore
         if self._is_azure:
+            using_openai_api_key_env_var_for_azure = (
+                self.api_key is None
+                and (api_key := os.environ.get("OPENAI_API_KEY"))
+                and self.azure_ad_token is None
+                and self.azure_ad_token_provider is None
+                and "AZURE_OPENAI_AD_TOKEN" not in os.environ
+                and "AZURE_OPENAI_API_KEY" not in os.environ
+            )
+            if using_openai_api_key_env_var_for_azure:
+                # todo #3821: deprecate this legacy behavior
+                logger.warning(
+                    "Please store your Azure OpenAI API key in the AZURE_OPENAI_API_KEY env var "
+                    "instead of OPENAI_API_KEY."
+                )
+                self.api_key = api_key
             # Validate the azure options and construct a client
             azure_options = self._get_azure_options()
             self._client = self._openai.AzureOpenAI(

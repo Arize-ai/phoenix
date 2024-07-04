@@ -10,8 +10,9 @@ import pytest
 import respx
 from phoenix.evals import OpenAIModel, llm_generate
 from phoenix.evals.models.litellm import LiteLLMModel
-from phoenix.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 from respx.patterns import M
+
+OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")

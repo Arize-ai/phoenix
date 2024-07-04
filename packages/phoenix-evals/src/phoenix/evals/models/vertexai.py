@@ -15,27 +15,57 @@ MINIMUM_VERTEX_AI_VERSION = "1.33.0"
 
 @dataclass
 class VertexAIModel(BaseModel):
+    """
+    An interface for using Google's VertexAI models.
+
+    This class wraps the Google's VertexAI SDK library for using the VertexAI models for Phoenix
+    LLM evaluations. Calls to the the VertexAI models dynamically throttled when encountering rate
+    limit errors. Requires the `google-cloud-aiplatform` package to be installed.
+
+    Supports Async: ❌
+        This model wrapper does not support async LLM calls.
+
+    Args:
+        project (str, optional): The default project to use when making API calls. Defaults to None.
+        location (str, optional): The default location to use when making API calls. If not set
+            defaults to us-central-1. Defaults to None.
+        credentials (Optional[Credentials], optional): The credentials to use when making API
+            calls. Defaults to None.
+        model (str, optional): The model name to use. Defaults to "text-bison".
+        tuned_model (Optional[str], optional): The name of a tuned model. If provided, model is
+            ignored. Defaults to None.
+        temperature (float, optional): What sampling temperature to use. Defaults to 0.0.
+        max_tokens (int, optional): The maximum number of tokens to generate in the completion.
+            -1 returns as many tokens as possible given the prompt and the models maximal context
+            size. Defaults to 256.
+        top_p (float, optional): Tokens are selected from most probable to least until the sum of
+            their probabilities equals the top-p value. Top-p is ignored for Codey models.
+            Defaults to 0.95.
+        top_k (int, optional): How the model selects tokens for output, the next token is selected
+            from among the top-k most probable tokens. Top-k is ignored for Codey models.
+            Defaults to 40.
+
+    Example:
+        .. code-block:: python
+
+            # Set up your environment
+            # https://cloud.google.com/vertex-ai/generative-ai/docs/start/quickstarts/quickstart-multimodal#local-shell
+
+            from phoenix.evals import VertexAIModel
+            # if necessary, use the "project" kwarg to specify the project_id to use
+            # project_id = "your-project-id"
+            model = VertexAIModel(model="text-bison", project=project_id)
+    """
+
     project: Optional[str] = None
-    "project (str): The default project to use when making API calls."
     location: Optional[str] = None
-    "location (str): The default location to use when making API calls. If not "
-    "set defaults to us-central-1."
     credentials: Optional["Credentials"] = None
     model: str = "text-bison"
     tuned_model: Optional[str] = None
-    "The name of a tuned model. If provided, model is ignored."
     temperature: float = 0.0
-    """What sampling temperature to use."""
     max_tokens: int = 256
-    """The maximum number of tokens to generate in the completion.
-    -1 returns as many tokens as possible given the prompt and
-    the models maximal context size."""
     top_p: float = 0.95
-    "Tokens are selected from most probable to least until the sum of their "
-    "probabilities equals the top-p value. Top-p is ignored for Codey models."
     top_k: int = 40
-    "How the model selects tokens for output, the next token is selected from "
-    "among the top-k most probable tokens. Top-k is ignored for Codey models."
 
     # Deprecated fields
     model_name: Optional[str] = None

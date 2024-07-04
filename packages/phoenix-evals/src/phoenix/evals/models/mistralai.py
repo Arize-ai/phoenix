@@ -20,8 +20,34 @@ class MistralRateLimitError(Exception):
 @dataclass
 class MistralAIModel(BaseModel):
     """
-    A model class for Mistral AI.
-    Requires mistralai package to be installed.
+    An interface for using MistralAI models.
+
+    This class wraps the MistralAI SDK for use with Phoenix LLM evaluations. Calls to the
+    MistralAI API are dynamically throttled when encountering rate limit errors. Requires the
+    `mistralai` package to be installed.
+
+    Supports Async: ✅
+        If possible, makes LLM calls concurrently.
+
+    Args:
+        model (str, optional): The model name to use. Defaults to "mistral-large-latest".
+        temperature (float, optional): Sampling temperature to use. Defaults to 0.0.
+        top_p (float, optional): Total probability mass of tokens to consider at each step.
+            Defaults to None.
+        random_seed (int, optional): Random seed to use for sampling. Defaults to None.
+        response_format (Dict[str, str], optional): A dictionary specifying the format of the
+            response. Defaults to None.
+        safe_mode (bool, optional): Whether to use safe mode. Defaults to False.
+        safe_prompt (bool, optional): Whether to use safe prompt. Defaults to False.
+
+    Example:
+        .. code-block:: python
+
+            # Get your own Mistral API Key: https://docs.mistral.ai/#api-access
+            # Set the MISTRAL_API_KEY environment variable
+
+            from phoenix.evals import MistralAIModel
+            model = MistralAIModel(model="mistral-large-latest")
     """
 
     model: str = DEFAULT_MISTRAL_MODEL
