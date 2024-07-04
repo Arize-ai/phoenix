@@ -62,7 +62,6 @@ from phoenix.experiments.types import (
     ExperimentEvaluationRun,
     ExperimentParameters,
     ExperimentRun,
-    ExperimentRunOutput,
     ExperimentTask,
     RanExperiment,
     TaskSummary,
@@ -284,7 +283,7 @@ def run_experiment(
             experiment_id=experiment.id,
             dataset_example_id=example.id,
             repetition_number=repetition_number,
-            experiment_run_output=ExperimentRunOutput(task_output=output),
+            output=output,
             error=repr(error) if error else None,
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
@@ -345,7 +344,7 @@ def run_experiment(
             experiment_id=experiment.id,
             dataset_example_id=example.id,
             repetition_number=repetition_number,
-            experiment_run_output=ExperimentRunOutput(task_output=output),
+            output=output,
             error=repr(error) if error else None,
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
@@ -393,7 +392,7 @@ def run_experiment(
     ran_experiment.__init__(  # type: ignore[misc]
         params=params,
         dataset=dataset,
-        runs={r.id: r for r in task_runs},
+        runs={r.id: r for r in task_runs if r is not None},
         task_summary=task_summary,
         **_asdict(experiment),
     )
@@ -498,7 +497,7 @@ def evaluate_experiment(
             stack.enter_context(capture_spans(resource))
             try:
                 result = evaluator.evaluate(
-                    output=experiment_run.output,
+                    output=deepcopy(experiment_run.output),
                     expected=example.output,
                     reference=example.output,
                     input=example.input,
@@ -550,7 +549,7 @@ def evaluate_experiment(
             stack.enter_context(capture_spans(resource))
             try:
                 result = await evaluator.async_evaluate(
-                    output=experiment_run.output,
+                    output=deepcopy(experiment_run.output),
                     expected=example.output,
                     reference=example.output,
                     input=example.input,

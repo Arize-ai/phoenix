@@ -1,6 +1,6 @@
 import json
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Dict
 from unittest.mock import patch
 
 import nest_asyncio
@@ -17,7 +17,6 @@ from phoenix.experiments.types import (
     Dataset,
     Example,
     ExperimentRun,
-    ExperimentRunOutput,
     JSONSerializable,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -52,8 +51,9 @@ async def test_run_experiment(_, session, test_phoenix_clients, simple_dataset):
     with patch("phoenix.experiments.functions._phoenix_clients", return_value=test_phoenix_clients):
         task_output = {"doesn't matter": "this is the output"}
 
-        def experiment_task(x: Example) -> str:
-            assert x == {"input": "fancy input 1"}
+        def experiment_task(_) -> Dict[str, str]:
+            assert _ == example_input
+            assert _ is not example_input
             return task_output
 
         evaluators = [
@@ -121,8 +121,8 @@ async def test_run_experiment(_, session, test_phoenix_clients, simple_dataset):
             assert len(evaluations) == len(evaluators)
             assert evaluations[0].score == 0.0
             assert evaluations[1].score == 1.0
-            for evaluation in evaluations[2:]:
-                assert evaluation.score == 1.0
+            for i, evaluation in enumerate(evaluations[2:], 2):
+                assert evaluation.score == 1.0, f"{i}-th evaluator failed"
 
 
 @patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
@@ -263,7 +263,7 @@ def test_binding_arguments_to_decorated_evaluators():
         experiment_id="1",
         dataset_example_id="1",
         repetition_number=1,
-        experiment_run_output=ExperimentRunOutput(task_output=3),
+        output=3,
     )
 
     @create_evaluator()

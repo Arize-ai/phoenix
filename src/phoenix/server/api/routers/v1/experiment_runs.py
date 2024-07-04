@@ -7,9 +7,8 @@ from starlette.status import HTTP_404_NOT_FOUND
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.experiments.types import ExperimentRun, ExperimentRunOutput
+from phoenix.db.models import ExperimentRunOutput
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.utilities.json import jsonify
 
 
 async def create_experiment_run(request: Request) -> Response:
@@ -39,9 +38,8 @@ async def create_experiment_run(request: Request) -> Response:
               trace_id:
                 type: string
                 description: Optional trace ID for tracking
-              experiment_run_output:
-                type: object
-                description: The output of the experiment run
+              output:
+                description: The output of the experiment task
               repetition_number:
                 type: integer
                 description: The repetition number of the experiment run
@@ -101,7 +99,7 @@ async def create_experiment_run(request: Request) -> Response:
         )
 
     trace_id = payload.get("trace_id", None)
-    output = payload["experiment_run_output"]
+    task_output = payload["output"]
     repetition_number = payload["repetition_number"]
     start_time = payload["start_time"]
     end_time = payload["end_time"]
@@ -112,7 +110,7 @@ async def create_experiment_run(request: Request) -> Response:
             experiment_id=experiment_id,
             dataset_example_id=dataset_example_id,
             trace_id=trace_id,
-            output=output,
+            output=ExperimentRunOutput(task_output=task_output),
             repetition_number=repetition_number,
             start_time=datetime.fromisoformat(start_time),
             end_time=datetime.fromisoformat(end_time),
@@ -170,9 +168,8 @@ async def list_experiment_runs(request: Request) -> Response:
                         type: string
                         format: date-time
                         description: The end time of the experiment run in ISO format
-                      experiment_run_output:
-                        type: object
-                        description: The output of the experiment run
+                      output:
+                        description: The output of the experiment task
                       error:
                         type: string
                         description: Error message if the experiment run encountered an error
@@ -205,16 +202,16 @@ async def list_experiment_runs(request: Request) -> Response:
             experiment_gid = GlobalID("Experiment", str(exp_run.experiment_id))
             example_gid = GlobalID("DatasetExample", str(exp_run.dataset_example_id))
             runs.append(
-                ExperimentRun(
-                    start_time=exp_run.start_time,
-                    end_time=exp_run.end_time,
+                dict(
+                    start_time=exp_run.start_time.isoformat(),
+                    end_time=exp_run.end_time.isoformat(),
                     experiment_id=str(experiment_gid),
                     dataset_example_id=str(example_gid),
                     repetition_number=exp_run.repetition_number,
-                    experiment_run_output=ExperimentRunOutput.from_dict(exp_run.output),
+                    output=exp_run.output.get("task_output"),
                     error=exp_run.error,
                     id=str(run_gid),
                     trace_id=exp_run.trace_id,
                 )
             )
-    return JSONResponse(content={"data": jsonify(runs)}, status_code=200)
+    return JSONResponse(content={"data": runs}, status_code=200)
