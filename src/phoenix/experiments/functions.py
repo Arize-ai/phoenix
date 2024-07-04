@@ -392,7 +392,7 @@ def run_experiment(
     ran_experiment.__init__(  # type: ignore[misc]
         params=params,
         dataset=dataset,
-        runs={r.id: r for r in task_runs},
+        runs={r.id: r for r in task_runs if r is not None},
         task_summary=task_summary,
         **_asdict(experiment),
     )
@@ -497,7 +497,7 @@ def evaluate_experiment(
             stack.enter_context(capture_spans(resource))
             try:
                 result = evaluator.evaluate(
-                    output=experiment_run.output,
+                    output=deepcopy(experiment_run.output),
                     expected=example.output,
                     reference=example.output,
                     input=example.input,
@@ -549,7 +549,7 @@ def evaluate_experiment(
             stack.enter_context(capture_spans(resource))
             try:
                 result = await evaluator.async_evaluate(
-                    output=experiment_run.output,
+                    output=deepcopy(experiment_run.output),
                     expected=example.output,
                     reference=example.output,
                     input=example.input,

@@ -218,7 +218,7 @@ class ExperimentRun:
             experiment_id=obj["experiment_id"],
             dataset_example_id=obj["dataset_example_id"],
             repetition_number=obj.get("repetition_number") or 1,
-            output=obj.get("output"),
+            output=_make_read_only(obj.get("output")),
             error=obj.get("error"),
             id=obj["id"],
             trace_id=obj.get("trace_id"),
