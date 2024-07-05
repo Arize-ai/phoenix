@@ -45,6 +45,27 @@ px.Client().query_spans(query)
 By default, the result DataFrame is indexed by `span_id`, and if `.explode()` is used, the index from the exploded list is added to create a multi-index on the result DataFrame. For the special `retrieval.documents` span attribute, the added index is renamed as `document_position`.
 {% endhint %}
 
+## How to specify a time range
+
+By default, all queries will collect all spans that are in your Phoenix instance. If you'd like to focus on most recent spans, you can pull spans based on time frames using `start_time` and `end_time`.
+
+```python
+import phoenix as px
+from phoenix.trace.dsl import SpanQuery
+from datetime import datetime, timedelta
+
+# Initiate Phoenix client
+px_client = px.Client()
+
+# Get spans from the last 7 days only
+start = datetime.now() - timedelta(days=7)
+
+# Get spans to exclude the last 24 hours
+end = datetime.now() - timedelta(days=1)
+
+phoenix_df = px_client.query_spans(start_time=start, end_time=end)
+```
+
 ## How to Specify a Project
 
 By default all queries are executed against the default project or the project set via the `PHOENIX_PROJECT_NAME` environment variable. If you choose to pull from a different project, all methods on the [Client](../../api/client.md) have an optional parameter named `project_name`
@@ -149,6 +170,17 @@ Note that Python strings do not have a `contain` method, and substring search is
 query = SpanQuery().where(
     "'programming' in metadata["topic"]"
 )
+```
+
+**Filtering for No Evaluations**
+
+Get spans that do not have an evaluation attached yet
+
+```python
+query = SpanQuery().where(
+    "evals['correctness'].label is None"
+)
+# correctness is whatever you named your evaluation metric
 ```
 
 ## How to Extract Attributes
