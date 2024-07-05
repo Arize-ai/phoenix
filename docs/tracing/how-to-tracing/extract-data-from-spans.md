@@ -45,7 +45,7 @@ px.Client().query_spans(query)
 By default, the result DataFrame is indexed by `span_id`, and if `.explode()` is used, the index from the exploded list is added to create a multi-index on the result DataFrame. For the special `retrieval.documents` span attribute, the added index is renamed as `document_position`.
 {% endhint %}
 
-## How to specify a time range
+## How to Specify a Time Range
 
 By default, all queries will collect all spans that are in your Phoenix instance. If you'd like to focus on most recent spans, you can pull spans based on time frames using `start_time` and `end_time`.
 
