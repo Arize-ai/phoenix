@@ -363,7 +363,7 @@ class EvaluationSummary(_HasStats):
         if df.empty:
             df = pd.DataFrame.from_records(
                 [
-                    {"evaluator": name, "error": True, "score": None, "label": None}
+                    {"evaluator": name, "error": None, "score": None, "label": None}
                     for name in params.eval_names
                 ]
             )
