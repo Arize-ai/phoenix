@@ -1,3 +1,4 @@
+import asyncio
 import functools
 import inspect
 import json
@@ -349,8 +350,16 @@ def run_experiment(
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
         if not dry_run:
-            resp = await async_client.post(
-                f"/v1/experiments/{experiment.id}/runs", json=jsonify(exp_run)
+            # Below is a workaround to avoid timeout errors sometimes
+            # encountered when the task is a synchronous function that
+            # blocks for too long.
+            resp = await asyncio.get_running_loop().run_in_executor(
+                None,
+                functools.partial(
+                    sync_client.post,
+                    url=f"/v1/experiments/{experiment.id}/runs",
+                    json=jsonify(exp_run),
+                ),
             )
             resp.raise_for_status()
             exp_run = replace(exp_run, id=resp.json()["data"]["id"])
@@ -581,7 +590,17 @@ def evaluate_experiment(
             trace_id=_str_trace_id(span.get_span_context().trace_id),  # type: ignore[no-untyped-call]
         )
         if not dry_run:
-            resp = await async_client.post("/v1/experiment_evaluations", json=jsonify(eval_run))
+            # Below is a workaround to avoid timeout errors sometimes
+            # encountered when the evaluator is a synchronous function
+            # that blocks for too long.
+            resp = await asyncio.get_running_loop().run_in_executor(
+                None,
+                functools.partial(
+                    sync_client.post,
+                    url="/v1/experiment_evaluations",
+                    json=jsonify(eval_run),
+                ),
+            )
             resp.raise_for_status()
             eval_run = replace(eval_run, id=resp.json()["data"]["id"])
         return eval_run
