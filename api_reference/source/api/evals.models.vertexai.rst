@@ -1,5 +1,5 @@
-evals.models.vertexai module
-============================
+evals.models.vertexai
+=====================
 
 .. automodule:: evals.models.vertexai
    :members:

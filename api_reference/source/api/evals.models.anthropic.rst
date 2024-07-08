@@ -1,5 +1,5 @@
-evals.models.anthropic module
-=============================
+evals.models.anthropic
+======================
 
 .. automodule:: evals.models.anthropic
    :members:

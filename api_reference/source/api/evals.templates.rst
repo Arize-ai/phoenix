@@ -1,5 +1,5 @@
-evals.templates module
-======================
+evals.templates
+===============
 
 .. automodule:: evals.templates
    :members:

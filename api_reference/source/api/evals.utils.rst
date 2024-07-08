@@ -1,5 +1,5 @@
-evals.utils module
-==================
+evals.utils
+===========
 
 .. automodule:: evals.utils
    :members:

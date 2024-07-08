@@ -1,5 +1,5 @@
-evals.evaluators module
-=======================
+evals.evaluators
+================
 
 .. automodule:: evals.evaluators
    :members:

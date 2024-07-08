@@ -1,5 +1,5 @@
-evals.models.mistralai module
-=============================
+evals.models.mistralai
+======================
 
 .. automodule:: evals.models.mistralai
    :members:

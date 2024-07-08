@@ -1,5 +1,5 @@
-evals.retrievals module
-=======================
+evals.retrievals
+================
 
 .. automodule:: evals.retrievals
    :members:

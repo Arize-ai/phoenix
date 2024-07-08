@@ -1,5 +1,5 @@
-evals.span\_templates module
-============================
+evals.span\_templates
+=====================
 
 .. automodule:: evals.span_templates
    :members:

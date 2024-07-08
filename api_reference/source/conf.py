@@ -11,25 +11,22 @@ https://www.sphinx-doc.org/en/master/usage/configuration.html
 import os
 import sys
 
-import phoenix
-
-# Sphinx-related utility functions
-import utils
-
 # Path setup for autodoc
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(BASE_DIR, "src", "phoenix"))
 sys.path.insert(0, os.path.join(BASE_DIR, "packages", "phoenix-evals", "src", "phoenix"))
 
+# Sphinx-related utility functions
+import utils
+import phoenix
+
 # -- Generation setup --------------------------------------------------------
 
-
 def setup(app):
-    app.connect("source-read", utils.clean_doc_output)  # Remove unnecessary headers
     app.add_css_file("custom.css")
     app.add_js_file("custom.js")
-
+    app.connect("source-read", utils.clean_doc_output)  # Remove unnecessary headers
 
 # -- Project information -----------------------------------------------------
 

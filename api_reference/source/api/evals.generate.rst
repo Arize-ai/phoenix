@@ -1,5 +1,5 @@
-evals.generate module
-=====================
+evals.generate
+==============
 
 .. automodule:: evals.generate
    :members:

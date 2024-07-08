@@ -1,5 +1,5 @@
-evals.models.bedrock module
-===========================
+evals.models.bedrock
+====================
 
 .. automodule:: evals.models.bedrock
    :members:
