@@ -6,7 +6,7 @@ from openinference.semconv.trace import (
     RerankerAttributes,
     SpanAttributes,
 )
-from sqlalchemy import Integer, Select, SQLColumnExpression, case, func, select
+from sqlalchemy import Integer, Select, SQLColumnExpression, case, distinct, func, select
 from typing_extensions import assert_never
 
 from phoenix.db import models
@@ -49,7 +49,7 @@ _RERANKER_OUTPUT_DOCUMENTS = RerankerAttributes.RERANKER_OUTPUT_DOCUMENTS.split(
 
 def get_eval_trace_ids_for_datasets(*dataset_ids: int) -> Select[Tuple[Optional[str]]]:
     return (
-        select(models.ExperimentRunAnnotation.trace_id)
+        select(distinct(models.ExperimentRunAnnotation.trace_id))
         .join(models.ExperimentRun)
         .join_from(models.ExperimentRun, models.Experiment)
         .where(models.Experiment.dataset_id.in_(set(dataset_ids)))
@@ -59,7 +59,7 @@ def get_eval_trace_ids_for_datasets(*dataset_ids: int) -> Select[Tuple[Optional[
 
 def get_project_names_for_datasets(*dataset_ids: int) -> Select[Tuple[Optional[str]]]:
     return (
-        select(models.Experiment.project_name)
+        select(distinct(models.Experiment.project_name))
         .where(models.Experiment.dataset_id.in_(set(dataset_ids)))
         .where(models.Experiment.project_name.isnot(None))
     )
@@ -67,7 +67,7 @@ def get_project_names_for_datasets(*dataset_ids: int) -> Select[Tuple[Optional[s
 
 def get_eval_trace_ids_for_experiments(*experiment_ids: int) -> Select[Tuple[Optional[str]]]:
     return (
-        select(models.ExperimentRunAnnotation.trace_id)
+        select(distinct(models.ExperimentRunAnnotation.trace_id))
         .join(models.ExperimentRun)
         .where(models.ExperimentRun.experiment_id.in_(set(experiment_ids)))
         .where(models.ExperimentRunAnnotation.trace_id.isnot(None))
@@ -76,7 +76,7 @@ def get_eval_trace_ids_for_experiments(*experiment_ids: int) -> Select[Tuple[Opt
 
 def get_project_names_for_experiments(*experiment_ids: int) -> Select[Tuple[Optional[str]]]:
     return (
-        select(models.Experiment.project_name)
+        select(distinct(models.Experiment.project_name))
         .where(models.Experiment.id.in_(set(experiment_ids)))
         .where(models.Experiment.project_name.isnot(None))
     )
