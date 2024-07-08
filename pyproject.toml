@@ -60,6 +60,7 @@ dependencies = [
   "python-multipart",  # see https://www.starlette.io/#dependencies
   "arize-phoenix-evals>=0.13.1",
   "pyyaml", # for OpenAPI
+  "fastapi",
 ]
 dynamic = ["version"]
 
