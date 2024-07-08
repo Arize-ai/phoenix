@@ -75,21 +75,21 @@ class AsyncExecutor(Executor):
 
     Args:
         generation_fn (Callable[[Any], Coroutine[Any, Any, Any]]): A coroutine function that
-        generates tasks to be executed.
+            generates tasks to be executed.
 
         concurrency (int, optional): The number of concurrent consumers. Defaults to 3.
 
         tqdm_bar_format (Optional[str], optional): The format string for the progress bar. Defaults
-        to None.
+            to None.
 
         max_retries (int, optional): The maximum number of times to retry on exceptions. Defaults to
-        10.
+            10.
 
         exit_on_error (bool, optional): Whether to exit execution on the first encountered error.
-        Defaults to True.
+            Defaults to True.
 
         fallback_return_value (Union[Unset, Any], optional): The fallback return value for tasks
-        that encounter errors. Defaults to _unset.
+            that encounter errors. Defaults to _unset.
 
         termination_signal (signal.Signals, optional): The signal handled to terminate the executor.
     """
@@ -283,19 +283,19 @@ class SyncExecutor(Executor):
 
     Args:
         generation_fn (Callable[[Any], Any]): The generation function that takes an input and
-        returns an output.
+            returns an output.
 
         tqdm_bar_format (Optional[str], optional): The format string for the progress bar. Defaults
-        to None.
+            to None.
 
         max_retries (int, optional): The maximum number of times to retry on exceptions. Defaults to
-        10.
+           10.
 
         exit_on_error (bool, optional): Whether to exit execution on the first encountered error.
-        Defaults to True.
+          Defaults to True.
 
         fallback_return_value (Union[Unset, Any], optional): The fallback return value for tasks
-        that encounter errors. Defaults to _unset.
+          that encounter errors. Defaults to _unset.
     """
 
     def __init__(

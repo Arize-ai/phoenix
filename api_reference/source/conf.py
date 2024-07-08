@@ -22,19 +22,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(BASE_DIR, "src", "phoenix"))
 sys.path.insert(0, os.path.join(BASE_DIR, "packages", "phoenix-evals", "src", "phoenix"))
 
-
 # -- Generation setup --------------------------------------------------------
 
-
 def setup(app):
-<<<<<<< HEAD
-    app.connect("source-read", utils.clean_doc_output)  # Remove unnecessary headers
-
-=======
     app.connect('source-read', utils.clean_doc_output)  # Remove unnecessary headers
     app.add_css_file('custom.css')
     app.add_js_file('custom.js')
->>>>>>> 5ef23937 (docs: api ref style update)
 
 # -- Project information -----------------------------------------------------
 

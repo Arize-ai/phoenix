@@ -37,45 +37,44 @@ def llm_generate(
     if you want to generate synthetic data, such as irrelevant responses
     Args:
         dataframe (pandas.DataFrame): A pandas dataframe in which each row
-        represents a record to be used as in input to the template. All
-        template variable names must appear as column names in the dataframe
-        (extra columns unrelated to the template are permitted).
+            represents a record to be used as in input to the template. All
+            template variable names must appear as column names in the dataframe
+            (extra columns unrelated to the template are permitted).
 
         template (Union[PromptTemplate, str]): The prompt template as either an
-        instance of PromptTemplate or a string. If the latter, the variable
-        names should be surrounded by curly braces so that a call to `.format`
-        can be made to substitute variable values.
+            instance of PromptTemplate or a string. If the latter, the variable
+            names should be surrounded by curly braces so that a call to `.format`
+            can be made to substitute variable values.
 
         model (BaseEvalModel): An LLM model class.
 
-        system_instruction (Optional[str], optional): An optional system
-        message.
+        system_instruction (Optional[str], optional): An optional system message.
 
         verbose (bool, optional): If True, prints detailed information to stdout such as model
-        invocation parameters and retry info. Default False.
+            invocation parameters and retry info. Default False.
 
         output_parser (Callable[[str, int], Dict[str, Any]], optional): An optional function
-        that takes each generated response and response index and parses it to a dictionary. The
-        keys of the dictionary should correspond to the column names of the output dataframe. If
-        None, the output dataframe will have a single column named "output". Default None.
+            that takes each generated response and response index and parses it to a dictionary. The
+            keys of the dictionary should correspond to the column names of the output dataframe. If
+            None, the output dataframe will have a single column named "output". Default None.
 
         include_prompt (bool, default=False): If True, includes a column named `prompt` in the
-        output dataframe containing the prompt used for each generation.
+            output dataframe containing the prompt used for each generation.
 
         include_response (bool, default=False): If True, includes a column named `response` in the
-        output dataframe containing the raw response from the LLM prior to applying the output
-        parser.
+            output dataframe containing the raw response from the LLM prior to applying the output
+            parser.
 
         run_sync (bool, default=False): If True, forces synchronous request submission. Otherwise
-        evaluations will be run asynchronously if possible.
+            evaluations will be run asynchronously if possible.
 
         concurrency (Optional[int], default=None): The number of concurrent evals if async
-        submission is possible. If not provided, a recommended default concurrency is set on a
-        per-model basis.
+            submission is possible. If not provided, a recommended default concurrency is set on a
+            per-model basis.
 
     Returns:
         generations_dataframe (pandas.DataFrame): A dataframe where each row
-        represents the generated output
+            represents the generated output
 
     """
     concurrency = concurrency or model.default_concurrency
