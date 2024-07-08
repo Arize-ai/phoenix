@@ -11,15 +11,14 @@ https://www.sphinx-doc.org/en/master/usage/configuration.html
 import os
 import sys
 
-import phoenix
-import utils
-
 # Path setup for autodoc
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(BASE_DIR, "src", "phoenix"))
 sys.path.insert(0, os.path.join(BASE_DIR, "packages", "phoenix-evals", "src", "phoenix"))
 
+import phoenix  # noqa: E402
+import utils  # noqa: E402
 
 # -- Generation setup --------------------------------------------------------
 
