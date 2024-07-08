@@ -10,6 +10,7 @@ from enum import Enum
 from functools import partial
 from typing import (
     Any,
+    AsyncContextManager,
     Awaitable,
     Callable,
     Coroutine,
@@ -26,8 +27,9 @@ from typing import (
 
 import pandas as pd
 import pyarrow as pa
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, UploadFile
 from starlette.requests import Request
@@ -161,6 +163,86 @@ async def list_datasets(request: Request) -> Response:
             )
 
         return JSONResponse(content={"next_cursor": next_cursor, "data": data})
+
+
+async def delete_dataset_by_id(request: Request) -> Response:
+    """
+    summary: Delete dataset by ID
+    operationId: deleteDatasetById
+    tags:
+      - datasets
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      200:
+        description: Success
+      403:
+        description: Forbidden
+      404:
+        description: Dataset not found
+      422:
+        description: Dataset ID is invalid
+    """
+    if id_ := request.path_params.get("id"):
+        try:
+            dataset_id = from_global_id_with_expected_type(
+                GlobalID.from_id(id_),
+                Dataset.__name__,
+            )
+        except ValueError:
+            return Response(
+                content=f"Invalid Dataset ID: {id_}",
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+    else:
+        return Response(
+            content="Missing Dataset ID",
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+    async with request.app.state.db() as session:
+        project_names = await session.scalars(
+            select(models.Experiment.project_name)
+            .where(models.Dataset.id == dataset_id)
+            .where(models.Experiment.project_name.isnot(None))
+        )
+        if (
+            await session.scalar(
+                delete(models.Dataset)
+                .where(models.Dataset.id == dataset_id)
+                .returning(models.Dataset.id)
+            )
+        ) is None:
+            return Response(
+                content="Dataset does not exist",
+                status_code=HTTP_404_NOT_FOUND,
+            )
+        if not project_names:
+            return Response()
+    return Response(
+        background=BackgroundTask(
+            _delete_projects,
+            request.app.state.db,
+            frozenset(project_names),
+        ),
+    )
+
+
+async def _delete_projects(
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    project_names: FrozenSet[str],
+) -> None:
+    if not project_names:
+        return
+    stmt = delete(models.Project).where(models.Project.name.in_(project_names))
+    try:
+        async with db() as session:
+            await session.execute(stmt)
+    except BaseException:
+        pass
 
 
 async def get_dataset_by_id(request: Request) -> Response:
