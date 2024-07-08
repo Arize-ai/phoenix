@@ -79,11 +79,11 @@ class AsyncExecutor(Executor):
 
         concurrency (int, optional): The number of concurrent consumers. Defaults to 3.
 
-        tqdm_bar_format (Optional[str], optional): The format string for the progress bar. Defaults
-            to None.
+        tqdm_bar_format (Optional[str], optional): The format string for the progress bar. 
+            Defaults to None.
 
-        max_retries (int, optional): The maximum number of times to retry on exceptions. Defaults to
-            10.
+        max_retries (int, optional): The maximum number of times to retry on exceptions. 
+            Defaults to 10.
 
         exit_on_error (bool, optional): Whether to exit execution on the first encountered error.
             Defaults to True.
@@ -289,13 +289,13 @@ class SyncExecutor(Executor):
             to None.
 
         max_retries (int, optional): The maximum number of times to retry on exceptions. Defaults to
-           10.
+            10.
 
         exit_on_error (bool, optional): Whether to exit execution on the first encountered error.
-          Defaults to True.
+            Defaults to True.
 
         fallback_return_value (Union[Unset, Any], optional): The fallback return value for tasks
-          that encounter errors. Defaults to _unset.
+            that encounter errors. Defaults to _unset.
     """
 
     def __init__(

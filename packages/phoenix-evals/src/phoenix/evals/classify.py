@@ -79,61 +79,63 @@ def llm_classify(
     concurrency: Optional[int] = None,
 ) -> pd.DataFrame:
     """
-    Classifies each input row of the dataframe using an LLM. Returns a pandas.DataFrame 
-    where the first column is named `label` and contains the classification labels. An optional 
-    column named `explanation` is added when `provide_explanation=True`.
+    Classifies each input row of the dataframe using an LLM. 
+    Returns a pandas.DataFrame where the first column is named `label` and contains 
+    the classification labels. An optional column named `explanation` is added when 
+    `provide_explanation=True`.
 
     Args:
-        dataframe (pandas.DataFrame): A pandas dataframe in which each row represents a record to be 
-            classified. All template variable names must appear as column names in the dataframe (extra 
-            columns unrelated to the template are permitted).
+        dataframe (pandas.DataFrame): A pandas dataframe in which each row represents 
+            a record to be classified. All template variable names must appear as column 
+            names in the dataframe (extra columns unrelated to the template are permitted).
 
-        template (Union[ClassificationTemplate, PromptTemplate, str]): The prompt template as 
-            either an instance of PromptTemplate, ClassificationTemplate or a string. If a string, the 
-            variable names should be surrounded by curly braces so that a call to `.format` can be made 
-            to substitute variable values.
+        template (Union[ClassificationTemplate, PromptTemplate, str]): The prompt template 
+            as either an instance of PromptTemplate, ClassificationTemplate or a string. 
+            If a string, the variable names should be surrounded by curly braces so that 
+            a call to `.format` can be made to substitute variable values.
 
         model (BaseEvalModel): An LLM model class.
 
-        rails (List[str]): A list of strings representing the possible output classes of the model's 
-            predictions.
+        rails (List[str]): A list of strings representing the possible output classes 
+            of the model's predictions.
 
         system_instruction (Optional[str], optional): An optional system message.
 
-        verbose (bool, optional): If True, prints detailed info to stdout such as model invocation 
-            parameters and details about retries and snapping to rails. Default False.
+        verbose (bool, optional): If True, prints detailed info to stdout such as 
+            model invocation parameters and details about retries and snapping to rails. 
+            Default False.
 
-        use_function_calling_if_available (bool, default=True): If True, use function calling 
-            (if available) as a means to constrain the LLM outputs. With function calling, the LLM 
-            is instructed to provide its response as a structured JSON object, which is easier 
-            to parse.
+        use_function_calling_if_available (bool, default=True): If True, use function 
+            calling (if available) as a means to constrain the LLM outputs. 
+            With function calling, the LLM is instructed to provide its response as a 
+            structured JSON object, which is easier to parse.
 
-        provide_explanation (bool, default=False): If True, provides an explanation for each 
-            classification label. A column named `explanation` is added to the output dataframe.
+        provide_explanation (bool, default=False): If True, provides an explanation 
+            for each classification label. A column named `explanation` is added to 
+            the output dataframe.
 
-        include_prompt (bool, default=False): If True, includes a column named `prompt` in the 
-            output dataframe containing the prompt used for each classification.
+        include_prompt (bool, default=False): If True, includes a column named `prompt` 
+            in the output dataframe containing the prompt used for each classification.
 
-        include_response (bool, default=False): If True, includes a column named `response` in the 
-            output dataframe containing the raw response from the LLM.
+        include_response (bool, default=False): If True, includes a column named `response` 
+            in the output dataframe containing the raw response from the LLM.
 
-        max_retries (int, optional): The maximum number of times to retry on exceptions. Defaults to 
-            10.
+        max_retries (int, optional): The maximum number of times to retry on exceptions. 
+            Defaults to 10.
 
-        exit_on_error (bool, default=True): If True, stops processing evals after all retries are 
-            exhausted on a single eval attempt. If False, all evals are attempted before returning, 
-            even if some fail.
+        exit_on_error (bool, default=True): If True, stops processing evals after all retries 
+            are exhausted on a single eval attempt. If False, all evals are attempted before 
+            returning, even if some fail.
 
-        run_sync (bool, default=False): If True, forces synchronous request submission. Otherwise 
-            evaluations will be run asynchronously if possible.
+        run_sync (bool, default=False): If True, forces synchronous request submission. 
+            Otherwise evaluations will be run asynchronously if possible.
 
         concurrency (Optional[int], default=None): The number of concurrent evals if async 
-            submission is possible. If not provided, a recommended default concurrency is set on a 
-            per-model basis.
+            submission is possible. If not provided, a recommended default concurrency is 
+            set on a per-model basis.
 
     Returns:
-        pandas.DataFrame: 
-            A dataframe where the `label` column (at column position 0) contains 
+        pandas.DataFrame: A dataframe where the `label` column (at column position 0) contains 
             the classification labels. If provide_explanation=True, then an additional column named 
             `explanation` is added to contain the explanation for each label. The dataframe has 
             the same length and index as the input dataframe. The classification label values are 
@@ -298,13 +300,12 @@ def run_evals(
             as model invocation parameters and details about retries and snapping to
             rails.
 
-        concurrency (Optional[int], default=None): The number of concurrent evals if async
-            submission is possible. If not provided, a recommended default concurrency is set on a
-            per-model basis.
+        concurrency (Optional[int], default=None): The number of concurrent evals 
+            if async submission is possible. If not provided, a recommended default 
+            concurrency is set on a per-model basis.
 
     Returns:
-        List[DataFrame]: 
-            A list of dataframes, one for each evaluator, all of
+        List[DataFrame]: A list of dataframes, one for each evaluator, all of
             which have the same number of rows as the input dataframe.
     """
     # use the minimum default concurrency of all the models
