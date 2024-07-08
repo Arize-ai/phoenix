@@ -65,7 +65,7 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
       <Dialog size="S" title="Delete Dataset">
         <View padding="size-200">
           <Text color="danger">
-            {`Are you sure you want to delete dataset ${datasetName}? This cannot be undone.`}
+            {`Are you sure you want to delete dataset ${datasetName}? This will also delete all associated experiments and traces, and it cannot be undone.`}
           </Text>
         </View>
         <View
