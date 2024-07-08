@@ -1,7 +1,8 @@
 evals.span\_templates
 =====================
 
-.. automodule:: evals.span_templates
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. autodata:: evals.span_templates.HALLUCINATION_SPAN_PROMPT_TEMPLATE
+   :annotation:
+
+.. autodata:: evals.span_templates.QA_SPAN_PROMPT_TEMPLATE
+   :annotation:

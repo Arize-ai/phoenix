@@ -5,3 +5,4 @@ evals.classify
    :members: 
    :show-inheritance:
    :exclude-members: ClassificationStatus, RunEvalsPayload
+   :no-undoc-members:
