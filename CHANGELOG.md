@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.7.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.7.1...arize-phoenix-v4.7.2) (2024-07-08)
+
+
+### Bug Fixes
+
+* **experiments:** do client.post in thread ([#3846](https://github.com/Arize-ai/phoenix/issues/3846)) ([8db5bdc](https://github.com/Arize-ai/phoenix/commit/8db5bdc9d3feb6919767a67374d4d8b6fcbf35bf))
+* make projects page scrollable ([#3756](https://github.com/Arize-ai/phoenix/issues/3756)) ([56f1374](https://github.com/Arize-ai/phoenix/commit/56f13742a7c579ded451fd00db01ac9b9deefc68))
+
 ## [4.7.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.7.0...arize-phoenix-v4.7.1) (2024-07-04)
 
 
