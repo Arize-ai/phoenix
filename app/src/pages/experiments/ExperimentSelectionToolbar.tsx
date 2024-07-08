@@ -89,7 +89,7 @@ export function ExperimentSelectionToolbar(
       <Dialog size="S" title="Delete Experiments">
         <View padding="size-200">
           <Text color="danger">
-            {`Are you sure you want to delete these experiments? This cannot be undone.`}
+            {`Are you sure you want to delete these experiments? This will also delete all associated annotations and traces, and it cannot be undone.`}
           </Text>
         </View>
         <View

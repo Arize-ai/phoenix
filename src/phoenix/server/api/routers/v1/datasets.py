@@ -26,13 +26,15 @@ from typing import (
 
 import pandas as pd
 import pyarrow as pa
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.background import BackgroundTasks
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, UploadFile
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.status import (
+    HTTP_204_NO_CONTENT,
     HTTP_404_NOT_FOUND,
     HTTP_409_CONFLICT,
     HTTP_422_UNPROCESSABLE_ENTITY,
@@ -42,6 +44,7 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
+from phoenix.db.helpers import get_eval_trace_ids_for_datasets, get_project_names_for_datasets
 from phoenix.db.insertion.dataset import (
     DatasetAction,
     DatasetExampleAdditionEvent,
@@ -52,6 +55,7 @@ from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.utils import delete_projects, delete_traces
 
 logger = logging.getLogger(__name__)
 
@@ -161,6 +165,60 @@ async def list_datasets(request: Request) -> Response:
             )
 
         return JSONResponse(content={"next_cursor": next_cursor, "data": data})
+
+
+async def delete_dataset_by_id(request: Request) -> Response:
+    """
+    summary: Delete dataset by ID
+    operationId: deleteDatasetById
+    tags:
+      - datasets
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      204:
+        description: Success
+      403:
+        description: Forbidden
+      404:
+        description: Dataset not found
+      422:
+        description: Dataset ID is invalid
+    """
+    if id_ := request.path_params.get("id"):
+        try:
+            dataset_id = from_global_id_with_expected_type(
+                GlobalID.from_id(id_),
+                Dataset.__name__,
+            )
+        except ValueError:
+            return Response(
+                content=f"Invalid Dataset ID: {id_}",
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+    else:
+        return Response(
+            content="Missing Dataset ID",
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+    project_names_stmt = get_project_names_for_datasets(dataset_id)
+    eval_trace_ids_stmt = get_eval_trace_ids_for_datasets(dataset_id)
+    stmt = (
+        delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset.id)
+    )
+    async with request.app.state.db() as session:
+        project_names = await session.scalars(project_names_stmt)
+        eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
+        if (await session.scalar(stmt)) is None:
+            return Response(content="Dataset does not exist", status_code=HTTP_404_NOT_FOUND)
+    tasks = BackgroundTasks()
+    tasks.add_task(delete_projects, request.app.state.db, *project_names)
+    tasks.add_task(delete_traces, request.app.state.db, *eval_trace_ids)
+    return Response(status_code=HTTP_204_NO_CONTENT, background=tasks)
 
 
 async def get_dataset_by_id(request: Request) -> Response:
