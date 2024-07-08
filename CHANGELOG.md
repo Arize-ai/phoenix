@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.7.2...arize-phoenix-v4.8.0) (2024-07-08)
+
+
+### Features
+
+* **experiments:** REST endpoint to delete dataset ([#3853](https://github.com/Arize-ai/phoenix/issues/3853)) ([3c7ede2](https://github.com/Arize-ai/phoenix/commit/3c7ede2de998d1f6a707cea8955620f6c5ae73ad))
+
 ## [4.7.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.7.1...arize-phoenix-v4.7.2) (2024-07-08)
 
 
