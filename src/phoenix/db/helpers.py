@@ -1,12 +1,12 @@
 from enum import Enum
-from typing import Any
+from typing import Any, Optional, Tuple
 
 from openinference.semconv.trace import (
     OpenInferenceSpanKindValues,
     RerankerAttributes,
     SpanAttributes,
 )
-from sqlalchemy import Integer, SQLColumnExpression, case, func
+from sqlalchemy import Integer, Select, SQLColumnExpression, case, func, select
 from typing_extensions import assert_never
 
 from phoenix.db import models
@@ -45,3 +45,38 @@ def num_docs_col(dialect: SupportedSQLDialect) -> SQLColumnExpression[Integer]:
 
 _RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS.split(".")
 _RERANKER_OUTPUT_DOCUMENTS = RerankerAttributes.RERANKER_OUTPUT_DOCUMENTS.split(".")
+
+
+def get_eval_trace_ids_for_datasets(*dataset_ids: int) -> Select[Tuple[Optional[str]]]:
+    return (
+        select(models.ExperimentRunAnnotation.trace_id)
+        .join(models.ExperimentRun)
+        .join_from(models.ExperimentRun, models.Experiment)
+        .where(models.Experiment.dataset_id.in_(set(dataset_ids)))
+        .where(models.ExperimentRunAnnotation.trace_id.isnot(None))
+    )
+
+
+def get_project_names_for_datasets(*dataset_ids: int) -> Select[Tuple[Optional[str]]]:
+    return (
+        select(models.Experiment.project_name)
+        .where(models.Experiment.dataset_id.in_(set(dataset_ids)))
+        .where(models.Experiment.project_name.isnot(None))
+    )
+
+
+def get_eval_trace_ids_for_experiments(*experiment_ids: int) -> Select[Tuple[Optional[str]]]:
+    return (
+        select(models.ExperimentRunAnnotation.trace_id)
+        .join(models.ExperimentRun)
+        .where(models.ExperimentRun.experiment_id.in_(set(experiment_ids)))
+        .where(models.ExperimentRunAnnotation.trace_id.isnot(None))
+    )
+
+
+def get_project_names_for_experiments(*experiment_ids: int) -> Select[Tuple[Optional[str]]]:
+    return (
+        select(models.Experiment.project_name)
+        .where(models.Experiment.id.in_(set(experiment_ids)))
+        .where(models.Experiment.project_name.isnot(None))
+    )

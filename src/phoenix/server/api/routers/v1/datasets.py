@@ -10,7 +10,6 @@ from enum import Enum
 from functools import partial
 from typing import (
     Any,
-    AsyncContextManager,
     Awaitable,
     Callable,
     Coroutine,
@@ -35,6 +34,7 @@ from starlette.datastructures import FormData, UploadFile
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.status import (
+    HTTP_204_NO_CONTENT,
     HTTP_404_NOT_FOUND,
     HTTP_409_CONFLICT,
     HTTP_422_UNPROCESSABLE_ENTITY,
@@ -44,6 +44,7 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
+from phoenix.db.helpers import get_eval_trace_ids_for_datasets, get_project_names_for_datasets
 from phoenix.db.insertion.dataset import (
     DatasetAction,
     DatasetExampleAdditionEvent,
@@ -54,6 +55,7 @@ from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.utils import delete_projects, delete_traces
 
 logger = logging.getLogger(__name__)
 
@@ -178,7 +180,7 @@ async def delete_dataset_by_id(request: Request) -> Response:
         schema:
           type: string
     responses:
-      200:
+      204:
         description: Success
       403:
         description: Forbidden
@@ -203,18 +205,8 @@ async def delete_dataset_by_id(request: Request) -> Response:
             content="Missing Dataset ID",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
-    project_names_stmt = (
-        select(models.Experiment.project_name)
-        .where(models.Experiment.dataset_id == dataset_id)
-        .where(models.Experiment.project_name.isnot(None))
-    )
-    eval_trace_ids_stmt = (
-        select(models.ExperimentRunAnnotation.trace_id)
-        .join(models.ExperimentRun)
-        .join_from(models.ExperimentRun, models.Experiment)
-        .where(models.Experiment.dataset_id == dataset_id)
-        .where(models.ExperimentRunAnnotation.trace_id.isnot(None))
-    )
+    project_names_stmt = get_project_names_for_datasets(dataset_id)
+    eval_trace_ids_stmt = get_eval_trace_ids_for_datasets(dataset_id)
     stmt = (
         delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset.id)
     )
@@ -223,42 +215,10 @@ async def delete_dataset_by_id(request: Request) -> Response:
         eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
         if (await session.scalar(stmt)) is None:
             return Response(content="Dataset does not exist", status_code=HTTP_404_NOT_FOUND)
-    if not (project_names or eval_trace_ids):
-        return Response()
     tasks = BackgroundTasks()
-    if project_names:
-        tasks.add_task(_delete_projects, request.app.state.db, frozenset(project_names))
-    if eval_trace_ids:
-        tasks.add_task(_delete_traces, request.app.state.db, frozenset(eval_trace_ids))
-    return Response(background=tasks)
-
-
-async def _delete_projects(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
-    project_names: FrozenSet[str],
-) -> None:
-    if not project_names:
-        return
-    stmt = delete(models.Project).where(models.Project.name.in_(project_names))
-    try:
-        async with db() as session:
-            await session.execute(stmt)
-    except BaseException:
-        pass
-
-
-async def _delete_traces(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
-    trace_ids: FrozenSet[str],
-) -> None:
-    if not trace_ids:
-        return
-    stmt = delete(models.Trace).where(models.Trace.trace_id.in_(trace_ids))
-    try:
-        async with db() as session:
-            await session.execute(stmt)
-    except BaseException:
-        pass
+    tasks.add_task(delete_projects, request.app.state.db, *project_names)
+    tasks.add_task(delete_traces, request.app.state.db, *eval_trace_ids)
+    return Response(status_code=HTTP_204_NO_CONTENT, background=tasks)
 
 
 async def get_dataset_by_id(request: Request) -> Response:

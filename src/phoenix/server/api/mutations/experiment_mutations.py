@@ -1,16 +1,19 @@
+import asyncio
 from typing import List
 
 import strawberry
-from sqlalchemy import delete, select
+from sqlalchemy import delete
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.db.helpers import get_eval_trace_ids_for_experiments, get_project_names_for_experiments
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.DeleteExperimentsInput import DeleteExperimentsInput
 from phoenix.server.api.mutations.auth import IsAuthenticated
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.utils import delete_projects, delete_traces
 
 
 @strawberry.type
@@ -30,17 +33,8 @@ class ExperimentMutationMixin:
             from_global_id_with_expected_type(experiment_id, Experiment.__name__)
             for experiment_id in input.experiment_ids
         ]
-        project_names_stmt = (
-            select(models.Experiment.project_name)
-            .where(models.Experiment.id.in_(experiment_ids))
-            .where(models.Experiment.project_name.isnot(None))
-        )
-        eval_trace_ids_stmt = (
-            select(models.ExperimentRunAnnotation.trace_id)
-            .join(models.ExperimentRun)
-            .where(models.ExperimentRun.experiment_id.in_(experiment_ids))
-            .where(models.ExperimentRunAnnotation.trace_id.isnot(None))
-        )
+        project_names_stmt = get_project_names_for_experiments(*experiment_ids)
+        eval_trace_ids_stmt = get_eval_trace_ids_for_experiments(*experiment_ids)
         async with info.context.db() as session:
             project_names = await session.scalars(project_names_stmt)
             eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
@@ -67,26 +61,10 @@ class ExperimentMutationMixin:
                         ]
                     )
                 )
-        if project_names:
-            try:
-                async with info.context.db() as session:
-                    await session.execute(
-                        delete(models.Project).where(
-                            models.Project.name.in_(set(project_names)),
-                        )
-                    )
-            except BaseException:
-                pass
-        if eval_trace_ids:
-            try:
-                async with info.context.db() as session:
-                    await session.execute(
-                        delete(models.Trace).where(
-                            models.Trace.trace_id.in_(set(eval_trace_ids)),
-                        )
-                    )
-            except BaseException:
-                pass
+        await asyncio.gather(
+            delete_projects(info.context.db, *project_names),
+            delete_traces(info.context.db, *eval_trace_ids),
+        )
         return ExperimentMutationPayload(
             experiments=[
                 to_gql_experiment(experiments[experiment_id]) for experiment_id in experiment_ids
