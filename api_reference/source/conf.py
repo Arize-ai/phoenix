@@ -45,6 +45,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "myst_parser",
+    "sphinx_design"
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -159,6 +160,7 @@ html_theme_options = {
     },
     "footer_start": [],
     "footer_end": ["copyright"],
+    "show_nav_level": 2,
 }
 
 html_sidebars = {"**": ["sidebar-nav-bs"]}
