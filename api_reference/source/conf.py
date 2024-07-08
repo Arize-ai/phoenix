@@ -24,10 +24,12 @@ sys.path.insert(0, os.path.join(BASE_DIR, "packages", "phoenix-evals", "src", "p
 
 # -- Generation setup --------------------------------------------------------
 
+
 def setup(app):
-    app.connect('source-read', utils.clean_doc_output)  # Remove unnecessary headers
-    app.add_css_file('custom.css')
-    app.add_js_file('custom.js')
+    app.connect("source-read", utils.clean_doc_output)  # Remove unnecessary headers
+    app.add_css_file("custom.css")
+    app.add_js_file("custom.js")
+
 
 # -- Project information -----------------------------------------------------
 
@@ -73,19 +75,19 @@ myst_substitutions = {"rtd": "[Read the Docs](https://readthedocs.org/)"}
 
 # Autodoc
 # autodoc_class_signature = 'separated'  # Separate the signature from the class title
-autoclass_content = 'class'  # Only include the class docstring, not the __init__ method docstring
-autodoc_typehints = 'none'
+autoclass_content = "class"  # Only include the class docstring, not the __init__ method docstring
+autodoc_typehints = "none"
 add_function_parentheses = False
 autodoc_preserve_defaults = True
-autodoc_typehints_description_target = 'documented_params'
+autodoc_typehints_description_target = "documented_params"
 
 autodoc_default_options = {
-    'members': True,
-    'private-members': False,
-    'special-members': '',
-    'undoc-members': False,
-    'inherited-members': False,
-    'show-inheritance': True,
+    "members": True,
+    "private-members": False,
+    "special-members": "",
+    "undoc-members": False,
+    "inherited-members": False,
+    "show-inheritance": True,
 }
 
 # -- Internationalization ----------------------------------------------------
@@ -122,11 +124,11 @@ elif version_match == "stable":
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'pydata_sphinx_theme'
+html_theme = "pydata_sphinx_theme"
 # pygments_style = "sphinx"  # Name of the Pygments (syntax highlighting) style to use.
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
-html_js_files = ['custom.js']
+html_js_files = ["custom.js"]
 html_show_sphinx = False
 
 html_theme_options = {
