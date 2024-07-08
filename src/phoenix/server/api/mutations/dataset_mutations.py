@@ -282,23 +282,24 @@ class DatasetMutationMixin:
         async with info.context.db() as session:
             project_names = await session.scalars(
                 select(models.Experiment.project_name)
-                .where(models.Dataset.id == dataset_rowid)
+                .where(models.Experiment.dataset_id == dataset_rowid)
                 .where(models.Experiment.project_name.isnot(None))
             )
-            delete_result = await session.execute(
+            dataset = await session.scalar(
                 delete(models.Dataset)
                 .where(models.Dataset.id == dataset_rowid)
                 .returning(models.Dataset)
             )
-            if not (datasets := delete_result.first()):
+            if not dataset:
                 raise ValueError(f"Unknown dataset: {dataset_id}")
+        if project_names:
             try:
-                await session.execute(
-                    delete(models.Project).where(models.Project.name.in_(project_names))
-                )
+                async with info.context.db() as session:
+                    await session.execute(
+                        delete(models.Project).where(models.Project.name.in_(set(project_names)))
+                    )
             except BaseException:
                 pass
-        dataset = datasets[0]
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore

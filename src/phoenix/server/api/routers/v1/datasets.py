@@ -206,7 +206,7 @@ async def delete_dataset_by_id(request: Request) -> Response:
     async with request.app.state.db() as session:
         project_names = await session.scalars(
             select(models.Experiment.project_name)
-            .where(models.Dataset.id == dataset_id)
+            .where(models.Experiment.dataset_id == dataset_id)
             .where(models.Experiment.project_name.isnot(None))
         )
         if (

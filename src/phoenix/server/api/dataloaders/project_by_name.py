@@ -28,4 +28,4 @@ class ProjectByNameDataLoader(DataLoader[Key, Result]):
             async for project in data:
                 projects_by_name[project.name] = project
 
-        return [projects_by_name[project_name] for project_name in project_names]
+        return [projects_by_name.get(project_name) for project_name in keys]
