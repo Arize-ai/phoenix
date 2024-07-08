@@ -631,9 +631,11 @@ RAG_RELEVANCY_PROMPT_TEMPLATE = ClassificationTemplate(
     scores=[1, 0],
 )
 """
-A template that defines the structure for evaluating text relevance in a reference and question context.
-It uses an ordered mapping to represent possible outputs ('relevant', 'unrelated') and provides a detailed template for user response.
-This template also includes an extended version with an explanation prompt to guide the user through the evaluation process with reasoning steps.
+A template that defines the structure for evaluating text relevance in a reference
+and question context. It uses an ordered mapping to represent possible outputs
+('relevant', 'unrelated') and provides a detailed template for user response.
+This template also includes an extended version with an explanation prompt to guide
+the user through the evaluation process with reasoning steps.
 """
 
 HALLUCINATION_PROMPT_TEMPLATE = ClassificationTemplate(
@@ -643,8 +645,9 @@ HALLUCINATION_PROMPT_TEMPLATE = ClassificationTemplate(
     scores=[1, 0],
 )
 """
-A template for determining if the given answer text, based on a reference text, contains hallucinated information.
-This template categorizes responses into 'factual' or 'hallucinated' and includes a detailed explanation template
+A template for determining if the given answer text, based on a reference text,
+contains hallucinated information. This template categorizes responses into
+'factual' or 'hallucinated' and includes a detailed explanation template
 to help users articulate their reasoning.
 """
 
@@ -656,8 +659,9 @@ TOXICITY_PROMPT_TEMPLATE = ClassificationTemplate(
     scores=[1, 0],
 )
 """
-A template for assessing the toxicity of text. It uses a simple binary classification ('toxic', 'non-toxic')
-and provides a template for users to justify their decision through a step-by-step explanation process.
+A template for assessing the toxicity of text. It uses a simple binary
+classification ('toxic', 'non-toxic') and provides a template for users
+to justify their decision through a step-by-step explanation process.
 """
 
 
@@ -668,9 +672,10 @@ QA_PROMPT_TEMPLATE = ClassificationTemplate(
     scores=[1, 0],
 )
 """
-A template for evaluating if an answer correctly addresses a question based on the provided reference text.
-This template distinguishes between 'correct' and 'incorrect' answers and includes a detailed explanation
-template for reasoned evaluations.
+A template for evaluating if an answer correctly addresses a question based
+on the provided reference text. This template distinguishes between 'correct'
+and 'incorrect' answers and includes a detailed explanation template for
+reasoned evaluations.
 """
 
 
@@ -681,9 +686,10 @@ SUMMARIZATION_PROMPT_TEMPLATE = ClassificationTemplate(
     scores=[1, 0],
 )
 """
-A classification template to evaluate the quality of a summary based on its original document.
-The template uses an ordered mapping to determine if a summary is 'good' or 'bad' and includes
-an explanatory template to guide evaluative reasoning.
+A classification template to evaluate the quality of a summary based on its
+original document. The template uses an ordered mapping to determine if a
+summary is 'good' or 'bad' and includes an explanatory template to guide
+evaluative reasoning.
 """
 
 
@@ -694,8 +700,9 @@ CODE_READABILITY_PROMPT_TEMPLATE = ClassificationTemplate(
     scores=[1, 0],
 )
 """
-A template for evaluating the readability of code. It uses a classification system ('readable', 'unreadable') and
-provides a detailed explanation template to assist users in articulating their judgment on code readability.
+A template for evaluating the readability of code. It uses a classification
+system ('readable', 'unreadable') and provides a detailed explanation template
+to assist users in articulating their judgment on code readability.
 """
 
 REFERENCE_LINK_CORRECTNESS_PROMPT_TEMPLATE = ClassificationTemplate(
@@ -705,8 +712,9 @@ REFERENCE_LINK_CORRECTNESS_PROMPT_TEMPLATE = ClassificationTemplate(
     scores=[1, 0],
 )
 """
-A template for assessing the correctness of documentation links in answering customer questions.
-It provides a mechanism for determining if the provided documentation is 'correct' or 'incorrect' and includes an
+A template for assessing the correctness of documentation links in
+answering customer questions. It provides a mechanism for determining if
+the provided documentation is 'correct' or 'incorrect' and includes an
 explanation template for detailed evaluations.
 """
 
@@ -718,8 +726,9 @@ HUMAN_VS_AI_PROMPT_TEMPLATE = ClassificationTemplate(
     scores=[1, 0],
 )
 """
-A template for comparing AI-generated answers with human expert answers to determine relevance and correctness.
-It distinguishes between 'correct' and 'incorrect' responses, with an explanation template for deeper evaluation.
+A template for comparing AI-generated answers with human expert answers to
+determine relevance and correctness. It distinguishes between 'correct' and
+'incorrect' responses, with an explanation template for deeper evaluation.
 """
 
 SQL_GEN_EVAL_PROMPT_TEMPLATE = ClassificationTemplate(
@@ -729,9 +738,10 @@ SQL_GEN_EVAL_PROMPT_TEMPLATE = ClassificationTemplate(
     scores=[1, 0],
 )
 """
-A template for evaluating the correctness of SQL queries in addressing specific instructions.
-This template defines criteria for correct and incorrect evaluations and includes an explanation section to
-guide users through the reasoning process.
+A template for evaluating the correctness of SQL queries in addressing
+specific instructions. This template defines criteria for correct and
+incorrect evaluations and includes an explanation section to guide users
+through the reasoning process.
 """
 
 
@@ -743,8 +753,9 @@ CODE_FUNCTIONALITY_PROMPT_TEMPLATE = ClassificationTemplate(
 )
 """
 A template for evaluating the functionality of code against given instructions.
-It uses a binary classification ('bug_free', 'is_bug') to assess the correctness and
-functionality of code and includes an explanatory section for detailed evaluation.
+It uses a binary classification ('bug_free', 'is_bug') to assess the correctness
+and functionality of code and includes an explanatory section for detailed
+evaluation.
 """
 
 
@@ -756,8 +767,9 @@ USER_FRUSTRATION_PROMPT_TEMPLATE = ClassificationTemplate(
 )
 """
 A classification template to determine user frustration in a conversation.
-It provides criteria for assessing if a user ended a conversation frustrated ('frustrated') or not ('ok'),
-including a detailed explanation template for evaluative reasoning.
+It provides criteria for assessing if a user ended a conversation frustrated
+('frustrated') or not ('ok'), including a detailed explanation template for
+evaluative reasoning.
 """
 
 
