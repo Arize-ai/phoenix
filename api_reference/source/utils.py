@@ -29,7 +29,7 @@ def clean_doc_output(app, docname, source):
             # Clean up text outside automodule blocks
             if not in_automodule:
                 if "Submodules" in line:
-                    continue 
+                    continue
                 if "package" in line:
                     line = line.replace(" package", "")
                 if "module" in line:
@@ -40,4 +40,3 @@ def clean_doc_output(app, docname, source):
             processed.append(line)
 
         source[0] = "\n".join(processed)
-
