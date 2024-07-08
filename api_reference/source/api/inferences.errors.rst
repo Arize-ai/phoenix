@@ -1,7 +1,6 @@
-inferences.errors module
-========================
+inferences.errors
+=================
 
 .. automodule:: inferences.errors
    :members:
-   :undoc-members:
    :show-inheritance:

@@ -3,5 +3,5 @@ evals.retrievals module
 
 .. automodule:: evals.retrievals
    :members:
-   :undoc-members:
    :show-inheritance:
+   :exclude-members: classify_relevance

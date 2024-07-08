@@ -1,13 +1,9 @@
-inferences package
+inferences
 ==================
 
 .. automodule:: inferences
    :members:
-   :undoc-members:
    :show-inheritance:
-
-Submodules
-----------
 
 .. toctree::
    :maxdepth: 4

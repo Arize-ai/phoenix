@@ -28,19 +28,16 @@ def clean_doc_output(app, docname, source):
 
             # Clean up text outside automodule blocks
             if not in_automodule:
-                if "Submodules" in line:
+                if "Submodules " in line:
                     continue
-                if "Module contents" in line:
-                    continue
-                if " package" in line:
-                    line = line.replace(" package", "")
-                if " module" in line:
-                    line = line.replace(" module", "")
-                if "Subpackages" in line:
+                if "Subpackages " in line:
                     line = line.replace("Subpackages", "")
+                if "package " in line:
+                    line = line.replace("package", "")
+                if "module " in line:
+                    line = line.replace("module", "")
 
             processed.append(line)
-
         source[0] = "\n".join(processed)
 
 
@@ -49,12 +46,10 @@ def skip_member(app, what, name, obj, skip, options):
     Exclude members not explicitly listed in INCLUDE_MEMBERS from the documentation.
     """
 
-    module_name = obj.__module__ if hasattr(obj, "__module__") else ""
-    class_name = obj.__class__.__name__ if hasattr(obj, "__class__") else ""
-    member_name = name.split(".")[-1]
-
-    if module_name in INCLUDE_MEMBERS:
-        if class_name in INCLUDE_MEMBERS[module_name]:
-            return member_name not in INCLUDE_MEMBERS[module_name][class_name]
+    if name == "__init__":
         return True
-    return True
+    if name.startswith("_"):
+        return True
+    if what == "attribute":
+        return True
+    return False
