@@ -220,8 +220,8 @@ async def delete_dataset_by_id(request: Request) -> Response:
                 content="Dataset does not exist",
                 status_code=HTTP_404_NOT_FOUND,
             )
-        if not project_names:
-            return Response()
+    if not project_names:
+        return Response()
     return Response(
         background=BackgroundTask(
             _delete_projects,
