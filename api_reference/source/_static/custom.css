@@ -12,7 +12,7 @@
     font-style: normal !important;
     font-feature-settings: "kern";
     font-family: "Roboto Mono", "Courier New", Courier, monospace;
-    background: #f8f8f8;
+    background: var(--pst-color-surface);
 }
 
 .sig.sig-object.py .sig-param, .sig-paren{
