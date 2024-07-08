@@ -274,29 +274,50 @@ class DatasetMutationMixin:
         info: Info[Context, None],
         input: DeleteDatasetInput,
     ) -> DatasetMutationPayload:
-        dataset_id = input.dataset_id
-        dataset_rowid = from_global_id_with_expected_type(
-            global_id=dataset_id, expected_type_name=Dataset.__name__
+        try:
+            dataset_id = from_global_id_with_expected_type(
+                global_id=input.dataset_id,
+                expected_type_name=Dataset.__name__,
+            )
+        except ValueError:
+            raise ValueError(f"Unknown dataset: {input.dataset_id}")
+        project_names_stmt = (
+            select(models.Experiment.project_name)
+            .where(models.Experiment.dataset_id == dataset_id)
+            .where(models.Experiment.project_name.isnot(None))
         )
-
+        eval_trace_ids_stmt = (
+            select(models.ExperimentRunAnnotation.trace_id)
+            .join(models.ExperimentRun)
+            .join_from(models.ExperimentRun, models.Experiment)
+            .where(models.Experiment.dataset_id == dataset_id)
+            .where(models.ExperimentRunAnnotation.trace_id.isnot(None))
+        )
+        stmt = (
+            delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset)
+        )
         async with info.context.db() as session:
-            project_names = await session.scalars(
-                select(models.Experiment.project_name)
-                .where(models.Experiment.dataset_id == dataset_rowid)
-                .where(models.Experiment.project_name.isnot(None))
-            )
-            dataset = await session.scalar(
-                delete(models.Dataset)
-                .where(models.Dataset.id == dataset_rowid)
-                .returning(models.Dataset)
-            )
-            if not dataset:
-                raise ValueError(f"Unknown dataset: {dataset_id}")
+            project_names = await session.scalars(project_names_stmt)
+            eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
+            if not (dataset := await session.scalar(stmt)):
+                raise ValueError(f"Unknown dataset: {input.dataset_id}")
         if project_names:
             try:
                 async with info.context.db() as session:
                     await session.execute(
-                        delete(models.Project).where(models.Project.name.in_(set(project_names)))
+                        delete(models.Project).where(
+                            models.Project.name.in_(set(project_names)),
+                        )
+                    )
+            except BaseException:
+                pass
+        if eval_trace_ids:
+            try:
+                async with info.context.db() as session:
+                    await session.execute(
+                        delete(models.Trace).where(
+                            models.Trace.trace_id.in_(set(eval_trace_ids)),
+                        )
                     )
             except BaseException:
                 pass

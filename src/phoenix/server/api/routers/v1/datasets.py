@@ -29,7 +29,7 @@ import pandas as pd
 import pyarrow as pa
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.background import BackgroundTask
+from starlette.background import BackgroundTasks
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, UploadFile
 from starlette.requests import Request
@@ -203,32 +203,34 @@ async def delete_dataset_by_id(request: Request) -> Response:
             content="Missing Dataset ID",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
-    async with request.app.state.db() as session:
-        project_names = await session.scalars(
-            select(models.Experiment.project_name)
-            .where(models.Experiment.dataset_id == dataset_id)
-            .where(models.Experiment.project_name.isnot(None))
-        )
-        if (
-            await session.scalar(
-                delete(models.Dataset)
-                .where(models.Dataset.id == dataset_id)
-                .returning(models.Dataset.id)
-            )
-        ) is None:
-            return Response(
-                content="Dataset does not exist",
-                status_code=HTTP_404_NOT_FOUND,
-            )
-    if not project_names:
-        return Response()
-    return Response(
-        background=BackgroundTask(
-            _delete_projects,
-            request.app.state.db,
-            frozenset(project_names),
-        ),
+    project_names_stmt = (
+        select(models.Experiment.project_name)
+        .where(models.Experiment.dataset_id == dataset_id)
+        .where(models.Experiment.project_name.isnot(None))
     )
+    eval_trace_ids_stmt = (
+        select(models.ExperimentRunAnnotation.trace_id)
+        .join(models.ExperimentRun)
+        .join_from(models.ExperimentRun, models.Experiment)
+        .where(models.Experiment.dataset_id == dataset_id)
+        .where(models.ExperimentRunAnnotation.trace_id.isnot(None))
+    )
+    stmt = (
+        delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset.id)
+    )
+    async with request.app.state.db() as session:
+        project_names = await session.scalars(project_names_stmt)
+        eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
+        if (await session.scalar(stmt)) is None:
+            return Response(content="Dataset does not exist", status_code=HTTP_404_NOT_FOUND)
+    if not (project_names or eval_trace_ids):
+        return Response()
+    tasks = BackgroundTasks()
+    if project_names:
+        tasks.add_task(_delete_projects, request.app.state.db, frozenset(project_names))
+    if eval_trace_ids:
+        tasks.add_task(_delete_traces, request.app.state.db, frozenset(eval_trace_ids))
+    return Response(background=tasks)
 
 
 async def _delete_projects(
@@ -238,6 +240,20 @@ async def _delete_projects(
     if not project_names:
         return
     stmt = delete(models.Project).where(models.Project.name.in_(project_names))
+    try:
+        async with db() as session:
+            await session.execute(stmt)
+    except BaseException:
+        pass
+
+
+async def _delete_traces(
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    trace_ids: FrozenSet[str],
+) -> None:
+    if not trace_ids:
+        return
+    stmt = delete(models.Trace).where(models.Trace.trace_id.in_(trace_ids))
     try:
         async with db() as session:
             await session.execute(stmt)
