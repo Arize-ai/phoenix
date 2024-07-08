@@ -129,7 +129,7 @@ async def test_deleting_dataset_also_deletes_experiments(
     dataset_with_experiments_runs_and_evals,
 ) -> None:
     ds_url = f"v1/datasets/{GlobalID('Dataset', str(1))}"
-    exp_url = f"/v1/experiments/{GlobalID('Experiment', str(1))}"
+    exp_url = f"v1/experiments/{GlobalID('Experiment', str(1))}"
     runs_url = f"{exp_url}/runs"
     (await test_client.get(exp_url)).raise_for_status()
     assert len((await test_client.get(runs_url)).json()["data"]) > 0

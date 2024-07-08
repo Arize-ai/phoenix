@@ -64,6 +64,7 @@ class ExperimentMutationMixin:
         await asyncio.gather(
             delete_projects(info.context.db, *project_names),
             delete_traces(info.context.db, *eval_trace_ids),
+            return_exceptions=True,
         )
         return ExperimentMutationPayload(
             experiments=[

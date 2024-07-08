@@ -541,8 +541,8 @@ async def test_post_dataset_upload_pyarrow_create_then_append(test_client, sessi
 
 async def test_delete_dataset(test_client, empty_dataset) -> None:
     url = f"v1/datasets/{GlobalID(Dataset.__name__, str(1))}"
-    assert len((await test_client.get("/v1/datasets")).json()["data"]) > 0
+    assert len((await test_client.get("v1/datasets")).json()["data"]) > 0
     (await test_client.delete(url)).raise_for_status()
-    assert len((await test_client.get("/v1/datasets")).json()["data"]) == 0
+    assert len((await test_client.get("v1/datasets")).json()["data"]) == 0
     with pytest.raises(HTTPStatusError):
         (await test_client.delete(url)).raise_for_status()
