@@ -19,12 +19,12 @@ from typing import (
 )
 
 import strawberry
+from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
     async_sessionmaker,
 )
-from starlette.applications import Starlette
 from starlette.datastructures import QueryParams
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
@@ -286,9 +286,9 @@ def _lifespan(
     enable_prometheus: bool = False,
     clean_ups: Iterable[Callable[[], None]] = (),
     read_only: bool = False,
-) -> StatefulLifespan[Starlette]:
+) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
-    async def lifespan(_: Starlette) -> AsyncIterator[Dict[str, Any]]:
+    async def lifespan(_: FastAPI) -> AsyncIterator[Dict[str, Any]]:
         async with bulk_inserter as (
             queue_span,
             queue_evaluation,
@@ -383,7 +383,7 @@ def create_app(
     initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
     serve_ui: bool = True,
     clean_up_callbacks: List[Callable[[], None]] = [],
-) -> Starlette:
+) -> FastAPI:
     clean_ups: List[Callable[[], None]] = clean_up_callbacks  # To be called at app shutdown.
     initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
         ()
@@ -447,7 +447,7 @@ def create_app(
         prometheus_middlewares = [Middleware(PrometheusMiddleware)]
     else:
         prometheus_middlewares = []
-    app = Starlette(
+    app = FastAPI(
         lifespan=_lifespan(
             read_only=read_only,
             bulk_inserter=bulk_inserter,

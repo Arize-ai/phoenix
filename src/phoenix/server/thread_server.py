@@ -4,7 +4,7 @@ from threading import Thread
 from time import sleep, time
 from typing import Generator
 
-from starlette.applications import Starlette
+from fastapi import FastAPI
 from uvicorn import Config, Server
 from uvicorn.config import LoopSetupType
 
@@ -24,7 +24,7 @@ class ThreadServer(Server):
 
     def __init__(
         self,
-        app: Starlette,
+        app: FastAPI,
         host: str,
         port: int,
         root_path: str,
