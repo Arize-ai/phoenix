@@ -74,7 +74,7 @@ def llm_generate(
 
     Returns:
         generations_dataframe (pandas.DataFrame): A dataframe where each row
-            represents the generated output
+            represents the generated output.
 
     """
     concurrency = concurrency or model.default_concurrency

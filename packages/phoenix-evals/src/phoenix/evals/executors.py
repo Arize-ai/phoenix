@@ -79,10 +79,10 @@ class AsyncExecutor(Executor):
 
         concurrency (int, optional): The number of concurrent consumers. Defaults to 3.
 
-        tqdm_bar_format (Optional[str], optional): The format string for the progress bar. 
+        tqdm_bar_format (Optional[str], optional): The format string for the progress bar.
             Defaults to None.
 
-        max_retries (int, optional): The maximum number of times to retry on exceptions. 
+        max_retries (int, optional): The maximum number of times to retry on exceptions.
             Defaults to 10.
 
         exit_on_error (bool, optional): Whether to exit execution on the first encountered error.
