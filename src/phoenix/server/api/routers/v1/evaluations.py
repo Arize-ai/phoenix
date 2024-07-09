@@ -4,6 +4,7 @@ from typing import AsyncContextManager, Callable, Iterator, Tuple
 
 import pandas as pd
 import pyarrow as pa
+from fastapi import APIRouter
 from google.protobuf.message import DecodeError
 from pandas import DataFrame
 from sqlalchemy import select
@@ -38,7 +39,10 @@ from phoenix.trace.span_evaluations import (
 
 EvaluationName: TypeAlias = str
 
+router = APIRouter(prefix="/evaluations")
 
+
+@router.post("")
 async def post_evaluations(request: Request) -> Response:
     """
     summary: Add evaluations to a span, trace, or document
@@ -93,6 +97,7 @@ async def post_evaluations(request: Request) -> Response:
     return Response()
 
 
+@router.get("")
 async def get_evaluations(request: Request) -> Response:
     """
     summary: Get evaluations from Phoenix
