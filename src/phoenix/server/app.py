@@ -74,7 +74,6 @@ from phoenix.server.api.dataloaders import (
     TraceEvaluationsDataLoader,
     TraceRowIdsDataLoader,
 )
-from phoenix.server.api.openapi.schema import OPENAPI_SCHEMA_GENERATOR
 from phoenix.server.api.routers.v1 import router as v1_router
 from phoenix.server.api.schema import schema
 from phoenix.server.grpc_server import GrpcServer
@@ -202,7 +201,7 @@ async def check_healthz(_: Request) -> PlainTextResponse:
 
 
 async def openapi_schema(request: Request) -> Response:
-    return OPENAPI_SCHEMA_GENERATOR.OpenAPIResponse(request=request)
+    raise NotImplementedError("todo: implement openapi_schema")
 
 
 async def api_docs(request: Request) -> Response:
