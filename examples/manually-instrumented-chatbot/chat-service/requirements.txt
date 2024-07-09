@@ -94,5 +94,5 @@ urllib3==2.2.1
 uvicorn==0.29.0
 wrapt==1.16.0
     # via deprecated
-zipp==3.18.1
+zipp==3.19.1
     # via importlib-metadata
