@@ -1,6 +1,7 @@
 import gzip
 import zlib
 
+from fastapi import APIRouter
 from google.protobuf.message import DecodeError
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
@@ -18,7 +19,10 @@ from starlette.status import (
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.utilities.project import get_project_name
 
+router = APIRouter(prefix="/traces")
 
+
+@router.post("")
 async def post_traces(request: Request) -> Response:
     """
     summary: Send traces to Phoenix
