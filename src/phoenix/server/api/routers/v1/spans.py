@@ -17,7 +17,7 @@ router = APIRouter(prefix="/spans")
 
 
 # TODO: Add property details to SpanQuery schema
-@router.post("")
+@router.post("", tags=["private"])
 async def query_spans_handler(request: Request) -> Response:
     """
     summary: Query spans using query DSL
@@ -130,6 +130,6 @@ async def query_spans_handler(request: Request) -> Response:
     )
 
 
-@router.get("")
+@router.get("", tags=["private"])
 async def get_spans_handler(request: Request) -> Response:
     return await query_spans_handler(request)

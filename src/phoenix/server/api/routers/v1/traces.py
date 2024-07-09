@@ -22,7 +22,7 @@ from phoenix.utilities.project import get_project_name
 router = APIRouter(prefix="/traces")
 
 
-@router.post("")
+@router.post("", tags=["private"])
 async def post_traces(request: Request) -> Response:
     """
     summary: Send traces to Phoenix

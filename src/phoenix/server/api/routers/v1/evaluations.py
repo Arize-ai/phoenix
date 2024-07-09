@@ -42,7 +42,7 @@ EvaluationName: TypeAlias = str
 router = APIRouter(prefix="/evaluations")
 
 
-@router.post("")
+@router.post("", tags=["private"])
 async def post_evaluations(request: Request) -> Response:
     """
     summary: Add evaluations to a span, trace, or document
@@ -97,7 +97,7 @@ async def post_evaluations(request: Request) -> Response:
     return Response()
 
 
-@router.get("")
+@router.get("", tags=["private"])
 async def get_evaluations(request: Request) -> Response:
     """
     summary: Get evaluations from Phoenix

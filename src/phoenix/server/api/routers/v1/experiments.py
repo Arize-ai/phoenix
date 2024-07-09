@@ -32,7 +32,7 @@ def _generate_experiment_name(dataset_name: str) -> str:
     return f"{short_ds_name}-{_short_uuid()}"
 
 
-@dataset_experiments_router.post("/{dataset_id}/experiments")
+@dataset_experiments_router.post("/{dataset_id}/experiments", tags=["private"])
 async def create_experiment(request: Request) -> Response:
     """
     summary: Create an experiment using a dataset
@@ -221,7 +221,7 @@ async def create_experiment(request: Request) -> Response:
     return JSONResponse(content={"data": experiment_payload})
 
 
-@router.get("/{experiment_id}")
+@router.get("/{experiment_id}", tags=["private"])
 async def read_experiment(request: Request) -> Response:
     """
     summary: Get details of a specific experiment

@@ -14,7 +14,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 router = APIRouter()
 
 
-@router.post("/{experiment_id}/runs")
+@router.post("/{experiment_id}/runs", tags=["private"])
 async def create_experiment_run(request: Request) -> Response:
     """
     summary: Create a new experiment run for a specific experiment

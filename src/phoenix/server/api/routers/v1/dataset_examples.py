@@ -10,7 +10,7 @@ from phoenix.db.models import Dataset, DatasetExample, DatasetExampleRevision, D
 router = APIRouter()
 
 
-@router.get("/{id}/examples")
+@router.get("/{id}/examples", tags=["datasets"])
 async def list_dataset_examples(request: Request) -> Response:
     """
     summary: Get dataset examples by dataset ID
