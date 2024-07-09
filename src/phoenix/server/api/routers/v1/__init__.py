@@ -2,7 +2,6 @@ from fastapi import APIRouter
 
 from . import (
     experiment_evaluations,
-    experiment_runs,
 )
 from .datasets import router as datasets_router
 from .evaluations import router as evaluations_router
@@ -18,8 +17,6 @@ router.include_router(traces_router)
 router.include_router(spans_router)
 
 V1_ROUTES = (
-    ("/experiments/{experiment_id:str}/runs", experiment_runs.create_experiment_run, ["POST"]),
-    ("/experiments/{experiment_id:str}/runs", experiment_runs.list_experiment_runs, ["GET"]),
     ("/experiment_evaluations", experiment_evaluations.upsert_experiment_evaluation, ["POST"]),
 )
 for path, endpoint, methods in V1_ROUTES:

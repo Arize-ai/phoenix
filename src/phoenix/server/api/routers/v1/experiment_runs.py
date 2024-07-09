@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from fastapi import APIRouter
 from sqlalchemy import select
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
@@ -10,7 +11,10 @@ from phoenix.db import models
 from phoenix.db.models import ExperimentRunOutput
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
+router = APIRouter()
 
+
+@router.post("/{experiment_id}/runs")
 async def create_experiment_run(request: Request) -> Response:
     """
     summary: Create a new experiment run for a specific experiment
@@ -122,6 +126,7 @@ async def create_experiment_run(request: Request) -> Response:
     return JSONResponse(content={"data": {"id": str(run_gid)}})
 
 
+@router.get("/{experiment_id}/runs")
 async def list_experiment_runs(request: Request) -> Response:
     """
     summary: List all runs for a specific experiment

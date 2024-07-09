@@ -13,8 +13,10 @@ from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 from .datasets import router as datasets_router
+from .experiment_runs import router as runs_router
 
 router = APIRouter(prefix="/experiments")
+router.include_router(runs_router)
 
 
 def _short_uuid() -> str:
