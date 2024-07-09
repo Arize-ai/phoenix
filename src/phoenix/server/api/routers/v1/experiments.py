@@ -1,5 +1,6 @@
 from random import getrandbits
 
+from fastapi import APIRouter
 from sqlalchemy import select
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
@@ -10,6 +11,10 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+
+from .datasets import router as datasets_router
+
+router = APIRouter(prefix="/experiments")
 
 
 def _short_uuid() -> str:
@@ -24,6 +29,7 @@ def _generate_experiment_name(dataset_name: str) -> str:
     return f"{short_ds_name}-{_short_uuid()}"
 
 
+@datasets_router.post("/{dataset_id}/experiments")
 async def create_experiment(request: Request) -> Response:
     """
     summary: Create an experiment using a dataset
@@ -212,6 +218,7 @@ async def create_experiment(request: Request) -> Response:
     return JSONResponse(content={"data": experiment_payload})
 
 
+@router.get("/{experiment_id}")
 async def read_experiment(request: Request) -> Response:
     """
     summary: Get details of a specific experiment
