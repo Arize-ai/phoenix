@@ -12,11 +12,12 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
-from .datasets import router as datasets_router
 from .experiment_runs import router as runs_router
 
 router = APIRouter(prefix="/experiments")
 router.include_router(runs_router)
+
+dataset_experiments_router = APIRouter()
 
 
 def _short_uuid() -> str:
@@ -31,7 +32,7 @@ def _generate_experiment_name(dataset_name: str) -> str:
     return f"{short_ds_name}-{_short_uuid()}"
 
 
-@datasets_router.post("/{dataset_id}/experiments")
+@dataset_experiments_router.post("/{dataset_id}/experiments")
 async def create_experiment(request: Request) -> Response:
     """
     summary: Create an experiment using a dataset

@@ -59,6 +59,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_projects, delete_traces
 
 from .dataset_examples import router as examples_router
+from .experiments import dataset_experiments_router
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +68,7 @@ NODE_NAME = "Dataset"
 
 router = APIRouter(prefix="/datasets")
 router.include_router(examples_router)
+router.include_router(dataset_experiments_router)
 
 
 @router.get("")
