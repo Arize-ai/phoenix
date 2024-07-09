@@ -80,7 +80,7 @@ def json_to_span(data: Dict[str, Any]) -> Any:
                 attributes=event.get("attributes") or {},
                 timestamp=datetime.fromisoformat(event["timestamp"]),
             )
-            for event in data["events"]
+            for event in json.loads(data["events"])
         ]
         data["conversation"] = (
             SpanConversationAttributes(**data["conversation"])

@@ -5,6 +5,7 @@ from typing import Any, Iterable, Iterator, List, Optional, Tuple, Union, cast
 from uuid import UUID, uuid4
 from warnings import warn
 
+import numpy as np
 import pandas as pd
 from openinference.semconv.trace import (
     DocumentAttributes,
@@ -60,6 +61,7 @@ def normalize_dataframe(dataframe: DataFrame) -> "DataFrame":
     # Convert the start and end times to datetime
     dataframe["start_time"] = normalize_timestamps(dataframe["start_time"])
     dataframe["end_time"] = normalize_timestamps(dataframe["end_time"])
+    dataframe = dataframe.replace({np.nan: None})
     return dataframe
 
 
