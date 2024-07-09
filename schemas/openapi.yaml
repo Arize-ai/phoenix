@@ -1,3 +1,80 @@
+components:
+  schemas:
+    Dataset:
+      properties:
+        created_at:
+          format: date-time
+          title: Created At
+          type: string
+        description:
+          title: Description
+          type: string
+        id:
+          title: Id
+          type: string
+        metadata:
+          title: Metadata
+          type: object
+        name:
+          title: Name
+          type: string
+        updated_at:
+          format: date-time
+          title: Updated At
+          type: string
+      required:
+      - id
+      - name
+      - description
+      - metadata
+      - created_at
+      - updated_at
+      title: Dataset
+      type: object
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          title: Detail
+          type: array
+      title: HTTPValidationError
+      type: object
+    ListDatasetsResponse:
+      properties:
+        data:
+          items:
+            $ref: '#/components/schemas/Dataset'
+          title: Data
+          type: array
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+      title: ListDatasetsResponse
+      type: object
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          title: Location
+          type: array
+        msg:
+          title: Message
+          type: string
+        type:
+          title: Error Type
+          type: string
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+      type: object
 info:
   description: Schema for Arize-Phoenix REST API
   title: Arize-Phoenix API
@@ -6,33 +83,51 @@ openapi: 3.1.0
 paths:
   /v1/datasets:
     get:
-      description: "summary: List datasets with cursor-based pagination\noperationId:\
-        \ listDatasets\ntags:\n  - datasets\nparameters:\n  - in: query\n    name:\
-        \ cursor\n    required: false\n    schema:\n      type: string\n    description:\
-        \ Cursor for pagination\n  - in: query\n    name: limit\n    required: false\n\
-        \    schema:\n      type: integer\n      default: 10\n  - in: query\n    name:\
-        \ name\n    required: false\n    schema:\n      type: string\n    description:\
-        \ match by dataset name\nresponses:\n  200:\n    description: A paginated\
-        \ list of datasets\n    content:\n      application/json:\n        schema:\n\
-        \          type: object\n          properties:\n            next_cursor:\n\
-        \              type: string\n            data:\n              type: array\n\
-        \              items:\n                type: object\n                properties:\n\
-        \                  id:\n                    type: string\n               \
-        \   name:\n                    type: string\n                  description:\n\
-        \                    type: string\n                  metadata:\n         \
-        \           type: object\n                  created_at:\n                \
-        \    type: string\n                    format: date-time\n               \
-        \   updated_at:\n                    type: string\n                    format:\
-        \ date-time\n  403:\n    description: Forbidden\n  404:\n    description:\
-        \ No datasets found"
-      operationId: list_datasets_v1_datasets_get
+      operationId: listDatasets
+      parameters:
+      - description: If provided, returns datasets starting with the provided cursor.
+        in: query
+        name: cursor
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: If provided, returns datasets starting with the provided cursor.
+          title: Cursor
+      - description: If provided, filters the returned datasets by name.
+        in: query
+        name: name
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: If provided, filters the returned datasets by name.
+          title: Name
+      - description: The maximum number of datasets to return at a time.
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 10
+          description: The maximum number of datasets to return at a time.
+          title: Limit
+          type: integer
       responses:
         '200':
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/ListDatasetsResponse'
           description: Successful Response
-      summary: List Datasets
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Returns paginated lists of datasets.
       tags:
       - datasets
   /v1/datasets/upload:

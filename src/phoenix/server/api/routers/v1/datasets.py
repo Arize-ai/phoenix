@@ -6,6 +6,8 @@ import logging
 import zlib
 from asyncio import QueueFull
 from collections import Counter
+from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from functools import partial
 from typing import (
@@ -13,6 +15,7 @@ from typing import (
     Awaitable,
     Callable,
     Coroutine,
+    Dict,
     FrozenSet,
     Iterator,
     List,
@@ -26,7 +29,7 @@ from typing import (
 
 import pandas as pd
 import pyarrow as pa
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.background import BackgroundTasks
@@ -52,7 +55,7 @@ from phoenix.db.insertion.dataset import (
     ExampleContent,
     add_dataset_examples,
 )
-from phoenix.server.api.types.Dataset import Dataset
+from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -60,75 +63,49 @@ from phoenix.server.api.utils import delete_projects, delete_traces
 
 logger = logging.getLogger(__name__)
 
-NODE_NAME = "Dataset"
+NODE_NAME = DatasetNodeType.__name__
 
 
 router = APIRouter(tags=["datasets"])
 
 
-@router.get("/datasets")
-async def list_datasets(request: Request) -> Response:
+@dataclass
+class Dataset:
+    id: str
+    name: str
+    description: str
+    metadata: Dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+
+@dataclass
+class ListDatasetsResponse:
     """
-    summary: List datasets with cursor-based pagination
-    operationId: listDatasets
-    tags:
-      - datasets
-    parameters:
-      - in: query
-        name: cursor
-        required: false
-        schema:
-          type: string
-        description: Cursor for pagination
-      - in: query
-        name: limit
-        required: false
-        schema:
-          type: integer
-          default: 10
-      - in: query
-        name: name
-        required: false
-        schema:
-          type: string
-        description: match by dataset name
-    responses:
-      200:
-        description: A paginated list of datasets
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                next_cursor:
-                  type: string
-                data:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      id:
-                        type: string
-                      name:
-                        type: string
-                      description:
-                        type: string
-                      metadata:
-                        type: object
-                      created_at:
-                        type: string
-                        format: date-time
-                      updated_at:
-                        type: string
-                        format: date-time
-      403:
-        description: Forbidden
-      404:
-        description: No datasets found
+    A paginated list of datasets
     """
-    name = request.query_params.get("name")
-    cursor = request.query_params.get("cursor")
-    limit = int(request.query_params.get("limit", 10))
+
+    next_cursor: Optional[str] = None
+    data: List[Dataset] = field(default_factory=list)
+
+
+@router.get(
+    "/datasets",
+    operation_id="listDatasets",
+    summary="Returns paginated lists of datasets.",
+)
+async def list_datasets(
+    request: Request,
+    cursor: Optional[str] = Query(
+        default=None, description="If provided, returns datasets starting with the provided cursor."
+    ),
+    name: Optional[str] = Query(
+        default=None, description="If provided, filters the returned datasets by name."
+    ),
+    limit: int = Query(
+        default=10, description="The maximum number of datasets to return at a time."
+    ),
+) -> ListDatasetsResponse:
     async with request.app.state.db() as session:
         query = select(models.Dataset).order_by(models.Dataset.id.desc())
 
@@ -137,8 +114,8 @@ async def list_datasets(request: Request) -> Response:
                 cursor_id = GlobalID.from_id(cursor).node_id
                 query = query.filter(models.Dataset.id <= int(cursor_id))
             except ValueError:
-                return Response(
-                    content=f"Invalid cursor format: {cursor}",
+                raise HTTPException(
+                    detail=f"Invalid cursor format: {cursor}",
                     status_code=HTTP_422_UNPROCESSABLE_ENTITY,
                 )
         if name:
@@ -149,7 +126,7 @@ async def list_datasets(request: Request) -> Response:
         datasets = result.scalars().all()
 
         if not datasets:
-            return JSONResponse(content={"next_cursor": None, "data": []}, status_code=200)
+            return ListDatasetsResponse(next_cursor=None, data=[])
 
         next_cursor = None
         if len(datasets) == limit + 1:
@@ -159,17 +136,17 @@ async def list_datasets(request: Request) -> Response:
         data = []
         for dataset in datasets:
             data.append(
-                {
-                    "id": str(GlobalID(NODE_NAME, str(dataset.id))),
-                    "name": dataset.name,
-                    "description": dataset.description,
-                    "metadata": dataset.metadata_,
-                    "created_at": dataset.created_at.isoformat(),
-                    "updated_at": dataset.updated_at.isoformat(),
-                }
+                Dataset(
+                    id=str(GlobalID(NODE_NAME, str(dataset.id))),
+                    name=dataset.name,
+                    description=dataset.description,
+                    metadata=dataset.metadata_,
+                    created_at=dataset.created_at,
+                    updated_at=dataset.updated_at,
+                )
             )
 
-        return JSONResponse(content={"next_cursor": next_cursor, "data": data})
+        return ListDatasetsResponse(next_cursor=next_cursor, data=data)
 
 
 @router.delete("/datasets/{id}")
@@ -199,7 +176,7 @@ async def delete_dataset(request: Request) -> Response:
         try:
             dataset_id = from_global_id_with_expected_type(
                 GlobalID.from_id(id_),
-                Dataset.__name__,
+                NODE_NAME,
             )
         except ValueError:
             return Response(
@@ -359,7 +336,7 @@ async def get_dataset_versions(request: Request) -> Response:
         try:
             dataset_id = from_global_id_with_expected_type(
                 GlobalID.from_id(id_),
-                Dataset.__name__,
+                NODE_NAME,
             )
         except ValueError:
             return Response(
@@ -580,7 +557,7 @@ async def upload_dataset(request: Request) -> Response:
         async with request.app.state.db() as session:
             dataset_id = (await operation(session)).dataset_id
         return JSONResponse(
-            content={"data": {"dataset_id": str(GlobalID(Dataset.__name__, str(dataset_id)))}}
+            content={"data": {"dataset_id": str(GlobalID(NODE_NAME, str(dataset_id)))}}
         )
     try:
         request.state.enqueue_operation(operation)
@@ -983,7 +960,7 @@ def _get_content_jsonl_openai_evals(examples: List[models.DatasetExampleRevision
 async def _get_db_examples(request: Request) -> Tuple[str, List[models.DatasetExampleRevision]]:
     if not (id_ := request.path_params.get("id")):
         raise ValueError("Missing Dataset ID")
-    dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id_), Dataset.__name__)
+    dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id_), NODE_NAME)
     dataset_version_id: Optional[int] = None
     if version_id := request.query_params.get("version_id"):
         dataset_version_id = from_global_id_with_expected_type(
