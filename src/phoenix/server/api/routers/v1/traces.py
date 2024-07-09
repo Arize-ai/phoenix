@@ -1,6 +1,5 @@
 import gzip
 import zlib
-from datetime import datetime
 from typing import Any, Dict, List
 
 from google.protobuf.message import DecodeError
