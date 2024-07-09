@@ -114,7 +114,7 @@ Next, define a function to format a prompt template and invoke an OpenAI model o
 
 ```python
 from openai import AsyncOpenAI
-from phoenix.datasets.types import Example
+from phoenix.experiments import Example
 
 openai_client = AsyncOpenAI()
 

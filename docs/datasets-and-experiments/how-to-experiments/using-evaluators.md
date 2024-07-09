@@ -20,7 +20,7 @@ Code evaluators are functions that evaluate the output of your LLM task that don
 {% tabs %}
 {% tab title="Python" %}
 ```python
-from phoenix.datasets import run_experiment, MatchesRegex
+from phoenix.experiments import run_experiment, MatchesRegex
 
 # This defines a code evaluator for links
 contains_link = MatchesRegex(
