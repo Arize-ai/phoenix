@@ -8,7 +8,6 @@ from . import (
     spans,
     traces,
 )
-from .dataset_examples import list_dataset_examples
 from .datasets import router as datasets_router
 
 router = APIRouter(prefix="/v1")
@@ -20,7 +19,6 @@ V1_ROUTES = (
     ("/traces", traces.post_traces, ["POST"]),
     ("/spans", spans.query_spans_handler, ["POST"]),
     ("/spans", spans.get_spans_handler, ["GET"]),
-    ("/datasets/{id:str}/examples", list_dataset_examples, ["GET"]),
     ("/datasets/{dataset_id:str}/experiments", experiments.create_experiment, ["POST"]),
     ("/experiments/{experiment_id:str}", experiments.read_experiment, ["GET"]),
     ("/experiments/{experiment_id:str}/runs", experiment_runs.create_experiment_run, ["POST"]),
