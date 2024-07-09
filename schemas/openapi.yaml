@@ -1,6 +1,514 @@
 info:
+  description: Schema for Arize-Phoenix REST API
   title: Arize-Phoenix API
-  version: '1.0'
-openapi: 3.0.0
-paths: {}
+  version: 4.8.1
+openapi: 3.1.0
+paths:
+  /v1/datasets:
+    get:
+      description: "summary: List datasets with cursor-based pagination\noperationId:\
+        \ listDatasets\ntags:\n  - datasets\nparameters:\n  - in: query\n    name:\
+        \ cursor\n    required: false\n    schema:\n      type: string\n    description:\
+        \ Cursor for pagination\n  - in: query\n    name: limit\n    required: false\n\
+        \    schema:\n      type: integer\n      default: 10\n  - in: query\n    name:\
+        \ name\n    required: false\n    schema:\n      type: string\n    description:\
+        \ match by dataset name\nresponses:\n  200:\n    description: A paginated\
+        \ list of datasets\n    content:\n      application/json:\n        schema:\n\
+        \          type: object\n          properties:\n            next_cursor:\n\
+        \              type: string\n            data:\n              type: array\n\
+        \              items:\n                type: object\n                properties:\n\
+        \                  id:\n                    type: string\n               \
+        \   name:\n                    type: string\n                  description:\n\
+        \                    type: string\n                  metadata:\n         \
+        \           type: object\n                  created_at:\n                \
+        \    type: string\n                    format: date-time\n               \
+        \   updated_at:\n                    type: string\n                    format:\
+        \ date-time\n  403:\n    description: Forbidden\n  404:\n    description:\
+        \ No datasets found"
+      operationId: list_datasets_v1_datasets_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: List Datasets
+  /v1/datasets/upload:
+    post:
+      description: "summary: Upload dataset as either JSON or file (CSV or PyArrow)\n\
+        operationId: uploadDataset\ntags:\n  - datasets\nparameters:\n  - in: query\n\
+        \    name: sync\n    description: If true, fulfill request synchronously and\
+        \ return JSON containing dataset_id\n    schema:\n      type: boolean\nrequestBody:\n\
+        \  content:\n    application/json:\n      schema:\n        type: object\n\
+        \        required:\n          - name\n          - inputs\n        properties:\n\
+        \          action:\n            type: string\n            enum: [create, append]\n\
+        \          name:\n            type: string\n          description:\n     \
+        \       type: string\n          inputs:\n            type: array\n       \
+        \     items:\n              type: object\n          outputs:\n           \
+        \ type: array\n            items:\n              type: object\n          metadata:\n\
+        \            type: array\n            items:\n              type: object\n\
+        \    multipart/form-data:\n      schema:\n        type: object\n        required:\n\
+        \          - name\n          - input_keys[]\n          - output_keys[]\n \
+        \         - file\n        properties:\n          action:\n            type:\
+        \ string\n            enum: [create, append]\n          name:\n          \
+        \  type: string\n          description:\n            type: string\n      \
+        \    input_keys[]:\n            type: array\n            items:\n        \
+        \      type: string\n            uniqueItems: true\n          output_keys[]:\n\
+        \            type: array\n            items:\n              type: string\n\
+        \            uniqueItems: true\n          metadata_keys[]:\n            type:\
+        \ array\n            items:\n              type: string\n            uniqueItems:\
+        \ true\n          file:\n            type: string\n            format: binary\n\
+        responses:\n  200:\n    description: Success\n  403:\n    description: Forbidden\n\
+        \  409:\n    description: Dataset of the same name already exists\n  422:\n\
+        \    description: Request body is invalid"
+      operationId: upload_dataset_v1_datasets_upload_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: Upload Dataset
+  /v1/datasets/{dataset_id}/experiments:
+    post:
+      description: "summary: Create an experiment using a dataset\noperationId: createExperiment\n\
+        tags:\n  - private\nparameters:\n  - in: path\n    name: dataset_id\n    required:\
+        \ true\n    description: The ID of the dataset to create an experiment for\n\
+        \    schema:\n      type: string\nrequestBody:\n  description: Details of\
+        \ the experiment to be created\n  required: true\n  content:\n    application/json:\n\
+        \      schema:\n        type: object\n        properties:\n          repetitions:\n\
+        \            type: integer\n            description: Number of times the experiment\
+        \ should be repeated for each example\n            default: 1\n          metadata:\n\
+        \            type: object\n            description: Metadata for the experiment\n\
+        \            additionalProperties:\n              type: string\n         \
+        \ version_id:\n            type: string\n            description: ID of the\
+        \ dataset version to use\nresponses:\n  200:\n    description: Experiment\
+        \ retrieved successfully\n    content:\n      application/json:\n        schema:\n\
+        \          type: object\n          properties:\n            data:\n      \
+        \        type: object\n              properties:\n                id:\n  \
+        \                type: string\n                  description: The ID of the\
+        \ experiment\n                dataset_id:\n                  type: string\n\
+        \                  description: The ID of the dataset associated with the\
+        \ experiment\n                dataset_version_id:\n                  type:\
+        \ string\n                  description: The ID of the dataset version associated\
+        \ with the experiment\n                repetitions:\n                  type:\
+        \ integer\n                  description: Number of times the experiment is\
+        \ repeated\n                metadata:\n                  type: object\n  \
+        \                description: Metadata of the experiment\n               \
+        \   additionalProperties:\n                    type: string\n            \
+        \    project_name:\n                  type: string\n                  description:\
+        \ The name of the project associated with the experiment\n               \
+        \ created_at:\n                  type: string\n                  format: date-time\n\
+        \                  description: The creation timestamp of the experiment\n\
+        \                updated_at:\n                  type: string\n           \
+        \       format: date-time\n                  description: The last update\
+        \ timestamp of the experiment\n  404:\n    description: Dataset or DatasetVersion\
+        \ not found"
+      operationId: create_experiment_v1_datasets__dataset_id__experiments_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: Create Experiment
+  /v1/datasets/{id}:
+    delete:
+      description: "summary: Delete dataset by ID\noperationId: deleteDatasetById\n\
+        tags:\n  - datasets\nparameters:\n  - in: path\n    name: id\n    required:\
+        \ true\n    schema:\n      type: string\nresponses:\n  204:\n    description:\
+        \ Success\n  403:\n    description: Forbidden\n  404:\n    description: Dataset\
+        \ not found\n  422:\n    description: Dataset ID is invalid"
+      operationId: delete_dataset_v1_datasets__id__delete
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: Delete Dataset
+    get:
+      description: "summary: Get dataset by ID\noperationId: getDatasetById\ntags:\n\
+        \  - datasets\nparameters:\n  - in: path\n    name: id\n    required: true\n\
+        \    schema:\n      type: string\nresponses:\n  200:\n    description: Success\n\
+        \    content:\n      application/json:\n        schema:\n          type: object\n\
+        \          properties:\n            id:\n              type: string\n    \
+        \        name:\n              type: string\n            description:\n   \
+        \           type: string\n            metadata:\n              type: object\n\
+        \            created_at:\n              type: string\n              format:\
+        \ date-time\n            updated_at:\n              type: string\n       \
+        \       format: date-time\n            example_count:\n              type:\
+        \ integer\n  403:\n    description: Forbidden\n  404:\n    description: Dataset\
+        \ not found"
+      operationId: get_dataset_v1_datasets__id__get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: Get Dataset
+  /v1/datasets/{id}/csv:
+    get:
+      description: "summary: Download dataset examples as CSV text file\noperationId:\
+        \ getDatasetCsv\ntags:\n  - datasets\nparameters:\n  - in: path\n    name:\
+        \ id\n    required: true\n    schema:\n      type: string\n    description:\
+        \ Dataset ID\n  - in: query\n    name: version_id\n    schema:\n      type:\
+        \ string\n    description: Dataset version ID. If omitted, returns the latest\
+        \ version.\nresponses:\n  200:\n    description: Success\n    content:\n \
+        \     text/csv:\n        schema:\n          type: string\n          contentMediaType:\
+        \ text/csv\n          contentEncoding: gzip\n  403:\n    description: Forbidden\n\
+        \  404:\n    description: Dataset does not exist.\n  422:\n    description:\
+        \ Dataset ID or version ID is invalid."
+      operationId: get_dataset_csv_v1_datasets__id__csv_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: Get Dataset Csv
+  /v1/datasets/{id}/examples:
+    get:
+      description: "summary: Get dataset examples by dataset ID\noperationId: getDatasetExamples\n\
+        tags:\n  - datasets\nparameters:\n  - in: path\n    name: id\n    required:\
+        \ true\n    schema:\n      type: string\n    description: Dataset ID\n  -\
+        \ in: query\n    name: version_id\n    schema:\n      type: string\n    description:\
+        \ Dataset version ID. If omitted, returns the latest version.\nresponses:\n\
+        \  200:\n    description: Success\n    content:\n      application/json:\n\
+        \        schema:\n          type: object\n          properties:\n        \
+        \    data:\n              type: object\n              properties:\n      \
+        \          dataset_id:\n                  type: string\n                 \
+        \ description: ID of the dataset\n                version_id:\n          \
+        \        type: string\n                  description: ID of the version\n\
+        \                examples:\n                  type: array\n              \
+        \    items:\n                    type: object\n                    properties:\n\
+        \                      id:\n                        type: string\n       \
+        \                 description: ID of the dataset example\n               \
+        \       input:\n                        type: object\n                   \
+        \     description: Input data of the example\n                      output:\n\
+        \                        type: object\n                        description:\
+        \ Output data of the example\n                      metadata:\n          \
+        \              type: object\n                        description: Metadata\
+        \ of the example\n                      updated_at:\n                    \
+        \    type: string\n                        format: date-time\n           \
+        \             description: ISO formatted timestamp of when the example was\
+        \ updated\n                    required:\n                      - id\n   \
+        \                   - input\n                      - output\n            \
+        \          - metadata\n                      - updated_at\n              required:\n\
+        \                - dataset_id\n                - version_id\n            \
+        \    - examples\n  403:\n    description: Forbidden\n  404:\n    description:\
+        \ Dataset does not exist."
+      operationId: list_dataset_examples_v1_datasets__id__examples_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: List Dataset Examples
+  /v1/datasets/{id}/jsonl/openai_evals:
+    get:
+      description: "summary: Download dataset examples as OpenAI Evals JSONL file\n\
+        operationId: getDatasetJSONLOpenAIEvals\ntags:\n  - datasets\nparameters:\n\
+        \  - in: path\n    name: id\n    required: true\n    schema:\n      type:\
+        \ string\n    description: Dataset ID\n  - in: query\n    name: version_id\n\
+        \    schema:\n      type: string\n    description: Dataset version ID. If\
+        \ omitted, returns the latest version.\nresponses:\n  200:\n    description:\
+        \ Success\n    content:\n      text/plain:\n        schema:\n          type:\
+        \ string\n          contentMediaType: text/plain\n          contentEncoding:\
+        \ gzip\n  403:\n    description: Forbidden\n  404:\n    description: Dataset\
+        \ does not exist.\n  422:\n    description: Dataset ID or version ID is invalid."
+      operationId: get_dataset_jsonl_openai_evals_v1_datasets__id__jsonl_openai_evals_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: Get Dataset Jsonl Openai Evals
+  /v1/datasets/{id}/jsonl/openai_ft:
+    get:
+      description: "summary: Download dataset examples as OpenAI Fine-Tuning JSONL\
+        \ file\noperationId: getDatasetJSONLOpenAIFineTuning\ntags:\n  - datasets\n\
+        parameters:\n  - in: path\n    name: id\n    required: true\n    schema:\n\
+        \      type: string\n    description: Dataset ID\n  - in: query\n    name:\
+        \ version_id\n    schema:\n      type: string\n    description: Dataset version\
+        \ ID. If omitted, returns the latest version.\nresponses:\n  200:\n    description:\
+        \ Success\n    content:\n      text/plain:\n        schema:\n          type:\
+        \ string\n          contentMediaType: text/plain\n          contentEncoding:\
+        \ gzip\n  403:\n    description: Forbidden\n  404:\n    description: Dataset\
+        \ does not exist.\n  422:\n    description: Dataset ID or version ID is invalid."
+      operationId: get_dataset_jsonl_openai_ft_v1_datasets__id__jsonl_openai_ft_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: Get Dataset Jsonl Openai Ft
+  /v1/datasets/{id}/versions:
+    get:
+      description: "summary: Get dataset versions (sorted from latest to oldest)\n\
+        operationId: getDatasetVersionsByDatasetId\ntags:\n  - datasets\nparameters:\n\
+        \  - in: path\n    name: id\n    required: true\n    description: Dataset\
+        \ ID\n    schema:\n      type: string\n  - in: query\n    name: cursor\n \
+        \   description: Cursor for pagination.\n    schema:\n      type: string\n\
+        \  - in: query\n    name: limit\n    description: Maximum number versions\
+        \ to return.\n    schema:\n      type: integer\n      default: 10\nresponses:\n\
+        \  200:\n    description: Success\n    content:\n      application/json:\n\
+        \        schema:\n          type: object\n          properties:\n        \
+        \    next_cursor:\n              type: string\n            data:\n       \
+        \       type: array\n              items:\n                type: object\n\
+        \                properties:\n                  version_id:\n            \
+        \        type: string\n                  description:\n                  \
+        \  type: string\n                  metadata:\n                    type: object\n\
+        \                  created_at:\n                    type: string\n       \
+        \             format: date-time\n  403:\n    description: Forbidden\n  422:\n\
+        \    description: Dataset ID, cursor or limit is invalid."
+      operationId: get_dataset_versions_v1_datasets__id__versions_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: Get Dataset Versions
+  /v1/evaluations:
+    get:
+      description: "summary: Get evaluations from Phoenix\noperationId: getEvaluation\n\
+        tags:\n  - private\nparameters:\n  - name: project_name\n    in: query\n \
+        \   schema:\n      type: string\n      default: default\n    description:\
+        \ The project name to get evaluations from\nresponses:\n  200:\n    description:\
+        \ Success\n  403:\n    description: Forbidden\n  404:\n    description: Not\
+        \ found"
+      operationId: get_evaluations_v1_evaluations_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: Get Evaluations
+    post:
+      description: "summary: Add evaluations to a span, trace, or document\noperationId:\
+        \ addEvaluations\ntags:\n  - private\nrequestBody:\n  required: true\n  content:\n\
+        \    application/x-protobuf:\n      schema:\n        type: string\n      \
+        \  format: binary\n    application/x-pandas-arrow:\n      schema:\n      \
+        \  type: string\n        format: binary\nresponses:\n  200:\n    description:\
+        \ Success\n  403:\n    description: Forbidden\n  415:\n    description: Unsupported\
+        \ content type, only gzipped protobuf and pandas-arrow are supported\n  422:\n\
+        \    description: Request body is invalid"
+      operationId: post_evaluations_v1_evaluations_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: Post Evaluations
+  /v1/experiment_evaluations:
+    post:
+      description: "summary: Create an evaluation for a specific experiment run\n\
+        operationId: upsertExperimentEvaluation\ntags:\n  - private\nrequestBody:\n\
+        \  description: Details of the experiment evaluation to be upserted\n  required:\
+        \ true\n  content:\n    application/json:\n      schema:\n        type: object\n\
+        \        properties:\n          experiment_run_id:\n            type: string\n\
+        \            description: The ID of the experiment run being evaluated\n \
+        \         name:\n            type: string\n            description: The name\
+        \ of the evaluation\n          annotator_kind:\n            type: string\n\
+        \            description: The kind of annotator used for the evaluation\n\
+        \          result:\n            type: object\n            description: The\
+        \ result of the evaluation\n            properties:\n              label:\n\
+        \                type: string\n                description: The label assigned\
+        \ by the evaluation\n              score:\n                type: number\n\
+        \                format: float\n                description: The score assigned\
+        \ by the evaluation\n              explanation:\n                type: string\n\
+        \                description: Explanation of the evaluation result\n     \
+        \     error:\n            type: string\n            description: Optional\
+        \ error message if the evaluation encountered an error\n          metadata:\n\
+        \            type: object\n            description: Metadata for the evaluation\n\
+        \            additionalProperties:\n              type: string\n         \
+        \ start_time:\n            type: string\n            format: date-time\n \
+        \           description: The start time of the evaluation in ISO format\n\
+        \          end_time:\n            type: string\n            format: date-time\n\
+        \            description: The end time of the evaluation in ISO format\n \
+        \         trace_id:\n            type: string\n            description: Optional\
+        \ trace ID for tracking\n        required:\n          - experiment_run_id\n\
+        \          - name\n          - annotator_kind\n          - start_time\n  \
+        \        - end_time\nresponses:\n  200:\n    description: Experiment evaluation\
+        \ upserted successfully\n    content:\n      application/json:\n        schema:\n\
+        \          type: object\n          properties:\n            data:\n      \
+        \        type: object\n              properties:\n                id:\n  \
+        \                type: string\n                  description: The ID of the\
+        \ upserted experiment evaluation\n  404:\n    description: ExperimentRun not\
+        \ found"
+      operationId: upsert_experiment_evaluation_v1_experiment_evaluations_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: Upsert Experiment Evaluation
+  /v1/experiments/{experiment_id}:
+    get:
+      description: "summary: Get details of a specific experiment\noperationId: getExperiment\n\
+        tags:\n  - private\nparameters:\n  - in: path\n    name: experiment_id\n \
+        \   required: true\n    description: The ID of the experiment to retrieve\n\
+        \    schema:\n      type: string\nresponses:\n  200:\n    description: Experiment\
+        \ retrieved successfully\n    content:\n      application/json:\n        schema:\n\
+        \          type: object\n          properties:\n            data:\n      \
+        \        type: object\n              properties:\n                id:\n  \
+        \                type: string\n                  description: The ID of the\
+        \ experiment\n                dataset_id:\n                  type: string\n\
+        \                  description: The ID of the dataset associated with the\
+        \ experiment\n                dataset_version_id:\n                  type:\
+        \ string\n                  description: The ID of the dataset version associated\
+        \ with the experiment\n                repetitions:\n                  type:\
+        \ integer\n                  description: Number of times the experiment is\
+        \ repeated\n                metadata:\n                  type: object\n  \
+        \                description: Metadata of the experiment\n               \
+        \   additionalProperties:\n                    type: string\n            \
+        \    project_name:\n                  type: string\n                  description:\
+        \ The name of the project associated with the experiment\n               \
+        \ created_at:\n                  type: string\n                  format: date-time\n\
+        \                  description: The creation timestamp of the experiment\n\
+        \                updated_at:\n                  type: string\n           \
+        \       format: date-time\n                  description: The last update\
+        \ timestamp of the experiment\n  404:\n    description: Experiment not found"
+      operationId: read_experiment_v1_experiments__experiment_id__get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: Read Experiment
+  /v1/experiments/{experiment_id}/runs:
+    get:
+      description: "summary: List all runs for a specific experiment\noperationId:\
+        \ listExperimentRuns\ntags:\n  - private\nparameters:\n  - in: path\n    name:\
+        \ experiment_id\n    required: true\n    description: The ID of the experiment\
+        \ to list runs for\n    schema:\n      type: string\nresponses:\n  200:\n\
+        \    description: Experiment runs retrieved successfully\n    content:\n \
+        \     application/json:\n        schema:\n          type: object\n       \
+        \   properties:\n            data:\n              type: array\n          \
+        \    items:\n                type: object\n                properties:\n \
+        \                 id:\n                    type: string\n                \
+        \    description: The ID of the experiment run\n                  experiment_id:\n\
+        \                    type: string\n                    description: The ID\
+        \ of the experiment\n                  dataset_example_id:\n             \
+        \       type: string\n                    description: The ID of the dataset\
+        \ example\n                  repetition_number:\n                    type:\
+        \ integer\n                    description: The repetition number of the experiment\
+        \ run\n                  start_time:\n                    type: string\n \
+        \                   format: date-time\n                    description: The\
+        \ start time of the experiment run in ISO format\n                  end_time:\n\
+        \                    type: string\n                    format: date-time\n\
+        \                    description: The end time of the experiment run in ISO\
+        \ format\n                  output:\n                    description: The\
+        \ output of the experiment task\n                  error:\n              \
+        \      type: string\n                    description: Error message if the\
+        \ experiment run encountered an error\n                  trace_id:\n     \
+        \               type: string\n                    description: Optional trace\
+        \ ID for tracking\n  404:\n    description: Experiment not found"
+      operationId: list_experiment_runs_v1_experiments__experiment_id__runs_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: List Experiment Runs
+    post:
+      description: "summary: Create a new experiment run for a specific experiment\n\
+        operationId: createExperimentRun\ntags:\n  - private\nparameters:\n  - in:\
+        \ path\n    name: experiment_id\n    required: true\n    description: The\
+        \ ID of the experiment for which the run is being created\n    schema:\n \
+        \     type: string\nrequestBody:\n  description: Details of the experiment\
+        \ run to be created\n  required: true\n  content:\n    application/json:\n\
+        \      schema:\n        type: object\n        properties:\n          dataset_example_id:\n\
+        \            type: string\n            description: The ID of the dataset\
+        \ example used in the experiment run\n          trace_id:\n            type:\
+        \ string\n            description: Optional trace ID for tracking\n      \
+        \    output:\n            description: The output of the experiment task\n\
+        \          repetition_number:\n            type: integer\n            description:\
+        \ The repetition number of the experiment run\n          start_time:\n   \
+        \         type: string\n            format: date-time\n            description:\
+        \ The start time of the experiment run in ISO format\n          end_time:\n\
+        \            type: string\n            format: date-time\n            description:\
+        \ The end time of the experiment run in ISO format\n          error:\n   \
+        \         type: string\n            description: Optional error message if\
+        \ the experiment run encountered an error\n            nullable: true\n  \
+        \      required:\n          - dataset_example_id\n          - output\n   \
+        \       - repetition_number\n          - start_time\n          - end_time\n\
+        responses:\n  200:\n    description: Experiment run created successfully\n\
+        \    content:\n      application/json:\n        schema:\n          type: object\n\
+        \          properties:\n            data:\n              type: object\n  \
+        \            properties:\n                id:\n                  type: string\n\
+        \                  description: The ID of the created experiment run\n  404:\n\
+        \    description: Experiment or DatasetExample not found"
+      operationId: create_experiment_run_v1_experiments__experiment_id__runs_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: Create Experiment Run
+  /v1/spans:
+    get:
+      operationId: get_spans_handler_v1_spans_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: Get Spans Handler
+    post:
+      description: "summary: Query spans using query DSL\noperationId: querySpans\n\
+        tags:\n  - private\nparameters:\n  - name: project_name\n    in: query\n \
+        \   schema:\n      type: string\n      default: default\n    description:\
+        \ The project name to get evaluations from\nrequestBody:\n  required: true\n\
+        \  content:\n    application/json:\n      schema:\n        type: object\n\
+        \        properties:\n          queries:\n            type: array\n      \
+        \      items:\n              type: object\n              properties:\n   \
+        \             select:\n                  type: object\n                filter:\n\
+        \                  type: object\n                explode:\n              \
+        \    type: object\n                concat:\n                  type: object\n\
+        \                rename:\n                  type: object\n               \
+        \ index:\n                  type: object\n          start_time:\n        \
+        \    type: string\n            format: date-time\n          end_time:\n  \
+        \          type: string\n            format: date-time\n            nullable:\
+        \ true\n          limit:\n            type: integer\n            nullable:\
+        \ true\n            default: 1000\n          root_spans_only:\n          \
+        \  type: boolean\n            nullable: true\nresponses:\n  200:\n    description:\
+        \ Success\n  403:\n    description: Forbidden\n  404:\n    description: Not\
+        \ found\n  422:\n    description: Request body is invalid"
+      operationId: query_spans_handler_v1_spans_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: Query Spans Handler
+  /v1/traces:
+    post:
+      description: "summary: Send traces to Phoenix\noperationId: addTraces\ntags:\n\
+        \  - private\nrequestBody:\n  required: true\n  content:\n    application/x-protobuf:\n\
+        \      schema:\n        type: string\n        format: binary\nresponses:\n\
+        \  200:\n    description: Success\n  403:\n    description: Forbidden\n  415:\n\
+        \    description: Unsupported content type, only gzipped protobuf\n  422:\n\
+        \    description: Request body is invalid"
+      operationId: post_traces_v1_traces_post
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: Post Traces
 
