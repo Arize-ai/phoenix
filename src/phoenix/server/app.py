@@ -75,7 +75,7 @@ from phoenix.server.api.dataloaders import (
     TraceRowIdsDataLoader,
 )
 from phoenix.server.api.openapi.schema import OPENAPI_SCHEMA_GENERATOR
-from phoenix.server.api.routers.v1 import V1_ROUTES
+from phoenix.server.api.routers.v1 import router as v1_router
 from phoenix.server.api.schema import schema
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.openapi.docs import get_swagger_ui_html
@@ -418,8 +418,7 @@ def create_app(
         debug=debug,
     )
     app.state.read_only = read_only
-    for path, endpoint, methods in V1_ROUTES:
-        app.add_api_route(path, endpoint, methods=methods)
+    app.include_router(v1_router)
     app.add_api_route("/schema", openapi_schema, methods=["GET"], include_in_schema=False)
     app.add_api_route("/arize_phoenix_version", version, methods=["GET"])
     app.add_api_route("/healthz", check_healthz, methods=["GET"])
