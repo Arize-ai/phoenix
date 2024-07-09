@@ -381,6 +381,7 @@ ignore_missing_imports = true
 
 [tool.ruff]
 exclude = [
+  "api_reference",
   "packages",
   "src/phoenix/evals/",
   "dist/",
