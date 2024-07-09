@@ -1,5 +1,18 @@
 # Changelog
 
+## [4.8.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.8.0...arize-phoenix-v4.8.1) (2024-07-09)
+
+
+### Bug Fixes
+
+* span json decoder for event lists ([#3867](https://github.com/Arize-ai/phoenix/issues/3867)) ([066895b](https://github.com/Arize-ai/phoenix/commit/066895bce615ee14e81cfa7dd541416bf1f2b7d1))
+
+
+### Documentation
+
+* api ref clean up ([a5d87cc](https://github.com/Arize-ai/phoenix/commit/a5d87cc7b88647baa728125c58b7e9cbb8157ad7))
+* updated index for api reference ([9646ee3](https://github.com/Arize-ai/phoenix/commit/9646ee37f46d20310c597e4af07544f9c879c34f))
+
 ## [4.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.7.2...arize-phoenix-v4.8.0) (2024-07-08)
 
 
