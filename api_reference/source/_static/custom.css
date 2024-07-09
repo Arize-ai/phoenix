@@ -1,5 +1,29 @@
 @import 'pydata_sphinx_theme.scss';
 
+/* -- index ------------------------------------------------------------------ */
+
+.bd-article h1 {
+    display: flex;
+    justify-content: center;
+}
+
+#main-content > .bd-article > img {
+    display: flex;
+    justify-content: center;
+}
+
+#arize-phoenix-api-reference > #external-links {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+}
+
+#api-definition > .toctree-wrapper.compound > ul {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+
 /* -- navbar display --------------------------------------------------------- */
 
 .navbar-nav .nav-link {
@@ -19,14 +43,6 @@
     font-weight: normal;
 }
 
-.sig.sig-object.py em { 
+.sig.sig-object.py em {
     font-style: normal;
 }
-
-/* .sig.sig-object.py .sig-name.descname { 
-    color: #A52A2A;
-} */
-
-/* .field-list.simple .field-odd ul.simple li p strong {
-    font-weight: normal;
-} */
