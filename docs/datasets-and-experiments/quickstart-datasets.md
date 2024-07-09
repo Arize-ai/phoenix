@@ -47,7 +47,7 @@ Create a task to evaluate.
 
 ```python
 from openai import OpenAI
-from phoenix.datasets.types import Example
+from phoenix.experiments.types import Example
 
 openai_client = OpenAI()
 
