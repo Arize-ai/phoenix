@@ -7,7 +7,7 @@
     justify-content: center;
 }
 
-.bd-article > img {
+#main-content > .bd-article > img {
     display: flex;
     justify-content: center;
 }
@@ -18,7 +18,7 @@
     justify-content: space-around;
 }
 
-.toctree-wrapper.compound > ul {
+#api-definition > .toctree-wrapper.compound > ul {
     display: flex;
     justify-content: space-between;
     flex-wrap: wrap;
@@ -46,11 +46,3 @@
 .sig.sig-object.py em {
     font-style: normal;
 }
-
-/* .sig.sig-object.py .sig-name.descname {
-    color: #A52A2A;
-} */
-
-/* .field-list.simple .field-odd ul.simple li p strong {
-    font-weight: normal;
-} */
