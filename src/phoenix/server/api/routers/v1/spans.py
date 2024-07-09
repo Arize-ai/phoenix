@@ -1,6 +1,7 @@
 from datetime import timezone
 from typing import AsyncIterator
 
+from fastapi import APIRouter
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
@@ -12,8 +13,11 @@ from phoenix.trace.dsl import SpanQuery
 
 DEFAULT_SPAN_LIMIT = 1000
 
+router = APIRouter(prefix="/spans")
+
 
 # TODO: Add property details to SpanQuery schema
+@router.post("")
 async def query_spans_handler(request: Request) -> Response:
     """
     summary: Query spans using query DSL
@@ -126,5 +130,6 @@ async def query_spans_handler(request: Request) -> Response:
     )
 
 
+@router.get("")
 async def get_spans_handler(request: Request) -> Response:
     return await query_spans_handler(request)
