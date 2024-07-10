@@ -11,10 +11,10 @@ from phoenix.db import models
 from phoenix.db.models import ExperimentRunOutput
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
-router = APIRouter()
+router = APIRouter(include_in_schema=False)
 
 
-@router.post("/{experiment_id}/runs", tags=["private"])
+@router.post("/{experiment_id}/runs")
 async def create_experiment_run(request: Request) -> Response:
     """
     summary: Create a new experiment run for a specific experiment

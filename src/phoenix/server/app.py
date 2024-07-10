@@ -18,7 +18,7 @@ from typing import (
     cast,
 )
 
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -86,6 +86,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+router = APIRouter(include_in_schema=False)
+
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
 
 
@@ -150,7 +152,8 @@ class HeadersMiddleware(BaseHTTPMiddleware):
 ProjectRowId: TypeAlias = int
 
 
-async def version(_: Request) -> PlainTextResponse:
+@router.get("/arize_phoenix_version")
+async def version() -> PlainTextResponse:
     return PlainTextResponse(f"{phoenix.__version__}")
 
 
@@ -196,16 +199,14 @@ def _lifespan(
     return lifespan
 
 
+@router.get("/healthz")
 async def check_healthz(_: Request) -> PlainTextResponse:
     return PlainTextResponse("OK")
 
 
-async def openapi_schema(request: Request) -> Response:
-    raise NotImplementedError("todo: implement openapi_schema")
-
-
-async def api_docs(request: Request) -> Response:
-    return get_swagger_ui_html(openapi_url="/schema", title="arize-phoenix API")
+@router.get("/docs")
+async def api_docs() -> Response:
+    return get_swagger_ui_html(openapi_url="/openapi.json", title="arize-phoenix API")
 
 
 def create_graphql_router(
@@ -280,7 +281,7 @@ def create_graphql_router(
     async def get_context() -> Context:
         return context
 
-    return GraphQLRouter(schema, graphiql=True, context_getter=get_context)
+    return GraphQLRouter(schema, graphiql=True, context_getter=get_context, include_in_schema=False)
 
 
 class SessionFactory:
@@ -418,10 +419,7 @@ def create_app(
     )
     app.state.read_only = read_only
     app.include_router(v1_router)
-    app.add_api_route("/schema", openapi_schema, methods=["GET"], include_in_schema=False)
-    app.add_api_route("/arize_phoenix_version", version, methods=["GET"])
-    app.add_api_route("/healthz", check_healthz, methods=["GET"])
-    app.add_api_route("/docs", api_docs, methods=["GET"])
+    app.include_router(router)
     app.include_router(graphql_router, prefix="/graphql")
     if serve_ui:
         app.mount(

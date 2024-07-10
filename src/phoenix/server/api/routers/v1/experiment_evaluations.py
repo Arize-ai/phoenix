@@ -11,10 +11,10 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
-router = APIRouter(prefix="/experiment_evaluations")
+router = APIRouter(prefix="/experiment_evaluations", include_in_schema=False)
 
 
-@router.post("", tags=["private"])
+@router.post("")
 async def upsert_experiment_evaluation(request: Request) -> Response:
     """
     summary: Create an evaluation for a specific experiment run

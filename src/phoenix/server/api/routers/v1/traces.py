@@ -19,10 +19,10 @@ from starlette.status import (
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.utilities.project import get_project_name
 
-router = APIRouter(prefix="/traces")
+router = APIRouter(prefix="/traces", include_in_schema=False)
 
 
-@router.post("", tags=["private"])
+@router.post("")
 async def post_traces(request: Request) -> Response:
     """
     summary: Send traces to Phoenix
