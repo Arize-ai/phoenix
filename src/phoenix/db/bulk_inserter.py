@@ -1,7 +1,6 @@
 import asyncio
 import logging
 from asyncio import Queue
-from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from itertools import islice
@@ -11,7 +10,6 @@ from typing import (
     AsyncContextManager,
     Awaitable,
     Callable,
-    Deque,
     Iterable,
     List,
     Optional,
@@ -20,7 +18,6 @@ from typing import (
     cast,
 )
 
-import wrapt
 from cachetools import LRUCache
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import TypeAlias
@@ -78,8 +75,8 @@ class BulkInserter:
         self._spans: List[Tuple[Span, str]] = (
             [] if initial_batch_of_spans is None else list(initial_batch_of_spans)
         )
-        self._evaluations: Deque[pb.Evaluation] = (
-            deque() if initial_batch_of_evaluations is None else deque(initial_batch_of_evaluations)
+        self._evaluations: List[pb.Evaluation] = (
+            [] if initial_batch_of_evaluations is None else list(initial_batch_of_evaluations)
         )
         self._task: Optional[asyncio.Task[None]] = None
         self._last_updated_at_by_project: LRUCache[ProjectRowId, datetime] = LRUCache(maxsize=100)
@@ -154,8 +151,8 @@ class BulkInserter:
                 spans_buffer = self._spans
                 self._spans = []
             if self._evaluations:
-                evaluations_buffer = list(self._evaluations)
-                self._evaluations.clear()
+                evaluations_buffer = self._evaluations
+                self._evaluations = []
             # Spans should be inserted before the evaluations, since an evaluation
             # insertion will fail if the span it references doesn't exist.
             transaction_result = TransactionResult()
@@ -164,7 +161,7 @@ class BulkInserter:
                 transaction_result.updated_project_rowids.update(result.updated_project_rowids)
                 spans_buffer = None
             if evaluations_buffer:
-                result = await self._insert_evaluations(evaluations_buffer, self._evaluations)
+                result = await self._insert_evaluations(evaluations_buffer)
                 transaction_result.updated_project_rowids.update(result.updated_project_rowids)
                 evaluations_buffer = None
             for project_rowid in transaction_result.updated_project_rowids:
@@ -210,13 +207,8 @@ class BulkInserter:
                 logger.exception("Failed to insert spans")
         return transaction_result
 
-    async def _insert_evaluations(
-        self,
-        evaluations: List[pb.Evaluation],
-        retry_queue: Deque[pb.Evaluation],
-    ) -> TransactionResult:
+    async def _insert_evaluations(self, evaluations: List[pb.Evaluation]) -> TransactionResult:
         transaction_result = TransactionResult()
-        to_be_retried = []
         for i in range(0, len(evaluations), self._max_ops_per_transaction):
             try:
                 start = perf_counter()
@@ -231,21 +223,11 @@ class BulkInserter:
                             async with session.begin_nested():
                                 result = await insert_evaluation(session, evaluation)
                         except InsertEvaluationError as error:
-                            retries_left = 9
-                            if not isinstance(evaluation, _Retriable):
-                                to_be_retried.append(_Retriable(evaluation, retries_left))
-                            else:
-                                evaluation.decrement_retries()
-                                if retries_left := evaluation.retries_left:
-                                    to_be_retried.append(evaluation)
                             if self._enable_prometheus:
                                 from phoenix.server.prometheus import BULK_LOADER_EXCEPTIONS
 
                                 BULK_LOADER_EXCEPTIONS.inc()
-                            retry_msg = f"{retries_left=}" if retries_left else "won't be retried"
-                            logger.exception(
-                                f"Failed to insert evaluation ({retry_msg}): {str(error)}"
-                            )
+                            logger.exception(f"Failed to insert evaluation: {str(error)}")
                         if result is not None:
                             transaction_result.updated_project_rowids.add(result.project_rowid)
                             if (cache := self._cache_for_dataloaders) is not None:
@@ -260,20 +242,4 @@ class BulkInserter:
 
                     BULK_LOADER_EXCEPTIONS.inc()
                 logger.exception("Failed to insert evaluations")
-        if to_be_retried:
-            loop = asyncio.get_running_loop()
-            loop.call_later(10, retry_queue.extend, to_be_retried)
         return transaction_result
-
-
-class _Retriable(wrapt.ObjectProxy):  # type: ignore[misc]
-    def __init__(self, wrapped: Any, retries_left: int) -> None:
-        super().__init__(wrapped)
-        self._self_retries_left = retries_left
-
-    @property
-    def retries_left(self) -> int:
-        return self._self_retries_left
-
-    def decrement_retries(self) -> None:
-        self._self_retries_left -= 1
