@@ -151,7 +151,7 @@ async def annotate_traces(request: Request) -> Response:
       404:
         description: Trace not found
     """
-    payload: List[Dict[str, Any]] = await request.json().get("data", [])
+    payload: List[Dict[str, Any]] = (await request.json()).get("data", [])
     trace_gids = [GlobalID.from_id(annotation["trace_id"]) for annotation in payload]
 
     resolved_trace_ids = []

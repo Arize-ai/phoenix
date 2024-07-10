@@ -209,7 +209,7 @@ async def annotate_spans(request: Request) -> Response:
       404:
         description: Span not found
     """
-    payload: List[Dict[str, Any]] = await request.json().get("data", [])
+    payload: List[Dict[str, Any]] = (await request.json()).get("data", [])
     span_gids = [GlobalID.from_id(annotation["span_id"]) for annotation in payload]
 
     resolved_span_ids = []
