@@ -20,6 +20,7 @@ from typing import (
 
 import strawberry
 from fastapi import APIRouter, FastAPI
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -151,6 +152,18 @@ class HeadersMiddleware(BaseHTTPMiddleware):
 
 
 ProjectRowId: TypeAlias = int
+
+
+@router.get("/exports")
+async def download_exported_file(request: Request, filename: str) -> FileResponse:
+    file = request.app.state.export_path / (filename + ".parquet")
+    if not file.is_file():
+        raise HTTPException(status_code=404)
+    return FileResponse(
+        path=file,
+        filename=file.name,
+        media_type="application/x-octet-stream",
+    )
 
 
 @router.get("/arize_phoenix_version")
@@ -428,6 +441,7 @@ def create_app(
         debug=debug,
     )
     app.state.read_only = read_only
+    app.state.export_path = export_path
     app.include_router(v1_router)
     app.include_router(router)
     app.include_router(graphql_router)
