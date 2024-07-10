@@ -24,9 +24,6 @@ async def prevent_access_in_read_only_mode(request: Request) -> None:
 
 router = APIRouter(
     prefix="/v1",
-    # At the time of this writing, fastapi does not support router-level
-    # middleware, so we use a dependency instead. For context, see:
-    # https://github.com/tiangolo/fastapi/discussions/7691#discussioncomment-9017073
     dependencies=[Depends(prevent_access_in_read_only_mode)],
 )
 router.include_router(dataset_examples_router)
