@@ -29,10 +29,9 @@ from typing import (
 
 import pandas as pd
 import pyarrow as pa
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Path, Query
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.background import BackgroundTasks
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, UploadFile
 from starlette.requests import Request
@@ -149,45 +148,27 @@ async def list_datasets(
         return ListDatasetsResponse(next_cursor=next_cursor, data=data)
 
 
-@router.delete("/datasets/{id}")
-async def delete_dataset(request: Request) -> Response:
-    """
-    summary: Delete dataset by ID
-    operationId: deleteDatasetById
-    tags:
-      - datasets
-    parameters:
-      - in: path
-        name: id
-        required: true
-        schema:
-          type: string
-    responses:
-      204:
-        description: Success
-      403:
-        description: Forbidden
-      404:
-        description: Dataset not found
-      422:
-        description: Dataset ID is invalid
-    """
-    if id_ := request.path_params.get("id"):
+@router.delete(
+    "/datasets/{id}",
+    operation_id="deleteDatasetById",
+    summary="Delete dataset by ID",
+    status_code=HTTP_204_NO_CONTENT,
+)
+async def delete_dataset(
+    request: Request, id: str = Path(description="The ID of the dataset to delete.")
+) -> None:
+    if id:
         try:
             dataset_id = from_global_id_with_expected_type(
-                GlobalID.from_id(id_),
+                GlobalID.from_id(id),
                 NODE_NAME,
             )
         except ValueError:
-            return Response(
-                content=f"Invalid Dataset ID: {id_}",
-                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            raise HTTPException(
+                detail=f"Invalid Dataset ID: {id}", status_code=HTTP_422_UNPROCESSABLE_ENTITY
             )
     else:
-        return Response(
-            content="Missing Dataset ID",
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-        )
+        raise HTTPException(detail="Missing Dataset ID", status_code=HTTP_422_UNPROCESSABLE_ENTITY)
     project_names_stmt = get_project_names_for_datasets(dataset_id)
     eval_trace_ids_stmt = get_eval_trace_ids_for_datasets(dataset_id)
     stmt = (
@@ -197,11 +178,10 @@ async def delete_dataset(request: Request) -> Response:
         project_names = await session.scalars(project_names_stmt)
         eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
         if (await session.scalar(stmt)) is None:
-            return Response(content="Dataset does not exist", status_code=HTTP_404_NOT_FOUND)
+            raise HTTPException(detail="Dataset does not exist", status_code=HTTP_404_NOT_FOUND)
     tasks = BackgroundTasks()
     tasks.add_task(delete_projects, request.app.state.db, *project_names)
     tasks.add_task(delete_traces, request.app.state.db, *eval_trace_ids)
-    return Response(status_code=HTTP_204_NO_CONTENT, background=tasks)
 
 
 @router.get("/datasets/{id}")

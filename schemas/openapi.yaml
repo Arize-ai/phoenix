@@ -170,19 +170,26 @@ paths:
       - datasets
   /v1/datasets/{id}:
     delete:
-      description: "summary: Delete dataset by ID\noperationId: deleteDatasetById\n\
-        tags:\n  - datasets\nparameters:\n  - in: path\n    name: id\n    required:\
-        \ true\n    schema:\n      type: string\nresponses:\n  204:\n    description:\
-        \ Success\n  403:\n    description: Forbidden\n  404:\n    description: Dataset\
-        \ not found\n  422:\n    description: Dataset ID is invalid"
-      operationId: delete_dataset_v1_datasets__id__delete
+      operationId: deleteDatasetById
+      parameters:
+      - description: The ID of the dataset to delete.
+        in: path
+        name: id
+        required: true
+        schema:
+          description: The ID of the dataset to delete.
+          title: Id
+          type: string
       responses:
-        '200':
+        '204':
+          description: Successful Response
+        '422':
           content:
             application/json:
-              schema: {}
-          description: Successful Response
-      summary: Delete Dataset
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Delete dataset by ID
       tags:
       - datasets
     get:
