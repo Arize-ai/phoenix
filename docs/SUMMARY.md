@@ -1,7 +1,6 @@
 # Table of contents
 
 * [Arize Phoenix](README.md)
-* [Hosted Phoenix](hosted-phoenix.md)
 * [User Guide](user-guide.md)
 * [Examples](notebooks.md)
 * [Setup](setup/README.md)
