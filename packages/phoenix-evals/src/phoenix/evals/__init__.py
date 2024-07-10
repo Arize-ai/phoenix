@@ -16,12 +16,12 @@ from .default_templates import (
     REFERENCE_LINK_CORRECTNESS_PROMPT_TEMPLATE,
     SQL_GEN_EVAL_PROMPT_RAILS_MAP,
     SQL_GEN_EVAL_PROMPT_TEMPLATE,
+    TOOL_CALLING_PROMPT_TEMPLATE,
+    TOOL_CALLING_PROMPT_RAILS_MAP,
     TOXICITY_PROMPT_RAILS_MAP,
     TOXICITY_PROMPT_TEMPLATE,
     USER_FRUSTRATION_PROMPT_RAILS_MAP,
     USER_FRUSTRATION_PROMPT_TEMPLATE,
-    TOOL_CALLING_PROMPT_TEMPLATE,
-    TOOL_CALLING_PROMPT_RAILS_MAP,
 )
 from .evaluators import (
     HallucinationEvaluator,
@@ -45,8 +45,8 @@ from .models import (
 from .retrievals import compute_precisions_at_k
 from .span_templates import (
     HALLUCINATION_SPAN_PROMPT_TEMPLATE,
-    QA_SPAN_PROMPT_TEMPLATE,
     TOOL_CALLING_SPAN_PROMPT_TEMPLATE,
+    QA_SPAN_PROMPT_TEMPLATE,
 )
 from .templates import (
     ClassificationTemplate,
