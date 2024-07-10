@@ -1,4 +1,5 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException, Request
+from starlette.status import HTTP_403_FORBIDDEN
 
 from .datasets import router as datasets_router
 from .evaluations import router as evaluations_router
@@ -7,7 +8,25 @@ from .experiments import router as experiments_router
 from .spans import router as spans_router
 from .traces import router as traces_router
 
-router = APIRouter(prefix="/v1")
+
+async def prevent_access_in_read_only_mode(request: Request) -> None:
+    """
+    Prevents access to the REST API in read-only mode.
+    """
+    if request.app.state.read_only:
+        raise HTTPException(
+            detail="The Phoenix REST API is disabled in read-only mode.",
+            status_code=HTTP_403_FORBIDDEN,
+        )
+
+
+router = APIRouter(
+    prefix="/v1",
+    # At the time of this writing, fastapi does not support router-level
+    # middleware, so we use a dependency instead. For context, see:
+    # https://github.com/tiangolo/fastapi/discussions/7691#discussioncomment-9017073
+    dependencies=[Depends(prevent_access_in_read_only_mode)],
+)
 router.include_router(datasets_router)
 router.include_router(evaluations_router)
 router.include_router(experiment_evaluations_router)
