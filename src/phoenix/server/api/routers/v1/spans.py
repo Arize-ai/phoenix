@@ -264,7 +264,7 @@ async def annotate_spans(request: Request) -> Response:
             }
 
             dialect = SupportedSQLDialect(session.bind.dialect.name)
-            span_annotation = await session.scalar(
+            span_annotation_id = await session.scalar(
                 insert_on_conflict(
                     dialect=dialect,
                     table=models.SpanAnnotation,
@@ -273,10 +273,10 @@ async def annotate_spans(request: Request) -> Response:
                     column_names=("span_rowid", "name"),
                     on_conflict=OnConflict.DO_UPDATE,
                     set_=set_,
-                ).returning(models.SpanAnnotation)
+                ).returning(models.SpanAnnotation.id)
             )
             inserted_annotations.append(
-                {"id": str(GlobalID("SpanAnnotation", str(span_annotation.id)))}
+                {"id": str(GlobalID("SpanAnnotation", str(span_annotation_id)))}
             )
 
     return JSONResponse(content={"data": inserted_annotations})

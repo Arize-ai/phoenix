@@ -208,7 +208,7 @@ async def annotate_traces(request: Request) -> Response:
             }
 
             dialect = SupportedSQLDialect(session.bind.dialect.name)
-            trace_annotation = await session.scalar(
+            trace_annotation_id = await session.scalar(
                 insert_on_conflict(
                     dialect=dialect,
                     table=models.TraceAnnotation,
@@ -217,10 +217,10 @@ async def annotate_traces(request: Request) -> Response:
                     column_names=("trace_rowid", "name"),
                     on_conflict=OnConflict.DO_UPDATE,
                     set_=set_,
-                ).returning(models.TraceAnnotation)
+                ).returning(models.TraceAnnotation.id)
             )
             inserted_annotations.append(
-                {"id": str(GlobalID("TraceAnnotation", str(trace_annotation.id)))}
+                {"id": str(GlobalID("TraceAnnotation", str(trace_annotation_id)))}
             )
 
     return JSONResponse(content={"data": inserted_annotations})
