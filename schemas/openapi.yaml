@@ -812,6 +812,80 @@ paths:
       summary: Create a new experiment run for a specific experiment
       tags:
       - private
+  /v1/span_annotations:
+    post:
+      operationId: annotateSpans
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                data:
+                  items:
+                    properties:
+                      annotator_kind:
+                        description: The kind of annotator used for the annotation
+                          ("LLM" or "HUMAN")
+                        type: string
+                      error:
+                        description: Optional error message if the annotation encountered
+                          an error
+                        type: string
+                      metadata:
+                        additionalProperties:
+                          type: string
+                        description: Metadata for the annotation
+                        type: object
+                      name:
+                        description: The name of the annotation
+                        type: string
+                      result:
+                        description: The result of the annotation
+                        properties:
+                          explanation:
+                            description: Explanation of the annotation result
+                            type: string
+                          label:
+                            description: The label assigned by the annotation
+                            type: string
+                          score:
+                            description: The score assigned by the annotation
+                            format: float
+                            type: number
+                        type: object
+                      span_id:
+                        description: The ID of the span being annotated
+                        type: string
+                    required:
+                    - span_id
+                    - name
+                    - annotator_kind
+                    type: object
+                  type: array
+              type: object
+        description: List of span annotations to be inserted
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    items:
+                      properties:
+                        id:
+                          description: The ID of the inserted span annotation
+                          type: string
+                      type: object
+                    type: array
+                type: object
+          description: Span annotations inserted successfully
+        404:
+          description: Span not found
+      summary: Upsert annotations for spans
+      tags:
+      - private
   /v1/spans:
     post:
       operationId: querySpans
@@ -872,55 +946,58 @@ paths:
       summary: Query spans using query DSL
       tags:
       - private
-  /v1/spans/annotate:
+  /v1/trace_annotations:
     post:
-      operationId: annotateSpans
+      operationId: annotateTraces
       requestBody:
         content:
           application/json:
             schema:
-              items:
-                properties:
-                  annotator_kind:
-                    description: The kind of annotator used for the annotation ("LLM"
-                      or "HUMAN")
-                    type: string
-                  error:
-                    description: Optional error message if the annotation encountered
-                      an error
-                    type: string
-                  metadata:
-                    additionalProperties:
-                      type: string
-                    description: Metadata for the annotation
-                    type: object
-                  name:
-                    description: The name of the annotation
-                    type: string
-                  result:
-                    description: The result of the annotation
+              properties:
+                data:
+                  items:
                     properties:
-                      explanation:
-                        description: Explanation of the annotation result
+                      annotator_kind:
+                        description: The kind of annotator used for the annotation
+                          ("LLM" or "HUMAN")
                         type: string
-                      label:
-                        description: The label assigned by the annotation
+                      error:
+                        description: Optional error message if the annotation encountered
+                          an error
                         type: string
-                      score:
-                        description: The score assigned by the annotation
-                        format: float
-                        type: number
+                      metadata:
+                        additionalProperties:
+                          type: string
+                        description: Metadata for the annotation
+                        type: object
+                      name:
+                        description: The name of the annotation
+                        type: string
+                      result:
+                        description: The result of the annotation
+                        properties:
+                          explanation:
+                            description: Explanation of the annotation result
+                            type: string
+                          label:
+                            description: The label assigned by the annotation
+                            type: string
+                          score:
+                            description: The score assigned by the annotation
+                            format: float
+                            type: number
+                        type: object
+                      trace_id:
+                        description: The ID of the trace being annotated
+                        type: string
+                    required:
+                    - trace_id
+                    - name
+                    - annotator_kind
                     type: object
-                  span_id:
-                    description: The ID of the span being annotated
-                    type: string
-                required:
-                - span_id
-                - name
-                - annotator_kind
-                type: object
-              type: array
-        description: List of span annotations to be inserted
+                  type: array
+              type: object
+        description: List of trace annotations to be inserted
         required: true
       responses:
         200:
@@ -932,15 +1009,15 @@ paths:
                     items:
                       properties:
                         id:
-                          description: The ID of the inserted span annotation
+                          description: The ID of the inserted trace annotation
                           type: string
                       type: object
                     type: array
                 type: object
-          description: Span annotations inserted successfully
+          description: Trace annotations inserted successfully
         404:
-          description: Span not found
-      summary: Upsert annotations for spans
+          description: Trace not found
+      summary: Upsert annotations for traces
       tags:
       - private
   /v1/traces:
@@ -963,77 +1040,6 @@ paths:
         422:
           description: Request body is invalid
       summary: Send traces to Phoenix
-      tags:
-      - private
-  /v1/traces/annotate:
-    post:
-      operationId: annotateTraces
-      requestBody:
-        content:
-          application/json:
-            schema:
-              items:
-                properties:
-                  annotator_kind:
-                    description: The kind of annotator used for the annotation ("LLM"
-                      or "HUMAN")
-                    type: string
-                  error:
-                    description: Optional error message if the annotation encountered
-                      an error
-                    type: string
-                  metadata:
-                    additionalProperties:
-                      type: string
-                    description: Metadata for the annotation
-                    type: object
-                  name:
-                    description: The name of the annotation
-                    type: string
-                  result:
-                    description: The result of the annotation
-                    properties:
-                      explanation:
-                        description: Explanation of the annotation result
-                        type: string
-                      label:
-                        description: The label assigned by the annotation
-                        type: string
-                      score:
-                        description: The score assigned by the annotation
-                        format: float
-                        type: number
-                    type: object
-                  trace_id:
-                    description: The ID of the trace being annotated
-                    type: string
-                required:
-                - trace_id
-                - name
-                - annotator_kind
-                type: object
-              type: array
-        description: List of trace annotations to be inserted
-        required: true
-      responses:
-        200:
-          content:
-            application/json:
-              schema:
-                properties:
-                  data:
-                    items:
-                      properties:
-                        id:
-                          description: The ID of the inserted trace annotation
-                          type: string
-                      type: object
-                    type: array
-                type: object
-          description: Trace annotations inserted successfully
-        404:
-          description: Trace not found
-      summary: Upsert annotations for traces
       tags:
       - private
 

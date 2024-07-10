@@ -90,45 +90,48 @@ async def annotate_traces(request: Request) -> Response:
       content:
         application/json:
           schema:
-            type: array
-            items:
-              type: object
-              properties:
-                trace_id:
-                  type: string
-                  description: The ID of the trace being annotated
-                name:
-                  type: string
-                  description: The name of the annotation
-                annotator_kind:
-                  type: string
-                  description: The kind of annotator used for the annotation ("LLM" or "HUMAN")
-                result:
+            type: object
+            properties:
+              data:
+                type: array
+                items:
                   type: object
-                  description: The result of the annotation
                   properties:
-                    label:
+                    trace_id:
                       type: string
-                      description: The label assigned by the annotation
-                    score:
-                      type: number
-                      format: float
-                      description: The score assigned by the annotation
-                    explanation:
+                      description: The ID of the trace being annotated
+                    name:
                       type: string
-                      description: Explanation of the annotation result
-                error:
-                  type: string
-                  description: Optional error message if the annotation encountered an error
-                metadata:
-                  type: object
-                  description: Metadata for the annotation
-                  additionalProperties:
-                    type: string
-              required:
-                - trace_id
-                - name
-                - annotator_kind
+                      description: The name of the annotation
+                    annotator_kind:
+                      type: string
+                      description: The kind of annotator used for the annotation ("LLM" or "HUMAN")
+                    result:
+                      type: object
+                      description: The result of the annotation
+                      properties:
+                        label:
+                          type: string
+                          description: The label assigned by the annotation
+                        score:
+                          type: number
+                          format: float
+                          description: The score assigned by the annotation
+                        explanation:
+                          type: string
+                          description: Explanation of the annotation result
+                    error:
+                      type: string
+                      description: Optional error message if the annotation encountered an error
+                    metadata:
+                      type: object
+                      description: Metadata for the annotation
+                      additionalProperties:
+                        type: string
+                  required:
+                    - trace_id
+                    - name
+                    - annotator_kind
     responses:
       200:
         description: Trace annotations inserted successfully
@@ -148,7 +151,7 @@ async def annotate_traces(request: Request) -> Response:
       404:
         description: Trace not found
     """
-    payload: List[Dict[str, Any]] = await request.json()
+    payload: List[Dict[str, Any]] = await request.json().get("data", [])
     trace_gids = [GlobalID.from_id(annotation["trace_id"]) for annotation in payload]
 
     resolved_trace_ids = []
