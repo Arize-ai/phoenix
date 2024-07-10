@@ -7,6 +7,11 @@
     justify-content: center;
 }
 
+/* .bd-article #api-definition h2 {
+    display: flex;
+    justify-content: center;
+} */
+
 #main-content > .bd-article > img {
     display: flex;
     justify-content: center;
@@ -18,10 +23,15 @@
     justify-content: space-around;
 }
 
-#api-definition > .toctree-wrapper.compound > ul {
+#arize-phoenix-api-reference > #api-definition > .toctree-wrapper > ul {
     display: flex;
+    flex-direction: row;
     justify-content: space-between;
     flex-wrap: wrap;
+}
+
+#arize-phoenix-api-reference > #api-definition > .toctree-wrapper > ul > li {
+    padding: 1em 1em 1em 1em;
 }
 
 /* -- navbar display --------------------------------------------------------- */
@@ -39,7 +49,7 @@
     background: var(--pst-color-surface);
 }
 
-.sig.sig-object.py .sig-param, .sig-paren{
+.sig.sig-object.py .sig-param, .sig-paren {
     font-weight: normal;
 }
 

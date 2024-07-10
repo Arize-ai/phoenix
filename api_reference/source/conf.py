@@ -112,6 +112,7 @@ myst_substitutions = {"rtd": "[Read the Docs](https://readthedocs.org/)"}
 autoclass_content = "class"  # Only include the class docstring, not the __init__ method docstring
 autodoc_typehints = "none"
 add_function_parentheses = False
+add_module_names = False
 autodoc_preserve_defaults = True
 autodoc_typehints_description_target = "documented_params"
 
@@ -121,7 +122,7 @@ autodoc_default_options = {
     "special-members": "",
     "undoc-members": False,
     "inherited-members": False,
-    "show-inheritance": True,
+    "show-inheritance": False,
 }
 
 # -- Internationalization ----------------------------------------------------
@@ -195,6 +196,7 @@ html_theme_options = {
     "footer_start": [],
     "footer_end": ["copyright"],
     "show_nav_level": 2,
+    "show_toc_level": 4
 }
 
 html_sidebars = {"**": ["sidebar-nav-bs"]}

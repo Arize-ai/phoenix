@@ -10,7 +10,7 @@ html_theme.sidebar_secondary.remove: true
 # Arize Phoenix API Reference
 
 <a target="_blank" href="https://phoenix.arize.com" style="background:none">
-    <img alt="phoenix banner" src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/socal/github-large-banner-phoenix.jpg?raw=true" width="auto" height="auto"></img>
+    <img alt="phoenix banner" src="_static/github-large-banner-phoenix.jpg" width="auto" height="auto"></img>
 </a>
 <br/>
 <div id="external-links">
@@ -41,7 +41,7 @@ html_theme.sidebar_secondary.remove: true
 Welcome to Arize Phoenix's API reference. This reference details Phoenix's API and how to use its various features. To get a complete guide on how to use Phoenix, including tutorials, quickstarts, and concept explanations, see the [complete documentation](https://docs.arize.com/phoenix).
 
 ```{seealso}
-Want to become a member of Phoenix's community? Check out our [GitHub repository](https://docs.arize.com/phoenix)!
+Want to become a member of Phoenix's community? Check out our [Slack](https://arize-ai.slack.com/join/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q#/shared-invite/email) and [GitHub repository](https://docs.arize.com/phoenix)!
 ```
 
 ## API Definition
@@ -49,9 +49,9 @@ Want to become a member of Phoenix's community? Check out our [GitHub repository
 ```{toctree}
 :maxdepth: 2
 
-api/inferences
-api/client_package
-api/db
+api/session
+api/client
+api/inferences_schema
 api/evals
 api/experiments
 ```
