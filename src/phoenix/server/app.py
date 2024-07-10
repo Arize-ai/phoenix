@@ -18,6 +18,7 @@ from typing import (
     cast,
 )
 
+import strawberry
 from fastapi import APIRouter, FastAPI
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -210,6 +211,7 @@ async def api_docs() -> Response:
 
 
 def create_graphql_router(
+    *,
     schema: BaseSchema,
     db: Callable[[], AsyncContextManager[AsyncSession]],
     model: Model,
@@ -278,10 +280,13 @@ def create_graphql_router(
         read_only=read_only,
     )
 
-    async def get_context() -> Context:
-        return context
-
-    return GraphQLRouter(schema, graphiql=True, context_getter=get_context, include_in_schema=False)
+    return GraphQLRouter(
+        schema,
+        graphiql=True,
+        context_getter=lambda: context,
+        include_in_schema=False,
+        prefix="/graphql",
+    )
 
 
 class SessionFactory:
@@ -388,13 +393,18 @@ def create_app(
         strawberry_extensions.append(_OpenTelemetryExtension)
 
     graphql_router = create_graphql_router(
-        schema=schema,
         db=db,
+        schema=strawberry.Schema(
+            query=schema.query,
+            mutation=schema.mutation,
+            subscription=schema.subscription,
+            extensions=strawberry_extensions,
+        ),
         model=model,
-        export_path=export_path,
-        cache_for_dataloaders=cache_for_dataloaders,
         corpus=corpus,
+        export_path=export_path,
         streaming_last_updated_at=bulk_inserter.last_updated_at,
+        cache_for_dataloaders=cache_for_dataloaders,
         read_only=read_only,
     )
     if enable_prometheus:
@@ -420,7 +430,7 @@ def create_app(
     app.state.read_only = read_only
     app.include_router(v1_router)
     app.include_router(router)
-    app.include_router(graphql_router, prefix="/graphql")
+    app.include_router(graphql_router)
     if serve_ui:
         app.mount(
             "/",
