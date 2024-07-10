@@ -68,12 +68,12 @@ class Client(TraceDataExtractor):
 
         Args:
             endpoint (str, optional): Phoenix server endpoint, e.g.
-            http://localhost:6006. If not provided, the endpoint will be
-            inferred from the environment variables.
+                http://localhost:6006. If not provided, the endpoint will be
+                inferred from the environment variables.
 
             headers (Mapping[str, str], optional): Headers to include in each
-            network request. If not provided, the headers will be inferred from
-            the environment variables (if present).
+                network request. If not provided, the headers will be inferred from
+                the environment variables (if present).
         """
         if kwargs.pop("use_active_session_if_available", None) is not None:
             print(
@@ -133,7 +133,8 @@ class Client(TraceDataExtractor):
                 using environment variables. If not provided, falls back to the default project.
 
         Returns:
-            Union[pd.DataFrame, List[pd.DataFrame]]: A pandas DataFrame or a list of pandas
+            Union[pd.DataFrame, List[pd.DataFrame]]:
+                A pandas DataFrame or a list of pandas.
                 DataFrames containing the queried span data, or None if no spans are found.
         """
         project_name = project_name or get_env_project_name()
@@ -191,7 +192,8 @@ class Client(TraceDataExtractor):
                 default project.
 
         Returns:
-            List[Evaluations]: A list of Evaluations objects containing evaluation data. Returns an
+            List[Evaluations]:
+                A list of Evaluations objects containing evaluation data. Returns an
                 empty list if no evaluations are found.
         """
         project_name = project_name or get_env_project_name()
@@ -341,10 +343,10 @@ class Client(TraceDataExtractor):
             id (Optional[str]): An ID for the dataset.
 
             name (Optional[str]): the name for the dataset. If provided, the ID
-            is ignored and the dataset is retrieved by name.
+                is ignored and the dataset is retrieved by name.
 
             version_id (Optional[str]): An ID for the version of the dataset, or
-            None.
+                None.
 
         Returns:
             A dataset object.

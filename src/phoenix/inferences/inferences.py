@@ -42,7 +42,13 @@ SchemaLike: TypeAlias = Any
 class Inferences:
     """
     A dataset to use for analysis using phoenix.
-    Used to construct a phoenix session via px.launch_app
+    Used to construct a phoenix session via px.launch_app.
+
+    Typical usage example::
+
+        primary_inferences = px.Inferences(
+            dataframe=production_dataframe, schema=schema, name="primary"
+        )
 
     Parameters
     ----------
@@ -62,9 +68,15 @@ class Inferences:
 
     Examples
     --------
-    >>> primary_inferences = px.Inferences(
-    >>>    dataframe=production_dataframe, schema=schema, name="primary"
-    >>> )
+    Define inferences ds from a pandas dataframe df and a schema object schema by running::
+
+        ds = px.Inferences(df, schema)
+
+    Alternatively, provide a name for the inferences that will appear in the application::
+
+        ds = px.Inferences(df, schema, name="training")
+
+    ds is then passed as the primary or reference argument to launch_app.
     """
 
     _data_file_name: str = "data.parquet"
