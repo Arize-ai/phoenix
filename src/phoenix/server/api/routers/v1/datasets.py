@@ -66,12 +66,12 @@ logger = logging.getLogger(__name__)
 NODE_NAME = "Dataset"
 
 
-router = APIRouter(prefix="/datasets")
+router = APIRouter(prefix="/datasets", tags=["datasets"])
 router.include_router(examples_router)
 router.include_router(dataset_experiments_router)
 
 
-@router.get("", tags=["datasets"])
+@router.get("")
 async def list_datasets(request: Request) -> Response:
     """
     summary: List datasets with cursor-based pagination
@@ -177,7 +177,7 @@ async def list_datasets(request: Request) -> Response:
         return JSONResponse(content={"next_cursor": next_cursor, "data": data})
 
 
-@router.delete("/{id}", tags=["datasets"])
+@router.delete("/{id}")
 async def delete_dataset(request: Request) -> Response:
     """
     summary: Delete dataset by ID
@@ -232,7 +232,7 @@ async def delete_dataset(request: Request) -> Response:
     return Response(status_code=HTTP_204_NO_CONTENT, background=tasks)
 
 
-@router.get("/{id}", tags=["datasets"])
+@router.get("/{id}")
 async def get_dataset(request: Request) -> Response:
     """
     summary: Get dataset by ID
@@ -306,7 +306,7 @@ async def get_dataset(request: Request) -> Response:
         return JSONResponse(content={"data": output_dict})
 
 
-@router.get("/{id}/versions", tags=["datasets"])
+@router.get("/{id}/versions")
 async def get_dataset_versions(request: Request) -> Response:
     """
     summary: Get dataset versions (sorted from latest to oldest)
@@ -421,7 +421,7 @@ async def get_dataset_versions(request: Request) -> Response:
     return JSONResponse(content={"next_cursor": next_cursor, "data": data})
 
 
-@router.post("/upload", tags=["datasets"])
+@router.post("/upload")
 async def upload_dataset(request: Request) -> Response:
     """
     summary: Upload dataset as either JSON or file (CSV or PyArrow)
@@ -771,7 +771,7 @@ async def _parse_form_data(
     )
 
 
-@router.get("/{id}/csv", tags=["datasets"])
+@router.get("/{id}/csv")
 async def get_dataset_csv(request: Request) -> Response:
     """
     summary: Download dataset examples as CSV text file
@@ -821,7 +821,7 @@ async def get_dataset_csv(request: Request) -> Response:
     )
 
 
-@router.get("/{id}/jsonl/openai_ft", tags=["datasets"])
+@router.get("/{id}/jsonl/openai_ft")
 async def get_dataset_jsonl_openai_ft(request: Request) -> Response:
     """
     summary: Download dataset examples as OpenAI Fine-Tuning JSONL file
@@ -871,7 +871,7 @@ async def get_dataset_jsonl_openai_ft(request: Request) -> Response:
     )
 
 
-@router.get("/{id}/jsonl/openai_evals", tags=["datasets"])
+@router.get("/{id}/jsonl/openai_evals")
 async def get_dataset_jsonl_openai_evals(request: Request) -> Response:
     """
     summary: Download dataset examples as OpenAI Evals JSONL file
