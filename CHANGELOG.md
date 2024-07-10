@@ -1,5 +1,28 @@
 # Changelog
 
+## [4.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.8.1...arize-phoenix-v4.9.0) (2024-07-10)
+
+
+### Features
+
+* retry eval insertions ([#3870](https://github.com/Arize-ai/phoenix/issues/3870)) ([7714bce](https://github.com/Arize-ai/phoenix/commit/7714bce47a28efa490f6f4e2d7cf37fea701b158))
+
+
+### Bug Fixes
+
+* **graphql:** clear project when end_time is UNSET ([#3879](https://github.com/Arize-ai/phoenix/issues/3879)) ([7c77a73](https://github.com/Arize-ai/phoenix/commit/7c77a73f35b8f119a63d5e7db7ba734b8dfb2919))
+* remove phoenix.daasets imports ([12adc6a](https://github.com/Arize-ai/phoenix/commit/12adc6a1f7e6c7f44927f6e76adbe81324a5987c))
+
+
+### Reverts
+
+* "feat: retry eval insertions ([#3870](https://github.com/Arize-ai/phoenix/issues/3870))" ([#3877](https://github.com/Arize-ai/phoenix/issues/3877)) ([859f710](https://github.com/Arize-ai/phoenix/commit/859f710a7f7cd246f16a53768e1dda184c800cc3))
+
+
+### Documentation
+
+* api reference overhaul modules ([e3b9c7f](https://github.com/Arize-ai/phoenix/commit/e3b9c7f5fcabdfb9462b8cbefa8a3d889c745c30))
+
 ## [4.8.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.8.0...arize-phoenix-v4.8.1) (2024-07-09)
 
 
