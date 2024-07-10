@@ -1,12 +1,10 @@
-client module
-=====================
+client
+======
+API reference for phoenix.Client, which helps you upload and download data to and from local or remote Phoenix servers.
 
-To import Client, use::
-
-   from phoenix import Client
-
-----------
-
+phoenix.Client
+--------
 .. automodule:: session.client
    :members:
-   :show-inheritance:
+   :special-members: __init__
+   :exclude-members: DatasetUploadError
