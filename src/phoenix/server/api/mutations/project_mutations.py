@@ -38,7 +38,7 @@ class ProjectMutationMixin:
             global_id=input.id, expected_type_name="Project"
         )
         delete_statement = delete(models.Trace).where(models.Trace.project_rowid == project_id)
-        if input.end_time is not None:
+        if input.end_time:
             delete_statement = delete_statement.where(models.Trace.start_time < input.end_time)
         async with info.context.db() as session:
             await session.execute(delete_statement)
