@@ -20,6 +20,8 @@ from .default_templates import (
     TOXICITY_PROMPT_TEMPLATE,
     USER_FRUSTRATION_PROMPT_RAILS_MAP,
     USER_FRUSTRATION_PROMPT_TEMPLATE,
+    TOOL_CALLING_PROMPT_TEMPLATE,
+    TOOL_CALLING_PROMPT_RAILS_MAP,
 )
 from .evaluators import (
     HallucinationEvaluator,
@@ -44,6 +46,7 @@ from .retrievals import compute_precisions_at_k
 from .span_templates import (
     HALLUCINATION_SPAN_PROMPT_TEMPLATE,
     QA_SPAN_PROMPT_TEMPLATE,
+    TOOL_CALLING_SPAN_PROMPT_TEMPLATE,
 )
 from .templates import (
     ClassificationTemplate,
@@ -85,6 +88,8 @@ __all__ = [
     "CODE_FUNCTIONALITY_PROMPT_TEMPLATE",
     "USER_FRUSTRATION_PROMPT_RAILS_MAP",
     "USER_FRUSTRATION_PROMPT_TEMPLATE",
+    "TOOL_CALLING_PROMPT_TEMPLATE",
+    "TOOL_CALLING_PROMPT_RAILS_MAP",
     "NOT_PARSABLE",
     "run_evals",
     "LLMEvaluator",
@@ -96,4 +101,5 @@ __all__ = [
     "ToxicityEvaluator",
     "HALLUCINATION_SPAN_PROMPT_TEMPLATE",
     "QA_SPAN_PROMPT_TEMPLATE",
+    "TOOL_CALLING_SPAN_PROMPT_TEMPLATE"
 ]
