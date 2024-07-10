@@ -4,10 +4,6 @@ description: There are many ways to build datasets for experimentation and evalu
 
 # Concepts: Datasets
 
-{% hint style="info" %}
-Datasets is currently in pre-release
-{% endhint %}
-
 ## Datasets
 
 Datasets are integral to evaluation and experimentation. They are collections of examples that provide the `inputs` and, optionally, expected `reference` outputs for assessing your application. Each example within a dataset represents a single data point, consisting of an `inputs` dictionary, an optional `output` dictionary, and an optional `metadata` dictionary. The `optional` output dictionary often contains the the expected LLM application output for the given input.

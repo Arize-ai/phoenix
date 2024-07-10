@@ -1,9 +1,5 @@
 # Using Evaluators
 
-{% hint style="info" %}
-Datasets and Experiments are currently in pre-release
-{% endhint %}
-
 ## LLM Evaluators
 
 We provide LLM evaluators out of the box. These evaluators are vendor agnostic and can be instantiated with a Phoenix model wrapper:
@@ -15,8 +11,6 @@ from phoenix.evals.models import OpenAIModel
 helpfulness_evaluator = HelpfulnessEvaluator(model=OpenAIModel())
 ```
 
-
-
 ## Code Evaluators
 
 Code evaluators are functions that evaluate the output of your LLM task that don't use another LLM as a judge. An example might be checking for whether or not a given output contains a link - which can be implemented as a RegEx match.
@@ -26,7 +20,7 @@ Code evaluators are functions that evaluate the output of your LLM task that don
 {% tabs %}
 {% tab title="Python" %}
 ```python
-from phoenix.datasets import run_experiment, MatchesRegex
+from phoenix.experiments import run_experiment, MatchesRegex
 
 # This defines a code evaluator for links
 contains_link = MatchesRegex(
@@ -58,9 +52,9 @@ By simply passing the `in_bounds` function to `run_experiment`, we will automati
 {% endtab %}
 {% endtabs %}
 
-More complex evaluations can use additional information. These values can be accessed by defining a function with specific parameter names:
+More complex evaluations can use additional information. These values can be accessed by defining a function with specific parameter names which are bound to special values:
 
-<table><thead><tr><th width="193">Parameter name</th><th width="241">Description</th><th>Example</th></tr></thead><tbody><tr><td><code>input</code></td><td>experiment run input</td><td><code>def eval(input): ...</code></td></tr><tr><td><code>output</code></td><td>experiment run output</td><td><code>def eval(output): ...</code></td></tr><tr><td><code>reference</code></td><td>dataset reference output</td><td><code>def eval(reference): ...</code></td></tr><tr><td><code>metadata</code></td><td>experiment metadata</td><td><code>def eval(metadata): ...</code></td></tr></tbody></table>
+<table><thead><tr><th width="193">Parameter name</th><th width="256">Description</th><th>Example</th></tr></thead><tbody><tr><td><code>input</code></td><td>experiment run input</td><td><code>def eval(input): ...</code></td></tr><tr><td><code>output</code></td><td>experiment run output</td><td><code>def eval(output): ...</code></td></tr><tr><td><code>expected</code></td><td>example output</td><td><code>def eval(expected): ...</code></td></tr><tr><td><code>reference</code></td><td>alias for <code>expected</code></td><td><code>def eval(reference): ...</code></td></tr><tr><td><code>metadata</code></td><td>experiment metadata</td><td><code>def eval(metadata): ...</code></td></tr></tbody></table>
 
 These parameters can be used in any combination and any order to write custom complex evaluators!
 
@@ -101,6 +95,3 @@ def wordiness_evaluator(expected, output):
 The decorated `wordiness_evaluator` can be passed directly into `run_experiment`!
 {% endtab %}
 {% endtabs %}
-
-
-

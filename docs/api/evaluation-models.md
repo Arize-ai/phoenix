@@ -131,6 +131,23 @@ model("Hello there, this is a tesst if you are working?")
 # Output: "Hello world, I am working!"
 ```
 
+### GeminiModel
+
+```python
+class GeminiModel:
+    project: Optional[str] = None
+    location: Optional[str] = None
+    credentials: Optional["Credentials"] = None
+    model: str = "gemini-pro"
+    default_concurrency: int = 5
+    temperature: float = 0.0
+    max_tokens: int = 256
+    top_p: float = 1
+    top_k: int = 32
+```
+
+Similar to VertexAIModel above for authentication&#x20;
+
 ### AnthropicModel
 
 ```python

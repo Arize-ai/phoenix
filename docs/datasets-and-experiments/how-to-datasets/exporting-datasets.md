@@ -1,9 +1,5 @@
 # Exporting Datasets
 
-{% hint style="info" %}
-Datasets is currently in pre-release
-{% endhint %}
-
 ## Exporting for Fine-Tuning
 
 Fine-tuning lets you get more out of the models available by providing:

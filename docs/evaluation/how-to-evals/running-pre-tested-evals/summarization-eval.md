@@ -14,24 +14,24 @@ Try it out!
 {% endembed %}
 
 ```
-    You are comparing the summary text and it's original document and trying to determine
-    if the summary is good. Here is the data:
+You are comparing the summary text and it's original document and trying to determine
+if the summary is good. Here is the data:
     [BEGIN DATA]
     ************
-    [Summary]: {summary}
+    [Summary]: {output}
     ************
-    [Original Document]: {document}
+    [Original Document]: {input}
     [END DATA]
-    Compare the Summary above to the Original Document and determine if the Summary is
-    comprehensive, concise, coherent, and independent relative to the Original Document.
-    Your response must be a string, either good or bad, and should not contain any text
-    or characters aside from that. The string bad means that the Summary is not comprehensive, concise,
-    coherent, and independent relative to the Original Document. The string good means the Summary
-    is comprehensive, concise, coherent, and independent relative to the Original Document.
+Compare the Summary above to the Original Document and determine if the Summary is
+comprehensive, concise, coherent, and independent relative to the Original Document.
+Your response must be a single word, either "good" or "bad", and should not contain any text
+or characters aside from that. "bad" means that the Summary is not comprehensive,
+concise, coherent, and independent relative to the Original Document. "good" means the
+Summary is comprehensive, concise, coherent, and independent relative to the Original Document.
 ```
 
 {% hint style="info" %}
-We are continually iterating our templates, view the most up-to-date template on GitHub. Last updated on 10/12/2023
+We are continually iterating our templates, view the most up-to-date template on GitHub. Last updated on 07/4/2024
 {% endhint %}
 
 ## Benchmark Results
@@ -59,7 +59,7 @@ We are continually iterating our templates, view the most up-to-date template on
 ## How To Run the Eval
 
 ```python
-import phoenix.evals.templates.default_templates as templates
+import phoenix.evals.default_templates as templates
 from phoenix.evals import (
     OpenAIModel,
     download_benchmark_dataset,

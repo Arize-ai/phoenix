@@ -6,10 +6,6 @@ description: >-
 
 # Run Experiments
 
-{% hint style="info" %}
-Datasets currently in pre-release
-{% endhint %}
-
 The key steps of running an experiment are:
 
 1. **Define/upload a `Dataset`** (e.g. a dataframe)
@@ -67,10 +63,10 @@ Each row of the dataset is called an `Example`.
 
 ## Create a Task
 
-A task is any function/process that takes an `Example` and returns an output. Task can also be an `async` function, but we used sync function here for simplicity:
+A task is any function/process that returns a JSON serializable output. Task can also be an `async` function, but we used sync function here for simplicity. If the task is a function of one argument, then that argument will be bound to the `input` field of the dataset example.
 
 ```python
-def task(example):
+def task(x):
     return ...
 ```
 
@@ -131,14 +127,22 @@ def text2sql(question):
     return {"query": query, "results": results, "error": error}
 ```
 
-#### Define `Task` as a Function
+#### Define `task` as a Function
 
 Recall that each row of the dataset is encapsulated as `Example` object. Recall that the input keys were defined when we uploaded the dataset:
 
 ```python
-def task(example):
-    return text2sql(example.input["question"])
+def task(x):
+    return text2sql(x["question"])
 ```
+
+#### More complex `task` inputs
+
+More complex tasks can use additional information. These values can be accessed by defining a task function with specific parameter names which are bound to special values associated with the dataset example:
+
+<table><thead><tr><th width="203">Parameter name</th><th width="226">Description</th><th>Example</th></tr></thead><tbody><tr><td><code>input</code></td><td>example input</td><td><code>def task(input): ...</code></td></tr><tr><td><code>expected</code></td><td>example output</td><td><code>def task(expected): ...</code></td></tr><tr><td><code>reference</code></td><td>alias for <code>expected</code></td><td><code>def task(reference): ...</code></td></tr><tr><td><code>metadata</code></td><td>example metadata</td><td><code>def task(metadata): ..</code>.</td></tr><tr><td><code>example</code></td><td><code>Example</code> object</td><td><code>def task(example): ...</code></td></tr></tbody></table>
+
+A `task` can be defined as a sync or async function that takes any number of the above argument names in any order!
 
 ## Define Evaluators
 
