@@ -1,7 +1,8 @@
-evals.retrievals module
-=======================
+evals.retrievals
+================
 
 .. automodule:: evals.retrievals
    :members:
-   :undoc-members:
    :show-inheritance:
+   :exclude-members: classify_relevance
+   :no-undoc-members:

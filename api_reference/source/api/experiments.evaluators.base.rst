@@ -1,7 +1,7 @@
-evals.models.rate\_limiters module
+experiments.evaluators.base module
 ==================================
 
-.. automodule:: evals.models.rate_limiters
+.. automodule:: experiments.evaluators.base
    :members:
    :undoc-members:
    :show-inheritance:

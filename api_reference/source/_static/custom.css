@@ -1,7 +1,48 @@
+@import 'pydata_sphinx_theme.scss';
+
+/* -- index ------------------------------------------------------------------ */
+
+.bd-article h1 {
+    display: flex;
+    justify-content: center;
+}
+
+#main-content > .bd-article > img {
+    display: flex;
+    justify-content: center;
+}
+
+#arize-phoenix-api-reference > #external-links {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+}
+
+#api-definition > .toctree-wrapper.compound > ul {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+
+/* -- navbar display --------------------------------------------------------- */
+
 .navbar-nav .nav-link {
     text-transform: capitalize;
 }
 
-.ethical-sidebar {
-    display: none;
+/* -- signature display ------------------------------------------------------ */
+
+.sig.sig-object.py{
+    font-style: normal !important;
+    font-feature-settings: "kern";
+    font-family: "Roboto Mono", "Courier New", Courier, monospace;
+    background: var(--pst-color-surface);
+}
+
+.sig.sig-object.py .sig-param, .sig-paren{
+    font-weight: normal;
+}
+
+.sig.sig-object.py em {
+    font-style: normal;
 }

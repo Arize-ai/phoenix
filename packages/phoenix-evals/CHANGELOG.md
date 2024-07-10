@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.13.1...arize-phoenix-evals-v0.13.2) (2024-07-03)
+
+
+### Bug Fixes
+
+* allow invocations of OpenAIModel without api key ([#3820](https://github.com/Arize-ai/phoenix/issues/3820)) ([4dd8c0e](https://github.com/Arize-ai/phoenix/commit/4dd8c0e15308971fe42c5fd11f04f80b18c55746))
+
 ## [0.13.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.13.0...arize-phoenix-evals-v0.13.1) (2024-06-30)
 
 

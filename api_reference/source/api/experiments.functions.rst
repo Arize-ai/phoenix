@@ -1,7 +1,7 @@
-inferences.validation module
+experiments.functions module
 ============================
 
-.. automodule:: inferences.validation
+.. automodule:: experiments.functions
    :members:
    :undoc-members:
    :show-inheritance:

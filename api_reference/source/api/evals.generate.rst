@@ -1,7 +1,7 @@
-evals.generate module
-=====================
+evals.generate
+==============
 
 .. automodule:: evals.generate
    :members:
-   :undoc-members:
    :show-inheritance:
+   :no-undoc-members:

@@ -1,7 +1,7 @@
-session.data\_extractor module
+db.insertion.evaluation module
 ==============================
 
-.. automodule:: session.data_extractor
+.. automodule:: db.insertion.evaluation
    :members:
    :undoc-members:
    :show-inheritance:

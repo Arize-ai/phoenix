@@ -226,6 +226,26 @@ paths:
       tags:
       - private
   /v1/datasets/{id}:
+    delete:
+      operationId: deleteDatasetById
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        204:
+          description: Success
+        403:
+          description: Forbidden
+        404:
+          description: Dataset not found
+        422:
+          description: Dataset ID is invalid
+      summary: Delete dataset by ID
+      tags:
+      - datasets
     get:
       operationId: getDatasetById
       parameters:
@@ -700,12 +720,11 @@ paths:
                         experiment_id:
                           description: The ID of the experiment
                           type: string
-                        experiment_run_output:
-                          description: The output of the experiment run
-                          type: object
                         id:
                           description: The ID of the experiment run
                           type: string
+                        output:
+                          description: The output of the experiment task
                         repetition_number:
                           description: The repetition number of the experiment run
                           type: integer
@@ -753,9 +772,8 @@ paths:
                     an error
                   nullable: true
                   type: string
-                experiment_run_output:
-                  description: The output of the experiment run
-                  type: object
+                output:
+                  description: The output of the experiment task
                 repetition_number:
                   description: The repetition number of the experiment run
                   type: integer

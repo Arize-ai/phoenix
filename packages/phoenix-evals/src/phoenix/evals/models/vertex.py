@@ -21,6 +21,46 @@ MODEL_TOKEN_LIMIT_MAPPING = {
 
 @dataclass
 class GeminiModel(BaseModel):
+    """
+    An interface for using Google's Gemini models.
+
+    This class wraps the Google's VertexAI SDK library for using the Gemini models for Phoenix
+    LLM evaluations. Calls to the the Gemini models dynamically throttled when encountering rate
+    limit errors. Requires the `vertexai` package to be installed.
+
+    Supports Async: ✅
+        If possible, makes LLM calls concurrently.
+
+    Args:
+        model (str, optional): The model name to use. Defaults to "gemini-pro".
+        temperature (float, optional): Sampling temperature to use. Defaults to 0.0.
+        max_tokens (int, optional): Maximum number of tokens to generate in the completion.
+            Defaults to 256.
+        top_p (float, optional): Total probability mass of tokens to consider at each step.
+            Defaults to 1.
+        top_k (int, optional): The cutoff where the model no longer selects the words.
+            Defaults to 32.
+        stop_sequences (List[str], optional): If the model encounters a stop sequence, it stops
+            generating further tokens. Defaults to an empty list.
+        project (str, optional): The default project to use when making API calls. Defaults to
+            None.
+        location (str, optional): The default location to use when making API calls. If not set
+            defaults to us-central-1. Defaults to None.
+        credentials (Optional[Credentials], optional): The credentials to use when making API
+            calls. Defaults to None.
+
+    Example:
+        .. code-block:: python
+
+            # Set up your environment
+            # https://cloud.google.com/vertex-ai/generative-ai/docs/start/quickstarts/quickstart-multimodal#local-shell
+
+            from phoenix.evals import GeminiModel
+            # if necessary, use the "project" kwarg to specify the project_id to use
+            # project_id = "your-project-id"
+            model = GeminiModel(model="gemini-pro", project=project_id)
+    """
+
     # The vertex SDK runs into connection pool limits at high concurrency
     project: Optional[str] = None
     "project (str): The default project to use when making API calls."

@@ -9,8 +9,8 @@ dependencies:
     specifier: ^1.4.2
     version: 1.4.2(@types/react@18.2.48)(eslint@8.57.0)(react-dom@18.2.0)(react@18.2.0)
   '@arizeai/openinference-semantic-conventions':
-    specifier: ^0.1.0
-    version: 0.1.0
+    specifier: ^0.8.0
+    version: 0.8.0
   '@arizeai/point-cloud':
     specifier: ^3.0.4
     version: 3.0.6(@react-three/drei@9.106.0)(@react-three/fiber@8.0.12)(react@18.2.0)(three-stdlib@2.30.3)(three@0.139.2)
@@ -273,8 +273,8 @@ packages:
       - supports-color
     dev: false
 
-  /@arizeai/openinference-semantic-conventions@0.1.0:
-    resolution: {integrity: sha512-4Z6KvYLwLpAr48uanUx5Hyjv1aDU8ENR14XxEnbhv83fglnQDE/v+C1WJooe4ByXQ7S0Ml8CwOt2I7+jWLjKEg==}
+  /@arizeai/openinference-semantic-conventions@0.8.0:
+    resolution: {integrity: sha512-+mRzrRe9DK8Ou+y3Bebqm6+1bThPtaV9hBDtaUsE6uRcv0jQu7QqEfmcJC3nZhatfdyy44QDpbHqnv/qkzmEyQ==}
     dev: false
 
   /@arizeai/point-cloud@3.0.6(@react-three/drei@9.106.0)(@react-three/fiber@8.0.12)(react@18.2.0)(three-stdlib@2.30.3)(three@0.139.2):

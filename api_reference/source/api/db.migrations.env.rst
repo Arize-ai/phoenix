@@ -1,7 +1,7 @@
-evals.models.base module
+db.migrations.env module
 ========================
 
-.. automodule:: evals.models.base
+.. automodule:: db.migrations.env
    :members:
    :undoc-members:
    :show-inheritance:

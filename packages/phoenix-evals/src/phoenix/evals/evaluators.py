@@ -59,25 +59,20 @@ class LLMEvaluator:
             record (Record): The record to evaluate.
 
             provide_explanation (bool, optional): Whether to provide an
-            explanation.
+                explanation.
 
             use_function_calling_if_available (bool, optional): If True, use
-            function calling (if available) as a means to constrain the LLM
-            outputs. With function calling, the LLM is instructed to provide its
-            response as a structured JSON object, which is easier to parse.
-
-            use_function_calling_if_available (bool, optional): If True, use
-            function calling (if available) as a means to constrain the LLM
-            outputs. With function calling, the LLM is instructed to provide its
-            response as a structured JSON object, which is easier to parse.
+                function calling (if available) as a means to constrain the LLM
+                outputs. With function calling, the LLM is instructed to provide its
+                response as a structured JSON object, which is easier to parse.
 
             verbose (bool, optional): Whether to print verbose output.
 
         Returns:
             Tuple[str, Optional[float], Optional[str]]: A tuple containing:
-            - label
-            - score (if scores for each label are specified by the template)
-            - explanation (if requested)
+                - label
+                - score (if scores for each label are specified by the template)
+                - explanation (if requested)
         """
         use_openai_function_call = (
             use_function_calling_if_available
@@ -120,20 +115,20 @@ class LLMEvaluator:
             record (Record): The record to evaluate.
 
             provide_explanation (bool, optional): Whether to provide an
-            explanation.
+                explanation.
 
             use_function_calling_if_available (bool, optional): If True, use
-            function calling (if available) as a means to constrain the LLM
-            outputs. With function calling, the LLM is instructed to provide its
-            response as a structured JSON object, which is easier to parse.
+                function calling (if available) as a means to constrain the LLM
+                outputs. With function calling, the LLM is instructed to provide its
+                response as a structured JSON object, which is easier to parse.
 
             verbose (bool, optional): Whether to print verbose output.
 
         Returns:
             Tuple[str, Optional[float], Optional[str]]: A tuple containing:
-            - label
-            - score (if scores for each label are specified by the template)
-            - explanation (if requested)
+                - label
+                - score (if scores for each label are specified by the template)
+                - explanation (if requested)
         """
         use_openai_function_call = (
             use_function_calling_if_available
@@ -295,13 +290,13 @@ class MapReducer:
             model (BaseEvalModel): The LLM model to use for evaluation.
 
             map_prompt_template (PromptTemplate): The template that is mapped
-            over each chunk to produce intermediate outputs. Must contain the
-            {chunk} placeholder.
+                over each chunk to produce intermediate outputs. Must contain the
+                {chunk} placeholder.
 
             reduce_prompt_template (PromptTemplate): The template that combines
-            the intermediate outputs into a single result. Must contain the
-            {mapped} placeholder, which will be formatted as a list of the
-            intermediate outputs produced by the map step.
+                the intermediate outputs into a single result. Must contain the
+                {mapped} placeholder, which will be formatted as a list of the
+                intermediate outputs produced by the map step.
         """
         self._model = model
         self._map_prompt_template = map_prompt_template
@@ -312,9 +307,9 @@ class MapReducer:
 
         Args:
             chunks (List[str]): A list of chunks to be evaluated. Each chunk is
-            inserted into the map_prompt_template and must therefore fit within
-            the LLM's context window and still leave room for the rest of the
-            prompt.
+                inserted into the map_prompt_template and must therefore fit within
+                the LLM's context window and still leave room for the rest of the
+                prompt.
 
         Returns:
             str: The output of the map-reduce process.
@@ -359,16 +354,16 @@ class Refiner:
             model (BaseEvalModel): The LLM model to use for evaluation.
 
             initial_prompt_template (PromptTemplate): The template for the
-            initial invocation of the model that will generate the initial
-            accumulator. Should contain the {chunk} placeholder.
+                initial invocation of the model that will generate the initial
+                accumulator. Should contain the {chunk} placeholder.
 
             refine_prompt_template (PromptTemplate): The template for refining
-            the accumulator across all subsequence chunks. Must contain the
-            {chunk} and {accumulator} placeholders.
+                the accumulator across all subsequence chunks. Must contain the
+                {chunk} and {accumulator} placeholders.
 
             synthesize_prompt_template (Optional[PromptTemplate], optional): An
-            optional template to synthesize the final version of the
-            accumulator. Must contain the {accumulator} placeholder.
+                optional template to synthesize the final version of the
+                accumulator. Must contain the {accumulator} placeholder.
         """
         self._model = model
         self._initial_prompt_template = initial_prompt_template
@@ -380,9 +375,9 @@ class Refiner:
 
         Args:
             chunks (List[str]): A list of chunks to be evaluated. Each chunk is
-            inserted into the initial_prompt_template and refine_prompt_template
-            and must therefore fit within the LLM's context window and still
-            leave room for the rest of the prompt.
+                inserted into the initial_prompt_template and refine_prompt_template
+                and must therefore fit within the LLM's context window and still
+                leave room for the rest of the prompt.
 
         Returns:
             str: The output of the refine process.
@@ -421,18 +416,18 @@ def _extract_label_and_explanation(
         unparsed_output (str): The raw output to be parsed.
 
         template (ClassificationTemplate): The template used to generate the
-        output.
+            output.
 
         provide_explanation (bool): Whether the output includes an explanation.
 
         use_openai_function_call (bool): Whether the output was generated using
-        function calling.
+            function calling.
 
         verbose (bool): If True, print verbose output to stdout.
 
     Returns:
         Tuple[str, Optional[str]]: A tuple containing the label and an
-        explanation (if one is provided).
+            explanation (if one is provided).
     """
     if not use_openai_function_call:
         if provide_explanation:

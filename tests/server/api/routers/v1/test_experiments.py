@@ -1,5 +1,7 @@
 import datetime
 
+import pytest
+from httpx import HTTPStatusError
 from strawberry.relay import GlobalID
 
 
@@ -38,7 +40,7 @@ async def test_experiments_api(test_client, simple_dataset):
     run_payload = {
         "dataset_example_id": str(dataset_examples[0]["id"]),
         "trace_id": "placeholder-id",
-        "experiment_run_output": {"task_output": "some LLM application output"},
+        "output": "some LLM application output",
         "repetition_number": 1,
         "start_time": datetime.datetime.now().isoformat(),
         "end_time": datetime.datetime.now().isoformat(),
@@ -120,3 +122,18 @@ async def test_reading_experiment_404s_with_missing_experiment(test_client):
     incorrect_experiment_gid = GlobalID("Experiment", "9000")
     response = await test_client.get(f"/v1/experiments/{incorrect_experiment_gid}")
     assert response.status_code == 404
+
+
+async def test_deleting_dataset_also_deletes_experiments(
+    test_client,
+    dataset_with_experiments_runs_and_evals,
+) -> None:
+    ds_url = f"v1/datasets/{GlobalID('Dataset', str(1))}"
+    exp_url = f"v1/experiments/{GlobalID('Experiment', str(1))}"
+    runs_url = f"{exp_url}/runs"
+    (await test_client.get(exp_url)).raise_for_status()
+    assert len((await test_client.get(runs_url)).json()["data"]) > 0
+    (await test_client.delete(ds_url)).raise_for_status()
+    assert len((await test_client.get(runs_url)).json()["data"]) == 0
+    with pytest.raises(HTTPStatusError):
+        (await test_client.get(exp_url)).raise_for_status()

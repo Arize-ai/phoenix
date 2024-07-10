@@ -1,7 +1,8 @@
-evals.classify module
-=====================
+evals.classify
+==============
 
 .. automodule:: evals.classify
-   :members:
-   :undoc-members:
+   :members: 
    :show-inheritance:
+   :exclude-members: ClassificationStatus, RunEvalsPayload
+   :no-undoc-members:

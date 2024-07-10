@@ -1,5 +1,73 @@
 # Changelog
 
+## [4.8.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.8.0...arize-phoenix-v4.8.1) (2024-07-09)
+
+
+### Bug Fixes
+
+* span json decoder for event lists ([#3867](https://github.com/Arize-ai/phoenix/issues/3867)) ([066895b](https://github.com/Arize-ai/phoenix/commit/066895bce615ee14e81cfa7dd541416bf1f2b7d1))
+
+
+### Documentation
+
+* api ref clean up ([a5d87cc](https://github.com/Arize-ai/phoenix/commit/a5d87cc7b88647baa728125c58b7e9cbb8157ad7))
+* updated index for api reference ([9646ee3](https://github.com/Arize-ai/phoenix/commit/9646ee37f46d20310c597e4af07544f9c879c34f))
+
+## [4.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.7.2...arize-phoenix-v4.8.0) (2024-07-08)
+
+
+### Features
+
+* **experiments:** REST endpoint to delete dataset ([#3853](https://github.com/Arize-ai/phoenix/issues/3853)) ([3c7ede2](https://github.com/Arize-ai/phoenix/commit/3c7ede2de998d1f6a707cea8955620f6c5ae73ad))
+
+## [4.7.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.7.1...arize-phoenix-v4.7.2) (2024-07-08)
+
+
+### Bug Fixes
+
+* **experiments:** do client.post in thread ([#3846](https://github.com/Arize-ai/phoenix/issues/3846)) ([8db5bdc](https://github.com/Arize-ai/phoenix/commit/8db5bdc9d3feb6919767a67374d4d8b6fcbf35bf))
+* make projects page scrollable ([#3756](https://github.com/Arize-ai/phoenix/issues/3756)) ([56f1374](https://github.com/Arize-ai/phoenix/commit/56f13742a7c579ded451fd00db01ac9b9deefc68))
+
+## [4.7.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.7.0...arize-phoenix-v4.7.1) (2024-07-04)
+
+
+### Bug Fixes
+
+* ensure experiment errors messages work on python 3.8 and 3.9 ([#3841](https://github.com/Arize-ai/phoenix/issues/3841)) ([2595cfb](https://github.com/Arize-ai/phoenix/commit/2595cfb4fda91887c3e18fb6d680efdf852362e0))
+
+## [4.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.6.3...arize-phoenix-v4.7.0) (2024-07-03)
+
+
+### Features
+
+* **image:** add image rendering on messages ([#3832](https://github.com/Arize-ai/phoenix/issues/3832)) ([f219523](https://github.com/Arize-ai/phoenix/commit/f219523d79cd2aa112dcfa39935f98293ce889a1))
+
+
+### Bug Fixes
+
+* allow invocations of OpenAIModel without api key ([#3820](https://github.com/Arize-ai/phoenix/issues/3820)) ([4dd8c0e](https://github.com/Arize-ai/phoenix/commit/4dd8c0e15308971fe42c5fd11f04f80b18c55746))
+
+## [4.6.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.6.2...arize-phoenix-v4.6.3) (2024-07-03)
+
+
+### Bug Fixes
+
+* **UI:** explanation overflow ([#3818](https://github.com/Arize-ai/phoenix/issues/3818)) ([7356c8a](https://github.com/Arize-ai/phoenix/commit/7356c8a6c9eab5eab15c893f672f7d213dbe84a3))
+
+## [4.6.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.6.1...arize-phoenix-v4.6.2) (2024-07-02)
+
+
+### Bug Fixes
+
+* **experiments:** order annotations by name to make output deterministic ([#3806](https://github.com/Arize-ai/phoenix/issues/3806)) ([256035f](https://github.com/Arize-ai/phoenix/commit/256035f9c403e21d9c3551c7eaa5ae801941b629))
+
+## [4.6.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.6.0...arize-phoenix-v4.6.1) (2024-07-02)
+
+
+### Documentation
+
+* txt2sql ([4322b7d](https://github.com/Arize-ai/phoenix/commit/4322b7db04b951a70f1aa31f2ac97089394d4a4b))
+
 ## [4.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.5.0...arize-phoenix-v4.6.0) (2024-07-02)
 
 

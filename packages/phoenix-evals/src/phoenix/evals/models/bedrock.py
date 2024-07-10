@@ -14,26 +14,56 @@ MINIMUM_BOTO_VERSION = "1.28.58"
 
 @dataclass
 class BedrockModel(BaseModel):
+    """
+    An interface for using LLM models via AWS Bedrock.
+
+    This class wraps the boto3 Bedrock client for use with Phoenix LLM evaluations. Calls to the
+    AWS API are dynamically throttled when encountering rate limit errors. Requires the `boto3`
+    package to be installed.
+
+    Supports Async: ❌
+        `boto3` does not support async calls
+
+    Args:
+        model_id (str): The model name to use.
+        temperature (float, optional): Sampling temperature to use. Defaults to 0.0.
+        max_tokens (int, optional): Maximum number of tokens to generate in the completion.
+            Defaults to 256.
+        top_p (float, optional): Total probability mass of tokens to consider at each step.
+            Defaults to 1.
+        top_k (int, optional): The cutoff where the model no longer selects the words.
+            Defaults to 256.
+        stop_sequences (List[str], optional): If the model encounters a stop sequence, it stops
+            generating further tokens. Defaults to an empty list.
+        session (Any, optional): A bedrock session. If provided, a new bedrock client will be
+            created using this session. Defaults to None.
+        client (Any, optional): The bedrock session client. If unset, a new one is created with
+            boto3. Defaults to None.
+        max_content_size (Optional[int], optional): If using a fine-tuned model, set this to the
+            maximum content size. Defaults to None.
+        extra_parameters (Dict[str, Any], optional): Any extra parameters to add to the request
+            body (e.g., countPenalty for a21 models). Defaults to an empty dictionary.
+
+    Example:
+        .. code-block:: python
+
+            # configure your AWS credentials using the AWS CLI
+            # https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html
+
+            from phoenix.evals import BedrockModel
+            model = BedrockModel(model_id="anthropic.claude-v2")
+    """
+
     model_id: str = "anthropic.claude-v2"
-    """The model name to use."""
     temperature: float = 0.0
-    """What sampling temperature to use."""
     max_tokens: int = 256
-    """The maximum number of tokens to generate in the completion."""
     top_p: float = 1
-    """Total probability mass of tokens to consider at each step."""
     top_k: int = 256
-    """The cutoff where the model no longer selects the words"""
     stop_sequences: List[str] = field(default_factory=list)
-    """If the model encounters a stop sequence, it stops generating further tokens."""
     session: Any = None
-    """A bedrock session. If provided, a new bedrock client will be created using this session."""
     client: Any = None
-    """The bedrock session client. If unset, a new one is created with boto3."""
     max_content_size: Optional[int] = None
-    """If you're using a fine-tuned model, set this to the maximum content size"""
     extra_parameters: Dict[str, Any] = field(default_factory=dict)
-    """Any extra parameters to add to the request body (e.g., countPenalty for a21 models)"""
 
     def __post_init__(self) -> None:
         self._init_client()

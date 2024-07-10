@@ -1,7 +1,7 @@
-inferences.fixtures module
+db.migrations.types module
 ==========================
 
-.. automodule:: inferences.fixtures
+.. automodule:: db.migrations.types
    :members:
    :undoc-members:
    :show-inheritance:

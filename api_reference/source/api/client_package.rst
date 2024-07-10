@@ -1,9 +1,12 @@
-session package
+client package
 ===============
+
+To import Client, use::
+
+   from phoenix import Client
 
 .. automodule:: session
    :members:
-   :undoc-members:
    :show-inheritance:
 
 Submodules
@@ -12,7 +15,4 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
-   session.client
-   session.data_extractor
-   session.evaluation
-   session.session
+   client

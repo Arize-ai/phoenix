@@ -1,7 +1,8 @@
-evals.evaluators module
-=======================
+evals.evaluators
+================
 
 .. automodule:: evals.evaluators
    :members:
-   :undoc-members:
    :show-inheritance:
+   :exclude-members: MapReducer, Refiner
+   :no-undoc-members:

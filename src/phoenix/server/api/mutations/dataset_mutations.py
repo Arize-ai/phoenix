@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 from typing import Any, Dict
 
@@ -10,6 +11,7 @@ from strawberry import UNSET
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.db.helpers import get_eval_trace_ids_for_datasets, get_project_names_for_datasets
 from phoenix.server.api.context import Context
 from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
@@ -30,6 +32,7 @@ from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
+from phoenix.server.api.utils import delete_projects, delete_traces
 
 
 @strawberry.type
@@ -274,21 +277,28 @@ class DatasetMutationMixin:
         info: Info[Context, None],
         input: DeleteDatasetInput,
     ) -> DatasetMutationPayload:
-        dataset_id = input.dataset_id
-        dataset_rowid = from_global_id_with_expected_type(
-            global_id=dataset_id, expected_type_name=Dataset.__name__
-        )
-
-        async with info.context.db() as session:
-            delete_result = await session.execute(
-                delete(models.Dataset)
-                .where(models.Dataset.id == dataset_rowid)
-                .returning(models.Dataset)
+        try:
+            dataset_id = from_global_id_with_expected_type(
+                global_id=input.dataset_id,
+                expected_type_name=Dataset.__name__,
             )
-            if not (datasets := delete_result.first()):
-                raise ValueError(f"Unknown dataset: {dataset_id}")
-
-        dataset = datasets[0]
+        except ValueError:
+            raise ValueError(f"Unknown dataset: {input.dataset_id}")
+        project_names_stmt = get_project_names_for_datasets(dataset_id)
+        eval_trace_ids_stmt = get_eval_trace_ids_for_datasets(dataset_id)
+        stmt = (
+            delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset)
+        )
+        async with info.context.db() as session:
+            project_names = await session.scalars(project_names_stmt)
+            eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
+            if not (dataset := await session.scalar(stmt)):
+                raise ValueError(f"Unknown dataset: {input.dataset_id}")
+        await asyncio.gather(
+            delete_projects(info.context.db, *project_names),
+            delete_traces(info.context.db, *eval_trace_ids),
+            return_exceptions=True,
+        )
         return DatasetMutationPayload(dataset=to_gql_dataset(dataset))
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore

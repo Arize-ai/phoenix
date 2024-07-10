@@ -8,6 +8,7 @@ from typing import Tuple
 import pandas as pd
 import pyarrow as pa
 import pytest
+from httpx import HTTPStatusError
 from pandas.testing import assert_frame_equal
 from phoenix.db import models
 from phoenix.server.api.types.Dataset import Dataset
@@ -536,3 +537,12 @@ async def test_post_dataset_upload_pyarrow_create_then_append(test_client, sessi
     assert revisions[1].input == {"a": 11, "b": 22, "c": 33}
     assert revisions[1].output == {"b": 22, "c": 33, "d": 44}
     assert revisions[1].metadata_ == {"c": 33, "d": 44, "e": 55}
+
+
+async def test_delete_dataset(test_client, empty_dataset) -> None:
+    url = f"v1/datasets/{GlobalID(Dataset.__name__, str(1))}"
+    assert len((await test_client.get("v1/datasets")).json()["data"]) > 0
+    (await test_client.delete(url)).raise_for_status()
+    assert len((await test_client.get("v1/datasets")).json()["data"]) == 0
+    with pytest.raises(HTTPStatusError):
+        (await test_client.delete(url)).raise_for_status()
