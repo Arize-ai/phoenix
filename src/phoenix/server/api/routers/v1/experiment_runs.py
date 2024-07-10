@@ -14,7 +14,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 router = APIRouter(include_in_schema=False)
 
 
-@router.post("/{experiment_id}/runs")
+@router.post("/experiments/{experiment_id}/runs")
 async def create_experiment_run(request: Request) -> Response:
     """
     summary: Create a new experiment run for a specific experiment
@@ -126,7 +126,7 @@ async def create_experiment_run(request: Request) -> Response:
     return JSONResponse(content={"data": {"id": str(run_gid)}})
 
 
-@router.get("/{experiment_id}/runs")
+@router.get("/experiments/{experiment_id}/runs")
 async def list_experiment_runs(request: Request) -> Response:
     """
     summary: List all runs for a specific experiment

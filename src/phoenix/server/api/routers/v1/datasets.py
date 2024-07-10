@@ -58,20 +58,15 @@ from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_projects, delete_traces
 
-from .dataset_examples import router as examples_router
-from .experiments import dataset_experiments_router
-
 logger = logging.getLogger(__name__)
 
 NODE_NAME = "Dataset"
 
 
-router = APIRouter(prefix="/datasets", tags=["datasets"])
-router.include_router(examples_router)
-router.include_router(dataset_experiments_router)
+router = APIRouter(tags=["datasets"])
 
 
-@router.get("")
+@router.get("/datasets")
 async def list_datasets(request: Request) -> Response:
     """
     summary: List datasets with cursor-based pagination
@@ -177,7 +172,7 @@ async def list_datasets(request: Request) -> Response:
         return JSONResponse(content={"next_cursor": next_cursor, "data": data})
 
 
-@router.delete("/{id}")
+@router.delete("/datasets/{id}")
 async def delete_dataset(request: Request) -> Response:
     """
     summary: Delete dataset by ID
@@ -232,7 +227,7 @@ async def delete_dataset(request: Request) -> Response:
     return Response(status_code=HTTP_204_NO_CONTENT, background=tasks)
 
 
-@router.get("/{id}")
+@router.get("/datasets/{id}")
 async def get_dataset(request: Request) -> Response:
     """
     summary: Get dataset by ID
@@ -306,7 +301,7 @@ async def get_dataset(request: Request) -> Response:
         return JSONResponse(content={"data": output_dict})
 
 
-@router.get("/{id}/versions")
+@router.get("/datasets/{id}/versions")
 async def get_dataset_versions(request: Request) -> Response:
     """
     summary: Get dataset versions (sorted from latest to oldest)
@@ -421,7 +416,7 @@ async def get_dataset_versions(request: Request) -> Response:
     return JSONResponse(content={"next_cursor": next_cursor, "data": data})
 
 
-@router.post("/upload")
+@router.post("/datasets/upload")
 async def upload_dataset(request: Request) -> Response:
     """
     summary: Upload dataset as either JSON or file (CSV or PyArrow)
@@ -771,7 +766,7 @@ async def _parse_form_data(
     )
 
 
-@router.get("/{id}/csv")
+@router.get("/datasets/{id}/csv")
 async def get_dataset_csv(request: Request) -> Response:
     """
     summary: Download dataset examples as CSV text file
@@ -821,7 +816,7 @@ async def get_dataset_csv(request: Request) -> Response:
     )
 
 
-@router.get("/{id}/jsonl/openai_ft")
+@router.get("/datasets/{id}/jsonl/openai_ft")
 async def get_dataset_jsonl_openai_ft(request: Request) -> Response:
     """
     summary: Download dataset examples as OpenAI Fine-Tuning JSONL file
@@ -871,7 +866,7 @@ async def get_dataset_jsonl_openai_ft(request: Request) -> Response:
     )
 
 
-@router.get("/{id}/jsonl/openai_evals")
+@router.get("/datasets/{id}/jsonl/openai_evals")
 async def get_dataset_jsonl_openai_evals(request: Request) -> Response:
     """
     summary: Download dataset examples as OpenAI Evals JSONL file

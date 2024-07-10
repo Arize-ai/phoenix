@@ -13,11 +13,11 @@ from phoenix.trace.dsl import SpanQuery
 
 DEFAULT_SPAN_LIMIT = 1000
 
-router = APIRouter(prefix="/spans", include_in_schema=False)
+router = APIRouter(include_in_schema=False)
 
 
 # TODO: Add property details to SpanQuery schema
-@router.post("")
+@router.post("/spans")
 async def query_spans_handler(request: Request) -> Response:
     """
     summary: Query spans using query DSL
@@ -130,6 +130,6 @@ async def query_spans_handler(request: Request) -> Response:
     )
 
 
-@router.get("")
+@router.get("/spans")
 async def get_spans_handler(request: Request) -> Response:
     return await query_spans_handler(request)

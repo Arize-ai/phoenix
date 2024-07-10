@@ -7,10 +7,10 @@ from strawberry.relay import GlobalID
 
 from phoenix.db.models import Dataset, DatasetExample, DatasetExampleRevision, DatasetVersion
 
-router = APIRouter()
+router = APIRouter(tags=["datasets"])
 
 
-@router.get("/{id}/examples")
+@router.get("/datasets/{id}/examples")
 async def list_dataset_examples(request: Request) -> Response:
     """
     summary: Get dataset examples by dataset ID
