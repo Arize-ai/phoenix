@@ -88,14 +88,6 @@ components:
       - example_count
       title: DatasetWithExampleCount
       type: object
-    HTTPExceptionResponse:
-      properties:
-        detail:
-          title: Detail
-      required:
-      - detail
-      title: HTTPExceptionResponse
-      type: object
     HTTPValidationError:
       properties:
         detail:
@@ -216,10 +208,6 @@ paths:
                 $ref: '#/components/schemas/PaginatedResponseWithData_Dataset_'
           description: Successful Response
         '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unprocessable Entity
       summary: Returns paginated lists of datasets.
       tags:
@@ -278,16 +266,8 @@ paths:
         '204':
           description: Successful Response
         '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
         '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unprocessable Entity
       summary: Delete dataset by ID
       tags:
@@ -311,10 +291,6 @@ paths:
                 $ref: '#/components/schemas/ResponseWithData_DatasetWithExampleCount_'
           description: Successful Response
         '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
         '422':
           content:
@@ -327,24 +303,37 @@ paths:
       - datasets
   /v1/datasets/{id}/csv:
     get:
-      description: "summary: Download dataset examples as CSV text file\noperationId:\
-        \ getDatasetCsv\ntags:\n  - datasets\nparameters:\n  - in: path\n    name:\
-        \ id\n    required: true\n    schema:\n      type: string\n    description:\
-        \ Dataset ID\n  - in: query\n    name: version_id\n    schema:\n      type:\
-        \ string\n    description: Dataset version ID. If omitted, returns the latest\
-        \ version.\nresponses:\n  200:\n    description: Success\n    content:\n \
-        \     text/csv:\n        schema:\n          type: string\n          contentMediaType:\
-        \ text/csv\n          contentEncoding: gzip\n  403:\n    description: Forbidden\n\
-        \  404:\n    description: Dataset does not exist.\n  422:\n    description:\
-        \ Dataset ID or version ID is invalid."
-      operationId: get_dataset_csv_v1_datasets__id__csv_get
+      operationId: getDatasetCsv
+      parameters:
+      - description: The ID of the dataset.
+        in: path
+        name: id
+        required: true
+        schema:
+          description: The ID of the dataset.
+          title: Id
+          type: string
+      - description: If provided, returns the data as of the specified version.
+        in: query
+        name: version_id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: If provided, returns the data as of the specified version.
+          title: Version Id
       responses:
         '200':
           content:
-            application/json:
-              schema: {}
+            text/csv:
+              schema:
+                contentMediaType: text/csv
+                type: string
           description: Successful Response
-      summary: Get Dataset Csv
+        '422':
+          description: Unprocessable Entity
+      summary: Download dataset examples as CSV text file
       tags:
       - datasets
   /v1/datasets/{id}/examples:
@@ -390,67 +379,74 @@ paths:
       - datasets
   /v1/datasets/{id}/jsonl/openai_evals:
     get:
-      description: "summary: Download dataset examples as OpenAI Evals JSONL file\n\
-        operationId: getDatasetJSONLOpenAIEvals\ntags:\n  - datasets\nparameters:\n\
-        \  - in: path\n    name: id\n    required: true\n    schema:\n      type:\
-        \ string\n    description: Dataset ID\n  - in: query\n    name: version_id\n\
-        \    schema:\n      type: string\n    description: Dataset version ID. If\
-        \ omitted, returns the latest version.\nresponses:\n  200:\n    description:\
-        \ Success\n    content:\n      text/plain:\n        schema:\n          type:\
-        \ string\n          contentMediaType: text/plain\n          contentEncoding:\
-        \ gzip\n  403:\n    description: Forbidden\n  404:\n    description: Dataset\
-        \ does not exist.\n  422:\n    description: Dataset ID or version ID is invalid."
-      operationId: get_dataset_jsonl_openai_evals_v1_datasets__id__jsonl_openai_evals_get
+      operationId: getDatasetJSONLOpenAIEvals
+      parameters:
+      - description: The ID of the dataset.
+        in: path
+        name: id
+        required: true
+        schema:
+          description: The ID of the dataset.
+          title: Id
+          type: string
+      - description: If provided, returns the data as of the specified version.
+        in: query
+        name: version_id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: If provided, returns the data as of the specified version.
+          title: Version Id
       responses:
         '200':
           content:
-            application/json:
-              schema: {}
+            text/plain:
+              schema:
+                type: string
           description: Successful Response
-      summary: Get Dataset Jsonl Openai Evals
+        '422':
+          description: Unprocessable Entity
+      summary: Download dataset examples as OpenAI Evals JSONL file.
       tags:
       - datasets
   /v1/datasets/{id}/jsonl/openai_ft:
     get:
-      description: "summary: Download dataset examples as OpenAI Fine-Tuning JSONL\
-        \ file\noperationId: getDatasetJSONLOpenAIFineTuning\ntags:\n  - datasets\n\
-        parameters:\n  - in: path\n    name: id\n    required: true\n    schema:\n\
-        \      type: string\n    description: Dataset ID\n  - in: query\n    name:\
-        \ version_id\n    schema:\n      type: string\n    description: Dataset version\
-        \ ID. If omitted, returns the latest version.\nresponses:\n  200:\n    description:\
-        \ Success\n    content:\n      text/plain:\n        schema:\n          type:\
-        \ string\n          contentMediaType: text/plain\n          contentEncoding:\
-        \ gzip\n  403:\n    description: Forbidden\n  404:\n    description: Dataset\
-        \ does not exist.\n  422:\n    description: Dataset ID or version ID is invalid."
-      operationId: get_dataset_jsonl_openai_ft_v1_datasets__id__jsonl_openai_ft_get
+      operationId: getDatasetJSONLOpenAIFineTuning
+      parameters:
+      - description: The ID of the dataset.
+        in: path
+        name: id
+        required: true
+        schema:
+          description: The ID of the dataset.
+          title: Id
+          type: string
+      - description: If provided, returns the data as of the specified version.
+        in: query
+        name: version_id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: If provided, returns the data as of the specified version.
+          title: Version Id
       responses:
         '200':
           content:
-            application/json:
-              schema: {}
+            text/plain:
+              schema:
+                type: string
           description: Successful Response
-      summary: Get Dataset Jsonl Openai Ft
+        '422':
+          description: Unprocessable Entity
+      summary: Download dataset examples as an OpenAI fine-tuning JSONL file.
       tags:
       - datasets
   /v1/datasets/{id}/versions:
     get:
-      description: "summary: Get dataset versions (sorted from latest to oldest)\n\
-        operationId: getDatasetVersionsByDatasetId\ntags:\n  - datasets\nparameters:\n\
-        \  - in: path\n    name: id\n    required: true\n    description: Dataset\
-        \ ID\n    schema:\n      type: string\n  - in: query\n    name: cursor\n \
-        \   description: Cursor for pagination.\n    schema:\n      type: string\n\
-        \  - in: query\n    name: limit\n    description: Maximum number versions\
-        \ to return.\n    schema:\n      type: integer\n      default: 10\nresponses:\n\
-        \  200:\n    description: Success\n    content:\n      application/json:\n\
-        \        schema:\n          type: object\n          properties:\n        \
-        \    next_cursor:\n              type: string\n            data:\n       \
-        \       type: array\n              items:\n                type: object\n\
-        \                properties:\n                  version_id:\n            \
-        \        type: string\n                  description:\n                  \
-        \  type: string\n                  metadata:\n                    type: object\n\
-        \                  created_at:\n                    type: string\n       \
-        \             format: date-time\n  403:\n    description: Forbidden\n  422:\n\
-        \    description: Dataset ID, cursor or limit is invalid."
       operationId: getDatasetVersionsByDatasetId
       parameters:
       - description: The ID of the dataset.
@@ -491,10 +487,6 @@ paths:
                 $ref: '#/components/schemas/PaginatedResponseWithData_DatasetVersion_'
           description: Successful Response
         '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unprocessable Entity
       summary: Gets dataset versions (sorted from latest to oldest).
       tags:

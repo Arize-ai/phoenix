@@ -20,6 +20,7 @@ from typing import (
 
 import strawberry
 from fastapi import APIRouter, FastAPI
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -445,6 +446,7 @@ def create_app(
     app.include_router(v1_router)
     app.include_router(router)
     app.include_router(graphql_router)
+    app.add_middleware(GZipMiddleware)
     if serve_ui:
         app.mount(
             "/",

@@ -39,26 +39,49 @@ class PaginatedResponseWithData(Generic[DataType]):
     next_cursor: Optional[str]
 
 
-def responses_for_http_exceptions(
-    status_codes: List[Union[StatusCode, StatusCodeWithDescription]],
+def add_errors_to_responses(
+    errors: List[Union[StatusCode, StatusCodeWithDescription]],
+    /,
+    *,
+    responses: Optional[Responses] = None,
 ) -> Responses:
     """
-    The output of this function can be passed to the `responses` parameter of a
-    fastapi route to include status codes raised in a fastapi.HTTPException in
+    Creates or updates a patch for an OpenAPI schema's `responses` section to
+    include status codes in the generated OpenAPI schema.
+    """
+    output_responses: Responses = responses or {}
+    for error in errors:
+        status_code: int
+        description: Optional[str] = None
+        if isinstance(error, StatusCode):
+            status_code = error
+        elif isinstance(error, dict):
+            status_code = error["status_code"]
+            description = error["description"]
+        else:
+            assert_never(error)
+        if status_code not in output_responses:
+            output_responses[status_code] = {}
+        if description:
+            output_responses[status_code]["description"] = description
+    return output_responses
+
+
+def add_text_csv_content_to_responses(
+    status_code: StatusCode, /, *, responses: Optional[Responses] = None
+) -> Responses:
+    """
+    Creates or updates a patch for an OpenAPI schema's `responses` section to
+    ensure that the response for the given status code is marked as text/csv in
     the generated OpenAPI schema.
     """
-    responses: Responses = {}
-    for status_code in status_codes:
-        if isinstance(status_code, StatusCode):
-            responses[status_code] = {"model": HTTPExceptionResponse}
-        elif isinstance(status_code, dict):
-            responses[status_code["status_code"]] = {
-                "model": HTTPExceptionResponse,
-                "description": status_code["description"],
-            }
-        else:
-            assert_never(status_code)
-    return responses
+    output_responses: Responses = responses or {}
+    if status_code not in output_responses:
+        output_responses[status_code] = {}
+    output_responses[status_code]["content"] = {
+        "text/csv": {"schema": {"type": "string", "contentMediaType": "text/csv"}}
+    }
+    return output_responses
 
 
 @dataclass

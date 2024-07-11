@@ -30,6 +30,7 @@ from typing import (
 import pandas as pd
 import pyarrow as pa
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Path, Query
+from fastapi.responses import PlainTextResponse, StreamingResponse
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
@@ -37,6 +38,7 @@ from starlette.datastructures import FormData, UploadFile
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.status import (
+    HTTP_200_OK,
     HTTP_204_NO_CONTENT,
     HTTP_404_NOT_FOUND,
     HTTP_409_CONFLICT,
@@ -60,7 +62,12 @@ from phoenix.server.api.types.DatasetVersion import DatasetVersion as DatasetVer
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_projects, delete_traces
 
-from .utils import PaginatedResponseWithData, ResponseWithData, responses_for_http_exceptions
+from .utils import (
+    PaginatedResponseWithData,
+    ResponseWithData,
+    add_errors_to_responses,
+    add_text_csv_content_to_responses,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +92,7 @@ class Dataset:
     "/datasets",
     operation_id="listDatasets",
     summary="Returns paginated lists of datasets.",
-    responses=responses_for_http_exceptions([HTTP_422_UNPROCESSABLE_ENTITY]),
+    responses=add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY]),
 )
 async def list_datasets(
     request: Request,
@@ -147,7 +154,7 @@ async def list_datasets(
     operation_id="deleteDatasetById",
     summary="Delete dataset by ID",
     status_code=HTTP_204_NO_CONTENT,
-    responses=responses_for_http_exceptions([HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY]),
+    responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY]),
 )
 async def delete_dataset(
     request: Request, id: str = Path(description="The ID of the dataset to delete.")
@@ -188,7 +195,7 @@ class DatasetWithExampleCount(Dataset):
     "/datasets/{id}",
     operation_id="getDatasetById",
     summary="Gets a dataset by ID.",
-    responses=responses_for_http_exceptions([HTTP_404_NOT_FOUND]),
+    responses=add_errors_to_responses([HTTP_404_NOT_FOUND]),
 )
 async def get_dataset(
     request: Request, id: str = Path(description="The ID of the dataset.")
@@ -237,7 +244,7 @@ class DatasetVersion:
     "/datasets/{id}/versions",
     operation_id="getDatasetVersionsByDatasetId",
     summary="Gets dataset versions (sorted from latest to oldest).",
-    responses=responses_for_http_exceptions([HTTP_422_UNPROCESSABLE_ENTITY]),
+    responses=add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY]),
 )
 async def get_dataset_versions(
     request: Request,
@@ -652,154 +659,97 @@ async def _parse_form_data(
     )
 
 
-@router.get("/datasets/{id}/csv")
-async def get_dataset_csv(request: Request) -> Response:
-    """
-    summary: Download dataset examples as CSV text file
-    operationId: getDatasetCsv
-    tags:
-      - datasets
-    parameters:
-      - in: path
-        name: id
-        required: true
-        schema:
-          type: string
-        description: Dataset ID
-      - in: query
-        name: version_id
-        schema:
-          type: string
-        description: Dataset version ID. If omitted, returns the latest version.
-    responses:
-      200:
-        description: Success
-        content:
-          text/csv:
-            schema:
-              type: string
-              contentMediaType: text/csv
-              contentEncoding: gzip
-      403:
-        description: Forbidden
-      404:
-        description: Dataset does not exist.
-      422:
-        description: Dataset ID or version ID is invalid.
-    """
+@router.get(
+    "/datasets/{id}/csv",
+    operation_id="getDatasetCsv",
+    summary="Download dataset examples as CSV text file",
+    response_class=StreamingResponse,
+    status_code=HTTP_200_OK,
+    responses={
+        **add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY]),
+        **add_text_csv_content_to_responses(HTTP_200_OK),
+    },
+)
+async def get_dataset_csv(
+    request: Request,
+    response: Response,
+    id: str = Path(description="The ID of the dataset."),
+    version_id: Optional[str] = Query(
+        default=None,
+        description="If provided, returns the data as of the specified version.",
+    ),
+) -> bytes:
     try:
-        dataset_name, examples = await _get_db_examples(request)
+        async with request.app.state.db() as session:
+            dataset_name, examples = await _get_db_examples(
+                session=session, id=id, version_id=version_id
+            )
     except ValueError as e:
-        return Response(content=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
+        raise HTTPException(detail=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
     content = await run_in_threadpool(_get_content_csv, examples)
-    return Response(
-        content=content,
-        headers={
+    response.headers.update(
+        {
             "content-disposition": f'attachment; filename="{dataset_name}.csv"',
             "content-type": "text/csv",
-            "content-encoding": "gzip",
-        },
+        }
     )
+    return content
 
 
-@router.get("/datasets/{id}/jsonl/openai_ft")
-async def get_dataset_jsonl_openai_ft(request: Request) -> Response:
-    """
-    summary: Download dataset examples as OpenAI Fine-Tuning JSONL file
-    operationId: getDatasetJSONLOpenAIFineTuning
-    tags:
-      - datasets
-    parameters:
-      - in: path
-        name: id
-        required: true
-        schema:
-          type: string
-        description: Dataset ID
-      - in: query
-        name: version_id
-        schema:
-          type: string
-        description: Dataset version ID. If omitted, returns the latest version.
-    responses:
-      200:
-        description: Success
-        content:
-          text/plain:
-            schema:
-              type: string
-              contentMediaType: text/plain
-              contentEncoding: gzip
-      403:
-        description: Forbidden
-      404:
-        description: Dataset does not exist.
-      422:
-        description: Dataset ID or version ID is invalid.
-    """
+@router.get(
+    "/datasets/{id}/jsonl/openai_ft",
+    operation_id="getDatasetJSONLOpenAIFineTuning",
+    summary="Download dataset examples as an OpenAI fine-tuning JSONL file.",
+    response_class=PlainTextResponse,
+    responses=add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY]),
+)
+async def get_dataset_jsonl_openai_ft(
+    request: Request,
+    response: Response,
+    id: str = Path(description="The ID of the dataset."),
+    version_id: Optional[str] = Query(
+        default=None,
+        description="If provided, returns the data as of the specified version.",
+    ),
+) -> bytes:
     try:
-        dataset_name, examples = await _get_db_examples(request)
+        async with request.app.state.db() as session:
+            dataset_name, examples = await _get_db_examples(
+                session=session, id=id, version_id=version_id
+            )
     except ValueError as e:
-        return Response(content=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
+        raise HTTPException(detail=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
     content = await run_in_threadpool(_get_content_jsonl_openai_ft, examples)
-    return Response(
-        content=content,
-        headers={
-            "content-disposition": f'attachment; filename="{dataset_name}.jsonl"',
-            "content-type": "text/plain",
-            "content-encoding": "gzip",
-        },
-    )
+    response.headers["content-disposition"] = f'attachment; filename="{dataset_name}.jsonl"'
+    return content
 
 
-@router.get("/datasets/{id}/jsonl/openai_evals")
-async def get_dataset_jsonl_openai_evals(request: Request) -> Response:
-    """
-    summary: Download dataset examples as OpenAI Evals JSONL file
-    operationId: getDatasetJSONLOpenAIEvals
-    tags:
-      - datasets
-    parameters:
-      - in: path
-        name: id
-        required: true
-        schema:
-          type: string
-        description: Dataset ID
-      - in: query
-        name: version_id
-        schema:
-          type: string
-        description: Dataset version ID. If omitted, returns the latest version.
-    responses:
-      200:
-        description: Success
-        content:
-          text/plain:
-            schema:
-              type: string
-              contentMediaType: text/plain
-              contentEncoding: gzip
-      403:
-        description: Forbidden
-      404:
-        description: Dataset does not exist.
-      422:
-        description: Dataset ID or version ID is invalid.
-    """
+@router.get(
+    "/datasets/{id}/jsonl/openai_evals",
+    operation_id="getDatasetJSONLOpenAIEvals",
+    summary="Download dataset examples as OpenAI Evals JSONL file.",
+    response_class=PlainTextResponse,
+    responses=add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY]),
+)
+async def get_dataset_jsonl_openai_evals(
+    request: Request,
+    response: Response,
+    id: str = Path(description="The ID of the dataset."),
+    version_id: Optional[str] = Query(
+        default=None,
+        description="If provided, returns the data as of the specified version.",
+    ),
+) -> bytes:
     try:
-        dataset_name, examples = await _get_db_examples(request)
+        async with request.app.state.db() as session:
+            dataset_name, examples = await _get_db_examples(
+                session=session, id=id, version_id=version_id
+            )
     except ValueError as e:
-        return Response(content=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
+        raise HTTPException(detail=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
     content = await run_in_threadpool(_get_content_jsonl_openai_evals, examples)
-    return Response(
-        content=content,
-        headers={
-            "content-disposition": f'attachment; filename="{dataset_name}.jsonl"',
-            "content-type": "text/plain",
-            "content-encoding": "gzip",
-        },
-    )
+    response.headers["content-disposition"] = f'attachment; filename="{dataset_name}.jsonl"'
+    return content
 
 
 def _get_content_csv(examples: List[models.DatasetExampleRevision]) -> bytes:
@@ -815,7 +765,7 @@ def _get_content_csv(examples: List[models.DatasetExampleRevision]) -> bytes:
         }
         for ex in examples
     ]
-    return gzip.compress(pd.DataFrame.from_records(records).to_csv(index=False).encode())
+    return pd.DataFrame.from_records(records).to_csv(index=False).encode()
 
 
 def _get_content_jsonl_openai_ft(examples: List[models.DatasetExampleRevision]) -> bytes:
@@ -836,7 +786,7 @@ def _get_content_jsonl_openai_ft(examples: List[models.DatasetExampleRevision]) 
             ).encode()
         )
     records.seek(0)
-    return gzip.compress(records.read())
+    return records.read()
 
 
 def _get_content_jsonl_openai_evals(examples: List[models.DatasetExampleRevision]) -> bytes:
@@ -863,15 +813,15 @@ def _get_content_jsonl_openai_evals(examples: List[models.DatasetExampleRevision
             ).encode()
         )
     records.seek(0)
-    return gzip.compress(records.read())
+    return records.read()
 
 
-async def _get_db_examples(request: Request) -> Tuple[str, List[models.DatasetExampleRevision]]:
-    if not (id_ := request.path_params.get("id")):
-        raise ValueError("Missing Dataset ID")
-    dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id_), DATASET_NODE_NAME)
+async def _get_db_examples(
+    *, session: Any, id: str, version_id: Optional[str]
+) -> Tuple[str, List[models.DatasetExampleRevision]]:
+    dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id), DATASET_NODE_NAME)
     dataset_version_id: Optional[int] = None
-    if version_id := request.query_params.get("version_id"):
+    if version_id:
         dataset_version_id = from_global_id_with_expected_type(
             GlobalID.from_id(version_id), DATASET_VERSION_NODE_NAME
         )
@@ -906,13 +856,12 @@ async def _get_db_examples(request: Request) -> Tuple[str, List[models.DatasetEx
         .where(models.DatasetExampleRevision.revision_kind != "DELETE")
         .order_by(models.DatasetExampleRevision.dataset_example_id)
     )
-    async with request.app.state.db() as session:
-        dataset_name: Optional[str] = await session.scalar(
-            select(models.Dataset.name).where(models.Dataset.id == dataset_id)
-        )
-        if not dataset_name:
-            raise ValueError("Dataset does not exist.")
-        examples = [r async for r in await session.stream_scalars(stmt)]
+    dataset_name: Optional[str] = await session.scalar(
+        select(models.Dataset.name).where(models.Dataset.id == dataset_id)
+    )
+    if not dataset_name:
+        raise ValueError("Dataset does not exist.")
+    examples = [r async for r in await session.stream_scalars(stmt)]
     return dataset_name, examples
 
 
