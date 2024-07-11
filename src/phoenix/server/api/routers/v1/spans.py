@@ -1,6 +1,7 @@
 from datetime import timezone
 from typing import Any, AsyncIterator, Dict, List
 
+from fastapi import APIRouter
 from sqlalchemy import select
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
@@ -18,8 +19,11 @@ from phoenix.trace.dsl import SpanQuery
 
 DEFAULT_SPAN_LIMIT = 1000
 
+router = APIRouter(include_in_schema=False)
+
 
 # TODO: Add property details to SpanQuery schema
+@router.post("/spans")
 async def query_spans_handler(request: Request) -> Response:
     """
     summary: Query spans using query DSL
@@ -132,10 +136,12 @@ async def query_spans_handler(request: Request) -> Response:
     )
 
 
+@router.get("/spans")
 async def get_spans_handler(request: Request) -> Response:
     return await query_spans_handler(request)
 
 
+@router.post("/span_annotations")
 async def annotate_spans(request: Request) -> Response:
     """
     summary: Upsert annotations for spans
