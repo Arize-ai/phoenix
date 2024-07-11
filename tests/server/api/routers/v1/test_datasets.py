@@ -211,13 +211,13 @@ async def test_get_dataset_versions(test_client, dataset_with_revisions):
                 "version_id": str(GlobalID("DatasetVersion", str(9))),
                 "description": "datum gets deleted",
                 "metadata": {},
-                "created_at": "2024-05-28T00:00:09+00:00",
+                "created_at": "2024-05-28T00:00:09Z",
             },
             {
                 "version_id": str(GlobalID("DatasetVersion", str(8))),
                 "description": "datum gets created",
                 "metadata": {},
-                "created_at": "2024-05-28T00:00:08+00:00",
+                "created_at": "2024-05-28T00:00:08Z",
             },
         ],
     }
@@ -236,7 +236,7 @@ async def test_get_dataset_versions_with_cursor(test_client, dataset_with_revisi
         "data": [
             {
                 "version_id": str(GlobalID("DatasetVersion", str(4))),
-                "created_at": "2024-05-28T00:00:04+00:00",
+                "created_at": "2024-05-28T00:00:04Z",
                 "description": "data gets added",
                 "metadata": {"info": "gotta get some test data somewhere"},
             },

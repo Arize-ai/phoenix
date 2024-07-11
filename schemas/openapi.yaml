@@ -31,6 +31,71 @@ components:
       - updated_at
       title: Dataset
       type: object
+    DatasetVersion:
+      properties:
+        created_at:
+          format: date-time
+          title: Created At
+          type: string
+        description:
+          title: Description
+          type: string
+        metadata:
+          title: Metadata
+          type: object
+        version_id:
+          title: Version Id
+          type: string
+      required:
+      - version_id
+      - description
+      - metadata
+      - created_at
+      title: DatasetVersion
+      type: object
+    DatasetWithExampleCount:
+      properties:
+        created_at:
+          format: date-time
+          title: Created At
+          type: string
+        description:
+          title: Description
+          type: string
+        example_count:
+          title: Example Count
+          type: integer
+        id:
+          title: Id
+          type: string
+        metadata:
+          title: Metadata
+          type: object
+        name:
+          title: Name
+          type: string
+        updated_at:
+          format: date-time
+          title: Updated At
+          type: string
+      required:
+      - id
+      - name
+      - description
+      - metadata
+      - created_at
+      - updated_at
+      - example_count
+      title: DatasetWithExampleCount
+      type: object
+    HTTPExceptionResponse:
+      properties:
+        detail:
+          title: Detail
+      required:
+      - detail
+      title: HTTPExceptionResponse
+      type: object
     HTTPValidationError:
       properties:
         detail:
@@ -40,7 +105,24 @@ components:
           type: array
       title: HTTPValidationError
       type: object
-    ListDatasetsResponse:
+    PaginatedResponseWithData_DatasetVersion_:
+      properties:
+        data:
+          items:
+            $ref: '#/components/schemas/DatasetVersion'
+          title: Data
+          type: array
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+      required:
+      - data
+      - next_cursor
+      title: PaginatedResponseWithData
+      type: object
+    PaginatedResponseWithData_Dataset_:
       properties:
         data:
           items:
@@ -52,7 +134,18 @@ components:
           - type: string
           - type: 'null'
           title: Next Cursor
-      title: ListDatasetsResponse
+      required:
+      - data
+      - next_cursor
+      title: PaginatedResponseWithData
+      type: object
+    ResponseWithData_DatasetWithExampleCount_:
+      properties:
+        data:
+          $ref: '#/components/schemas/DatasetWithExampleCount'
+      required:
+      - data
+      title: ResponseWithData
       type: object
     ValidationError:
       properties:
@@ -112,6 +205,7 @@ paths:
         schema:
           default: 10
           description: The maximum number of datasets to return at a time.
+          exclusiveMinimum: 0
           title: Limit
           type: integer
       responses:
@@ -119,14 +213,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ListDatasetsResponse'
+                $ref: '#/components/schemas/PaginatedResponseWithData_Dataset_'
           description: Successful Response
         '422':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unprocessable Entity
       summary: Returns paginated lists of datasets.
       tags:
       - datasets
@@ -183,36 +277,52 @@ paths:
       responses:
         '204':
           description: Successful Response
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unprocessable Entity
+      summary: Delete dataset by ID
+      tags:
+      - datasets
+    get:
+      operationId: getDatasetById
+      parameters:
+      - description: The ID of the dataset.
+        in: path
+        name: id
+        required: true
+        schema:
+          description: The ID of the dataset.
+          title: Id
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseWithData_DatasetWithExampleCount_'
+          description: Successful Response
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
-      summary: Delete dataset by ID
-      tags:
-      - datasets
-    get:
-      description: "summary: Get dataset by ID\noperationId: getDatasetById\ntags:\n\
-        \  - datasets\nparameters:\n  - in: path\n    name: id\n    required: true\n\
-        \    schema:\n      type: string\nresponses:\n  200:\n    description: Success\n\
-        \    content:\n      application/json:\n        schema:\n          type: object\n\
-        \          properties:\n            id:\n              type: string\n    \
-        \        name:\n              type: string\n            description:\n   \
-        \           type: string\n            metadata:\n              type: object\n\
-        \            created_at:\n              type: string\n              format:\
-        \ date-time\n            updated_at:\n              type: string\n       \
-        \       format: date-time\n            example_count:\n              type:\
-        \ integer\n  403:\n    description: Forbidden\n  404:\n    description: Dataset\
-        \ not found"
-      operationId: get_dataset_v1_datasets__id__get
-      responses:
-        '200':
-          content:
-            application/json:
-              schema: {}
-          description: Successful Response
-      summary: Get Dataset
+      summary: Gets a dataset by ID.
       tags:
       - datasets
   /v1/datasets/{id}/csv:
@@ -341,14 +451,52 @@ paths:
         \                  created_at:\n                    type: string\n       \
         \             format: date-time\n  403:\n    description: Forbidden\n  422:\n\
         \    description: Dataset ID, cursor or limit is invalid."
-      operationId: get_dataset_versions_v1_datasets__id__versions_get
+      operationId: getDatasetVersionsByDatasetId
+      parameters:
+      - description: The ID of the dataset.
+        in: path
+        name: id
+        required: true
+        schema:
+          description: The ID of the dataset.
+          title: Id
+          type: string
+      - description: If provided, returns dataset versions starting with the provided
+          cursor.
+        in: query
+        name: cursor
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: If provided, returns dataset versions starting with the provided
+            cursor.
+          title: Cursor
+      - description: The maximum number of dataset versions to return at a time.
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 10
+          description: The maximum number of dataset versions to return at a time.
+          exclusiveMinimum: 0
+          title: Limit
+          type: integer
       responses:
         '200':
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/PaginatedResponseWithData_DatasetVersion_'
           description: Successful Response
-      summary: Get Dataset Versions
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unprocessable Entity
+      summary: Gets dataset versions (sorted from latest to oldest).
       tags:
       - datasets
 

@@ -6,7 +6,7 @@ import logging
 import zlib
 from asyncio import QueueFull
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from functools import partial
@@ -56,13 +56,16 @@ from phoenix.db.insertion.dataset import (
 )
 from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
 from phoenix.server.api.types.DatasetExample import DatasetExample
-from phoenix.server.api.types.DatasetVersion import DatasetVersion
+from phoenix.server.api.types.DatasetVersion import DatasetVersion as DatasetVersionNodeType
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_projects, delete_traces
 
+from .utils import PaginatedResponseWithData, ResponseWithData, responses_for_http_exceptions
+
 logger = logging.getLogger(__name__)
 
-NODE_NAME = DatasetNodeType.__name__
+DATASET_NODE_NAME = DatasetNodeType.__name__
+DATASET_VERSION_NODE_NAME = DatasetVersionNodeType.__name__
 
 
 router = APIRouter(tags=["datasets"])
@@ -78,20 +81,11 @@ class Dataset:
     updated_at: datetime
 
 
-@dataclass
-class ListDatasetsResponse:
-    """
-    A paginated list of datasets
-    """
-
-    next_cursor: Optional[str] = None
-    data: List[Dataset] = field(default_factory=list)
-
-
 @router.get(
     "/datasets",
     operation_id="listDatasets",
     summary="Returns paginated lists of datasets.",
+    responses=responses_for_http_exceptions([HTTP_422_UNPROCESSABLE_ENTITY]),
 )
 async def list_datasets(
     request: Request,
@@ -102,9 +96,9 @@ async def list_datasets(
         default=None, description="If provided, filters the returned datasets by name."
     ),
     limit: int = Query(
-        default=10, description="The maximum number of datasets to return at a time."
+        default=10, description="The maximum number of datasets to return at a time.", gt=0
     ),
-) -> ListDatasetsResponse:
+) -> PaginatedResponseWithData[Dataset]:
     async with request.app.state.db() as session:
         query = select(models.Dataset).order_by(models.Dataset.id.desc())
 
@@ -125,18 +119,18 @@ async def list_datasets(
         datasets = result.scalars().all()
 
         if not datasets:
-            return ListDatasetsResponse(next_cursor=None, data=[])
+            return PaginatedResponseWithData[Dataset](next_cursor=None, data=[])
 
         next_cursor = None
         if len(datasets) == limit + 1:
-            next_cursor = str(GlobalID(NODE_NAME, str(datasets[-1].id)))
+            next_cursor = str(GlobalID(DATASET_NODE_NAME, str(datasets[-1].id)))
             datasets = datasets[:-1]
 
         data = []
         for dataset in datasets:
             data.append(
                 Dataset(
-                    id=str(GlobalID(NODE_NAME, str(dataset.id))),
+                    id=str(GlobalID(DATASET_NODE_NAME, str(dataset.id))),
                     name=dataset.name,
                     description=dataset.description,
                     metadata=dataset.metadata_,
@@ -145,7 +139,7 @@ async def list_datasets(
                 )
             )
 
-        return ListDatasetsResponse(next_cursor=next_cursor, data=data)
+        return PaginatedResponseWithData[Dataset](next_cursor=next_cursor, data=data)
 
 
 @router.delete(
@@ -153,6 +147,7 @@ async def list_datasets(
     operation_id="deleteDatasetById",
     summary="Delete dataset by ID",
     status_code=HTTP_204_NO_CONTENT,
+    responses=responses_for_http_exceptions([HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY]),
 )
 async def delete_dataset(
     request: Request, id: str = Path(description="The ID of the dataset to delete.")
@@ -161,7 +156,7 @@ async def delete_dataset(
         try:
             dataset_id = from_global_id_with_expected_type(
                 GlobalID.from_id(id),
-                NODE_NAME,
+                DATASET_NODE_NAME,
             )
         except ValueError:
             raise HTTPException(
@@ -184,53 +179,25 @@ async def delete_dataset(
     tasks.add_task(delete_traces, request.app.state.db, *eval_trace_ids)
 
 
-@router.get("/datasets/{id}")
-async def get_dataset(request: Request) -> Response:
-    """
-    summary: Get dataset by ID
-    operationId: getDatasetById
-    tags:
-      - datasets
-    parameters:
-      - in: path
-        name: id
-        required: true
-        schema:
-          type: string
-    responses:
-      200:
-        description: Success
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                id:
-                  type: string
-                name:
-                  type: string
-                description:
-                  type: string
-                metadata:
-                  type: object
-                created_at:
-                  type: string
-                  format: date-time
-                updated_at:
-                  type: string
-                  format: date-time
-                example_count:
-                  type: integer
-      403:
-        description: Forbidden
-      404:
-        description: Dataset not found
-    """
-    dataset_id = GlobalID.from_id(request.path_params["id"])
+@dataclass
+class DatasetWithExampleCount(Dataset):
+    example_count: int
 
-    if (type_name := dataset_id.type_name) != NODE_NAME:
-        return Response(
-            content=f"ID {dataset_id} refers to a f{type_name}", status_code=HTTP_404_NOT_FOUND
+
+@router.get(
+    "/datasets/{id}",
+    operation_id="getDatasetById",
+    summary="Gets a dataset by ID.",
+    responses=responses_for_http_exceptions([HTTP_404_NOT_FOUND]),
+)
+async def get_dataset(
+    request: Request, id: str = Path(description="The ID of the dataset.")
+) -> ResponseWithData[DatasetWithExampleCount]:
+    dataset_id = GlobalID.from_id(id)
+
+    if (type_name := dataset_id.type_name) != DATASET_NODE_NAME:
+        raise HTTPException(
+            detail=f"ID {dataset_id} refers to a f{type_name}", status_code=HTTP_404_NOT_FOUND
         )
     async with request.app.state.db() as session:
         result = await session.execute(
@@ -242,98 +209,61 @@ async def get_dataset(request: Request) -> Response:
         dataset = dataset_query[0] if dataset_query else None
         example_count = dataset_query[1] if dataset_query else 0
         if dataset is None:
-            return Response(
-                content=f"Dataset with ID {dataset_id} not found", status_code=HTTP_404_NOT_FOUND
+            raise HTTPException(
+                detail=f"Dataset with ID {dataset_id} not found", status_code=HTTP_404_NOT_FOUND
             )
 
-        output_dict = {
-            "id": str(dataset_id),
-            "name": dataset.name,
-            "description": dataset.description,
-            "metadata": dataset.metadata_,
-            "created_at": dataset.created_at.isoformat(),
-            "updated_at": dataset.updated_at.isoformat(),
-            "example_count": example_count,
-        }
-        return JSONResponse(content={"data": output_dict})
+        dataset = DatasetWithExampleCount(
+            id=str(dataset_id),
+            name=dataset.name,
+            description=dataset.description,
+            metadata=dataset.metadata_,
+            created_at=dataset.created_at,
+            updated_at=dataset.updated_at,
+            example_count=example_count,
+        )
+        return ResponseWithData[DatasetWithExampleCount](data=dataset)
 
 
-@router.get("/datasets/{id}/versions")
-async def get_dataset_versions(request: Request) -> Response:
-    """
-    summary: Get dataset versions (sorted from latest to oldest)
-    operationId: getDatasetVersionsByDatasetId
-    tags:
-      - datasets
-    parameters:
-      - in: path
-        name: id
-        required: true
-        description: Dataset ID
-        schema:
-          type: string
-      - in: query
-        name: cursor
-        description: Cursor for pagination.
-        schema:
-          type: string
-      - in: query
-        name: limit
-        description: Maximum number versions to return.
-        schema:
-          type: integer
-          default: 10
-    responses:
-      200:
-        description: Success
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                next_cursor:
-                  type: string
-                data:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      version_id:
-                        type: string
-                      description:
-                        type: string
-                      metadata:
-                        type: object
-                      created_at:
-                        type: string
-                        format: date-time
-      403:
-        description: Forbidden
-      422:
-        description: Dataset ID, cursor or limit is invalid.
-    """
-    if id_ := request.path_params.get("id"):
+@dataclass
+class DatasetVersion:
+    version_id: str
+    description: str
+    metadata: Dict[str, Any]
+    created_at: datetime
+
+
+@router.get(
+    "/datasets/{id}/versions",
+    operation_id="getDatasetVersionsByDatasetId",
+    summary="Gets dataset versions (sorted from latest to oldest).",
+    responses=responses_for_http_exceptions([HTTP_422_UNPROCESSABLE_ENTITY]),
+)
+async def get_dataset_versions(
+    request: Request,
+    id: str = Path(description="The ID of the dataset."),
+    cursor: Optional[str] = Query(
+        default=None,
+        description="If provided, returns dataset versions starting with the provided cursor.",
+    ),
+    limit: int = Query(
+        default=10, description="The maximum number of dataset versions to return at a time.", gt=0
+    ),
+) -> PaginatedResponseWithData[DatasetVersion]:
+    if id:
         try:
             dataset_id = from_global_id_with_expected_type(
-                GlobalID.from_id(id_),
-                NODE_NAME,
+                GlobalID.from_id(id),
+                DATASET_NODE_NAME,
             )
         except ValueError:
-            return Response(
-                content=f"Invalid Dataset ID: {id_}",
+            raise HTTPException(
+                detail=f"Invalid Dataset ID: {id}",
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
             )
     else:
-        return Response(
-            content="Missing Dataset ID",
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-        )
-    try:
-        limit = int(request.query_params.get("limit", 10))
-        assert limit > 0
-    except (ValueError, AssertionError):
-        return Response(
-            content="Invalid limit parameter",
+        raise HTTPException(
+            detail="Missing Dataset ID",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
     stmt = (
@@ -342,15 +272,14 @@ async def get_dataset_versions(request: Request) -> Response:
         .order_by(models.DatasetVersion.id.desc())
         .limit(limit + 1)
     )
-    if cursor := request.query_params.get("cursor"):
+    if cursor:
         try:
             dataset_version_id = from_global_id_with_expected_type(
-                GlobalID.from_id(cursor),
-                DatasetVersion.__name__,
+                GlobalID.from_id(cursor), DATASET_VERSION_NODE_NAME
             )
         except ValueError:
-            return Response(
-                content=f"Invalid cursor: {cursor}",
+            raise HTTPException(
+                detail=f"Invalid cursor: {cursor}",
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
             )
         max_dataset_version_id = (
@@ -361,16 +290,16 @@ async def get_dataset_versions(request: Request) -> Response:
         stmt = stmt.filter(models.DatasetVersion.id <= max_dataset_version_id)
     async with request.app.state.db() as session:
         data = [
-            {
-                "version_id": str(GlobalID(DatasetVersion.__name__, str(version.id))),
-                "description": version.description,
-                "metadata": version.metadata_,
-                "created_at": version.created_at.isoformat(),
-            }
+            DatasetVersion(
+                version_id=str(GlobalID(DATASET_VERSION_NODE_NAME, str(version.id))),
+                description=version.description,
+                metadata=version.metadata_,
+                created_at=version.created_at,
+            )
             async for version in await session.stream_scalars(stmt)
         ]
-    next_cursor = data.pop()["version_id"] if len(data) == limit + 1 else None
-    return JSONResponse(content={"next_cursor": next_cursor, "data": data})
+    next_cursor = data.pop().version_id if len(data) == limit + 1 else None
+    return PaginatedResponseWithData(data=data, next_cursor=next_cursor)
 
 
 @router.post("/datasets/upload")
@@ -537,7 +466,7 @@ async def upload_dataset(request: Request) -> Response:
         async with request.app.state.db() as session:
             dataset_id = (await operation(session)).dataset_id
         return JSONResponse(
-            content={"data": {"dataset_id": str(GlobalID(NODE_NAME, str(dataset_id)))}}
+            content={"data": {"dataset_id": str(GlobalID(DATASET_NODE_NAME, str(dataset_id)))}}
         )
     try:
         request.state.enqueue_operation(operation)
@@ -940,12 +869,11 @@ def _get_content_jsonl_openai_evals(examples: List[models.DatasetExampleRevision
 async def _get_db_examples(request: Request) -> Tuple[str, List[models.DatasetExampleRevision]]:
     if not (id_ := request.path_params.get("id")):
         raise ValueError("Missing Dataset ID")
-    dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id_), NODE_NAME)
+    dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id_), DATASET_NODE_NAME)
     dataset_version_id: Optional[int] = None
     if version_id := request.query_params.get("version_id"):
         dataset_version_id = from_global_id_with_expected_type(
-            GlobalID.from_id(version_id),
-            DatasetVersion.__name__,
+            GlobalID.from_id(version_id), DATASET_VERSION_NODE_NAME
         )
     latest_version = (
         select(
