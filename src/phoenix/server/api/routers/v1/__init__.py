@@ -9,6 +9,7 @@ from .experiment_runs import router as experiment_runs_router
 from .experiments import router as experiments_router
 from .spans import router as spans_router
 from .traces import router as traces_router
+from .utils import add_errors_to_responses
 
 
 async def prevent_access_in_read_only_mode(request: Request) -> None:
@@ -25,6 +26,11 @@ async def prevent_access_in_read_only_mode(request: Request) -> None:
 router = APIRouter(
     prefix="/v1",
     dependencies=[Depends(prevent_access_in_read_only_mode)],
+    responses=add_errors_to_responses(
+        [
+            HTTP_403_FORBIDDEN  # adds a 403 response to each route in the generated OpenAPI schema
+        ]
+    ),
 )
 router.include_router(dataset_examples_router)
 router.include_router(datasets_router)

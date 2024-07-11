@@ -22,6 +22,7 @@ import strawberry
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
+from fastapi.utils import is_body_allowed_for_status_code
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -351,6 +352,18 @@ def instrument_engine_if_enabled(engine: AsyncEngine) -> List[Callable[[], None]
     return instrumentation_cleanups
 
 
+async def plain_text_http_exception_handler(request: Request, exc: HTTPException) -> Response:
+    """
+    Overrides the default handler for HTTPExceptions to return a plain text
+    response instead of a JSON response. For the original source code, see
+    https://github.com/tiangolo/fastapi/blob/d3cdd3bbd14109f3b268df7ca496e24bb64593aa/fastapi/exception_handlers.py#L11
+    """
+    headers = getattr(exc, "headers", None)
+    if not is_body_allowed_for_status_code(exc.status_code):
+        return Response(status_code=exc.status_code, headers=headers)
+    return PlainTextResponse(str(exc.detail), status_code=exc.status_code, headers=headers)
+
+
 def create_app(
     db: SessionFactory,
     export_path: Path,
@@ -439,6 +452,7 @@ def create_app(
             Middleware(HeadersMiddleware),
             *prometheus_middlewares,
         ],
+        exception_handlers={HTTPException: plain_text_http_exception_handler},
         debug=debug,
     )
     app.state.read_only = read_only

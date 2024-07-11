@@ -61,7 +61,9 @@ def add_errors_to_responses(
         else:
             assert_never(error)
         if status_code not in output_responses:
-            output_responses[status_code] = {}
+            output_responses[status_code] = {
+                "content": {"text/plain": {"schema": {"type": "string"}}}
+            }
         if description:
             output_responses[status_code]["description"] = description
     return output_responses

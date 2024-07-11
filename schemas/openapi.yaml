@@ -114,15 +114,6 @@ components:
       - example_count
       title: DatasetWithExampleCount
       type: object
-    HTTPValidationError:
-      properties:
-        detail:
-          items:
-            $ref: '#/components/schemas/ValidationError'
-          title: Detail
-          type: array
-      title: HTTPValidationError
-      type: object
     ListDatasetExamplesData:
       properties:
         dataset_id:
@@ -209,27 +200,6 @@ components:
       - dataset_id
       title: UploadDatasetData
       type: object
-    ValidationError:
-      properties:
-        loc:
-          items:
-            anyOf:
-            - type: string
-            - type: integer
-          title: Location
-          type: array
-        msg:
-          title: Message
-          type: string
-        type:
-          title: Error Type
-          type: string
-      required:
-      - loc
-      - msg
-      - type
-      title: ValidationError
-      type: object
 info:
   description: Schema for Arize-Phoenix REST API
   title: Arize-Phoenix API
@@ -277,7 +247,17 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedResponseWithData_Dataset_'
           description: Successful Response
+        '403':
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Forbidden
         '422':
+          content:
+            text/plain:
+              schema:
+                type: string
           description: Unprocessable Entity
       summary: Returns paginated lists of datasets.
       tags:
@@ -373,9 +353,23 @@ paths:
                 - type: 'null'
                 title: Response Uploaddataset
           description: Successful Response
+        '403':
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Forbidden
         '409':
+          content:
+            text/plain:
+              schema:
+                type: string
           description: Conflict
         '422':
+          content:
+            text/plain:
+              schema:
+                type: string
           description: Unprocessable Entity
       summary: Upload dataset as either JSON or file (CSV or PyArrow)
       tags:
@@ -395,9 +389,23 @@ paths:
       responses:
         '204':
           description: Successful Response
+        '403':
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Forbidden
         '404':
+          content:
+            text/plain:
+              schema:
+                type: string
           description: Not Found
         '422':
+          content:
+            text/plain:
+              schema:
+                type: string
           description: Unprocessable Entity
       summary: Delete dataset by ID
       tags:
@@ -420,14 +428,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/ResponseWithData_DatasetWithExampleCount_'
           description: Successful Response
+        '403':
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Forbidden
         '404':
+          content:
+            text/plain:
+              schema:
+                type: string
           description: Not Found
         '422':
           content:
-            application/json:
+            text/plain:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
+                type: string
+          description: Unprocessable Entity
       summary: Gets a dataset by ID.
       tags:
       - datasets
@@ -461,7 +479,17 @@ paths:
                 contentMediaType: text/csv
                 type: string
           description: Successful Response
+        '403':
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Forbidden
         '422':
+          content:
+            text/plain:
+              schema:
+                type: string
           description: Unprocessable Entity
       summary: Download dataset examples as CSV text file
       tags:
@@ -497,14 +525,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/ResponseWithData_ListDatasetExamplesData_'
           description: Successful Response
+        '403':
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Forbidden
         '404':
+          content:
+            text/plain:
+              schema:
+                type: string
           description: Not Found
         '422':
           content:
-            application/json:
+            text/plain:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
+                type: string
+          description: Unprocessable Entity
       summary: Get dataset examples by dataset ID.
       tags:
       - datasets
@@ -537,7 +575,17 @@ paths:
               schema:
                 type: string
           description: Successful Response
+        '403':
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Forbidden
         '422':
+          content:
+            text/plain:
+              schema:
+                type: string
           description: Unprocessable Entity
       summary: Download dataset examples as OpenAI Evals JSONL file.
       tags:
@@ -571,7 +619,17 @@ paths:
               schema:
                 type: string
           description: Successful Response
+        '403':
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Forbidden
         '422':
+          content:
+            text/plain:
+              schema:
+                type: string
           description: Unprocessable Entity
       summary: Download dataset examples as an OpenAI fine-tuning JSONL file.
       tags:
@@ -617,7 +675,17 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedResponseWithData_DatasetVersion_'
           description: Successful Response
+        '403':
+          content:
+            text/plain:
+              schema:
+                type: string
+          description: Forbidden
         '422':
+          content:
+            text/plain:
+              schema:
+                type: string
           description: Unprocessable Entity
       summary: Gets dataset versions (sorted from latest to oldest).
       tags:
