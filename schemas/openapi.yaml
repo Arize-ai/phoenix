@@ -31,6 +31,32 @@ components:
       - updated_at
       title: Dataset
       type: object
+    DatasetExample:
+      properties:
+        id:
+          title: Id
+          type: string
+        input:
+          title: Input
+          type: object
+        metadata:
+          title: Metadata
+          type: object
+        output:
+          title: Output
+          type: object
+        updated_at:
+          format: date-time
+          title: Updated At
+          type: string
+      required:
+      - id
+      - input
+      - output
+      - metadata
+      - updated_at
+      title: DatasetExample
+      type: object
     DatasetVersion:
       properties:
         created_at:
@@ -97,6 +123,25 @@ components:
           type: array
       title: HTTPValidationError
       type: object
+    ListDatasetExamplesData:
+      properties:
+        dataset_id:
+          title: Dataset Id
+          type: string
+        examples:
+          items:
+            $ref: '#/components/schemas/DatasetExample'
+          title: Examples
+          type: array
+        version_id:
+          title: Version Id
+          type: string
+      required:
+      - dataset_id
+      - version_id
+      - examples
+      title: ListDatasetExamplesData
+      type: object
     PaginatedResponseWithData_DatasetVersion_:
       properties:
         data:
@@ -135,6 +180,14 @@ components:
       properties:
         data:
           $ref: '#/components/schemas/DatasetWithExampleCount'
+      required:
+      - data
+      title: ResponseWithData
+      type: object
+    ResponseWithData_ListDatasetExamplesData_:
+      properties:
+        data:
+          $ref: '#/components/schemas/ListDatasetExamplesData'
       required:
       - data
       title: ResponseWithData
@@ -338,43 +391,44 @@ paths:
       - datasets
   /v1/datasets/{id}/examples:
     get:
-      description: "summary: Get dataset examples by dataset ID\noperationId: getDatasetExamples\n\
-        tags:\n  - datasets\nparameters:\n  - in: path\n    name: id\n    required:\
-        \ true\n    schema:\n      type: string\n    description: Dataset ID\n  -\
-        \ in: query\n    name: version_id\n    schema:\n      type: string\n    description:\
-        \ Dataset version ID. If omitted, returns the latest version.\nresponses:\n\
-        \  200:\n    description: Success\n    content:\n      application/json:\n\
-        \        schema:\n          type: object\n          properties:\n        \
-        \    data:\n              type: object\n              properties:\n      \
-        \          dataset_id:\n                  type: string\n                 \
-        \ description: ID of the dataset\n                version_id:\n          \
-        \        type: string\n                  description: ID of the version\n\
-        \                examples:\n                  type: array\n              \
-        \    items:\n                    type: object\n                    properties:\n\
-        \                      id:\n                        type: string\n       \
-        \                 description: ID of the dataset example\n               \
-        \       input:\n                        type: object\n                   \
-        \     description: Input data of the example\n                      output:\n\
-        \                        type: object\n                        description:\
-        \ Output data of the example\n                      metadata:\n          \
-        \              type: object\n                        description: Metadata\
-        \ of the example\n                      updated_at:\n                    \
-        \    type: string\n                        format: date-time\n           \
-        \             description: ISO formatted timestamp of when the example was\
-        \ updated\n                    required:\n                      - id\n   \
-        \                   - input\n                      - output\n            \
-        \          - metadata\n                      - updated_at\n              required:\n\
-        \                - dataset_id\n                - version_id\n            \
-        \    - examples\n  403:\n    description: Forbidden\n  404:\n    description:\
-        \ Dataset does not exist."
-      operationId: list_dataset_examples_v1_datasets__id__examples_get
+      operationId: getDatasetExamples
+      parameters:
+      - description: The ID of the dataset.
+        in: path
+        name: id
+        required: true
+        schema:
+          description: The ID of the dataset.
+          title: Id
+          type: string
+      - description: If provided, returns the dataset examples as of the specified
+          version.
+        in: query
+        name: version_id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: If provided, returns the dataset examples as of the specified
+            version.
+          title: Version Id
       responses:
         '200':
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/ResponseWithData_ListDatasetExamplesData_'
           description: Successful Response
-      summary: List Dataset Examples
+        '404':
+          description: Not Found
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Get dataset examples by dataset ID.
       tags:
       - datasets
   /v1/datasets/{id}/jsonl/openai_evals:
