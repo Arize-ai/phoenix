@@ -1,16 +1,16 @@
-from typing import Any
+from typing import Any, Dict
 
-from starlette.schemas import SchemaGenerator
+from fastapi.openapi.utils import get_openapi
 
-from phoenix.server.api.routers.v1 import V1_ROUTES
-
-OPENAPI_SCHEMA_GENERATOR = SchemaGenerator(
-    {"openapi": "3.0.0", "info": {"title": "Arize-Phoenix API", "version": "1.0"}}
-)
+from phoenix.server.api.routers.v1 import router as v1_router
+from phoenix.version import __version__
 
 
-def get_openapi_schema() -> Any:
-    """
-    Exports an OpenAPI schema for the Phoenix REST API as a JSON object.
-    """
-    return OPENAPI_SCHEMA_GENERATOR.get_schema(V1_ROUTES)  # type: ignore
+def get_openapi_schema() -> Dict[str, Any]:
+    return get_openapi(
+        title="Arize-Phoenix API",
+        version=__version__,
+        openapi_version="3.1.0",
+        description="Schema for Arize-Phoenix REST API",
+        routes=v1_router.routes,
+    )

@@ -42,8 +42,6 @@ def context_factory() -> Callable[[Inferences, Optional[Inferences]], Context]:
         primary_inferences: Inferences, reference_inferences: Optional[Inferences]
     ) -> Context:
         return Context(
-            request=Mock(),
-            response=None,
             model=create_model_from_inferences(primary_inferences, reference_inferences),
             export_path=Path(TemporaryDirectory().name),
             db=None,  # TODO(persistence): add mock for db

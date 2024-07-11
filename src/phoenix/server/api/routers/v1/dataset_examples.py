@@ -1,3 +1,4 @@
+from fastapi import APIRouter
 from sqlalchemy import and_, func, select
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
@@ -6,7 +7,10 @@ from strawberry.relay import GlobalID
 
 from phoenix.db.models import Dataset, DatasetExample, DatasetExampleRevision, DatasetVersion
 
+router = APIRouter(tags=["datasets"])
 
+
+@router.get("/datasets/{id}/examples")
 async def list_dataset_examples(request: Request) -> Response:
     """
     summary: Get dataset examples by dataset ID

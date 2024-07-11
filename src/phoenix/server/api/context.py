@@ -1,12 +1,10 @@
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import AsyncContextManager, Callable, Optional, Union
+from typing import AsyncContextManager, Callable, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.requests import Request
-from starlette.responses import Response
-from starlette.websockets import WebSocket
+from strawberry.fastapi import BaseContext
 from typing_extensions import TypeAlias
 
 from phoenix.core.model_schema import Model
@@ -65,9 +63,7 @@ ProjectRowId: TypeAlias = int
 
 
 @dataclass
-class Context:
-    request: Union[Request, WebSocket]
-    response: Optional[Response]
+class Context(BaseContext):
     db: Callable[[], AsyncContextManager[AsyncSession]]
     data_loaders: DataLoaders
     cache_for_dataloaders: Optional[CacheForDataLoaders]

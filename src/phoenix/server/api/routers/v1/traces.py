@@ -2,6 +2,7 @@ import gzip
 import zlib
 from typing import Any, Dict, List
 
+from fastapi import APIRouter
 from google.protobuf.message import DecodeError
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
@@ -26,7 +27,10 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.utilities.project import get_project_name
 
+router = APIRouter(include_in_schema=False)
 
+
+@router.post("/traces")
 async def post_traces(request: Request) -> Response:
     """
     summary: Send traces to Phoenix
@@ -78,6 +82,7 @@ async def post_traces(request: Request) -> Response:
     return Response(background=BackgroundTask(_add_spans, req, request.state))
 
 
+@router.post("/trace_annotations")
 async def annotate_traces(request: Request) -> Response:
     """
     summary: Upsert annotations for traces

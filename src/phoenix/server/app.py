@@ -19,25 +19,22 @@ from typing import (
 )
 
 import strawberry
+from fastapi import APIRouter, FastAPI
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
     async_sessionmaker,
 )
-from starlette.applications import Starlette
-from starlette.datastructures import QueryParams
-from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import FileResponse, PlainTextResponse, Response
-from starlette.routing import Mount, Route
+from starlette.responses import PlainTextResponse, Response
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 from starlette.types import Scope, StatefulLifespan
-from starlette.websockets import WebSocket
-from strawberry.asgi import GraphQL
+from strawberry.fastapi import GraphQLRouter
 from strawberry.schema import BaseSchema
 from typing_extensions import TypeAlias
 
@@ -79,8 +76,7 @@ from phoenix.server.api.dataloaders import (
     TraceEvaluationsDataLoader,
     TraceRowIdsDataLoader,
 )
-from phoenix.server.api.openapi.schema import OPENAPI_SCHEMA_GENERATOR
-from phoenix.server.api.routers.v1 import V1_ROUTES
+from phoenix.server.api.routers.v1 import router as v1_router
 from phoenix.server.api.schema import schema
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.openapi.docs import get_swagger_ui_html
@@ -91,6 +87,8 @@ if TYPE_CHECKING:
     from opentelemetry.trace import TracerProvider
 
 logger = logging.getLogger(__name__)
+
+router = APIRouter(include_in_schema=False)
 
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
 
@@ -156,115 +154,20 @@ class HeadersMiddleware(BaseHTTPMiddleware):
 ProjectRowId: TypeAlias = int
 
 
-class GraphQLWithContext(GraphQL):  # type: ignore
-    def __init__(
-        self,
-        schema: BaseSchema,
-        db: Callable[[], AsyncContextManager[AsyncSession]],
-        model: Model,
-        export_path: Path,
-        graphiql: bool = False,
-        corpus: Optional[Model] = None,
-        streaming_last_updated_at: Callable[[ProjectRowId], Optional[datetime]] = lambda _: None,
-        cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
-        read_only: bool = False,
-    ) -> None:
-        self.db = db
-        self.model = model
-        self.corpus = corpus
-        self.export_path = export_path
-        self.streaming_last_updated_at = streaming_last_updated_at
-        self.cache_for_dataloaders = cache_for_dataloaders
-        self.read_only = read_only
-        super().__init__(schema, graphiql=graphiql)
-
-    async def get_context(
-        self,
-        request: Union[Request, WebSocket],
-        response: Optional[Response] = None,
-    ) -> Context:
-        return Context(
-            request=request,
-            response=response,
-            db=self.db,
-            model=self.model,
-            corpus=self.corpus,
-            export_path=self.export_path,
-            streaming_last_updated_at=self.streaming_last_updated_at,
-            data_loaders=DataLoaders(
-                average_experiment_run_latency=AverageExperimentRunLatencyDataLoader(self.db),
-                dataset_example_revisions=DatasetExampleRevisionsDataLoader(self.db),
-                dataset_example_spans=DatasetExampleSpansDataLoader(self.db),
-                document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
-                    self.db,
-                    cache_map=self.cache_for_dataloaders.document_evaluation_summary
-                    if self.cache_for_dataloaders
-                    else None,
-                ),
-                document_evaluations=DocumentEvaluationsDataLoader(self.db),
-                document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(self.db),
-                evaluation_summaries=EvaluationSummaryDataLoader(
-                    self.db,
-                    cache_map=self.cache_for_dataloaders.evaluation_summary
-                    if self.cache_for_dataloaders
-                    else None,
-                ),
-                experiment_annotation_summaries=ExperimentAnnotationSummaryDataLoader(self.db),
-                experiment_error_rates=ExperimentErrorRatesDataLoader(self.db),
-                experiment_run_counts=ExperimentRunCountsDataLoader(self.db),
-                experiment_sequence_number=ExperimentSequenceNumberDataLoader(self.db),
-                latency_ms_quantile=LatencyMsQuantileDataLoader(
-                    self.db,
-                    cache_map=self.cache_for_dataloaders.latency_ms_quantile
-                    if self.cache_for_dataloaders
-                    else None,
-                ),
-                min_start_or_max_end_times=MinStartOrMaxEndTimeDataLoader(
-                    self.db,
-                    cache_map=self.cache_for_dataloaders.min_start_or_max_end_time
-                    if self.cache_for_dataloaders
-                    else None,
-                ),
-                record_counts=RecordCountDataLoader(
-                    self.db,
-                    cache_map=self.cache_for_dataloaders.record_count
-                    if self.cache_for_dataloaders
-                    else None,
-                ),
-                span_descendants=SpanDescendantsDataLoader(self.db),
-                span_evaluations=SpanEvaluationsDataLoader(self.db),
-                span_projects=SpanProjectsDataLoader(self.db),
-                token_counts=TokenCountDataLoader(
-                    self.db,
-                    cache_map=self.cache_for_dataloaders.token_count
-                    if self.cache_for_dataloaders
-                    else None,
-                ),
-                trace_evaluations=TraceEvaluationsDataLoader(self.db),
-                trace_row_ids=TraceRowIdsDataLoader(self.db),
-                project_by_name=ProjectByNameDataLoader(self.db),
-            ),
-            cache_for_dataloaders=self.cache_for_dataloaders,
-            read_only=self.read_only,
-        )
+@router.get("/exports")
+async def download_exported_file(request: Request, filename: str) -> FileResponse:
+    file = request.app.state.export_path / (filename + ".parquet")
+    if not file.is_file():
+        raise HTTPException(status_code=404)
+    return FileResponse(
+        path=file,
+        filename=file.name,
+        media_type="application/x-octet-stream",
+    )
 
 
-class Download(HTTPEndpoint):
-    path: Path
-
-    async def get(self, request: Request) -> FileResponse:
-        params = QueryParams(request.query_params)
-        file = self.path / (params.get("filename", "") + ".parquet")
-        if not file.is_file():
-            raise HTTPException(status_code=404)
-        return FileResponse(
-            path=file,
-            filename=file.name,
-            media_type="application/x-octet-stream",
-        )
-
-
-async def version(_: Request) -> PlainTextResponse:
+@router.get("/arize_phoenix_version")
+async def version() -> PlainTextResponse:
     return PlainTextResponse(f"{phoenix.__version__}")
 
 
@@ -286,9 +189,9 @@ def _lifespan(
     enable_prometheus: bool = False,
     clean_ups: Iterable[Callable[[], None]] = (),
     read_only: bool = False,
-) -> StatefulLifespan[Starlette]:
+) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
-    async def lifespan(_: Starlette) -> AsyncIterator[Dict[str, Any]]:
+    async def lifespan(_: FastAPI) -> AsyncIterator[Dict[str, Any]]:
         async with bulk_inserter as (
             queue_span,
             queue_evaluation,
@@ -310,16 +213,93 @@ def _lifespan(
     return lifespan
 
 
+@router.get("/healthz")
 async def check_healthz(_: Request) -> PlainTextResponse:
     return PlainTextResponse("OK")
 
 
-async def openapi_schema(request: Request) -> Response:
-    return OPENAPI_SCHEMA_GENERATOR.OpenAPIResponse(request=request)
+@router.get("/docs")
+async def api_docs() -> Response:
+    return get_swagger_ui_html(openapi_url="/openapi.json", title="arize-phoenix API")
 
 
-async def api_docs(request: Request) -> Response:
-    return get_swagger_ui_html(openapi_url="/schema", title="arize-phoenix API")
+def create_graphql_router(
+    *,
+    schema: BaseSchema,
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    model: Model,
+    export_path: Path,
+    corpus: Optional[Model] = None,
+    streaming_last_updated_at: Callable[[ProjectRowId], Optional[datetime]] = lambda _: None,
+    cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
+    read_only: bool = False,
+) -> GraphQLRouter:  # type: ignore[type-arg]
+    context = Context(
+        db=db,
+        model=model,
+        corpus=corpus,
+        export_path=export_path,
+        streaming_last_updated_at=streaming_last_updated_at,
+        data_loaders=DataLoaders(
+            average_experiment_run_latency=AverageExperimentRunLatencyDataLoader(db),
+            dataset_example_revisions=DatasetExampleRevisionsDataLoader(db),
+            dataset_example_spans=DatasetExampleSpansDataLoader(db),
+            document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
+                db,
+                cache_map=cache_for_dataloaders.document_evaluation_summary
+                if cache_for_dataloaders
+                else None,
+            ),
+            document_evaluations=DocumentEvaluationsDataLoader(db),
+            document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(db),
+            evaluation_summaries=EvaluationSummaryDataLoader(
+                db,
+                cache_map=cache_for_dataloaders.evaluation_summary
+                if cache_for_dataloaders
+                else None,
+            ),
+            experiment_annotation_summaries=ExperimentAnnotationSummaryDataLoader(db),
+            experiment_error_rates=ExperimentErrorRatesDataLoader(db),
+            experiment_run_counts=ExperimentRunCountsDataLoader(db),
+            experiment_sequence_number=ExperimentSequenceNumberDataLoader(db),
+            latency_ms_quantile=LatencyMsQuantileDataLoader(
+                db,
+                cache_map=cache_for_dataloaders.latency_ms_quantile
+                if cache_for_dataloaders
+                else None,
+            ),
+            min_start_or_max_end_times=MinStartOrMaxEndTimeDataLoader(
+                db,
+                cache_map=cache_for_dataloaders.min_start_or_max_end_time
+                if cache_for_dataloaders
+                else None,
+            ),
+            record_counts=RecordCountDataLoader(
+                db,
+                cache_map=cache_for_dataloaders.record_count if cache_for_dataloaders else None,
+            ),
+            span_descendants=SpanDescendantsDataLoader(db),
+            span_evaluations=SpanEvaluationsDataLoader(db),
+            span_projects=SpanProjectsDataLoader(db),
+            token_counts=TokenCountDataLoader(
+                db,
+                cache_map=cache_for_dataloaders.token_count if cache_for_dataloaders else None,
+            ),
+            trace_evaluations=TraceEvaluationsDataLoader(db),
+            trace_row_ids=TraceRowIdsDataLoader(db),
+            project_by_name=ProjectByNameDataLoader(db),
+        ),
+        cache_for_dataloaders=cache_for_dataloaders,
+        read_only=read_only,
+    )
+
+    return GraphQLRouter(
+        schema,
+        graphiql=True,
+        context_getter=lambda: context,
+        include_in_schema=False,
+        prefix="/graphql",
+    )
 
 
 class SessionFactory:
@@ -383,7 +363,7 @@ def create_app(
     initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
     serve_ui: bool = True,
     clean_up_callbacks: List[Callable[[], None]] = [],
-) -> Starlette:
+) -> FastAPI:
     clean_ups: List[Callable[[], None]] = clean_up_callbacks  # To be called at app shutdown.
     initial_batch_of_spans: Iterable[Tuple[Span, str]] = (
         ()
@@ -425,7 +405,7 @@ def create_app(
 
         strawberry_extensions.append(_OpenTelemetryExtension)
 
-    graphql = GraphQLWithContext(
+    graphql_router = create_graphql_router(
         db=db,
         schema=strawberry.Schema(
             query=schema.query,
@@ -436,7 +416,6 @@ def create_app(
         model=model,
         corpus=corpus,
         export_path=export_path,
-        graphiql=True,
         streaming_last_updated_at=bulk_inserter.last_updated_at,
         cache_for_dataloaders=cache_for_dataloaders,
         read_only=read_only,
@@ -447,7 +426,7 @@ def create_app(
         prometheus_middlewares = [Middleware(PrometheusMiddleware)]
     else:
         prometheus_middlewares = []
-    app = Starlette(
+    app = FastAPI(
         lifespan=_lifespan(
             read_only=read_only,
             bulk_inserter=bulk_inserter,
@@ -460,50 +439,28 @@ def create_app(
             *prometheus_middlewares,
         ],
         debug=debug,
-        routes=V1_ROUTES
-        + [
-            Route("/schema", endpoint=openapi_schema, include_in_schema=False),
-            Route("/arize_phoenix_version", version),
-            Route("/healthz", check_healthz),
-            Route(
-                "/exports",
-                type(
-                    "DownloadExports",
-                    (Download,),
-                    {"path": export_path},
-                ),
-            ),
-            Route(
-                "/docs",
-                api_docs,
-            ),
-            Route(
-                "/graphql",
-                graphql,
-            ),
-        ]
-        + (
-            [
-                Mount(
-                    "/",
-                    app=Static(
-                        directory=SERVER_DIR / "static",
-                        app_config=AppConfig(
-                            has_inferences=model.is_empty is not True,
-                            has_corpus=corpus is not None,
-                            min_dist=umap_params.min_dist,
-                            n_neighbors=umap_params.n_neighbors,
-                            n_samples=umap_params.n_samples,
-                        ),
-                    ),
-                    name="static",
-                ),
-            ]
-            if serve_ui
-            else []
-        ),
     )
     app.state.read_only = read_only
+    app.state.export_path = export_path
+    app.include_router(v1_router)
+    app.include_router(router)
+    app.include_router(graphql_router)
+    if serve_ui:
+        app.mount(
+            "/",
+            app=Static(
+                directory=SERVER_DIR / "static",
+                app_config=AppConfig(
+                    has_inferences=model.is_empty is not True,
+                    has_corpus=corpus is not None,
+                    min_dist=umap_params.min_dist,
+                    n_neighbors=umap_params.n_neighbors,
+                    n_samples=umap_params.n_samples,
+                ),
+            ),
+            name="static",
+        )
+
     app.state.db = db
     if tracer_provider:
         from opentelemetry.instrumentation.starlette import StarletteInstrumentor
