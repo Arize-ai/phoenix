@@ -403,3 +403,6 @@ select = ["E", "F", "W", "I", "NPY201"]
 
 [tool.ruff.lint.isort]
 force-single-line = false
+
+[tool.ruff.format]
+line-ending = "lf"

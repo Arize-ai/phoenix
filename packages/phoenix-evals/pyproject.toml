@@ -103,6 +103,9 @@ force-single-line = false
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["E402", "E501"]
 
+[tool.ruff.format]
+line-ending = "lf"
+
 [tool.mypy]
 explicit_package_bases = true
 disallow_untyped_calls = true
