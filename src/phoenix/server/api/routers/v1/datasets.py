@@ -36,7 +36,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, UploadFile
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import Response
 from starlette.status import (
     HTTP_200_OK,
     HTTP_204_NO_CONTENT,
@@ -126,7 +126,7 @@ async def list_datasets(
         datasets = result.scalars().all()
 
         if not datasets:
-            return PaginatedResponseWithData[Dataset](next_cursor=None, data=[])
+            return PaginatedResponseWithData(next_cursor=None, data=[])
 
         next_cursor = None
         if len(datasets) == limit + 1:
@@ -146,7 +146,7 @@ async def list_datasets(
                 )
             )
 
-        return PaginatedResponseWithData[Dataset](next_cursor=next_cursor, data=data)
+        return PaginatedResponseWithData(next_cursor=next_cursor, data=data)
 
 
 @router.delete(
@@ -229,7 +229,7 @@ async def get_dataset(
             updated_at=dataset.updated_at,
             example_count=example_count,
         )
-        return ResponseWithData[DatasetWithExampleCount](data=dataset)
+        return ResponseWithData(data=dataset)
 
 
 @dataclass
@@ -309,91 +309,76 @@ async def get_dataset_versions(
     return PaginatedResponseWithData(data=data, next_cursor=next_cursor)
 
 
-@router.post("/datasets/upload")
-async def upload_dataset(request: Request) -> Response:
-    """
-    summary: Upload dataset as either JSON or file (CSV or PyArrow)
-    operationId: uploadDataset
-    tags:
-      - datasets
-    parameters:
-      - in: query
-        name: sync
-        description: If true, fulfill request synchronously and return JSON containing dataset_id
-        schema:
-          type: boolean
-    requestBody:
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-              - name
-              - inputs
-            properties:
-              action:
-                type: string
-                enum: [create, append]
-              name:
-                type: string
-              description:
-                type: string
-              inputs:
-                type: array
-                items:
-                  type: object
-              outputs:
-                type: array
-                items:
-                  type: object
-              metadata:
-                type: array
-                items:
-                  type: object
-        multipart/form-data:
-          schema:
-            type: object
-            required:
-              - name
-              - input_keys[]
-              - output_keys[]
-              - file
-            properties:
-              action:
-                type: string
-                enum: [create, append]
-              name:
-                type: string
-              description:
-                type: string
-              input_keys[]:
-                type: array
-                items:
-                  type: string
-                uniqueItems: true
-              output_keys[]:
-                type: array
-                items:
-                  type: string
-                uniqueItems: true
-              metadata_keys[]:
-                type: array
-                items:
-                  type: string
-                uniqueItems: true
-              file:
-                type: string
-                format: binary
-    responses:
-      200:
-        description: Success
-      403:
-        description: Forbidden
-      409:
-        description: Dataset of the same name already exists
-      422:
-        description: Request body is invalid
-    """
+@dataclass
+class UploadDatasetData:
+    dataset_id: str
+
+
+@router.post(
+    "/datasets/upload",
+    operation_id="uploadDataset",
+    summary="Upload dataset as either JSON or file (CSV or PyArrow)",
+    responses=add_errors_to_responses([HTTP_409_CONFLICT, HTTP_422_UNPROCESSABLE_ENTITY]),
+    # FastAPI cannot generate the request body portion of the OpenAPI schema for
+    # routes that accept multiple request content types, so we have to provide
+    # this part of the schema manually. For context, see
+    # https://github.com/tiangolo/fastapi/discussions/7786 and
+    # https://github.com/tiangolo/fastapi/issues/990
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["name", "inputs"],
+                        "properties": {
+                            "action": {"type": "string", "enum": ["create", "append"]},
+                            "name": {"type": "string"},
+                            "description": {"type": "string"},
+                            "inputs": {"type": "array", "items": {"type": "object"}},
+                            "outputs": {"type": "array", "items": {"type": "object"}},
+                            "metadata": {"type": "array", "items": {"type": "object"}},
+                        },
+                    }
+                },
+                "multipart/form-data": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["name", "input_keys[]", "output_keys[]", "file"],
+                        "properties": {
+                            "action": {"type": "string", "enum": ["create", "append"]},
+                            "name": {"type": "string"},
+                            "description": {"type": "string"},
+                            "input_keys[]": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "uniqueItems": True,
+                            },
+                            "output_keys[]": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "uniqueItems": True,
+                            },
+                            "metadata_keys[]": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "uniqueItems": True,
+                            },
+                            "file": {"type": "string", "format": "binary"},
+                        },
+                    }
+                },
+            }
+        },
+    },
+)
+async def upload_dataset(
+    request: Request,
+    sync: bool = Query(
+        default=False,
+        description="If true, fulfill request synchronously and return JSON containing dataset_id.",
+    ),
+) -> Optional[ResponseWithData[UploadDatasetData]]:
     request_content_type = request.headers["content-type"]
     examples: Union[Examples, Awaitable[Examples]]
     if request_content_type.startswith("application/json"):
@@ -402,15 +387,15 @@ async def upload_dataset(request: Request) -> Response:
                 _process_json, await request.json()
             )
         except ValueError as e:
-            return Response(
-                content=str(e),
+            raise HTTPException(
+                detail=str(e),
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
             )
         if action is DatasetAction.CREATE:
             async with request.app.state.db() as session:
                 if await _check_table_exists(session, name):
-                    return Response(
-                        content=f"Dataset with the same name already exists: {name=}",
+                    raise HTTPException(
+                        detail=f"Dataset with the same name already exists: {name=}",
                         status_code=HTTP_409_CONFLICT,
                     )
     elif request_content_type.startswith("multipart/form-data"):
@@ -426,15 +411,15 @@ async def upload_dataset(request: Request) -> Response:
                     file,
                 ) = await _parse_form_data(form)
             except ValueError as e:
-                return Response(
-                    content=str(e),
+                raise HTTPException(
+                    detail=str(e),
                     status_code=HTTP_422_UNPROCESSABLE_ENTITY,
                 )
             if action is DatasetAction.CREATE:
                 async with request.app.state.db() as session:
                     if await _check_table_exists(session, name):
-                        return Response(
-                            content=f"Dataset with the same name already exists: {name=}",
+                        raise HTTPException(
+                            detail=f"Dataset with the same name already exists: {name=}",
                             status_code=HTTP_409_CONFLICT,
                         )
             content = await file.read()
@@ -450,13 +435,13 @@ async def upload_dataset(request: Request) -> Response:
             else:
                 assert_never(file_content_type)
         except ValueError as e:
-            return Response(
-                content=str(e),
+            raise HTTPException(
+                detail=str(e),
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
             )
     else:
-        return Response(
-            content=str("Invalid request Content-Type"),
+        raise HTTPException(
+            detail="Invalid request Content-Type",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
     operation = cast(
@@ -469,19 +454,17 @@ async def upload_dataset(request: Request) -> Response:
             description=description,
         ),
     )
-    if request.query_params.get("sync") == "true":
+    if sync:
         async with request.app.state.db() as session:
             dataset_id = (await operation(session)).dataset_id
-        return JSONResponse(
-            content={"data": {"dataset_id": str(GlobalID(DATASET_NODE_NAME, str(dataset_id)))}}
-        )
+        return ResponseWithData(data=UploadDatasetData(dataset_id=str(dataset_id)))
     try:
         request.state.enqueue_operation(operation)
     except QueueFull:
         if isinstance(examples, Coroutine):
             examples.close()
-        return Response(status_code=HTTP_429_TOO_MANY_REQUESTS)
-    return Response()
+        raise HTTPException(detail="Too many requests.", status_code=HTTP_429_TOO_MANY_REQUESTS)
+    return None
 
 
 class FileContentType(Enum):

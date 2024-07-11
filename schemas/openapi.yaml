@@ -192,6 +192,23 @@ components:
       - data
       title: ResponseWithData
       type: object
+    ResponseWithData_UploadDatasetData_:
+      properties:
+        data:
+          $ref: '#/components/schemas/UploadDatasetData'
+      required:
+      - data
+      title: ResponseWithData
+      type: object
+    UploadDatasetData:
+      properties:
+        dataset_id:
+          title: Dataset Id
+          type: string
+      required:
+      - dataset_id
+      title: UploadDatasetData
+      type: object
     ValidationError:
       properties:
         loc:
@@ -267,40 +284,100 @@ paths:
       - datasets
   /v1/datasets/upload:
     post:
-      description: "summary: Upload dataset as either JSON or file (CSV or PyArrow)\n\
-        operationId: uploadDataset\ntags:\n  - datasets\nparameters:\n  - in: query\n\
-        \    name: sync\n    description: If true, fulfill request synchronously and\
-        \ return JSON containing dataset_id\n    schema:\n      type: boolean\nrequestBody:\n\
-        \  content:\n    application/json:\n      schema:\n        type: object\n\
-        \        required:\n          - name\n          - inputs\n        properties:\n\
-        \          action:\n            type: string\n            enum: [create, append]\n\
-        \          name:\n            type: string\n          description:\n     \
-        \       type: string\n          inputs:\n            type: array\n       \
-        \     items:\n              type: object\n          outputs:\n           \
-        \ type: array\n            items:\n              type: object\n          metadata:\n\
-        \            type: array\n            items:\n              type: object\n\
-        \    multipart/form-data:\n      schema:\n        type: object\n        required:\n\
-        \          - name\n          - input_keys[]\n          - output_keys[]\n \
-        \         - file\n        properties:\n          action:\n            type:\
-        \ string\n            enum: [create, append]\n          name:\n          \
-        \  type: string\n          description:\n            type: string\n      \
-        \    input_keys[]:\n            type: array\n            items:\n        \
-        \      type: string\n            uniqueItems: true\n          output_keys[]:\n\
-        \            type: array\n            items:\n              type: string\n\
-        \            uniqueItems: true\n          metadata_keys[]:\n            type:\
-        \ array\n            items:\n              type: string\n            uniqueItems:\
-        \ true\n          file:\n            type: string\n            format: binary\n\
-        responses:\n  200:\n    description: Success\n  403:\n    description: Forbidden\n\
-        \  409:\n    description: Dataset of the same name already exists\n  422:\n\
-        \    description: Request body is invalid"
-      operationId: upload_dataset_v1_datasets_upload_post
+      operationId: uploadDataset
+      parameters:
+      - description: If true, fulfill request synchronously and return JSON containing
+          dataset_id.
+        in: query
+        name: sync
+        required: false
+        schema:
+          default: false
+          description: If true, fulfill request synchronously and return JSON containing
+            dataset_id.
+          title: Sync
+          type: boolean
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                action:
+                  enum:
+                  - create
+                  - append
+                  type: string
+                description:
+                  type: string
+                inputs:
+                  items:
+                    type: object
+                  type: array
+                metadata:
+                  items:
+                    type: object
+                  type: array
+                name:
+                  type: string
+                outputs:
+                  items:
+                    type: object
+                  type: array
+              required:
+              - name
+              - inputs
+              type: object
+          multipart/form-data:
+            schema:
+              properties:
+                action:
+                  enum:
+                  - create
+                  - append
+                  type: string
+                description:
+                  type: string
+                file:
+                  format: binary
+                  type: string
+                input_keys[]:
+                  items:
+                    type: string
+                  type: array
+                  uniqueItems: true
+                metadata_keys[]:
+                  items:
+                    type: string
+                  type: array
+                  uniqueItems: true
+                name:
+                  type: string
+                output_keys[]:
+                  items:
+                    type: string
+                  type: array
+                  uniqueItems: true
+              required:
+              - name
+              - input_keys[]
+              - output_keys[]
+              - file
+              type: object
       responses:
         '200':
           content:
             application/json:
-              schema: {}
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/ResponseWithData_UploadDatasetData_'
+                - type: 'null'
+                title: Response Uploaddataset
           description: Successful Response
-      summary: Upload Dataset
+        '409':
+          description: Conflict
+        '422':
+          description: Unprocessable Entity
+      summary: Upload dataset as either JSON or file (CSV or PyArrow)
       tags:
       - datasets
   /v1/datasets/{id}:
