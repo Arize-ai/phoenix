@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from fastapi import APIRouter
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.status import HTTP_404_NOT_FOUND
@@ -10,7 +11,10 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
+router = APIRouter(include_in_schema=False)
 
+
+@router.post("/experiment_evaluations")
 async def upsert_experiment_evaluation(request: Request) -> Response:
     """
     summary: Create an evaluation for a specific experiment run
