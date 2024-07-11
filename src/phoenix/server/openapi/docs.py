@@ -14,7 +14,7 @@ swagger_ui_default_parameters: Dict[str, Any] = {
 
 def get_swagger_ui_html(
     *,
-    openapi_url: str = "/schema",
+    openapi_url: str,
     title: str,
     swagger_js_url: str = "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui-bundle.js",
     swagger_css_url: str = "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui.css",
@@ -43,9 +43,6 @@ def get_swagger_ui_html(
     <div id="swagger-ui">
     </div>
     <script src="{swagger_js_url}"></script>
-    <style type="text/css">
-    div[id^="operations-private"]{{display:none}} #operations-tag-private{{display:none}}
-    </style>
     <!-- `SwaggerUIBundle` is now available on the page -->
     <script>
     const ui = SwaggerUIBundle({{
