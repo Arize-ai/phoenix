@@ -195,8 +195,15 @@ dependencies = [
   "requests",  # this is needed to type-check third-party packages
 ]
 
+[tool.hatch.envs.type.overrides]
+matrix.pydantic.dependencies = [
+  { value = "pydantic<2", if = ["pydantic-v1"] },
+  { value = "pydantic>=2.0.0", if = ["pydantic-v2"] },
+]
+
 [[tool.hatch.envs.type.matrix]]
 python = ["3.8", "3.9", "3.12"]
+pydantic = ["pydantic-v1", "pydantic-v2"]
 
 [tool.hatch.envs.style]
 detached = true
