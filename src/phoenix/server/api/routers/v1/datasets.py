@@ -661,7 +661,7 @@ async def get_dataset_csv(
         default=None,
         description="If provided, returns the data as of the specified version.",
     ),
-) -> bytes:
+) -> Response:
     try:
         async with request.app.state.db() as session:
             dataset_name, examples = await _get_db_examples(
@@ -670,13 +670,13 @@ async def get_dataset_csv(
     except ValueError as e:
         raise HTTPException(detail=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
     content = await run_in_threadpool(_get_content_csv, examples)
-    response.headers.update(
-        {
+    return Response(
+        content=content,
+        headers={
             "content-disposition": f'attachment; filename="{dataset_name}.csv"',
             "content-type": "text/csv",
-        }
+        },
     )
-    return content
 
 
 @router.get(
@@ -748,7 +748,7 @@ def _get_content_csv(examples: List[models.DatasetExampleRevision]) -> bytes:
         }
         for ex in examples
     ]
-    return pd.DataFrame.from_records(records).to_csv(index=False).encode()
+    return str(pd.DataFrame.from_records(records).to_csv(index=False)).encode()
 
 
 def _get_content_jsonl_openai_ft(examples: List[models.DatasetExampleRevision]) -> bytes:

@@ -1,6 +1,6 @@
-from dataclasses import dataclass
 from typing import Any, Dict, Generic, List, Optional, TypedDict, Union
 
+from pydantic.dataclasses import dataclass
 from typing_extensions import TypeAlias, TypeVar, assert_never
 
 StatusCode: TypeAlias = int
@@ -22,18 +22,38 @@ class StatusCodeWithDescription(TypedDict):
 
 @dataclass
 class ResponseWithData(Generic[DataType]):
-    """
-    A generic response type returned by V1 routes.
-    """
+    # A generic response type returned by V1 routes.
+    #
+    # pydantic.dataclasses.dataclass is used rather than dataclasses.dataclass
+    # or regular pydantic models for compatibility with both pydantic v1 and v2,
+    # since:
+    #
+    # - fastapi does not allow generic dataclasses.dataclass models as return
+    #   types when using pydantic v1.
+    # - The method of defining generic pydantic models is different between v1
+    #   and v2.
+    #
+    # Don't use """ for this docstring or it will be included as a description
+    # in the generated OpenAPI schema.
 
     data: DataType
 
 
 @dataclass
 class PaginatedResponseWithData(Generic[DataType]):
-    """
-    A generic response type returned by paginated V1 routes.
-    """
+    # A generic paginated response type returned by V1 routes.
+    #
+    # pydantic.dataclasses.dataclass is used rather than dataclasses.dataclass
+    # or regular pydantic models for compatibility with both pydantic v1 and v2,
+    # since:
+    #
+    # - fastapi does not allow generic dataclasses.dataclass models as return
+    #   types when using pydantic v1.
+    # - The method of defining generic pydantic models is different between v1
+    #   and v2.
+    #
+    # Don't use """ for this docstring or it will be included as a description
+    # in the generated OpenAPI schema.
 
     data: List[DataType]
     next_cursor: Optional[str]

@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
-from typing import AsyncContextManager, AsyncGenerator, AsyncIterator, Callable, Tuple
+from importlib.metadata import version
+from typing import AsyncContextManager, AsyncGenerator, AsyncIterator, Callable, Literal, Tuple
 
 import httpx
 import pytest
@@ -39,6 +40,17 @@ def pytest_collection_modifyitems(config, items):
             if "dialect" in item.fixturenames:
                 if "postgresql" in item.callspec.params.values():
                     item.add_marker(skip_postgres)
+
+
+@pytest.fixture
+def pydantic_version() -> Literal["v1", "v2"]:
+    raw_version = version("pydantic")
+    major_version = int(raw_version.split(".")[0])
+    if major_version == 1:
+        return "v1"
+    if major_version == 2:
+        return "v2"
+    raise ValueError(f"Cannot parse pydantic version: {raw_version}")
 
 
 @pytest.fixture
