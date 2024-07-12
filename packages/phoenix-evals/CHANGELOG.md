@@ -1,7 +1,10 @@
 # Changelog
 
-## [0.13.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.13.2...arize-phoenix-evals-v0.13.3) (2024-07-12)
+## [0.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.13.2...arize-phoenix-evals-v0.14.0) (2024-07-12)
 
+### Features
+
+* Add function call evaluator template to span_templates.py & tutorial notebook
 
 ### Bug Fixes
 
