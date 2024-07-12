@@ -114,6 +114,15 @@ components:
       - example_count
       title: DatasetWithExampleCount
       type: object
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          title: Detail
+          type: array
+      title: HTTPValidationError
+      type: object
     ListDatasetExamplesData:
       properties:
         dataset_id:
@@ -199,6 +208,27 @@ components:
       required:
       - dataset_id
       title: UploadDatasetData
+      type: object
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          title: Location
+          type: array
+        msg:
+          title: Message
+          type: string
+        type:
+          title: Error Type
+          type: string
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
       type: object
 info:
   description: Schema for Arize-Phoenix REST API
@@ -442,10 +472,10 @@ paths:
           description: Not Found
         '422':
           content:
-            text/plain:
+            application/json:
               schema:
-                type: string
-          description: Unprocessable Entity
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
       summary: Gets a dataset by ID.
       tags:
       - datasets
@@ -539,10 +569,10 @@ paths:
           description: Not Found
         '422':
           content:
-            text/plain:
+            application/json:
               schema:
-                type: string
-          description: Unprocessable Entity
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
       summary: Get dataset examples by dataset ID.
       tags:
       - datasets
