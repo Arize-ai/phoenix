@@ -28,7 +28,7 @@ class ResponseWithData(Generic[DataType]):
     # or regular pydantic models for compatibility with both pydantic v1 and v2,
     # since:
     #
-    # - fastapi does not allow generic dataclasses.dataclass models as return
+    # - fastapi does not allow generic dataclasses.dataclass models as response
     #   types when using pydantic v1.
     # - The method of defining generic pydantic models is different between v1
     #   and v2.
@@ -47,7 +47,7 @@ class PaginatedResponseWithData(Generic[DataType]):
     # or regular pydantic models for compatibility with both pydantic v1 and v2,
     # since:
     #
-    # - fastapi does not allow generic dataclasses.dataclass models as return
+    # - fastapi does not allow generic dataclasses.dataclass models as response
     #   types when using pydantic v1.
     # - The method of defining generic pydantic models is different between v1
     #   and v2.
@@ -104,16 +104,3 @@ def add_text_csv_content_to_responses(
         "text/csv": {"schema": {"type": "string", "contentMediaType": "text/csv"}}
     }
     return output_responses
-
-
-@dataclass
-class HTTPExceptionResponse:
-    """
-    Represents the response returned when a fastapi.HTTPException is raised in a
-    route.
-
-    This type is intended solely for generating error response types in the
-    OpenAPI schema via responses_for_http_exceptions.
-    """
-
-    detail: Any
