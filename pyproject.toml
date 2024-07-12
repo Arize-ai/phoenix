@@ -159,8 +159,7 @@ dependencies = [
   "protobuf==3.20",  # version minimum (for tests)
   "responses",
   "tiktoken",
-  "typing-extensions==4.5.0; python_version<'3.12'",
-  "typing-extensions==4.6.0; python_version>='3.12'",
+  "typing-extensions==4.6.0",
   "httpx", # For OpenAI testing
   "respx", # For OpenAI testing
   "nest-asyncio", # for executor testing
