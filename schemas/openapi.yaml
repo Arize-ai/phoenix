@@ -7,8 +7,10 @@ components:
           title: Created At
           type: string
         description:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Description
-          type: string
         id:
           title: Id
           type: string
@@ -86,8 +88,10 @@ components:
           title: Created At
           type: string
         description:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Description
-          type: string
         example_count:
           title: Example Count
           type: integer

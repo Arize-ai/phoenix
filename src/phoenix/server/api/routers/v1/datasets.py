@@ -82,7 +82,7 @@ router = APIRouter(tags=["datasets"])
 class Dataset:
     id: str
     name: str
-    description: str
+    description: Optional[str]
     metadata: Dict[str, Any]
     created_at: datetime
     updated_at: datetime
