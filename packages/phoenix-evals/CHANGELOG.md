@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.13.2...arize-phoenix-evals-v0.14.0) (2024-07-12)
+
+### Features
+
+* Add function call evaluator template to span_templates.py & tutorial notebook
+
+### Bug Fixes
+
+* ensure experiment errors messages work on python 3.8 and 3.9 ([#3840](https://github.com/Arize-ai/phoenix/issues/3840)) ([25a7fb9](https://github.com/Arize-ai/phoenix/commit/25a7fb93fe7512a0ac2da9a59915c9e145c58ae2))
+
+
+### Documentation
+
+* Update model wrapper docstrings ([#3834](https://github.com/Arize-ai/phoenix/issues/3834)) ([531360b](https://github.com/Arize-ai/phoenix/commit/531360b4f1a7180c892504ffbc567d78503283f2))
+
 ## [0.13.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.13.1...arize-phoenix-evals-v0.13.2) (2024-07-03)
 
 
