@@ -1,4 +1,6 @@
 import contextlib
+from asyncio import sleep
+from datetime import datetime
 from typing import AsyncContextManager, AsyncGenerator, AsyncIterator, Callable
 
 import pytest
@@ -35,13 +37,11 @@ class Test_insert_on_conflict:
         )
         await session.execute(
             insert_on_conflict(
+                values,
                 dialect=dialect,
                 table=models.Project,
-                values=values,
-                constraint="uq_projects_name",
-                column_names=("name",),
+                unique_by=("name",),
                 on_conflict=on_conflict,
-                set_=values,
             )
         )
         projects = (await session.scalars(select(models.Project))).all()
@@ -50,57 +50,128 @@ class Test_insert_on_conflict:
         assert projects[0].description == "description"
 
     @pytest.mark.parametrize(
-        "on_conflict, expected_description",
+        "on_conflict",
         [
             pytest.param(
                 OnConflict.DO_NOTHING,
-                "original-description",
                 id="do-nothing",
             ),
             pytest.param(
                 OnConflict.DO_UPDATE,
-                "updated-description",
-                id="update",
+                id="do-update",
             ),
         ],
     )
     async def test_handles_conflicts_in_expected_manner(
         self,
-        on_conflict,
-        expected_description,
+        on_conflict: OnConflict,
         prod_db,  # the insert_on_conflict function is sensitive to the way the DB is set up
     ):
         async with prod_db() as session:
-            await session.execute(
-                insert(models.Project).values(dict(name="name", description="original-description"))
+            project_rowid = await session.scalar(
+                insert(models.Project).values(dict(name="abc")).returning(models.Project.id)
             )
-            projects = (await session.scalars(select(models.Project))).all()
-            assert len(projects) == 1
-            assert projects[0].name == "name"
-            assert projects[0].description == "original-description"
+            trace_rowid = await session.scalar(
+                insert(models.Trace)
+                .values(
+                    dict(
+                        project_rowid=project_rowid,
+                        trace_id="xyz",
+                        start_time=datetime.now(),
+                        end_time=datetime.now(),
+                    )
+                )
+                .returning(models.Trace.id)
+            )
+            record = await session.scalar(
+                insert(models.TraceAnnotation)
+                .values(
+                    dict(
+                        name="uvw",
+                        trace_rowid=trace_rowid,
+                        annotator_kind="LLM",
+                        score=12,
+                        label="ijk",
+                        metadata_={"1": "2"},
+                    )
+                )
+                .returning(models.TraceAnnotation)
+            )
+            anno = await session.scalar(
+                select(models.TraceAnnotation)
+                .where(models.TraceAnnotation.trace_rowid == trace_rowid)
+                .order_by(models.TraceAnnotation.created_at)
+            )
+        assert anno.id == record.id
+        assert anno.created_at == record.created_at
+        assert anno.name == record.name
+        assert anno.trace_rowid == record.trace_rowid
+        assert anno.updated_at == record.updated_at
+        assert anno.score == record.score
+        assert anno.label == record.label
+        assert anno.explanation == record.explanation
+        assert anno.metadata_ == record.metadata_
+
+        await sleep(1)  # increment `updated_at` by 1 second
 
         async with prod_db() as session:
             dialect = SupportedSQLDialect(session.bind.dialect.name)
-            values = dict(
-                name="name",
-                description="updated-description",
-            )
             await session.execute(
                 insert_on_conflict(
+                    dict(
+                        name="uvw",
+                        trace_rowid=trace_rowid,
+                        annotator_kind="LLM",
+                        score=None,
+                        metadata_={},
+                    ),
+                    dict(
+                        name="rst",
+                        trace_rowid=trace_rowid,
+                        annotator_kind="LLM",
+                        score=12,
+                        metadata_={"1": "2"},
+                    ),
+                    dict(
+                        name="uvw",
+                        trace_rowid=trace_rowid,
+                        annotator_kind="HUMAN",
+                        score=21,
+                        metadata_={"2": "1"},
+                    ),
                     dialect=dialect,
-                    table=models.Project,
-                    values=values,
-                    constraint="uq_projects_name",
-                    column_names=("name",),
+                    table=models.TraceAnnotation,
+                    unique_by=("name", "trace_rowid"),
                     on_conflict=on_conflict,
-                    set_=values,
                 )
             )
-
-            projects = (await session.scalars(select(models.Project))).all()
-            assert len(projects) == 1
-            assert projects[0].name == "name"
-            assert projects[0].description == expected_description
+            annos = list(
+                await session.scalars(
+                    select(models.TraceAnnotation)
+                    .where(models.TraceAnnotation.trace_rowid == trace_rowid)
+                    .order_by(models.TraceAnnotation.created_at)
+                )
+            )
+        assert len(annos) == 2
+        anno = annos[0]
+        assert anno.id == record.id
+        assert anno.created_at == record.created_at
+        assert anno.name == record.name
+        assert anno.trace_rowid == record.trace_rowid
+        if on_conflict is OnConflict.DO_NOTHING:
+            assert anno.updated_at == record.updated_at
+            assert anno.annotator_kind == record.annotator_kind
+            assert anno.score == record.score
+            assert anno.label == record.label
+            assert anno.explanation == record.explanation
+            assert anno.metadata_ == record.metadata_
+        else:
+            assert anno.updated_at > record.updated_at
+            assert anno.annotator_kind != record.annotator_kind
+            assert anno.score == 21
+            assert anno.label is None
+            assert anno.explanation is None
+            assert anno.metadata_ == {"2": "1"}
 
 
 @pytest.fixture

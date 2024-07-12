@@ -21,7 +21,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.utilities.project import get_project_name
@@ -205,21 +205,13 @@ async def annotate_traces(request: Request) -> Response:
                 annotator_kind=annotator_kind,
                 metadata_=metadata,
             )
-            set_ = {
-                **{k: v for k, v in values.items() if k != "metadata_"},
-                "metadata": values["metadata_"],
-            }
-
             dialect = SupportedSQLDialect(session.bind.dialect.name)
             trace_annotation_id = await session.scalar(
                 insert_on_conflict(
+                    values,
                     dialect=dialect,
                     table=models.TraceAnnotation,
-                    values=values,
-                    constraint="uq_trace_annotations_trace_rowid_name",
-                    column_names=("trace_rowid", "name"),
-                    on_conflict=OnConflict.DO_UPDATE,
-                    set_=set_,
+                    unique_by=("name", "trace_rowid"),
                 ).returning(models.TraceAnnotation.id)
             )
             inserted_annotations.append(

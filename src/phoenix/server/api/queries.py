@@ -92,6 +92,7 @@ class Query:
                 models.Project.name == models.Experiment.project_name,
             )
             .where(models.Experiment.project_name.is_(None))
+            .order_by(models.Project.id)
         )
         async with info.context.db() as session:
             projects = await session.stream_scalars(stmt)

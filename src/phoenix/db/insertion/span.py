@@ -28,12 +28,10 @@ async def insert_span(
     dialect = SupportedSQLDialect(session.bind.dialect.name)
     project_rowid = await session.scalar(
         insert_on_conflict(
+            dict(name=project_name),
             dialect=dialect,
             table=models.Project,
-            constraint="uq_projects_name",
-            column_names=("name",),
-            values=dict(name=project_name),
-            on_conflict=OnConflict.DO_UPDATE,
+            unique_by=("name",),
             set_=dict(name=project_name),
         ).returning(models.Project.id)
     )
@@ -88,11 +86,7 @@ async def insert_span(
         cumulative_llm_token_count_completion += cast(int, accumulation[2] or 0)
     span_rowid = await session.scalar(
         insert_on_conflict(
-            dialect=dialect,
-            table=models.Span,
-            constraint="uq_spans_span_id",
-            column_names=("span_id",),
-            values=dict(
+            dict(
                 span_id=span.context.span_id,
                 trace_rowid=trace_rowid,
                 parent_id=span.parent_id,
@@ -108,6 +102,9 @@ async def insert_span(
                 cumulative_llm_token_count_prompt=cumulative_llm_token_count_prompt,
                 cumulative_llm_token_count_completion=cumulative_llm_token_count_completion,
             ),
+            dialect=dialect,
+            table=models.Span,
+            unique_by=("span_id",),
             on_conflict=OnConflict.DO_NOTHING,
         ).returning(models.Span.id)
     )

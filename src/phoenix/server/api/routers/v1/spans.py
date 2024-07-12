@@ -11,7 +11,7 @@ from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.routers.utils import df_to_bytes, from_iso_format
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.trace.dsl import SpanQuery
@@ -261,21 +261,13 @@ async def annotate_spans(request: Request) -> Response:
                 annotator_kind=annotator_kind,
                 metadata_=metadata,
             )
-            set_ = {
-                **{k: v for k, v in values.items() if k != "metadata_"},
-                "metadata": values["metadata_"],
-            }
-
             dialect = SupportedSQLDialect(session.bind.dialect.name)
             span_annotation_id = await session.scalar(
                 insert_on_conflict(
+                    values,
                     dialect=dialect,
                     table=models.SpanAnnotation,
-                    values=values,
-                    constraint="uq_span_annotations_span_rowid_name",
-                    column_names=("span_rowid", "name"),
-                    on_conflict=OnConflict.DO_UPDATE,
-                    set_=set_,
+                    unique_by=("name", "span_rowid"),
                 ).returning(models.SpanAnnotation.id)
             )
             inserted_annotations.append(
