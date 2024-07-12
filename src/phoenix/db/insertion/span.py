@@ -26,15 +26,14 @@ async def insert_span(
     project_name: str,
 ) -> Optional[SpanInsertionEvent]:
     dialect = SupportedSQLDialect(session.bind.dialect.name)
-    project_rowid = await session.scalar(
-        insert_on_conflict(
-            dict(name=project_name),
-            dialect=dialect,
-            table=models.Project,
-            unique_by=("name",),
-            set_=dict(name=project_name),
-        ).returning(models.Project.id)
-    )
+    if (
+        project_rowid := await session.scalar(
+            select(models.Project.id).where(models.Project.name == project_name)
+        )
+    ) is None:
+        project_rowid = await session.scalar(
+            insert(models.Project).values(dict(name=project_name)).returning(models.Project.id)
+        )
     assert project_rowid is not None
     if trace := await session.scalar(
         select(models.Trace).where(models.Trace.trace_id == span.context.trace_id)
