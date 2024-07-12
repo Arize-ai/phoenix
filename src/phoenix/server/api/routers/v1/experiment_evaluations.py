@@ -7,7 +7,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
@@ -123,20 +123,13 @@ async def upsert_experiment_evaluation(request: Request) -> Response:
             end_time=datetime.fromisoformat(end_time),
             trace_id=payload.get("trace_id"),
         )
-        set_ = {
-            **{k: v for k, v in values.items() if k != "metadata_"},
-            "metadata": values["metadata_"],  # `metadata` must match database
-        }
         dialect = SupportedSQLDialect(session.bind.dialect.name)
         exp_eval_run = await session.scalar(
             insert_on_conflict(
+                values,
                 dialect=dialect,
                 table=models.ExperimentRunAnnotation,
-                values=values,
-                constraint="uq_experiment_run_annotations_experiment_run_id_name",
-                column_names=("experiment_run_id", "name"),
-                on_conflict=OnConflict.DO_UPDATE,
-                set_=set_,
+                unique_by=("experiment_run_id", "name"),
             ).returning(models.ExperimentRunAnnotation)
         )
     evaluation_gid = GlobalID("ExperimentEvaluation", str(exp_eval_run.id))

@@ -6,7 +6,7 @@ from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, num_docs_col
-from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.exceptions import PhoenixException
 from phoenix.trace import v1 as pb
 
@@ -87,18 +87,12 @@ async def _insert_trace_evaluation(
         metadata_={},  # `metadata_` must match ORM
         annotator_kind="LLM",
     )
-    set_ = dict(values)
-    set_.pop("metadata_")
-    set_["metadata"] = values["metadata_"]  # `metadata` must match database
     await session.execute(
         insert_on_conflict(
+            values,
             dialect=dialect,
             table=models.TraceAnnotation,
-            values=values,
-            constraint="uq_trace_annotations_name_trace_rowid",
-            column_names=("name", "trace_rowid"),
-            on_conflict=OnConflict.DO_UPDATE,
-            set_=set_,
+            unique_by=("name", "trace_rowid"),
         )
     )
     return TraceEvaluationInsertionEvent(project_rowid, evaluation_name)
@@ -135,18 +129,12 @@ async def _insert_span_evaluation(
         metadata_={},  # `metadata_` must match ORM
         annotator_kind="LLM",
     )
-    set_ = dict(values)
-    set_.pop("metadata_")
-    set_["metadata"] = values["metadata_"]  # `metadata` must match database
     await session.execute(
         insert_on_conflict(
+            values,
             dialect=dialect,
             table=models.SpanAnnotation,
-            values=values,
-            constraint="uq_span_annotations_name_span_rowid",
-            column_names=("name", "span_rowid"),
-            on_conflict=OnConflict.DO_UPDATE,
-            set_=set_,
+            unique_by=("name", "span_rowid"),
         )
     )
     return SpanEvaluationInsertionEvent(project_rowid, evaluation_name)
@@ -192,18 +180,12 @@ async def _insert_document_evaluation(
         metadata_={},  # `metadata_` must match ORM
         annotator_kind="LLM",
     )
-    set_ = dict(values)
-    set_.pop("metadata_")
-    set_["metadata"] = values["metadata_"]  # `metadata` must match database
     await session.execute(
         insert_on_conflict(
+            values,
             dialect=dialect,
             table=models.DocumentAnnotation,
-            values=values,
-            constraint="uq_document_annotations_name_span_rowid_document_position",
-            column_names=("name", "span_rowid", "document_position"),
-            on_conflict=OnConflict.DO_UPDATE,
-            set_=set_,
+            unique_by=("name", "span_rowid", "document_position"),
         )
     )
     return DocumentEvaluationInsertionEvent(project_rowid, evaluation_name)

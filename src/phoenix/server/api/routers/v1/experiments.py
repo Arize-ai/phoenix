@@ -180,16 +180,15 @@ async def create_experiment(request: Request) -> Response:
         dialect = SupportedSQLDialect(session.bind.dialect.name)
         project_rowid = await session.scalar(
             insert_on_conflict(
-                dialect=dialect,
-                table=models.Project,
-                constraint="uq_projects_name",
-                column_names=("name",),
-                values=dict(
+                dict(
                     name=project_name,
                     description=project_description,
                     created_at=experiment.created_at,
                     updated_at=experiment.updated_at,
                 ),
+                dialect=dialect,
+                table=models.Project,
+                unique_by=("name",),
             ).returning(models.Project.id)
         )
         assert project_rowid is not None
