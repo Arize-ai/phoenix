@@ -78,9 +78,7 @@ def dialect(request):
 
 @pytest.fixture
 async def sqlite_engine() -> AsyncEngine:
-    engine = aio_sqlite_engine(
-        make_url("sqlite+aiosqlite://"), migrate=False, shared_cache=False, echo=True
-    )
+    engine = aio_sqlite_engine(make_url("sqlite+aiosqlite://"), migrate=False, shared_cache=False)
     async with engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
     return engine
