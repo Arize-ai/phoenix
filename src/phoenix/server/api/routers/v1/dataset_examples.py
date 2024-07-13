@@ -1,8 +1,8 @@
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Path, Query
+from pydantic import BaseModel
 from sqlalchemy import and_, func, select
 from starlette.requests import Request
 from starlette.status import HTTP_404_NOT_FOUND
@@ -21,25 +21,27 @@ from phoenix.db.models import (
     DatasetVersion as ORMDatasetVersion,
 )
 
-from .utils import ResponseWithData, add_errors_to_responses
+from .utils import ResponseBody, add_errors_to_responses
 
 router = APIRouter(tags=["datasets"])
 
 
-@dataclass
-class DatasetExample:
+class DatasetExample(BaseModel):
     id: str
-    input: Dict[str, Any]
-    output: Dict[str, Any]
-    metadata: Dict[str, Any]
+    input: Dict[Any, Any]
+    output: Dict[Any, Any]
+    metadata: Dict[Any, Any]
     updated_at: datetime
 
 
-@dataclass
-class ListDatasetExamplesData:
+class ListDatasetExamplesData(BaseModel):
     dataset_id: str
     version_id: str
     examples: List[DatasetExample]
+
+
+class ListDatasetExamplesResponseBody(ResponseBody[ListDatasetExamplesData]):
+    pass
 
 
 @router.get(
@@ -55,7 +57,7 @@ async def list_dataset_examples(
         default=None,
         description="If provided, returns the dataset examples as of the specified version.",
     ),
-) -> ResponseWithData[ListDatasetExamplesData]:
+) -> ListDatasetExamplesResponseBody:
     dataset_gid = GlobalID.from_id(id)
     version_gid = GlobalID.from_id(version_id) if version_id else None
 
@@ -144,7 +146,7 @@ async def list_dataset_examples(
             )
             async for example, revision in await session.stream(query)
         ]
-    return ResponseWithData[ListDatasetExamplesData](
+    return ListDatasetExamplesResponseBody(
         data=ListDatasetExamplesData(
             dataset_id=str(GlobalID("Dataset", str(resolved_dataset_id))),
             version_id=str(GlobalID("DatasetVersion", str(resolved_version_id))),

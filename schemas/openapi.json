@@ -50,7 +50,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ResponseWithData_ListDatasetExamplesData_"
+                  "$ref": "#/components/schemas/ListDatasetExamplesResponseBody"
                 }
               }
             }
@@ -152,7 +152,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaginatedResponseWithData_Dataset_"
+                  "$ref": "#/components/schemas/ListDatasetsResponseBody"
                 }
               }
             }
@@ -241,7 +241,7 @@
           "datasets"
         ],
         "summary": "Gets a dataset by ID.",
-        "operationId": "getDatasetById",
+        "operationId": "getDataset",
         "parameters": [
           {
             "name": "id",
@@ -261,7 +261,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ResponseWithData_DatasetWithExampleCount_"
+                  "$ref": "#/components/schemas/GetDatasetResponseBody"
                 }
               }
             }
@@ -304,8 +304,8 @@
         "tags": [
           "datasets"
         ],
-        "summary": "Gets dataset versions (sorted from latest to oldest).",
-        "operationId": "getDatasetVersionsByDatasetId",
+        "summary": "Lists dataset versions (sorted from latest to oldest).",
+        "operationId": "listDatasetVersionsByDatasetId",
         "parameters": [
           {
             "name": "id",
@@ -356,7 +356,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaginatedResponseWithData_DatasetVersion_"
+                  "$ref": "#/components/schemas/ListDatasetVersionsResponseBody"
                 }
               }
             }
@@ -413,7 +413,7 @@
                 "schema": {
                   "anyOf": [
                     {
-                      "$ref": "#/components/schemas/ResponseWithData_UploadDatasetData_"
+                      "$ref": "#/components/schemas/UploadDatasetResponseBody"
                     },
                     {
                       "type": "null"
@@ -936,6 +936,18 @@
         ],
         "title": "DatasetWithExampleCount"
       },
+      "GetDatasetResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DatasetWithExampleCount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetDatasetResponseBody"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -975,7 +987,19 @@
         ],
         "title": "ListDatasetExamplesData"
       },
-      "PaginatedResponseWithData_DatasetVersion_": {
+      "ListDatasetExamplesResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ListDatasetExamplesData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ListDatasetExamplesResponseBody"
+      },
+      "ListDatasetVersionsResponseBody": {
         "properties": {
           "data": {
             "items": {
@@ -1001,9 +1025,9 @@
           "data",
           "next_cursor"
         ],
-        "title": "PaginatedResponseWithData"
+        "title": "ListDatasetVersionsResponseBody"
       },
-      "PaginatedResponseWithData_Dataset_": {
+      "ListDatasetsResponseBody": {
         "properties": {
           "data": {
             "items": {
@@ -1029,43 +1053,7 @@
           "data",
           "next_cursor"
         ],
-        "title": "PaginatedResponseWithData"
-      },
-      "ResponseWithData_DatasetWithExampleCount_": {
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/DatasetWithExampleCount"
-          }
-        },
-        "type": "object",
-        "required": [
-          "data"
-        ],
-        "title": "ResponseWithData"
-      },
-      "ResponseWithData_ListDatasetExamplesData_": {
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/ListDatasetExamplesData"
-          }
-        },
-        "type": "object",
-        "required": [
-          "data"
-        ],
-        "title": "ResponseWithData"
-      },
-      "ResponseWithData_UploadDatasetData_": {
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/UploadDatasetData"
-          }
-        },
-        "type": "object",
-        "required": [
-          "data"
-        ],
-        "title": "ResponseWithData"
+        "title": "ListDatasetsResponseBody"
       },
       "UploadDatasetData": {
         "properties": {
@@ -1079,6 +1067,18 @@
           "dataset_id"
         ],
         "title": "UploadDatasetData"
+      },
+      "UploadDatasetResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/UploadDatasetData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "UploadDatasetResponseBody"
       },
       "ValidationError": {
         "properties": {

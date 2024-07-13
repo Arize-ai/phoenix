@@ -6,7 +6,6 @@ import logging
 import zlib
 from asyncio import QueueFull
 from collections import Counter
-from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from functools import partial
@@ -31,6 +30,7 @@ import pandas as pd
 import pyarrow as pa
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Path, Query
 from fastapi.responses import PlainTextResponse, StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
@@ -63,8 +63,8 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_projects, delete_traces
 
 from .utils import (
-    PaginatedResponseWithData,
-    ResponseWithData,
+    PaginatedResponseBody,
+    ResponseBody,
     add_errors_to_responses,
     add_text_csv_content_to_responses,
 )
@@ -78,14 +78,17 @@ DATASET_VERSION_NODE_NAME = DatasetVersionNodeType.__name__
 router = APIRouter(tags=["datasets"])
 
 
-@dataclass
-class Dataset:
+class Dataset(BaseModel):
     id: str
     name: str
     description: Optional[str]
-    metadata: Dict[str, Any]
+    metadata: Dict[Any, Any]
     created_at: datetime
     updated_at: datetime
+
+
+class ListDatasetsResponseBody(PaginatedResponseBody[Dataset]):
+    pass
 
 
 @router.get(
@@ -105,7 +108,7 @@ async def list_datasets(
     limit: int = Query(
         default=10, description="The maximum number of datasets to return at a time.", gt=0
     ),
-) -> PaginatedResponseWithData[Dataset]:
+) -> ListDatasetsResponseBody:
     async with request.app.state.db() as session:
         query = select(models.Dataset).order_by(models.Dataset.id.desc())
 
@@ -126,7 +129,7 @@ async def list_datasets(
         datasets = result.scalars().all()
 
         if not datasets:
-            return PaginatedResponseWithData(next_cursor=None, data=[])
+            return ListDatasetsResponseBody(next_cursor=None, data=[])
 
         next_cursor = None
         if len(datasets) == limit + 1:
@@ -146,7 +149,7 @@ async def list_datasets(
                 )
             )
 
-        return PaginatedResponseWithData(next_cursor=next_cursor, data=data)
+        return ListDatasetsResponseBody(next_cursor=next_cursor, data=data)
 
 
 @router.delete(
@@ -186,20 +189,23 @@ async def delete_dataset(
     tasks.add_task(delete_traces, request.app.state.db, *eval_trace_ids)
 
 
-@dataclass
 class DatasetWithExampleCount(Dataset):
     example_count: int
 
 
+class GetDatasetResponseBody(ResponseBody[DatasetWithExampleCount]):
+    pass
+
+
 @router.get(
     "/datasets/{id}",
-    operation_id="getDatasetById",
+    operation_id="getDataset",
     summary="Gets a dataset by ID.",
     responses=add_errors_to_responses([HTTP_404_NOT_FOUND]),
 )
 async def get_dataset(
     request: Request, id: str = Path(description="The ID of the dataset.")
-) -> ResponseWithData[DatasetWithExampleCount]:
+) -> GetDatasetResponseBody:
     dataset_id = GlobalID.from_id(id)
 
     if (type_name := dataset_id.type_name) != DATASET_NODE_NAME:
@@ -229,24 +235,27 @@ async def get_dataset(
             updated_at=dataset.updated_at,
             example_count=example_count,
         )
-        return ResponseWithData(data=dataset)
+        return GetDatasetResponseBody(data=dataset)
 
 
-@dataclass
-class DatasetVersion:
+class DatasetVersion(BaseModel):
     version_id: str
     description: str
-    metadata: Dict[str, Any]
+    metadata: Dict[Any, Any]
     created_at: datetime
+
+
+class ListDatasetVersionsResponseBody(PaginatedResponseBody[DatasetVersion]):
+    pass
 
 
 @router.get(
     "/datasets/{id}/versions",
-    operation_id="getDatasetVersionsByDatasetId",
-    summary="Gets dataset versions (sorted from latest to oldest).",
+    operation_id="listDatasetVersionsByDatasetId",
+    summary="Lists dataset versions (sorted from latest to oldest).",
     responses=add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY]),
 )
-async def get_dataset_versions(
+async def list_dataset_versions(
     request: Request,
     id: str = Path(description="The ID of the dataset."),
     cursor: Optional[str] = Query(
@@ -256,7 +265,7 @@ async def get_dataset_versions(
     limit: int = Query(
         default=10, description="The maximum number of dataset versions to return at a time.", gt=0
     ),
-) -> PaginatedResponseWithData[DatasetVersion]:
+) -> ListDatasetVersionsResponseBody:
     if id:
         try:
             dataset_id = from_global_id_with_expected_type(
@@ -306,12 +315,15 @@ async def get_dataset_versions(
             async for version in await session.stream_scalars(stmt)
         ]
     next_cursor = data.pop().version_id if len(data) == limit + 1 else None
-    return PaginatedResponseWithData(data=data, next_cursor=next_cursor)
+    return ListDatasetVersionsResponseBody(data=data, next_cursor=next_cursor)
 
 
-@dataclass
-class UploadDatasetData:
+class UploadDatasetData(BaseModel):
     dataset_id: str
+
+
+class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
+    pass
 
 
 @router.post(
@@ -378,7 +390,7 @@ async def upload_dataset(
         default=False,
         description="If true, fulfill request synchronously and return JSON containing dataset_id.",
     ),
-) -> Optional[ResponseWithData[UploadDatasetData]]:
+) -> Optional[UploadDatasetResponseBody]:
     request_content_type = request.headers["content-type"]
     examples: Union[Examples, Awaitable[Examples]]
     if request_content_type.startswith("application/json"):
@@ -457,7 +469,7 @@ async def upload_dataset(
     if sync:
         async with request.app.state.db() as session:
             dataset_id = (await operation(session)).dataset_id
-        return ResponseWithData(data=UploadDatasetData(dataset_id=str(dataset_id)))
+        return UploadDatasetResponseBody(data=UploadDatasetData(dataset_id=str(dataset_id)))
     try:
         request.state.enqueue_operation(operation)
     except QueueFull:
