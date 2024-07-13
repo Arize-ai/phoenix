@@ -770,10 +770,205 @@
           }
         }
       }
+    },
+    "/v1/datasets/{dataset_id}/experiments": {
+      "post": {
+        "summary": "Create an experiment using a dataset",
+        "operationId": "createExperiment",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExperimentRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Experiment retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateExperimentResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset or DatasetVersion not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/experiments/{experiment_id}": {
+      "get": {
+        "summary": "Get details of a specific experiment",
+        "operationId": "getExperiment",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetExperimentResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Experiment not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "CreateExperimentRequestBody": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          },
+          "version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Id"
+          },
+          "repetitions": {
+            "type": "integer",
+            "title": "Repetitions",
+            "default": 1
+          }
+        },
+        "type": "object",
+        "title": "CreateExperimentRequestBody"
+      },
+      "CreateExperimentResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Experiment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateExperimentResponseBody"
+      },
       "Dataset": {
         "properties": {
           "id": {
@@ -936,6 +1131,63 @@
         ],
         "title": "DatasetWithExampleCount"
       },
+      "Experiment": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "dataset_id": {
+            "type": "string",
+            "title": "Dataset Id"
+          },
+          "dataset_version_id": {
+            "type": "string",
+            "title": "Dataset Version Id"
+          },
+          "repetitions": {
+            "type": "integer",
+            "title": "Repetitions"
+          },
+          "metadata": {
+            "type": "object",
+            "title": "Metadata"
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Name"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "dataset_id",
+          "dataset_version_id",
+          "repetitions",
+          "metadata",
+          "project_name",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "Experiment"
+      },
       "GetDatasetResponseBody": {
         "properties": {
           "data": {
@@ -947,6 +1199,18 @@
           "data"
         ],
         "title": "GetDatasetResponseBody"
+      },
+      "GetExperimentResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Experiment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetExperimentResponseBody"
       },
       "HTTPValidationError": {
         "properties": {
