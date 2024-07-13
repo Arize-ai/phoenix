@@ -222,7 +222,13 @@ async def check_healthz(_: Request) -> PlainTextResponse:
 
 @router.get("/docs")
 async def api_docs() -> Response:
-    return get_swagger_ui_html(openapi_url="/openapi.json", title="arize-phoenix API")
+    return get_swagger_ui_html(
+        openapi_url="/openapi.json",  # this json file is served as a static asset
+        title="arize-phoenix API",
+        swagger_ui_parameters={
+            "defaultModelsExpandDepth": -1,  # hides the schema section in the Swagger UI
+        },
+    )
 
 
 def create_graphql_router(
@@ -454,6 +460,8 @@ def create_app(
         ],
         exception_handlers={HTTPException: plain_text_http_exception_handler},
         debug=debug,
+        openapi_url=None,  # the openapi spec is served as a static asset
+        docs_url=None,  # disable fastapi's default /docs route to make room for our own
     )
     app.state.read_only = read_only
     app.state.export_path = export_path
