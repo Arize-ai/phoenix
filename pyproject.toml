@@ -160,7 +160,10 @@ dependencies = [
   "protobuf==3.20",  # version minimum (for tests)
   "responses",
   "tiktoken",
-  "typing-extensions",
+  "typing-extensions==4.5.0; python_version=='3.8'",
+  "typing-extensions==4.6.0; python_version=='3.9'",
+  "pydantic==1.10.17; python_version<='3.9'",
+  "pydantic==2.8.2; python_version=='3.12'",
   "httpx", # For OpenAI testing
   "respx", # For OpenAI testing
   "nest-asyncio", # for executor testing
@@ -193,17 +196,13 @@ dependencies = [
   "py-grpc-prometheus",
   "strawberry-graphql[opentelemetry]==0.235.0",  # need to pin version because we're monkey-patching
   "requests",  # this is needed to type-check third-party packages
-]
-
-[tool.hatch.envs.type.overrides]
-matrix.pydantic.dependencies = [
-  { value = "pydantic<2", if = ["pydantic-v1"] },
-  { value = "pydantic>=2.0.0", if = ["pydantic-v2"] },
+  "pydantic==1.10.17; python_version=='3.8'",
+  "pydantic==1.10.17; python_version=='3.9'",
+  "pydantic==2.8.2; python_version=='3.12'",
 ]
 
 [[tool.hatch.envs.type.matrix]]
 python = ["3.8", "3.9", "3.12"]
-pydantic = ["pydantic-v1", "pydantic-v2"]
 
 [tool.hatch.envs.style]
 detached = true
@@ -231,15 +230,8 @@ dependencies = [
 tests = "pytest {args}"
 coverage = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/phoenix --cov=tests {args}"
 
-[tool.hatch.envs.test.overrides]
-matrix.pydantic.dependencies = [
-  { value = "pydantic<2", if = ["pydantic-v1"] },
-  { value = "pydantic>=2.0.0", if = ["pydantic-v2"] },
-]
-
 [[tool.hatch.envs.test.matrix]]
 python = ["3.8", "3.12"]
-pydantic = ["pydantic-v1", "pydantic-v2"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
