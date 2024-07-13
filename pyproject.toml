@@ -311,6 +311,11 @@ dependencies = [
 [tool.hatch.envs.gql.scripts]
 build = 'strawberry export-schema phoenix.server.api.schema:schema > app/schema.graphql'
 
+[tool.hatch.envs.openapi]
+dependencies = [
+  "pydantic==2.8.2",
+  "fastapi==0.111.0",
+]
 
 [tool.hatch.envs.openapi.scripts]
 build = "python -m phoenix.server.api.openapi.main --format readable > schemas/openapi.json"
