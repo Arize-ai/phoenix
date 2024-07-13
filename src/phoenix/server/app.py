@@ -78,6 +78,7 @@ from phoenix.server.api.dataloaders import (
     TraceEvaluationsDataLoader,
     TraceRowIdsDataLoader,
 )
+from phoenix.server.api.openapi.schema import get_openapi_schema
 from phoenix.server.api.routers.v1 import router as v1_router
 from phoenix.server.api.schema import schema
 from phoenix.server.grpc_server import GrpcServer
@@ -218,6 +219,11 @@ def _lifespan(
 @router.get("/healthz")
 async def check_healthz(_: Request) -> PlainTextResponse:
     return PlainTextResponse("OK")
+
+
+@router.get("/openapi.json")
+async def openapi() -> Dict[str, Any]:
+    return get_openapi_schema()
 
 
 @router.get("/docs")

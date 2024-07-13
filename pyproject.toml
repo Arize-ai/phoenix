@@ -321,10 +321,7 @@ build = 'strawberry export-schema phoenix.server.api.schema:schema > app/schema.
 
 
 [tool.hatch.envs.openapi.scripts]
-build = [
-  "python -m phoenix.server.api.openapi.main --format readable > schemas/openapi.json",
-  "python -m phoenix.server.api.openapi.main --format compressed > app/static/openapi.json",
-]
+build = "python -m phoenix.server.api.openapi.main --format readable > schemas/openapi.json"
 
 [tool.hatch.envs.proto]
 detached = true
