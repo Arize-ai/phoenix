@@ -16,7 +16,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 from .utils import ResponseBody, add_errors_to_responses
 
-router = APIRouter()
+router = APIRouter(tags=["experiments"])
 
 
 def _short_uuid() -> str:
