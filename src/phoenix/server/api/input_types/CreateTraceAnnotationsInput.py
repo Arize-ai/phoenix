@@ -13,4 +13,4 @@ class CreateTraceAnnotationsInput:
     label: Optional[str] = None
     score: Optional[float] = None
     explanation: Optional[str] = None
-    metadata: JSON = dict()
+    metadata: JSON = strawberry.field(default_factory=dict)
