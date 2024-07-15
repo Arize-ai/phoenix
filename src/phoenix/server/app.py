@@ -78,13 +78,12 @@ from phoenix.server.api.dataloaders import (
     TraceEvaluationsDataLoader,
     TraceRowIdsDataLoader,
 )
-from phoenix.server.api.openapi.schema import get_openapi_schema
 from phoenix.server.api.routers.v1 import router as v1_router
 from phoenix.server.api.schema import schema
 from phoenix.server.grpc_server import GrpcServer
-from phoenix.server.openapi.docs import get_swagger_ui_html
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.trace.schemas import Span
+from phoenix.version import __version__ as phoenix_version
 
 if TYPE_CHECKING:
     from opentelemetry.trace import TracerProvider
@@ -219,22 +218,6 @@ def _lifespan(
 @router.get("/healthz")
 async def check_healthz(_: Request) -> PlainTextResponse:
     return PlainTextResponse("OK")
-
-
-@router.get("/openapi.json")
-async def openapi() -> Dict[str, Any]:
-    return get_openapi_schema()
-
-
-@router.get("/docs")
-async def api_docs() -> Response:
-    return get_swagger_ui_html(
-        openapi_url="/openapi.json",  # this json file is served as a static asset
-        title="arize-phoenix API",
-        swagger_ui_parameters={
-            "defaultModelsExpandDepth": -1,  # hides the schema section in the Swagger UI
-        },
-    )
 
 
 def create_graphql_router(
@@ -453,6 +436,8 @@ def create_app(
     else:
         prometheus_middlewares = []
     app = FastAPI(
+        title="Arize-Phoenix",
+        version=phoenix_version,
         lifespan=_lifespan(
             read_only=read_only,
             bulk_inserter=bulk_inserter,
@@ -466,8 +451,9 @@ def create_app(
         ],
         exception_handlers={HTTPException: plain_text_http_exception_handler},
         debug=debug,
-        openapi_url=None,  # the openapi spec is served as a static asset
-        docs_url=None,  # disable fastapi's default /docs route to make room for our own
+        swagger_ui_parameters={
+            "defaultModelsExpandDepth": -1,  # hides the schema section in the Swagger UI
+        },
     )
     app.state.read_only = read_only
     app.state.export_path = export_path
