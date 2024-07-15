@@ -4,8 +4,9 @@ import React, {
   startTransition,
   useCallback,
   useContext,
-  useState,
 } from "react";
+
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
 import { MarkdownDisplayMode } from "./types";
 
@@ -29,17 +30,19 @@ export function useMarkdownMode(): MarkdownDisplayContextType {
   return context;
 }
 
-export function MarkdownDisplayProvider(
-  props: PropsWithChildren<{ initialMode?: MarkdownDisplayMode }>
-) {
-  const [mode, _setMode] = useState<MarkdownDisplayMode>(
-    props.initialMode || "text"
+export function MarkdownDisplayProvider(props: PropsWithChildren) {
+  const mode = usePreferencesContext((state) => state.markdownDisplayMode);
+  const setMarkdownDisplayMode = usePreferencesContext(
+    (state) => state.setMarkdownDisplayMode
   );
-  const setMode = useCallback((mode: MarkdownDisplayMode) => {
-    startTransition(() => {
-      _setMode(mode);
-    });
-  }, []);
+  const setMode = useCallback(
+    (mode: MarkdownDisplayMode) => {
+      startTransition(() => {
+        setMarkdownDisplayMode(mode);
+      });
+    },
+    [setMarkdownDisplayMode]
+  );
 
   return (
     <MarkdownDisplayContext.Provider value={{ mode, setMode }}>
