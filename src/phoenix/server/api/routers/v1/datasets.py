@@ -6,6 +6,7 @@ import logging
 import zlib
 from asyncio import QueueFull
 from collections import Counter
+from datetime import datetime
 from enum import Enum
 from functools import partial
 from typing import (
@@ -13,6 +14,7 @@ from typing import (
     Awaitable,
     Callable,
     Coroutine,
+    Dict,
     FrozenSet,
     Iterator,
     List,
@@ -26,15 +28,17 @@ from typing import (
 
 import pandas as pd
 import pyarrow as pa
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Path, Query
+from fastapi.responses import PlainTextResponse, StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.background import BackgroundTasks
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, UploadFile
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import Response
 from starlette.status import (
+    HTTP_200_OK,
     HTTP_204_NO_CONTENT,
     HTTP_404_NOT_FOUND,
     HTTP_409_CONFLICT,
@@ -52,83 +56,59 @@ from phoenix.db.insertion.dataset import (
     ExampleContent,
     add_dataset_examples,
 )
-from phoenix.server.api.types.Dataset import Dataset
+from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
 from phoenix.server.api.types.DatasetExample import DatasetExample
-from phoenix.server.api.types.DatasetVersion import DatasetVersion
+from phoenix.server.api.types.DatasetVersion import DatasetVersion as DatasetVersionNodeType
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_projects, delete_traces
 
+from .utils import (
+    PaginatedResponseBody,
+    ResponseBody,
+    add_errors_to_responses,
+    add_text_csv_content_to_responses,
+)
+
 logger = logging.getLogger(__name__)
 
-NODE_NAME = "Dataset"
+DATASET_NODE_NAME = DatasetNodeType.__name__
+DATASET_VERSION_NODE_NAME = DatasetVersionNodeType.__name__
 
 
 router = APIRouter(tags=["datasets"])
 
 
-@router.get("/datasets")
-async def list_datasets(request: Request) -> Response:
-    """
-    summary: List datasets with cursor-based pagination
-    operationId: listDatasets
-    tags:
-      - datasets
-    parameters:
-      - in: query
-        name: cursor
-        required: false
-        schema:
-          type: string
-        description: Cursor for pagination
-      - in: query
-        name: limit
-        required: false
-        schema:
-          type: integer
-          default: 10
-      - in: query
-        name: name
-        required: false
-        schema:
-          type: string
-        description: match by dataset name
-    responses:
-      200:
-        description: A paginated list of datasets
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                next_cursor:
-                  type: string
-                data:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      id:
-                        type: string
-                      name:
-                        type: string
-                      description:
-                        type: string
-                      metadata:
-                        type: object
-                      created_at:
-                        type: string
-                        format: date-time
-                      updated_at:
-                        type: string
-                        format: date-time
-      403:
-        description: Forbidden
-      404:
-        description: No datasets found
-    """
-    name = request.query_params.get("name")
-    cursor = request.query_params.get("cursor")
-    limit = int(request.query_params.get("limit", 10))
+class Dataset(BaseModel):
+    id: str
+    name: str
+    description: Optional[str]
+    metadata: Dict[Any, Any]
+    created_at: datetime
+    updated_at: datetime
+
+
+class ListDatasetsResponseBody(PaginatedResponseBody[Dataset]):
+    pass
+
+
+@router.get(
+    "/datasets",
+    operation_id="listDatasets",
+    summary="Returns paginated lists of datasets.",
+    responses=add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY]),
+)
+async def list_datasets(
+    request: Request,
+    cursor: Optional[str] = Query(
+        default=None, description="If provided, returns datasets starting with the provided cursor."
+    ),
+    name: Optional[str] = Query(
+        default=None, description="If provided, filters the returned datasets by name."
+    ),
+    limit: int = Query(
+        default=10, description="The maximum number of datasets to return at a time.", gt=0
+    ),
+) -> ListDatasetsResponseBody:
     async with request.app.state.db() as session:
         query = select(models.Dataset).order_by(models.Dataset.id.desc())
 
@@ -137,8 +117,8 @@ async def list_datasets(request: Request) -> Response:
                 cursor_id = GlobalID.from_id(cursor).node_id
                 query = query.filter(models.Dataset.id <= int(cursor_id))
             except ValueError:
-                return Response(
-                    content=f"Invalid cursor format: {cursor}",
+                raise HTTPException(
+                    detail=f"Invalid cursor format: {cursor}",
                     status_code=HTTP_422_UNPROCESSABLE_ENTITY,
                 )
         if name:
@@ -149,68 +129,51 @@ async def list_datasets(request: Request) -> Response:
         datasets = result.scalars().all()
 
         if not datasets:
-            return JSONResponse(content={"next_cursor": None, "data": []}, status_code=200)
+            return ListDatasetsResponseBody(next_cursor=None, data=[])
 
         next_cursor = None
         if len(datasets) == limit + 1:
-            next_cursor = str(GlobalID(NODE_NAME, str(datasets[-1].id)))
+            next_cursor = str(GlobalID(DATASET_NODE_NAME, str(datasets[-1].id)))
             datasets = datasets[:-1]
 
         data = []
         for dataset in datasets:
             data.append(
-                {
-                    "id": str(GlobalID(NODE_NAME, str(dataset.id))),
-                    "name": dataset.name,
-                    "description": dataset.description,
-                    "metadata": dataset.metadata_,
-                    "created_at": dataset.created_at.isoformat(),
-                    "updated_at": dataset.updated_at.isoformat(),
-                }
+                Dataset(
+                    id=str(GlobalID(DATASET_NODE_NAME, str(dataset.id))),
+                    name=dataset.name,
+                    description=dataset.description,
+                    metadata=dataset.metadata_,
+                    created_at=dataset.created_at,
+                    updated_at=dataset.updated_at,
+                )
             )
 
-        return JSONResponse(content={"next_cursor": next_cursor, "data": data})
+        return ListDatasetsResponseBody(next_cursor=next_cursor, data=data)
 
 
-@router.delete("/datasets/{id}")
-async def delete_dataset(request: Request) -> Response:
-    """
-    summary: Delete dataset by ID
-    operationId: deleteDatasetById
-    tags:
-      - datasets
-    parameters:
-      - in: path
-        name: id
-        required: true
-        schema:
-          type: string
-    responses:
-      204:
-        description: Success
-      403:
-        description: Forbidden
-      404:
-        description: Dataset not found
-      422:
-        description: Dataset ID is invalid
-    """
-    if id_ := request.path_params.get("id"):
+@router.delete(
+    "/datasets/{id}",
+    operation_id="deleteDatasetById",
+    summary="Delete dataset by ID",
+    status_code=HTTP_204_NO_CONTENT,
+    responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY]),
+)
+async def delete_dataset(
+    request: Request, id: str = Path(description="The ID of the dataset to delete.")
+) -> None:
+    if id:
         try:
             dataset_id = from_global_id_with_expected_type(
-                GlobalID.from_id(id_),
-                Dataset.__name__,
+                GlobalID.from_id(id),
+                DATASET_NODE_NAME,
             )
         except ValueError:
-            return Response(
-                content=f"Invalid Dataset ID: {id_}",
-                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            raise HTTPException(
+                detail=f"Invalid Dataset ID: {id}", status_code=HTTP_422_UNPROCESSABLE_ENTITY
             )
     else:
-        return Response(
-            content="Missing Dataset ID",
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-        )
+        raise HTTPException(detail="Missing Dataset ID", status_code=HTTP_422_UNPROCESSABLE_ENTITY)
     project_names_stmt = get_project_names_for_datasets(dataset_id)
     eval_trace_ids_stmt = get_eval_trace_ids_for_datasets(dataset_id)
     stmt = (
@@ -220,60 +183,34 @@ async def delete_dataset(request: Request) -> Response:
         project_names = await session.scalars(project_names_stmt)
         eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
         if (await session.scalar(stmt)) is None:
-            return Response(content="Dataset does not exist", status_code=HTTP_404_NOT_FOUND)
+            raise HTTPException(detail="Dataset does not exist", status_code=HTTP_404_NOT_FOUND)
     tasks = BackgroundTasks()
     tasks.add_task(delete_projects, request.app.state.db, *project_names)
     tasks.add_task(delete_traces, request.app.state.db, *eval_trace_ids)
-    return Response(status_code=HTTP_204_NO_CONTENT, background=tasks)
 
 
-@router.get("/datasets/{id}")
-async def get_dataset(request: Request) -> Response:
-    """
-    summary: Get dataset by ID
-    operationId: getDatasetById
-    tags:
-      - datasets
-    parameters:
-      - in: path
-        name: id
-        required: true
-        schema:
-          type: string
-    responses:
-      200:
-        description: Success
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                id:
-                  type: string
-                name:
-                  type: string
-                description:
-                  type: string
-                metadata:
-                  type: object
-                created_at:
-                  type: string
-                  format: date-time
-                updated_at:
-                  type: string
-                  format: date-time
-                example_count:
-                  type: integer
-      403:
-        description: Forbidden
-      404:
-        description: Dataset not found
-    """
-    dataset_id = GlobalID.from_id(request.path_params["id"])
+class DatasetWithExampleCount(Dataset):
+    example_count: int
 
-    if (type_name := dataset_id.type_name) != NODE_NAME:
-        return Response(
-            content=f"ID {dataset_id} refers to a f{type_name}", status_code=HTTP_404_NOT_FOUND
+
+class GetDatasetResponseBody(ResponseBody[DatasetWithExampleCount]):
+    pass
+
+
+@router.get(
+    "/datasets/{id}",
+    operation_id="getDataset",
+    summary="Gets a dataset by ID.",
+    responses=add_errors_to_responses([HTTP_404_NOT_FOUND]),
+)
+async def get_dataset(
+    request: Request, id: str = Path(description="The ID of the dataset.")
+) -> GetDatasetResponseBody:
+    dataset_id = GlobalID.from_id(id)
+
+    if (type_name := dataset_id.type_name) != DATASET_NODE_NAME:
+        raise HTTPException(
+            detail=f"ID {dataset_id} refers to a f{type_name}", status_code=HTTP_404_NOT_FOUND
         )
     async with request.app.state.db() as session:
         result = await session.execute(
@@ -285,98 +222,64 @@ async def get_dataset(request: Request) -> Response:
         dataset = dataset_query[0] if dataset_query else None
         example_count = dataset_query[1] if dataset_query else 0
         if dataset is None:
-            return Response(
-                content=f"Dataset with ID {dataset_id} not found", status_code=HTTP_404_NOT_FOUND
+            raise HTTPException(
+                detail=f"Dataset with ID {dataset_id} not found", status_code=HTTP_404_NOT_FOUND
             )
 
-        output_dict = {
-            "id": str(dataset_id),
-            "name": dataset.name,
-            "description": dataset.description,
-            "metadata": dataset.metadata_,
-            "created_at": dataset.created_at.isoformat(),
-            "updated_at": dataset.updated_at.isoformat(),
-            "example_count": example_count,
-        }
-        return JSONResponse(content={"data": output_dict})
+        dataset = DatasetWithExampleCount(
+            id=str(dataset_id),
+            name=dataset.name,
+            description=dataset.description,
+            metadata=dataset.metadata_,
+            created_at=dataset.created_at,
+            updated_at=dataset.updated_at,
+            example_count=example_count,
+        )
+        return GetDatasetResponseBody(data=dataset)
 
 
-@router.get("/datasets/{id}/versions")
-async def get_dataset_versions(request: Request) -> Response:
-    """
-    summary: Get dataset versions (sorted from latest to oldest)
-    operationId: getDatasetVersionsByDatasetId
-    tags:
-      - datasets
-    parameters:
-      - in: path
-        name: id
-        required: true
-        description: Dataset ID
-        schema:
-          type: string
-      - in: query
-        name: cursor
-        description: Cursor for pagination.
-        schema:
-          type: string
-      - in: query
-        name: limit
-        description: Maximum number versions to return.
-        schema:
-          type: integer
-          default: 10
-    responses:
-      200:
-        description: Success
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                next_cursor:
-                  type: string
-                data:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      version_id:
-                        type: string
-                      description:
-                        type: string
-                      metadata:
-                        type: object
-                      created_at:
-                        type: string
-                        format: date-time
-      403:
-        description: Forbidden
-      422:
-        description: Dataset ID, cursor or limit is invalid.
-    """
-    if id_ := request.path_params.get("id"):
+class DatasetVersion(BaseModel):
+    version_id: str
+    description: str
+    metadata: Dict[Any, Any]
+    created_at: datetime
+
+
+class ListDatasetVersionsResponseBody(PaginatedResponseBody[DatasetVersion]):
+    pass
+
+
+@router.get(
+    "/datasets/{id}/versions",
+    operation_id="listDatasetVersionsByDatasetId",
+    summary="Lists dataset versions (sorted from latest to oldest).",
+    responses=add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY]),
+)
+async def list_dataset_versions(
+    request: Request,
+    id: str = Path(description="The ID of the dataset."),
+    cursor: Optional[str] = Query(
+        default=None,
+        description="If provided, returns dataset versions starting with the provided cursor.",
+    ),
+    limit: int = Query(
+        default=10, description="The maximum number of dataset versions to return at a time.", gt=0
+    ),
+) -> ListDatasetVersionsResponseBody:
+    if id:
         try:
             dataset_id = from_global_id_with_expected_type(
-                GlobalID.from_id(id_),
-                Dataset.__name__,
+                GlobalID.from_id(id),
+                DATASET_NODE_NAME,
             )
         except ValueError:
-            return Response(
-                content=f"Invalid Dataset ID: {id_}",
+            raise HTTPException(
+                detail=f"Invalid Dataset ID: {id}",
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
             )
     else:
-        return Response(
-            content="Missing Dataset ID",
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-        )
-    try:
-        limit = int(request.query_params.get("limit", 10))
-        assert limit > 0
-    except (ValueError, AssertionError):
-        return Response(
-            content="Invalid limit parameter",
+        raise HTTPException(
+            detail="Missing Dataset ID",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
     stmt = (
@@ -385,15 +288,14 @@ async def get_dataset_versions(request: Request) -> Response:
         .order_by(models.DatasetVersion.id.desc())
         .limit(limit + 1)
     )
-    if cursor := request.query_params.get("cursor"):
+    if cursor:
         try:
             dataset_version_id = from_global_id_with_expected_type(
-                GlobalID.from_id(cursor),
-                DatasetVersion.__name__,
+                GlobalID.from_id(cursor), DATASET_VERSION_NODE_NAME
             )
         except ValueError:
-            return Response(
-                content=f"Invalid cursor: {cursor}",
+            raise HTTPException(
+                detail=f"Invalid cursor: {cursor}",
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
             )
         max_dataset_version_id = (
@@ -404,103 +306,91 @@ async def get_dataset_versions(request: Request) -> Response:
         stmt = stmt.filter(models.DatasetVersion.id <= max_dataset_version_id)
     async with request.app.state.db() as session:
         data = [
-            {
-                "version_id": str(GlobalID(DatasetVersion.__name__, str(version.id))),
-                "description": version.description,
-                "metadata": version.metadata_,
-                "created_at": version.created_at.isoformat(),
-            }
+            DatasetVersion(
+                version_id=str(GlobalID(DATASET_VERSION_NODE_NAME, str(version.id))),
+                description=version.description,
+                metadata=version.metadata_,
+                created_at=version.created_at,
+            )
             async for version in await session.stream_scalars(stmt)
         ]
-    next_cursor = data.pop()["version_id"] if len(data) == limit + 1 else None
-    return JSONResponse(content={"next_cursor": next_cursor, "data": data})
+    next_cursor = data.pop().version_id if len(data) == limit + 1 else None
+    return ListDatasetVersionsResponseBody(data=data, next_cursor=next_cursor)
 
 
-@router.post("/datasets/upload")
-async def upload_dataset(request: Request) -> Response:
-    """
-    summary: Upload dataset as either JSON or file (CSV or PyArrow)
-    operationId: uploadDataset
-    tags:
-      - datasets
-    parameters:
-      - in: query
-        name: sync
-        description: If true, fulfill request synchronously and return JSON containing dataset_id
-        schema:
-          type: boolean
-    requestBody:
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-              - name
-              - inputs
-            properties:
-              action:
-                type: string
-                enum: [create, append]
-              name:
-                type: string
-              description:
-                type: string
-              inputs:
-                type: array
-                items:
-                  type: object
-              outputs:
-                type: array
-                items:
-                  type: object
-              metadata:
-                type: array
-                items:
-                  type: object
-        multipart/form-data:
-          schema:
-            type: object
-            required:
-              - name
-              - input_keys[]
-              - output_keys[]
-              - file
-            properties:
-              action:
-                type: string
-                enum: [create, append]
-              name:
-                type: string
-              description:
-                type: string
-              input_keys[]:
-                type: array
-                items:
-                  type: string
-                uniqueItems: true
-              output_keys[]:
-                type: array
-                items:
-                  type: string
-                uniqueItems: true
-              metadata_keys[]:
-                type: array
-                items:
-                  type: string
-                uniqueItems: true
-              file:
-                type: string
-                format: binary
-    responses:
-      200:
-        description: Success
-      403:
-        description: Forbidden
-      409:
-        description: Dataset of the same name already exists
-      422:
-        description: Request body is invalid
-    """
+class UploadDatasetData(BaseModel):
+    dataset_id: str
+
+
+class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
+    pass
+
+
+@router.post(
+    "/datasets/upload",
+    operation_id="uploadDataset",
+    summary="Upload dataset as either JSON or file (CSV or PyArrow)",
+    responses=add_errors_to_responses([HTTP_409_CONFLICT, HTTP_422_UNPROCESSABLE_ENTITY]),
+    # FastAPI cannot generate the request body portion of the OpenAPI schema for
+    # routes that accept multiple request content types, so we have to provide
+    # this part of the schema manually. For context, see
+    # https://github.com/tiangolo/fastapi/discussions/7786 and
+    # https://github.com/tiangolo/fastapi/issues/990
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["name", "inputs"],
+                        "properties": {
+                            "action": {"type": "string", "enum": ["create", "append"]},
+                            "name": {"type": "string"},
+                            "description": {"type": "string"},
+                            "inputs": {"type": "array", "items": {"type": "object"}},
+                            "outputs": {"type": "array", "items": {"type": "object"}},
+                            "metadata": {"type": "array", "items": {"type": "object"}},
+                        },
+                    }
+                },
+                "multipart/form-data": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["name", "input_keys[]", "output_keys[]", "file"],
+                        "properties": {
+                            "action": {"type": "string", "enum": ["create", "append"]},
+                            "name": {"type": "string"},
+                            "description": {"type": "string"},
+                            "input_keys[]": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "uniqueItems": True,
+                            },
+                            "output_keys[]": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "uniqueItems": True,
+                            },
+                            "metadata_keys[]": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "uniqueItems": True,
+                            },
+                            "file": {"type": "string", "format": "binary"},
+                        },
+                    }
+                },
+            }
+        },
+    },
+)
+async def upload_dataset(
+    request: Request,
+    sync: bool = Query(
+        default=False,
+        description="If true, fulfill request synchronously and return JSON containing dataset_id.",
+    ),
+) -> Optional[UploadDatasetResponseBody]:
     request_content_type = request.headers["content-type"]
     examples: Union[Examples, Awaitable[Examples]]
     if request_content_type.startswith("application/json"):
@@ -509,15 +399,15 @@ async def upload_dataset(request: Request) -> Response:
                 _process_json, await request.json()
             )
         except ValueError as e:
-            return Response(
-                content=str(e),
+            raise HTTPException(
+                detail=str(e),
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
             )
         if action is DatasetAction.CREATE:
             async with request.app.state.db() as session:
                 if await _check_table_exists(session, name):
-                    return Response(
-                        content=f"Dataset with the same name already exists: {name=}",
+                    raise HTTPException(
+                        detail=f"Dataset with the same name already exists: {name=}",
                         status_code=HTTP_409_CONFLICT,
                     )
     elif request_content_type.startswith("multipart/form-data"):
@@ -533,15 +423,15 @@ async def upload_dataset(request: Request) -> Response:
                     file,
                 ) = await _parse_form_data(form)
             except ValueError as e:
-                return Response(
-                    content=str(e),
+                raise HTTPException(
+                    detail=str(e),
                     status_code=HTTP_422_UNPROCESSABLE_ENTITY,
                 )
             if action is DatasetAction.CREATE:
                 async with request.app.state.db() as session:
                     if await _check_table_exists(session, name):
-                        return Response(
-                            content=f"Dataset with the same name already exists: {name=}",
+                        raise HTTPException(
+                            detail=f"Dataset with the same name already exists: {name=}",
                             status_code=HTTP_409_CONFLICT,
                         )
             content = await file.read()
@@ -557,13 +447,13 @@ async def upload_dataset(request: Request) -> Response:
             else:
                 assert_never(file_content_type)
         except ValueError as e:
-            return Response(
-                content=str(e),
+            raise HTTPException(
+                detail=str(e),
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
             )
     else:
-        return Response(
-            content=str("Invalid request Content-Type"),
+        raise HTTPException(
+            detail="Invalid request Content-Type",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
     operation = cast(
@@ -576,19 +466,17 @@ async def upload_dataset(request: Request) -> Response:
             description=description,
         ),
     )
-    if request.query_params.get("sync") == "true":
+    if sync:
         async with request.app.state.db() as session:
             dataset_id = (await operation(session)).dataset_id
-        return JSONResponse(
-            content={"data": {"dataset_id": str(GlobalID(Dataset.__name__, str(dataset_id)))}}
-        )
+        return UploadDatasetResponseBody(data=UploadDatasetData(dataset_id=str(dataset_id)))
     try:
         request.state.enqueue_operation(operation)
     except QueueFull:
         if isinstance(examples, Coroutine):
             examples.close()
-        return Response(status_code=HTTP_429_TOO_MANY_REQUESTS)
-    return Response()
+        raise HTTPException(detail="Too many requests.", status_code=HTTP_429_TOO_MANY_REQUESTS)
+    return None
 
 
 class FileContentType(Enum):
@@ -766,154 +654,97 @@ async def _parse_form_data(
     )
 
 
-@router.get("/datasets/{id}/csv")
-async def get_dataset_csv(request: Request) -> Response:
-    """
-    summary: Download dataset examples as CSV text file
-    operationId: getDatasetCsv
-    tags:
-      - datasets
-    parameters:
-      - in: path
-        name: id
-        required: true
-        schema:
-          type: string
-        description: Dataset ID
-      - in: query
-        name: version_id
-        schema:
-          type: string
-        description: Dataset version ID. If omitted, returns the latest version.
-    responses:
-      200:
-        description: Success
-        content:
-          text/csv:
-            schema:
-              type: string
-              contentMediaType: text/csv
-              contentEncoding: gzip
-      403:
-        description: Forbidden
-      404:
-        description: Dataset does not exist.
-      422:
-        description: Dataset ID or version ID is invalid.
-    """
+@router.get(
+    "/datasets/{id}/csv",
+    operation_id="getDatasetCsv",
+    summary="Download dataset examples as CSV text file",
+    response_class=StreamingResponse,
+    status_code=HTTP_200_OK,
+    responses={
+        **add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY]),
+        **add_text_csv_content_to_responses(HTTP_200_OK),
+    },
+)
+async def get_dataset_csv(
+    request: Request,
+    response: Response,
+    id: str = Path(description="The ID of the dataset."),
+    version_id: Optional[str] = Query(
+        default=None,
+        description="If provided, returns the data as of the specified version.",
+    ),
+) -> Response:
     try:
-        dataset_name, examples = await _get_db_examples(request)
+        async with request.app.state.db() as session:
+            dataset_name, examples = await _get_db_examples(
+                session=session, id=id, version_id=version_id
+            )
     except ValueError as e:
-        return Response(content=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
+        raise HTTPException(detail=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
     content = await run_in_threadpool(_get_content_csv, examples)
     return Response(
         content=content,
         headers={
             "content-disposition": f'attachment; filename="{dataset_name}.csv"',
             "content-type": "text/csv",
-            "content-encoding": "gzip",
         },
     )
 
 
-@router.get("/datasets/{id}/jsonl/openai_ft")
-async def get_dataset_jsonl_openai_ft(request: Request) -> Response:
-    """
-    summary: Download dataset examples as OpenAI Fine-Tuning JSONL file
-    operationId: getDatasetJSONLOpenAIFineTuning
-    tags:
-      - datasets
-    parameters:
-      - in: path
-        name: id
-        required: true
-        schema:
-          type: string
-        description: Dataset ID
-      - in: query
-        name: version_id
-        schema:
-          type: string
-        description: Dataset version ID. If omitted, returns the latest version.
-    responses:
-      200:
-        description: Success
-        content:
-          text/plain:
-            schema:
-              type: string
-              contentMediaType: text/plain
-              contentEncoding: gzip
-      403:
-        description: Forbidden
-      404:
-        description: Dataset does not exist.
-      422:
-        description: Dataset ID or version ID is invalid.
-    """
+@router.get(
+    "/datasets/{id}/jsonl/openai_ft",
+    operation_id="getDatasetJSONLOpenAIFineTuning",
+    summary="Download dataset examples as an OpenAI fine-tuning JSONL file.",
+    response_class=PlainTextResponse,
+    responses=add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY]),
+)
+async def get_dataset_jsonl_openai_ft(
+    request: Request,
+    response: Response,
+    id: str = Path(description="The ID of the dataset."),
+    version_id: Optional[str] = Query(
+        default=None,
+        description="If provided, returns the data as of the specified version.",
+    ),
+) -> bytes:
     try:
-        dataset_name, examples = await _get_db_examples(request)
+        async with request.app.state.db() as session:
+            dataset_name, examples = await _get_db_examples(
+                session=session, id=id, version_id=version_id
+            )
     except ValueError as e:
-        return Response(content=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
+        raise HTTPException(detail=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
     content = await run_in_threadpool(_get_content_jsonl_openai_ft, examples)
-    return Response(
-        content=content,
-        headers={
-            "content-disposition": f'attachment; filename="{dataset_name}.jsonl"',
-            "content-type": "text/plain",
-            "content-encoding": "gzip",
-        },
-    )
+    response.headers["content-disposition"] = f'attachment; filename="{dataset_name}.jsonl"'
+    return content
 
 
-@router.get("/datasets/{id}/jsonl/openai_evals")
-async def get_dataset_jsonl_openai_evals(request: Request) -> Response:
-    """
-    summary: Download dataset examples as OpenAI Evals JSONL file
-    operationId: getDatasetJSONLOpenAIEvals
-    tags:
-      - datasets
-    parameters:
-      - in: path
-        name: id
-        required: true
-        schema:
-          type: string
-        description: Dataset ID
-      - in: query
-        name: version_id
-        schema:
-          type: string
-        description: Dataset version ID. If omitted, returns the latest version.
-    responses:
-      200:
-        description: Success
-        content:
-          text/plain:
-            schema:
-              type: string
-              contentMediaType: text/plain
-              contentEncoding: gzip
-      403:
-        description: Forbidden
-      404:
-        description: Dataset does not exist.
-      422:
-        description: Dataset ID or version ID is invalid.
-    """
+@router.get(
+    "/datasets/{id}/jsonl/openai_evals",
+    operation_id="getDatasetJSONLOpenAIEvals",
+    summary="Download dataset examples as OpenAI Evals JSONL file.",
+    response_class=PlainTextResponse,
+    responses=add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY]),
+)
+async def get_dataset_jsonl_openai_evals(
+    request: Request,
+    response: Response,
+    id: str = Path(description="The ID of the dataset."),
+    version_id: Optional[str] = Query(
+        default=None,
+        description="If provided, returns the data as of the specified version.",
+    ),
+) -> bytes:
     try:
-        dataset_name, examples = await _get_db_examples(request)
+        async with request.app.state.db() as session:
+            dataset_name, examples = await _get_db_examples(
+                session=session, id=id, version_id=version_id
+            )
     except ValueError as e:
-        return Response(content=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
+        raise HTTPException(detail=str(e), status_code=HTTP_422_UNPROCESSABLE_ENTITY)
     content = await run_in_threadpool(_get_content_jsonl_openai_evals, examples)
-    return Response(
-        content=content,
-        headers={
-            "content-disposition": f'attachment; filename="{dataset_name}.jsonl"',
-            "content-type": "text/plain",
-            "content-encoding": "gzip",
-        },
-    )
+    response.headers["content-disposition"] = f'attachment; filename="{dataset_name}.jsonl"'
+    return content
 
 
 def _get_content_csv(examples: List[models.DatasetExampleRevision]) -> bytes:
@@ -929,7 +760,7 @@ def _get_content_csv(examples: List[models.DatasetExampleRevision]) -> bytes:
         }
         for ex in examples
     ]
-    return gzip.compress(pd.DataFrame.from_records(records).to_csv(index=False).encode())
+    return str(pd.DataFrame.from_records(records).to_csv(index=False)).encode()
 
 
 def _get_content_jsonl_openai_ft(examples: List[models.DatasetExampleRevision]) -> bytes:
@@ -950,7 +781,7 @@ def _get_content_jsonl_openai_ft(examples: List[models.DatasetExampleRevision]) 
             ).encode()
         )
     records.seek(0)
-    return gzip.compress(records.read())
+    return records.read()
 
 
 def _get_content_jsonl_openai_evals(examples: List[models.DatasetExampleRevision]) -> bytes:
@@ -977,18 +808,17 @@ def _get_content_jsonl_openai_evals(examples: List[models.DatasetExampleRevision
             ).encode()
         )
     records.seek(0)
-    return gzip.compress(records.read())
+    return records.read()
 
 
-async def _get_db_examples(request: Request) -> Tuple[str, List[models.DatasetExampleRevision]]:
-    if not (id_ := request.path_params.get("id")):
-        raise ValueError("Missing Dataset ID")
-    dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id_), Dataset.__name__)
+async def _get_db_examples(
+    *, session: Any, id: str, version_id: Optional[str]
+) -> Tuple[str, List[models.DatasetExampleRevision]]:
+    dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id), DATASET_NODE_NAME)
     dataset_version_id: Optional[int] = None
-    if version_id := request.query_params.get("version_id"):
+    if version_id:
         dataset_version_id = from_global_id_with_expected_type(
-            GlobalID.from_id(version_id),
-            DatasetVersion.__name__,
+            GlobalID.from_id(version_id), DATASET_VERSION_NODE_NAME
         )
     latest_version = (
         select(
@@ -1021,13 +851,12 @@ async def _get_db_examples(request: Request) -> Tuple[str, List[models.DatasetEx
         .where(models.DatasetExampleRevision.revision_kind != "DELETE")
         .order_by(models.DatasetExampleRevision.dataset_example_id)
     )
-    async with request.app.state.db() as session:
-        dataset_name: Optional[str] = await session.scalar(
-            select(models.Dataset.name).where(models.Dataset.id == dataset_id)
-        )
-        if not dataset_name:
-            raise ValueError("Dataset does not exist.")
-        examples = [r async for r in await session.stream_scalars(stmt)]
+    dataset_name: Optional[str] = await session.scalar(
+        select(models.Dataset.name).where(models.Dataset.id == dataset_id)
+    )
+    if not dataset_name:
+        raise ValueError("Dataset does not exist.")
+    examples = [r async for r in await session.stream_scalars(stmt)]
     return dataset_name, examples
 
 

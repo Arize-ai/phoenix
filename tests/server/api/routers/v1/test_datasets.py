@@ -199,31 +199,44 @@ async def test_list_datasets_with_cursor(
     assert all(item in second_page_datasets[0].items() for item in fixture_values.items())
 
 
-async def test_get_dataset_versions(test_client, dataset_with_revisions):
+async def test_get_dataset_versions(test_client, dataset_with_revisions, pydantic_version):
     dataset_global_id = GlobalID("Dataset", str(2))
     response = await test_client.get(f"/v1/datasets/{dataset_global_id}/versions?limit=2")
     assert response.status_code == 200
     assert response.headers.get("content-type") == "application/json"
-    assert response.json() == {
+    response_json = response.json()
+    version_0_created_at = response_json["data"][0].pop("created_at")
+    version_1_created_at = response_json["data"][1].pop("created_at")
+    assert (
+        version_0_created_at == "2024-05-28T00:00:09Z"
+        if pydantic_version == "v2"
+        else "2024-05-28T00:00:09+00:00"
+    )
+    assert (
+        version_1_created_at == "2024-05-28T00:00:08Z"
+        if pydantic_version == "v2"
+        else "2024-05-28T00:00:08+00:00"
+    )
+    assert response_json == {
         "next_cursor": f'{GlobalID("DatasetVersion", str(7))}',
         "data": [
             {
                 "version_id": str(GlobalID("DatasetVersion", str(9))),
                 "description": "datum gets deleted",
                 "metadata": {},
-                "created_at": "2024-05-28T00:00:09+00:00",
             },
             {
                 "version_id": str(GlobalID("DatasetVersion", str(8))),
                 "description": "datum gets created",
                 "metadata": {},
-                "created_at": "2024-05-28T00:00:08+00:00",
             },
         ],
     }
 
 
-async def test_get_dataset_versions_with_cursor(test_client, dataset_with_revisions):
+async def test_get_dataset_versions_with_cursor(
+    test_client, dataset_with_revisions, pydantic_version
+):
     dataset_global_id = GlobalID("Dataset", str(2))
     response = await test_client.get(
         f"/v1/datasets/{dataset_global_id}/versions?limit=2"
@@ -231,12 +244,18 @@ async def test_get_dataset_versions_with_cursor(test_client, dataset_with_revisi
     )
     assert response.status_code == 200
     assert response.headers.get("content-type") == "application/json"
-    assert response.json() == {
+    response_json = response.json()
+    version_created_at = response_json["data"][0].pop("created_at")
+    assert (
+        version_created_at == "2024-05-28T00:00:04Z"
+        if pydantic_version == "v2"
+        else "2024-05-28T00:00:04+00:00"
+    )
+    assert response_json == {
         "next_cursor": None,
         "data": [
             {
                 "version_id": str(GlobalID("DatasetVersion", str(4))),
-                "created_at": "2024-05-28T00:00:04+00:00",
                 "description": "data gets added",
                 "metadata": {"info": "gotta get some test data somewhere"},
             },
@@ -336,7 +355,7 @@ async def test_get_dataset_jsonl_openai_ft(test_client, dataset_with_messages: T
         f"/v1/datasets/{dataset_global_id}/jsonl/openai_ft?version_id={dataset_version_global_id}"
     )
     assert response.status_code == 200
-    assert response.headers.get("content-type") == "text/plain"
+    assert response.headers.get("content-type") == "text/plain; charset=utf-8"
     assert response.headers.get("content-encoding") == "gzip"
     assert response.headers.get("content-disposition") == 'attachment; filename="xyz.jsonl"'
     json_lines = io.StringIO(response.text).readlines()
@@ -365,7 +384,7 @@ async def test_get_dataset_jsonl_openai_evals(test_client, dataset_with_messages
         f"/v1/datasets/{dataset_global_id}/jsonl/openai_evals?version_id={dataset_version_global_id}"
     )
     assert response.status_code == 200
-    assert response.headers.get("content-type") == "text/plain"
+    assert response.headers.get("content-type") == "text/plain; charset=utf-8"
     assert response.headers.get("content-encoding") == "gzip"
     assert response.headers.get("content-disposition") == 'attachment; filename="xyz.jsonl"'
     json_lines = io.StringIO(response.text).readlines()

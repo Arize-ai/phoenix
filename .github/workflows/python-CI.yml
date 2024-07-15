@@ -109,6 +109,7 @@ jobs:
             matrix:
                 os: [macos-12, windows-latest, ubuntu-latest]
                 python-version: ["3.8"]
+            fail-fast: false
         steps:
             - name: Checkout Repository
               uses: actions/checkout@v4
