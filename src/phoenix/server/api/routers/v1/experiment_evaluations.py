@@ -18,8 +18,8 @@ router = APIRouter(tags=["experiments"])
 
 
 class EvaluationResult(BaseModel):
-    label: str = Field(description="The label assigned by the evaluation")
-    score: float = Field(description="The score assigned by the evaluation")
+    label: Optional[str] = Field(default=None, description="The label assigned by the evaluation")
+    score: Optional[float] = Field(default=None, description="The score assigned by the evaluation")
     explanation: Optional[str] = Field(
         default=None, description="Explanation of the evaluation result"
     )

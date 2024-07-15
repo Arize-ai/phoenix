@@ -1235,7 +1235,12 @@
               "$ref": "#/components/schemas/TraceAnnotation"
             },
             "type": "array",
+<<<<<<< HEAD
             "title": "Data"
+=======
+            "title": "Data",
+            "description": "The trace annotations to be upserted"
+>>>>>>> d8d41dee (update schema)
           }
         },
         "type": "object",
@@ -1263,6 +1268,7 @@
       "AnnotationResult": {
         "properties": {
           "label": {
+<<<<<<< HEAD
             "type": "string",
             "title": "Label",
             "description": "The label assigned by the annotation or evaluation"
@@ -1271,6 +1277,30 @@
             "type": "number",
             "title": "Score",
             "description": "The score assigned by the annotation or evaluation"
+=======
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "The label assigned by the annotation"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score",
+            "description": "The score assigned by the annotation"
+>>>>>>> d8d41dee (update schema)
           },
           "explanation": {
             "anyOf": [
@@ -1282,7 +1312,11 @@
               }
             ],
             "title": "Explanation",
+<<<<<<< HEAD
             "description": "Explanation of the annotation or evaluation result"
+=======
+            "description": "Explanation of the annotation result"
+>>>>>>> d8d41dee (update schema)
           }
         },
         "type": "object",
@@ -1582,12 +1616,26 @@
       "EvaluationResult": {
         "properties": {
           "label": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Label",
             "description": "The label assigned by the evaluation"
           },
           "score": {
-            "type": "number",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Score",
             "description": "The score assigned by the evaluation"
           },
@@ -1605,10 +1653,6 @@
           }
         },
         "type": "object",
-        "required": [
-          "label",
-          "score"
-        ],
         "title": "EvaluationResult"
       },
       "Experiment": {
@@ -1917,6 +1961,21 @@
             ],
             "description": "The result of the annotation"
           },
+<<<<<<< HEAD
+=======
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Optional error message if the annotation encountered an error"
+          },
+>>>>>>> d8d41dee (update schema)
           "metadata": {
             "additionalProperties": {
               "type": "string"

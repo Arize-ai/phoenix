@@ -79,10 +79,10 @@ async def post_traces(request: Request, content_type: str = Header()) -> None:
 
 
 class AnnotationResult(BaseModel):
-    label: str = Field(description="The label assigned by the annotation or evaluation")
-    score: float = Field(description="The score assigned by the annotation or evaluation")
+    label: Optional[str] = Field(description="The label assigned by the annotation")
+    score: Optional[float] = Field(description="The score assigned by the annotation")
     explanation: Optional[str] = Field(
-        default=None, description="Explanation of the annotation or evaluation result"
+        default=None, description="Explanation of the annotation result"
     )
 
 
@@ -99,7 +99,7 @@ class TraceAnnotation(BaseModel):
 
 
 class AnnotateTracesRequestBody(RequestBody[List[TraceAnnotation]]):
-    pass
+    data: List[TraceAnnotation] = Field(description="The trace annotations to be upserted")
 
 
 class InsertedTraceAnnotation(BaseModel):
