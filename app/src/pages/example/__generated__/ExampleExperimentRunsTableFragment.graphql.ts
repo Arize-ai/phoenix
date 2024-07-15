@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a64e2f9d71b5494e45a95504e5c2015d>>
+ * @generated SignedSource<<c8fdea44ee9eaae0b43dd45dc96e648f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
-export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
+export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type ExampleExperimentRunsTableFragment$data = {
   readonly experimentRuns: {
@@ -18,7 +18,7 @@ export type ExampleExperimentRunsTableFragment$data = {
         readonly annotations: {
           readonly edges: ReadonlyArray<{
             readonly annotation: {
-              readonly annotatorKind: AnnotatorKind;
+              readonly annotatorKind: ExperimentRunAnnotatorKind;
               readonly explanation: string | null;
               readonly id: string;
               readonly label: string | null;
