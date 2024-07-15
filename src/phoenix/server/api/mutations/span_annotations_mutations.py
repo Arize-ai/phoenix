@@ -26,12 +26,11 @@ class SpanAnnotationMutationMixin:
     async def create_span_annotations(
         self, info: Info[Context, None], input: List[CreateSpanAnnotationsInput]
     ) -> SpanAnnotationMutationPayload:
-        span_rowid = from_global_id_with_expected_type(input[0].span_id, "Span")
         inserted_annotations: Sequence[models.SpanAnnotation] = []
         async with info.context.db() as session:
             values_list = [
                 dict(
-                    trace_rowid=span_rowid,
+                    span_rowid=from_global_id_with_expected_type(annotation.span_id, "Span"),
                     name=annotation.name,
                     label=annotation.label,
                     score=annotation.score,

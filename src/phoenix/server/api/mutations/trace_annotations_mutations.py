@@ -26,12 +26,11 @@ class TraceAnnotationMutationMixin:
     async def create_trace_annotations(
         self, info: Info[Context, None], input: List[CreateTraceAnnotationsInput]
     ) -> TraceAnnotationMutationPayload:
-        trace_rowid = from_global_id_with_expected_type(input[0].trace_id, "trace")
         inserted_annotations: Sequence[models.TraceAnnotation] = []
         async with info.context.db() as session:
             values_list = [
                 dict(
-                    trace_rowid=trace_rowid,
+                    trace_rowid=from_global_id_with_expected_type(annotation.trace_id, "Trace"),
                     name=annotation.name,
                     label=annotation.label,
                     score=annotation.score,
