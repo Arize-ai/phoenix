@@ -1,5 +1,5 @@
 import { create, StateCreator } from "zustand";
-import { devtools } from "zustand/middleware";
+import { devtools, persist } from "zustand/middleware";
 
 export type MarkdownDisplayMode = "text" | "markdown";
 
@@ -29,7 +29,11 @@ export const createPreferencesStore = (
       set({ markdownDisplayMode });
     },
   });
-  return create<PreferencesState>()(devtools(preferencesStore));
+  return create<PreferencesState>()(
+    persist(devtools(preferencesStore), {
+      name: "arize-phoenix-preferences",
+    })
+  );
 };
 
 export type PreferencesStore = ReturnType<typeof createPreferencesStore>;

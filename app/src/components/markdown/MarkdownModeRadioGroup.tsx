@@ -25,7 +25,7 @@ export function MarkdownModeRadioGroup({
     <RadioGroup
       size="compact"
       variant="inline-button"
-      defaultValue={mode}
+      value={mode}
       onChange={(value) => {
         onModeChange(value as MarkdownDisplayMode);
       }}
