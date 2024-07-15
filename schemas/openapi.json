@@ -1097,10 +1097,201 @@
           }
         }
       }
+    },
+    "/v1/traces": {
+      "post": {
+        "tags": [
+          "traces"
+        ],
+        "summary": "Send traces to Phoenix",
+        "operationId": "addTraces",
+        "parameters": [
+          {
+            "name": "content-type",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Content-Type"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "415": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-protobuf": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/trace_annotations": {
+      "post": {
+        "tags": [
+          "traces"
+        ],
+        "summary": "Upsert annotations for traces",
+        "operationId": "annotateTraces",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnotateTracesRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnnotateTracesResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Trace not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AnnotateTracesRequestBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/TraceAnnotation"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "AnnotateTracesRequestBody"
+      },
+      "AnnotateTracesResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/InsertedTraceAnnotation"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "AnnotateTracesResponseBody"
+      },
+      "AnnotationResult": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "The label assigned by the annotation or evaluation"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score",
+            "description": "The score assigned by the annotation or evaluation"
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation",
+            "description": "Explanation of the annotation or evaluation result"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "score"
+        ],
+        "title": "AnnotationResult"
+      },
       "CreateExperimentRequestBody": {
         "properties": {
           "name": {
@@ -1570,6 +1761,20 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "InsertedTraceAnnotation": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The ID of the inserted trace annotation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "InsertedTraceAnnotation"
+      },
       "ListDatasetExamplesData": {
         "properties": {
           "dataset_id": {
@@ -1679,6 +1884,55 @@
           "data"
         ],
         "title": "ListExperimentRunsResponseBody"
+      },
+      "TraceAnnotation": {
+        "properties": {
+          "trace_id": {
+            "type": "string",
+            "title": "Trace Id",
+            "description": "The ID of the trace being annotated"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the annotation"
+          },
+          "annotator_kind": {
+            "type": "string",
+            "enum": [
+              "LLM",
+              "HUMAN"
+            ],
+            "title": "Annotator Kind",
+            "description": "The kind of annotator used for the annotation (\"LLM\" or \"HUMAN\")"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnnotationResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The result of the annotation"
+          },
+          "metadata": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Metadata",
+            "description": "Metadata for the annotation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trace_id",
+          "name",
+          "annotator_kind"
+        ],
+        "title": "TraceAnnotation"
       },
       "UploadDatasetData": {
         "properties": {

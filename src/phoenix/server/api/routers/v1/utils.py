@@ -20,6 +20,14 @@ class StatusCodeWithDescription(TypedDict):
     description: str
 
 
+class RequestBody(BaseModel, Generic[DataType]):
+    # A generic request type accepted by V1 routes.
+    #
+    # Don't use """ for this docstring or it will be included as a description
+    # in the generated OpenAPI schema.
+    data: DataType
+
+
 class ResponseBody(BaseModel, Generic[DataType]):
     # A generic response type returned by V1 routes.
     #
