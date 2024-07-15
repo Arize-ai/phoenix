@@ -12,12 +12,6 @@ input AddSpansToDatasetInput {
   datasetVersionMetadata: JSON
 }
 
-enum AnnotatorKind {
-  LLM
-  HUMAN
-  CODE
-}
-
 union Bin = NominalBin | IntervalBin | MissingValueBin
 
 input ClearProjectInput {
@@ -649,7 +643,7 @@ type ExperimentRunAnnotation implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   name: String!
-  annotatorKind: AnnotatorKind!
+  annotatorKind: ExperimentRunAnnotatorKind!
   label: String
   score: Float
   explanation: String
@@ -677,6 +671,12 @@ type ExperimentRunAnnotationEdge {
 
   """The item at the end of the edge"""
   node: ExperimentRunAnnotation!
+}
+
+enum ExperimentRunAnnotatorKind {
+  LLM
+  HUMAN
+  CODE
 }
 
 """A connection to a list of items."""
