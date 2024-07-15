@@ -27,7 +27,7 @@ class EvaluationResult(BaseModel):
 
 class UpsertExperimentEvaluationRequestBody(BaseModel):
     experiment_run_id: str = Field(description="The ID of the experiment run being evaluated")
-    name: str = Field(..., description="The name of the evaluation")
+    name: str = Field(description="The name of the evaluation")
     annotator_kind: str = Field(description="The kind of annotator used for the evaluation")
     start_time: datetime = Field(description="The start time of the evaluation in ISO format")
     end_time: datetime = Field(description="The end time of the evaluation in ISO format")
