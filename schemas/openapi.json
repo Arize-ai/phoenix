@@ -771,6 +771,174 @@
         }
       }
     },
+    "/v1/evaluations": {
+      "post": {
+        "tags": [
+          "evaluations"
+        ],
+        "summary": "Add evaluations to a span, trace, or document",
+        "operationId": "addEvaluations",
+        "parameters": [
+          {
+            "name": "content-type",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Content-Type"
+            }
+          },
+          {
+            "name": "content-encoding",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Content-Encoding"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "415": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unsupported content type, only gzipped protobuf and pandas-arrow are supported"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "required": true,
+        "content": {
+          "application/x-protobuf": {
+            "schema": {
+              "type": "string",
+              "format": "binary"
+            }
+          },
+          "application/x-pandas-arrow": {
+            "schema": {
+              "type": "string",
+              "format": "binary"
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "evaluations"
+        ],
+        "summary": "Get evaluations from Phoenix",
+        "operationId": "getEvaluation",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The name of the project from which evaluations will be pulled",
+              "title": "Project Name"
+            },
+            "description": "The name of the project from which evaluations will be pulled"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "content": {
+            "application/x-pandas-arrow": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/experiment_evaluations": {
       "post": {
         "tags": [
@@ -1227,6 +1395,9 @@
     },
     "/v1/spans": {
       "post": {
+        "tags": [
+          "spans"
+        ],
         "summary": "Query spans using query DSL",
         "operationId": "querySpans",
         "parameters": [
@@ -1303,6 +1474,9 @@
     },
     "/v1/span_annotations": {
       "post": {
+        "tags": [
+          "spans"
+        ],
         "summary": "Upsert annotations for spans",
         "operationId": "annotateSpans",
         "requestBody": {

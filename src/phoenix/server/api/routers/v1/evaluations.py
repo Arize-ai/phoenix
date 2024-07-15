@@ -1,10 +1,10 @@
 import gzip
 from itertools import chain
-from typing import AsyncContextManager, Callable, Iterator, Tuple
+from typing import AsyncContextManager, Callable, Iterator, Optional, Tuple
 
 import pandas as pd
 import pyarrow as pa
-from fastapi import APIRouter
+from fastapi import APIRouter, Header, HTTPException, Query
 from google.protobuf.message import DecodeError
 from pandas import DataFrame
 from sqlalchemy import select
@@ -17,6 +17,7 @@ from starlette.datastructures import State
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from starlette.status import (
+    HTTP_204_NO_CONTENT,
     HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
     HTTP_415_UNSUPPORTED_MEDIA_TYPE,
@@ -37,90 +38,95 @@ from phoenix.trace.span_evaluations import (
     TraceEvaluations,
 )
 
+from .utils import add_errors_to_responses
+
 EvaluationName: TypeAlias = str
 
-router = APIRouter(include_in_schema=False)
+router = APIRouter(tags=["evals"])
 
 
-@router.post("/evaluations")
-async def post_evaluations(request: Request) -> Response:
-    """
-    summary: Add evaluations to a span, trace, or document
-    operationId: addEvaluations
-    tags:
-      - private
-    requestBody:
-      required: true
-      content:
-        application/x-protobuf:
-          schema:
-            type: string
-            format: binary
-        application/x-pandas-arrow:
-          schema:
-            type: string
-            format: binary
-    responses:
-      200:
-        description: Success
-      403:
-        description: Forbidden
-      415:
-        description: Unsupported content type, only gzipped protobuf and pandas-arrow are supported
-      422:
-        description: Request body is invalid
-    """
+@router.post(
+    "/evaluations",
+    operation_id="addEvaluations",
+    summary="Add evaluations to a span, trace, or document",
+    status_code=HTTP_204_NO_CONTENT,
+    responses=add_errors_to_responses(
+        [
+            {
+                "status_code": HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                "description": (
+                    "Unsupported content type, "
+                    "only gzipped protobuf and pandas-arrow are supported"
+                ),
+            },
+            HTTP_422_UNPROCESSABLE_ENTITY,
+        ]
+    ),
+    openapi_extra={
+        "required": True,
+        "content": {
+            "application/x-protobuf": {"schema": {"type": "string", "format": "binary"}},
+            "application/x-pandas-arrow": {"schema": {"type": "string", "format": "binary"}},
+        },
+    },
+)
+async def post_evaluations(
+    request: Request,
+    content_type: Optional[str] = Header(default=None),
+    content_encoding: Optional[str] = Header(default=None),
+) -> Response:
     if request.app.state.read_only:
-        return Response(status_code=HTTP_403_FORBIDDEN)
-    content_type = request.headers.get("content-type")
+        raise HTTPException(status_code=HTTP_403_FORBIDDEN)
     if content_type == "application/x-pandas-arrow":
         return await _process_pyarrow(request)
     if content_type != "application/x-protobuf":
-        return Response("Unsupported content type", status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE)
+        raise HTTPException(
+            detail="Unsupported content type", status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE
+        )
     body = await request.body()
-    content_encoding = request.headers.get("content-encoding")
     if content_encoding == "gzip":
         body = gzip.decompress(body)
     elif content_encoding:
-        return Response("Unsupported content encoding", status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE)
+        raise HTTPException(
+            detail="Unsupported content encoding", status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE
+        )
     evaluation = pb.Evaluation()
     try:
         evaluation.ParseFromString(body)
     except DecodeError:
-        return Response("Request body is invalid", status_code=HTTP_422_UNPROCESSABLE_ENTITY)
+        raise HTTPException(
+            detail="Request body is invalid", status_code=HTTP_422_UNPROCESSABLE_ENTITY
+        )
     if not evaluation.name.strip():
-        return Response(
-            "Evaluation name must not be blank/empty",
+        raise HTTPException(
+            detail="Evaluation name must not be blank/empty",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
     await request.state.queue_evaluation_for_bulk_insert(evaluation)
     return Response()
 
 
-@router.get("/evaluations")
-async def get_evaluations(request: Request) -> Response:
-    """
-    summary: Get evaluations from Phoenix
-    operationId: getEvaluation
-    tags:
-      - private
-    parameters:
-      - name: project_name
-        in: query
-        schema:
-          type: string
-          default: default
-        description: The project name to get evaluations from
-    responses:
-      200:
-        description: Success
-      403:
-        description: Forbidden
-      404:
-        description: Not found
-    """
+@router.get(
+    "/evaluations",
+    operation_id="getEvaluation",
+    summary="Get evaluations from Phoenix",
+    responses=add_errors_to_responses([HTTP_404_NOT_FOUND]),
+    openapi_extra={
+        "responses": {
+            "content": {
+                "application/x-pandas-arrow": {"schema": {"type": "string", "format": "binary"}}
+            }
+        }
+    },
+)
+async def get_evaluations(
+    request: Request,
+    project_name: Optional[str] = Query(
+        default=None, description="The name of the project from which evaluations will be pulled"
+    ),
+) -> Response:
     project_name = (
-        request.query_params.get("project_name")
+        project_name
         or request.query_params.get("project-name")  # for backward compatibility
         or request.headers.get("project-name")  # read from headers for backwards compatibility
         or DEFAULT_PROJECT_NAME
