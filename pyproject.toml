@@ -60,7 +60,7 @@ dependencies = [
   "python-multipart",  # see https://www.starlette.io/#dependencies
   "arize-phoenix-evals>=0.13.1",
   "fastapi",
-  "pydantic>=1.0,<3"
+  "pydantic>=1.0,<3",
 ]
 dynamic = ["version"]
 
@@ -162,7 +162,7 @@ dependencies = [
   "tiktoken",
   "typing-extensions==4.5.0; python_version=='3.8'",
   "typing-extensions==4.6.0; python_version=='3.9'",
-  "pydantic==1.10.17; python_version<='3.9'",
+  "pydantic==1.9.0; python_version<='3.9'",  # minimum version of pydantic compatible with openai
   "pydantic==2.8.2; python_version=='3.12'",
   "httpx", # For OpenAI testing
   "respx", # For OpenAI testing
@@ -196,8 +196,8 @@ dependencies = [
   "py-grpc-prometheus",
   "strawberry-graphql[opentelemetry]==0.235.0",  # need to pin version because we're monkey-patching
   "requests",  # this is needed to type-check third-party packages
-  "pydantic==1.10.17; python_version=='3.8'",
-  "pydantic==1.10.17; python_version=='3.9'",
+  "pydantic==1.10.17; python_version=='3.8'",  # lower minor versions of pydantic break strawberry mypy plugin
+  "pydantic==1.10.17; python_version=='3.9'",  # lower minor versions of pydantic break strawberry mypy plugin
   "pydantic==2.8.2; python_version=='3.12'",
 ]
 
@@ -383,6 +383,7 @@ module = [
   "sqlean",
   "grpc.*",
   "py_grpc_prometheus.*",
+  "orjson",  # suppress fastapi internal type errors
 ]
 ignore_missing_imports = true
 
