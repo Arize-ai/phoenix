@@ -1,6 +1,6 @@
 import gzip
 import zlib
-from typing import Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Header, HTTPException
 from google.protobuf.message import DecodeError
@@ -79,8 +79,8 @@ async def post_traces(request: Request, content_type: str = Header()) -> None:
 
 
 class AnnotationResult(BaseModel):
-    label: Optional[str] = Field(description="The label assigned by the annotation")
-    score: Optional[float] = Field(description="The score assigned by the annotation")
+    label: Optional[str] = Field(default=None, description="The label assigned by the annotation")
+    score: Optional[float] = Field(default=None, description="The score assigned by the annotation")
     explanation: Optional[str] = Field(
         default=None, description="Explanation of the annotation result"
     )
@@ -92,9 +92,11 @@ class TraceAnnotation(BaseModel):
     annotator_kind: Literal["LLM", "HUMAN"] = Field(
         description='The kind of annotator used for the annotation ("LLM" or "HUMAN")'
     )
-    result: Optional[AnnotationResult] = Field(None, description="The result of the annotation")
-    metadata: Dict[str, str] = Field(
-        default_factory=dict, description="Metadata for the annotation"
+    result: Optional[AnnotationResult] = Field(
+        default=None, description="The result of the annotation"
+    )
+    metadata: Optional[Dict[Any, Any]] = Field(
+        default=None, description="Metadata for the annotation"
     )
 
 
@@ -162,7 +164,7 @@ async def annotate_traces(
             label = result.label if result else None
             score = result.score if result else None
             explanation = result.explanation if result else None
-            metadata = annotation.metadata
+            metadata = annotation.metadata or {}
 
             values = dict(
                 trace_rowid=trace_id,

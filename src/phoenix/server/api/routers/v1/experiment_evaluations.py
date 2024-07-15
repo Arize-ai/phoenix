@@ -35,8 +35,8 @@ class UpsertExperimentEvaluationRequestBody(BaseModel):
     error: Optional[str] = Field(
         None, description="Optional error message if the evaluation encountered an error"
     )
-    metadata: Dict[Any, Any] = Field(
-        default_factory=dict, description="Metadata for the evaluation"
+    metadata: Optional[Dict[Any, Any]] = Field(
+        default=None, description="Metadata for the evaluation"
     )
     trace_id: Optional[str] = Field(default=None, description="Optional trace ID for tracking")
 
@@ -78,7 +78,7 @@ async def upsert_experiment_evaluation(
     score = result.score if result else None
     explanation = result.explanation if result else None
     error = request_body.error
-    metadata = request_body.metadata
+    metadata = request_body.metadata or {}
     start_time = payload["start_time"]
     end_time = payload["end_time"]
     async with request.app.state.db() as session:

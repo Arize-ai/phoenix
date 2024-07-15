@@ -1637,10 +1637,6 @@
           }
         },
         "type": "object",
-        "required": [
-          "label",
-          "score"
-        ],
         "title": "AnnotationResult"
       },
       "CreateExperimentRequestBody": {
@@ -2406,7 +2402,14 @@
             "description": "The result of the annotation"
           },
           "metadata": {
-            "type": "object",
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Metadata",
             "description": "Metadata for the annotation"
           }
@@ -2490,10 +2493,14 @@
             "description": "The result of the annotation"
           },
           "metadata": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "type": "object",
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Metadata",
             "description": "Metadata for the annotation"
           }
@@ -2581,7 +2588,14 @@
             "description": "Optional error message if the evaluation encountered an error"
           },
           "metadata": {
-            "type": "object",
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Metadata",
             "description": "Metadata for the evaluation"
           },

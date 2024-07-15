@@ -148,8 +148,8 @@ class SpanAnnotation(BaseModel):
         description="The kind of annotator used for the annotation ('LLM' or 'HUMAN')"
     )
     result: Optional[Result] = Field(default=None, description="The result of the annotation")
-    metadata: Dict[Any, Any] = Field(
-        default_factory=dict, description="Metadata for the annotation"
+    metadata: Optional[Dict[Any, Any]] = Field(
+        default=None, description="Metadata for the annotation"
     )
 
 
