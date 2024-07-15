@@ -774,7 +774,7 @@
     "/v1/evaluations": {
       "post": {
         "tags": [
-          "evaluations"
+          "evals"
         ],
         "summary": "Add evaluations to a span, trace, or document",
         "operationId": "addEvaluations",
@@ -865,10 +865,10 @@
       },
       "get": {
         "tags": [
-          "evaluations"
+          "evals"
         ],
-        "summary": "Get evaluations from Phoenix",
-        "operationId": "getEvaluation",
+        "summary": "Get evaluations",
+        "operationId": "getEvaluations",
         "parameters": [
           {
             "name": "project_name",
@@ -883,10 +883,10 @@
                   "type": "null"
                 }
               ],
-              "description": "The name of the project from which evaluations will be pulled",
+              "description": "The name of the project from which evaluations will be pulled. If not provided, evaluations will be pulled from the default project.",
               "title": "Project Name"
             },
-            "description": "The name of the project from which evaluations will be pulled"
+            "description": "The name of the project from which evaluations will be pulled. If not provided, evaluations will be pulled from the default project."
           }
         ],
         "responses": {

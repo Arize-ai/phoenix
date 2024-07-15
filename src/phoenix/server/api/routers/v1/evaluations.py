@@ -108,8 +108,8 @@ async def post_evaluations(
 
 @router.get(
     "/evaluations",
-    operation_id="getEvaluation",
-    summary="Get evaluations from Phoenix",
+    operation_id="getEvaluations",
+    summary="Get evaluations",
     responses=add_errors_to_responses([HTTP_404_NOT_FOUND]),
     openapi_extra={
         "responses": {
@@ -122,7 +122,11 @@ async def post_evaluations(
 async def get_evaluations(
     request: Request,
     project_name: Optional[str] = Query(
-        default=None, description="The name of the project from which evaluations will be pulled"
+        default=None,
+        description=(
+            "The name of the project from which evaluations will be pulled. "
+            "If not provided, evaluations will be pulled from the default project."
+        ),
     ),
 ) -> Response:
     project_name = (
@@ -180,20 +184,20 @@ async def _process_pyarrow(request: Request) -> Response:
     try:
         reader = pa.ipc.open_stream(body)
     except pa.ArrowInvalid:
-        return Response(
-            content="Request body is not valid pyarrow",
+        raise HTTPException(
+            detail="Request body is not valid pyarrow",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
     try:
         evaluations = Evaluations.from_pyarrow_reader(reader)
     except Exception as e:
         if isinstance(e, PhoenixEvaluationNameIsMissing):
-            return Response(
-                "Evaluation name must not be blank/empty",
+            raise HTTPException(
+                detail="Evaluation name must not be blank/empty",
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
             )
-        return Response(
-            content="Invalid data in request body",
+        raise HTTPException(
+            detail="Invalid data in request body",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
     return Response(background=BackgroundTask(_add_evaluations, request.state, evaluations))
