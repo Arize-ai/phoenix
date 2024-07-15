@@ -22,7 +22,9 @@ from typing import (
 
 import strawberry
 from fastapi import APIRouter, FastAPI
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
+from fastapi.utils import is_body_allowed_for_status_code
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -82,9 +84,9 @@ from phoenix.server.api.dataloaders import (
 from phoenix.server.api.routers.v1 import router as v1_router
 from phoenix.server.api.schema import schema
 from phoenix.server.grpc_server import GrpcServer
-from phoenix.server.openapi.docs import get_swagger_ui_html
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.trace.schemas import Span
+from phoenix.version import __version__ as phoenix_version
 
 if TYPE_CHECKING:
     from opentelemetry.trace import TracerProvider
@@ -237,11 +239,6 @@ async def check_healthz(_: Request) -> PlainTextResponse:
     return PlainTextResponse("OK")
 
 
-@router.get("/docs")
-async def api_docs() -> Response:
-    return get_swagger_ui_html(openapi_url="/openapi.json", title="arize-phoenix API")
-
-
 def create_graphql_router(
     *,
     schema: BaseSchema,
@@ -370,6 +367,18 @@ def instrument_engine_if_enabled(engine: AsyncEngine) -> List[Callable[[], None]
     return instrumentation_cleanups
 
 
+async def plain_text_http_exception_handler(request: Request, exc: HTTPException) -> Response:
+    """
+    Overrides the default handler for HTTPExceptions to return a plain text
+    response instead of a JSON response. For the original source code, see
+    https://github.com/tiangolo/fastapi/blob/d3cdd3bbd14109f3b268df7ca496e24bb64593aa/fastapi/exception_handlers.py#L11
+    """
+    headers = getattr(exc, "headers", None)
+    if not is_body_allowed_for_status_code(exc.status_code):
+        return Response(status_code=exc.status_code, headers=headers)
+    return PlainTextResponse(str(exc.detail), status_code=exc.status_code, headers=headers)
+
+
 def create_app(
     db: SessionFactory,
     export_path: Path,
@@ -449,6 +458,8 @@ def create_app(
     else:
         prometheus_middlewares = []
     app = FastAPI(
+        title="Arize-Phoenix",
+        version=phoenix_version,
         lifespan=_lifespan(
             read_only=read_only,
             bulk_inserter=bulk_inserter,
@@ -460,13 +471,18 @@ def create_app(
             Middleware(HeadersMiddleware),
             *prometheus_middlewares,
         ],
+        exception_handlers={HTTPException: plain_text_http_exception_handler},
         debug=debug,
+        swagger_ui_parameters={
+            "defaultModelsExpandDepth": -1,  # hides the schema section in the Swagger UI
+        },
     )
     app.state.read_only = read_only
     app.state.export_path = export_path
     app.include_router(v1_router)
     app.include_router(router)
     app.include_router(graphql_router)
+    app.add_middleware(GZipMiddleware)
     if serve_ui:
         app.mount(
             "/",

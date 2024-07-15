@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 from asyncio import AbstractEventLoop, get_running_loop
 from functools import partial
+from importlib.metadata import version
 from time import sleep
 from typing import (
     Any,
@@ -11,6 +12,7 @@ from typing import (
     Awaitable,
     Callable,
     Iterator,
+    Literal,
     Tuple,
 )
 
@@ -56,6 +58,17 @@ def pytest_collection_modifyitems(config, items):
             if "dialect" in item.fixturenames:
                 if "postgresql" in item.callspec.params.values():
                     item.add_marker(skip_postgres)
+
+
+@pytest.fixture
+def pydantic_version() -> Literal["v1", "v2"]:
+    raw_version = version("pydantic")
+    major_version = int(raw_version.split(".")[0])
+    if major_version == 1:
+        return "v1"
+    if major_version == 2:
+        return "v2"
+    raise ValueError(f"Cannot parse pydantic version: {raw_version}")
 
 
 @pytest.fixture
