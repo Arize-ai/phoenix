@@ -1224,10 +1224,172 @@
           }
         }
       }
+    },
+    "/v1/spans": {
+      "post": {
+        "summary": "Query spans using query DSL",
+        "operationId": "querySpans",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The project name to get evaluations from",
+              "title": "Project Name"
+            },
+            "description": "The project name to get evaluations from"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuerySpansRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/span_annotations": {
+      "post": {
+        "summary": "Upsert annotations for spans",
+        "operationId": "annotateSpans",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnotateSpansRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Span annotations inserted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnnotateSpansResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Span not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AnnotateSpansRequestBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/SpanAnnotation"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "AnnotateSpansRequestBody"
+      },
+      "AnnotateSpansResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/InsertedSpanAnnotation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "AnnotateSpansResponseBody"
+      },
       "AnnotateTracesRequestBody": {
         "properties": {
           "data": {
@@ -1235,12 +1397,8 @@
               "$ref": "#/components/schemas/TraceAnnotation"
             },
             "type": "array",
-<<<<<<< HEAD
-            "title": "Data"
-=======
             "title": "Data",
             "description": "The trace annotations to be upserted"
->>>>>>> d8d41dee (update schema)
           }
         },
         "type": "object",
@@ -1268,16 +1426,6 @@
       "AnnotationResult": {
         "properties": {
           "label": {
-<<<<<<< HEAD
-            "type": "string",
-            "title": "Label",
-            "description": "The label assigned by the annotation or evaluation"
-          },
-          "score": {
-            "type": "number",
-            "title": "Score",
-            "description": "The score assigned by the annotation or evaluation"
-=======
             "anyOf": [
               {
                 "type": "string"
@@ -1300,7 +1448,6 @@
             ],
             "title": "Score",
             "description": "The score assigned by the annotation"
->>>>>>> d8d41dee (update schema)
           },
           "explanation": {
             "anyOf": [
@@ -1312,11 +1459,7 @@
               }
             ],
             "title": "Explanation",
-<<<<<<< HEAD
-            "description": "Explanation of the annotation or evaluation result"
-=======
             "description": "Explanation of the annotation result"
->>>>>>> d8d41dee (update schema)
           }
         },
         "type": "object",
@@ -1805,6 +1948,20 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "InsertedSpanAnnotation": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The ID of the inserted span annotation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "InsertedSpanAnnotation"
+      },
       "InsertedTraceAnnotation": {
         "properties": {
           "id": {
@@ -1929,6 +2086,203 @@
         ],
         "title": "ListExperimentRunsResponseBody"
       },
+      "QuerySpansRequestBody": {
+        "properties": {
+          "queries": {
+            "items": {
+              "$ref": "#/components/schemas/SpanQuery"
+            },
+            "type": "array",
+            "title": "Queries"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start Time"
+          },
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Time"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "default": 1000
+          },
+          "root_spans_only": {
+            "type": "boolean",
+            "title": "Root Spans Only",
+            "default": false
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Name",
+            "description": "The name of the project to query. This parameter has been deprecated, use the project_name query parameter instead.",
+            "deprecated": true
+          },
+          "stop_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop Time",
+            "description": "An upper bound on the time to query for. This parameter has been deprecated, use the end_time parameter instead.",
+            "deprecated": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "queries",
+          "start_time"
+        ],
+        "title": "QuerySpansRequestBody"
+      },
+      "Result": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "The label assigned by the annotation"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score",
+            "description": "The score assigned by the annotation"
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation",
+            "description": "Explanation of the annotation result"
+          }
+        },
+        "type": "object",
+        "title": "Result"
+      },
+      "SpanAnnotation": {
+        "properties": {
+          "span_id": {
+            "type": "string",
+            "title": "Span Id",
+            "description": "The ID of the span being annotated"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the annotation"
+          },
+          "annotator_kind": {
+            "type": "string",
+            "enum": [
+              "LLM",
+              "HUMAN"
+            ],
+            "title": "Annotator Kind",
+            "description": "The kind of annotator used for the annotation ('LLM' or 'HUMAN')"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Result"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The result of the annotation"
+          },
+          "metadata": {
+            "type": "object",
+            "title": "Metadata",
+            "description": "Metadata for the annotation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "span_id",
+          "name",
+          "annotator_kind"
+        ],
+        "title": "SpanAnnotation"
+      },
+      "SpanQuery": {
+        "properties": {
+          "select": {
+            "type": "object",
+            "title": "Select"
+          },
+          "filter": {
+            "type": "object",
+            "title": "Filter"
+          },
+          "explode": {
+            "type": "object",
+            "title": "Explode"
+          },
+          "concat": {
+            "type": "object",
+            "title": "Concat"
+          },
+          "rename": {
+            "type": "object",
+            "title": "Rename"
+          },
+          "index": {
+            "type": "object",
+            "title": "Index"
+          }
+        },
+        "type": "object",
+        "required": [
+          "select",
+          "filter",
+          "explode",
+          "concat",
+          "rename",
+          "index"
+        ],
+        "title": "SpanQuery"
+      },
       "TraceAnnotation": {
         "properties": {
           "trace_id": {
@@ -1961,21 +2315,6 @@
             ],
             "description": "The result of the annotation"
           },
-<<<<<<< HEAD
-=======
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Error",
-            "description": "Optional error message if the annotation encountered an error"
-          },
->>>>>>> d8d41dee (update schema)
           "metadata": {
             "additionalProperties": {
               "type": "string"

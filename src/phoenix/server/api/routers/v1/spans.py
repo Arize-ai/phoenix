@@ -1,10 +1,11 @@
-from datetime import timezone
-from typing import Any, AsyncIterator, Dict, List
+from datetime import datetime, timezone
+from typing import Any, AsyncIterator, Dict, List, Literal, Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response, StreamingResponse
+from starlette.responses import Response, StreamingResponse
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
 from strawberry.relay import GlobalID
 
@@ -13,96 +14,81 @@ from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import insert_on_conflict
-from phoenix.server.api.routers.utils import df_to_bytes, from_iso_format
+from phoenix.server.api.routers.utils import df_to_bytes
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.trace.dsl import SpanQuery
+from phoenix.trace.dsl import SpanQuery as SpanQuery_
+
+from .utils import RequestBody, ResponseBody, add_errors_to_responses
 
 DEFAULT_SPAN_LIMIT = 1000
 
-router = APIRouter(include_in_schema=False)
+router = APIRouter()
+
+
+class SpanQuery(BaseModel):
+    select: Dict[Any, Any]
+    filter: Dict[Any, Any]
+    explode: Dict[Any, Any]
+    concat: Dict[Any, Any]
+    rename: Dict[Any, Any]
+    index: Dict[Any, Any]
+
+
+class QuerySpansRequestBody(BaseModel):
+    queries: List[SpanQuery]
+    start_time: datetime
+    end_time: Optional[datetime] = None
+    limit: int = DEFAULT_SPAN_LIMIT
+    root_spans_only: bool = False
+    project_name: Optional[str] = Field(
+        default=None,
+        description=(
+            "The name of the project to query. "
+            "This parameter has been deprecated, use the project_name query parameter instead."
+        ),
+        deprecated=True,
+    )
+    stop_time: Optional[datetime] = Field(
+        default=None,
+        description=(
+            "An upper bound on the time to query for. "
+            "This parameter has been deprecated, use the end_time parameter instead."
+        ),
+        deprecated=True,
+    )
 
 
 # TODO: Add property details to SpanQuery schema
-@router.post("/spans")
-async def query_spans_handler(request: Request) -> Response:
-    """
-    summary: Query spans using query DSL
-    operationId: querySpans
-    tags:
-      - private
-    parameters:
-      - name: project_name
-        in: query
-        schema:
-          type: string
-          default: default
-        description: The project name to get evaluations from
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              queries:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    select:
-                      type: object
-                    filter:
-                      type: object
-                    explode:
-                      type: object
-                    concat:
-                      type: object
-                    rename:
-                      type: object
-                    index:
-                      type: object
-              start_time:
-                type: string
-                format: date-time
-              end_time:
-                type: string
-                format: date-time
-                nullable: true
-              limit:
-                type: integer
-                nullable: true
-                default: 1000
-              root_spans_only:
-                type: boolean
-                nullable: true
-    responses:
-      200:
-        description: Success
-      403:
-        description: Forbidden
-      404:
-        description: Not found
-      422:
-        description: Request body is invalid
-    """
-    payload = await request.json()
-    queries = payload.pop("queries", [])
+@router.post(
+    "/spans",
+    operation_id="querySpans",
+    summary="Query spans using query DSL",
+    responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY]),
+)
+async def query_spans_handler(
+    request: Request,
+    request_body: QuerySpansRequestBody,
+    project_name: Optional[str] = Query(
+        default=None, description="The project name to get evaluations from"
+    ),
+) -> Response:
+    queries = request_body.queries
     project_name = (
-        request.query_params.get("project_name")
+        project_name
         or request.query_params.get("project-name")  # for backward compatibility
         or request.headers.get(
             "project-name"
         )  # read from headers/payload for backward-compatibility
-        or payload.get("project_name")
+        or request_body.project_name
         or DEFAULT_PROJECT_NAME
     )
-    end_time = payload.get("end_time") or payload.get("stop_time")
+    end_time = request_body.end_time or request_body.stop_time
     try:
-        span_queries = [SpanQuery.from_dict(query) for query in queries]
+        span_queries = [SpanQuery_.from_dict(query.dict()) for query in queries]
     except Exception as e:
-        return Response(
+        raise HTTPException(
+            detail=f"Invalid query: {e}",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-            content=f"Invalid query: {e}",
         )
     async with request.app.state.db() as session:
         results = []
@@ -112,19 +98,19 @@ async def query_spans_handler(request: Request) -> Response:
                     query,
                     project_name=project_name,
                     start_time=normalize_datetime(
-                        from_iso_format(payload.get("start_time")),
+                        request_body.start_time,
                         timezone.utc,
                     ),
                     end_time=normalize_datetime(
-                        from_iso_format(end_time),
+                        end_time,
                         timezone.utc,
                     ),
-                    limit=payload.get("limit", DEFAULT_SPAN_LIMIT),
-                    root_spans_only=payload.get("root_spans_only"),
+                    limit=request_body.limit,
+                    root_spans_only=request_body.root_spans_only,
                 )
             )
     if not results:
-        return Response(status_code=HTTP_404_NOT_FOUND)
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND)
 
     async def content() -> AsyncIterator[bytes]:
         for result in results:
@@ -136,95 +122,71 @@ async def query_spans_handler(request: Request) -> Response:
     )
 
 
-@router.get("/spans")
-async def get_spans_handler(request: Request) -> Response:
-    return await query_spans_handler(request)
+@router.get("/spans", include_in_schema=False, deprecated=True)
+async def get_spans_handler(
+    request: Request,
+    request_body: QuerySpansRequestBody,
+    project_name: Optional[str] = Query(
+        default=None, description="The project name to get evaluations from"
+    ),
+) -> Response:
+    return await query_spans_handler(request, request_body, project_name)
 
 
-@router.post("/span_annotations")
-async def annotate_spans(request: Request) -> Response:
-    """
-    summary: Upsert annotations for spans
-    operationId: annotateSpans
-    tags:
-      - private
-    requestBody:
-      description: List of span annotations to be inserted
-      required: true
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              data:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    span_id:
-                      type: string
-                      description: The ID of the span being annotated
-                    name:
-                      type: string
-                      description: The name of the annotation
-                    annotator_kind:
-                      type: string
-                      description: The kind of annotator used for the annotation ("LLM" or "HUMAN")
-                    result:
-                      type: object
-                      description: The result of the annotation
-                      properties:
-                        label:
-                          type: string
-                          description: The label assigned by the annotation
-                        score:
-                          type: number
-                          format: float
-                          description: The score assigned by the annotation
-                        explanation:
-                          type: string
-                          description: Explanation of the annotation result
-                    error:
-                      type: string
-                      description: Optional error message if the annotation encountered an error
-                    metadata:
-                      type: object
-                      description: Metadata for the annotation
-                      additionalProperties:
-                        type: string
-                  required:
-                    - span_id
-                    - name
-                    - annotator_kind
-    responses:
-      200:
-        description: Span annotations inserted successfully
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                data:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      id:
-                        type: string
-                        description: The ID of the inserted span annotation
-      404:
-        description: Span not found
-    """
-    payload: List[Dict[str, Any]] = (await request.json()).get("data", [])
-    span_gids = [GlobalID.from_id(annotation["span_id"]) for annotation in payload]
+class Result(BaseModel):
+    label: Optional[str] = Field(default=None, description="The label assigned by the annotation")
+    score: Optional[float] = Field(default=None, description="The score assigned by the annotation")
+    explanation: Optional[str] = Field(
+        default=None, description="Explanation of the annotation result"
+    )
+
+
+class SpanAnnotation(BaseModel):
+    span_id: str = Field(description="The ID of the span being annotated")
+    name: str = Field(description="The name of the annotation")
+    annotator_kind: Literal["LLM", "HUMAN"] = Field(
+        description="The kind of annotator used for the annotation ('LLM' or 'HUMAN')"
+    )
+    result: Optional[Result] = Field(default=None, description="The result of the annotation")
+    metadata: Dict[Any, Any] = Field(
+        default_factory=dict, description="Metadata for the annotation"
+    )
+
+
+class AnnotateSpansRequestBody(RequestBody[List[SpanAnnotation]]):
+    data: List[SpanAnnotation]
+
+
+class InsertedSpanAnnotation(BaseModel):
+    id: str = Field(description="The ID of the inserted span annotation")
+
+
+class AnnotateSpansResponseBody(ResponseBody[InsertedSpanAnnotation]):
+    pass
+
+
+@router.post(
+    "/span_annotations",
+    operation_id="annotateSpans",
+    summary="Upsert annotations for spans",
+    responses=add_errors_to_responses(
+        [{"status_code": HTTP_404_NOT_FOUND, "description": "Span not found"}]
+    ),
+    response_description="Span annotations inserted successfully",
+)
+async def annotate_spans(
+    request: Request, request_body: AnnotateSpansRequestBody
+) -> AnnotateSpansResponseBody:
+    span_annotations = request_body.data
+    span_gids = [GlobalID.from_id(annotation.span_id) for annotation in span_annotations]
 
     resolved_span_ids = []
     for span_gid in span_gids:
         try:
             resolved_span_ids.append(from_global_id_with_expected_type(span_gid, "Span"))
         except ValueError:
-            return Response(
-                content="Span with ID {span_gid} does not exist",
+            raise HTTPException(
+                detail="Span with ID {span_gid} does not exist",
                 status_code=HTTP_404_NOT_FOUND,
             )
 
@@ -239,22 +201,22 @@ async def annotate_spans(request: Request) -> Response:
             missing_span_gids = [
                 str(GlobalID("Span", str(span_gid))) for span_gid in missing_span_ids
             ]
-            return Response(
-                content=f"Spans with IDs {', '.join(missing_span_gids)} do not exist.",
+            raise HTTPException(
+                detail=f"Spans with IDs {', '.join(missing_span_gids)} do not exist.",
                 status_code=HTTP_404_NOT_FOUND,
             )
 
         inserted_annotations = []
-        for annotation in payload:
-            span_gid = GlobalID.from_id(annotation["span_id"])
+        for annotation in span_annotations:
+            span_gid = GlobalID.from_id(annotation.span_id)
             span_id = from_global_id_with_expected_type(span_gid, "Span")
-            name = annotation["name"]
-            annotator_kind = annotation["annotator_kind"]
-            result = annotation.get("result")
-            label = result.get("label") if result else None
-            score = result.get("score") if result else None
-            explanation = result.get("explanation") if result else None
-            metadata = annotation.get("metadata") or {}
+            name = annotation.name
+            annotator_kind = annotation.annotator_kind
+            result = annotation.result
+            label = result.label if result else None
+            score = result.score if result else None
+            explanation = result.explanation if result else None
+            metadata = annotation.metadata
 
             values = dict(
                 span_rowid=span_id,
@@ -275,7 +237,7 @@ async def annotate_spans(request: Request) -> Response:
                 ).returning(models.SpanAnnotation.id)
             )
             inserted_annotations.append(
-                {"id": str(GlobalID("SpanAnnotation", str(span_annotation_id)))}
+                InsertedSpanAnnotation(id=str(GlobalID("SpanAnnotation", str(span_annotation_id))))
             )
 
-    return JSONResponse(content={"data": inserted_annotations})
+    return AnnotateSpansResponseBody(data=inserted_annotations)
