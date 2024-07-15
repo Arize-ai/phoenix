@@ -18,7 +18,7 @@ class SpanAnnotation(Node):
     score: Optional[float]
     explanation: Optional[str]
     metadata: JSON
-    span_rowid: Private[Optional[str]]
+    span_rowid: Private[Optional[int]]
 
     @strawberry.field
     async def span_id(self) -> GlobalID:

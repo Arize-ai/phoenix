@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Sequence
 
 import strawberry
 from sqlalchemy import delete, insert, update
@@ -27,7 +27,7 @@ class SpanAnnotationMutationMixin:
         self, info: Info[Context, None], input: List[CreateSpanAnnotationsInput]
     ) -> SpanAnnotationMutationPayload:
         span_rowid = from_global_id_with_expected_type(input[0].span_id, "Span")
-        inserted_annotations = []
+        inserted_annotations: Sequence[models.SpanAnnotation] = []
         async with info.context.db() as session:
             values_list = [
                 dict(
@@ -81,7 +81,8 @@ class SpanAnnotationMutationMixin:
                     .values(**patch)
                     .returning(models.SpanAnnotation)
                 )
-                patched_annotations.append(to_gql_span_annotation(span_annotation))
+                if span_annotation is not None:
+                    patched_annotations.append(to_gql_span_annotation(span_annotation))
 
         return SpanAnnotationMutationPayload(span_annotations=patched_annotations)
 

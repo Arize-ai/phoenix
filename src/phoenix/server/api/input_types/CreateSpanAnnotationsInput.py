@@ -1,12 +1,13 @@
 from typing import Optional
 
 import strawberry
+from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
 
 @strawberry.input
 class CreateSpanAnnotationsInput:
-    span_id: strawberry.ID
+    span_id: GlobalID
     name: str
     annotator_kind: str
     label: Optional[str] = None

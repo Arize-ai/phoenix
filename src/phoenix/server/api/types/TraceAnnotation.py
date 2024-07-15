@@ -18,7 +18,7 @@ class TraceAnnotation(Node):
     score: Optional[float]
     explanation: Optional[str]
     metadata: JSON
-    trace_rowid: Private[Optional[str]]
+    trace_rowid: Private[Optional[int]]
 
     @strawberry.field
     async def trace_id(self) -> GlobalID:

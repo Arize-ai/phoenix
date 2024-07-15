@@ -1,12 +1,13 @@
 from typing import Optional
 
 import strawberry
+from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
 
 @strawberry.input
 class CreateTraceAnnotationsInput:
-    trace_id: strawberry.ID
+    trace_id: GlobalID
     name: str
     annotator_kind: str
     label: Optional[str] = None

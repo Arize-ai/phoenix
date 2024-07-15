@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Sequence
 
 import strawberry
 from sqlalchemy import delete, insert, update
@@ -17,7 +17,7 @@ from phoenix.server.api.types.TraceAnnotation import TraceAnnotation, to_gql_tra
 
 @strawberry.type
 class TraceAnnotationMutationPayload:
-    Trace_annotations: List[TraceAnnotation]
+    trace_annotations: List[TraceAnnotation]
 
 
 @strawberry.type
@@ -27,7 +27,7 @@ class TraceAnnotationMutationMixin:
         self, info: Info[Context, None], input: List[CreateTraceAnnotationsInput]
     ) -> TraceAnnotationMutationPayload:
         trace_rowid = from_global_id_with_expected_type(input[0].trace_id, "trace")
-        inserted_annotations = []
+        inserted_annotations: Sequence[models.TraceAnnotation] = []
         async with info.context.db() as session:
             values_list = [
                 dict(
@@ -81,7 +81,8 @@ class TraceAnnotationMutationMixin:
                     .values(**patch)
                     .returning(models.TraceAnnotation)
                 )
-                patched_annotations.append(to_gql_trace_annotation(trace_annotation))
+                if trace_annotation:
+                    patched_annotations.append(to_gql_trace_annotation(trace_annotation))
 
         return TraceAnnotationMutationPayload(trace_annotations=patched_annotations)
 
