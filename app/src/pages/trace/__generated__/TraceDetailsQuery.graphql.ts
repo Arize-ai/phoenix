@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cb61f21b25105ea1d593b0791dd65372>>
+ * @generated SignedSource<<03387a5b510122c5aca7a286f8706af4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -26,6 +26,7 @@ export type TraceDetailsQuery$data = {
             readonly attributes: string;
             readonly context: {
               readonly spanId: string;
+              readonly traceId: string;
             };
             readonly documentEvaluations: ReadonlyArray<{
               readonly documentPosition: number;
@@ -133,6 +134,13 @@ v6 = {
       "args": null,
       "kind": "ScalarField",
       "name": "spanId",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "traceId",
       "storageKey": null
     }
   ],
@@ -591,16 +599,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "09420fac27c4768b8a68fa7ee918cdfb",
+    "cacheID": "a7eb8bfce36ca7633be29b3bde1952b8",
     "id": null,
     "metadata": {},
     "name": "TraceDetailsQuery",
     "operationKind": "query",
-    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              context {\n                spanId\n              }\n              name\n              spanKind\n              statusCode: propagatedStatusCode\n              statusMessage\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              tokenCountPrompt\n              tokenCountCompletion\n              input {\n                value\n                mimeType\n              }\n              output {\n                value\n                mimeType\n              }\n              attributes\n              events {\n                name\n                message\n                timestamp\n              }\n              spanEvaluations {\n                name\n                label\n                score\n              }\n              documentRetrievalMetrics {\n                evaluationName\n                ndcg\n                precision\n                hit\n              }\n              documentEvaluations {\n                documentPosition\n                name\n                label\n                score\n                explanation\n              }\n              ...SpanEvaluationsTable_evals\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanEvaluationsTable_evals on Span {\n  spanEvaluations {\n    name\n    label\n    score\n    explanation\n  }\n}\n"
+    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              context {\n                spanId\n                traceId\n              }\n              name\n              spanKind\n              statusCode: propagatedStatusCode\n              statusMessage\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              tokenCountPrompt\n              tokenCountCompletion\n              input {\n                value\n                mimeType\n              }\n              output {\n                value\n                mimeType\n              }\n              attributes\n              events {\n                name\n                message\n                timestamp\n              }\n              spanEvaluations {\n                name\n                label\n                score\n              }\n              documentRetrievalMetrics {\n                evaluationName\n                ndcg\n                precision\n                hit\n              }\n              documentEvaluations {\n                documentPosition\n                name\n                label\n                score\n                explanation\n              }\n              ...SpanEvaluationsTable_evals\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanEvaluationsTable_evals on Span {\n  spanEvaluations {\n    name\n    label\n    score\n    explanation\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d8dff7c0dd0c97ffe1540aff1504de4a";
+(node as any).hash = "77c479ec3740896d2dadf3010f72760a";
 
 export default node;
