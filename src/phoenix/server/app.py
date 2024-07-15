@@ -463,9 +463,9 @@ def create_app(
 
     app.state.db = db
     if tracer_provider:
-        from opentelemetry.instrumentation.starlette import StarletteInstrumentor
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
-        StarletteInstrumentor().instrument(tracer_provider=tracer_provider)
-        StarletteInstrumentor.instrument_app(app, tracer_provider=tracer_provider)
-        clean_ups.append(StarletteInstrumentor().uninstrument)
+        FastAPIInstrumentor().instrument(tracer_provider=tracer_provider)
+        FastAPIInstrumentor.instrument_app(app, tracer_provider=tracer_provider)
+        clean_ups.append(FastAPIInstrumentor().uninstrument)
     return app
