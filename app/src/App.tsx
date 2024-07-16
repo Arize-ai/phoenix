@@ -4,7 +4,6 @@ import { ThemeProvider as EmotionThemeProvider } from "@emotion/react";
 
 import { Provider, theme } from "@arizeai/components";
 
-// import "vite/modulepreload-polyfill";
 import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
 import { NotificationProvider, ThemeProvider, useTheme } from "./contexts";
 import { GlobalStyles } from "./GlobalStyles";

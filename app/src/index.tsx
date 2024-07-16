@@ -1,5 +1,4 @@
 import React from "react";
-// Rest of your app code
 import ReactDom from "react-dom/client";
 
 import "vite/modulepreload-polyfill";

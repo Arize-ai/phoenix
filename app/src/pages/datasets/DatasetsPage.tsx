@@ -141,7 +141,7 @@ function CreateDatasetActionMenu({
   return (
     <>
       <ActionMenu
-        buttonText="Create Dataset test "
+        buttonText="Create Dataset"
         align="end"
         icon={<Icon svg={<Icons.DatabaseOutline />} />}
         onAction={(action) => {
