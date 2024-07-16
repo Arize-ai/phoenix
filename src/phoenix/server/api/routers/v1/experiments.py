@@ -3,7 +3,7 @@ from random import getrandbits
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from starlette.requests import Request
 from starlette.status import HTTP_404_NOT_FOUND
@@ -32,22 +32,45 @@ def _generate_experiment_name(dataset_name: str) -> str:
 
 
 class Experiment(BaseModel):
-    id: str
-    dataset_id: str
-    dataset_version_id: str
-    repetitions: int
-    metadata: Dict[Any, Any]
-    project_name: Optional[str]
-    created_at: datetime
-    updated_at: datetime
+    id: str = Field(description="The ID of the experiment")
+    dataset_id: str = Field(description="The ID of the dataset associated with the experiment")
+    dataset_version_id: str = Field(
+        description="The ID of the dataset version associated with the experiment"
+    )
+    repetitions: int = Field(description="Number of times the experiment is repeated")
+    metadata: Dict[str, Any] = Field(description="Metadata of the experiment")
+    project_name: Optional[str] = Field(
+        description="The name of the project associated with the experiment"
+    )
+    created_at: datetime = Field(description="The creation timestamp of the experiment")
+    updated_at: datetime = Field(description="The last update timestamp of the experiment")
 
 
 class CreateExperimentRequestBody(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    metadata: Optional[Dict[Any, Any]] = None
-    version_id: Optional[str] = None
-    repetitions: int = 1
+    """
+    Details of the experiment to be created
+    """
+
+    name: Optional[str] = Field(
+        default=None,
+        description=("Name of the experiment (if omitted, a random name will be generated)"),
+    )
+    description: Optional[str] = Field(
+        default=None, description="An optional description of the experiment"
+    )
+    metadata: Optional[Dict[str, Any]] = Field(
+        default=None, description="Metadata for the experiment"
+    )
+    version_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "ID of the dataset version over which the experiment will be run "
+            "(if omitted, the latest version will be used)"
+        ),
+    )
+    repetitions: int = Field(
+        default=1, description="Number of times the experiment should be repeated for each example"
+    )
 
 
 class CreateExperimentResponseBody(ResponseBody[Experiment]):
@@ -57,7 +80,7 @@ class CreateExperimentResponseBody(ResponseBody[Experiment]):
 @router.post(
     "/datasets/{dataset_id}/experiments",
     operation_id="createExperiment",
-    summary="Create an experiment using a dataset",
+    summary="Create experiment on a dataset",
     responses=add_errors_to_responses(
         [{"status_code": HTTP_404_NOT_FOUND, "description": "Dataset or DatasetVersion not found"}]
     ),
@@ -185,10 +208,11 @@ class GetExperimentResponseBody(ResponseBody[Experiment]):
 @router.get(
     "/experiments/{experiment_id}",
     operation_id="getExperiment",
-    summary="Get details of a specific experiment",
+    summary="Get experiment by ID",
     responses=add_errors_to_responses(
         [{"status_code": HTTP_404_NOT_FOUND, "description": "Experiment not found"}]
     ),
+    response_description="Experiment retrieved successfully",
 )
 async def get_experiment(request: Request, experiment_id: str) -> GetExperimentResponseBody:
     experiment_globalid = GlobalID.from_id(experiment_id)

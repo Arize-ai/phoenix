@@ -18,13 +18,20 @@ router = APIRouter(tags=["experiments"])
 
 
 class ExperimentRun(BaseModel):
-    dataset_example_id: str
-    output: Any
-    repetition_number: int
-    start_time: datetime
-    end_time: datetime
-    trace_id: Optional[str] = None
-    error: Optional[str] = None
+    dataset_example_id: str = Field(
+        description="The ID of the dataset example used in the experiment run"
+    )
+    output: Any = Field(description="The output of the experiment task")
+    repetition_number: int = Field(description="The repetition number of the experiment run")
+    start_time: datetime = Field(description="The start time of the experiment run")
+    end_time: datetime = Field(description="The end time of the experiment run")
+    trace_id: Optional[str] = Field(
+        default=None, description="The ID of the corresponding trace (if one exists)"
+    )
+    error: Optional[str] = Field(
+        default=None,
+        description="Optional error message if the experiment run encountered an error",
+    )
 
 
 class CreateExperimentRunRequestBody(ExperimentRun):
@@ -42,7 +49,7 @@ class CreateExperimentResponseBody(ResponseBody[CreateExperimentRunResponseBodyD
 @router.post(
     "/experiments/{experiment_id}/runs",
     operation_id="createExperimentRun",
-    summary="Creates a new experiment run for a specific experiment",
+    summary="Create run for an experiment",
     response_description="Experiment run created successfully",
     responses=add_errors_to_responses(
         [
@@ -105,7 +112,7 @@ class ListExperimentRunsResponseBody(ResponseBody[List[ExperimentRun]]):
 @router.get(
     "/experiments/{experiment_id}/runs",
     operation_id="listExperimentRuns",
-    summary="Lists all runs for a specific experiment",
+    summary="List runs for an experiment",
     response_description="Experiment runs retrieved successfully",
     responses=add_errors_to_responses(
         [{"status_code": HTTP_404_NOT_FOUND, "description": "Experiment not found"}]

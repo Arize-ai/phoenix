@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from starlette.status import HTTP_403_FORBIDDEN
 
-from .dataset_examples import router as dataset_examples_router
 from .datasets import router as datasets_router
 from .evaluations import router as evaluations_router
 from .experiment_evaluations import router as experiment_evaluations_router
@@ -34,11 +33,10 @@ router = APIRouter(
         ]
     ),
 )
-router.include_router(dataset_examples_router)
 router.include_router(datasets_router)
-router.include_router(evaluations_router)
-router.include_router(experiment_evaluations_router)
-router.include_router(experiment_runs_router)
 router.include_router(experiments_router)
+router.include_router(experiment_runs_router)
+router.include_router(experiment_evaluations_router)
 router.include_router(traces_router)
 router.include_router(spans_router)
+router.include_router(evaluations_router)

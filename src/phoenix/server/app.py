@@ -438,7 +438,7 @@ def create_app(
     else:
         prometheus_middlewares = []
     app = FastAPI(
-        title="Arize-Phoenix",
+        title="Arize-Phoenix REST API",
         version=REST_API_VERSION,
         lifespan=_lifespan(
             read_only=read_only,

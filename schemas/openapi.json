@@ -1,99 +1,17 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Arize-Phoenix API",
+    "title": "Arize-Phoenix REST API",
     "description": "Schema for Arize-Phoenix REST API",
     "version": "1.0"
   },
   "paths": {
-    "/v1/datasets/{id}/examples": {
-      "get": {
-        "tags": [
-          "datasets"
-        ],
-        "summary": "Get dataset examples by dataset ID.",
-        "operationId": "getDatasetExamples",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "The ID of the dataset.",
-              "title": "Id"
-            },
-            "description": "The ID of the dataset."
-          },
-          {
-            "name": "version_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "If provided, returns the dataset examples as of the specified version.",
-              "title": "Version Id"
-            },
-            "description": "If provided, returns the dataset examples as of the specified version."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ListDatasetExamplesResponseBody"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/datasets": {
       "get": {
         "tags": [
           "datasets"
         ],
-        "summary": "Returns paginated lists of datasets.",
+        "summary": "List datasets",
         "operationId": "listDatasets",
         "parameters": [
           {
@@ -109,10 +27,10 @@
                   "type": "null"
                 }
               ],
-              "description": "If provided, returns datasets starting with the provided cursor.",
+              "description": "Cursor for pagination",
               "title": "Cursor"
             },
-            "description": "If provided, returns datasets starting with the provided cursor."
+            "description": "Cursor for pagination"
           },
           {
             "name": "name",
@@ -127,10 +45,10 @@
                   "type": "null"
                 }
               ],
-              "description": "If provided, filters the returned datasets by name.",
+              "description": "An optional dataset name to filter by",
               "title": "Name"
             },
-            "description": "If provided, filters the returned datasets by name."
+            "description": "An optional dataset name to filter by"
           },
           {
             "name": "limit",
@@ -139,11 +57,11 @@
             "schema": {
               "type": "integer",
               "exclusiveMinimum": 0,
-              "description": "The maximum number of datasets to return at a time.",
+              "description": "The max number of datasets to return at a time.",
               "default": 10,
               "title": "Limit"
             },
-            "description": "The maximum number of datasets to return at a time."
+            "description": "The max number of datasets to return at a time."
           }
         ],
         "responses": {
@@ -222,7 +140,7 @@
                 }
               }
             },
-            "description": "Not Found"
+            "description": "Dataset not found"
           },
           "422": {
             "content": {
@@ -232,7 +150,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Invalid dataset ID"
           }
         }
       },
@@ -240,7 +158,7 @@
         "tags": [
           "datasets"
         ],
-        "summary": "Gets a dataset by ID.",
+        "summary": "Get dataset by ID",
         "operationId": "getDataset",
         "parameters": [
           {
@@ -249,10 +167,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the dataset.",
+              "description": "The ID of the dataset",
               "title": "Id"
             },
-            "description": "The ID of the dataset."
+            "description": "The ID of the dataset"
           }
         ],
         "responses": {
@@ -304,7 +222,7 @@
         "tags": [
           "datasets"
         ],
-        "summary": "Lists dataset versions (sorted from latest to oldest).",
+        "summary": "List dataset versions",
         "operationId": "listDatasetVersionsByDatasetId",
         "parameters": [
           {
@@ -313,10 +231,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the dataset.",
+              "description": "The ID of the dataset",
               "title": "Id"
             },
-            "description": "The ID of the dataset."
+            "description": "The ID of the dataset"
           },
           {
             "name": "cursor",
@@ -331,10 +249,10 @@
                   "type": "null"
                 }
               ],
-              "description": "If provided, returns dataset versions starting with the provided cursor.",
+              "description": "Cursor for pagination",
               "title": "Cursor"
             },
-            "description": "If provided, returns dataset versions starting with the provided cursor."
+            "description": "Cursor for pagination"
           },
           {
             "name": "limit",
@@ -343,11 +261,11 @@
             "schema": {
               "type": "integer",
               "exclusiveMinimum": 0,
-              "description": "The maximum number of dataset versions to return at a time.",
+              "description": "The max number of dataset versions to return at a time",
               "default": 10,
               "title": "Limit"
             },
-            "description": "The maximum number of dataset versions to return at a time."
+            "description": "The max number of dataset versions to return at a time"
           }
         ],
         "responses": {
@@ -389,7 +307,7 @@
         "tags": [
           "datasets"
         ],
-        "summary": "Upload dataset as either JSON or file (CSV or PyArrow)",
+        "summary": "Upload dataset from JSON, CSV, or PyArrow",
         "operationId": "uploadDataset",
         "parameters": [
           {
@@ -442,7 +360,7 @@
                 }
               }
             },
-            "description": "Conflict"
+            "description": "Dataset of the same name already exists"
           },
           "422": {
             "content": {
@@ -452,7 +370,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Invalid request body"
           }
         },
         "requestBody": {
@@ -554,13 +472,14 @@
         }
       }
     },
-    "/v1/datasets/{id}/csv": {
+    "/v1/datasets/{id}/examples": {
       "get": {
         "tags": [
+          "datasets",
           "datasets"
         ],
-        "summary": "Download dataset examples as CSV text file",
-        "operationId": "getDatasetCsv",
+        "summary": "Get examples from a dataset",
+        "operationId": "getDatasetExamples",
         "parameters": [
           {
             "name": "id",
@@ -568,10 +487,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the dataset.",
+              "description": "The ID of the dataset",
               "title": "Id"
             },
-            "description": "The ID of the dataset."
+            "description": "The ID of the dataset"
           },
           {
             "name": "version_id",
@@ -586,10 +505,92 @@
                   "type": "null"
                 }
               ],
-              "description": "If provided, returns the data as of the specified version.",
+              "description": "The ID of the dataset version (if omitted, returns data from the latest version)",
               "title": "Version Id"
             },
-            "description": "If provided, returns the data as of the specified version."
+            "description": "The ID of the dataset version (if omitted, returns data from the latest version)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListDatasetExamplesResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/datasets/{id}/csv": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Download dataset examples as CSV file",
+        "operationId": "getDatasetCsv",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the dataset",
+              "title": "Id"
+            },
+            "description": "The ID of the dataset"
+          },
+          {
+            "name": "version_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The ID of the dataset version (if omitted, returns data from the latest version)",
+              "title": "Version Id"
+            },
+            "description": "The ID of the dataset version (if omitted, returns data from the latest version)"
           }
         ],
         "responses": {
@@ -632,7 +633,7 @@
         "tags": [
           "datasets"
         ],
-        "summary": "Download dataset examples as an OpenAI fine-tuning JSONL file.",
+        "summary": "Download dataset examples as OpenAI fine-tuning JSONL file",
         "operationId": "getDatasetJSONLOpenAIFineTuning",
         "parameters": [
           {
@@ -641,10 +642,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the dataset.",
+              "description": "The ID of the dataset",
               "title": "Id"
             },
-            "description": "The ID of the dataset."
+            "description": "The ID of the dataset"
           },
           {
             "name": "version_id",
@@ -659,10 +660,10 @@
                   "type": "null"
                 }
               ],
-              "description": "If provided, returns the data as of the specified version.",
+              "description": "The ID of the dataset version (if omitted, returns data from the latest version)",
               "title": "Version Id"
             },
-            "description": "If provided, returns the data as of the specified version."
+            "description": "The ID of the dataset version (if omitted, returns data from the latest version)"
           }
         ],
         "responses": {
@@ -694,7 +695,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Invalid dataset or version ID"
           }
         }
       }
@@ -704,7 +705,7 @@
         "tags": [
           "datasets"
         ],
-        "summary": "Download dataset examples as OpenAI Evals JSONL file.",
+        "summary": "Download dataset examples as OpenAI evals JSONL file",
         "operationId": "getDatasetJSONLOpenAIEvals",
         "parameters": [
           {
@@ -713,10 +714,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the dataset.",
+              "description": "The ID of the dataset",
               "title": "Id"
             },
-            "description": "The ID of the dataset."
+            "description": "The ID of the dataset"
           },
           {
             "name": "version_id",
@@ -731,10 +732,10 @@
                   "type": "null"
                 }
               ],
-              "description": "If provided, returns the data as of the specified version.",
+              "description": "The ID of the dataset version (if omitted, returns data from the latest version)",
               "title": "Version Id"
             },
-            "description": "If provided, returns the data as of the specified version."
+            "description": "The ID of the dataset version (if omitted, returns data from the latest version)"
           }
         ],
         "responses": {
@@ -766,368 +767,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
-          }
-        }
-      }
-    },
-    "/v1/evaluations": {
-      "post": {
-        "tags": [
-          "evals"
-        ],
-        "summary": "Add evaluations to a span, trace, or document",
-        "operationId": "addEvaluations",
-        "parameters": [
-          {
-            "name": "content-type",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Content-Type"
-            }
-          },
-          {
-            "name": "content-encoding",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Content-Encoding"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "403": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "415": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Unsupported content type, only gzipped protobuf and pandas-arrow are supported"
-          },
-          "422": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          }
-        },
-        "required": true,
-        "content": {
-          "application/x-protobuf": {
-            "schema": {
-              "type": "string",
-              "format": "binary"
-            }
-          },
-          "application/x-pandas-arrow": {
-            "schema": {
-              "type": "string",
-              "format": "binary"
-            }
-          }
-        }
-      },
-      "get": {
-        "tags": [
-          "evals"
-        ],
-        "summary": "Get evaluations",
-        "operationId": "getEvaluations",
-        "parameters": [
-          {
-            "name": "project_name",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "The name of the project from which evaluations will be pulled. If not provided, evaluations will be pulled from the default project.",
-              "title": "Project Name"
-            },
-            "description": "The name of the project from which evaluations will be pulled. If not provided, evaluations will be pulled from the default project."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          },
-          "content": {
-            "application/x-pandas-arrow": {
-              "schema": {
-                "type": "string",
-                "format": "binary"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/experiment_evaluations": {
-      "post": {
-        "tags": [
-          "experiments"
-        ],
-        "summary": "Creates or updates an evaluation for a specific experiment run",
-        "operationId": "upsertExperimentEvaluation",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpsertExperimentEvaluationRequestBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UpsertExperimentEvaluationResponseBody"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Experiment run not found",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/experiments/{experiment_id}/runs": {
-      "post": {
-        "tags": [
-          "experiments"
-        ],
-        "summary": "Creates a new experiment run for a specific experiment",
-        "operationId": "createExperimentRun",
-        "parameters": [
-          {
-            "name": "experiment_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Experiment Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateExperimentRunRequestBody"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Experiment run created successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/phoenix__server__api__routers__v1__experiment_runs__CreateExperimentResponseBody"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Experiment or dataset example not found"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "get": {
-        "tags": [
-          "experiments"
-        ],
-        "summary": "Lists all runs for a specific experiment",
-        "operationId": "listExperimentRuns",
-        "parameters": [
-          {
-            "name": "experiment_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Experiment Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Experiment runs retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ListExperimentRunsResponseBody"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Experiment not found"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
+            "description": "Invalid dataset or version ID"
           }
         }
       }
@@ -1137,7 +777,7 @@
         "tags": [
           "experiments"
         ],
-        "summary": "Create an experiment using a dataset",
+        "summary": "Create experiment on a dataset",
         "operationId": "createExperiment",
         "parameters": [
           {
@@ -1209,7 +849,7 @@
         "tags": [
           "experiments"
         ],
-        "summary": "Get details of a specific experiment",
+        "summary": "Get experiment by ID",
         "operationId": "getExperiment",
         "parameters": [
           {
@@ -1224,7 +864,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "Experiment retrieved successfully",
             "content": {
               "application/json": {
                 "schema": {
@@ -1266,21 +906,237 @@
         }
       }
     },
+    "/v1/experiments/{experiment_id}/runs": {
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Create run for an experiment",
+        "operationId": "createExperimentRun",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExperimentRunRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Experiment run created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/phoenix__server__api__routers__v1__experiment_runs__CreateExperimentResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Experiment or dataset example not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "List runs for an experiment",
+        "operationId": "listExperimentRuns",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Experiment runs retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListExperimentRunsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Experiment not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/experiment_evaluations": {
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Create or update evaluation for an experiment run",
+        "operationId": "upsertExperimentEvaluation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertExperimentEvaluationRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpsertExperimentEvaluationResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Experiment run not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/traces": {
       "post": {
         "tags": [
           "traces"
         ],
-        "summary": "Send traces to Phoenix",
+        "summary": "Send traces",
         "operationId": "addTraces",
         "parameters": [
           {
             "name": "content-type",
             "in": "header",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Content-Type"
+            }
+          },
+          {
+            "name": "content-encoding",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Content-Encoding"
             }
           }
         ],
@@ -1306,7 +1162,7 @@
                 }
               }
             },
-            "description": "Unsupported Media Type"
+            "description": "Unsupported content type (only `application/x-protobuf` is supported)"
           },
           "422": {
             "content": {
@@ -1316,7 +1172,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Invalid request body"
           }
         },
         "requestBody": {
@@ -1337,7 +1193,7 @@
         "tags": [
           "traces"
         ],
-        "summary": "Upsert annotations for traces",
+        "summary": "Create or update trace annotations",
         "operationId": "annotateTraces",
         "requestBody": {
           "content": {
@@ -1396,9 +1252,9 @@
     "/v1/spans": {
       "post": {
         "tags": [
-          "spans"
+          "traces"
         ],
-        "summary": "Query spans using query DSL",
+        "summary": "Query spans with query DSL",
         "operationId": "querySpans",
         "parameters": [
           {
@@ -1475,9 +1331,9 @@
     "/v1/span_annotations": {
       "post": {
         "tags": [
-          "spans"
+          "traces"
         ],
-        "summary": "Upsert annotations for spans",
+        "summary": "Create or update span annotations",
         "operationId": "annotateSpans",
         "requestBody": {
           "content": {
@@ -1519,6 +1375,168 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/evaluations": {
+      "post": {
+        "tags": [
+          "traces"
+        ],
+        "summary": "Add span, trace, or document evaluations",
+        "operationId": "addEvaluations",
+        "parameters": [
+          {
+            "name": "content-type",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Content-Type"
+            }
+          },
+          {
+            "name": "content-encoding",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Content-Encoding"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "415": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unsupported content type, only gzipped protobuf and pandas-arrow are supported"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-protobuf": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "application/x-pandas-arrow": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "traces"
+        ],
+        "summary": "Get span, trace, or document evaluations from a project",
+        "operationId": "getEvaluations",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The name of the project to get evaluations from (if omitted, evaluations will be drawn from the `default` project)",
+              "title": "Project Name"
+            },
+            "description": "The name of the project to get evaluations from (if omitted, evaluations will be drawn from the `default` project)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
           },
           "422": {
             "description": "Validation Error",
@@ -1650,7 +1668,8 @@
                 "type": "null"
               }
             ],
-            "title": "Name"
+            "title": "Name",
+            "description": "Name of the experiment (if omitted, a random name will be generated)"
           },
           "description": {
             "anyOf": [
@@ -1661,7 +1680,8 @@
                 "type": "null"
               }
             ],
-            "title": "Description"
+            "title": "Description",
+            "description": "An optional description of the experiment"
           },
           "metadata": {
             "anyOf": [
@@ -1672,7 +1692,8 @@
                 "type": "null"
               }
             ],
-            "title": "Metadata"
+            "title": "Metadata",
+            "description": "Metadata for the experiment"
           },
           "version_id": {
             "anyOf": [
@@ -1683,39 +1704,47 @@
                 "type": "null"
               }
             ],
-            "title": "Version Id"
+            "title": "Version Id",
+            "description": "ID of the dataset version over which the experiment will be run (if omitted, the latest version will be used)"
           },
           "repetitions": {
             "type": "integer",
             "title": "Repetitions",
+            "description": "Number of times the experiment should be repeated for each example",
             "default": 1
           }
         },
         "type": "object",
-        "title": "CreateExperimentRequestBody"
+        "title": "CreateExperimentRequestBody",
+        "description": "Details of the experiment to be created"
       },
       "CreateExperimentRunRequestBody": {
         "properties": {
           "dataset_example_id": {
             "type": "string",
-            "title": "Dataset Example Id"
+            "title": "Dataset Example Id",
+            "description": "The ID of the dataset example used in the experiment run"
           },
           "output": {
-            "title": "Output"
+            "title": "Output",
+            "description": "The output of the experiment task"
           },
           "repetition_number": {
             "type": "integer",
-            "title": "Repetition Number"
+            "title": "Repetition Number",
+            "description": "The repetition number of the experiment run"
           },
           "start_time": {
             "type": "string",
             "format": "date-time",
-            "title": "Start Time"
+            "title": "Start Time",
+            "description": "The start time of the experiment run"
           },
           "end_time": {
             "type": "string",
             "format": "date-time",
-            "title": "End Time"
+            "title": "End Time",
+            "description": "The end time of the experiment run"
           },
           "trace_id": {
             "anyOf": [
@@ -1726,7 +1755,8 @@
                 "type": "null"
               }
             ],
-            "title": "Trace Id"
+            "title": "Trace Id",
+            "description": "The ID of the corresponding trace (if one exists)"
           },
           "error": {
             "anyOf": [
@@ -1737,7 +1767,8 @@
                 "type": "null"
               }
             ],
-            "title": "Error"
+            "title": "Error",
+            "description": "Optional error message if the experiment run encountered an error"
           }
         },
         "type": "object",
@@ -1926,7 +1957,72 @@
         ],
         "title": "DatasetWithExampleCount"
       },
-      "EvaluationResult": {
+      "Experiment": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The ID of the experiment"
+          },
+          "dataset_id": {
+            "type": "string",
+            "title": "Dataset Id",
+            "description": "The ID of the dataset associated with the experiment"
+          },
+          "dataset_version_id": {
+            "type": "string",
+            "title": "Dataset Version Id",
+            "description": "The ID of the dataset version associated with the experiment"
+          },
+          "repetitions": {
+            "type": "integer",
+            "title": "Repetitions",
+            "description": "Number of times the experiment is repeated"
+          },
+          "metadata": {
+            "type": "object",
+            "title": "Metadata",
+            "description": "Metadata of the experiment"
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Name",
+            "description": "The name of the project associated with the experiment"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "The creation timestamp of the experiment"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "The last update timestamp of the experiment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "dataset_id",
+          "dataset_version_id",
+          "repetitions",
+          "metadata",
+          "project_name",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "Experiment"
+      },
+      "ExperimentEvaluationResult": {
         "properties": {
           "label": {
             "anyOf": [
@@ -1966,87 +2062,35 @@
           }
         },
         "type": "object",
-        "title": "EvaluationResult"
-      },
-      "Experiment": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "dataset_id": {
-            "type": "string",
-            "title": "Dataset Id"
-          },
-          "dataset_version_id": {
-            "type": "string",
-            "title": "Dataset Version Id"
-          },
-          "repetitions": {
-            "type": "integer",
-            "title": "Repetitions"
-          },
-          "metadata": {
-            "type": "object",
-            "title": "Metadata"
-          },
-          "project_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Project Name"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Updated At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "dataset_id",
-          "dataset_version_id",
-          "repetitions",
-          "metadata",
-          "project_name",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "Experiment"
+        "title": "ExperimentEvaluationResult"
       },
       "ExperimentRun": {
         "properties": {
           "dataset_example_id": {
             "type": "string",
-            "title": "Dataset Example Id"
+            "title": "Dataset Example Id",
+            "description": "The ID of the dataset example used in the experiment run"
           },
           "output": {
-            "title": "Output"
+            "title": "Output",
+            "description": "The output of the experiment task"
           },
           "repetition_number": {
             "type": "integer",
-            "title": "Repetition Number"
+            "title": "Repetition Number",
+            "description": "The repetition number of the experiment run"
           },
           "start_time": {
             "type": "string",
             "format": "date-time",
-            "title": "Start Time"
+            "title": "Start Time",
+            "description": "The start time of the experiment run"
           },
           "end_time": {
             "type": "string",
             "format": "date-time",
-            "title": "End Time"
+            "title": "End Time",
+            "description": "The end time of the experiment run"
           },
           "trace_id": {
             "anyOf": [
@@ -2057,7 +2101,8 @@
                 "type": "null"
               }
             ],
-            "title": "Trace Id"
+            "title": "Trace Id",
+            "description": "The ID of the corresponding trace (if one exists)"
           },
           "error": {
             "anyOf": [
@@ -2068,7 +2113,8 @@
                 "type": "null"
               }
             ],
-            "title": "Error"
+            "title": "Error",
+            "description": "Optional error message if the experiment run encountered an error"
           }
         },
         "type": "object",
@@ -2288,9 +2334,15 @@
             "default": 1000
           },
           "root_spans_only": {
-            "type": "boolean",
-            "title": "Root Spans Only",
-            "default": false
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Root Spans Only"
           },
           "project_name": {
             "anyOf": [
@@ -2388,7 +2440,7 @@
               "HUMAN"
             ],
             "title": "Annotator Kind",
-            "description": "The kind of annotator used for the annotation ('LLM' or 'HUMAN')"
+            "description": "The kind of annotator used for the annotation"
           },
           "result": {
             "anyOf": [
@@ -2479,7 +2531,7 @@
               "HUMAN"
             ],
             "title": "Annotator Kind",
-            "description": "The kind of annotator used for the annotation (\"LLM\" or \"HUMAN\")"
+            "description": "The kind of annotator used for the annotation"
           },
           "result": {
             "anyOf": [
@@ -2552,6 +2604,11 @@
           },
           "annotator_kind": {
             "type": "string",
+            "enum": [
+              "LLM",
+              "CODE",
+              "HUMAN"
+            ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the evaluation"
           },
@@ -2570,7 +2627,7 @@
           "result": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/EvaluationResult"
+                "$ref": "#/components/schemas/ExperimentEvaluationResult"
               }
             ],
             "description": "The result of the evaluation"

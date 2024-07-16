@@ -8,7 +8,7 @@ from phoenix.server.api.routers.v1 import router as v1_router
 
 def get_openapi_schema() -> Dict[str, Any]:
     return get_openapi(
-        title="Arize-Phoenix API",
+        title="Arize-Phoenix REST API",
         version=REST_API_VERSION,
         openapi_version="3.1.0",
         description="Schema for Arize-Phoenix REST API",

@@ -22,16 +22,16 @@ from .utils import RequestBody, ResponseBody, add_errors_to_responses
 
 DEFAULT_SPAN_LIMIT = 1000
 
-router = APIRouter(tags=["spans"])
+router = APIRouter(tags=["traces"])
 
 
 class SpanQuery(BaseModel):
-    select: Dict[Any, Any]
-    filter: Dict[Any, Any]
-    explode: Dict[Any, Any]
-    concat: Dict[Any, Any]
-    rename: Dict[Any, Any]
-    index: Dict[Any, Any]
+    select: Dict[str, Any]
+    filter: Dict[str, Any]
+    explode: Dict[str, Any]
+    concat: Dict[str, Any]
+    rename: Dict[str, Any]
+    index: Dict[str, Any]
 
 
 class QuerySpansRequestBody(BaseModel):
@@ -39,7 +39,7 @@ class QuerySpansRequestBody(BaseModel):
     start_time: datetime
     end_time: Optional[datetime] = None
     limit: int = DEFAULT_SPAN_LIMIT
-    root_spans_only: bool = False
+    root_spans_only: Optional[bool] = None
     project_name: Optional[str] = Field(
         default=None,
         description=(
@@ -62,7 +62,7 @@ class QuerySpansRequestBody(BaseModel):
 @router.post(
     "/spans",
     operation_id="querySpans",
-    summary="Query spans using query DSL",
+    summary="Query spans with query DSL",
     responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY]),
 )
 async def query_spans_handler(
@@ -145,10 +145,10 @@ class SpanAnnotation(BaseModel):
     span_id: str = Field(description="The ID of the span being annotated")
     name: str = Field(description="The name of the annotation")
     annotator_kind: Literal["LLM", "HUMAN"] = Field(
-        description="The kind of annotator used for the annotation ('LLM' or 'HUMAN')"
+        description="The kind of annotator used for the annotation"
     )
     result: Optional[Result] = Field(default=None, description="The result of the annotation")
-    metadata: Optional[Dict[Any, Any]] = Field(
+    metadata: Optional[Dict[str, Any]] = Field(
         default=None, description="Metadata for the annotation"
     )
 
@@ -168,7 +168,7 @@ class AnnotateSpansResponseBody(ResponseBody[InsertedSpanAnnotation]):
 @router.post(
     "/span_annotations",
     operation_id="annotateSpans",
-    summary="Upsert annotations for spans",
+    summary="Create or update span annotations",
     responses=add_errors_to_responses(
         [{"status_code": HTTP_404_NOT_FOUND, "description": "Span not found"}]
     ),
@@ -216,7 +216,7 @@ async def annotate_spans(
             label = result.label if result else None
             score = result.score if result else None
             explanation = result.explanation if result else None
-            metadata = annotation.metadata
+            metadata = annotation.metadata or {}
 
             values = dict(
                 span_rowid=span_id,

@@ -35,10 +35,18 @@ router = APIRouter(tags=["traces"])
 @router.post(
     "/traces",
     operation_id="addTraces",
-    summary="Send traces to Phoenix",
+    summary="Send traces",
     status_code=HTTP_204_NO_CONTENT,
     responses=add_errors_to_responses(
-        [HTTP_415_UNSUPPORTED_MEDIA_TYPE, HTTP_422_UNPROCESSABLE_ENTITY]
+        [
+            {
+                "status_code": HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                "description": (
+                    "Unsupported content type (only `application/x-protobuf` is supported)"
+                ),
+            },
+            {"status_code": HTTP_422_UNPROCESSABLE_ENTITY, "description": "Invalid request body"},
+        ]
     ),
     openapi_extra={
         "requestBody": {
@@ -49,13 +57,16 @@ router = APIRouter(tags=["traces"])
         }
     },
 )
-async def post_traces(request: Request, content_type: str = Header()) -> None:
+async def post_traces(
+    request: Request,
+    content_type: Optional[str] = Header(default=None),
+    content_encoding: Optional[str] = Header(default=None),
+) -> None:
     if content_type != "application/x-protobuf":
         raise HTTPException(
             detail=f"Unsupported content type: {content_type}",
             status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE,
         )
-    content_encoding = request.headers.get("content-encoding")
     if content_encoding and content_encoding not in ("gzip", "deflate"):
         raise HTTPException(
             detail=f"Unsupported content encoding: {content_encoding}",
@@ -90,12 +101,12 @@ class TraceAnnotation(BaseModel):
     trace_id: str = Field(description="The ID of the trace being annotated")
     name: str = Field(description="The name of the annotation")
     annotator_kind: Literal["LLM", "HUMAN"] = Field(
-        description='The kind of annotator used for the annotation ("LLM" or "HUMAN")'
+        description="The kind of annotator used for the annotation"
     )
     result: Optional[AnnotationResult] = Field(
         default=None, description="The result of the annotation"
     )
-    metadata: Optional[Dict[Any, Any]] = Field(
+    metadata: Optional[Dict[str, Any]] = Field(
         default=None, description="Metadata for the annotation"
     )
 
@@ -115,7 +126,7 @@ class AnnotateTracesResponseBody(ResponseBody[List[InsertedTraceAnnotation]]):
 @router.post(
     "/trace_annotations",
     operation_id="annotateTraces",
-    summary="Upsert annotations for traces",
+    summary="Create or update trace annotations",
     responses=add_errors_to_responses(
         [{"status_code": HTTP_404_NOT_FOUND, "description": "Trace not found"}]
     ),

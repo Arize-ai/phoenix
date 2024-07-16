@@ -42,13 +42,13 @@ from .utils import add_errors_to_responses
 
 EvaluationName: TypeAlias = str
 
-router = APIRouter(tags=["evals"])
+router = APIRouter(tags=["traces"])
 
 
 @router.post(
     "/evaluations",
     operation_id="addEvaluations",
-    summary="Add evaluations to a span, trace, or document",
+    summary="Add span, trace, or document evaluations",
     status_code=HTTP_204_NO_CONTENT,
     responses=add_errors_to_responses(
         [
@@ -63,10 +63,12 @@ router = APIRouter(tags=["evals"])
         ]
     ),
     openapi_extra={
-        "required": True,
-        "content": {
-            "application/x-protobuf": {"schema": {"type": "string", "format": "binary"}},
-            "application/x-pandas-arrow": {"schema": {"type": "string", "format": "binary"}},
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/x-protobuf": {"schema": {"type": "string", "format": "binary"}},
+                "application/x-pandas-arrow": {"schema": {"type": "string", "format": "binary"}},
+            },
         },
     },
 )
@@ -109,23 +111,16 @@ async def post_evaluations(
 @router.get(
     "/evaluations",
     operation_id="getEvaluations",
-    summary="Get evaluations",
+    summary="Get span, trace, or document evaluations from a project",
     responses=add_errors_to_responses([HTTP_404_NOT_FOUND]),
-    openapi_extra={
-        "responses": {
-            "content": {
-                "application/x-pandas-arrow": {"schema": {"type": "string", "format": "binary"}}
-            }
-        }
-    },
 )
 async def get_evaluations(
     request: Request,
     project_name: Optional[str] = Query(
         default=None,
         description=(
-            "The name of the project from which evaluations will be pulled. "
-            "If not provided, evaluations will be pulled from the default project."
+            "The name of the project to get evaluations from (if omitted, "
+            f"evaluations will be drawn from the `{DEFAULT_PROJECT_NAME}` project)"
         ),
     ),
 ) -> Response:

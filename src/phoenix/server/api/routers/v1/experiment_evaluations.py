@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -17,7 +17,7 @@ from .utils import ResponseBody, add_errors_to_responses
 router = APIRouter(tags=["experiments"])
 
 
-class EvaluationResult(BaseModel):
+class ExperimentEvaluationResult(BaseModel):
     label: Optional[str] = Field(default=None, description="The label assigned by the evaluation")
     score: Optional[float] = Field(default=None, description="The score assigned by the evaluation")
     explanation: Optional[str] = Field(
@@ -28,14 +28,16 @@ class EvaluationResult(BaseModel):
 class UpsertExperimentEvaluationRequestBody(BaseModel):
     experiment_run_id: str = Field(description="The ID of the experiment run being evaluated")
     name: str = Field(description="The name of the evaluation")
-    annotator_kind: str = Field(description="The kind of annotator used for the evaluation")
+    annotator_kind: Literal["LLM", "CODE", "HUMAN"] = Field(
+        description="The kind of annotator used for the evaluation"
+    )
     start_time: datetime = Field(description="The start time of the evaluation in ISO format")
     end_time: datetime = Field(description="The end time of the evaluation in ISO format")
-    result: EvaluationResult = Field(description="The result of the evaluation")
+    result: ExperimentEvaluationResult = Field(description="The result of the evaluation")
     error: Optional[str] = Field(
         None, description="Optional error message if the evaluation encountered an error"
     )
-    metadata: Optional[Dict[Any, Any]] = Field(
+    metadata: Optional[Dict[str, Any]] = Field(
         default=None, description="Metadata for the evaluation"
     )
     trace_id: Optional[str] = Field(default=None, description="Optional trace ID for tracking")
@@ -54,7 +56,7 @@ class UpsertExperimentEvaluationResponseBody(
 @router.post(
     "/experiment_evaluations",
     operation_id="upsertExperimentEvaluation",
-    summary="Creates or updates an evaluation for a specific experiment run",
+    summary="Create or update evaluation for an experiment run",
     responses=add_errors_to_responses(
         [{"status_code": HTTP_404_NOT_FOUND, "description": "Experiment run not found"}]
     ),
