@@ -102,6 +102,7 @@ class AppConfig(NamedTuple):
     min_dist: float
     n_neighbors: int
     n_samples: int
+    is_development: bool
 
 
 class Static(StaticFiles):
@@ -134,6 +135,7 @@ class Static(StaticFiles):
                     "basename": request.scope.get("root_path", ""),
                     "platform_version": phoenix.__version__,
                     "request": request,
+                    "is_development": self._app_config.is_development,
                 },
             )
         except Exception as e:
@@ -494,6 +496,7 @@ def create_app(
                             min_dist=umap_params.min_dist,
                             n_neighbors=umap_params.n_neighbors,
                             n_samples=umap_params.n_samples,
+                            is_development=debug,
                         ),
                     ),
                     name="static",
