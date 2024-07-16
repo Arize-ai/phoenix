@@ -227,18 +227,6 @@ Once you've executed a sufficient number of queries (or chats) to your applicati
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/RAG_trace_details.png" alt=""><figcaption><p>A detailed view of a trace of a RAG application using LlamaIndex</p></figcaption></figure>
 
-## Importing an Existing Trace Dataset
-
-Phoenix also supports loading data that contains [OpenInference trace](../reference/open-inference.md). This allows you to load an existing dataframe into your Phoenix instance.
-
-{% tabs %}
-{% tab title="From the App" %}
-<pre class="language-python"><code class="lang-python"><strong># Re-launch the app using the data
-</strong>px.launch_app(trace=px.TraceDataset(df))
-</code></pre>
-{% endtab %}
-{% endtabs %}
-
 ## Exporting Traces from Phoenix
 
 {% tabs %}

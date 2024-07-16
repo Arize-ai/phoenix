@@ -42,6 +42,7 @@
     * [Instrument: TS](tracing/how-to-tracing/manual-instrumentation/javascript.md)
   * [Querying Spans](tracing/how-to-tracing/extract-data-from-spans.md)
   * [Log Evaluation Results](tracing/how-to-tracing/llm-evaluations.md)
+  * [Importing Existing Traces](tracing/how-to-tracing/importing-existing-traces.md)
   * [Save and Load Traces](tracing/how-to-tracing/save-and-load-traces.md)
   * [Trace a Deployed App](tracing/how-to-tracing/trace-a-deployed-app.md)
 * [Use Cases: Tracing](tracing/use-cases-tracing/README.md)
