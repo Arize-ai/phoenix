@@ -10,21 +10,49 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class LiteLLMModel(BaseModel):
+    """
+    An interface for using LLM models with the LiteLLM interface.
+
+    This class wraps the LiteLLM library for use with Phoenix LLM evaluations. Requires the
+    `litellm` package to be installed.
+
+    ⚠️ Warning: Due to the number of supported models and variations in rate limit handling, we
+    ddo not catch rate limit exceptions and throttle requests.
+
+    Supports Async: ❌
+        While `litellm` provides an async interface for making LLM calls, because we cannot
+        reliably catch and throttle requests when encountering rate limit errors, we do not
+        asyncronously make requests using `litellm` to avoid exceeding rate limits.
+
+    Args:
+        model (str): The model name to use.
+        temperature (float, optional): Sampling temperature to use. Defaults to 0.0.
+        max_tokens (int, optional): Maximum number of tokens to generate in the completion.
+            Defaults to 256.
+        top_p (float, optional): Total probability mass of tokens to consider at each step.
+            Defaults to 1.
+        num_retries (int, optional): Maximum number to retry a model if a RateLimitError,
+            OpenAIError, or ServiceUnavailableError occurs. Defaults to 0.
+        request_timeout (int, optional): Maximum number of seconds to wait when retrying.
+            Defaults to 60.
+        model_kwargs (Dict[str, Any], optional): Model specific params. Defaults to an empty dict.
+
+    Example:
+        .. code-block:: python
+
+            # configuring a local llm via litellm
+            os.environ["OLLAMA_API_BASE"] = "http://localhost:11434"
+
+            from phoenix.evals import LiteLLMModel
+            model = LiteLLMModel(model="ollama/llama3")
+    """
     model: str = "gpt-3.5-turbo"
-    """The model name to use."""
     temperature: float = 0.0
-    """What sampling temperature to use."""
     max_tokens: int = 256
-    """The maximum number of tokens to generate in the completion."""
     top_p: float = 1
-    """Total probability mass of tokens to consider at each step."""
     num_retries: int = 0
-    """Maximum number to retry a model if an RateLimitError, OpenAIError, or
-    ServiceUnavailableError occurs."""
     request_timeout: int = 60
-    """Maximum number of seconds to wait when retrying."""
     model_kwargs: Dict[str, Any] = field(default_factory=dict)
-    """Model specific params"""
 
     # Deprecated fields
     model_name: Optional[str] = None
