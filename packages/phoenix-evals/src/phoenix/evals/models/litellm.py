@@ -20,7 +20,7 @@ class LiteLLMModel(BaseModel):
     do not catch rate limit exceptions and throttle requests.
 
     Supports Async: ❌
-        While `litellm` provides an async interface for making LLM calls, because we cannot
+        `litellm` provides an async interface for making LLM calls. However, because we cannot
         reliably catch and throttle requests when encountering rate limit errors, we do not
         asyncronously make requests using `litellm` to avoid exceeding rate limits.
 
