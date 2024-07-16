@@ -1,3 +1,5 @@
+import asyncio
+import functools
 import json
 import logging
 from dataclasses import dataclass, field
@@ -21,8 +23,8 @@ class BedrockModel(BaseModel):
     AWS API are dynamically throttled when encountering rate limit errors. Requires the `boto3`
     package to be installed.
 
-    Supports Async: ❌
-        `boto3` does not support async calls
+    Supports Async: 🟡
+        `boto3` does not support async calls, so it's wrapped in an executor.
 
     Args:
         model_id (str): The model name to use.
@@ -109,7 +111,17 @@ class BedrockModel(BaseModel):
         return self._parse_output(response) or ""
 
     async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
-        return self._generate(prompt, **kwargs)
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            None,
+            functools.partial(
+                self._generate,
+                **{
+                    "prompt": prompt,
+                    **kwargs,
+                },
+            ),
+        )
 
     def _rate_limited_completion(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
