@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.10.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.10.0...arize-phoenix-v4.10.1) (2024-07-16)
+
+
+### Bug Fixes
+
+* debug flag should be store_true ([#3909](https://github.com/Arize-ai/phoenix/issues/3909)) ([bc25ba8](https://github.com/Arize-ai/phoenix/commit/bc25ba89387a3448b5e785ff8b5af47f658eaddf))
+
 ## [4.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.9.0...arize-phoenix-v4.10.0) (2024-07-16)
 
 
