@@ -21,28 +21,38 @@
   <body>
     <div id="root"></div>
     <script>(function() {
-        // Request Info:
-        // URL: {{request.url}}
-        // Base URL: {{request.base_url}}
-        // Root Path: {{root_path}}
-        Object.defineProperty(window, "Config", {
-            // Place any server-side injected config here
-            // E.g. default UMAP parameters etc. that needs to be
-            // injected into the client before React runs
-            value: Object.freeze({
-                basename: "{{basename}}",
-                platformVersion: "{{platform_version}}",
-                hasInferences: Boolean("{{has_inferences}}" == "True"),
-                hasCorpus: Boolean("{{has_corpus}}" == "True"),
-                UMAP: {
-                  minDist: parseFloat("{{min_dist}}"),
-                  nNeighbors: parseInt("{{n_neighbors}}"),
-                  nSamples: parseInt("{{n_samples}}"),
-                }
-            }),
-            writable: false
-        });
-    })()</script>
-    <script type="module" src="{{basename}}/index.js"></script>
-  </body>
+      // Request Info:
+      // URL: {{request.url}}
+      // Base URL: {{request.base_url}}
+      // Root Path: {{root_path}}
+      Object.defineProperty(window, "Config", {
+          // Place any server-side injected config here
+          // E.g. default UMAP parameters etc. that needs to be
+          // injected into the client before React runs
+          value: Object.freeze({
+              basename: "{{basename}}",
+              platformVersion: "{{platform_version}}",
+              hasInferences: Boolean("{{has_inferences}}" == "True"),
+              hasCorpus: Boolean("{{has_corpus}}" == "True"),
+              UMAP: {
+                minDist: parseFloat("{{min_dist}}"),
+                nNeighbors: parseInt("{{n_neighbors}}"),
+                nSamples: parseInt("{{n_samples}}"),
+              }
+          }),
+          writable: false
+      });
+  })()</script>
+    <script type="module">
+      import RefreshRuntime from 'http://localhost:5173/@react-refresh'
+      RefreshRuntime.injectIntoGlobalHook(window)
+      window.$RefreshReg$ = () => {}
+      window.$RefreshSig$ = () => (type) => type
+      window.__vite_plugin_react_preamble_installed__ = true
+    </script>
+    <script type="module" src="http://localhost:5173/@vite/client"></script>
+    <script type="module" src="http://localhost:5173/index.tsx"></script>
+   
+    <!-- <script type="module" src="{{basename}}/index.js"></script> -->
+      </body>
 </html>
