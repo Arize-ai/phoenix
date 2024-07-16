@@ -7,7 +7,7 @@ from strawberry.relay import Node, NodeID
 from strawberry.scalars import JSON
 
 from phoenix.db import models
-from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
+from phoenix.server.api.types.AnnotatorKind import ExperimentRunAnnotatorKind
 from phoenix.server.api.types.Trace import Trace
 
 
@@ -15,7 +15,7 @@ from phoenix.server.api.types.Trace import Trace
 class ExperimentRunAnnotation(Node):
     id_attr: NodeID[int]
     name: str
-    annotator_kind: AnnotatorKind
+    annotator_kind: ExperimentRunAnnotatorKind
     label: Optional[str]
     score: Optional[float]
     explanation: Optional[str]
@@ -45,7 +45,7 @@ def to_gql_experiment_run_annotation(
     return ExperimentRunAnnotation(
         id_attr=annotation.id,
         name=annotation.name,
-        annotator_kind=AnnotatorKind(annotation.annotator_kind),
+        annotator_kind=ExperimentRunAnnotatorKind(annotation.annotator_kind),
         label=annotation.label,
         score=annotation.score,
         explanation=annotation.explanation,

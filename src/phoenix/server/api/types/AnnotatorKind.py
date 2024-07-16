@@ -4,7 +4,13 @@ import strawberry
 
 
 @strawberry.enum
-class AnnotatorKind(Enum):
+class ExperimentRunAnnotatorKind(Enum):
     LLM = "LLM"
     HUMAN = "HUMAN"
     CODE = "CODE"
+
+
+@strawberry.enum
+class AnnotatorKind(Enum):
+    LLM = "LLM"
+    HUMAN = "HUMAN"

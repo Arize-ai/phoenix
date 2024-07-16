@@ -248,7 +248,6 @@ async def annotate_spans(request: Request) -> Response:
             label = result.get("label") if result else None
             score = result.get("score") if result else None
             explanation = result.get("explanation") if result else None
-            error = annotation.get("error")
             metadata = annotation.get("metadata") or {}
 
             values = dict(
@@ -257,7 +256,6 @@ async def annotate_spans(request: Request) -> Response:
                 label=label,
                 score=score,
                 explanation=explanation,
-                error=error,
                 annotator_kind=annotator_kind,
                 metadata_=metadata,
             )
