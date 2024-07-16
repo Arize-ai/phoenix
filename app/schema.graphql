@@ -12,6 +12,24 @@ input AddSpansToDatasetInput {
   datasetVersionMetadata: JSON
 }
 
+interface Annotation {
+  """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
+  name: String!
+
+  """Value of the annotation in the form of a numeric score."""
+  score: Float
+
+  """
+  Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  """
+  label: String
+
+  """
+  The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
+  """
+  explanation: String
+}
+
 enum AnnotatorKind {
   LLM
   HUMAN
@@ -380,20 +398,20 @@ type DimensionWithValue {
   value: String
 }
 
-type DocumentEvaluation implements Evaluation {
-  """Name of the evaluation, e.g. 'helpfulness' or 'relevance'."""
+type DocumentEvaluation implements Annotation {
+  """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
 
-  """Result of the evaluation in the form of a numeric score."""
+  """Value of the annotation in the form of a numeric score."""
   score: Float
 
   """
-  Result of the evaluation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
   """
   label: String
 
   """
-  The evaluator's explanation for the evaluation result (i.e. score or label, or both) given to the subject.
+  The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
   """
   explanation: String
 
@@ -544,24 +562,6 @@ enum EvalAttr {
 input EvalResultKey {
   name: String!
   attr: EvalAttr!
-}
-
-interface Evaluation {
-  """Name of the evaluation, e.g. 'helpfulness' or 'relevance'."""
-  name: String!
-
-  """Result of the evaluation in the form of a numeric score."""
-  score: Float
-
-  """
-  Result of the evaluation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
-  """
-  label: String
-
-  """
-  The evaluator's explanation for the evaluation result (i.e. score or label, or both) given to the subject.
-  """
-  explanation: String
 }
 
 type EvaluationSummary {
@@ -1134,6 +1134,11 @@ type Span implements Node {
   spanEvaluations: [SpanEvaluation!]!
 
   """
+  Annotations of the span's parent span. This encompasses both LLM and human annotations.
+  """
+  spanAnnotations: [SpanAnnotation!]!
+
+  """
   Evaluations of the documents associated with the span, e.g. if the span is a RETRIEVER with a list of documents in its RETRIEVAL_DOCUMENTS attribute, an evaluation for each document may assess its relevance respect to the input query of the span. Note that RETRIEVAL_DOCUMENTS is a list, and each evaluation is identified by its document's (zero-based) index in that list.
   """
   documentEvaluations: [DocumentEvaluation!]!
@@ -1153,14 +1158,26 @@ type Span implements Node {
   project: Project!
 }
 
-type SpanAnnotation implements Node {
+type SpanAnnotation implements Node & Annotation {
   """The Globally Unique ID of this object"""
   id: GlobalID!
+
+  """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
-  annotatorKind: AnnotatorKind!
-  label: String
+
+  """Value of the annotation in the form of a numeric score."""
   score: Float
+
+  """
+  Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  """
+  label: String
+
+  """
+  The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
+  """
   explanation: String
+  annotatorKind: AnnotatorKind!
   metadata: JSON!
   spanId: GlobalID!
 }
@@ -1210,20 +1227,20 @@ type SpanEdge {
   node: Span!
 }
 
-type SpanEvaluation implements Evaluation {
-  """Name of the evaluation, e.g. 'helpfulness' or 'relevance'."""
+type SpanEvaluation implements Annotation {
+  """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
 
-  """Result of the evaluation in the form of a numeric score."""
+  """Value of the annotation in the form of a numeric score."""
   score: Float
 
   """
-  Result of the evaluation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
   """
   label: String
 
   """
-  The evaluator's explanation for the evaluation result (i.e. score or label, or both) given to the subject.
+  The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
   """
   explanation: String
 }
@@ -1313,20 +1330,20 @@ type TraceAnnotationMutationPayload {
   traceAnnotations: [TraceAnnotation!]!
 }
 
-type TraceEvaluation implements Evaluation {
-  """Name of the evaluation, e.g. 'helpfulness' or 'relevance'."""
+type TraceEvaluation implements Annotation {
+  """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
 
-  """Result of the evaluation in the form of a numeric score."""
+  """Value of the annotation in the form of a numeric score."""
   score: Float
 
   """
-  Result of the evaluation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
   """
   label: String
 
   """
-  The evaluator's explanation for the evaluation result (i.e. score or label, or both) given to the subject.
+  The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
   """
   explanation: String
 }

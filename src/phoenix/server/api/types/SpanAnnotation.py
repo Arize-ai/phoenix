@@ -6,17 +6,15 @@ from strawberry.relay import GlobalID, Node, NodeID
 from strawberry.scalars import JSON
 
 from phoenix.db import models
-from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
+
+from .Annotation import Annotation
+from .AnnotatorKind import AnnotatorKind
 
 
 @strawberry.type
-class SpanAnnotation(Node):
+class SpanAnnotation(Node, Annotation):
     id_attr: NodeID[int]
-    name: str
     annotator_kind: AnnotatorKind
-    label: Optional[str]
-    score: Optional[float]
-    explanation: Optional[str]
     metadata: JSON
     span_rowid: Private[Optional[int]]
 

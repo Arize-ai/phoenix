@@ -26,6 +26,7 @@ from .latency_ms_quantile import LatencyMsQuantileCache, LatencyMsQuantileDataLo
 from .min_start_or_max_end_times import MinStartOrMaxEndTimeCache, MinStartOrMaxEndTimeDataLoader
 from .project_by_name import ProjectByNameDataLoader
 from .record_counts import RecordCountCache, RecordCountDataLoader
+from .span_annotations import SpanAnnotationsDataLoader
 from .span_descendants import SpanDescendantsDataLoader
 from .span_evaluations import SpanEvaluationsDataLoader
 from .span_projects import SpanProjectsDataLoader
@@ -56,6 +57,7 @@ __all__ = [
     "TraceEvaluationsDataLoader",
     "TraceRowIdsDataLoader",
     "ProjectByNameDataLoader",
+    "SpanAnnotationsDataLoader",
 ]
 
 
