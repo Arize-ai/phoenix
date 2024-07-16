@@ -1,5 +1,14 @@
 # Changelog
 
+## [4.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.9.0...arize-phoenix-v4.10.0) (2024-07-16)
+
+
+### Features
+
+* Add GQL mutations for Span + Trace Annotations ([#3891](https://github.com/Arize-ai/phoenix/issues/3891)) ([78e7e3b](https://github.com/Arize-ai/phoenix/commit/78e7e3b18aa9a73bf76749d610194f780a1b8e00))
+* Add REST routes for span and trace annotations ([#3869](https://github.com/Arize-ai/phoenix/issues/3869)) ([43eede1](https://github.com/Arize-ai/phoenix/commit/43eede1b3366d87826fe2c1f5ffeb29aa3a47788))
+* **annotations:** ability to copy span and trace IDs ([49085c4](https://github.com/Arize-ai/phoenix/commit/49085c4c12a17568a1ee48c5993f7d424e62e839))
+
 ## [4.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.8.1...arize-phoenix-v4.9.0) (2024-07-10)
 
 
