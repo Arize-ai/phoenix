@@ -192,8 +192,6 @@ Once you've executed a sufficient number of queries (or chats) to your applicati
 
 Phoenix also support loading data that contains [OpenInference trace](../reference/open-inference.md) data. This allows data from a LangChain and LlamaIndex running instance explored for analysis offline.
 
-There are two ways to extract trace dataframes. The two ways for LangChain are described below.
-
 {% tabs %}
 {% tab title="From the App" %}
 <pre class="language-python"><code class="lang-python"><strong># You can export a dataframe from the session
