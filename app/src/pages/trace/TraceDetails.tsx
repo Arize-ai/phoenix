@@ -905,7 +905,7 @@ function RetrieverSpanInfo(props: {
         </MarkdownDisplayProvider>
       ) : null}
       {hasDocuments ? (
-        <MarkdownDisplayProvider initialMode="markdown">
+        <MarkdownDisplayProvider>
           <Card
             title="Documents"
             {...defaultCardProps}
