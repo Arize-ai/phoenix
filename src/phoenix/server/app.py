@@ -79,12 +79,12 @@ from phoenix.server.api.dataloaders import (
     TraceEvaluationsDataLoader,
     TraceRowIdsDataLoader,
 )
+from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.routers.v1 import router as v1_router
 from phoenix.server.api.schema import schema
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.trace.schemas import Span
-from phoenix.version import __version__ as phoenix_version
 
 if TYPE_CHECKING:
     from opentelemetry.trace import TracerProvider
@@ -439,7 +439,7 @@ def create_app(
         prometheus_middlewares = []
     app = FastAPI(
         title="Arize-Phoenix",
-        version=phoenix_version,
+        version=REST_API_VERSION,
         lifespan=_lifespan(
             read_only=read_only,
             bulk_inserter=bulk_inserter,

@@ -3,7 +3,7 @@
   "info": {
     "title": "Arize-Phoenix API",
     "description": "Schema for Arize-Phoenix REST API",
-    "version": "4.10.1"
+    "version": "1.0"
   },
   "paths": {
     "/v1/datasets/{id}/examples": {

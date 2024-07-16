@@ -11,6 +11,8 @@ from .spans import router as spans_router
 from .traces import router as traces_router
 from .utils import add_errors_to_responses
 
+REST_API_VERSION = "1.0"
+
 
 async def prevent_access_in_read_only_mode(request: Request) -> None:
     """
