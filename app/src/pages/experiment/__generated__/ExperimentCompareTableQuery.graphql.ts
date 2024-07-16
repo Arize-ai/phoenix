@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d8c87f5332bbcb95b67911c672cc9244>>
+ * @generated SignedSource<<5496aa01511684dacbbf9339c68f1593>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Query } from 'relay-runtime';
-export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
+export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
 export type ExperimentCompareTableQuery$variables = {
   datasetId: string;
   experimentIds: ReadonlyArray<string>;
@@ -29,7 +29,7 @@ export type ExperimentCompareTableQuery$data = {
         readonly annotations: {
           readonly edges: ReadonlyArray<{
             readonly annotation: {
-              readonly annotatorKind: AnnotatorKind;
+              readonly annotatorKind: ExperimentRunAnnotatorKind;
               readonly explanation: string | null;
               readonly id: string;
               readonly label: string | null;

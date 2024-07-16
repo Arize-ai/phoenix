@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.14.0...arize-phoenix-evals-v0.14.1) (2024-07-16)
+
+
+### Bug Fixes
+
+* Run Bedrock calls in executor for async ([#3884](https://github.com/Arize-ai/phoenix/issues/3884)) ([46e3b1c](https://github.com/Arize-ai/phoenix/commit/46e3b1c7c705e6fd6df7cdcc10f1ec0f14efb03c))
+
 ## [0.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.13.2...arize-phoenix-evals-v0.14.0) (2024-07-12)
 
 ### Features

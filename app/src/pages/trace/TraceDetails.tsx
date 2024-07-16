@@ -93,6 +93,7 @@ import {
   TraceDetailsQuery,
   TraceDetailsQuery$data,
 } from "./__generated__/TraceDetailsQuery.graphql";
+import { SpanCodeDropdown } from "./SpanCodeDropdown";
 import { SpanEvaluationsTable } from "./SpanEvaluationsTable";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
 
@@ -181,6 +182,7 @@ export function TraceDetails(props: TraceDetailsProps) {
                     id
                     context {
                       spanId
+                      traceId
                     }
                     name
                     spanKind
@@ -436,8 +438,8 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
   return (
     <Flex direction="column" flex="1 1 auto" height="100%">
       <View
-        paddingTop="size-75"
-        paddingBottom="size-75"
+        paddingTop="size-100"
+        paddingBottom="size-100"
         paddingStart="size-150"
         paddingEnd="size-200"
         flex="none"
@@ -449,9 +451,13 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
           alignItems="center"
         >
           <SpanItem {...selectedSpan} />
-          <View flex="none">
+          <Flex flex="none" direction="row" alignItems="center" gap="size-100">
+            <SpanCodeDropdown
+              traceId={selectedSpan.context.traceId}
+              spanId={selectedSpan.context.spanId}
+            />
             <AddSpanToDatasetButton span={selectedSpan} />
-          </View>
+          </Flex>
         </Flex>
       </View>
       <Tabs>
@@ -526,7 +532,6 @@ function AddSpanToDatasetButton({ span }: { span: Span }) {
     <>
       <Button
         variant="default"
-        size="compact"
         icon={<Icon svg={<Icons.DatabaseOutline />} />}
         onClick={onAddSpanToDataset}
       >
@@ -900,7 +905,7 @@ function RetrieverSpanInfo(props: {
         </MarkdownDisplayProvider>
       ) : null}
       {hasDocuments ? (
-        <MarkdownDisplayProvider initialMode="markdown">
+        <MarkdownDisplayProvider>
           <Card
             title="Documents"
             {...defaultCardProps}
