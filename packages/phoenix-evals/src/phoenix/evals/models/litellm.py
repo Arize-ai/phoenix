@@ -17,7 +17,7 @@ class LiteLLMModel(BaseModel):
     `litellm` package to be installed.
 
     ⚠️ Warning: Due to the number of supported models and variations in rate limit handling, we
-    ddo not catch rate limit exceptions and throttle requests.
+    do not catch rate limit exceptions and throttle requests.
 
     Supports Async: ❌
         While `litellm` provides an async interface for making LLM calls, because we cannot
