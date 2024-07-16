@@ -14,7 +14,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 from .utils import ResponseBody, add_errors_to_responses
 
-router = APIRouter(tags=["experiments"])
+router = APIRouter(tags=["experiments"], include_in_schema=False)
 
 
 class ExperimentRun(BaseModel):

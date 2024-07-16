@@ -29,7 +29,7 @@ from phoenix.utilities.project import get_project_name
 
 from .utils import RequestBody, ResponseBody, add_errors_to_responses
 
-router = APIRouter(tags=["traces"])
+router = APIRouter(tags=["traces"], include_in_schema=False)
 
 
 @router.post(

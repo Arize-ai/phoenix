@@ -42,7 +42,7 @@ from .utils import add_errors_to_responses
 
 EvaluationName: TypeAlias = str
 
-router = APIRouter(tags=["traces"])
+router = APIRouter(tags=["traces"], include_in_schema=False)
 
 
 @router.post(
