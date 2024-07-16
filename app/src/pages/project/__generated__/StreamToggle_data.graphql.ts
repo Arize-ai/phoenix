@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8f6740670ce6512aed19576112040735>>
+ * @generated SignedSource<<75b14c405b52d9ef7a453a1476913604>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,6 +20,8 @@ export type StreamToggle_data$key = {
   readonly " $fragmentSpreads": FragmentRefs<"StreamToggle_data">;
 };
 
+import StreamToggleRefetchQuery_graphql from './StreamToggleRefetchQuery.graphql';
+
 const node: ReaderFragment = {
   "argumentDefinitions": [],
   "kind": "Fragment",
@@ -29,7 +31,7 @@ const node: ReaderFragment = {
       "fragmentPathInResult": [
         "node"
       ],
-      "operation": require('./StreamToggleRefetchQuery.graphql'),
+      "operation": StreamToggleRefetchQuery_graphql,
       "identifierInfo": {
         "identifierField": "id",
         "identifierQueryVariableName": "id"

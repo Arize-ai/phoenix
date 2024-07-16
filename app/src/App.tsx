@@ -4,6 +4,7 @@ import { ThemeProvider as EmotionThemeProvider } from "@emotion/react";
 
 import { Provider, theme } from "@arizeai/components";
 
+// import "vite/modulepreload-polyfill";
 import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
 import { NotificationProvider, ThemeProvider, useTheme } from "./contexts";
 import { GlobalStyles } from "./GlobalStyles";
@@ -12,7 +13,7 @@ import { AppRoutes } from "./Routes";
 
 import "normalize.css";
 
-export function App() {
+function App() {
   return (
     <ThemeProvider>
       <AppContent />
@@ -20,7 +21,7 @@ export function App() {
   );
 }
 
-export function AppContent() {
+function AppContent() {
   const { theme: componentsTheme } = useTheme();
   return (
     <Provider theme={componentsTheme}>
@@ -39,3 +40,5 @@ export function AppContent() {
     </Provider>
   );
 }
+
+export default App;

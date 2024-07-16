@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3170440e95ab809c6cba17ecdc42c496>>
+ * @generated SignedSource<<b893b50c8e8465a9ae5ad13ccb7284b7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -29,6 +29,8 @@ export type DatasetsTable_datasets$key = {
   readonly " $data"?: DatasetsTable_datasets$data;
   readonly " $fragmentSpreads": FragmentRefs<"DatasetsTable_datasets">;
 };
+
+import DatasetsTableDatasetsQuery_graphql from './DatasetsTableDatasetsQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = [
@@ -75,7 +77,7 @@ return {
         "path": (v0/*: any*/)
       },
       "fragmentPathInResult": [],
-      "operation": require('./DatasetsTableDatasetsQuery.graphql')
+      "operation": DatasetsTableDatasetsQuery_graphql
     }
   },
   "name": "DatasetsTable_datasets",

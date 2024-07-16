@@ -1,7 +1,10 @@
 import React from "react";
+// Rest of your app code
 import ReactDom from "react-dom/client";
 
-import { App } from "./App";
+import "vite/modulepreload-polyfill";
+
+import App from "./App";
 
 import "normalize.css";
 

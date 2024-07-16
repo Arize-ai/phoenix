@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f1b34d98217158347d69e559a07d77e8>>
+ * @generated SignedSource<<95dec449dd52e408d3a45e78718fe7eb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -58,6 +58,8 @@ export type SpansTable_spans$key = {
   readonly " $data"?: SpansTable_spans$data;
   readonly " $fragmentSpreads": FragmentRefs<"SpansTable_spans">;
 };
+
+import SpansTableSpansQuery_graphql from './SpansTableSpansQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = [
@@ -138,7 +140,7 @@ return {
       "fragmentPathInResult": [
         "node"
       ],
-      "operation": require('./SpansTableSpansQuery.graphql'),
+      "operation": SpansTableSpansQuery_graphql,
       "identifierInfo": {
         "identifierField": "id",
         "identifierQueryVariableName": "id"

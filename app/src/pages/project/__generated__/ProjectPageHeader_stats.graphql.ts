@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<31ebed06492b7a61c472a7beb0be14a9>>
+ * @generated SignedSource<<f58ba9b6aa11cbcdf1fd642b2f628bbf>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -25,6 +25,8 @@ export type ProjectPageHeader_stats$key = {
   readonly " $fragmentSpreads": FragmentRefs<"ProjectPageHeader_stats">;
 };
 
+import ProjectPageHeaderQuery_graphql from './ProjectPageHeaderQuery.graphql';
+
 const node: ReaderFragment = (function(){
 var v0 = {
   "kind": "Variable",
@@ -48,7 +50,7 @@ return {
       "fragmentPathInResult": [
         "node"
       ],
-      "operation": require('./ProjectPageHeaderQuery.graphql'),
+      "operation": ProjectPageHeaderQuery_graphql,
       "identifierInfo": {
         "identifierField": "id",
         "identifierQueryVariableName": "id"
