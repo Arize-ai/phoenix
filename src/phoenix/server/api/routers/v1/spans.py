@@ -163,7 +163,7 @@ class InsertedSpanAnnotation(BaseModel):
     id: str = Field(description="The ID of the inserted span annotation")
 
 
-class AnnotateSpansResponseBody(ResponseBody[InsertedSpanAnnotation]):
+class AnnotateSpansResponseBody(ResponseBody[List[InsertedSpanAnnotation]]):
     pass
 
 
