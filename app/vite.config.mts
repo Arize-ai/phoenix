@@ -8,7 +8,7 @@ export default defineConfig(({ command, mode }) => {
   return {
     root: resolve(__dirname, "src"),
     plugins: [react(), relay, visualizer()],
-    publicDir: resolve(__dirname, "../src/phoenix/server/static"),
+    publicDir: resolve(__dirname, "static"),
     preview: {
       port: 6006,
     },
@@ -23,7 +23,7 @@ export default defineConfig(({ command, mode }) => {
     },
     build: {
       manifest: true,
-      outDir: resolve(__dirname, "../src/phoenix/server/dist"),
+      outDir: resolve(__dirname, "../src/phoenix/server/static"),
       emptyOutDir: true,
       rollupOptions: {
         input: resolve(__dirname, "src/index.tsx"),

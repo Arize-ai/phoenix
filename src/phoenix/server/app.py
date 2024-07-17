@@ -86,6 +86,7 @@ from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.openapi.docs import get_swagger_ui_html
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.trace.schemas import Span
+import json
 
 if TYPE_CHECKING:
     from opentelemetry.trace import TracerProvider
@@ -103,6 +104,7 @@ class AppConfig(NamedTuple):
     n_neighbors: int
     n_samples: int
     is_development: bool
+    manifest_json: str 
 
 
 class Static(StaticFiles):
@@ -112,7 +114,16 @@ class Static(StaticFiles):
 
     def __init__(self, *, app_config: AppConfig, **kwargs: Any):
         self._app_config = app_config
+        self.manifest = self._load_manifest()
         super().__init__(**kwargs)
+    
+    def _load_manifest(self) -> Dict[str, str]:
+        try:
+            with open(self._app_config.manifest_json, 'r') as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            print(f"Error loading manifest: {e}")
+            return {}
 
     async def get_response(self, path: str, scope: Scope) -> Response:
         response = None
@@ -136,6 +147,7 @@ class Static(StaticFiles):
                     "platform_version": phoenix.__version__,
                     "request": request,
                     "is_development": self._app_config.is_development,
+                    "manifest": self.manifest,
                 },
             )
         except Exception as e:
@@ -497,6 +509,7 @@ def create_app(
                             n_neighbors=umap_params.n_neighbors,
                             n_samples=umap_params.n_samples,
                             is_development=debug,
+                            manifest_json=SERVER_DIR / "static" / ".vite" / "manifest.json",
                         ),
                     ),
                     name="static",

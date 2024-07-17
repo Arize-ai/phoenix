@@ -1,8 +1,48 @@
+{% set rendered_files = [] %}
+{% set rendered_chunks = [] %}
+
+{% macro render_chunk(chunk_name, level=0) %}
+  {% if chunk_name not in rendered_chunks %}
+    {% set _ = rendered_chunks.append(chunk_name) %}
+    {% set chunk = manifest[chunk_name] %}
+    
+    {% if chunk.css %}
+      {% for css_file in chunk.css %}
+        {% if css_file not in rendered_files %}
+          <link rel="stylesheet" href="{{ basename }}/{{ css_file }}">
+          {% set _ = rendered_files.append(css_file) %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+    
+    {% if chunk.imports %}
+      {% for import in chunk.imports %}
+        {{ render_chunk(import, level + 1) }}
+      {% endfor %}
+    {% endif %}
+    
+    {% if level == 0 %}
+      {% if chunk.file.endswith('.js') and chunk.file not in rendered_files %}
+        <script type="module" src="{{ basename }}/{{ chunk.file }}"></script>
+        {% set _ = rendered_files.append(chunk.file) %}
+      {% elif chunk.file.endswith('.css') and chunk.file not in rendered_files %}
+        <link rel="stylesheet" href="{{ basename }}/{{ chunk.file }}">
+        {% set _ = rendered_files.append(chunk.file) %}
+      {% endif %}
+    {% endif %}
+    
+    {% if chunk.file.endswith('.js') and chunk.file not in rendered_files %}
+      <link rel="modulepreload" href="{{ basename }}/{{ chunk.file }}">
+      {% set _ = rendered_files.append(chunk.file) %}
+    {% endif %}
+  {% endif %}
+{% endmacro %}
+
 <!DOCTYPE html>
 <html>
   <head>
     <title>Phoenix</title>
-    <link rel="icon" href="{{basename}}/favicon.ico" type="image/x-icon"></link>
+    <link rel="icon" href="{{basename}}/dist/favicon.ico" type="image/x-icon"></link>
     <meta charset="UTF-8" />
     <meta name="title" content="Arize Phoenix" />
     <meta name="description" content="AI Observability & Evaluation" />
@@ -11,7 +51,7 @@
     <meta property="og:description" content="AI Observability & Evaluation" />
     <meta property="og:image" content="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/main/images/socal/social-preview-horizontal.jpg" />
     <meta name="theme-color" content="#ffffff" />
-    <link rel="stylesheet" src="{{basename}}/index.css"></link>
+    <link rel="stylesheet" src="{{basename}}/dist/index.css"></link>
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400;500;700;900&display=swap"
@@ -43,7 +83,7 @@
           writable: false
       });
   })()</script>
-    {% if is_development %}
+    {% if not is_development %}
       <script type="module">
         import RefreshRuntime from 'http://localhost:5173/@react-refresh'
         RefreshRuntime.injectIntoGlobalHook(window)
@@ -54,8 +94,7 @@
       <script type="module" src="http://localhost:5173/@vite/client"></script>
       <script type="module" src="http://localhost:5173/index.tsx"></script>
     {% else %}
-   
-      <script type="module" src="{{basename}}/index.js"></script>
+      {{ render_chunk('index.tsx') }}
     {% endif %}
       </body>
 </html>
