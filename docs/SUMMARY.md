@@ -111,9 +111,8 @@
   * [Export Data](how-to/export-your-data.md)
   * [Generate Embeddings](inferences/how-to-inferences/generating-embeddings.md)
   * [Manage the App](how-to/manage-the-app.md)
+  * [Use Example Inferences](inferences/how-to-inferences/use-example-inferences.md)
 * [Concepts: Inferences](inferences/inferences.md)
-* [How to: Inferences](inferences/how-to-inferences-1/README.md)
-  * [Use Example Inferences](inferences/how-to-inferences-1/use-example-inferences.md)
 * [Use-Cases: Inferences](inferences/use-cases-inferences/README.md)
   * [Embeddings Analysis](inferences/use-cases-inferences/embeddings-analysis.md)
 
