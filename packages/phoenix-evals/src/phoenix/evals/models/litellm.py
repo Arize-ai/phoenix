@@ -46,6 +46,7 @@ class LiteLLMModel(BaseModel):
             from phoenix.evals import LiteLLMModel
             model = LiteLLMModel(model="ollama/llama3")
     """
+
     model: str = "gpt-3.5-turbo"
     temperature: float = 0.0
     max_tokens: int = 256
