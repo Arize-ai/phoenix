@@ -30,6 +30,7 @@ export function SpanKindLabel(props: { spanKind: string }) {
         break;
       case "evaluator":
         color = "indigo-1200";
+        break;
       case "guardrail":
         color = "fuchsia-1200";
         break;

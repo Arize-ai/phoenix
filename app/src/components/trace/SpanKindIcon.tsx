@@ -318,6 +318,7 @@ export function SpanKindIcon({ spanKind }: { spanKind: string }) {
     case "evaluator":
       color = "--ac-global-color-indigo-1000";
       icon = <EvaluatorSVG />;
+      break;
     case "guardrail":
       color = "--ac-global-color-fuchsia-1200";
       icon = <GuardrailSVG />;
