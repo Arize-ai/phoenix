@@ -1268,6 +1268,7 @@ enum SpanKind {
   agent
   reranker
   evaluator
+  guardrail
   unknown
 }
 
