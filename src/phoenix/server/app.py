@@ -410,6 +410,7 @@ def create_app(
     tracer_provider = None
     strawberry_extensions = schema.get_extensions()
     if server_instrumentation_is_enabled():
+        tracer_provider = initialize_opentelemetry_tracer_provider()
         from opentelemetry.trace import TracerProvider
         from strawberry.extensions.tracing import OpenTelemetryExtension
 
