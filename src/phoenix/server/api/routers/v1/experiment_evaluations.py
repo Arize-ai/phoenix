@@ -1,8 +1,9 @@
 from datetime import datetime
+from typing import Any, Dict, Literal, Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
 from starlette.status import HTTP_404_NOT_FOUND
 from strawberry.relay import GlobalID
 
@@ -11,106 +12,75 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
-router = APIRouter(include_in_schema=False)
+from .utils import ResponseBody, add_errors_to_responses
+
+router = APIRouter(tags=["experiments"], include_in_schema=False)
 
 
-@router.post("/experiment_evaluations")
-async def upsert_experiment_evaluation(request: Request) -> Response:
-    """
-    summary: Create an evaluation for a specific experiment run
-    operationId: upsertExperimentEvaluation
-    tags:
-      - private
-    requestBody:
-      description: Details of the experiment evaluation to be upserted
-      required: true
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              experiment_run_id:
-                type: string
-                description: The ID of the experiment run being evaluated
-              name:
-                type: string
-                description: The name of the evaluation
-              annotator_kind:
-                type: string
-                description: The kind of annotator used for the evaluation
-              result:
-                type: object
-                description: The result of the evaluation
-                properties:
-                  label:
-                    type: string
-                    description: The label assigned by the evaluation
-                  score:
-                    type: number
-                    format: float
-                    description: The score assigned by the evaluation
-                  explanation:
-                    type: string
-                    description: Explanation of the evaluation result
-              error:
-                type: string
-                description: Optional error message if the evaluation encountered an error
-              metadata:
-                type: object
-                description: Metadata for the evaluation
-                additionalProperties:
-                  type: string
-              start_time:
-                type: string
-                format: date-time
-                description: The start time of the evaluation in ISO format
-              end_time:
-                type: string
-                format: date-time
-                description: The end time of the evaluation in ISO format
-              trace_id:
-                type: string
-                description: Optional trace ID for tracking
-            required:
-              - experiment_run_id
-              - name
-              - annotator_kind
-              - start_time
-              - end_time
-    responses:
-      200:
-        description: Experiment evaluation upserted successfully
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                data:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                      description: The ID of the upserted experiment evaluation
-      404:
-        description: ExperimentRun not found
-    """
+class ExperimentEvaluationResult(BaseModel):
+    label: Optional[str] = Field(default=None, description="The label assigned by the evaluation")
+    score: Optional[float] = Field(default=None, description="The score assigned by the evaluation")
+    explanation: Optional[str] = Field(
+        default=None, description="Explanation of the evaluation result"
+    )
+
+
+class UpsertExperimentEvaluationRequestBody(BaseModel):
+    experiment_run_id: str = Field(description="The ID of the experiment run being evaluated")
+    name: str = Field(description="The name of the evaluation")
+    annotator_kind: Literal["LLM", "CODE", "HUMAN"] = Field(
+        description="The kind of annotator used for the evaluation"
+    )
+    start_time: datetime = Field(description="The start time of the evaluation in ISO format")
+    end_time: datetime = Field(description="The end time of the evaluation in ISO format")
+    result: ExperimentEvaluationResult = Field(description="The result of the evaluation")
+    error: Optional[str] = Field(
+        None, description="Optional error message if the evaluation encountered an error"
+    )
+    metadata: Optional[Dict[str, Any]] = Field(
+        default=None, description="Metadata for the evaluation"
+    )
+    trace_id: Optional[str] = Field(default=None, description="Optional trace ID for tracking")
+
+
+class UpsertExperimentEvaluationResponseBodyData(BaseModel):
+    id: str = Field(description="The ID of the upserted experiment evaluation")
+
+
+class UpsertExperimentEvaluationResponseBody(
+    ResponseBody[UpsertExperimentEvaluationResponseBodyData]
+):
+    pass
+
+
+@router.post(
+    "/experiment_evaluations",
+    operation_id="upsertExperimentEvaluation",
+    summary="Create or update evaluation for an experiment run",
+    responses=add_errors_to_responses(
+        [{"status_code": HTTP_404_NOT_FOUND, "description": "Experiment run not found"}]
+    ),
+)
+async def upsert_experiment_evaluation(
+    request: Request, request_body: UpsertExperimentEvaluationRequestBody
+) -> UpsertExperimentEvaluationResponseBody:
     payload = await request.json()
     experiment_run_gid = GlobalID.from_id(payload["experiment_run_id"])
     try:
         experiment_run_id = from_global_id_with_expected_type(experiment_run_gid, "ExperimentRun")
     except ValueError:
-        return Response(
-            content=f"ExperimentRun with ID {experiment_run_gid} does not exist",
+        raise HTTPException(
+            detail=f"ExperimentRun with ID {experiment_run_gid} does not exist",
             status_code=HTTP_404_NOT_FOUND,
         )
-    name = payload["name"]
-    annotator_kind = payload["annotator_kind"]
-    result = payload.get("result")
-    label = result.get("label") if result else None
-    score = result.get("score") if result else None
-    explanation = result.get("explanation") if result else None
-    error = payload.get("error")
-    metadata = payload.get("metadata") or {}
+    name = request_body.name
+    annotator_kind = request_body.annotator_kind
+    result = request_body.result
+    label = result.label if result else None
+    score = result.score if result else None
+    explanation = result.explanation if result else None
+    error = request_body.error
+    metadata = request_body.metadata or {}
     start_time = payload["start_time"]
     end_time = payload["end_time"]
     async with request.app.state.db() as session:
@@ -137,4 +107,6 @@ async def upsert_experiment_evaluation(request: Request) -> Response:
             ).returning(models.ExperimentRunAnnotation)
         )
     evaluation_gid = GlobalID("ExperimentEvaluation", str(exp_eval_run.id))
-    return JSONResponse(content={"data": {"id": str(evaluation_gid)}})
+    return UpsertExperimentEvaluationResponseBody(
+        data=UpsertExperimentEvaluationResponseBodyData(id=str(evaluation_gid))
+    )

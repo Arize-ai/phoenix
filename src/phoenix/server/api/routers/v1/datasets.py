@@ -62,6 +62,7 @@ from phoenix.server.api.types.DatasetVersion import DatasetVersion as DatasetVer
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_projects, delete_traces
 
+from .dataset_examples import router as dataset_examples_router
 from .utils import (
     PaginatedResponseBody,
     ResponseBody,
@@ -82,7 +83,7 @@ class Dataset(BaseModel):
     id: str
     name: str
     description: Optional[str]
-    metadata: Dict[Any, Any]
+    metadata: Dict[str, Any]
     created_at: datetime
     updated_at: datetime
 
@@ -94,19 +95,18 @@ class ListDatasetsResponseBody(PaginatedResponseBody[Dataset]):
 @router.get(
     "/datasets",
     operation_id="listDatasets",
-    summary="Returns paginated lists of datasets.",
+    summary="List datasets",
     responses=add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY]),
 )
 async def list_datasets(
     request: Request,
     cursor: Optional[str] = Query(
-        default=None, description="If provided, returns datasets starting with the provided cursor."
+        default=None,
+        description="Cursor for pagination",
     ),
-    name: Optional[str] = Query(
-        default=None, description="If provided, filters the returned datasets by name."
-    ),
+    name: Optional[str] = Query(default=None, description="An optional dataset name to filter by"),
     limit: int = Query(
-        default=10, description="The maximum number of datasets to return at a time.", gt=0
+        default=10, description="The max number of datasets to return at a time.", gt=0
     ),
 ) -> ListDatasetsResponseBody:
     async with request.app.state.db() as session:
@@ -157,7 +157,12 @@ async def list_datasets(
     operation_id="deleteDatasetById",
     summary="Delete dataset by ID",
     status_code=HTTP_204_NO_CONTENT,
-    responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY]),
+    responses=add_errors_to_responses(
+        [
+            {"status_code": HTTP_404_NOT_FOUND, "description": "Dataset not found"},
+            {"status_code": HTTP_422_UNPROCESSABLE_ENTITY, "description": "Invalid dataset ID"},
+        ]
+    ),
 )
 async def delete_dataset(
     request: Request, id: str = Path(description="The ID of the dataset to delete.")
@@ -200,11 +205,11 @@ class GetDatasetResponseBody(ResponseBody[DatasetWithExampleCount]):
 @router.get(
     "/datasets/{id}",
     operation_id="getDataset",
-    summary="Gets a dataset by ID.",
+    summary="Get dataset by ID",
     responses=add_errors_to_responses([HTTP_404_NOT_FOUND]),
 )
 async def get_dataset(
-    request: Request, id: str = Path(description="The ID of the dataset.")
+    request: Request, id: str = Path(description="The ID of the dataset")
 ) -> GetDatasetResponseBody:
     dataset_id = GlobalID.from_id(id)
 
@@ -241,7 +246,7 @@ async def get_dataset(
 class DatasetVersion(BaseModel):
     version_id: str
     description: str
-    metadata: Dict[Any, Any]
+    metadata: Dict[str, Any]
     created_at: datetime
 
 
@@ -252,18 +257,18 @@ class ListDatasetVersionsResponseBody(PaginatedResponseBody[DatasetVersion]):
 @router.get(
     "/datasets/{id}/versions",
     operation_id="listDatasetVersionsByDatasetId",
-    summary="Lists dataset versions (sorted from latest to oldest).",
+    summary="List dataset versions",
     responses=add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY]),
 )
 async def list_dataset_versions(
     request: Request,
-    id: str = Path(description="The ID of the dataset."),
+    id: str = Path(description="The ID of the dataset"),
     cursor: Optional[str] = Query(
         default=None,
-        description="If provided, returns dataset versions starting with the provided cursor.",
+        description="Cursor for pagination",
     ),
     limit: int = Query(
-        default=10, description="The maximum number of dataset versions to return at a time.", gt=0
+        default=10, description="The max number of dataset versions to return at a time", gt=0
     ),
 ) -> ListDatasetVersionsResponseBody:
     if id:
@@ -329,8 +334,16 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
 @router.post(
     "/datasets/upload",
     operation_id="uploadDataset",
-    summary="Upload dataset as either JSON or file (CSV or PyArrow)",
-    responses=add_errors_to_responses([HTTP_409_CONFLICT, HTTP_422_UNPROCESSABLE_ENTITY]),
+    summary="Upload dataset from JSON, CSV, or PyArrow",
+    responses=add_errors_to_responses(
+        [
+            {
+                "status_code": HTTP_409_CONFLICT,
+                "description": "Dataset of the same name already exists",
+            },
+            {"status_code": HTTP_422_UNPROCESSABLE_ENTITY, "description": "Invalid request body"},
+        ]
+    ),
     # FastAPI cannot generate the request body portion of the OpenAPI schema for
     # routes that accept multiple request content types, so we have to provide
     # this part of the schema manually. For context, see
@@ -654,10 +667,18 @@ async def _parse_form_data(
     )
 
 
+# including the dataset examples router here ensures the dataset example routes
+# are included in a natural order in the openapi schema and the swagger ui
+#
+# todo: move the dataset examples routes here and remove the dataset_examples
+# sub-module
+router.include_router(dataset_examples_router)
+
+
 @router.get(
     "/datasets/{id}/csv",
     operation_id="getDatasetCsv",
-    summary="Download dataset examples as CSV text file",
+    summary="Download dataset examples as CSV file",
     response_class=StreamingResponse,
     status_code=HTTP_200_OK,
     responses={
@@ -668,10 +689,12 @@ async def _parse_form_data(
 async def get_dataset_csv(
     request: Request,
     response: Response,
-    id: str = Path(description="The ID of the dataset."),
+    id: str = Path(description="The ID of the dataset"),
     version_id: Optional[str] = Query(
         default=None,
-        description="If provided, returns the data as of the specified version.",
+        description=(
+            "The ID of the dataset version " "(if omitted, returns data from the latest version)"
+        ),
     ),
 ) -> Response:
     try:
@@ -694,17 +717,26 @@ async def get_dataset_csv(
 @router.get(
     "/datasets/{id}/jsonl/openai_ft",
     operation_id="getDatasetJSONLOpenAIFineTuning",
-    summary="Download dataset examples as an OpenAI fine-tuning JSONL file.",
+    summary="Download dataset examples as OpenAI fine-tuning JSONL file",
     response_class=PlainTextResponse,
-    responses=add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY]),
+    responses=add_errors_to_responses(
+        [
+            {
+                "status_code": HTTP_422_UNPROCESSABLE_ENTITY,
+                "description": "Invalid dataset or version ID",
+            }
+        ]
+    ),
 )
 async def get_dataset_jsonl_openai_ft(
     request: Request,
     response: Response,
-    id: str = Path(description="The ID of the dataset."),
+    id: str = Path(description="The ID of the dataset"),
     version_id: Optional[str] = Query(
         default=None,
-        description="If provided, returns the data as of the specified version.",
+        description=(
+            "The ID of the dataset version " "(if omitted, returns data from the latest version)"
+        ),
     ),
 ) -> bytes:
     try:
@@ -722,17 +754,26 @@ async def get_dataset_jsonl_openai_ft(
 @router.get(
     "/datasets/{id}/jsonl/openai_evals",
     operation_id="getDatasetJSONLOpenAIEvals",
-    summary="Download dataset examples as OpenAI Evals JSONL file.",
+    summary="Download dataset examples as OpenAI evals JSONL file",
     response_class=PlainTextResponse,
-    responses=add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY]),
+    responses=add_errors_to_responses(
+        [
+            {
+                "status_code": HTTP_422_UNPROCESSABLE_ENTITY,
+                "description": "Invalid dataset or version ID",
+            }
+        ]
+    ),
 )
 async def get_dataset_jsonl_openai_evals(
     request: Request,
     response: Response,
-    id: str = Path(description="The ID of the dataset."),
+    id: str = Path(description="The ID of the dataset"),
     version_id: Optional[str] = Query(
         default=None,
-        description="If provided, returns the data as of the specified version.",
+        description=(
+            "The ID of the dataset version " "(if omitted, returns data from the latest version)"
+        ),
     ),
 ) -> bytes:
     try:

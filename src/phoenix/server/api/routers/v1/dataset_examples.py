@@ -28,9 +28,9 @@ router = APIRouter(tags=["datasets"])
 
 class DatasetExample(BaseModel):
     id: str
-    input: Dict[Any, Any]
-    output: Dict[Any, Any]
-    metadata: Dict[Any, Any]
+    input: Dict[str, Any]
+    output: Dict[str, Any]
+    metadata: Dict[str, Any]
     updated_at: datetime
 
 
@@ -47,15 +47,17 @@ class ListDatasetExamplesResponseBody(ResponseBody[ListDatasetExamplesData]):
 @router.get(
     "/datasets/{id}/examples",
     operation_id="getDatasetExamples",
-    summary="Get dataset examples by dataset ID.",
+    summary="Get examples from a dataset",
     responses=add_errors_to_responses([HTTP_404_NOT_FOUND]),
 )
-async def list_dataset_examples(
+async def get_dataset_examples(
     request: Request,
-    id: str = Path(description="The ID of the dataset."),
+    id: str = Path(description="The ID of the dataset"),
     version_id: Optional[str] = Query(
         default=None,
-        description="If provided, returns the dataset examples as of the specified version.",
+        description=(
+            "The ID of the dataset version " "(if omitted, returns data from the latest version)"
+        ),
     ),
 ) -> ListDatasetExamplesResponseBody:
     dataset_gid = GlobalID.from_id(id)

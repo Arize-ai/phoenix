@@ -1,99 +1,17 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Arize-Phoenix API",
+    "title": "Arize-Phoenix REST API",
     "description": "Schema for Arize-Phoenix REST API",
-    "version": "4.10.1"
+    "version": "1.0"
   },
   "paths": {
-    "/v1/datasets/{id}/examples": {
-      "get": {
-        "tags": [
-          "datasets"
-        ],
-        "summary": "Get dataset examples by dataset ID.",
-        "operationId": "getDatasetExamples",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "The ID of the dataset.",
-              "title": "Id"
-            },
-            "description": "The ID of the dataset."
-          },
-          {
-            "name": "version_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "If provided, returns the dataset examples as of the specified version.",
-              "title": "Version Id"
-            },
-            "description": "If provided, returns the dataset examples as of the specified version."
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ListDatasetExamplesResponseBody"
-                }
-              }
-            }
-          },
-          "403": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/datasets": {
       "get": {
         "tags": [
           "datasets"
         ],
-        "summary": "Returns paginated lists of datasets.",
+        "summary": "List datasets",
         "operationId": "listDatasets",
         "parameters": [
           {
@@ -109,10 +27,10 @@
                   "type": "null"
                 }
               ],
-              "description": "If provided, returns datasets starting with the provided cursor.",
+              "description": "Cursor for pagination",
               "title": "Cursor"
             },
-            "description": "If provided, returns datasets starting with the provided cursor."
+            "description": "Cursor for pagination"
           },
           {
             "name": "name",
@@ -127,10 +45,10 @@
                   "type": "null"
                 }
               ],
-              "description": "If provided, filters the returned datasets by name.",
+              "description": "An optional dataset name to filter by",
               "title": "Name"
             },
-            "description": "If provided, filters the returned datasets by name."
+            "description": "An optional dataset name to filter by"
           },
           {
             "name": "limit",
@@ -139,11 +57,11 @@
             "schema": {
               "type": "integer",
               "exclusiveMinimum": 0,
-              "description": "The maximum number of datasets to return at a time.",
+              "description": "The max number of datasets to return at a time.",
               "default": 10,
               "title": "Limit"
             },
-            "description": "The maximum number of datasets to return at a time."
+            "description": "The max number of datasets to return at a time."
           }
         ],
         "responses": {
@@ -222,7 +140,7 @@
                 }
               }
             },
-            "description": "Not Found"
+            "description": "Dataset not found"
           },
           "422": {
             "content": {
@@ -232,7 +150,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Invalid dataset ID"
           }
         }
       },
@@ -240,7 +158,7 @@
         "tags": [
           "datasets"
         ],
-        "summary": "Gets a dataset by ID.",
+        "summary": "Get dataset by ID",
         "operationId": "getDataset",
         "parameters": [
           {
@@ -249,10 +167,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the dataset.",
+              "description": "The ID of the dataset",
               "title": "Id"
             },
-            "description": "The ID of the dataset."
+            "description": "The ID of the dataset"
           }
         ],
         "responses": {
@@ -304,7 +222,7 @@
         "tags": [
           "datasets"
         ],
-        "summary": "Lists dataset versions (sorted from latest to oldest).",
+        "summary": "List dataset versions",
         "operationId": "listDatasetVersionsByDatasetId",
         "parameters": [
           {
@@ -313,10 +231,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the dataset.",
+              "description": "The ID of the dataset",
               "title": "Id"
             },
-            "description": "The ID of the dataset."
+            "description": "The ID of the dataset"
           },
           {
             "name": "cursor",
@@ -331,10 +249,10 @@
                   "type": "null"
                 }
               ],
-              "description": "If provided, returns dataset versions starting with the provided cursor.",
+              "description": "Cursor for pagination",
               "title": "Cursor"
             },
-            "description": "If provided, returns dataset versions starting with the provided cursor."
+            "description": "Cursor for pagination"
           },
           {
             "name": "limit",
@@ -343,11 +261,11 @@
             "schema": {
               "type": "integer",
               "exclusiveMinimum": 0,
-              "description": "The maximum number of dataset versions to return at a time.",
+              "description": "The max number of dataset versions to return at a time",
               "default": 10,
               "title": "Limit"
             },
-            "description": "The maximum number of dataset versions to return at a time."
+            "description": "The max number of dataset versions to return at a time"
           }
         ],
         "responses": {
@@ -389,7 +307,7 @@
         "tags": [
           "datasets"
         ],
-        "summary": "Upload dataset as either JSON or file (CSV or PyArrow)",
+        "summary": "Upload dataset from JSON, CSV, or PyArrow",
         "operationId": "uploadDataset",
         "parameters": [
           {
@@ -442,7 +360,7 @@
                 }
               }
             },
-            "description": "Conflict"
+            "description": "Dataset of the same name already exists"
           },
           "422": {
             "content": {
@@ -452,7 +370,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Invalid request body"
           }
         },
         "requestBody": {
@@ -554,13 +472,14 @@
         }
       }
     },
-    "/v1/datasets/{id}/csv": {
+    "/v1/datasets/{id}/examples": {
       "get": {
         "tags": [
+          "datasets",
           "datasets"
         ],
-        "summary": "Download dataset examples as CSV text file",
-        "operationId": "getDatasetCsv",
+        "summary": "Get examples from a dataset",
+        "operationId": "getDatasetExamples",
         "parameters": [
           {
             "name": "id",
@@ -568,10 +487,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the dataset.",
+              "description": "The ID of the dataset",
               "title": "Id"
             },
-            "description": "The ID of the dataset."
+            "description": "The ID of the dataset"
           },
           {
             "name": "version_id",
@@ -586,10 +505,92 @@
                   "type": "null"
                 }
               ],
-              "description": "If provided, returns the data as of the specified version.",
+              "description": "The ID of the dataset version (if omitted, returns data from the latest version)",
               "title": "Version Id"
             },
-            "description": "If provided, returns the data as of the specified version."
+            "description": "The ID of the dataset version (if omitted, returns data from the latest version)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListDatasetExamplesResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/datasets/{id}/csv": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Download dataset examples as CSV file",
+        "operationId": "getDatasetCsv",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the dataset",
+              "title": "Id"
+            },
+            "description": "The ID of the dataset"
+          },
+          {
+            "name": "version_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The ID of the dataset version (if omitted, returns data from the latest version)",
+              "title": "Version Id"
+            },
+            "description": "The ID of the dataset version (if omitted, returns data from the latest version)"
           }
         ],
         "responses": {
@@ -632,7 +633,7 @@
         "tags": [
           "datasets"
         ],
-        "summary": "Download dataset examples as an OpenAI fine-tuning JSONL file.",
+        "summary": "Download dataset examples as OpenAI fine-tuning JSONL file",
         "operationId": "getDatasetJSONLOpenAIFineTuning",
         "parameters": [
           {
@@ -641,10 +642,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the dataset.",
+              "description": "The ID of the dataset",
               "title": "Id"
             },
-            "description": "The ID of the dataset."
+            "description": "The ID of the dataset"
           },
           {
             "name": "version_id",
@@ -659,10 +660,10 @@
                   "type": "null"
                 }
               ],
-              "description": "If provided, returns the data as of the specified version.",
+              "description": "The ID of the dataset version (if omitted, returns data from the latest version)",
               "title": "Version Id"
             },
-            "description": "If provided, returns the data as of the specified version."
+            "description": "The ID of the dataset version (if omitted, returns data from the latest version)"
           }
         ],
         "responses": {
@@ -694,7 +695,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Invalid dataset or version ID"
           }
         }
       }
@@ -704,7 +705,7 @@
         "tags": [
           "datasets"
         ],
-        "summary": "Download dataset examples as OpenAI Evals JSONL file.",
+        "summary": "Download dataset examples as OpenAI evals JSONL file",
         "operationId": "getDatasetJSONLOpenAIEvals",
         "parameters": [
           {
@@ -713,10 +714,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the dataset.",
+              "description": "The ID of the dataset",
               "title": "Id"
             },
-            "description": "The ID of the dataset."
+            "description": "The ID of the dataset"
           },
           {
             "name": "version_id",
@@ -731,10 +732,10 @@
                   "type": "null"
                 }
               ],
-              "description": "If provided, returns the data as of the specified version.",
+              "description": "The ID of the dataset version (if omitted, returns data from the latest version)",
               "title": "Version Id"
             },
-            "description": "If provided, returns the data as of the specified version."
+            "description": "The ID of the dataset version (if omitted, returns data from the latest version)"
           }
         ],
         "responses": {
@@ -766,7 +767,7 @@
                 }
               }
             },
-            "description": "Unprocessable Entity"
+            "description": "Invalid dataset or version ID"
           }
         }
       }

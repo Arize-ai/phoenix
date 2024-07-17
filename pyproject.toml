@@ -320,7 +320,7 @@ dependencies = [
 ]
 
 [tool.hatch.envs.openapi.scripts]
-build = "python -m phoenix.server.api.openapi.main --format readable > schemas/openapi.json"
+build = "python -m phoenix.server.api.openapi.main > schemas/openapi.json"
 
 [tool.hatch.envs.proto]
 detached = true
