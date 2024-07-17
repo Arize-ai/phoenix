@@ -107,6 +107,7 @@ class OpenAIModel(BaseModel):
             model = OpenAIModel(model="gpt-4o")
 
         Using OpenAI models via Azure is similar:
+
         .. code-block:: python
             # Set the AZURE_OPENAI_API_KEY environment variable
 
