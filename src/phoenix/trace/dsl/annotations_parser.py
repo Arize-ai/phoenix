@@ -1,3 +1,4 @@
+import ast
 import re
 
 
@@ -59,7 +60,24 @@ class Parser:
         self.eat('DOT')
         field = self.current_token[1]
         self.eat('IDENTIFIER')
-        self.eat('EQUALS')
-        value = self.current_token[1].strip('"')
-        self.eat('STRING')
-        return {'name': name, 'field': field, 'value': value}
+        operator = self.current_token[0]
+        self.eat(operator)
+        if self.current_token[0] == 'STRING':
+            value = self.current_token[1].strip('"')
+            self.eat('STRING')
+        else:
+            value = self.current_token[1]
+            self.eat('NUMBER')
+        comparison_operators = {
+            'EQUALS': ast.Eq,
+            'NOTEQUALS': ast.NotEq,
+            'GT': ast.Gt,
+            'LT': ast.Lt,
+            'GTE': ast.GtE,
+            'LTE': ast.LtE
+        }
+        return ast.Compare(
+            left=ast.Attribute(value=ast.Name(id=name, ctx=ast.Load()), attr=field, ctx=ast.Load()),
+            ops=[comparison_operators[operator]()],
+            comparators=[ast.Constant(value=value)]
+        )
