@@ -81,9 +81,7 @@ def json_to_span(data: Dict[str, Any]) -> Any:
                 timestamp=datetime.fromisoformat(event["timestamp"]),
             )
             for event in (
-                json.loads(data["events"])
-                if isinstance(data["events"], str)
-                else list(data["events"])
+                json.loads(data["events"]) if isinstance(data["events"], str) else data["events"]
             )
         ]
         data["conversation"] = (
