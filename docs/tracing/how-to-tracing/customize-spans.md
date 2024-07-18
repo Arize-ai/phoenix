@@ -175,7 +175,7 @@ with using_prompt_template(
 
 It can also be used as a decorator:
 
-```
+```python
 @using_prompt_template(
     template=prompt_template,
     version=prompt_template_variables,
