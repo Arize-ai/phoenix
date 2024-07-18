@@ -105,7 +105,7 @@ class AppConfig(NamedTuple):
     n_neighbors: int
     n_samples: int
     is_development: bool
-    manifest_json_path: str
+    manifest_json_path: Path
 
 
 class Static(StaticFiles):
@@ -118,10 +118,10 @@ class Static(StaticFiles):
         self.manifest = self._load_manifest()
         super().__init__(**kwargs)
 
-    def _load_manifest(self) -> Dict[str, str]:
+    def _load_manifest(self) -> Dict[str, Any]:
         try:
             with open(self._app_config.manifest_json_path, "r") as f:
-                return json.load(f)
+                return cast(Dict[str,Any], json.load(f))
         except (FileNotFoundError, json.JSONDecodeError) as e:
             raise e
 
