@@ -123,7 +123,7 @@ class Static(StaticFiles):
             with open(self._app_config.manifest_json_path, "r") as f:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError) as e:
-            raise e 
+            raise e
 
     async def get_response(self, path: str, scope: Scope) -> Response:
         response = None
