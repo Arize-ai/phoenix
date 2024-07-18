@@ -11,6 +11,18 @@ from phoenix.trace.trace_dataset import TraceDataset
 DEFAULT_SPAN_LIMIT = 1000
 
 
+class Unset:
+    """
+    A class to represent an unset value. Needed when there is a meaningful
+    distinction between `None` and an unset parameter.
+    """
+
+    pass
+
+
+UNSET = Unset()
+
+
 class TraceDataExtractor(ABC):
     """
     An abstract base class intended to constraint both `Client` and
@@ -26,6 +38,7 @@ class TraceDataExtractor(ABC):
         limit: Optional[int] = DEFAULT_SPAN_LIMIT,
         root_spans_only: Optional[bool] = None,
         project_name: Optional[str] = None,
+        timeout: Union[Optional[int], Unset] = UNSET,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]: ...
 
     def get_spans_dataframe(
@@ -37,6 +50,7 @@ class TraceDataExtractor(ABC):
         limit: Optional[int] = DEFAULT_SPAN_LIMIT,
         root_spans_only: Optional[bool] = None,
         project_name: Optional[str] = None,
+        timeout: Union[Optional[int], Unset] = UNSET,
     ) -> Optional[pd.DataFrame]:
         return cast(
             Optional[pd.DataFrame],
@@ -47,6 +61,7 @@ class TraceDataExtractor(ABC):
                 limit=limit,
                 root_spans_only=root_spans_only,
                 project_name=project_name,
+                timeout=timeout,
             ),
         )
 
@@ -59,8 +74,23 @@ class TraceDataExtractor(ABC):
     def get_trace_dataset(
         self,
         project_name: Optional[str] = None,
+        *,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        limit: Optional[int] = DEFAULT_SPAN_LIMIT,
+        root_spans_only: Optional[bool] = None,
+        timeout: Union[Optional[int], Unset] = UNSET,
     ) -> Optional[TraceDataset]:
-        if (dataframe := self.get_spans_dataframe(project_name=project_name)) is None:
+        if (
+            dataframe := self.get_spans_dataframe(
+                project_name=project_name,
+                start_time=start_time,
+                end_time=end_time,
+                limit=limit,
+                root_spans_only=root_spans_only,
+                timeout=timeout,
+            )
+        ) is None:
             return None
         evaluations = self.get_evaluations(project_name=project_name)
         return TraceDataset(dataframe=dataframe, evaluations=evaluations)
