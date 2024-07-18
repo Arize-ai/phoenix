@@ -39,6 +39,7 @@ class SpanKind(Enum):
     AGENT = "AGENT"
     RERANKER = "RERANKER"
     EVALUATOR = "EVALUATOR"
+    GUARDRAIL = "GUARDRAIL"
     UNKNOWN = "UNKNOWN"
 
     def __str__(self) -> str:

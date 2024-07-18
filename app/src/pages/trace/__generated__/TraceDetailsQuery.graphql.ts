@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<03387a5b510122c5aca7a286f8706af4>>
+ * @generated SignedSource<<f186c724d94c322130ef7146f97d9e0d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type MimeType = "json" | "text";
-export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "llm" | "reranker" | "retriever" | "tool" | "unknown";
+export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "guardrail" | "llm" | "reranker" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 export type TraceDetailsQuery$variables = {
   id: string;

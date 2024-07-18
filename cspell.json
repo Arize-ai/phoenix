@@ -35,6 +35,7 @@
         "openinference",
         "OTEL",
         "OTLP",
+        "pointcloud",
         "postprocessors",
         "pydantic",
         "pyment",

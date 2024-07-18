@@ -19,11 +19,13 @@ from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
     get_dataset_example_output,
 )
-from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
-from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluation
-from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
-from phoenix.server.api.types.MimeType import MimeType
 from phoenix.trace.attributes import get_attribute_value
+
+from .DocumentRetrievalMetrics import DocumentRetrievalMetrics
+from .Evaluation import DocumentEvaluation, SpanEvaluation
+from .ExampleRevisionInterface import ExampleRevision
+from .MimeType import MimeType
+from .SpanAnnotation import SpanAnnotation
 
 if TYPE_CHECKING:
     from phoenix.server.api.types.Project import Project
@@ -60,6 +62,7 @@ class SpanKind(Enum):
     agent = "AGENT"
     reranker = "RERANKER"
     evaluator = "EVALUATOR"
+    guardrail = "GUARDRAIL"
     unknown = "UNKNOWN"
 
     @classmethod
@@ -171,6 +174,15 @@ class Span(Node):
     )  # type: ignore
     async def span_evaluations(self, info: Info[Context, None]) -> List[SpanEvaluation]:
         return await info.context.data_loaders.span_evaluations.load(self.id_attr)
+
+    @strawberry.field(
+        description=(
+            "Annotations of the span's parent span. This encompasses both "
+            "LLM and human annotations."
+        )
+    )  # type: ignore
+    async def span_annotations(self, info: Info[Context, None]) -> List[SpanAnnotation]:
+        return await info.context.data_loaders.span_annotations.load(self.id_attr)
 
     @strawberry.field(
         description="Evaluations of the documents associated with the span, e.g. "

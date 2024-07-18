@@ -27,6 +27,7 @@ from phoenix.server.api.dataloaders import (
     MinStartOrMaxEndTimeDataLoader,
     ProjectByNameDataLoader,
     RecordCountDataLoader,
+    SpanAnnotationsDataLoader,
     SpanDescendantsDataLoader,
     SpanEvaluationsDataLoader,
     SpanProjectsDataLoader,
@@ -59,6 +60,7 @@ class DataLoaders:
     trace_evaluations: TraceEvaluationsDataLoader
     trace_row_ids: TraceRowIdsDataLoader
     project_by_name: ProjectByNameDataLoader
+    span_annotations: SpanAnnotationsDataLoader
 
 
 ProjectRowId: TypeAlias = int

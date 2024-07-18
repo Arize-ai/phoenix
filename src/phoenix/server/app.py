@@ -72,6 +72,7 @@ from phoenix.server.api.dataloaders import (
     MinStartOrMaxEndTimeDataLoader,
     ProjectByNameDataLoader,
     RecordCountDataLoader,
+    SpanAnnotationsDataLoader,
     SpanDescendantsDataLoader,
     SpanEvaluationsDataLoader,
     SpanProjectsDataLoader,
@@ -257,6 +258,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
                 trace_evaluations=TraceEvaluationsDataLoader(self.db),
                 trace_row_ids=TraceRowIdsDataLoader(self.db),
                 project_by_name=ProjectByNameDataLoader(self.db),
+                span_annotations=SpanAnnotationsDataLoader(self.db),
             ),
             cache_for_dataloaders=self.cache_for_dataloaders,
             read_only=self.read_only,
@@ -423,6 +425,7 @@ def create_app(
     tracer_provider = None
     strawberry_extensions = schema.get_extensions()
     if server_instrumentation_is_enabled():
+        tracer_provider = initialize_opentelemetry_tracer_provider()
         from opentelemetry.trace import TracerProvider
         from strawberry.extensions.tracing import OpenTelemetryExtension
 
