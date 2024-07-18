@@ -59,8 +59,10 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400;500;700;900&display=swap"
     />
-    {% set _ = collect_assets('index.tsx') -%}
-    {{- render_css() -}}
+    {% if not is_development -%}
+      {% set _ = collect_assets('index.tsx') -%}
+      {{- render_css() -}}
+    {%- endif -%}
     <script src="{{basename}}/modernizr.js"></script>
   </head>
   <body>
