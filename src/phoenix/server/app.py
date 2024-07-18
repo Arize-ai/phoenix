@@ -105,7 +105,7 @@ class AppConfig(NamedTuple):
     n_neighbors: int
     n_samples: int
     is_development: bool
-    manifest_json: str
+    manifest_json_path: str
 
 
 class Static(StaticFiles):
@@ -123,8 +123,7 @@ class Static(StaticFiles):
             with open(self._app_config.manifest_json, "r") as f:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError) as e:
-            print(f"Error loading manifest: {e}")
-            return {}
+            raise e 
 
     async def get_response(self, path: str, scope: Scope) -> Response:
         response = None
@@ -513,7 +512,7 @@ def create_app(
                             n_neighbors=umap_params.n_neighbors,
                             n_samples=umap_params.n_samples,
                             is_development=dev,
-                            manifest_json=SERVER_DIR / "static" / ".vite" / "manifest.json",
+                            manifest_json_path=SERVER_DIR / "static" / ".vite" / "manifest.json",
                         ),
                     ),
                     name="static",
