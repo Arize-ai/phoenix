@@ -84,7 +84,7 @@
   },
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "build": "pnpm run build:relay && pnpm run build:vite",
+    "build": "pnpm run build:relay && vite build",
     "build:relay": "relay-compiler",
     "test": "jest --config ./jest.config.js",
     "dev": " pnpm run dev:server:demo & pnpm run build:relay && vite",
