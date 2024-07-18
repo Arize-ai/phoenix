@@ -121,7 +121,7 @@ class Static(StaticFiles):
     def _load_manifest(self) -> Dict[str, Any]:
         try:
             with open(self._app_config.manifest_json_path, "r") as f:
-                return cast(Dict[str,Any], json.load(f))
+                return cast(Dict[str, Any], json.load(f))
         except (FileNotFoundError, json.JSONDecodeError) as e:
             raise e
 
