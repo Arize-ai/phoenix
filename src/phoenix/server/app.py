@@ -1,8 +1,8 @@
 import contextlib
-from functools import cached_property
 import json
 import logging
 from datetime import datetime
+from functools import cached_property
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -125,12 +125,10 @@ class Static(StaticFiles):
                 return cast(Dict[str, Any], json.load(f))
         except FileNotFoundError as e:
             if self._app_config.is_development:
-                logger.warning(
-                    f"Web manifest not found at {self._app_config.web_manifest_path}"
-                )
+                logger.warning(f"Web manifest not found at {self._app_config.web_manifest_path}")
                 return {}
             raise e
-    
+
     def _sanitize_basename(self, basename: str) -> str:
         return basename[:-1] if basename.endswith("/") else basename
 
@@ -156,7 +154,7 @@ class Static(StaticFiles):
                     "platform_version": phoenix.__version__,
                     "request": request,
                     "is_development": self._app_config.is_development,
-                    "manifest": self._web_manifest
+                    "manifest": self._web_manifest,
                 },
             )
         except Exception as e:
