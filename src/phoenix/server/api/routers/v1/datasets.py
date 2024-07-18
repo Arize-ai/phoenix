@@ -482,7 +482,9 @@ async def upload_dataset(
     if sync:
         async with request.app.state.db() as session:
             dataset_id = (await operation(session)).dataset_id
-        return UploadDatasetResponseBody(data=UploadDatasetData(dataset_id=str(dataset_id)))
+        return UploadDatasetResponseBody(
+            data=UploadDatasetData(dataset_id=str(GlobalID(Dataset.__name__, str(dataset_id))))
+        )
     try:
         request.state.enqueue_operation(operation)
     except QueueFull:

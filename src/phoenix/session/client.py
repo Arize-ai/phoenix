@@ -300,14 +300,15 @@ class Client(TraceDataExtractor):
         for otlp_span in otlp_spans:
             serialized = otlp_span.SerializeToString()
             content = gzip.compress(serialized)
-            self._client.post(
+            response = self._client.post(
                 url=urljoin(self._base_url, "v1/traces"),
                 content=content,
                 headers={
                     "content-type": "application/x-protobuf",
                     "content-encoding": "gzip",
                 },
-            ).raise_for_status()
+            )
+            response.raise_for_status()
 
     def _get_dataset_id_by_name(self, name: str) -> str:
         """
