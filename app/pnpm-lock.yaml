@@ -178,9 +178,6 @@ devDependencies:
   cpy-cli:
     specifier: ^5.0.0
     version: 5.0.0
-  esbuild:
-    specifier: ^0.19.12
-    version: 0.19.12
   esbuild-jest:
     specifier: ^0.5.0
     version: 0.5.0(esbuild@0.19.12)

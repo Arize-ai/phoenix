@@ -64,7 +64,6 @@
     "@typescript-eslint/parser": "^7.16.1",
     "@vitejs/plugin-react": "^4.3.1",
     "cpy-cli": "^5.0.0",
-    "esbuild": "^0.19.12",
     "esbuild-jest": "^0.5.0",
     "eslint": "^8.57.0",
     "eslint-plugin-react": "^7.34.4",
