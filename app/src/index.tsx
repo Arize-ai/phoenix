@@ -8,7 +8,7 @@ import ReactDom from "react-dom/client";
  */
 import "vite/modulepreload-polyfill";
 
-import App from "./App";
+import { App } from "./App";
 
 import "normalize.css";
 

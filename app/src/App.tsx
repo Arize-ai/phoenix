@@ -13,7 +13,7 @@ import { AppRoutes } from "./Routes";
 
 import "normalize.css";
 
-function App() {
+export function App() {
   return (
     <ThemeProvider>
       <AppContent />
@@ -21,7 +21,7 @@ function App() {
   );
 }
 
-function AppContent() {
+export function AppContent() {
   const { theme: componentsTheme } = useTheme();
   return (
     <Provider theme={componentsTheme}>
@@ -42,5 +42,3 @@ function AppContent() {
     </Provider>
   );
 }
-
-export default App;

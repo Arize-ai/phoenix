@@ -1,4 +1,5 @@
 import contextlib
+from functools import cached_property
 import json
 import logging
 from datetime import datetime
@@ -105,7 +106,7 @@ class AppConfig(NamedTuple):
     n_neighbors: int
     n_samples: int
     is_development: bool
-    manifest_json_path: Path
+    web_manifest_path: Path
 
 
 class Static(StaticFiles):
@@ -115,15 +116,12 @@ class Static(StaticFiles):
 
     def __init__(self, *, app_config: AppConfig, **kwargs: Any):
         self._app_config = app_config
-        self.manifest = self._load_manifest()
         super().__init__(**kwargs)
 
-    def _load_manifest(self) -> Dict[str, Any]:
-        try:
-            with open(self._app_config.manifest_json_path, "r") as f:
-                return cast(Dict[str, Any], json.load(f))
-        except (FileNotFoundError, json.JSONDecodeError) as e:
-            raise e
+    @cached_property
+    def _web_manifest(self) -> Dict[str, Any]:
+        with open(self._app_config.web_manifest_path, "r") as f:
+            return cast(Dict[str, Any], json.load(f))
 
     async def get_response(self, path: str, scope: Scope) -> Response:
         response = None
@@ -147,7 +145,7 @@ class Static(StaticFiles):
                     "platform_version": phoenix.__version__,
                     "request": request,
                     "is_development": self._app_config.is_development,
-                    "manifest": self.manifest,
+                    "manifest": self._web_manifest
                 },
             )
         except Exception as e:
@@ -512,7 +510,7 @@ def create_app(
                             n_neighbors=umap_params.n_neighbors,
                             n_samples=umap_params.n_samples,
                             is_development=dev,
-                            manifest_json_path=SERVER_DIR / "static" / ".vite" / "manifest.json",
+                            web_manifest_path=SERVER_DIR / "static" / ".vite" / "manifest.json",
                         ),
                     ),
                     name="static",
