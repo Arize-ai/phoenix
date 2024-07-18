@@ -1,5 +1,6 @@
 from random import getrandbits
 
+from httpx import URL
 from phoenix import Client, TraceDataset
 from phoenix.trace.dsl import SpanQuery
 
@@ -8,6 +9,8 @@ def test_spans_with_docs(test_phoenix_clients, span_data_with_documents):
     sync_client, _ = test_phoenix_clients
     client = Client()
     client._client = sync_client
+    client._base_url = str(sync_client.base_url)
+    sync_client._base_url = URL("")
     df = client.get_spans_dataframe()
     new_ids = {span_id: getrandbits(64).to_bytes(8, "big").hex() for span_id in df.index}
     for span_id_col_name in ("context.span_id", "parent_id"):
