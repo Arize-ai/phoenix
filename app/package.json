@@ -87,7 +87,7 @@
     "build": "pnpm run build:relay && pnpm run build:vite",
     "build:relay": "relay-compiler",
     "test": "jest --config ./jest.config.js",
-    "dev": " pnpm run dev:server:demo && pnpm run build:relay && vite",
+    "dev": " pnpm run dev:server:demo & pnpm run build:relay && vite",
     "dev:ui": "pnpm run build:static && pnpm run watch",
     "dev:server:mnist": "python3 -m phoenix.server.main --dev --umap_params 0,30,550 fixture fashion_mnist",
     "dev:server:mnist:single": "python3 -m phoenix.server.main --dev fixture fashion_mnist --primary-only true",
