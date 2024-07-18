@@ -125,7 +125,6 @@ class Static(StaticFiles):
                 return cast(Dict[str, Any], json.load(f))
         except FileNotFoundError as e:
             if self._app_config.is_development:
-                logger.warning(f"Web manifest not found at {self._app_config.web_manifest_path}")
                 return {}
             raise e
 
