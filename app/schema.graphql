@@ -974,9 +974,19 @@ type Project implements Node {
   traceEvaluationNames: [String!]!
 
   """
+  Names of all available annotations for traces. (The list contains no duplicates.)
+  """
+  traceAnnotationsNames: [String!]!
+
+  """
   Names of all available evaluations for spans. (The list contains no duplicates.)
   """
   spanEvaluationNames: [String!]!
+
+  """
+  Names of all available annotations for spans. (The list contains no duplicates.)
+  """
+  spanAnnotationNames: [String!]!
 
   """Names of available document evaluations."""
   documentEvaluationNames(spanId: ID): [String!]!

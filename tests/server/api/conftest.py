@@ -7,6 +7,53 @@ from sqlalchemy import insert
 
 
 @pytest.fixture
+async def span_data_with_documents(session):
+    project = models.Project(name="default")
+    session.add(project)
+    await session.flush()
+
+    trace = models.Trace(
+        project_rowid=project.id,
+        trace_id="61d6af1c1765cf22f5d0454d30a09be7",
+        start_time=datetime.now(),
+        end_time=datetime.now(),
+    )
+    session.add(trace)
+    await session.flush()
+
+    span = models.Span(
+        trace_rowid=trace.id,
+        span_id="f2fbba1d7911049c",
+        name="foo",
+        span_kind="bar",
+        start_time=datetime.now(),
+        end_time=datetime.now(),
+        attributes={
+            "retrieval": {
+                "documents": [
+                    {"document": {"content": "zero"}},
+                    {"document": {"content": "one"}},
+                ]
+            }
+        },
+        events=[
+            {
+                "name": "exception",
+                "timestamp": datetime.now().isoformat(),
+                "exception.message": "uh-oh",
+            }
+        ],
+        status_code="ERROR",
+        status_message="no",
+        cumulative_error_count=1,
+        cumulative_llm_token_count_prompt=0,
+        cumulative_llm_token_count_completion=0,
+    )
+    session.add(span)
+    await session.flush()
+
+
+@pytest.fixture
 async def simple_dataset(session):
     """
     A dataset with one example added in one version

@@ -75,6 +75,9 @@ global _session_working_dir
 _session_working_dir: Optional["TemporaryDirectory[str]"] = None
 
 
+DEFAULT_TIMEOUT_IN_SECONDS = 5
+
+
 class NotebookEnvironment(Enum):
     COLAB = "colab"
     LOCAL = "local"
@@ -152,6 +155,7 @@ class Session(TraceDataExtractor, ABC):
         project_name: Optional[str] = None,
         # Deprecated fields
         stop_time: Optional[datetime] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
         """
         Queries the spans in the project based on the provided parameters.
