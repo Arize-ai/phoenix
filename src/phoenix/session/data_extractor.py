@@ -9,18 +9,7 @@ from phoenix.trace.dsl import SpanQuery
 from phoenix.trace.trace_dataset import TraceDataset
 
 DEFAULT_SPAN_LIMIT = 1000
-
-
-class Unset:
-    """
-    A class to represent an unset value. Needed when there is a meaningful
-    distinction between `None` and an unset parameter.
-    """
-
-    pass
-
-
-UNSET = Unset()
+DEFAULT_TIMEOUT_IN_SECONDS = 5
 
 
 class TraceDataExtractor(ABC):
@@ -38,7 +27,7 @@ class TraceDataExtractor(ABC):
         limit: Optional[int] = DEFAULT_SPAN_LIMIT,
         root_spans_only: Optional[bool] = None,
         project_name: Optional[str] = None,
-        timeout: Union[Optional[int], Unset] = UNSET,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]: ...
 
     def get_spans_dataframe(
@@ -50,7 +39,7 @@ class TraceDataExtractor(ABC):
         limit: Optional[int] = DEFAULT_SPAN_LIMIT,
         root_spans_only: Optional[bool] = None,
         project_name: Optional[str] = None,
-        timeout: Union[Optional[int], Unset] = UNSET,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Optional[pd.DataFrame]:
         return cast(
             Optional[pd.DataFrame],
@@ -79,7 +68,7 @@ class TraceDataExtractor(ABC):
         end_time: Optional[datetime] = None,
         limit: Optional[int] = DEFAULT_SPAN_LIMIT,
         root_spans_only: Optional[bool] = None,
-        timeout: Union[Optional[int], Unset] = UNSET,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Optional[TraceDataset]:
         if (
             dataframe := self.get_spans_dataframe(

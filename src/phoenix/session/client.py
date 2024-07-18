@@ -27,7 +27,6 @@ import httpx
 import pandas as pd
 import pyarrow as pa
 from httpx import HTTPStatusError, Response
-from httpx._client import USE_CLIENT_DEFAULT as USE_HTTPX_CLIENT_DEFAULT
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import ExportTraceServiceRequest
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
 from opentelemetry.proto.resource.v1.resource_pb2 import Resource
@@ -45,12 +44,15 @@ from phoenix.config import (
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.insertion.dataset import DatasetKeys
 from phoenix.experiments.types import Dataset, Example
-from phoenix.session.data_extractor import DEFAULT_SPAN_LIMIT, UNSET, TraceDataExtractor, Unset
+from phoenix.session.data_extractor import DEFAULT_SPAN_LIMIT, TraceDataExtractor
 from phoenix.trace import Evaluations, TraceDataset
 from phoenix.trace.dsl import SpanQuery
 from phoenix.trace.otel import encode_span_to_otlp
 
 logger = logging.getLogger(__name__)
+
+
+DEFAULT_TIMEOUT_IN_SECONDS = 5
 
 DatasetAction: TypeAlias = Literal["create", "append"]
 
@@ -121,7 +123,7 @@ class Client(TraceDataExtractor):
         project_name: Optional[str] = None,
         # Deprecated
         stop_time: Optional[datetime] = None,
-        timeout: Union[Optional[int], Unset] = UNSET,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
         """
         Queries spans from the Phoenix server or active session based on specified criteria.
@@ -161,7 +163,7 @@ class Client(TraceDataExtractor):
                 "limit": limit,
                 "root_spans_only": root_spans_only,
             },
-            timeout=USE_HTTPX_CLIENT_DEFAULT if isinstance(timeout, Unset) else timeout,
+            timeout=timeout,
         )
         if response.status_code == 404:
             logger.info("No spans found.")
