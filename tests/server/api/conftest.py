@@ -39,7 +39,7 @@ async def span_data_with_documents(session):
         events=[
             {
                 "name": "exception",
-                "timestamp": datetime.now(),
+                "timestamp": datetime.now().isoformat(),
                 "exception.message": "uh-oh",
             }
         ],
