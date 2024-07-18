@@ -21,7 +21,7 @@ from typing import (
     Union,
     cast,
 )
-from urllib.parse import quote, urljoin
+from urllib.parse import quote
 
 import httpx
 import pandas as pd
@@ -87,8 +87,9 @@ class Client(TraceDataExtractor):
         if host == "0.0.0.0":
             host = "127.0.0.1"
         base_url = endpoint or get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
-        self._base_url = base_url if base_url.endswith("/") else base_url + "/"
-        self._client = httpx.Client(headers=headers)
+        if not base_url.endswith("/"):
+            base_url += "/"
+        self._client = httpx.Client(base_url=base_url, headers=headers)
         weakref.finalize(self, self._client.close)
         if warn_if_server_not_running:
             self._warn_if_phoenix_is_not_running()
@@ -108,7 +109,7 @@ class Client(TraceDataExtractor):
 
         if session := active_session():
             return session.url
-        return self._base_url
+        return str(self._client.base_url)
 
     def query_spans(
         self,
@@ -147,7 +148,7 @@ class Client(TraceDataExtractor):
             )
             end_time = end_time or stop_time
         response = self._client.post(
-            url=urljoin(self._base_url, "v1/spans"),
+            url="v1/spans",
             params={
                 "project_name": project_name,
                 "project-name": project_name,  # for backward-compatibility
@@ -198,7 +199,7 @@ class Client(TraceDataExtractor):
         """
         project_name = project_name or get_env_project_name()
         response = self._client.get(
-            url=urljoin(self._base_url, "v1/evaluations"),
+            url="v1/evaluations",
             params={
                 "project_name": project_name,
                 "project-name": project_name,  # for backward-compatibility
@@ -222,10 +223,10 @@ class Client(TraceDataExtractor):
 
     def _warn_if_phoenix_is_not_running(self) -> None:
         try:
-            self._client.get(urljoin(self._base_url, "arize_phoenix_version")).raise_for_status()
+            self._client.get("arize_phoenix_version").raise_for_status()
         except Exception:
             logger.warning(
-                f"Arize Phoenix is not running on {self._base_url}. Launch Phoenix "
+                f"Arize Phoenix is not running on {self._client.base_url}. Launch Phoenix "
                 f"with `import phoenix as px; px.launch_app()`"
             )
 
@@ -253,7 +254,7 @@ class Client(TraceDataExtractor):
             with pa.ipc.new_stream(sink, table.schema) as writer:
                 writer.write_table(table)
             self._client.post(
-                url=urljoin(self._base_url, "v1/evaluations"),
+                url="v1/evaluations",
                 content=cast(bytes, sink.getvalue().to_pybytes()),
                 headers=headers,
             ).raise_for_status()
@@ -296,7 +297,7 @@ class Client(TraceDataExtractor):
             serialized = otlp_span.SerializeToString()
             content = gzip.compress(serialized)
             self._client.post(
-                url=urljoin(self._base_url, "v1/traces"),
+                url="v1/traces",
                 content=content,
                 headers={
                     "content-type": "application/x-protobuf",
@@ -315,10 +316,7 @@ class Client(TraceDataExtractor):
         Returns:
              Dataset: The dataset object.
         """
-        response = self._client.get(
-            urljoin(self._base_url, "/v1/datasets"),
-            params={"name": name},
-        )
+        response = self._client.get("v1/datasets", params={"name": name})
         response.raise_for_status()
         if not (records := response.json()["data"]):
             raise ValueError(f"Failed to query dataset by name: {name}")
@@ -358,7 +356,7 @@ class Client(TraceDataExtractor):
             raise ValueError("Dataset id or name must be provided.")
 
         response = self._client.get(
-            urljoin(self._base_url, f"/v1/datasets/{quote(id)}/examples"),
+            url=f"v1/datasets/{quote(id)}/examples",
             params={"version_id": version_id} if version_id else None,
         )
         response.raise_for_status()
@@ -399,8 +397,8 @@ class Client(TraceDataExtractor):
         Returns:
             pandas DataFrame
         """
-        url = urljoin(self._base_url, f"v1/datasets/{dataset_id}/versions")
-        response = httpx.get(url=url, params={"limit": limit})
+        url = f"v1/datasets/{dataset_id}/versions"
+        response = httpx.get(url, params={"limit": limit})
         response.raise_for_status()
         if not (records := response.json()["data"]):
             return pd.DataFrame()
@@ -621,7 +619,7 @@ class Client(TraceDataExtractor):
             assert_never(table)
         print("📤 Uploading dataset...")
         response = self._client.post(
-            url=urljoin(self._base_url, "v1/datasets/upload"),
+            url="v1/datasets/upload",
             files={"file": file},
             data={
                 "action": action,
@@ -678,7 +676,7 @@ class Client(TraceDataExtractor):
                 )
         print("📤 Uploading dataset...")
         response = self._client.post(
-            url=urljoin(self._base_url, "v1/datasets/upload"),
+            url="v1/datasets/upload",
             headers={"Content-Encoding": "gzip"},
             json={
                 "action": action,
@@ -701,9 +699,7 @@ class Client(TraceDataExtractor):
             raise
         data = response.json()["data"]
         dataset_id = data["dataset_id"]
-        response = self._client.get(
-            url=urljoin(self._base_url, f"v1/datasets/{dataset_id}/examples")
-        )
+        response = self._client.get(f"v1/datasets/{dataset_id}/examples")
         response.raise_for_status()
         data = response.json()["data"]
         version_id = data["version_id"]
