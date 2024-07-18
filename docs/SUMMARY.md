@@ -30,6 +30,7 @@
       * [LlamaIndex](tracing/how-to-tracing/instrumentation/auto-instrument-python/llamaindex.md)
       * [LangChain](tracing/how-to-tracing/instrumentation/auto-instrument-python/langchain.md)
       * [OpenAI](tracing/how-to-tracing/instrumentation/auto-instrument-python/openai.md)
+      * [VertexAI](tracing/how-to-tracing/instrumentation/auto-instrument-python/vertexai.md)
       * [MistralAI](tracing/how-to-tracing/instrumentation/auto-instrument-python/mistralai.md)
       * [DSPy](tracing/how-to-tracing/instrumentation/auto-instrument-python/dspy.md)
       * [Bedrock](tracing/how-to-tracing/instrumentation/auto-instrument-python/bedrock.md)
