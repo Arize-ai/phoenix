@@ -51,6 +51,9 @@ from phoenix.trace.otel import encode_span_to_otlp
 
 logger = logging.getLogger(__name__)
 
+
+DEFAULT_TIMEOUT_IN_SECONDS = 5
+
 DatasetAction: TypeAlias = Literal["create", "append"]
 
 
@@ -120,6 +123,7 @@ class Client(TraceDataExtractor):
         project_name: Optional[str] = None,
         # Deprecated
         stop_time: Optional[datetime] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
         """
         Queries spans from the Phoenix server or active session based on specified criteria.
@@ -159,6 +163,7 @@ class Client(TraceDataExtractor):
                 "limit": limit,
                 "root_spans_only": root_spans_only,
             },
+            timeout=timeout,
         )
         if response.status_code == 404:
             logger.info("No spans found.")
