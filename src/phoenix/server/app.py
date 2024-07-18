@@ -120,8 +120,19 @@ class Static(StaticFiles):
 
     @cached_property
     def _web_manifest(self) -> Dict[str, Any]:
-        with open(self._app_config.web_manifest_path, "r") as f:
-            return cast(Dict[str, Any], json.load(f))
+        try:
+            with open(self._app_config.web_manifest_path, "r") as f:
+                return cast(Dict[str, Any], json.load(f))
+        except FileNotFoundError as e:
+            if self._app_config.is_development:
+                logger.warning(
+                    f"Web manifest not found at {self._app_config.web_manifest_path}"
+                )
+                return {}
+            raise e
+    
+    def _sanitize_basename(self, basename: str) -> str:
+        return basename[:-1] if basename.endswith("/") else basename
 
     async def get_response(self, path: str, scope: Scope) -> Response:
         response = None
@@ -141,7 +152,7 @@ class Static(StaticFiles):
                     "min_dist": self._app_config.min_dist,
                     "n_neighbors": self._app_config.n_neighbors,
                     "n_samples": self._app_config.n_samples,
-                    "basename": request.scope.get("root_path", ""),
+                    "basename": self._sanitize_basename(request.scope.get("root_path", "")),
                     "platform_version": phoenix.__version__,
                     "request": request,
                     "is_development": self._app_config.is_development,
