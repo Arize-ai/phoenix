@@ -263,6 +263,22 @@ class Project(Node):
             return list(await session.scalars(stmt))
 
     @strawberry.field(
+        description="Names of all available annotations for traces. "
+        "(The list contains no duplicates.)"
+    )  # type: ignore
+    async def trace_annotations_names(
+        self,
+        info: Info[Context, None],
+    ) -> List[str]:
+        stmt = (
+            select(distinct(models.TraceAnnotation.name))
+            .join(models.Trace)
+            .where(models.Trace.project_rowid == self.id_attr)
+        )
+        async with info.context.db() as session:
+            return list(await session.scalars(stmt))
+
+    @strawberry.field(
         description="Names of all available evaluations for spans. "
         "(The list contains no duplicates.)"
     )  # type: ignore
@@ -276,6 +292,23 @@ class Project(Node):
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
             .where(models.Trace.project_rowid == self.id_attr)
             .where(models.SpanAnnotation.annotator_kind == "LLM")
+        )
+        async with info.context.db() as session:
+            return list(await session.scalars(stmt))
+
+    @strawberry.field(
+        description="Names of all available annotations for spans. "
+        "(The list contains no duplicates.)"
+    )  # type: ignore
+    async def span_annotation_names(
+        self,
+        info: Info[Context, None],
+    ) -> List[str]:
+        stmt = (
+            select(distinct(models.SpanAnnotation.name))
+            .join(models.Span)
+            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+            .where(models.Trace.project_rowid == self.id_attr)
         )
         async with info.context.db() as session:
             return list(await session.scalars(stmt))
