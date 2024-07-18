@@ -82,7 +82,7 @@
           writable: false
       });
   })()</script>
-    {% if not is_development %}
+    {% if is_development %}
       <script type="module">
         import RefreshRuntime from 'http://localhost:5173/@react-refresh'
         RefreshRuntime.injectIntoGlobalHook(window)

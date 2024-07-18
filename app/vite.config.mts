@@ -4,10 +4,15 @@ import { visualizer } from "rollup-plugin-visualizer";
 import { defineConfig } from "vite";
 import relay from "vite-plugin-relay";
 
-export default defineConfig(({ command, mode }) => {
+export default defineConfig(({ command }) => {
+  const plugins = [react(), relay];
+  // Development uses the serve command
+  if (command === "serve") {
+    plugins.push(visualizer());
+  }
   return {
     root: resolve(__dirname, "src"),
-    plugins: [react(), relay, visualizer()],
+    plugins,
     publicDir: resolve(__dirname, "static"),
     preview: {
       port: 6006,
