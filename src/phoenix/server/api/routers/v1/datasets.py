@@ -245,7 +245,7 @@ async def get_dataset(
 
 class DatasetVersion(V1RoutesBaseModel):
     version_id: str
-    description: str
+    description: Optional[str]
     metadata: Dict[str, Any]
     created_at: datetime
 
