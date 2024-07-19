@@ -4,10 +4,13 @@
         "url": "https://arize-phoenix.readthedocs.io/en/latest/"
     },
     {
-        "name": "4.8.1",
-        "version": "v4.8.1",
-        "url": "https://arize-phoenix.readthedocs.io/en/arize-phoenix-v4.8.1/",
+        "version": "v4.9.0",
+        "url": "https://arize-phoenix.readthedocs.io/en/latest/",
         "preferred": true
+    },
+    {
+        "version": "v4.8.1",
+        "url": "https://arize-phoenix.readthedocs.io/en/latest/"
     },
     {
         "name": "4.8.0",

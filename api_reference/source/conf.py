@@ -160,17 +160,18 @@ elif version_match == "stable":
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "pydata_sphinx_theme"
-# pygments_style = "sphinx"  # Name of the Pygments (syntax highlighting) style to use.
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
 html_js_files = ["custom.js"]
 html_show_sphinx = False
+# html_favicon = "favicon.ico"
+# pygments_style = "sphinx"  # Name of the Pygments (syntax highlighting) style to use.
 
 html_theme_options = {
     "logo": {
         "text": "Phoenix API",
         "image_light": "logo.png",
-        "image_dark": "logo_dark.png",
+        "image_dark": "logo.png",
     },
     "icon_links": [
         {
