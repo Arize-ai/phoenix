@@ -163,8 +163,8 @@ prompt_template = "Please describe the weather forecast for {city} on {date}"
 prompt_template_variables = {"city": "Johannesburg", "date":"July 11"}
 with using_prompt_template(
     template=prompt_template,
-    version=prompt_template_variables,
-    variables="v1.0",
+    variables=prompt_template_variables,
+    version="v1.0",
     ):
     # Calls within this block will generate spans with the attributes:
     # "llm.prompt_template.template" = "Please describe the weather forecast for {city} on {date}"
@@ -178,8 +178,8 @@ It can also be used as a decorator:
 ```python
 @using_prompt_template(
     template=prompt_template,
-    version=prompt_template_variables,
-    variables="v1.0",
+    variables=prompt_template_variables,
+    version="v1.0",
 )
 def call_fn(*args, **kwargs):
     # Calls within this function will generate spans with the attributes:
