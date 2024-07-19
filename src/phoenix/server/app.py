@@ -250,70 +250,71 @@ def create_graphql_router(
     cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
     read_only: bool = False,
 ) -> GraphQLRouter:  # type: ignore[type-arg]
-    context = Context(
-        db=db,
-        model=model,
-        corpus=corpus,
-        export_path=export_path,
-        streaming_last_updated_at=streaming_last_updated_at,
-        data_loaders=DataLoaders(
-            average_experiment_run_latency=AverageExperimentRunLatencyDataLoader(db),
-            dataset_example_revisions=DatasetExampleRevisionsDataLoader(db),
-            dataset_example_spans=DatasetExampleSpansDataLoader(db),
-            document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
-                db,
-                cache_map=cache_for_dataloaders.document_evaluation_summary
-                if cache_for_dataloaders
-                else None,
+    def get_context() -> Context:
+        return Context(
+            db=db,
+            model=model,
+            corpus=corpus,
+            export_path=export_path,
+            streaming_last_updated_at=streaming_last_updated_at,
+            data_loaders=DataLoaders(
+                average_experiment_run_latency=AverageExperimentRunLatencyDataLoader(db),
+                dataset_example_revisions=DatasetExampleRevisionsDataLoader(db),
+                dataset_example_spans=DatasetExampleSpansDataLoader(db),
+                document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
+                    db,
+                    cache_map=cache_for_dataloaders.document_evaluation_summary
+                    if cache_for_dataloaders
+                    else None,
+                ),
+                document_evaluations=DocumentEvaluationsDataLoader(db),
+                document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(db),
+                evaluation_summaries=EvaluationSummaryDataLoader(
+                    db,
+                    cache_map=cache_for_dataloaders.evaluation_summary
+                    if cache_for_dataloaders
+                    else None,
+                ),
+                experiment_annotation_summaries=ExperimentAnnotationSummaryDataLoader(db),
+                experiment_error_rates=ExperimentErrorRatesDataLoader(db),
+                experiment_run_counts=ExperimentRunCountsDataLoader(db),
+                experiment_sequence_number=ExperimentSequenceNumberDataLoader(db),
+                latency_ms_quantile=LatencyMsQuantileDataLoader(
+                    db,
+                    cache_map=cache_for_dataloaders.latency_ms_quantile
+                    if cache_for_dataloaders
+                    else None,
+                ),
+                min_start_or_max_end_times=MinStartOrMaxEndTimeDataLoader(
+                    db,
+                    cache_map=cache_for_dataloaders.min_start_or_max_end_time
+                    if cache_for_dataloaders
+                    else None,
+                ),
+                record_counts=RecordCountDataLoader(
+                    db,
+                    cache_map=cache_for_dataloaders.record_count if cache_for_dataloaders else None,
+                ),
+                span_annotations=SpanAnnotationsDataLoader(db),
+                span_descendants=SpanDescendantsDataLoader(db),
+                span_evaluations=SpanEvaluationsDataLoader(db),
+                span_projects=SpanProjectsDataLoader(db),
+                token_counts=TokenCountDataLoader(
+                    db,
+                    cache_map=cache_for_dataloaders.token_count if cache_for_dataloaders else None,
+                ),
+                trace_evaluations=TraceEvaluationsDataLoader(db),
+                trace_row_ids=TraceRowIdsDataLoader(db),
+                project_by_name=ProjectByNameDataLoader(db),
             ),
-            document_evaluations=DocumentEvaluationsDataLoader(db),
-            document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(db),
-            evaluation_summaries=EvaluationSummaryDataLoader(
-                db,
-                cache_map=cache_for_dataloaders.evaluation_summary
-                if cache_for_dataloaders
-                else None,
-            ),
-            experiment_annotation_summaries=ExperimentAnnotationSummaryDataLoader(db),
-            experiment_error_rates=ExperimentErrorRatesDataLoader(db),
-            experiment_run_counts=ExperimentRunCountsDataLoader(db),
-            experiment_sequence_number=ExperimentSequenceNumberDataLoader(db),
-            latency_ms_quantile=LatencyMsQuantileDataLoader(
-                db,
-                cache_map=cache_for_dataloaders.latency_ms_quantile
-                if cache_for_dataloaders
-                else None,
-            ),
-            min_start_or_max_end_times=MinStartOrMaxEndTimeDataLoader(
-                db,
-                cache_map=cache_for_dataloaders.min_start_or_max_end_time
-                if cache_for_dataloaders
-                else None,
-            ),
-            record_counts=RecordCountDataLoader(
-                db,
-                cache_map=cache_for_dataloaders.record_count if cache_for_dataloaders else None,
-            ),
-            span_annotations=SpanAnnotationsDataLoader(db),
-            span_descendants=SpanDescendantsDataLoader(db),
-            span_evaluations=SpanEvaluationsDataLoader(db),
-            span_projects=SpanProjectsDataLoader(db),
-            token_counts=TokenCountDataLoader(
-                db,
-                cache_map=cache_for_dataloaders.token_count if cache_for_dataloaders else None,
-            ),
-            trace_evaluations=TraceEvaluationsDataLoader(db),
-            trace_row_ids=TraceRowIdsDataLoader(db),
-            project_by_name=ProjectByNameDataLoader(db),
-        ),
-        cache_for_dataloaders=cache_for_dataloaders,
-        read_only=read_only,
-    )
+            cache_for_dataloaders=cache_for_dataloaders,
+            read_only=read_only,
+        )
 
     return GraphQLRouter(
         schema,
         graphiql=True,
-        context_getter=lambda: context,
+        context_getter=get_context,
         include_in_schema=False,
         prefix="/graphql",
     )
