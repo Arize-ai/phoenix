@@ -34,7 +34,8 @@ def llm_generate(
 ) -> pd.DataFrame:
     """
     Generates a text using a template using an LLM. This function is useful
-    if you want to generate synthetic data, such as irrelevant responses
+    if you want to generate synthetic data, such as irrelevant responses.
+
     Args:
         dataframe (pandas.DataFrame): A pandas dataframe in which each row
             represents a record to be used as in input to the template. All
@@ -75,7 +76,6 @@ def llm_generate(
     Returns:
         generations_dataframe (pandas.DataFrame): A dataframe where each row
             represents the generated output.
-
     """
     concurrency = concurrency or model.default_concurrency
 

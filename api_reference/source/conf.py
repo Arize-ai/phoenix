@@ -10,6 +10,7 @@ https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 import os
 import sys
+
 import phoenix
 
 # Path setup for autodoc
@@ -58,6 +59,7 @@ def clean_doc_output(app, docname, source):
 
         source[0] = "\n".join(processed)
 
+
 def setup(app):
     app.add_css_file("custom.css")
     app.add_js_file("custom.js")
@@ -79,7 +81,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "myst_parser",
-    "sphinx_design"
+    "sphinx_design",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -192,12 +194,16 @@ html_theme_options = {
     "navbar_start": ["navbar-logo", "version-switcher"],
     "switcher": {
         "json_url": json_url,
-        "version_match": version_match,
+        "version_match": release,
     },
+    "secondary_sidebar_items": [],
     "footer_start": [],
     "footer_end": ["copyright"],
     "show_nav_level": 2,
-    "show_toc_level": 4
+    "show_toc_level": 4.0,
 }
 
-html_sidebars = {"**": ["sidebar-nav-bs"]}
+html_sidebars = {
+    "**": ["page-toc"],
+    "index": [],
+}

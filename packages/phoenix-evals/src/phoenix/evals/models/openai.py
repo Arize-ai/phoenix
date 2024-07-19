@@ -99,17 +99,16 @@ class OpenAIModel(BaseModel):
             Defaults to None.
 
     Examples:
+        After setting the OPENAI_API_KEY environment variable:
         .. code-block:: python
-
-            # Set the OPENAI_API_KEY environment variable
 
             from phoenix.evals import OpenAIModel
             model = OpenAIModel(model="gpt-4o")
 
-        Using OpenAI models via Azure is similar:
+        Using OpenAI models via Azure is similar (after setting the AZURE_OPENAI_API_KEY
+        environment variable):
 
         .. code-block:: python
-            # Set the AZURE_OPENAI_API_KEY environment variable
 
             from phoenix.evals import OpenAIModel
             model = OpenAIModel(

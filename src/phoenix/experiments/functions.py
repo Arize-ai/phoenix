@@ -120,21 +120,23 @@ def run_experiment(
     output. If the `task` is a function of one argument then that argument will be bound to the
     `input` field of the dataset example. Alternatively, the `task` can be a function of any
     combination of specific argument names that will be bound to special values:
-        `input`: The input field of the dataset example
-        `expected`: The expected or reference output of the dataset example
-        `reference`: An alias for `expected`
-        `metadata`: Metadata associated with the dataset example
-        `example`: The dataset `Example` object with all associated fields
+
+    - `input`: The input field of the dataset example
+    - `expected`: The expected or reference output of the dataset example
+    - `reference`: An alias for `expected`
+    - `metadata`: Metadata associated with the dataset example
+    - `example`: The dataset `Example` object with all associated fields
 
     An `evaluator` is either a synchronous or asynchronous function that returns either a boolean
     or numeric "score". If the `evaluator` is a function of one argument then that argument will be
     bound to the `output` of the task. Alternatively, the `evaluator` can be a function of any
     combination of specific argument names that will be bound to special values:
-        `input`: The input field of the dataset example
-        `output`: The output of the task
-        `expected`: The expected or reference output of the dataset example
-        `reference`: An alias for `expected`
-        `metadata`: Metadata associated with the dataset example
+
+    - `input`: The input field of the dataset example
+    - `output`: The output of the task
+    - `expected`: The expected or reference output of the dataset example
+    - `reference`: An alias for `expected`
+    - `metadata`: Metadata associated with the dataset example
 
     Phoenix also provides pre-built evaluators in the `phoenix.experiments.evaluators` module.
 
