@@ -1,6 +1,8 @@
 import contextlib
+import json
 import logging
 from datetime import datetime
+from functools import cached_property
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -103,6 +105,8 @@ class AppConfig(NamedTuple):
     min_dist: float
     n_neighbors: int
     n_samples: int
+    is_development: bool
+    web_manifest_path: Path
 
 
 class Static(StaticFiles):
@@ -113,6 +117,19 @@ class Static(StaticFiles):
     def __init__(self, *, app_config: AppConfig, **kwargs: Any):
         self._app_config = app_config
         super().__init__(**kwargs)
+
+    @cached_property
+    def _web_manifest(self) -> Dict[str, Any]:
+        try:
+            with open(self._app_config.web_manifest_path, "r") as f:
+                return cast(Dict[str, Any], json.load(f))
+        except FileNotFoundError as e:
+            if self._app_config.is_development:
+                return {}
+            raise e
+
+    def _sanitize_basename(self, basename: str) -> str:
+        return basename[:-1] if basename.endswith("/") else basename
 
     async def get_response(self, path: str, scope: Scope) -> Response:
         response = None
@@ -132,9 +149,11 @@ class Static(StaticFiles):
                     "min_dist": self._app_config.min_dist,
                     "n_neighbors": self._app_config.n_neighbors,
                     "n_samples": self._app_config.n_samples,
-                    "basename": request.scope.get("root_path", ""),
+                    "basename": self._sanitize_basename(request.scope.get("root_path", "")),
                     "platform_version": phoenix.__version__,
                     "request": request,
+                    "is_development": self._app_config.is_development,
+                    "manifest": self._web_manifest,
                 },
             )
         except Exception as e:
@@ -379,6 +398,7 @@ def create_app(
     umap_params: UMAPParameters,
     corpus: Optional[Model] = None,
     debug: bool = False,
+    dev: bool = False,
     read_only: bool = False,
     enable_prometheus: bool = False,
     initial_spans: Optional[Iterable[Union[Span, Tuple[Span, str]]]] = None,
@@ -497,6 +517,8 @@ def create_app(
                             min_dist=umap_params.min_dist,
                             n_neighbors=umap_params.n_neighbors,
                             n_samples=umap_params.n_samples,
+                            is_development=dev,
+                            web_manifest_path=SERVER_DIR / "static" / ".vite" / "manifest.json",
                         ),
                     ),
                     name="static",

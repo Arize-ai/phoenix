@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a4be71a3322de7e7d9f02feb316f5c10>>
+ * @generated SignedSource<<b125443b2248e14e5f864d50de28bae6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -28,6 +28,8 @@ export type ModelEmbeddingsTable_embeddingDimensions$key = {
   readonly " $data"?: ModelEmbeddingsTable_embeddingDimensions$data;
   readonly " $fragmentSpreads": FragmentRefs<"ModelEmbeddingsTable_embeddingDimensions">;
 };
+
+import ModelEmbeddingsTableEmbeddingDimensionsQuery_graphql from './ModelEmbeddingsTableEmbeddingDimensionsQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = [
@@ -77,7 +79,7 @@ return {
         "path": (v0/*: any*/)
       },
       "fragmentPathInResult": [],
-      "operation": require('./ModelEmbeddingsTableEmbeddingDimensionsQuery.graphql')
+      "operation": ModelEmbeddingsTableEmbeddingDimensionsQuery_graphql
     }
   },
   "name": "ModelEmbeddingsTable_embeddingDimensions",
