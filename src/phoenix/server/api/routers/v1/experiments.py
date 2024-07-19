@@ -110,7 +110,7 @@ async def create_experiment(
             )
         except ValueError:
             raise HTTPException(
-                detail="DatasetVersion with ID {dataset_version_globalid} does not exist",
+                detail=f"DatasetVersion with ID {dataset_version_globalid_str} does not exist",
                 status_code=HTTP_404_NOT_FOUND,
             )
 
