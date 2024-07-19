@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, Dict, Literal, Optional
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import Field
 from starlette.requests import Request
 from starlette.status import HTTP_404_NOT_FOUND
 from strawberry.relay import GlobalID
@@ -12,12 +12,13 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
+from .pydantic_compat import V1RoutesBaseModel
 from .utils import ResponseBody, add_errors_to_responses
 
 router = APIRouter(tags=["experiments"], include_in_schema=False)
 
 
-class ExperimentEvaluationResult(BaseModel):
+class ExperimentEvaluationResult(V1RoutesBaseModel):
     label: Optional[str] = Field(default=None, description="The label assigned by the evaluation")
     score: Optional[float] = Field(default=None, description="The score assigned by the evaluation")
     explanation: Optional[str] = Field(
@@ -25,7 +26,7 @@ class ExperimentEvaluationResult(BaseModel):
     )
 
 
-class UpsertExperimentEvaluationRequestBody(BaseModel):
+class UpsertExperimentEvaluationRequestBody(V1RoutesBaseModel):
     experiment_run_id: str = Field(description="The ID of the experiment run being evaluated")
     name: str = Field(description="The name of the evaluation")
     annotator_kind: Literal["LLM", "CODE", "HUMAN"] = Field(
@@ -43,7 +44,7 @@ class UpsertExperimentEvaluationRequestBody(BaseModel):
     trace_id: Optional[str] = Field(default=None, description="Optional trace ID for tracking")
 
 
-class UpsertExperimentEvaluationResponseBodyData(BaseModel):
+class UpsertExperimentEvaluationResponseBodyData(V1RoutesBaseModel):
     id: str = Field(description="The ID of the upserted experiment evaluation")
 
 

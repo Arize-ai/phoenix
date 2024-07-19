@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, List, Optional
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import Field
 from sqlalchemy import select
 from starlette.requests import Request
 from starlette.status import HTTP_404_NOT_FOUND
@@ -12,12 +12,13 @@ from phoenix.db import models
 from phoenix.db.models import ExperimentRunOutput
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
+from .pydantic_compat import V1RoutesBaseModel
 from .utils import ResponseBody, add_errors_to_responses
 
 router = APIRouter(tags=["experiments"], include_in_schema=False)
 
 
-class ExperimentRun(BaseModel):
+class ExperimentRun(V1RoutesBaseModel):
     dataset_example_id: str = Field(
         description="The ID of the dataset example used in the experiment run"
     )
@@ -38,7 +39,7 @@ class CreateExperimentRunRequestBody(ExperimentRun):
     pass
 
 
-class CreateExperimentRunResponseBodyData(BaseModel):
+class CreateExperimentRunResponseBodyData(V1RoutesBaseModel):
     id: str = Field(description="The ID of the newly created experiment run")
 
 

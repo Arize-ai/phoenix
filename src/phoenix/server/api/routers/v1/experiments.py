@@ -3,7 +3,7 @@ from random import getrandbits
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import Field
 from sqlalchemy import select
 from starlette.requests import Request
 from starlette.status import HTTP_404_NOT_FOUND
@@ -14,6 +14,7 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
+from .pydantic_compat import V1RoutesBaseModel
 from .utils import ResponseBody, add_errors_to_responses
 
 router = APIRouter(tags=["experiments"], include_in_schema=False)
@@ -31,7 +32,7 @@ def _generate_experiment_name(dataset_name: str) -> str:
     return f"{short_ds_name}-{_short_uuid()}"
 
 
-class Experiment(BaseModel):
+class Experiment(V1RoutesBaseModel):
     id: str = Field(description="The ID of the experiment")
     dataset_id: str = Field(description="The ID of the dataset associated with the experiment")
     dataset_version_id: str = Field(
@@ -46,7 +47,7 @@ class Experiment(BaseModel):
     updated_at: datetime = Field(description="The last update timestamp of the experiment")
 
 
-class CreateExperimentRequestBody(BaseModel):
+class CreateExperimentRequestBody(V1RoutesBaseModel):
     """
     Details of the experiment to be created
     """

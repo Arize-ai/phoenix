@@ -7,7 +7,7 @@ from google.protobuf.message import DecodeError
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
-from pydantic import BaseModel, Field
+from pydantic import Field
 from sqlalchemy import select
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
@@ -27,6 +27,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.utilities.project import get_project_name
 
+from .pydantic_compat import V1RoutesBaseModel
 from .utils import RequestBody, ResponseBody, add_errors_to_responses
 
 router = APIRouter(tags=["traces"], include_in_schema=False)
@@ -90,7 +91,7 @@ async def post_traces(
     return None
 
 
-class TraceAnnotationResult(BaseModel):
+class TraceAnnotationResult(V1RoutesBaseModel):
     label: Optional[str] = Field(default=None, description="The label assigned by the annotation")
     score: Optional[float] = Field(default=None, description="The score assigned by the annotation")
     explanation: Optional[str] = Field(
@@ -98,7 +99,7 @@ class TraceAnnotationResult(BaseModel):
     )
 
 
-class TraceAnnotation(BaseModel):
+class TraceAnnotation(V1RoutesBaseModel):
     trace_id: str = Field(description="The ID of the trace being annotated")
     name: str = Field(description="The name of the annotation")
     annotator_kind: Literal["LLM", "HUMAN"] = Field(
@@ -116,7 +117,7 @@ class AnnotateTracesRequestBody(RequestBody[List[TraceAnnotation]]):
     data: List[TraceAnnotation] = Field(description="The trace annotations to be upserted")
 
 
-class InsertedTraceAnnotation(BaseModel):
+class InsertedTraceAnnotation(V1RoutesBaseModel):
     id: str = Field(description="The ID of the inserted trace annotation")
 
 

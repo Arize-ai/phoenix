@@ -1,7 +1,8 @@
 from typing import Any, Dict, Generic, List, Optional, TypedDict, Union
 
-from pydantic import BaseModel
 from typing_extensions import TypeAlias, TypeVar, assert_never
+
+from .pydantic_compat import V1RoutesBaseModel
 
 StatusCode: TypeAlias = int
 DataType = TypeVar("DataType")
@@ -20,7 +21,7 @@ class StatusCodeWithDescription(TypedDict):
     description: str
 
 
-class RequestBody(BaseModel, Generic[DataType]):
+class RequestBody(V1RoutesBaseModel, Generic[DataType]):
     # A generic request type accepted by V1 routes.
     #
     # Don't use """ for this docstring or it will be included as a description
@@ -28,7 +29,7 @@ class RequestBody(BaseModel, Generic[DataType]):
     data: DataType
 
 
-class ResponseBody(BaseModel, Generic[DataType]):
+class ResponseBody(V1RoutesBaseModel, Generic[DataType]):
     # A generic response type returned by V1 routes.
     #
     # Don't use """ for this docstring or it will be included as a description
@@ -37,7 +38,7 @@ class ResponseBody(BaseModel, Generic[DataType]):
     data: DataType
 
 
-class PaginatedResponseBody(BaseModel, Generic[DataType]):
+class PaginatedResponseBody(V1RoutesBaseModel, Generic[DataType]):
     # A generic paginated response type returned by V1 routes.
     #
     # Don't use """ for this docstring or it will be included as a description

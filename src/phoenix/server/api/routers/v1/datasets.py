@@ -30,7 +30,6 @@ import pandas as pd
 import pyarrow as pa
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Path, Query
 from fastapi.responses import PlainTextResponse, StreamingResponse
-from pydantic import BaseModel
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
@@ -63,6 +62,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_projects, delete_traces
 
 from .dataset_examples import router as dataset_examples_router
+from .pydantic_compat import V1RoutesBaseModel
 from .utils import (
     PaginatedResponseBody,
     ResponseBody,
@@ -79,7 +79,7 @@ DATASET_VERSION_NODE_NAME = DatasetVersionNodeType.__name__
 router = APIRouter(tags=["datasets"])
 
 
-class Dataset(BaseModel):
+class Dataset(V1RoutesBaseModel):
     id: str
     name: str
     description: Optional[str]
@@ -243,7 +243,7 @@ async def get_dataset(
         return GetDatasetResponseBody(data=dataset)
 
 
-class DatasetVersion(BaseModel):
+class DatasetVersion(V1RoutesBaseModel):
     version_id: str
     description: str
     metadata: Dict[str, Any]
@@ -323,7 +323,7 @@ async def list_dataset_versions(
     return ListDatasetVersionsResponseBody(data=data, next_cursor=next_cursor)
 
 
-class UploadDatasetData(BaseModel):
+class UploadDatasetData(V1RoutesBaseModel):
     dataset_id: str
 
 

@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Any, AsyncIterator, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import Field
 from sqlalchemy import select
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
@@ -18,6 +18,7 @@ from phoenix.server.api.routers.utils import df_to_bytes
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.trace.dsl import SpanQuery as SpanQuery_
 
+from .pydantic_compat import V1RoutesBaseModel
 from .utils import RequestBody, ResponseBody, add_errors_to_responses
 
 DEFAULT_SPAN_LIMIT = 1000
@@ -25,7 +26,7 @@ DEFAULT_SPAN_LIMIT = 1000
 router = APIRouter(tags=["traces"], include_in_schema=False)
 
 
-class SpanQuery(BaseModel):
+class SpanQuery(V1RoutesBaseModel):
     select: Optional[Dict[str, Any]] = None
     filter: Optional[Dict[str, Any]] = None
     explode: Optional[Dict[str, Any]] = None
@@ -34,7 +35,7 @@ class SpanQuery(BaseModel):
     index: Optional[Dict[str, Any]] = None
 
 
-class QuerySpansRequestBody(BaseModel):
+class QuerySpansRequestBody(V1RoutesBaseModel):
     queries: List[SpanQuery]
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
@@ -133,7 +134,7 @@ async def get_spans_handler(
     return await query_spans_handler(request, request_body, project_name)
 
 
-class SpanAnnotationResult(BaseModel):
+class SpanAnnotationResult(V1RoutesBaseModel):
     label: Optional[str] = Field(default=None, description="The label assigned by the annotation")
     score: Optional[float] = Field(default=None, description="The score assigned by the annotation")
     explanation: Optional[str] = Field(
@@ -141,7 +142,7 @@ class SpanAnnotationResult(BaseModel):
     )
 
 
-class SpanAnnotation(BaseModel):
+class SpanAnnotation(V1RoutesBaseModel):
     span_id: str = Field(description="The ID of the span being annotated")
     name: str = Field(description="The name of the annotation")
     annotator_kind: Literal["LLM", "HUMAN"] = Field(
@@ -159,7 +160,7 @@ class AnnotateSpansRequestBody(RequestBody[List[SpanAnnotation]]):
     data: List[SpanAnnotation]
 
 
-class InsertedSpanAnnotation(BaseModel):
+class InsertedSpanAnnotation(V1RoutesBaseModel):
     id: str = Field(description="The ID of the inserted span annotation")
 
 

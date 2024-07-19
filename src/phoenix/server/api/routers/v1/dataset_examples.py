@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Path, Query
-from pydantic import BaseModel
 from sqlalchemy import and_, func, select
 from starlette.requests import Request
 from starlette.status import HTTP_404_NOT_FOUND
@@ -21,12 +20,13 @@ from phoenix.db.models import (
     DatasetVersion as ORMDatasetVersion,
 )
 
+from .pydantic_compat import V1RoutesBaseModel
 from .utils import ResponseBody, add_errors_to_responses
 
 router = APIRouter(tags=["datasets"])
 
 
-class DatasetExample(BaseModel):
+class DatasetExample(V1RoutesBaseModel):
     id: str
     input: Dict[str, Any]
     output: Dict[str, Any]
@@ -34,7 +34,7 @@ class DatasetExample(BaseModel):
     updated_at: datetime
 
 
-class ListDatasetExamplesData(BaseModel):
+class ListDatasetExamplesData(V1RoutesBaseModel):
     dataset_id: str
     version_id: str
     examples: List[DatasetExample]
