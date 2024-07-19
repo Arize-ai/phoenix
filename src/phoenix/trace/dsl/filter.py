@@ -860,6 +860,7 @@ def _parse_annotation_expressions_and_names(
             quoted_eval_name,
             evaluation_attribute_name,
         ) = match.groups()
+        annotation_type = typing.cast(AnnotationType, annotation_type)
         yield (
             annotation_expression,
             annotation_type,
