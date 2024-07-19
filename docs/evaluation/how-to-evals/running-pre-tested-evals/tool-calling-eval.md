@@ -2,7 +2,7 @@
 
 This Tool Call aka Function Call eval can be used to determine how well a model selects a tool to use, extracts the right parameters from the user query, and generates the tool call code.
 
-[Full Notebook Walkthrough](https://github.com/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate\_tool\_calling.ipynb)
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/b107d9bc848efd38f030a8c72954e89616c43723/tutorials/evals/evaluate_tool_calling.ipynb" %}
 
 **Eval Prompt:**
 
