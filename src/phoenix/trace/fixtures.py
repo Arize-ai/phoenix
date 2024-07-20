@@ -86,7 +86,7 @@ class TracesFixture:
 llama_index_rag_fixture = TracesFixture(
     name="llama_index_rag",
     description="Traces from running the llama_index on a RAG use case.",
-    file_name="llama_index_rag_v8.jsonl",
+    file_name="llama_index_rag_v8.parquet",
     evaluation_fixtures=(
         EvaluationFixture(
             evaluation_name="Q&A Correctness",
@@ -136,37 +136,37 @@ llama_index_rag_fixture = TracesFixture(
 llama_index_calculator_agent_fixture = TracesFixture(
     name="llama_index_calculator_agent",
     description="Traces from running the llama_index with calculator tools.",
-    file_name="llama_index_calculator_agent_v3.jsonl",
+    file_name="llama_index_calculator_agent_v3.parquet",
 )
 
 llama_index_rag_fixture_with_davinci = TracesFixture(
     name="llama_index_rag_with_davinci",
     description="Traces from running llama_index on a RAG use case with the completions API.",
-    file_name="llama_index_rag_with_davinci_v0.jsonl",
+    file_name="llama_index_rag_with_davinci_v0.parquet",
 )
 
 langchain_rag_stuff_document_chain_fixture = TracesFixture(
     name="langchain_rag_stuff_document_chain",
     description="LangChain RAG data",
-    file_name="langchain_rag.jsonl",
+    file_name="langchain_rag.parquet",
 )
 
 langchain_titanic_csv_agent_evaluator_fixture = TracesFixture(
     name="lc_titanic",
     description="LangChain titanic.csv Agent Evaluator",
-    file_name="lc_titanic.jsonl",
+    file_name="lc_titanic.parquet",
 )
 
 langchain_qa_with_sources_fixture = TracesFixture(
     name="langchain_qa_with_sources",
     description="LangChain QA with sources on financial data",
-    file_name="langchain_qa_with_sources_chain.jsonl",
+    file_name="langchain_qa_with_sources_chain.parquet",
 )
 
 random_fixture = TracesFixture(
     name="random",
     description="Randomly generated traces",
-    file_name="random.jsonl",
+    file_name="random.parquet",
 )
 
 TRACES_FIXTURES: List[TracesFixture] = [
