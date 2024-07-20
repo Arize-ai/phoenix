@@ -104,7 +104,7 @@ class ContainsAnyKeyword(CodeEvaluator):
 
 class ContainsAllKeywords(CodeEvaluator):
     """
-    Evaluator that checks if all of the keywords are present in the output of an experiment run.
+    An evaluator that checks if all of the keywords are present in the output of an experiment run.
 
     Args:
         keywords (List[str]): The keywords to search for in the output.

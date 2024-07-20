@@ -93,7 +93,7 @@ def create_evaluator(
             will be used.
         scorer (callable, optional): An optional function that converts the output of the wrapped
             function into an `EvaluationResult`. This allows configuring the evaluation
-            payload by setting a label, score and explanation. By default, the numeric outputs will
+            payload by setting a label, score and explanation. By default, numeric outputs will
             be recorded as scores, boolean outputs will be recorded as scores and labels, and
             string outputs will be recorded as labels. If the output is a 2-tuple, the first item
             will be recorded as the score and the second item will recorded as the explanation.
@@ -232,6 +232,4 @@ def _default_eval_scorer(result: Any) -> EvaluationResult:
         # If the result is a 2-tuple, the first item will be recorded as the score
         # and the second item will recorded as the explanation.
         return EvaluationResult(score=float(result[0]), explanation=str(result[1]))
-    if result is None:
-        return EvaluationResult(score=0)
     raise ValueError(f"Unsupported evaluation result type: {type(result)}")
