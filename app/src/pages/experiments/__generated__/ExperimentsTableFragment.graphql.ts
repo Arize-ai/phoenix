@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bcd6e52666da790952218c33373b5b2e>>
+ * @generated SignedSource<<cdbc683c7949bda364880e4141ebc163>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,7 +23,7 @@ export type ExperimentsTableFragment$data = {
           readonly annotationName: string;
           readonly meanScore: number | null;
         }>;
-        readonly averageRunLatencyMs: number;
+        readonly averageRunLatencyMs: number | null;
         readonly createdAt: string;
         readonly description: string | null;
         readonly errorRate: number | null;
