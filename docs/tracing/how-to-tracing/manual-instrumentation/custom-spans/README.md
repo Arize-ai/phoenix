@@ -5,7 +5,7 @@ description: >-
   customize your LLM spans
 ---
 
-# Manual Instrumentation
+# Instrument: Python
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/Ways-to-collect-data-for-Arize-and-Phoenix.png" alt=""><figcaption></figcaption></figure>
 
@@ -116,7 +116,7 @@ Use of the decorator is equivalent to creating the span inside `do_work()` and e
 
 To use the decorator, you must have a `tracer` instance in scope for your function declaration.
 
-If you need to add [attributes](custom-spans.md#add-attributes-to-a-span) or [events](custom-spans.md#adding-events) then it's less convenient to use a decorator.
+If you need to add [attributes](./#add-attributes-to-a-span) or [events](./#adding-events) then it's less convenient to use a decorator.
 
 ## Get the current span
 

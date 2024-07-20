@@ -14,7 +14,7 @@ description: Guides on how to use traces
 * [How to log to a specific project](customize-traces.md#log-to-a-specific-project)
 * [How to switch projects in a notebook](customize-traces.md#switching-projects-in-a-notebook)
 * [How to add auto-instrumentation](instrumentation/)
-* [How to create custom spans](manual-instrumentation/custom-spans.md)
+* [How to create custom spans](manual-instrumentation/custom-spans/)
 * [How to add custom metadata](customize-traces.md#adding-custom-metadata-to-spans)
 
 ### [Customize Spans](./#customizing-spans)
@@ -51,16 +51,16 @@ Create and customize spans for your use-case
 
 ### [Instrument: Python](./#instrument-python)
 
-* [How to acquire a Tracer](manual-instrumentation/custom-spans.md#acquire-tracer)
-* [How to create spans](manual-instrumentation/custom-spans.md#creating-spans)
-* [How to create nested spans](manual-instrumentation/custom-spans.md#creating-nested-spans)
-* [How to create spans with decorators](manual-instrumentation/custom-spans.md#creating-spans-with-decorators)
-* [How to get the current span](manual-instrumentation/custom-spans.md#get-the-current-span)
-* [How to add attributes to a span](manual-instrumentation/custom-spans.md#add-attributes-to-a-span)
-* [How to add semantic attributes](manual-instrumentation/custom-spans.md#add-semantic-attributes)
-* [How to add events](manual-instrumentation/custom-spans.md#adding-events)
-* [How to set a span's status](manual-instrumentation/custom-spans.md#set-span-status)
-* [How to record exceptions](manual-instrumentation/custom-spans.md#record-exceptions-in-spans)
+* [How to acquire a Tracer](manual-instrumentation/custom-spans/#acquire-tracer)
+* [How to create spans](manual-instrumentation/custom-spans/#creating-spans)
+* [How to create nested spans](manual-instrumentation/custom-spans/#creating-nested-spans)
+* [How to create spans with decorators](manual-instrumentation/custom-spans/#creating-spans-with-decorators)
+* [How to get the current span](manual-instrumentation/custom-spans/#get-the-current-span)
+* [How to add attributes to a span](manual-instrumentation/custom-spans/#add-attributes-to-a-span)
+* [How to add semantic attributes](manual-instrumentation/custom-spans/#add-semantic-attributes)
+* [How to add events](manual-instrumentation/custom-spans/#adding-events)
+* [How to set a span's status](manual-instrumentation/custom-spans/#set-span-status)
+* [How to record exceptions](manual-instrumentation/custom-spans/#record-exceptions-in-spans)
 
 ### [Instrument: TypeScript](./#instrument-typescript)
 
