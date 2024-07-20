@@ -209,7 +209,7 @@ def download_traces_fixture(
     # with request.urlopen(url) as f:
     #     return cast(List[str], f.readlines())
     return pd.read_parquet(url)
-    
+
 
 def load_example_traces(fixture_name: str) -> TraceDataset:
     """
