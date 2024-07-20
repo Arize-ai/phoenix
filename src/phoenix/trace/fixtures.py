@@ -20,7 +20,7 @@ import phoenix.trace.v1 as pb
 from phoenix import Client
 from phoenix.trace.schemas import Span
 from phoenix.trace.trace_dataset import TraceDataset
-from phoenix.trace.utils import json_lines_to_df
+
 
 logger = logging.getLogger(__name__)
 
@@ -166,7 +166,7 @@ langchain_qa_with_sources_fixture = TracesFixture(
 random_fixture = TracesFixture(
     name="random",
     description="Randomly generated traces",
-    file_name="random.parquet",
+    file_name="random.jsonl",
 )
 
 TRACES_FIXTURES: List[TracesFixture] = [
@@ -202,21 +202,22 @@ def download_traces_fixture(
     host: Optional[str] = "https://storage.googleapis.com/",
     bucket: Optional[str] = "arize-assets",
     prefix: Optional[str] = "phoenix/traces/",
-) -> List[str]:
+) -> pd.DataFrame:
     """
     Downloads the traces fixture from the phoenix bucket.
     """
     url = f"{host}{bucket}/{prefix}{fixture.file_name}"
-    with request.urlopen(url) as f:
-        return cast(List[str], f.readlines())
-
+    # with request.urlopen(url) as f:
+    #     return cast(List[str], f.readlines())
+    return pd.read_parquet(url)
+    
 
 def load_example_traces(fixture_name: str) -> TraceDataset:
     """
     Loads a trace dataframe by name.
     """
     fixture = get_trace_fixture_by_name(fixture_name)
-    return TraceDataset(json_lines_to_df(download_traces_fixture(fixture)))
+    return TraceDataset(download_traces_fixture(fixture))
 
 
 def get_dataset_fixtures(fixture_name: str) -> Iterable[DatasetFixture]:
