@@ -21,7 +21,6 @@ from phoenix import Client
 from phoenix.trace.schemas import Span
 from phoenix.trace.trace_dataset import TraceDataset
 
-
 logger = logging.getLogger(__name__)
 
 
