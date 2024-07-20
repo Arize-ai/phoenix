@@ -10,6 +10,7 @@ https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 import os
 import sys
+
 import phoenix
 
 # Path setup for autodoc
@@ -58,6 +59,7 @@ def clean_doc_output(app, docname, source):
 
         source[0] = "\n".join(processed)
 
+
 def setup(app):
     app.add_css_file("custom.css")
     app.add_js_file("custom.js")
@@ -79,7 +81,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "myst_parser",
-    "sphinx_design"
+    "sphinx_design",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -160,17 +162,18 @@ elif version_match == "stable":
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "pydata_sphinx_theme"
-# pygments_style = "sphinx"  # Name of the Pygments (syntax highlighting) style to use.
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
 html_js_files = ["custom.js"]
 html_show_sphinx = False
+# html_favicon = "favicon.ico"
+# pygments_style = "sphinx"  # Name of the Pygments (syntax highlighting) style to use.
 
 html_theme_options = {
     "logo": {
         "text": "Phoenix API",
         "image_light": "logo.png",
-        "image_dark": "logo_dark.png",
+        "image_dark": "logo.png",
     },
     "icon_links": [
         {
@@ -191,12 +194,16 @@ html_theme_options = {
     "navbar_start": ["navbar-logo", "version-switcher"],
     "switcher": {
         "json_url": json_url,
-        "version_match": version_match,
+        "version_match": release,
     },
+    "secondary_sidebar_items": [],
     "footer_start": [],
     "footer_end": ["copyright"],
-    "show_nav_level": 2,
-    "show_toc_level": 4
+    "navigation_depth": 3,
+    "collapse_navigation": True
 }
 
-html_sidebars = {"**": ["sidebar-nav-bs"]}
+html_sidebars = {
+    "**": ["custom_sidebar.html"],
+    "index": [],
+}

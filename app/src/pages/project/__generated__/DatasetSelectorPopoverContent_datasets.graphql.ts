@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a94c3d84b46672b56d631c5e77c3cf2e>>
+ * @generated SignedSource<<18668bc6fc461e2b10eb02b248e07d33>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -26,6 +26,8 @@ export type DatasetSelectorPopoverContent_datasets$key = {
   readonly " $fragmentSpreads": FragmentRefs<"DatasetSelectorPopoverContent_datasets">;
 };
 
+import DatasetSelectorPopoverContentDatasetsQuery_graphql from './DatasetSelectorPopoverContentDatasetsQuery.graphql';
+
 const node: ReaderFragment = {
   "argumentDefinitions": [],
   "kind": "Fragment",
@@ -33,7 +35,7 @@ const node: ReaderFragment = {
     "refetch": {
       "connection": null,
       "fragmentPathInResult": [],
-      "operation": require('./DatasetSelectorPopoverContentDatasetsQuery.graphql')
+      "operation": DatasetSelectorPopoverContentDatasetsQuery_graphql
     }
   },
   "name": "DatasetSelectorPopoverContent_datasets",

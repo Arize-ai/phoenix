@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0b27bdadc3862f5c4089ccffb294f264>>
+ * @generated SignedSource<<9e0d7c9423dde9c56968467a61a5e255>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -26,6 +26,8 @@ export type DatasetPicker__datasets$key = {
   readonly " $fragmentSpreads": FragmentRefs<"DatasetPicker__datasets">;
 };
 
+import DatasetPickerRefetchQuery_graphql from './DatasetPickerRefetchQuery.graphql';
+
 const node: ReaderFragment = {
   "argumentDefinitions": [],
   "kind": "Fragment",
@@ -33,7 +35,7 @@ const node: ReaderFragment = {
     "refetch": {
       "connection": null,
       "fragmentPathInResult": [],
-      "operation": require('./DatasetPickerRefetchQuery.graphql')
+      "operation": DatasetPickerRefetchQuery_graphql
     }
   },
   "name": "DatasetPicker__datasets",

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c8fdea44ee9eaae0b43dd45dc96e648f>>
+ * @generated SignedSource<<7f686e63ad3a443d2925f6f2ffe5ec31>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -50,6 +50,8 @@ export type ExampleExperimentRunsTableFragment$key = {
   readonly " $data"?: ExampleExperimentRunsTableFragment$data;
   readonly " $fragmentSpreads": FragmentRefs<"ExampleExperimentRunsTableFragment">;
 };
+
+import ExampleExperimentRunsTableQuery_graphql from './ExampleExperimentRunsTableQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = [
@@ -122,7 +124,7 @@ return {
       "fragmentPathInResult": [
         "node"
       ],
-      "operation": require('./ExampleExperimentRunsTableQuery.graphql'),
+      "operation": ExampleExperimentRunsTableQuery_graphql,
       "identifierInfo": {
         "identifierField": "id",
         "identifierQueryVariableName": "id"

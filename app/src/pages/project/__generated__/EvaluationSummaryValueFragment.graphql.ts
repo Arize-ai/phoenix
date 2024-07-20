@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<45efd276517ef15041df0c26c87f5604>>
+ * @generated SignedSource<<ad54b001e451b69fc84ac260b72ba78e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -26,6 +26,8 @@ export type EvaluationSummaryValueFragment$key = {
   readonly " $fragmentSpreads": FragmentRefs<"EvaluationSummaryValueFragment">;
 };
 
+import EvaluationSummaryValueQuery_graphql from './EvaluationSummaryValueQuery.graphql';
+
 const node: ReaderFragment = {
   "argumentDefinitions": [
     {
@@ -46,7 +48,7 @@ const node: ReaderFragment = {
       "fragmentPathInResult": [
         "node"
       ],
-      "operation": require('./EvaluationSummaryValueQuery.graphql'),
+      "operation": EvaluationSummaryValueQuery_graphql,
       "identifierInfo": {
         "identifierField": "id",
         "identifierQueryVariableName": "id"

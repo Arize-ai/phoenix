@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2f6fa029dcebc95d403a97cc40930a0a>>
+ * @generated SignedSource<<491bb853272e68087b640be8278bb186>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -27,6 +27,8 @@ export type DatasetHistoryTable_versions$key = {
   readonly " $data"?: DatasetHistoryTable_versions$data;
   readonly " $fragmentSpreads": FragmentRefs<"DatasetHistoryTable_versions">;
 };
+
+import DatasetHistoryTableVersionsQuery_graphql from './DatasetHistoryTableVersionsQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = [
@@ -74,7 +76,7 @@ return {
       "fragmentPathInResult": [
         "node"
       ],
-      "operation": require('./DatasetHistoryTableVersionsQuery.graphql'),
+      "operation": DatasetHistoryTableVersionsQuery_graphql,
       "identifierInfo": {
         "identifierField": "id",
         "identifierQueryVariableName": "id"

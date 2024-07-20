@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9f6f3107ce3e05876b03a57fc5d43342>>
+ * @generated SignedSource<<86aad576a5c4b57f8ef62320d15eed04>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -92,6 +92,8 @@ export type TracesTable_spans$key = {
   readonly " $data"?: TracesTable_spans$data;
   readonly " $fragmentSpreads": FragmentRefs<"TracesTable_spans">;
 };
+
+import TracesTableQuery_graphql from './TracesTableQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = [
@@ -306,7 +308,7 @@ return {
       "fragmentPathInResult": [
         "node"
       ],
-      "operation": require('./TracesTableQuery.graphql'),
+      "operation": TracesTableQuery_graphql,
       "identifierInfo": {
         "identifierField": "id",
         "identifierQueryVariableName": "id"
