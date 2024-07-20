@@ -8,7 +8,6 @@ from random import getrandbits
 from tempfile import NamedTemporaryFile
 from time import sleep, time
 from typing import Dict, Iterable, Iterator, List, NamedTuple, Optional, Sequence, Tuple, cast
-from urllib import request
 from urllib.parse import urljoin
 
 import httpx
