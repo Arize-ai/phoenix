@@ -125,7 +125,7 @@ def create_evaluator(
                         },
                     ],
                 )
-                label = res.model_dump()["choices"][0]["message"]["content"]
+                label = res.choices[0].message.content
                 return label
 
         Configuring an evaluator that returns a score and explanation
