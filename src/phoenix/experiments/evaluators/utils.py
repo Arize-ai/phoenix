@@ -1,6 +1,5 @@
 import functools
 import inspect
-from itertools import chain, islice, repeat
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 from phoenix.experiments.types import (
@@ -75,6 +74,72 @@ def create_evaluator(
     name: Optional[str] = None,
     scorer: Optional[Callable[[Any], EvaluationResult]] = None,
 ) -> Callable[[Callable[..., Any]], "Evaluator"]:
+    """
+    A decorator that configures a sync or async function to be used as an experiment evaluator.
+
+    If the `evaluator` is a function of one argument then that argument will be
+    bound to the `output` of an experiment task. Alternatively, the `evaluator` can be a function
+    of any combination of specific argument names that will be bound to special values:
+        `input`: The input field of the dataset example
+        `output`: The output of an experiment task
+        `expected`: The expected or reference output of the dataset example
+        `reference`: An alias for `expected`
+        `metadata`: Metadata associated with the dataset example
+
+    Args:
+        kind (str | AnnotatorKind): Broadly indicates how the evaluator scores an experiment run.
+            Valid kinds are: "CODE", "LLM". Defaults to "CODE".
+        name (str, optional): The name of the evaluator. If not provided, the name of the function
+            will be used.
+        scorer (callable, optional): An optional function that converts the output of the wrapped
+            function into an `EvaluationResult`. This allows configuring the evaluation
+            payload by setting a label, score and explanation. By default, the numeric outputs will
+            be recorded as scores, boolean outputs will be recorded as scores and labels, and
+            string outputs will be recorded as labels. If the output is a 2-tuple, the first item
+            will be recorded as the score and the second item will recorded as the explanation.
+
+    Examples:
+        Configuring an evaluator that returns a boolean
+
+        .. code-block:: python
+            @create_evaluator(kind="CODE", name="exact-match)
+            def match(output: str, expected: str) -> bool:
+                return output == expected
+
+        Configuring an evaluator that returns a label
+
+        .. code-block:: python
+            client = openai.Client()
+
+            @create_evaluator(kind="LLM")
+            def label(output: str) -> str:
+                res = client.chat.completions.create(
+                    model = "gpt-4",
+                    messages = [
+                        {
+                            "role": "user",
+                            "content": (
+                                "in one word, characterize the sentiment of the following customer "
+                                f"request: {output}"
+                            )
+                        },
+                    ],
+                )
+                label = res.model_dump()["choices"][0]["message"]["content"]
+                return label
+
+        Configuring an evaluator that returns a score and explanation
+
+        .. code-block:: python
+            from textdistance import levenshtein
+
+            @create_evaluator(kind="CODE", name="levenshtein-distance")
+            def ld(output: str, expected: str) -> Tuple[float, str]:
+                return (
+                    levenshtein(output, expected),
+                    f"Levenshtein distance between {output} and {expected}"
+                )
+    """
     if scorer is None:
         scorer = _default_eval_scorer
 
@@ -163,24 +228,10 @@ def _default_eval_scorer(result: Any) -> EvaluationResult:
         return EvaluationResult(score=float(result))
     if isinstance(result, str):
         return EvaluationResult(label=result)
-    if isinstance(result, (tuple, list)) and 0 < len(result) <= 3:
-        # Possible interpretations are:
-        # - 3-tuple: (Score, Label, Explanation)
-        # - 2-tuple: (Score, Explanation) or (Label, Explanation)
-        # - 1-tuple: (Score, ) or (Label, )
-        # Note that (Score, Label) conflicts with (Score, Explanation) and we
-        # pick the latter because it's probably more prevalent. To get
-        # (Score, Label), use a 3-tuple instead, i.e. (Score, Label, None).
-        a, b, c = islice(chain(result, repeat(None)), 3)
-        score, label, explanation = None, a, b
-        if hasattr(a, "__float__"):
-            try:
-                score = float(a)
-            except ValueError:
-                pass
-            else:
-                label, explanation = (None, b) if len(result) < 3 else (b, c)
-        return EvaluationResult(score=score, label=label, explanation=explanation)
+    if isinstance(result, (tuple, list)) and len(result) == 2:
+        # If the result is a 2-tuple, the first item will be recorded as the score
+        # and the second item will recorded as the explanation.
+        return EvaluationResult(score=float(result[0]), explanation=str(result[1]))
     if result is None:
         return EvaluationResult(score=0)
     raise ValueError(f"Unsupported evaluation result type: {type(result)}")
