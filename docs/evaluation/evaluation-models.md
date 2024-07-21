@@ -8,9 +8,13 @@
 * Anthropic
 * Mixtral/Mistral
 * AWS Bedrock
-* Llama
 * Falcon
 * Code Llama
+* Llama3
+* Deepseek
+* Deberta
+* DBRX
+* Qwen
 
 And many more.
 
