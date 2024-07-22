@@ -1,18 +1,11 @@
-import contextlib
 from asyncio import sleep
 from datetime import datetime
-from typing import AsyncContextManager, AsyncGenerator, AsyncIterator, Callable
 
 import pytest
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from sqlalchemy import insert, select
-from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
-    AsyncSession,
-    async_sessionmaker,
-)
 
 
 class Test_insert_on_conflict:
@@ -172,49 +165,3 @@ class Test_insert_on_conflict:
             assert anno.label is None
             assert anno.explanation is None
             assert anno.metadata_ == {"2": "1"}
-
-
-@pytest.fixture
-def prod_db(request, dialect) -> async_sessionmaker:
-    """
-    Instantiates DB in a manner similar to production.
-    """
-    if dialect == "sqlite":
-        return request.getfixturevalue("prod_sqlite_db")
-    elif dialect == "postgresql":
-        return request.getfixturevalue("prod_postgres_db")
-    raise ValueError(f"Unknown db fixture: {dialect}")
-
-
-@pytest.fixture
-async def prod_sqlite_db(
-    sqlite_engine: AsyncEngine,
-) -> AsyncGenerator[Callable[[], AsyncContextManager[AsyncSession]], None]:
-    """
-    Instantiates SQLite in a manner similar to production.
-    """
-    Session = async_sessionmaker(sqlite_engine, expire_on_commit=False)
-
-    @contextlib.asynccontextmanager
-    async def factory() -> AsyncIterator[AsyncSession]:
-        async with Session.begin() as session:
-            yield session
-
-    return factory
-
-
-@pytest.fixture
-async def prod_postgres_db(
-    postgres_engine: AsyncEngine,
-) -> AsyncGenerator[Callable[[], AsyncContextManager[AsyncSession]], None]:
-    """
-    Instantiates Postgres in a manner similar to production.
-    """
-    Session = async_sessionmaker(postgres_engine, expire_on_commit=False)
-
-    @contextlib.asynccontextmanager
-    async def factory() -> AsyncIterator[AsyncSession]:
-        async with Session.begin() as session:
-            yield session
-
-    return factory

@@ -105,8 +105,10 @@ class BulkInserter:
         )
 
     async def __aexit__(self, *args: Any) -> None:
-        self._operations = None
         self._running = False
+        if self._task:
+            self._task.cancel()
+            self._task = None
 
     def _enqueue_operation(self, operation: DataManipulation) -> None:
         cast("Queue[DataManipulation]", self._operations).put_nowait(operation)
