@@ -36,9 +36,9 @@ class AverageExperimentRunLatencyDataLoader(DataLoader[Key, Result]):
                     - func.extract("epoch", models.ExperimentRun.start_time)
                 ),
             )
-            .select_from(resolved_experiment_ids)
-            .outerjoin(
-                models.ExperimentRun,
+            .outerjoin_from(
+                from_=resolved_experiment_ids,
+                target=models.ExperimentRun,
                 onclause=resolved_experiment_ids.c.id == models.ExperimentRun.experiment_id,
             )
             .group_by(resolved_experiment_ids.c.id)

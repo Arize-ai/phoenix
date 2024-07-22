@@ -37,9 +37,9 @@ class ExperimentRunCountsDataLoader(DataLoader[Key, Result]):
                 resolved_experiment_ids.c.id,
                 func.count(models.ExperimentRun.experiment_id),
             )
-            .select_from(resolved_experiment_ids)
-            .outerjoin(
-                models.ExperimentRun,
+            .outerjoin_from(
+                from_=resolved_experiment_ids,
+                target=models.ExperimentRun,
                 onclause=resolved_experiment_ids.c.id == models.ExperimentRun.experiment_id,
             )
             .group_by(resolved_experiment_ids.c.id)
