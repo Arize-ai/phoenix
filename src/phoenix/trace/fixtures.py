@@ -202,7 +202,7 @@ def download_traces_fixture(
     host: Optional[str] = "https://storage.googleapis.com/",
     bucket: Optional[str] = "arize-assets",
     prefix: Optional[str] = "phoenix/traces/",
-) -> str:
+) -> List[str]:
     """
     Downloads the traces fixture from the phoenix bucket.
     """
