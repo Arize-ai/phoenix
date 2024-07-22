@@ -35,7 +35,7 @@ class SpanAnnotationMutationMixin:
                     label=annotation.label,
                     score=annotation.score,
                     explanation=annotation.explanation,
-                    annotator_kind=annotation.annotator_kind,
+                    annotator_kind=annotation.annotator_kind.value,
                     metadata_=annotation.metadata,
                 )
                 for annotation in input
@@ -66,7 +66,13 @@ class SpanAnnotationMutationMixin:
                     column.key: patch_value
                     for column, patch_value, column_is_nullable in (
                         (models.SpanAnnotation.name, annotation.name, False),
-                        (models.SpanAnnotation.annotator_kind, annotation.annotator_kind, False),
+                        (
+                            models.SpanAnnotation.annotator_kind,
+                            annotation.annotator_kind.value
+                            if annotation.annotator_kind is not None
+                            else None,
+                            False,
+                        ),
                         (models.SpanAnnotation.label, annotation.label, True),
                         (models.SpanAnnotation.score, annotation.score, True),
                         (models.SpanAnnotation.explanation, annotation.explanation, True),
