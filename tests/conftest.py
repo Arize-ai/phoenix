@@ -187,16 +187,24 @@ async def test_client(dialect, db):
 
 
 @pytest.fixture
-def test_phoenix_clients(dialect, db) -> Tuple[httpx.Client, httpx.AsyncClient]:
+async def app(dialect, db) -> Iterator[ASGIApp]:
     factory = SessionFactory(session_factory=db, dialect=dialect)
-    app = create_app(
-        db=factory,
-        model=create_model_from_inferences(EMPTY_INFERENCES, None),
-        export_path=EXPORT_DIR,
-        umap_params=get_umap_parameters(None),
-        serve_ui=False,
-    )
+    async with contextlib.AsyncExitStack() as stack:
+        await stack.enter_async_context(patch_bulk_inserter())
+        await stack.enter_async_context(patch_grpc_server())
+        app = create_app(
+            db=factory,
+            model=create_model_from_inferences(EMPTY_INFERENCES, None),
+            export_path=EXPORT_DIR,
+            umap_params=get_umap_parameters(None),
+            serve_ui=False,
+        )
+        manager = await stack.enter_async_context(LifespanManager(app))
+        yield manager.app
 
+
+@pytest.fixture
+def test_phoenix_clients(app: ASGIApp) -> Tuple[httpx.Client, httpx.AsyncClient]:
     class SyncTransport(httpx.BaseTransport):
         def __init__(self, app, asgi_transport):
             self.app = app
