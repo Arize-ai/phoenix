@@ -26,7 +26,7 @@ Click signup on [phoenix.arize.com](https://app.phoenix.arize.com). We offer log
 
 <figure><img src=".gitbook/assets/image (1).png" alt=""><figcaption></figcaption></figure>
 
-### How to send in your first trace
+### Tracing: How to send in your first trace
 
 <figure><img src=".gitbook/assets/image.png" alt=""><figcaption></figcaption></figure>
 
@@ -94,7 +94,9 @@ OpenAIInstrumentor().instrument()
 {% endtab %}
 {% endtabs %}
 
-### Using the Client SDK
+### Using the Client SDK (downloading data & uploading datasets)
+
+Once you collect trace data from the above configuration, you can access the data using the client SDK. You can also upload datasets for experiments using the client SDK.
 
 You'll need to add the following environment variable to authenticate to hosted Phoenix.
 
