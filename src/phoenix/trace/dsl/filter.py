@@ -43,14 +43,12 @@ class AliasedAnnotationRelation:
 
     index: int
     name: str
-    annotation_type: str
     table: AliasedClass[models.SpanAnnotation] = field(init=False, repr=False)
     _label_attribute_alias: str = field(init=False, repr=False)
     _score_attribute_alias: str = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         table_alias = f"span_annotation_{self.index}"
-        # alias_id = f"{randint(0, 10**6):06d}"
         alias_id = uuid4().hex
         label_attribute_alias = f"{table_alias}_label_{alias_id}"
         score_attribute_alias = f"{table_alias}_score_{alias_id}"
@@ -831,9 +829,7 @@ def _apply_eval_aliasing(
         annotation_attribute,
     ) in _parse_annotation_expressions_and_names(source):
         if (eval_alias := eval_aliases.get(annotation_name)) is None:
-            eval_alias = AliasedAnnotationRelation(
-                index=len(eval_aliases), name=annotation_name, annotation_type=annotation_type
-            )
+            eval_alias = AliasedAnnotationRelation(index=len(eval_aliases), name=annotation_name)
             eval_aliases[annotation_name] = eval_alias
         alias_name = eval_alias.attribute_alias(annotation_attribute)
         source = source.replace(annotation_expression, alias_name)
