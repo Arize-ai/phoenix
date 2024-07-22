@@ -8,6 +8,7 @@ from random import getrandbits
 from tempfile import NamedTemporaryFile
 from time import sleep, time
 from typing import Dict, Iterable, Iterator, List, NamedTuple, Optional, Sequence, Tuple, cast
+from urllib import request
 from urllib.parse import urljoin
 
 import httpx
@@ -19,6 +20,7 @@ import phoenix.trace.v1 as pb
 from phoenix import Client
 from phoenix.trace.schemas import Span
 from phoenix.trace.trace_dataset import TraceDataset
+from phoenix.trace.utils import json_lines_to_df, is_parquet_file
 
 logger = logging.getLogger(__name__)
 
@@ -205,9 +207,11 @@ def download_traces_fixture(
     Downloads the traces fixture from the phoenix bucket.
     """
     url = f"{host}{bucket}/{prefix}{fixture.file_name}"
-    # with request.urlopen(url) as f:
-    #     return cast(List[str], f.readlines())
-    return pd.read_parquet(url)
+    if is_parquet_file(url):
+        return pd.read_parquet(url)
+
+    with request.urlopen(url) as f:
+        return cast(List[str], f.readlines())
 
 
 def load_example_traces(fixture_name: str) -> TraceDataset:
@@ -215,7 +219,10 @@ def load_example_traces(fixture_name: str) -> TraceDataset:
     Loads a trace dataframe by name.
     """
     fixture = get_trace_fixture_by_name(fixture_name)
-    return TraceDataset(download_traces_fixture(fixture))
+    if is_parquet_file(fixture.file_name):
+        return TraceDataset(download_traces_fixture(fixture))
+    
+    return TraceDataset(json_lines_to_df(download_traces_fixture(fixture)))
 
 
 def get_dataset_fixtures(fixture_name: str) -> Iterable[DatasetFixture]:

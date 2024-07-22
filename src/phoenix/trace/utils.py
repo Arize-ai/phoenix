@@ -2,9 +2,15 @@ import json
 import re
 from traceback import format_exception
 from typing import List, Optional, Tuple, cast
+import os
 
 import pandas as pd
 
+def is_parquet_file(file_path: str) -> bool:
+    """
+    Check if the given file is a Parquet file.
+    """
+    return os.path.splitext(file_path)[1].lower() == '.parquet'
 
 def json_lines_to_df(lines: List[str]) -> pd.DataFrame:
     """
