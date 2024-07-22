@@ -208,7 +208,7 @@ def download_traces_fixture(
     """
     url = f"{host}{bucket}/{prefix}{fixture.file_name}"
     if is_parquet_file(url):
-        return pd.read_parquet(url)
+        return url
 
     with request.urlopen(url) as f:
         return cast(List[str], f.readlines())
@@ -220,7 +220,7 @@ def load_example_traces(fixture_name: str) -> TraceDataset:
     """
     fixture = get_trace_fixture_by_name(fixture_name)
     if is_parquet_file(fixture.file_name):
-        return TraceDataset(download_traces_fixture(fixture))
+        return TraceDataset(pd.read_parquet(download_traces_fixture(fixture)))
     
     return TraceDataset(json_lines_to_df(download_traces_fixture(fixture)))
 
