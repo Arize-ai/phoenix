@@ -171,43 +171,17 @@ async def project(session: AsyncSession) -> None:
 
 
 @pytest.fixture
-async def test_client(dialect, db):
-    factory = SessionFactory(session_factory=db, dialect=dialect)
-    app = create_app(
-        db=factory,
-        model=create_model_from_inferences(EMPTY_INFERENCES, None),
-        export_path=EXPORT_DIR,
-        umap_params=get_umap_parameters(None),
-        serve_ui=False,
-    )
+async def test_client(test_app: ASGIApp):
     async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app), base_url="http://test"
+        transport=httpx.ASGITransport(app=test_app), base_url="http://test"
     ) as client:
         yield client
 
 
 @pytest.fixture
-async def app(dialect, db) -> Iterator[ASGIApp]:
-    factory = SessionFactory(session_factory=db, dialect=dialect)
-    async with contextlib.AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_bulk_inserter())
-        await stack.enter_async_context(patch_grpc_server())
-        app = create_app(
-            db=factory,
-            model=create_model_from_inferences(EMPTY_INFERENCES, None),
-            export_path=EXPORT_DIR,
-            umap_params=get_umap_parameters(None),
-            serve_ui=False,
-        )
-        manager = await stack.enter_async_context(LifespanManager(app))
-        yield manager.app
-
-
-@pytest.fixture
-def test_phoenix_clients(app: ASGIApp) -> Tuple[httpx.Client, httpx.AsyncClient]:
+def test_phoenix_clients(test_app: ASGIApp) -> Tuple[httpx.Client, httpx.AsyncClient]:
     class SyncTransport(httpx.BaseTransport):
-        def __init__(self, app, asgi_transport):
-            self.app = app
+        def __init__(self, asgi_transport: httpx.ASGITransport):
             self.asgi_transport = asgi_transport
 
         def handle_request(self, request: Request) -> Response:
@@ -228,8 +202,7 @@ def test_phoenix_clients(app: ASGIApp) -> Tuple[httpx.Client, httpx.AsyncClient]
             )
 
     class AsyncTransport(httpx.AsyncBaseTransport):
-        def __init__(self, app, asgi_transport):
-            self.app = app
+        def __init__(self, asgi_transport: httpx.ASGITransport):
             self.asgi_transport = asgi_transport
 
         async def handle_async_request(self, request: Request) -> Response:
@@ -249,10 +222,10 @@ def test_phoenix_clients(app: ASGIApp) -> Tuple[httpx.Client, httpx.AsyncClient]
                 request=request,
             )
 
-    asgi_transport = httpx.ASGITransport(app=app)
-    sync_transport = SyncTransport(app, asgi_transport=asgi_transport)
+    asgi_transport = httpx.ASGITransport(app=test_app)
+    sync_transport = SyncTransport(asgi_transport=asgi_transport)
     sync_client = httpx.Client(transport=sync_transport, base_url="http://test")
-    async_transport = AsyncTransport(app, asgi_transport=asgi_transport)
+    async_transport = AsyncTransport(asgi_transport=asgi_transport)
     async_client = httpx.AsyncClient(transport=async_transport, base_url="http://test")
     return sync_client, async_client
 
@@ -304,8 +277,25 @@ def prod_postgres_db(
 
 
 @pytest.fixture
-async def prod_app(dialect, prod_db) -> Iterator[ASGIApp]:
+async def prod_app(dialect, prod_db) -> AsyncIterator[ASGIApp]:
     factory = SessionFactory(session_factory=prod_db, dialect=dialect)
+    async with contextlib.AsyncExitStack() as stack:
+        await stack.enter_async_context(patch_bulk_inserter())
+        await stack.enter_async_context(patch_grpc_server())
+        app = create_app(
+            db=factory,
+            model=create_model_from_inferences(EMPTY_INFERENCES, None),
+            export_path=EXPORT_DIR,
+            umap_params=get_umap_parameters(None),
+            serve_ui=False,
+        )
+        manager = await stack.enter_async_context(LifespanManager(app))
+        yield manager.app
+
+
+@pytest.fixture
+async def test_app(dialect, db) -> AsyncIterator[ASGIApp]:
+    factory = SessionFactory(session_factory=db, dialect=dialect)
     async with contextlib.AsyncExitStack() as stack:
         await stack.enter_async_context(patch_bulk_inserter())
         await stack.enter_async_context(patch_grpc_server())
