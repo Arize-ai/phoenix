@@ -20,7 +20,7 @@ import phoenix.trace.v1 as pb
 from phoenix import Client
 from phoenix.trace.schemas import Span
 from phoenix.trace.trace_dataset import TraceDataset
-from phoenix.trace.utils import json_lines_to_df, is_parquet_file
+from phoenix.trace.utils import is_parquet_file, json_lines_to_df
 
 logger = logging.getLogger(__name__)
 
@@ -221,7 +221,7 @@ def load_example_traces(fixture_name: str) -> TraceDataset:
     fixture = get_trace_fixture_by_name(fixture_name)
     if is_parquet_file(fixture.file_name):
         return TraceDataset(pd.read_parquet(download_traces_fixture(fixture)))
-    
+
     return TraceDataset(json_lines_to_df(download_traces_fixture(fixture)))
 
 
