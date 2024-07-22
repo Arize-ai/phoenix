@@ -1,5 +1,26 @@
 # Changelog
 
+## [4.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.12.0...arize-phoenix-v4.13.0) (2024-07-22)
+
+
+### Features
+
+* **annotations:** graphql resolver for all annotation names on a project ([#3931](https://github.com/Arize-ai/phoenix/issues/3931)) ([e7b87b2](https://github.com/Arize-ai/phoenix/commit/e7b87b2bc535d974f839ce45256ad85e1511dda9))
+
+
+### Bug Fixes
+
+* **experiments:** ensure experiments table appears even when an experiment has no runs ([#3942](https://github.com/Arize-ai/phoenix/issues/3942)) ([175c268](https://github.com/Arize-ai/phoenix/commit/175c268b619e507e1d6c2e4e3ec57baf2e51fc18))
+
+
+### Documentation
+
+* Add API docstrings for experiment evaluators module ([#3944](https://github.com/Arize-ai/phoenix/issues/3944)) ([53079ce](https://github.com/Arize-ai/phoenix/commit/53079cefce7a6cf572aa14c0e0d7ce3d5815e5aa))
+* api ref sidebar overhaul ([0614255](https://github.com/Arize-ai/phoenix/commit/0614255044b22a66e253388d1d27d25aa657fc4d))
+* api ref updates and docstring fixes ([e089f99](https://github.com/Arize-ai/phoenix/commit/e089f99fa2e63cdf9cb342bc3810361947c28e61))
+* small fixes for datasets and experiments quickstart notebook ([#3934](https://github.com/Arize-ai/phoenix/issues/3934)) ([e24d721](https://github.com/Arize-ai/phoenix/commit/e24d7212ace403f0e396de027a7cfb9bd4a14657))
+* Update README.md ([7836779](https://github.com/Arize-ai/phoenix/commit/7836779d9a65ea98fd403ebc23f3a275db4df7e1))
+
 ## [4.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.11.0...arize-phoenix-v4.12.0) (2024-07-18)
 
 
