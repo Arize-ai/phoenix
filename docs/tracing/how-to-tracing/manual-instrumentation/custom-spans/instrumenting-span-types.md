@@ -48,7 +48,7 @@ def llm_call():
         span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, "<invocation_parameters>") # These are the invocation Object recording details of a function call in models or APIs, "{model_name: 'gpt-3', temperature: 0.7}"
         span.set_attribute(SpanAttributes.LLM_INPUT_MESSAGES, "<input_messages>") # List of messages sent to the LLM in a chat API request, [{"message.role": "user", "message.content": "hello"}]
         span.set_attribute(SpanAttributes.LLM_OUTPUT_MESSAGES, "<output_messages>") # Messages received from a chat API, [{"message.role": "user", "message.content": "hello"}]
-        span.set_attribute(SpanAttributes.LLM_MODEL_NAME, "<input_messages") # The name of the language model being utilized
+        span.set_attribute(SpanAttributes.LLM_MODEL_NAME, "<model_name") # The name of the language model being utilized
         
 ```
 
