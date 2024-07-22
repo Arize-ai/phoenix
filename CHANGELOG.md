@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.13.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.13.0...arize-phoenix-v4.13.1) (2024-07-22)
+
+
+### Bug Fixes
+
+* renable server side caching ([#3947](https://github.com/Arize-ai/phoenix/issues/3947)) ([00220d0](https://github.com/Arize-ai/phoenix/commit/00220d09bef499b61ed302655f8d62be81cbc026))
+
 ## [4.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.12.0...arize-phoenix-v4.13.0) (2024-07-22)
 
 
