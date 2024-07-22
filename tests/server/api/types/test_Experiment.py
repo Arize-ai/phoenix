@@ -152,6 +152,12 @@ async def test_run_count_resolver_returns_correct_counts(
                 "edges": [
                     {
                         "experiment": {
+                            "id": str(GlobalID(type_name="Experiment", node_id=str(3))),
+                            "runCount": 0,
+                        }
+                    },
+                    {
+                        "experiment": {
                             "id": str(GlobalID(type_name="Experiment", node_id=str(2))),
                             "runCount": 4,
                         }
@@ -203,6 +209,12 @@ async def test_average_run_latency_resolver_returns_correct_values(
         "dataset": {
             "experiments": {
                 "edges": [
+                    {
+                        "experiment": {
+                            "id": str(GlobalID(type_name="Experiment", node_id=str(3))),
+                            "averageRunLatencyMs": None,
+                        }
+                    },
                     {
                         "experiment": {
                             "id": str(GlobalID(type_name="Experiment", node_id=str(2))),
@@ -264,6 +276,12 @@ class TestExperimentAnnotationSummaries:
             "dataset": {
                 "experiments": {
                     "edges": [
+                        {
+                            "experiment": {
+                                "id": str(GlobalID(type_name="Experiment", node_id=str(3))),
+                                "annotationSummaries": [],
+                            }
+                        },
                         {
                             "experiment": {
                                 "id": str(GlobalID(type_name="Experiment", node_id=str(2))),
@@ -561,7 +579,7 @@ async def dataset_with_experiment_runs(session):
 @pytest.fixture
 async def experiments_with_runs_and_annotations(session):
     """
-    Inserts two experiments, each with runs and annotations.
+    Inserts three experiments, two with runs and annotations and one without.
     """
     # insert dataset
     dataset_id = await session.scalar(
@@ -638,7 +656,7 @@ async def experiments_with_runs_and_annotations(session):
                         "repetitions": 1,
                         "metadata_": {},
                     }
-                    for _ in range(2)
+                    for _ in range(3)
                 ]
             )
         )
@@ -709,6 +727,7 @@ async def experiments_with_runs_and_annotations(session):
                         for repetition_number in range(1, 3)
                         for example_id in example_ids
                     ],
+                    # experiment 3 (no runs)
                 ]
             )
         )
