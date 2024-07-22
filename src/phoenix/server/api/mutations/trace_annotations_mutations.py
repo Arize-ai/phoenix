@@ -35,7 +35,7 @@ class TraceAnnotationMutationMixin:
                     label=annotation.label,
                     score=annotation.score,
                     explanation=annotation.explanation,
-                    annotator_kind=annotation.annotator_kind,
+                    annotator_kind=annotation.annotator_kind.value,
                     metadata_=annotation.metadata,
                 )
                 for annotation in input
@@ -66,7 +66,13 @@ class TraceAnnotationMutationMixin:
                     column.key: patch_value
                     for column, patch_value, column_is_nullable in (
                         (models.TraceAnnotation.name, annotation.name, False),
-                        (models.TraceAnnotation.annotator_kind, annotation.annotator_kind, False),
+                        (
+                            models.TraceAnnotation.annotator_kind,
+                            annotation.annotator_kind.value
+                            if annotation.annotator_kind is not None
+                            else None,
+                            False,
+                        ),
                         (models.TraceAnnotation.label, annotation.label, True),
                         (models.TraceAnnotation.score, annotation.score, True),
                         (models.TraceAnnotation.explanation, annotation.explanation, True),
