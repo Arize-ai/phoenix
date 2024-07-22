@@ -7,9 +7,9 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.input_types.CreateSpanAnnotationsInput import CreateSpanAnnotationsInput
+from phoenix.server.api.input_types.CreateSpanAnnotationInput import CreateSpanAnnotationInput
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
-from phoenix.server.api.input_types.PatchAnnotationsInput import PatchAnnotationsInput
+from phoenix.server.api.input_types.PatchAnnotationInput import PatchAnnotationInput
 from phoenix.server.api.mutations.auth import IsAuthenticated
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
@@ -24,7 +24,7 @@ class SpanAnnotationMutationPayload:
 class SpanAnnotationMutationMixin:
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
     async def create_span_annotations(
-        self, info: Info[Context, None], input: List[CreateSpanAnnotationsInput]
+        self, info: Info[Context, None], input: List[CreateSpanAnnotationInput]
     ) -> SpanAnnotationMutationPayload:
         inserted_annotations: Sequence[models.SpanAnnotation] = []
         async with info.context.db() as session:
@@ -54,7 +54,7 @@ class SpanAnnotationMutationMixin:
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
     async def patch_span_annotations(
-        self, info: Info[Context, None], input: List[PatchAnnotationsInput]
+        self, info: Info[Context, None], input: List[PatchAnnotationInput]
     ) -> SpanAnnotationMutationPayload:
         patched_annotations = []
         async with info.context.db() as session:

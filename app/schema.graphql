@@ -79,20 +79,20 @@ input CreateDatasetInput {
   metadata: JSON
 }
 
-input CreateSpanAnnotationsInput {
+input CreateSpanAnnotationInput {
   spanId: GlobalID!
   name: String!
-  annotatorKind: String!
+  annotatorKind: AnnotatorKind!
   label: String = null
   score: Float = null
   explanation: String = null
   metadata: JSON! = {}
 }
 
-input CreateTraceAnnotationsInput {
+input CreateTraceAnnotationInput {
   traceId: GlobalID!
   name: String!
-  annotatorKind: String!
+  annotatorKind: AnnotatorKind!
   label: String = null
   score: Float = null
   explanation: String = null
@@ -864,11 +864,11 @@ type Mutation {
   Given a list of clusters, export the corresponding data subset in Parquet format. File name is optional, but if specified, should be without file extension. By default the exported file name is current timestamp.
   """
   exportClusters(clusters: [ClusterInput!]!, fileName: String): ExportedFile!
-  createSpanAnnotations(input: [CreateSpanAnnotationsInput!]!): SpanAnnotationMutationPayload!
-  patchSpanAnnotations(input: [PatchAnnotationsInput!]!): SpanAnnotationMutationPayload!
+  createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
+  patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
   deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
-  createTraceAnnotations(input: [CreateTraceAnnotationsInput!]!): TraceAnnotationMutationPayload!
-  patchTraceAnnotations(input: [PatchAnnotationsInput!]!): TraceAnnotationMutationPayload!
+  createTraceAnnotations(input: [CreateTraceAnnotationInput!]!): TraceAnnotationMutationPayload!
+  patchTraceAnnotations(input: [PatchAnnotationInput!]!): TraceAnnotationMutationPayload!
   deleteTraceAnnotations(input: DeleteAnnotationsInput!): TraceAnnotationMutationPayload!
 }
 
@@ -902,10 +902,10 @@ type PageInfo {
   endCursor: String
 }
 
-input PatchAnnotationsInput {
+input PatchAnnotationInput {
   annotationId: GlobalID!
   name: String
-  annotatorKind: String
+  annotatorKind: AnnotatorKind
   label: String
   score: Float
   explanation: String

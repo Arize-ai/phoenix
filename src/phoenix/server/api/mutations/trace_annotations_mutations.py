@@ -7,9 +7,9 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.input_types.CreateTraceAnnotationsInput import CreateTraceAnnotationsInput
+from phoenix.server.api.input_types.CreateTraceAnnotationInput import CreateTraceAnnotationInput
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
-from phoenix.server.api.input_types.PatchAnnotationsInput import PatchAnnotationsInput
+from phoenix.server.api.input_types.PatchAnnotationInput import PatchAnnotationInput
 from phoenix.server.api.mutations.auth import IsAuthenticated
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.TraceAnnotation import TraceAnnotation, to_gql_trace_annotation
@@ -24,7 +24,7 @@ class TraceAnnotationMutationPayload:
 class TraceAnnotationMutationMixin:
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
     async def create_trace_annotations(
-        self, info: Info[Context, None], input: List[CreateTraceAnnotationsInput]
+        self, info: Info[Context, None], input: List[CreateTraceAnnotationInput]
     ) -> TraceAnnotationMutationPayload:
         inserted_annotations: Sequence[models.TraceAnnotation] = []
         async with info.context.db() as session:
@@ -54,7 +54,7 @@ class TraceAnnotationMutationMixin:
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
     async def patch_trace_annotations(
-        self, info: Info[Context, None], input: List[PatchAnnotationsInput]
+        self, info: Info[Context, None], input: List[PatchAnnotationInput]
     ) -> TraceAnnotationMutationPayload:
         patched_annotations = []
         async with info.context.db() as session:
