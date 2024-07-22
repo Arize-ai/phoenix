@@ -21,11 +21,11 @@ description: Guides on how to use traces
 
 How to set custom attributes and semantic attributes to child spans and spans created by auto-instrumentors.
 
-* [Setting metadata](customize-spans.md#using\_metadata)
-* [Setting tags](customize-spans.md#specifying-tags)
-* [Setting a user](customize-spans.md#using\_user)
-* [Setting prompt template attributes](customize-spans.md#specifying-the-prompt-template)
-* [How to read attributes from context](customize-spans.md#using\_attributes)
+* [Setting metadata](customize-spans/#using\_metadata)
+* [Setting tags](customize-spans/#specifying-tags)
+* [Setting a user](customize-spans/#using\_user)
+* [Setting prompt template attributes](customize-spans/#specifying-the-prompt-template)
+* [How to read attributes from context](customize-spans/#using\_attributes)
 
 ## [Auto Instrumentation](./#auto-instrumentation)
 
