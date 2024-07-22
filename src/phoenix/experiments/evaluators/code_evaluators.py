@@ -9,6 +9,19 @@ from phoenix.experiments.types import EvaluationResult, TaskOutput
 
 
 class JSONParsable(CodeEvaluator):
+    """
+    An evaluator that checks if the output of an experiment run is a JSON-parsable string.
+
+    Example:
+
+        .. code-block:: python
+            from phoenix.experiments import run_experiment
+            from phoenix.experiments.evaluators import JSONParsable
+
+            run_experiment(dataset, task, evaluators=[JSONParsable])
+    """
+
+    @classmethod
     def evaluate(self, *, output: Optional[TaskOutput] = None, **_: Any) -> EvaluationResult:
         assert isinstance(output, str), "Experiment run output must be a string"
         try:
@@ -22,6 +35,22 @@ class JSONParsable(CodeEvaluator):
 
 
 class ContainsKeyword(CodeEvaluator):
+    """
+    An evaluator that checks if a keyword is present in the output of an experiment run.
+
+    Args:
+        keyword (str): The keyword to search for in the output.
+        name (str, optional): An optional name for the evaluator. Defaults to "Contains(<keyword>)".
+
+    Example:
+
+        .. code-block:: python
+            from phoenix.experiments import run_experiment
+            from phoenix.experiments.evaluators import ContainsKeyword
+
+            run_experiment(dataset, task, evaluators=[ContainsKeyword("foo")])
+    """
+
     def __init__(self, keyword: str, name: Optional[str] = None) -> None:
         self.keyword = keyword
         self._name = name or f"Contains({repr(keyword)})"
@@ -39,6 +68,23 @@ class ContainsKeyword(CodeEvaluator):
 
 
 class ContainsAnyKeyword(CodeEvaluator):
+    """
+    An evaluator that checks if any of the keywords are present in the output of an experiment run.
+
+    Args:
+        keywords (List[str]): The keywords to search for in the output.
+        name (str, optional): An optional name for the evaluator. Defaults to
+            "ContainsAny(<keywords>)".
+
+    Example:
+
+        .. code-block:: python
+            from phoenix.experiments import run_experiment
+            from phoenix.experiments.evaluators import ContainsAnyKeyword
+
+            run_experiment(dataset, task, evaluators=[ContainsAnyKeyword(["foo", "bar"])])
+    """
+
     def __init__(self, keywords: List[str], name: Optional[str] = None) -> None:
         self.keywords = keywords
         self._name = name or f"ContainsAny({keywords})"
@@ -57,6 +103,23 @@ class ContainsAnyKeyword(CodeEvaluator):
 
 
 class ContainsAllKeywords(CodeEvaluator):
+    """
+    An evaluator that checks if all of the keywords are present in the output of an experiment run.
+
+    Args:
+        keywords (List[str]): The keywords to search for in the output.
+        name (str, optional): An optional name for the evaluator. Defaults to
+            "ContainsAll(<keywords>)".
+
+    Example:
+        .. code-block:: python
+
+            from phoenix.experiments import run_experiment
+            from phoenix.experiments.evaluators import ContainsAllKeywords
+
+            run_experiment(dataset, task, evaluators=[ContainsAllKeywords(["foo", "bar"])])
+    """
+
     def __init__(self, keywords: List[str], name: Optional[str] = None) -> None:
         self.keywords = keywords
         self._name = name or f"ContainsAll({keywords})"
@@ -77,6 +140,23 @@ class ContainsAllKeywords(CodeEvaluator):
 
 
 class MatchesRegex(CodeEvaluator):
+    r"""
+    An experiment evaluator that checks if the output of an experiment run matches a regex pattern.
+
+    Args:
+        pattern (Union[str, re.Pattern[str]]): The regex pattern to match the output against.
+        name (str, optional): An optional name for the evaluator. Defaults to "matches_({pattern})".
+
+    Example:
+        .. code-block:: python
+
+            from phoenix.experiments import run_experiment
+            from phoenix.experiments.evaluators import MatchesRegex
+
+            phone_number_evaluator = MatchesRegex(r"\d{3}-\d{3}-\d{4}", name="valid-phone-number")
+            run_experiment(dataset, task, evaluators=[phone_number_evaluator])
+    """
+
     def __init__(self, pattern: Union[str, re.Pattern[str]], name: Optional[str] = None) -> None:
         if isinstance(pattern, str):
             pattern = re.compile(pattern)

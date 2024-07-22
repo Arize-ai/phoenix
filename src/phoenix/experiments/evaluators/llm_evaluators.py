@@ -18,6 +18,31 @@ from phoenix.experiments.types import (
 
 
 class LLMCriteriaEvaluator(LLMEvaluator):
+    """
+    An experiment evaluator that uses an LLM to evaluate whether the text meets a custom criteria.
+
+    This evaluator uses the chain-of-thought technique to perform a binary evaluation of text based
+    on a custom criteria and description. When used as an experiment evaluator,
+    `LLMCriteriaEvaluator` will return a score of 1.0 if the text meets the criteria and a score of
+    0.0 if not. The explanation produced by the chain-of-thought technique will be included in the
+    experiment evaluation as well.
+
+    Example criteria and descriptions:
+        - "thoughtfulness" - "shows careful consideration and fair judgement"
+        - "clarity" - "is easy to understand and follow"
+        - "professionalism" - "is respectful and appropriate for a formal setting"
+
+    Args:
+        model: The LLM model wrapper to use for evaluation. Compatible models can be imported from
+            the `phoenix.evals` module.
+        criteria: The criteria to evaluate the text against, the criteria should be able to be used
+            as a noun in a sentence.
+        description (str): A description of the criteria, used to clarify instructions to the LLM.
+            The description should complete this sentence: "{criteria} means the text
+            {description}".
+        name (str): The name of the evaluator
+    """
+
     _base_template = (
         "Determine if the following text is {criteria}. {description}"
         "First, explain step-by-step why you think the text is or is not {criteria}. Then provide "
@@ -117,6 +142,14 @@ ConcisenessEvaluator = criteria_evaluator_factory(
     description="is just a few sentences and easy to follow",
     default_name="Conciseness",
 )
+"""
+An experiment evaluator that uses an LLM to evaluate whether the text is concise.
+
+Args:
+    model: The LLM model wrapper to use for evaluation. Compatible models can be imported from
+        the `phoenix.evals` module.
+    name (str, optional): The name of the evaluator, defaults to "Conciseness".
+"""
 
 
 HelpfulnessEvaluator = criteria_evaluator_factory(
@@ -125,6 +158,14 @@ HelpfulnessEvaluator = criteria_evaluator_factory(
     description="provides useful information",
     default_name="Helpfulness",
 )
+"""
+An experiment evaluator that uses an LLM to evaluate whether the text is helpful.
+
+Args:
+    model: The LLM model wrapper to use for evaluation. Compatible models can be imported from
+        the `phoenix.evals` module.
+    name (str, optional): The name of the evaluator, defaults to "Helpfulness".
+"""
 
 
 CoherenceEvaluator = criteria_evaluator_factory(
@@ -133,6 +174,14 @@ CoherenceEvaluator = criteria_evaluator_factory(
     description="is coherent, well-structured, and logically sound",
     default_name="Coherence",
 )
+"""
+An experiment evaluator that uses an LLM to evaluate whether the text is coherent.
+
+Args:
+    model: The LLM model wrapper to use for evaluation. Compatible models can be imported from
+        the `phoenix.evals` module.
+    name (str, optional): The name of the evaluator, defaults to "Coherence".
+"""
 
 
 def _parse_label_from_explanation(raw_string: str) -> str:
@@ -149,6 +198,33 @@ def _parse_label_from_explanation(raw_string: str) -> str:
 
 
 class RelevanceEvaluator(LLMEvaluator):
+    """
+    An experiment evaluator that uses an LLM to evaluate whether a response is relevant to a query.
+
+    This evaluator uses the chain-of-thought technique to perform a binary evaluation of whether
+    the output "response" of an experiment is relevant to its input "query". When used as an
+    experiment evaluator, `RelevanceEvaluator` will return a score of 1.0 if the response is
+    relevant to the query and a score of 0.0 if not. The explanation produced by the
+    chain-of-thought technique will be included in the experiment evaluation as well.
+
+    Optionally, you can provide custom functions to extract the query and response from the input
+    and output of the experiment task. By default, the evaluator will use the dataset example as
+    the input and the output of the experiment task as the response.
+
+    Args:
+        model: The LLM model wrapper to use for evaluation. Compatible models can be imported from
+            the `phoenix.evals` module.
+        get_query (callable, optional): A function that extracts the query from the input of the
+            experiment task. The function should take the input and metadata of the dataset example
+            and return a string. By default, the function will return the string representation of
+            the input.
+        get_response (callable, optional): A function that extracts the response from the output of
+            the experiment task. The function should take the output and metadata of the experiment
+            task and return a string. By default, the function will return the string representation
+            of the output.
+        name (str, optional): The name of the evaluator. Defaults to "Relevance".
+    """
+
     template = (
         "Determine if the following response is relevant to the query. In this context, "
         "'relevance' means that the response directly addresses the core question or topic of the "
@@ -174,7 +250,7 @@ class RelevanceEvaluator(LLMEvaluator):
         model: LLMBaseModel,
         get_query: Optional[Callable[[ExampleInput, ExampleMetadata], str]] = None,
         get_response: Optional[Callable[[Optional[TaskOutput], ExampleMetadata], str]] = None,
-        name: str = "RelevanceEvaluator",
+        name: str = "Relevance",
     ):
         self.model = model
         self._name = name
