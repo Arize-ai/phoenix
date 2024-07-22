@@ -90,6 +90,7 @@ dev = [
   "google-cloud-aiplatform>=1.3",
   "anthropic",
   "prometheus_client",
+  "asgi-lifespan",
 ]
 evals = []
 experimental = []
@@ -165,6 +166,7 @@ dependencies = [
   "respx", # For OpenAI testing
   "nest-asyncio", # for executor testing
   "astunparse; python_version<'3.9'",  # `ast.unparse(...)` is only available starting with Python 3.9
+  "asgi-lifespan",
 ]
 
 [tool.hatch.envs.type]
