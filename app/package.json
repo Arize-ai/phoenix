@@ -83,6 +83,7 @@
   },
   "scripts": {
     "preinstall": "npx only-allow pnpm",
+    "clean": "rimraf ../src/phoenix/server/static",
     "build": "pnpm run build:relay && vite build",
     "build:static": "cpy ./static ../src/phoenix/server",
     "build:relay": "relay-compiler",
