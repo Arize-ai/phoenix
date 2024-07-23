@@ -7,18 +7,7 @@ from starlette.requests import Request
 from starlette.status import HTTP_404_NOT_FOUND
 from strawberry.relay import GlobalID
 
-from phoenix.db.models import (
-    Dataset as ORMDataset,
-)
-from phoenix.db.models import (
-    DatasetExample as ORMDatasetExample,
-)
-from phoenix.db.models import (
-    DatasetExampleRevision as ORMDatasetExampleRevision,
-)
-from phoenix.db.models import (
-    DatasetVersion as ORMDatasetVersion,
-)
+from phoenix.db import models
 
 from .pydantic_compat import V1RoutesBaseModel
 from .utils import ResponseBody, add_errors_to_responses
@@ -76,7 +65,7 @@ async def get_dataset_examples(
     async with request.app.state.db() as session:
         if (
             resolved_dataset_id := await session.scalar(
-                select(ORMDataset.id).where(ORMDataset.id == int(dataset_gid.node_id))
+                select(models.Dataset.id).where(models.Dataset.id == int(dataset_gid.node_id))
             )
         ) is None:
             raise HTTPException(
@@ -87,16 +76,16 @@ async def get_dataset_examples(
         # Subquery to find the maximum created_at for each dataset_example_id
         # timestamp tiebreaks are resolved by the largest id
         partial_subquery = select(
-            func.max(ORMDatasetExampleRevision.id).label("max_id"),
-        ).group_by(ORMDatasetExampleRevision.dataset_example_id)
+            func.max(models.DatasetExampleRevision.id).label("max_id"),
+        ).group_by(models.DatasetExampleRevision.dataset_example_id)
 
         if version_gid:
             if (
                 resolved_version_id := await session.scalar(
-                    select(ORMDatasetVersion.id).where(
+                    select(models.DatasetVersion.id).where(
                         and_(
-                            ORMDatasetVersion.dataset_id == resolved_dataset_id,
-                            ORMDatasetVersion.id == int(version_gid.node_id),
+                            models.DatasetVersion.dataset_id == resolved_dataset_id,
+                            models.DatasetVersion.id == int(version_gid.node_id),
                         )
                     )
                 )
@@ -107,13 +96,13 @@ async def get_dataset_examples(
                 )
             # if a version_id is provided, filter the subquery to only include revisions from that
             partial_subquery = partial_subquery.filter(
-                ORMDatasetExampleRevision.dataset_version_id <= resolved_version_id
+                models.DatasetExampleRevision.dataset_version_id <= resolved_version_id
             )
         else:
             if (
                 resolved_version_id := await session.scalar(
-                    select(func.max(ORMDatasetVersion.id)).where(
-                        ORMDatasetVersion.dataset_id == resolved_dataset_id
+                    select(func.max(models.DatasetVersion.id)).where(
+                        models.DatasetVersion.dataset_id == resolved_dataset_id
                     )
                 )
             ) is None:
@@ -125,18 +114,18 @@ async def get_dataset_examples(
         subquery = partial_subquery.subquery()
         # Query for the most recent example revisions that are not deleted
         query = (
-            select(ORMDatasetExample, ORMDatasetExampleRevision)
+            select(models.DatasetExample, models.DatasetExampleRevision)
             .join(
-                ORMDatasetExampleRevision,
-                ORMDatasetExample.id == ORMDatasetExampleRevision.dataset_example_id,
+                models.DatasetExampleRevision,
+                models.DatasetExample.id == models.DatasetExampleRevision.dataset_example_id,
             )
             .join(
                 subquery,
-                (subquery.c.max_id == ORMDatasetExampleRevision.id),
+                (subquery.c.max_id == models.DatasetExampleRevision.id),
             )
-            .filter(ORMDatasetExample.dataset_id == resolved_dataset_id)
-            .filter(ORMDatasetExampleRevision.revision_kind != "DELETE")
-            .order_by(ORMDatasetExample.id.asc())
+            .filter(models.DatasetExample.dataset_id == resolved_dataset_id)
+            .filter(models.DatasetExampleRevision.revision_kind != "DELETE")
+            .order_by(models.DatasetExample.id.asc())
         )
         examples = [
             DatasetExample(
