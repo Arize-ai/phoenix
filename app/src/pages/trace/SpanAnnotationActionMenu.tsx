@@ -20,6 +20,7 @@ import { AnnotationActionMenu } from "./AnnotationActionMenu";
 
 type SpanAnnotationActionMenuProps = {
   annotationId: string;
+  spanNodeId: string;
   annotationName: string;
   onSpanAnnotationDelete: () => void;
   onSpanAnnotationDeleteError: (error: Error) => void;
@@ -28,6 +29,7 @@ type SpanAnnotationActionMenuProps = {
 export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
   const {
     annotationId,
+    spanNodeId,
     annotationName,
     onSpanAnnotationDelete,
     onSpanAnnotationDeleteError,
@@ -37,9 +39,16 @@ export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
     useMutation<SpanAnnotationActionMenuDeleteMutation>(graphql`
       mutation SpanAnnotationActionMenuDeleteMutation(
         $annotationId: GlobalID!
+        $spanId: GlobalID!
       ) {
         deleteSpanAnnotations(input: { annotationIds: [$annotationId] }) {
-          __typename
+          query {
+            node(id: $spanId) {
+              ... on Span {
+                ...EditSpanAnnotationsDialog_spanAnnotations
+              }
+            }
+          }
         }
       }
     `);
@@ -49,6 +58,7 @@ export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
       commitDelete({
         variables: {
           annotationId,
+          spanId: spanNodeId,
         },
         onCompleted: () => {
           onSpanAnnotationDelete();
@@ -61,6 +71,7 @@ export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
   }, [
     commitDelete,
     annotationId,
+    spanNodeId,
     onSpanAnnotationDelete,
     onSpanAnnotationDeleteError,
   ]);
