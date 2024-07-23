@@ -70,6 +70,7 @@ import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
 import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
 import { useNotifySuccess, useTheme } from "@phoenix/contexts";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import {
   AttributeDocument,
   AttributeEmbedding,
@@ -93,6 +94,7 @@ import {
   TraceDetailsQuery,
   TraceDetailsQuery$data,
 } from "./__generated__/TraceDetailsQuery.graphql";
+import { EditSpanAnnotationsButton } from "./EditSpanAnnotationsButton";
 import { SpanCodeDropdown } from "./SpanCodeDropdown";
 import { SpanEvaluationsTable } from "./SpanEvaluationsTable";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
@@ -303,7 +305,10 @@ export function TraceDetails(props: TraceDetailsProps) {
         <Panel>
           <ScrollingTabsWrapper>
             {selectedSpan ? (
-              <SelectedSpanDetails selectedSpan={selectedSpan} />
+              <SelectedSpanDetails
+                selectedSpan={selectedSpan}
+                projectId={projectId}
+              />
             ) : null}
           </ScrollingTabsWrapper>
         </Panel>
@@ -431,10 +436,17 @@ const attributesContextualHelp = (
   </Flex>
 );
 
-function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
+function SelectedSpanDetails({
+  selectedSpan,
+  projectId,
+}: {
+  selectedSpan: Span;
+  projectId: string;
+}) {
   const hasExceptions = useMemo<boolean>(() => {
     return spanHasException(selectedSpan);
   }, [selectedSpan]);
+  const showAnnotations = useFeatureFlag("annotations");
   return (
     <Flex direction="column" flex="1 1 auto" height="100%">
       <View
@@ -457,6 +469,12 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
               spanId={selectedSpan.context.spanId}
             />
             <AddSpanToDatasetButton span={selectedSpan} />
+            {showAnnotations ? (
+              <EditSpanAnnotationsButton
+                spanNodeId={selectedSpan.id}
+                projectId={projectId}
+              />
+            ) : null}
           </Flex>
         </Flex>
       </View>

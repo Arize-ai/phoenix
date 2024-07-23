@@ -14,7 +14,7 @@ export interface PreferencesProps {
 export interface PreferencesState extends PreferencesProps {
   /**
    * Sets the display mode of markdown text
-   * @param generativeTextDisplayMode
+   * @param markdownDisplayMode
    */
   setMarkdownDisplayMode: (markdownDisplayMode: MarkdownDisplayMode) => void;
 }
