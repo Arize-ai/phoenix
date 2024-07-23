@@ -234,6 +234,7 @@ function NewSpanAnnotationCard(props: {
     <Card
       variant="compact"
       title={name}
+      borderColor="orange-900"
       extra={
         <Flex direction="row" alignItems="center" gap="size-100">
           <AnnotatorKindLabel kind="HUMAN" />
