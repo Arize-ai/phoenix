@@ -1,4 +1,4 @@
-# Deploying Phoenix with a Reverse-Proxy
+# Deploying Phoenix with a Reverse Proxy
 
 This example shows how to deploy Phoenix behind a reverse proxy with a custom root path for the application. While the example uses [`traefik`](https://doc.traefik.io/traefik/), the same result can be achieved with other reverse proxy servers (e.g., Nginx).
 
