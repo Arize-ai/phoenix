@@ -26,7 +26,7 @@ async def test_span_round_tripping_with_docs(
     orig_count = len(orig_docs)
     assert orig_count
     await acall(px_client.log_traces, TraceDataset(df))
-    await sleep(0.01)
+    await sleep(0.1)
     docs = cast(pd.DataFrame, await acall(px_client.query_spans, doc_query))
     new_count = len(docs)
     assert new_count
