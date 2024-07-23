@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.14.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.14.0...arize-phoenix-v4.14.1) (2024-07-23)
+
+
+### Bug Fixes
+
+* remove clean step from release pipeline and remove rimraf dev dep ([#3975](https://github.com/Arize-ai/phoenix/issues/3975)) ([5e91f8f](https://github.com/Arize-ai/phoenix/commit/5e91f8f3003962a98a66407604c5ca4aa35f5c66))
+
 ## [4.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.13.1...arize-phoenix-v4.14.0) (2024-07-23)
 
 
