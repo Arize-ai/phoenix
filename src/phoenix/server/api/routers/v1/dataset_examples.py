@@ -73,7 +73,7 @@ async def get_dataset_examples(
             detail=f"ID {version_gid} refers to a {version_type}", status_code=HTTP_404_NOT_FOUND
         )
 
-    async with request.app.state.db() as session:
+    async with request.app.state.db("write") as session:
         if (
             resolved_dataset_id := await session.scalar(
                 select(ORMDataset.id).where(ORMDataset.id == int(dataset_gid.node_id))

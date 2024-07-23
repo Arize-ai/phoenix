@@ -149,7 +149,7 @@ async def annotate_traces(
                 status_code=HTTP_404_NOT_FOUND,
             )
 
-    async with request.app.state.db() as session:
+    async with request.app.state.db("write") as session:
         traces = await session.execute(
             select(models.Trace).filter(models.Trace.id.in_(resolved_trace_ids))
         )

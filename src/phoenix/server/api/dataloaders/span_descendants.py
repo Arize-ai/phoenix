@@ -4,6 +4,7 @@ from typing import (
     Callable,
     Dict,
     List,
+    Literal,
 )
 
 from aioitertools.itertools import groupby
@@ -22,7 +23,9 @@ Result: TypeAlias = List[models.Span]
 
 
 class SpanDescendantsDataLoader(DataLoader[Key, Result]):
-    def __init__(self, db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+    def __init__(
+        self, db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]]
+    ) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
@@ -56,7 +59,7 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
             .order_by(descendant_ids.c[root_id_label])
         )
         results: Dict[SpanId, Result] = {key: [] for key in keys}
-        async with self._db() as session:
+        async with self._db("read") as session:
             data = await session.stream(stmt)
             async for root_id, group in groupby(data, key=lambda d: d[0]):
                 results[root_id].extend(span for _, span in group)

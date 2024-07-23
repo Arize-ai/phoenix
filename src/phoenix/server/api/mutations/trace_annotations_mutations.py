@@ -27,7 +27,7 @@ class TraceAnnotationMutationMixin:
         self, info: Info[Context, None], input: List[CreateTraceAnnotationInput]
     ) -> TraceAnnotationMutationPayload:
         inserted_annotations: Sequence[models.TraceAnnotation] = []
-        async with info.context.db() as session:
+        async with info.context.db("read") as session:
             values_list = [
                 dict(
                     trace_rowid=from_global_id_with_expected_type(annotation.trace_id, "Trace"),
@@ -57,7 +57,7 @@ class TraceAnnotationMutationMixin:
         self, info: Info[Context, None], input: List[PatchAnnotationInput]
     ) -> TraceAnnotationMutationPayload:
         patched_annotations = []
-        async with info.context.db() as session:
+        async with info.context.db("read") as session:
             for annotation in input:
                 trace_annotation_id = from_global_id_with_expected_type(
                     annotation.annotation_id, "TraceAnnotation"
@@ -99,7 +99,7 @@ class TraceAnnotationMutationMixin:
             from_global_id_with_expected_type(global_id, "TraceAnnotation")
             for global_id in input.annotation_ids
         ]
-        async with info.context.db() as session:
+        async with info.context.db("read") as session:
             stmt = (
                 delete(models.TraceAnnotation)
                 .where(models.TraceAnnotation.id.in_(trace_annotation_ids))

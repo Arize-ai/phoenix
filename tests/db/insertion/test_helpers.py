@@ -60,7 +60,7 @@ class Test_insert_on_conflict:
         on_conflict: OnConflict,
         prod_db,  # the insert_on_conflict function is sensitive to the way the DB is set up
     ):
-        async with prod_db() as session:
+        async with prod_db("read") as session:
             project_rowid = await session.scalar(
                 insert(models.Project).values(dict(name="abc")).returning(models.Project.id)
             )
@@ -107,7 +107,7 @@ class Test_insert_on_conflict:
 
         await sleep(1)  # increment `updated_at` by 1 second
 
-        async with prod_db() as session:
+        async with prod_db("read") as session:
             dialect = SupportedSQLDialect(session.bind.dialect.name)
             await session.execute(
                 insert_on_conflict(

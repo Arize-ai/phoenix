@@ -91,7 +91,7 @@ async def query_spans_handler(
             detail=f"Invalid query: {e}",
             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
-    async with request.app.state.db() as session:
+    async with request.app.state.db("write") as session:
         results = []
         for query in span_queries:
             results.append(
@@ -193,7 +193,7 @@ async def annotate_spans(
                 status_code=HTTP_404_NOT_FOUND,
             )
 
-    async with request.app.state.db() as session:
+    async with request.app.state.db("write") as session:
         spans = await session.execute(
             select(models.Span).filter(models.Span.id.in_(resolved_span_ids))
         )

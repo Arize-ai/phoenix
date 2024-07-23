@@ -135,13 +135,13 @@ def db(request, dialect) -> async_sessionmaker:
 @pytest.fixture
 async def sqlite_db(
     sqlite_engine: AsyncEngine,
-) -> AsyncGenerator[Callable[[], AsyncContextManager[AsyncSession]], None]:
+) -> AsyncGenerator[Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]], None]:
     Session = async_sessionmaker(sqlite_engine, expire_on_commit=False)
 
     async with Session.begin() as session:
 
         @contextlib.asynccontextmanager
-        async def factory() -> AsyncIterator[AsyncSession]:
+        async def factory(_: Any = "") -> AsyncIterator[AsyncSession]:
             yield session
 
         yield factory
@@ -150,12 +150,12 @@ async def sqlite_db(
 @pytest.fixture
 async def postgres_db(
     postgres_engine: AsyncEngine,
-) -> AsyncGenerator[Callable[[], AsyncContextManager[AsyncSession]], None]:
+) -> AsyncGenerator[Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]], None]:
     Session = async_sessionmaker(postgres_engine, expire_on_commit=False)
     async with Session.begin() as session:
 
         @contextlib.asynccontextmanager
-        async def factory() -> AsyncIterator[AsyncSession]:
+        async def factory(_: Any = "") -> AsyncIterator[AsyncSession]:
             yield session
 
         yield factory
@@ -163,17 +163,17 @@ async def postgres_db(
 
 @pytest.fixture
 async def sqlite_session(
-    sqlite_db: Callable[[], AsyncContextManager[AsyncSession]],
+    sqlite_db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]],
 ) -> AsyncGenerator[AsyncSession, None]:
-    async with sqlite_db() as session:
+    async with sqlite_db("read") as session:
         yield session
 
 
 @pytest.fixture
 async def postgres_session(
-    postgres_db: Callable[[], AsyncContextManager[AsyncSession]],
+    postgres_db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]],
 ) -> AsyncGenerator[AsyncSession, None]:
-    async with postgres_db() as session:
+    async with postgres_db("read") as session:
         yield session
 
 
@@ -258,14 +258,14 @@ def prod_db(request, dialect) -> async_sessionmaker:
 @pytest.fixture
 def prod_sqlite_db(
     sqlite_engine: AsyncEngine,
-) -> Callable[[], AsyncContextManager[AsyncSession]]:
+) -> Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]]:
     """
     Instantiates SQLite in a manner similar to production.
     """
     Session = async_sessionmaker(sqlite_engine, expire_on_commit=False)
 
     @contextlib.asynccontextmanager
-    async def factory() -> AsyncIterator[AsyncSession]:
+    async def factory(_: Any = "") -> AsyncIterator[AsyncSession]:
         async with Session.begin() as session:
             yield session
 
@@ -275,14 +275,14 @@ def prod_sqlite_db(
 @pytest.fixture
 def prod_postgres_db(
     postgres_engine: AsyncEngine,
-) -> Callable[[], AsyncContextManager[AsyncSession]]:
+) -> Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]]:
     """
     Instantiates Postgres in a manner similar to production.
     """
     Session = async_sessionmaker(postgres_engine, expire_on_commit=False)
 
     @contextlib.asynccontextmanager
-    async def factory() -> AsyncIterator[AsyncSession]:
+    async def factory(_: Any = "") -> AsyncIterator[AsyncSession]:
         async with Session.begin() as session:
             yield session
 
@@ -290,7 +290,10 @@ def prod_postgres_db(
 
 
 @pytest.fixture
-async def prod_app(dialect, prod_db) -> AsyncIterator[ASGIApp]:
+async def prod_app(
+    dialect: str,
+    prod_db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]],
+) -> AsyncIterator[ASGIApp]:
     factory = SessionFactory(session_factory=prod_db, dialect=dialect)
     async with contextlib.AsyncExitStack() as stack:
         await stack.enter_async_context(patch_bulk_inserter())
@@ -307,7 +310,10 @@ async def prod_app(dialect, prod_db) -> AsyncIterator[ASGIApp]:
 
 
 @pytest.fixture
-async def test_app(dialect, db) -> AsyncIterator[ASGIApp]:
+async def test_app(
+    dialect: str,
+    db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]],
+) -> AsyncIterator[ASGIApp]:
     factory = SessionFactory(session_factory=db, dialect=dialect)
     async with contextlib.AsyncExitStack() as stack:
         await stack.enter_async_context(patch_bulk_inserter())

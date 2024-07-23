@@ -62,7 +62,7 @@ class Experiment(Node):
             before=before if isinstance(before, CursorString) else None,
         )
         experiment_id = self.id_attr
-        async with info.context.db() as session:
+        async with info.context.db("read") as session:
             runs = (
                 await session.scalars(
                     select(models.ExperimentRun)

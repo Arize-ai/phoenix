@@ -6,6 +6,7 @@ from typing import (
     Callable,
     DefaultDict,
     List,
+    Literal,
     Optional,
     Tuple,
 )
@@ -77,7 +78,7 @@ class DocumentEvaluationSummaryCache(
 class DocumentEvaluationSummaryDataLoader(DataLoader[Key, Result]):
     def __init__(
         self,
-        db: Callable[[], AsyncContextManager[AsyncSession]],
+        db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]],
         cache_map: Optional[AbstractCache[Key, Result]] = None,
     ) -> None:
         super().__init__(
@@ -97,7 +98,7 @@ class DocumentEvaluationSummaryDataLoader(DataLoader[Key, Result]):
             segment, param = _cache_key_fn(key)
             arguments[segment][param].append(position)
         for segment, params in arguments.items():
-            async with self._db() as session:
+            async with self._db("read") as session:
                 dialect = SupportedSQLDialect(session.bind.dialect.name)
                 stmt = _get_stmt(dialect, segment, *params.keys())
                 data = await session.stream(stmt)

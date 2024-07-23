@@ -2,6 +2,7 @@ from typing import (
     AsyncContextManager,
     Callable,
     List,
+    Literal,
     Optional,
 )
 
@@ -19,13 +20,15 @@ Result: TypeAlias = Optional[models.Span]
 
 
 class DatasetExampleSpansDataLoader(DataLoader[Key, Result]):
-    def __init__(self, db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+    def __init__(
+        self, db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]]
+    ) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
     async def _load_fn(self, keys: List[Key]) -> List[Result]:
         example_ids = keys
-        async with self._db() as session:
+        async with self._db("read") as session:
             spans = {
                 example_id: span
                 async for example_id, span in await session.stream(

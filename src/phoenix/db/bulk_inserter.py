@@ -12,6 +12,7 @@ from typing import (
     Callable,
     Iterable,
     List,
+    Literal,
     Optional,
     Set,
     Tuple,
@@ -46,7 +47,7 @@ class TransactionResult:
 class BulkInserter:
     def __init__(
         self,
-        db: Callable[[], AsyncContextManager[AsyncSession]],
+        db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]],
         *,
         cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
         initial_batch_of_operations: Iterable[DataManipulation] = (),
@@ -130,7 +131,7 @@ class BulkInserter:
                 await asyncio.sleep(self._sleep)
                 continue
             ops_remaining, events = self._max_ops_per_transaction, []
-            async with self._db() as session:
+            async with self._db("write") as session:
                 while ops_remaining and not self._operations.empty():
                     ops_remaining -= 1
                     op = await self._operations.get()
@@ -175,7 +176,7 @@ class BulkInserter:
         for i in range(0, len(spans), self._max_ops_per_transaction):
             try:
                 start = perf_counter()
-                async with self._db() as session:
+                async with self._db("write") as session:
                     for span, project_name in islice(spans, i, i + self._max_ops_per_transaction):
                         if self._enable_prometheus:
                             from phoenix.server.prometheus import BULK_LOADER_SPAN_INSERTIONS
@@ -214,7 +215,7 @@ class BulkInserter:
         for i in range(0, len(evaluations), self._max_ops_per_transaction):
             try:
                 start = perf_counter()
-                async with self._db() as session:
+                async with self._db("write") as session:
                     for evaluation in islice(evaluations, i, i + self._max_ops_per_transaction):
                         if self._enable_prometheus:
                             from phoenix.server.prometheus import BULK_LOADER_EVALUATION_INSERTIONS

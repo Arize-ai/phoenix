@@ -89,7 +89,7 @@ async def create_experiment_run(
     end_time = request_body.end_time
     error = request_body.error
 
-    async with request.app.state.db() as session:
+    async with request.app.state.db("write") as session:
         exp_run = models.ExperimentRun(
             experiment_id=experiment_rowid,
             dataset_example_id=dataset_example_id,
@@ -131,7 +131,7 @@ async def list_experiment_runs(
             status_code=HTTP_404_NOT_FOUND,
         )
 
-    async with request.app.state.db() as session:
+    async with request.app.state.db("write") as session:
         experiment_runs = await session.execute(
             select(models.ExperimentRun)
             .where(models.ExperimentRun.experiment_id == experiment_rowid)

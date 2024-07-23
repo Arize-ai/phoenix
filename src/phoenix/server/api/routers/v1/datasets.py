@@ -109,7 +109,7 @@ async def list_datasets(
         default=10, description="The max number of datasets to return at a time.", gt=0
     ),
 ) -> ListDatasetsResponseBody:
-    async with request.app.state.db() as session:
+    async with request.app.state.db("write") as session:
         query = select(models.Dataset).order_by(models.Dataset.id.desc())
 
         if cursor:
@@ -184,7 +184,7 @@ async def delete_dataset(
     stmt = (
         delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset.id)
     )
-    async with request.app.state.db() as session:
+    async with request.app.state.db("write") as session:
         project_names = await session.scalars(project_names_stmt)
         eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
         if (await session.scalar(stmt)) is None:
@@ -217,7 +217,7 @@ async def get_dataset(
         raise HTTPException(
             detail=f"ID {dataset_id} refers to a f{type_name}", status_code=HTTP_404_NOT_FOUND
         )
-    async with request.app.state.db() as session:
+    async with request.app.state.db("write") as session:
         result = await session.execute(
             select(models.Dataset, models.Dataset.example_count).filter(
                 models.Dataset.id == int(dataset_id.node_id)
@@ -309,7 +309,7 @@ async def list_dataset_versions(
             .where(models.DatasetVersion.dataset_id == dataset_id)
         ).scalar_subquery()
         stmt = stmt.filter(models.DatasetVersion.id <= max_dataset_version_id)
-    async with request.app.state.db() as session:
+    async with request.app.state.db("write") as session:
         data = [
             DatasetVersion(
                 version_id=str(GlobalID(DATASET_VERSION_NODE_NAME, str(version.id))),
@@ -417,7 +417,7 @@ async def upload_dataset(
                 status_code=HTTP_422_UNPROCESSABLE_ENTITY,
             )
         if action is DatasetAction.CREATE:
-            async with request.app.state.db() as session:
+            async with request.app.state.db("write") as session:
                 if await _check_table_exists(session, name):
                     raise HTTPException(
                         detail=f"Dataset with the same name already exists: {name=}",
@@ -441,7 +441,7 @@ async def upload_dataset(
                     status_code=HTTP_422_UNPROCESSABLE_ENTITY,
                 )
             if action is DatasetAction.CREATE:
-                async with request.app.state.db() as session:
+                async with request.app.state.db("write") as session:
                     if await _check_table_exists(session, name):
                         raise HTTPException(
                             detail=f"Dataset with the same name already exists: {name=}",
@@ -480,7 +480,7 @@ async def upload_dataset(
         ),
     )
     if sync:
-        async with request.app.state.db() as session:
+        async with request.app.state.db("write") as session:
             dataset_id = (await operation(session)).dataset_id
         return UploadDatasetResponseBody(
             data=UploadDatasetData(dataset_id=str(GlobalID(Dataset.__name__, str(dataset_id))))
@@ -700,7 +700,7 @@ async def get_dataset_csv(
     ),
 ) -> Response:
     try:
-        async with request.app.state.db() as session:
+        async with request.app.state.db("write") as session:
             dataset_name, examples = await _get_db_examples(
                 session=session, id=id, version_id=version_id
             )
@@ -742,7 +742,7 @@ async def get_dataset_jsonl_openai_ft(
     ),
 ) -> bytes:
     try:
-        async with request.app.state.db() as session:
+        async with request.app.state.db("write") as session:
             dataset_name, examples = await _get_db_examples(
                 session=session, id=id, version_id=version_id
             )
@@ -779,7 +779,7 @@ async def get_dataset_jsonl_openai_evals(
     ),
 ) -> bytes:
     try:
-        async with request.app.state.db() as session:
+        async with request.app.state.db("write") as session:
             dataset_name, examples = await _get_db_examples(
                 session=session, id=id, version_id=version_id
             )

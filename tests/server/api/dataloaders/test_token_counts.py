@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import AsyncContextManager, Callable
+from typing import AsyncContextManager, Callable, Literal
 
 import pandas as pd
 from phoenix.db import models
@@ -10,12 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def test_token_counts(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]],
     data_for_testing_dataloaders: None,
 ) -> None:
     start_time = datetime.fromisoformat("2021-01-01T00:00:10.000+00:00")
     end_time = datetime.fromisoformat("2021-01-01T00:10:00.000+00:00")
-    async with db() as session:
+    async with db("read") as session:
         prompt = models.Span.attributes[["llm", "token_count", "prompt"]].as_float()
         completion = models.Span.attributes[["llm", "token_count", "completion"]].as_float()
         pid = models.Trace.project_rowid

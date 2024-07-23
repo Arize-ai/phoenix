@@ -5,6 +5,7 @@ from typing import (
     DefaultDict,
     Dict,
     List,
+    Literal,
     Optional,
     Set,
     Tuple,
@@ -30,7 +31,9 @@ Result: TypeAlias = List[DocumentRetrievalMetrics]
 
 
 class DocumentRetrievalMetricsDataLoader(DataLoader[Key, Result]):
-    def __init__(self, db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+    def __init__(
+        self, db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]]
+    ) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
@@ -63,7 +66,7 @@ class DocumentRetrievalMetricsDataLoader(DataLoader[Key, Result]):
         requested_num_docs: DefaultDict[Tuple[RowId, EvalName], Set[NumDocs]] = defaultdict(set)
         for row_id, eval_name, num_docs in results.keys():
             requested_num_docs[(row_id, eval_name)].add(num_docs)
-        async with self._db() as session:
+        async with self._db("read") as session:
             data = await session.stream(stmt)
             async for (span_rowid, name), group in groupby(data, lambda r: (r.span_rowid, r.name)):
                 # We need to fulfill two types of potential requests: 1. when it

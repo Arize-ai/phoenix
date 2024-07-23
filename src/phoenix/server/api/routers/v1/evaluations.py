@@ -1,6 +1,6 @@
 import gzip
 from itertools import chain
-from typing import AsyncContextManager, Callable, Iterator, Optional, Tuple
+from typing import AsyncContextManager, Callable, Iterator, Literal, Optional, Tuple
 
 import pandas as pd
 import pyarrow as pa
@@ -128,8 +128,10 @@ async def get_evaluations(
         or DEFAULT_PROJECT_NAME
     )
 
-    db: Callable[[], AsyncContextManager[AsyncSession]] = request.app.state.db
-    async with db() as session:
+    db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]] = (
+        request.app.state.db
+    )
+    async with db("write") as session:
         connection = await session.connection()
         trace_evals_dataframe = await connection.run_sync(
             _read_sql_trace_evaluations_into_dataframe,

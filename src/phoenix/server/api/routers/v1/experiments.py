@@ -114,7 +114,7 @@ async def create_experiment(
                 status_code=HTTP_404_NOT_FOUND,
             )
 
-    async with request.app.state.db() as session:
+    async with request.app.state.db("write") as session:
         result = (
             await session.execute(select(models.Dataset).where(models.Dataset.id == dataset_rowid))
         ).scalar()
@@ -225,7 +225,7 @@ async def get_experiment(request: Request, experiment_id: str) -> GetExperimentR
             status_code=HTTP_404_NOT_FOUND,
         )
 
-    async with request.app.state.db() as session:
+    async with request.app.state.db("write") as session:
         experiment = await session.execute(
             select(models.Experiment).where(models.Experiment.id == experiment_rowid)
         )

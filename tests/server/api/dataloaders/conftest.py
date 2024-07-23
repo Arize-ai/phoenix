@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from random import randint, random, seed
-from typing import AsyncContextManager, Callable
+from typing import AsyncContextManager, Callable, Literal
 
 import pytest
 from phoenix.db import models
@@ -10,12 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 @pytest.fixture
 async def data_for_testing_dataloaders(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]],
 ) -> None:
     seed(42)
     orig_time = datetime.fromisoformat("2021-01-01T00:00:00.000+00:00")
     I, J, K = 10, 10, 10  # noqa: E741
-    async with db() as session:
+    async with db("read") as session:
         for i in range(I):
             project_row_id = await session.scalar(
                 insert(models.Project).values(name=f"{i}").returning(models.Project.id)

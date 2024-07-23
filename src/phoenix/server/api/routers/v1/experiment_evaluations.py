@@ -84,7 +84,7 @@ async def upsert_experiment_evaluation(
     metadata = request_body.metadata or {}
     start_time = payload["start_time"]
     end_time = payload["end_time"]
-    async with request.app.state.db() as session:
+    async with request.app.state.db("write") as session:
         values = dict(
             experiment_run_id=experiment_run_id,
             name=name,

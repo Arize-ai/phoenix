@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import AsyncContextManager, Callable
+from typing import AsyncContextManager, Callable, Literal
 
 import pandas as pd
 import pytest
@@ -11,13 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def test_latency_ms_quantiles_p25_p50_p75(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]],
     data_for_testing_dataloaders: None,
 ) -> None:
     start_time = datetime.fromisoformat("2021-01-01T00:00:10.000+00:00")
     end_time = datetime.fromisoformat("2021-01-01T00:10:00.000+00:00")
     pid = models.Trace.project_rowid
-    async with db() as session:
+    async with db("read") as session:
         span_df = await session.run_sync(
             lambda s: pd.read_sql_query(
                 select(pid, models.Span.latency_ms.label("latency_ms"))

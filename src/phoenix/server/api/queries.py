@@ -94,7 +94,7 @@ class Query:
             .where(models.Experiment.project_name.is_(None))
             .order_by(models.Project.id)
         )
-        async with info.context.db() as session:
+        async with info.context.db("read") as session:
             projects = await session.stream_scalars(stmt)
             data = [
                 Project(
@@ -127,7 +127,7 @@ class Query:
         if sort:
             sort_col = getattr(models.Dataset, sort.col.value)
             stmt = stmt.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
-        async with info.context.db() as session:
+        async with info.context.db("read") as session:
             datasets = await session.scalars(stmt)
         return connection_from_list(
             data=[to_gql_dataset(dataset) for dataset in datasets], args=args
@@ -146,7 +146,7 @@ class Query:
         if len(set(experiment_ids_)) != len(experiment_ids_):
             raise ValueError("Experiment IDs must be unique.")
 
-        async with info.context.db() as session:
+        async with info.context.db("read") as session:
             validation_result = (
                 await session.execute(
                     select(
@@ -247,7 +247,7 @@ class Query:
     @strawberry.field
     async def functionality(self, info: Info[Context, None]) -> "Functionality":
         has_model_inferences = not info.context.model.is_empty
-        async with info.context.db() as session:
+        async with info.context.db("read") as session:
             has_traces = (await session.scalar(select(models.Trace).limit(1))) is not None
         return Functionality(
             model_inferences=has_model_inferences,
@@ -274,7 +274,7 @@ class Query:
                 models.Project.gradient_start_color,
                 models.Project.gradient_end_color,
             ).where(models.Project.id == node_id)
-            async with info.context.db() as session:
+            async with info.context.db("read") as session:
                 project = (await session.execute(project_stmt)).first()
             if project is None:
                 raise ValueError(f"Unknown project: {id}")
@@ -289,7 +289,7 @@ class Query:
                 models.Trace.id,
                 models.Trace.project_rowid,
             ).where(models.Trace.id == node_id)
-            async with info.context.db() as session:
+            async with info.context.db("read") as session:
                 trace = (await session.execute(trace_stmt)).first()
             if trace is None:
                 raise ValueError(f"Unknown trace: {id}")
@@ -304,14 +304,14 @@ class Query:
                 )
                 .where(models.Span.id == node_id)
             )
-            async with info.context.db() as session:
+            async with info.context.db("read") as session:
                 span = await session.scalar(span_stmt)
             if span is None:
                 raise ValueError(f"Unknown span: {id}")
             return to_gql_span(span)
         elif type_name == Dataset.__name__:
             dataset_stmt = select(models.Dataset).where(models.Dataset.id == node_id)
-            async with info.context.db() as session:
+            async with info.context.db("read") as session:
                 if (dataset := await session.scalar(dataset_stmt)) is None:
                     raise ValueError(f"Unknown dataset: {id}")
             return to_gql_dataset(dataset)
@@ -322,7 +322,7 @@ class Query:
                 .where(models.DatasetExampleRevision.dataset_example_id == example_id)
                 .scalar_subquery()
             )
-            async with info.context.db() as session:
+            async with info.context.db("read") as session:
                 example = await session.scalar(
                     select(models.DatasetExample)
                     .join(
@@ -345,7 +345,7 @@ class Query:
                 created_at=example.created_at,
             )
         elif type_name == Experiment.__name__:
-            async with info.context.db() as session:
+            async with info.context.db("read") as session:
                 experiment = await session.scalar(
                     select(models.Experiment).where(models.Experiment.id == node_id)
                 )
@@ -361,7 +361,7 @@ class Query:
                 metadata=experiment.metadata_,
             )
         elif type_name == ExperimentRun.__name__:
-            async with info.context.db() as session:
+            async with info.context.db("read") as session:
                 if not (
                     run := await session.scalar(
                         select(models.ExperimentRun)

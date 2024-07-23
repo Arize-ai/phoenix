@@ -48,7 +48,7 @@ class ExperimentRun(Node):
             before=before if isinstance(before, CursorString) else None,
         )
         run_id = self.id_attr
-        async with info.context.db() as session:
+        async with info.context.db("read") as session:
             annotations = (
                 await session.scalars(
                     select(models.ExperimentRunAnnotation)

@@ -1,4 +1,4 @@
-from typing import AsyncContextManager, Callable, List, Union
+from typing import AsyncContextManager, Callable, List, Literal, Union
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,13 +13,15 @@ Result: TypeAlias = models.Project
 
 
 class SpanProjectsDataLoader(DataLoader[Key, Result]):
-    def __init__(self, db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+    def __init__(
+        self, db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]]
+    ) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
     async def _load_fn(self, keys: List[Key]) -> List[Union[Result, ValueError]]:
         span_ids = list(set(keys))
-        async with self._db() as session:
+        async with self._db("read") as session:
             projects = {
                 span_id: project
                 async for span_id, project in await session.stream(
