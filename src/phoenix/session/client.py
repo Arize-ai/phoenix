@@ -389,7 +389,6 @@ class Client(TraceDataExtractor):
     def get_dataset_versions(
         self,
         dataset_id: str,
-        /,
         *,
         limit: Optional[int] = 100,
     ) -> pd.DataFrame:
