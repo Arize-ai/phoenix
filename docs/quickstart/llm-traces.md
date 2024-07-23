@@ -33,7 +33,7 @@ import phoenix as px
 session = px.launch_app()
 ```
 
-The above launches a Phoenix server that acts as a trace collector for any LLM application running locally in you jupyter notebook! (Note, this step is not necessary if you have launched the app via [Docker](../deployment/docker.md))
+The above launches a Phoenix server that acts as a trace collector for any LLM application running locally in you jupyter notebook!
 
 ```markup
 🌍 To view the Phoenix app in your browser, visit https://z8rwookkcle1-496ff2e9c6d22116-6060-colab.googleusercontent.com/
@@ -54,33 +54,28 @@ pip install 'llama-index>=0.10.44'
 ```
 
 ```python
-import os
 import phoenix as px
+from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
+import os
+from gcsfs import GCSFileSystem
 from llama_index.core import (
     Settings,
     VectorStoreIndex,
-    SimpleDirectoryReader,
+    StorageContext,
     set_global_handler,
+    load_index_from_storage
 )
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAI
-
-os.environ["OPENAI_API_KEY"] = "YOUR_OPENAI_API_KEY"
+import llama_index
 
 # To view traces in Phoenix, you will first have to start a Phoenix server. You can do this by running the following:
 session = px.launch_app()
 
-# Once you have started a Phoenix server, you can start your LlamaIndex application and configure it to send traces to Phoenix.
-from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.trace import SpanLimits, TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+# Initialize LlamaIndex auto-instrumentation
+LlamaIndexInstrumentor().instrument()
 
-endpoint = "http://127.0.0.1:6006/v1/traces"
-tracer_provider = TracerProvider(span_limits=SpanLimits(max_attributes=100_000))
-tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
-
-LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
+os.environ["OPENAI_API_KEY"] = "<ENTER_YOUR_OPENAI_API_KEY_HERE>"
 
 # LlamaIndex application initialization may vary
 # depending on your application
@@ -88,16 +83,21 @@ Settings.llm = OpenAI(model="gpt-4-turbo-preview")
 Settings.embed_model = OpenAIEmbedding(model="text-embedding-ada-002")
 
 
-YOUR_DATA_DIRECTORY = "/."
-# Load your data and create an index. Note you usually want to store your index in a persistent store like a database or the file system
-documents = SimpleDirectoryReader(YOUR_DATA_DIRECTORY).load_data()
-index = VectorStoreIndex.from_documents(documents)
+# Load your data and create an index. Here we've provided an example of our documentation
+file_system = GCSFileSystem(project="public-assets-275721")
+index_path = "arize-phoenix-assets/datasets/unstructured/llm/llama-index/arize-docs/index/"
+storage_context = StorageContext.from_defaults(
+    fs=file_system,
+    persist_dir=index_path,
+)
+
+index = load_index_from_storage(storage_context)
 
 query_engine = index.as_query_engine()
 
 # Query your LlamaIndex application
 query_engine.query("What is the meaning of life?")
-query_engine.query("Why did the cow jump over the moon?")
+query_engine.query("How can I deploy Arize?")
 
 # View the traces in the Phoenix UI
 px.active_session().url
@@ -107,52 +107,91 @@ See the [LlamaIndex](../tracing/how-to-tracing/instrumentation/auto-instrument-p
 {% endtab %}
 
 {% tab title="LangChain" %}
+```bash
+pip install langchain langchain-community langchainhub langchain-openai langchain-chroma bs4
+```
+
 ```python
+import phoenix as px
 from phoenix.trace.langchain import LangChainInstrumentor
 
+# To view traces in Phoenix, you will first have to start a Phoenix server. You can do this by running the following:
+session = px.launch_app()
+
+# Initialize Langchain auto-instrumentation
 LangChainInstrumentor().instrument()
 
 # Initialize your LangChain application
 # This might vary on your use-case. An example Chain is shown below
-from langchain.chains import RetrievalQA
-from langchain.chat_models import ChatOpenAI
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.retrievers import KNNRetriever
+import bs4
+from langchain import hub
+from langchain_community.document_loaders import WebBaseLoader
+from langchain_chroma import Chroma
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough
+from langchain_openai import OpenAIEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_openai import ChatOpenAI
 
-embeddings = OpenAIEmbeddings(model="text-embedding-ada-002")
+llm = ChatOpenAI(model="gpt-3.5-turbo-0125")
 
-knn_retriever = KNNRetriever(
-    index=vectors,
-    texts=texts,
-    embeddings=OpenAIEmbeddings(),
+# Load, chunk and index the contents of the blog.
+loader = WebBaseLoader(
+    web_paths=("https://lilianweng.github.io/posts/2023-06-23-agent/",),
+    bs_kwargs=dict(
+        parse_only=bs4.SoupStrainer(
+            class_=("post-content", "post-title", "post-header")
+        )
+    ),
 )
+docs = loader.load()
 
-llm = ChatOpenAI(model_name="gpt-3.5-turbo")
-chain = RetrievalQA.from_chain_type(
-    llm=llm,
-    chain_type="map_reduce",
-    retriever=knn_retriever,
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+splits = text_splitter.split_documents(docs)
+vectorstore = Chroma.from_documents(documents=splits, embedding=OpenAIEmbeddings())
+
+# Retrieve and generate using the relevant snippets of the blog.
+retriever = vectorstore.as_retriever()
+prompt = hub.pull("rlm/rag-prompt")
+
+def format_docs(docs):
+    return "\n\n".join(doc.page_content for doc in docs)
+
+
+rag_chain = (
+    {"context": retriever | format_docs, "question": RunnablePassthrough()}
+    | prompt
+    | llm
+    | StrOutputParser()
 )
 
 # Execute the chain
-response = chain.run("What is OpenInference tracing?")
+response = rag_chain.invoke("What is Task Decomposition?")
 ```
 
 See the [integration guide](../tracing/how-to-tracing/instrumentation/auto-instrument-python/langchain.md#traces) for details
 {% endtab %}
 
 {% tab title="OpenAI" %}
+```bash
+pip install openai
+```
+
 ```python
-import os
-from openai import OpenAI
+import phoenix as px
 from phoenix.trace.openai import OpenAIInstrumentor
+
+# To view traces in Phoenix, you will first have to start a Phoenix server. You can do this by running the following:
+session = px.launch_app()
 
 # Initialize OpenAI auto-instrumentation
 OpenAIInstrumentor().instrument()
 
+import os
+from openai import OpenAI
+
 # Initialize an OpenAI client
-# note you must have the OPENAI_API_KEY environment variable set
-client = OpenAI()
+client = OpenAI(api_key='')
 
 # Define a conversation with a user message
 conversation = [
@@ -188,21 +227,16 @@ Once you've executed a sufficient number of queries (or chats) to your applicati
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/RAG_trace_details.png" alt=""><figcaption><p>A detailed view of a trace of a RAG application using LlamaIndex</p></figcaption></figure>
 
-## Trace Datasets
-
-Phoenix also support loading data that contains [OpenInference trace](../reference/open-inference.md) data. This allows data from a LangChain and LlamaIndex running instance explored for analysis offline.
-
-There are two ways to extract trace dataframes. The two ways for LangChain are described below.
+## Exporting Traces from Phoenix
 
 {% tabs %}
 {% tab title="From the App" %}
 <pre class="language-python"><code class="lang-python"><strong># You can export a dataframe from the session
+</strong>df = px.Client().get_spans_dataframe()
+<strong>
 </strong><strong># Note that you can apply a filter if you would like to export only a sub-set of spans
 </strong><strong>df = px.Client().get_spans_dataframe('span_kind == "RETRIEVER"')
-</strong>
-<strong># Re-launch the app using the data
-</strong>px.launch_app(trace=px.TraceDataset(df))
-</code></pre>
+</strong></code></pre>
 {% endtab %}
 {% endtabs %}
 
