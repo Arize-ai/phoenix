@@ -2,9 +2,8 @@ import asyncio
 from typing import List, Optional
 
 import strawberry
+from strawberry import UNSET, Info
 from strawberry.relay import Connection
-from strawberry.types import Info
-from strawberry.unset import UNSET
 from typing_extensions import Annotated
 
 from phoenix.config import get_exported_files

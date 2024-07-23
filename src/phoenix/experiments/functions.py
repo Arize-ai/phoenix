@@ -368,10 +368,9 @@ def run_experiment(
         return exp_run
 
     _errors: Tuple[Type[BaseException], ...]
-    if not hasattr(rate_limit_errors, "__iter__"):
+    if not isinstance(rate_limit_errors, Sequence):
         _errors = (rate_limit_errors,) if rate_limit_errors is not None else ()
     else:
-        rate_limit_errors = cast(Sequence[Type[BaseException]], rate_limit_errors)
         _errors = tuple(filter(None, rate_limit_errors))
     rate_limiters = [RateLimiter(rate_limit_error=rate_limit_error) for rate_limit_error in _errors]
 
@@ -608,10 +607,9 @@ def evaluate_experiment(
         return eval_run
 
     _errors: Tuple[Type[BaseException], ...]
-    if not hasattr(rate_limit_errors, "__iter__"):
+    if not isinstance(rate_limit_errors, Sequence):
         _errors = (rate_limit_errors,) if rate_limit_errors is not None else ()
     else:
-        rate_limit_errors = cast(Sequence[Type[BaseException]], rate_limit_errors)
         _errors = tuple(filter(None, rate_limit_errors))
     rate_limiters = [RateLimiter(rate_limit_error=rate_limit_error) for rate_limit_error in _errors]
 
