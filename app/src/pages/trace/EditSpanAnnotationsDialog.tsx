@@ -28,6 +28,7 @@ import {
   EditSpanAnnotationsDialogQuery,
   EditSpanAnnotationsDialogQuery$data,
 } from "./__generated__/EditSpanAnnotationsDialogQuery.graphql";
+import { NewSpanAnnotationForm } from "./NewSpanAnnotationForm";
 import { SpanAnnotationActionMenu } from "./SpanAnnotationActionMenu";
 import { SpanAnnotationForm } from "./SpanAnnotationForm";
 
@@ -64,8 +65,12 @@ export function EditSpanAnnotationsDialog(
         {newAnnotationName && (
           <View paddingBottom="size-200">
             <NewSpanAnnotationCard
+              spanNodeId={spanNodeId}
               name={newAnnotationName}
               onDelete={() => {
+                setNewAnnotationName(null);
+              }}
+              onCreated={() => {
                 setNewAnnotationName(null);
               }}
             />
@@ -191,8 +196,16 @@ function EditSpanAnnotations(props: EditSpanAnnotationsProps) {
   );
 }
 
-function NewSpanAnnotationCard(props: { name: string; onDelete: () => void }) {
-  const { name, onDelete } = props;
+function NewSpanAnnotationCard(props: {
+  spanNodeId: string;
+  name: string;
+  onDelete: () => void;
+  /**
+   * Callback when the annotation is created
+   */
+  onCreated: () => void;
+}) {
+  const { spanNodeId, name, onDelete, onCreated } = props;
 
   return (
     <Card
@@ -213,11 +226,10 @@ function NewSpanAnnotationCard(props: { name: string; onDelete: () => void }) {
       }
       bodyStyle={{ padding: 0 }}
     >
-      <SpanAnnotationForm
-        initialData={{ name }}
-        onSubmit={(data) => {
-          alert(JSON.stringify(data));
-        }}
+      <NewSpanAnnotationForm
+        annotationName={name}
+        spanNodeId={spanNodeId}
+        onCreated={onCreated}
       />
     </Card>
   );
