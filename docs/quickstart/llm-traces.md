@@ -56,13 +56,6 @@ pip install 'llama-index>=0.10.44'
 ```python
 import phoenix as px
 from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
-
-# To view traces in Phoenix, you will first have to start a Phoenix server. You can do this by running the following:
-session = px.launch_app()
-
-# Initialize LlamaIndex auto-instrumentation
-LlamaIndexInstrumentor().instrument()
-
 import os
 from gcsfs import GCSFileSystem
 from llama_index.core import (
@@ -74,8 +67,15 @@ from llama_index.core import (
 )
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAI
+import llama_index
 
-os.environ["OPENAI_API_KEY"] = ""
+# To view traces in Phoenix, you will first have to start a Phoenix server. You can do this by running the following:
+session = px.launch_app()
+
+# Initialize LlamaIndex auto-instrumentation
+LlamaIndexInstrumentor().instrument()
+
+os.environ["OPENAI_API_KEY"] = "<ENTER_YOUR_OPENAI_API_KEY_HERE>"
 
 # LlamaIndex application initialization may vary
 # depending on your application
