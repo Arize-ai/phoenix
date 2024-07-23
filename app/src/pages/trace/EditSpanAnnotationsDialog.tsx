@@ -358,7 +358,6 @@ function NewAnnotationPopoverContent(props: {
     }
   );
 
-  // Use deferred?
   const [newName, setNewName] = useState<string>("");
   const existingAnnotationNames = useMemo(() => {
     return (
