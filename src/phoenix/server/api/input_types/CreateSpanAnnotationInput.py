@@ -4,12 +4,14 @@ import strawberry
 from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
+from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
+
 
 @strawberry.input
-class CreateSpanAnnotationsInput:
+class CreateSpanAnnotationInput:
     span_id: GlobalID
     name: str
-    annotator_kind: str
+    annotator_kind: AnnotatorKind
     label: Optional[str] = None
     score: Optional[float] = None
     explanation: Optional[str] = None

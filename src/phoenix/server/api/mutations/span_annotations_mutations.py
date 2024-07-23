@@ -7,9 +7,9 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.input_types.CreateSpanAnnotationsInput import CreateSpanAnnotationsInput
+from phoenix.server.api.input_types.CreateSpanAnnotationInput import CreateSpanAnnotationInput
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
-from phoenix.server.api.input_types.PatchAnnotationsInput import PatchAnnotationsInput
+from phoenix.server.api.input_types.PatchAnnotationInput import PatchAnnotationInput
 from phoenix.server.api.mutations.auth import IsAuthenticated
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
@@ -24,7 +24,7 @@ class SpanAnnotationMutationPayload:
 class SpanAnnotationMutationMixin:
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
     async def create_span_annotations(
-        self, info: Info[Context, None], input: List[CreateSpanAnnotationsInput]
+        self, info: Info[Context, None], input: List[CreateSpanAnnotationInput]
     ) -> SpanAnnotationMutationPayload:
         inserted_annotations: Sequence[models.SpanAnnotation] = []
         async with info.context.db() as session:
@@ -35,7 +35,7 @@ class SpanAnnotationMutationMixin:
                     label=annotation.label,
                     score=annotation.score,
                     explanation=annotation.explanation,
-                    annotator_kind=annotation.annotator_kind,
+                    annotator_kind=annotation.annotator_kind.value,
                     metadata_=annotation.metadata,
                 )
                 for annotation in input
@@ -54,7 +54,7 @@ class SpanAnnotationMutationMixin:
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
     async def patch_span_annotations(
-        self, info: Info[Context, None], input: List[PatchAnnotationsInput]
+        self, info: Info[Context, None], input: List[PatchAnnotationInput]
     ) -> SpanAnnotationMutationPayload:
         patched_annotations = []
         async with info.context.db() as session:
@@ -66,7 +66,13 @@ class SpanAnnotationMutationMixin:
                     column.key: patch_value
                     for column, patch_value, column_is_nullable in (
                         (models.SpanAnnotation.name, annotation.name, False),
-                        (models.SpanAnnotation.annotator_kind, annotation.annotator_kind, False),
+                        (
+                            models.SpanAnnotation.annotator_kind,
+                            annotation.annotator_kind.value
+                            if annotation.annotator_kind is not None
+                            else None,
+                            False,
+                        ),
                         (models.SpanAnnotation.label, annotation.label, True),
                         (models.SpanAnnotation.score, annotation.score, True),
                         (models.SpanAnnotation.explanation, annotation.explanation, True),

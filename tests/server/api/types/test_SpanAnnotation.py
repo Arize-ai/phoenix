@@ -58,7 +58,7 @@ async def test_annotating_a_span(
         "/graphql",
         json={
             "query": """
-                mutation AddSpanAnnotation($input: [CreateSpanAnnotationsInput!]!) {
+                mutation AddSpanAnnotation($input: [CreateSpanAnnotationInput!]!) {
                     createSpanAnnotations(input: $input) {
                         spanAnnotations {
                             id
@@ -106,7 +106,7 @@ async def test_annotating_a_span(
         "/graphql",
         json={
             "query": """
-                mutation PatchSpanAnnotation($input: [PatchAnnotationsInput!]!) {
+                mutation PatchSpanAnnotation($input: [PatchAnnotationInput!]!) {
                     patchSpanAnnotations(input: $input) {
                         spanAnnotations {
                             id

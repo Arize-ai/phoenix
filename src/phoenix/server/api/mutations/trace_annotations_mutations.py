@@ -7,9 +7,9 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.input_types.CreateTraceAnnotationsInput import CreateTraceAnnotationsInput
+from phoenix.server.api.input_types.CreateTraceAnnotationInput import CreateTraceAnnotationInput
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
-from phoenix.server.api.input_types.PatchAnnotationsInput import PatchAnnotationsInput
+from phoenix.server.api.input_types.PatchAnnotationInput import PatchAnnotationInput
 from phoenix.server.api.mutations.auth import IsAuthenticated
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.TraceAnnotation import TraceAnnotation, to_gql_trace_annotation
@@ -24,7 +24,7 @@ class TraceAnnotationMutationPayload:
 class TraceAnnotationMutationMixin:
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
     async def create_trace_annotations(
-        self, info: Info[Context, None], input: List[CreateTraceAnnotationsInput]
+        self, info: Info[Context, None], input: List[CreateTraceAnnotationInput]
     ) -> TraceAnnotationMutationPayload:
         inserted_annotations: Sequence[models.TraceAnnotation] = []
         async with info.context.db() as session:
@@ -35,7 +35,7 @@ class TraceAnnotationMutationMixin:
                     label=annotation.label,
                     score=annotation.score,
                     explanation=annotation.explanation,
-                    annotator_kind=annotation.annotator_kind,
+                    annotator_kind=annotation.annotator_kind.value,
                     metadata_=annotation.metadata,
                 )
                 for annotation in input
@@ -54,7 +54,7 @@ class TraceAnnotationMutationMixin:
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
     async def patch_trace_annotations(
-        self, info: Info[Context, None], input: List[PatchAnnotationsInput]
+        self, info: Info[Context, None], input: List[PatchAnnotationInput]
     ) -> TraceAnnotationMutationPayload:
         patched_annotations = []
         async with info.context.db() as session:
@@ -66,7 +66,13 @@ class TraceAnnotationMutationMixin:
                     column.key: patch_value
                     for column, patch_value, column_is_nullable in (
                         (models.TraceAnnotation.name, annotation.name, False),
-                        (models.TraceAnnotation.annotator_kind, annotation.annotator_kind, False),
+                        (
+                            models.TraceAnnotation.annotator_kind,
+                            annotation.annotator_kind.value
+                            if annotation.annotator_kind is not None
+                            else None,
+                            False,
+                        ),
                         (models.TraceAnnotation.label, annotation.label, True),
                         (models.TraceAnnotation.score, annotation.score, True),
                         (models.TraceAnnotation.explanation, annotation.explanation, True),

@@ -58,7 +58,7 @@ async def test_annotating_a_trace(
         "/graphql",
         json={
             "query": """
-                mutation AddTraceAnnotation($input: [CreateTraceAnnotationsInput!]!) {
+                mutation AddTraceAnnotation($input: [CreateTraceAnnotationInput!]!) {
                     createTraceAnnotations(input: $input) {
                         traceAnnotations {
                             id
@@ -106,7 +106,7 @@ async def test_annotating_a_trace(
         "/graphql",
         json={
             "query": """
-                mutation PatchTraceAnnotation($input: [PatchAnnotationsInput!]!) {
+                mutation PatchTraceAnnotation($input: [PatchAnnotationInput!]!) {
                     patchTraceAnnotations(input: $input) {
                         traceAnnotations {
                             id
