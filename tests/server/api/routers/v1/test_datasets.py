@@ -336,7 +336,7 @@ async def test_get_dataset_jsonl_openai_ft(test_client, dataset_with_messages: T
         f"/v1/datasets/{dataset_global_id}/jsonl/openai_ft?version_id={dataset_version_global_id}"
     )
     assert response.status_code == 200
-    assert response.headers.get("content-type") == "text/plain"
+    assert response.headers.get("content-type") == "text/plain; charset=utf-8"
     assert response.headers.get("content-encoding") == "gzip"
     assert response.headers.get("content-disposition") == 'attachment; filename="xyz.jsonl"'
     json_lines = io.StringIO(response.text).readlines()
@@ -365,7 +365,7 @@ async def test_get_dataset_jsonl_openai_evals(test_client, dataset_with_messages
         f"/v1/datasets/{dataset_global_id}/jsonl/openai_evals?version_id={dataset_version_global_id}"
     )
     assert response.status_code == 200
-    assert response.headers.get("content-type") == "text/plain"
+    assert response.headers.get("content-type") == "text/plain; charset=utf-8"
     assert response.headers.get("content-encoding") == "gzip"
     assert response.headers.get("content-disposition") == 'attachment; filename="xyz.jsonl"'
     json_lines = io.StringIO(response.text).readlines()

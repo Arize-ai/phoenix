@@ -59,7 +59,8 @@ dependencies = [
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
   "arize-phoenix-evals>=0.13.1",
-  "pyyaml", # for OpenAPI
+  "fastapi",
+  "pydantic>=1.0,!=2.0.*,<3,", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
 ]
 dynamic = ["version"]
 
@@ -111,7 +112,7 @@ container = [
   "opentelemetry-proto>=1.12.0",
   "opentelemetry-exporter-otlp",
   "opentelemetry-semantic-conventions",
-  "opentelemetry-instrumentation-starlette",
+  "opentelemetry-instrumentation-fastapi",
   "opentelemetry-instrumentation-sqlalchemy",
   "opentelemetry-instrumentation-grpc",
   "py-grpc-prometheus",
@@ -161,8 +162,10 @@ dependencies = [
   "protobuf==3.20",  # version minimum (for tests)
   "responses",
   "tiktoken",
-  "typing-extensions==4.5.0; python_version<'3.12'",
-  "typing-extensions==4.6.0; python_version>='3.12'",
+  "typing-extensions==4.5.0; python_version=='3.8'",
+  "typing-extensions==4.6.0; python_version=='3.9'",
+  "pydantic==1.9.0; python_version<='3.9'",  # minimum version of pydantic compatible with openai
+  "pydantic==2.8.2; python_version=='3.12'",
   "httpx", # For OpenAI testing
   "respx", # For OpenAI testing
   "nest-asyncio", # for executor testing
@@ -190,12 +193,15 @@ dependencies = [
   "opentelemetry-proto>=1.12.0",
   "opentelemetry-exporter-otlp",
   "opentelemetry-semantic-conventions",
-  "opentelemetry-instrumentation-starlette",
+  "opentelemetry-instrumentation-fastapi",
   "opentelemetry-instrumentation-sqlalchemy",
   "opentelemetry-instrumentation-grpc",
   "py-grpc-prometheus",
   "strawberry-graphql[opentelemetry]==0.236.0",  # need to pin version because we're monkey-patching
   "requests",  # this is needed to type-check third-party packages
+  "pydantic==1.10.17; python_version=='3.8'",  # lower minor versions of pydantic break strawberry mypy plugin
+  "pydantic==1.10.17; python_version=='3.9'",  # lower minor versions of pydantic break strawberry mypy plugin
+  "pydantic==2.8.2; python_version=='3.12'",
 ]
 
 [[tool.hatch.envs.type.matrix]]
@@ -310,11 +316,12 @@ build = 'strawberry export-schema phoenix.server.api.schema:schema > app/schema.
 
 [tool.hatch.envs.openapi]
 dependencies = [
-  "pyyaml",
+  "pydantic==2.8.2",
+  "fastapi==0.111.0",
 ]
 
 [tool.hatch.envs.openapi.scripts]
-build = 'python -m phoenix.server.api.openapi.main > schemas/openapi.yaml'
+build = "python -m phoenix.server.api.openapi.main > schemas/openapi.json"
 
 [tool.hatch.envs.proto]
 detached = true
@@ -379,6 +386,7 @@ module = [
   "sqlean",
   "grpc.*",
   "py_grpc_prometheus.*",
+  "orjson",  # suppress fastapi internal type errors
 ]
 ignore_missing_imports = true
 
