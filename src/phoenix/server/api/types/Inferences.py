@@ -2,8 +2,7 @@ from datetime import datetime
 from typing import Iterable, List, Optional, Set, Union
 
 import strawberry
-from strawberry.scalars import ID
-from strawberry.unset import UNSET
+from strawberry import ID, UNSET
 
 import phoenix.core.model_schema as ms
 from phoenix.core.model_schema import FEATURE, TAG, ScalarDimension

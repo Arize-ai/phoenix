@@ -31,7 +31,7 @@ dependencies = [
   "starlette",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.235.0",  # need to pin version because we're monkey-patching
+  "strawberry-graphql==0.236.0",  # need to pin version because we're monkey-patching
   "pyarrow",
   "typing-extensions>=4.5; python_version<'3.12'",
   # A minimum version of typing-extensions==4.6.0 is needed to avoid this issue on Python 3.12: https://github.com/Azure/azure-sdk-for-python/issues/33442#issuecomment-1847886784
@@ -69,19 +69,20 @@ dev = [
   "hatch",
   "jupyter",
   "nbqa",
-  "ruff==0.4.9",
+  "ruff==0.5.4",
+  "mypy==1.11.0",
   "pandas>=1.0",
   "tabulate",  # used by DataFrame.to_markdown()
   "types-tabulate",
   "pandas-stubs==2.2.2.240603; python_version>='3.9'",
   "pandas-stubs==2.0.3.230814; python_version<'3.9'",
-  "pytest==8.2.2",
+  "pytest==8.3.1",
   "pytest-asyncio",
   "pytest-cov",
   "pytest-postgresql",
   "asyncpg",
   "psycopg[binary]",
-  "strawberry-graphql[debug-server,opentelemetry]==0.235.0",  # need to pin version because we're monkey-patching
+  "strawberry-graphql[debug-server,opentelemetry]==0.236.0",  # need to pin version because we're monkey-patching
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
   "llama-index>=0.10.3",
@@ -114,7 +115,7 @@ container = [
   "opentelemetry-instrumentation-sqlalchemy",
   "opentelemetry-instrumentation-grpc",
   "py-grpc-prometheus",
-  "strawberry-graphql[opentelemetry]==0.235.0",  # need to pin version because we're monkey-patching
+  "strawberry-graphql[opentelemetry]==0.236.0",  # need to pin version because we're monkey-patching
   "uvloop; platform_system != 'Windows'",
 ]
 
@@ -147,7 +148,7 @@ dependencies = [
   "numpy",
   "pandas==2.2.2; python_version>='3.9'",
   "pandas==1.4.0; python_version<'3.9'",
-  "pytest==8.2.2",
+  "pytest==8.3.1",
   "pytest-asyncio",
   "pytest-cov",
   "pytest-postgresql",
@@ -171,7 +172,7 @@ dependencies = [
 
 [tool.hatch.envs.type]
 dependencies = [
-  "mypy==1.10.0",
+  "mypy==1.11.0",
   "tenacity",
   "pandas>=1.0",
   "pandas-stubs==2.0.3.230814",
@@ -193,7 +194,7 @@ dependencies = [
   "opentelemetry-instrumentation-sqlalchemy",
   "opentelemetry-instrumentation-grpc",
   "py-grpc-prometheus",
-  "strawberry-graphql[opentelemetry]==0.235.0",  # need to pin version because we're monkey-patching
+  "strawberry-graphql[opentelemetry]==0.236.0",  # need to pin version because we're monkey-patching
   "requests",  # this is needed to type-check third-party packages
 ]
 
@@ -203,7 +204,7 @@ python = ["3.8", "3.9", "3.12"]
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
-  "ruff==0.4.9",
+  "ruff==0.5.4",
 ]
 
 [[tool.hatch.envs.style.matrix]]
@@ -300,7 +301,7 @@ check = [
 
 [tool.hatch.envs.gql]
 dependencies = [
-  "strawberry-graphql[cli]==0.235.0",  # need to pin version because we're monkey-patching
+  "strawberry-graphql[cli]==0.236.0",  # need to pin version because we're monkey-patching
   "requests",
 ]
 

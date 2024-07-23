@@ -666,9 +666,9 @@ def _as_attribute(
 ) -> ast.Subscript:
     return ast.Subscript(
         value=ast.Name(id="attributes", ctx=ast.Load()),
-        slice=ast.List(elts=keys, ctx=ast.Load())
+        slice=ast.List(elts=keys, ctx=ast.Load())  # type: ignore[arg-type]
         if sys.version_info >= (3, 9)
-        else ast.Index(value=ast.List(elts=keys, ctx=ast.Load())),
+        else ast.Index(value=ast.List(elts=keys, ctx=ast.Load())),  # type: ignore
         ctx=ast.Load(),
     )
 
