@@ -1,0 +1,7 @@
+[entryPoints]
+  [entryPoints.http]
+    address = ":9999"
+
+[providers]
+  [providers.file]
+    filename = "routes.toml"
