@@ -77,9 +77,14 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
             css={css`
               display: flex;
               flex-direction: row;
+              width: 100%;
+              overflow: hidden;
               gap: var(--ac-global-dimension-size-100);
               & > * {
                 flex: 1 1 auto;
+              }
+              .ac-textfield {
+                min-width: 0;
               }
             `}
           >
@@ -134,7 +139,7 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
             }) => (
               <TextArea
                 label="Explanation"
-                height={100}
+                height={70}
                 isReadOnly={isReadOnly}
                 description="Why this score or label was given"
                 errorMessage={error?.message}
@@ -149,11 +154,19 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
       </View>
       <>
         {!isReadOnly ? (
-          <View padding="size-200" borderTopWidth="thin" borderColor="dark">
+          <View
+            paddingTop="size-100"
+            paddingBottom="size-100"
+            paddingEnd="size-200"
+            paddingStart="size-200"
+            borderTopWidth="thin"
+            borderColor="dark"
+          >
             <Flex direction="row" justifyContent="end">
               <Button
-                variant="primary"
+                variant={isDirty ? "primary" : "default"}
                 type="submit"
+                size="compact"
                 isDisabled={!isValid || !isDirty || isSubmitting}
                 onClick={() => {
                   // TODO: This is a bit of a hack as the form is not working in a dialog for some reason

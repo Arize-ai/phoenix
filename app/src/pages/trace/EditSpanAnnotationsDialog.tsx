@@ -44,6 +44,7 @@ export function EditSpanAnnotationsDialog(
     null
   );
   const [fetchKey, setFetchKey] = useState(0);
+  const notifySuccess = useNotifySuccess();
   return (
     <Dialog
       title="Annotate"
@@ -53,7 +54,7 @@ export function EditSpanAnnotationsDialog(
         <NewAnnotationButton
           projectId={projectId}
           spanNodeId={spanNodeId}
-          isDisabled={newAnnotationName !== null}
+          disabled={newAnnotationName !== null}
           onAnnotationNameSelect={setNewAnnotationName}
         />
       }
@@ -76,6 +77,10 @@ export function EditSpanAnnotationsDialog(
               onCreated={() => {
                 setNewAnnotationName(null);
                 setFetchKey((key) => key + 1);
+                notifySuccess({
+                  title: `New Span Annotation`,
+                  message: `Annotation ${newAnnotationName} has been created.`,
+                });
               }}
             />
           </View>
@@ -91,12 +96,17 @@ export function EditSpanAnnotationsDialog(
 type NewAnnotationButtonProps = {
   projectId: string;
   spanNodeId: string;
-  isDisabled?: boolean;
+  disabled?: boolean;
   onAnnotationNameSelect: (name: string) => void;
 };
 
 function NewAnnotationButton(props: NewAnnotationButtonProps) {
-  const { projectId, isDisabled, spanNodeId, onAnnotationNameSelect } = props;
+  const {
+    projectId,
+    disabled = false,
+    spanNodeId,
+    onAnnotationNameSelect,
+  } = props;
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   return (
     <PopoverTrigger
@@ -109,7 +119,7 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
     >
       <Button
         variant="default"
-        isDisabled={isDisabled}
+        disabled={disabled}
         size="compact"
         icon={<Icon svg={<Icons.PlusCircleOutline />} />}
         onClick={() => {
@@ -259,10 +269,6 @@ function SpanAnnotationCard(props: { annotation: Annotation }) {
   const { annotation } = props;
   const [error, setError] = useState<Error | null>(null);
   const notifySuccess = useNotifySuccess();
-  const isLLMAnnotation = annotation.annotatorKind === "LLM";
-  /* By default we collapse LLM annotations since for now they are non-editable */
-  const isDefaultCollapsed = isLLMAnnotation;
-  const isReadOnly = isLLMAnnotation;
   return (
     <Card
       variant="compact"
@@ -274,7 +280,6 @@ function SpanAnnotationCard(props: { annotation: Annotation }) {
         null
       }
       collapsible
-      defaultOpen={!isDefaultCollapsed}
       bodyStyle={{ padding: 0 }}
       extra={
         <Flex gap="size-100" alignItems="center">
@@ -300,7 +305,8 @@ function SpanAnnotationCard(props: { annotation: Annotation }) {
           {error.message}
         </Alert>
       )}
-      <SpanAnnotationForm initialData={annotation} isReadOnly={isReadOnly} />
+      {/* TODO make it editable */}
+      <SpanAnnotationForm initialData={annotation} isReadOnly={true} />
     </Card>
   );
 }
