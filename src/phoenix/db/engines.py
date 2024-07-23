@@ -8,7 +8,7 @@ from typing import Any
 import aiosqlite
 import numpy as np
 import sqlean
-from sqlalchemy import URL, event, make_url
+from sqlalchemy import URL, StaticPool, event, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from typing_extensions import assert_never
 
@@ -84,7 +84,6 @@ def aio_sqlite_engine(
     migrate: bool = True,
     echo: bool = False,
     shared_cache: bool = True,
-    **kwargs: Any,
 ) -> AsyncEngine:
     database = url.database or ":memory:"
     if database.startswith("file:"):
@@ -106,7 +105,7 @@ def aio_sqlite_engine(
         echo=echo,
         json_serializer=_dumps,
         async_creator=async_creator,
-        **kwargs,
+        poolclass=StaticPool,
     )
     event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
     if not migrate:

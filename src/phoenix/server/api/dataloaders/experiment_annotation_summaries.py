@@ -5,7 +5,6 @@ from typing import (
     Callable,
     DefaultDict,
     List,
-    Literal,
     Optional,
 )
 
@@ -35,7 +34,7 @@ Result: TypeAlias = List[ExperimentAnnotationSummary]
 class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
     def __init__(
         self,
-        db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]],
+        db: Callable[[], AsyncContextManager[AsyncSession]],
         cache_map: Optional[AbstractCache[Key, Result]] = None,
     ) -> None:
         super().__init__(load_fn=self._load_fn)
@@ -44,7 +43,7 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
     async def _load_fn(self, keys: List[Key]) -> List[Result]:
         experiment_ids = keys
         summaries: DefaultDict[ExperimentID, Result] = defaultdict(list)
-        async with self._db("read") as session:
+        async with self._db() as session:
             async for (
                 experiment_id,
                 annotation_name,

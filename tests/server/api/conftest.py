@@ -8,7 +8,7 @@ from sqlalchemy import insert
 
 @pytest.fixture
 async def span_data_with_documents(prod_db) -> None:
-    async with prod_db("read") as session:
+    async with prod_db() as session:
         project = models.Project(name="default")
         session.add(project)
         await session.flush()

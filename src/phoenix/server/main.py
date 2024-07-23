@@ -8,8 +8,6 @@ from time import sleep, time
 from typing import List, Optional
 
 import pkg_resources
-from sqlalchemy import StaticPool
-from sqlalchemy.ext.asyncio import AsyncEngine
 from uvicorn import Config, Server
 
 import phoenix.trace.v1 as pb
@@ -26,8 +24,6 @@ from phoenix.config import (
 )
 from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import get_printable_db_url
-from phoenix.db.engines import aio_sqlite_engine
-from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.inferences.fixtures import FIXTURES, get_inferences
 from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
 from phoenix.pointcloud.umap_parameters import (
@@ -254,14 +250,7 @@ if __name__ == "__main__":
     working_dir = get_working_dir().resolve()
     engine = create_engine_and_run_migrations(db_connection_str)
     instrumentation_cleanups = instrument_engine_if_enabled(engine)
-    write_engine: Optional[AsyncEngine] = None
-    if engine.dialect.name == SupportedSQLDialect.SQLITE.value:
-        write_engine = aio_sqlite_engine(engine.url, migrate=False, poolclass=StaticPool)
-        instrumentation_cleanups += instrument_engine_if_enabled(write_engine)
-    factory = SessionFactory(
-        session_factory=_db(engine, write_engine),
-        dialect=engine.dialect.name,
-    )
+    factory = SessionFactory(session_factory=_db(engine), dialect=engine.dialect.name)
     app = create_app(
         db=factory,
         export_path=export_path,

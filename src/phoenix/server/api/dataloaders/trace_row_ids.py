@@ -2,7 +2,6 @@ from typing import (
     AsyncContextManager,
     Callable,
     List,
-    Literal,
     Optional,
     Tuple,
 )
@@ -22,9 +21,7 @@ Result: TypeAlias = Optional[Tuple[TraceRowId, ProjectRowId]]
 
 
 class TraceRowIdsDataLoader(DataLoader[Key, Result]):
-    def __init__(
-        self, db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]]
-    ) -> None:
+    def __init__(self, db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
@@ -34,7 +31,7 @@ class TraceRowIdsDataLoader(DataLoader[Key, Result]):
             models.Trace.id,
             models.Trace.project_rowid,
         ).where(models.Trace.trace_id.in_(keys))
-        async with self._db("read") as session:
+        async with self._db() as session:
             result = {
                 trace_id: (id_, project_rowid)
                 async for trace_id, id_, project_rowid in await session.stream(stmt)

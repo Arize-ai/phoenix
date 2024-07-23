@@ -57,7 +57,7 @@ class Trace(Node):
             .order_by(desc(models.Span.id))
             .limit(first)
         )
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             spans = await session.stream_scalars(stmt)
             data = [to_gql_span(span) async for span in spans]
         return connection_from_list(data=data, args=args)

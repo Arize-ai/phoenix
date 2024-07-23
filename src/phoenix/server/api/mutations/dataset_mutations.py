@@ -51,7 +51,7 @@ class DatasetMutationMixin:
         name = input.name
         description = input.description if input.description is not UNSET else None
         metadata = input.metadata
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             dataset = await session.scalar(
                 insert(models.Dataset)
                 .values(
@@ -82,7 +82,7 @@ class DatasetMutationMixin:
             )
             if patch_value is not UNSET and (patch_value is not None or column_is_nullable)
         }
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             dataset = await session.scalar(
                 update(models.Dataset)
                 .where(models.Dataset.id == dataset_id)
@@ -113,7 +113,7 @@ class DatasetMutationMixin:
             from_global_id_with_expected_type(global_id=span_id, expected_type_name=Span.__name__)
             for span_id in set(span_ids)
         }
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             if (
                 dataset := await session.scalar(
                     select(models.Dataset).where(models.Dataset.id == dataset_rowid)
@@ -204,7 +204,7 @@ class DatasetMutationMixin:
         dataset_rowid = from_global_id_with_expected_type(
             global_id=dataset_id, expected_type_name=Dataset.__name__
         )
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             if (
                 dataset := await session.scalar(
                     select(models.Dataset).where(models.Dataset.id == dataset_rowid)
@@ -289,7 +289,7 @@ class DatasetMutationMixin:
         stmt = (
             delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset)
         )
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             project_names = await session.scalars(project_names_stmt)
             eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
             if not (dataset := await session.scalar(stmt)):
@@ -324,7 +324,7 @@ class DatasetMutationMixin:
             raise ValueError("Received one or more empty patches that contain no fields to update.")
         version_description = input.version_description or None
         version_metadata = input.version_metadata
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             datasets = (
                 await session.scalars(
                     select(models.Dataset)
@@ -411,7 +411,7 @@ class DatasetMutationMixin:
             else None
         )
         dataset_version_metadata = input.dataset_version_metadata
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             # Check if the examples are from a single dataset
             datasets = (
                 await session.scalars(

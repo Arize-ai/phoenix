@@ -1,4 +1,4 @@
-from typing import AsyncContextManager, Callable, Literal
+from typing import AsyncContextManager, Callable
 
 from phoenix.db import models
 from phoenix.db.insertion.dataset import ExampleContent, add_dataset_examples
@@ -7,9 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def test_create_dataset(
-    db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]],
+    db: Callable[[], AsyncContextManager[AsyncSession]],
 ) -> None:
-    async with db("read") as session:
+    async with db() as session:
         await add_dataset_examples(
             session=session,
             examples=[
@@ -20,7 +20,7 @@ async def test_create_dataset(
             description="xyz",
             metadata={"m": 0},
         )
-    async with db("read") as session:
+    async with db() as session:
         data = await session.scalars(
             select(models.DatasetExampleRevision)
             .join(models.DatasetExample)

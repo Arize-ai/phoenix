@@ -50,7 +50,7 @@ class Dataset(Node):
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             stmt = select(models.DatasetVersion).filter_by(dataset_id=self.id_attr)
             if sort:
                 # For now assume the the column names match 1:1 with the enum values
@@ -112,7 +112,7 @@ class Dataset(Node):
             .where(models.DatasetExampleRevision.id.in_(revision_ids))
             .where(models.DatasetExampleRevision.revision_kind != "DELETE")
         )
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             return (await session.scalar(stmt)) or 0
 
     @strawberry.field
@@ -170,7 +170,7 @@ class Dataset(Node):
             )
             .order_by(models.DatasetExampleRevision.dataset_example_id.desc())
         )
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             dataset_examples = [
                 DatasetExample(
                     id_attr=example.id,
@@ -203,7 +203,7 @@ class Dataset(Node):
         )
         if version_id is not None:
             stmt = stmt.where(models.Experiment.dataset_version_id == version_id)
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             return (await session.scalar(stmt)) or 0
 
     @strawberry.field
@@ -228,7 +228,7 @@ class Dataset(Node):
             .where(models.Experiment.dataset_id == dataset_id)
             .order_by(models.Experiment.id.desc())
         )
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             experiments = [
                 to_gql_experiment(experiment, sequence_number)
                 async for experiment, sequence_number in cast(
@@ -264,7 +264,7 @@ class Dataset(Node):
             .group_by(models.ExperimentRunAnnotation.name)
             .order_by(models.ExperimentRunAnnotation.name)
         )
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             return [
                 ExperimentAnnotationSummary(
                     annotation_name=annotation_name,

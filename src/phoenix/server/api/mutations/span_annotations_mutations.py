@@ -27,7 +27,7 @@ class SpanAnnotationMutationMixin:
         self, info: Info[Context, None], input: List[CreateSpanAnnotationInput]
     ) -> SpanAnnotationMutationPayload:
         inserted_annotations: Sequence[models.SpanAnnotation] = []
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             values_list = [
                 dict(
                     span_rowid=from_global_id_with_expected_type(annotation.span_id, "Span"),
@@ -57,7 +57,7 @@ class SpanAnnotationMutationMixin:
         self, info: Info[Context, None], input: List[PatchAnnotationInput]
     ) -> SpanAnnotationMutationPayload:
         patched_annotations = []
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             for annotation in input:
                 span_annotation_id = from_global_id_with_expected_type(
                     annotation.annotation_id, "SpanAnnotation"
@@ -99,7 +99,7 @@ class SpanAnnotationMutationMixin:
             from_global_id_with_expected_type(global_id, "SpanAnnotation")
             for global_id in input.annotation_ids
         ]
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             stmt = (
                 delete(models.SpanAnnotation)
                 .where(models.SpanAnnotation.id.in_(span_annotation_ids))

@@ -2,7 +2,6 @@ from typing import (
     AsyncContextManager,
     Callable,
     List,
-    Literal,
 )
 
 from sqlalchemy import func, select
@@ -21,7 +20,7 @@ Result: TypeAlias = RunCount
 class ExperimentRunCountsDataLoader(DataLoader[Key, Result]):
     def __init__(
         self,
-        db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]],
+        db: Callable[[], AsyncContextManager[AsyncSession]],
     ) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db
@@ -45,7 +44,7 @@ class ExperimentRunCountsDataLoader(DataLoader[Key, Result]):
             )
             .group_by(resolved_experiment_ids.c.id)
         )
-        async with self._db("read") as session:
+        async with self._db() as session:
             run_counts = {
                 experiment_id: run_count
                 async for experiment_id, run_count in await session.stream(query)

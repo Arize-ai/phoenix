@@ -88,7 +88,7 @@ class LatencyMsQuantileCache(
 class LatencyMsQuantileDataLoader(DataLoader[Key, Result]):
     def __init__(
         self,
-        db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]],
+        db: Callable[[], AsyncContextManager[AsyncSession]],
         cache_map: Optional[AbstractCache[Key, Result]] = None,
     ) -> None:
         super().__init__(
@@ -107,7 +107,7 @@ class LatencyMsQuantileDataLoader(DataLoader[Key, Result]):
         for position, key in enumerate(keys):
             segment, param = _cache_key_fn(key)
             arguments[segment][param].append(position)
-        async with self._db("read") as session:
+        async with self._db() as session:
             dialect = SupportedSQLDialect(session.bind.dialect.name)
             for segment, params in arguments.items():
                 async for position, quantile_value in _get_results(

@@ -77,7 +77,7 @@ class EvaluationSummaryCache(
 class EvaluationSummaryDataLoader(DataLoader[Key, Result]):
     def __init__(
         self,
-        db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]],
+        db: Callable[[], AsyncContextManager[AsyncSession]],
         cache_map: Optional[AbstractCache[Key, Result]] = None,
     ) -> None:
         super().__init__(
@@ -98,7 +98,7 @@ class EvaluationSummaryDataLoader(DataLoader[Key, Result]):
             arguments[segment][param].append(position)
         for segment, params in arguments.items():
             stmt = _get_stmt(segment, *params.keys())
-            async with self._db("read") as session:
+            async with self._db() as session:
                 data = await session.stream(stmt)
                 async for eval_name, group in groupby(data, lambda row: row.name):
                     summary = EvaluationSummary(pd.DataFrame(group))

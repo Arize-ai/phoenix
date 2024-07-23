@@ -50,7 +50,7 @@ class MinStartOrMaxEndTimeCache(
 class MinStartOrMaxEndTimeDataLoader(DataLoader[Key, Result]):
     def __init__(
         self,
-        db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]],
+        db: Callable[[], AsyncContextManager[AsyncSession]],
         cache_map: Optional[AbstractCache[Key, Result]] = None,
     ) -> None:
         super().__init__(
@@ -78,7 +78,7 @@ class MinStartOrMaxEndTimeDataLoader(DataLoader[Key, Result]):
             .where(pid.in_(arguments.keys()))
             .group_by(pid)
         )
-        async with self._db("read") as session:
+        async with self._db() as session:
             data = await session.stream(stmt)
             async for project_rowid, min_start, max_end in data:
                 for kind, positions in arguments[project_rowid].items():

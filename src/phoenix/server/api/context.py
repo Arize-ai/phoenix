@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import AsyncContextManager, Callable, Literal, Optional
+from typing import AsyncContextManager, Callable, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.fastapi import BaseContext
@@ -66,7 +66,7 @@ ProjectRowId: TypeAlias = int
 
 @dataclass
 class Context(BaseContext):
-    db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]]
+    db: Callable[[], AsyncContextManager[AsyncSession]]
     data_loaders: DataLoaders
     cache_for_dataloaders: Optional[CacheForDataLoaders]
     model: Model

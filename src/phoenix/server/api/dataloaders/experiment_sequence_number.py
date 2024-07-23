@@ -2,7 +2,6 @@ from typing import (
     AsyncContextManager,
     Callable,
     List,
-    Literal,
     Optional,
 )
 
@@ -19,9 +18,7 @@ Result: TypeAlias = Optional[int]
 
 
 class ExperimentSequenceNumberDataLoader(DataLoader[Key, Result]):
-    def __init__(
-        self, db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]]
-    ) -> None:
+    def __init__(self, db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
@@ -44,7 +41,7 @@ class ExperimentSequenceNumberDataLoader(DataLoader[Key, Result]):
             .subquery()
         )
         stmt = select(subq).where(subq.c.id.in_(experiment_ids))
-        async with self._db("read") as session:
+        async with self._db() as session:
             result = {
                 experiment_id: sequence_number
                 async for experiment_id, sequence_number in await session.stream(stmt)

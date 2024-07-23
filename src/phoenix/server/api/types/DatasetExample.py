@@ -80,6 +80,6 @@ class DatasetExample(Node):
             .where(models.ExperimentRun.dataset_example_id == example_id)
             .order_by(models.Experiment.id.desc())
         )
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             runs = (await session.scalars(query)).all()
         return connection_from_list([to_gql_experiment_run(run) for run in runs], args)

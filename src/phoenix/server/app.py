@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 import json
 import logging
@@ -13,7 +14,6 @@ from typing import (
     Dict,
     Iterable,
     List,
-    Literal,
     NamedTuple,
     Optional,
     Tuple,
@@ -21,7 +21,6 @@ from typing import (
     cast,
 )
 
-import aiorwlock
 import strawberry
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
@@ -194,43 +193,26 @@ async def version() -> PlainTextResponse:
     return PlainTextResponse(f"{phoenix.__version__}")
 
 
-DB_MUTEX: Optional[aiorwlock.RWLock] = None
+DB_MUTEX: Optional[asyncio.Lock] = None
 
 
-def _db(
-    engine: AsyncEngine,
-    write_engine: Optional[AsyncEngine] = None,
-) -> Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]]:
+def _db(engine: AsyncEngine) -> Callable[[], AsyncContextManager[AsyncSession]]:
     Session = async_sessionmaker(engine, expire_on_commit=False)
-    WriteSession = (
-        async_sessionmaker(write_engine, expire_on_commit=False) if write_engine else None
-    )
 
     @contextlib.asynccontextmanager
-    async def factory(
-        read_or_write: Literal["read", "write"] = "read",
-    ) -> AsyncIterator[AsyncSession]:
+    async def factory() -> AsyncIterator[AsyncSession]:
         global DB_MUTEX
         async with contextlib.AsyncExitStack() as stack:
-            if not WriteSession:
-                yield await stack.enter_async_context(Session.begin())
-                return
-            if not DB_MUTEX:
-                DB_MUTEX = aiorwlock.RWLock()
-            if read_or_write == "write":
-                writer = cast(AsyncContextManager[None], DB_MUTEX.writer)
-                await stack.enter_async_context(writer)
-                yield await stack.enter_async_context(WriteSession.begin())
-            else:
-                reader = cast(AsyncContextManager[None], DB_MUTEX.reader)
-                await stack.enter_async_context(reader)
-                yield await stack.enter_async_context(Session.begin())
+            if DB_MUTEX:
+                await stack.enter_async_context(DB_MUTEX)
+            yield await stack.enter_async_context(Session.begin())
 
     return factory
 
 
 def _lifespan(
     *,
+    dialect: SupportedSQLDialect,
     bulk_inserter: BulkInserter,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
@@ -239,6 +221,8 @@ def _lifespan(
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[Dict[str, Any]]:
+        global DB_MUTEX
+        DB_MUTEX = asyncio.Lock() if dialect is SupportedSQLDialect.SQLITE else None
         async with bulk_inserter as (
             queue_span,
             queue_evaluation,
@@ -268,7 +252,7 @@ async def check_healthz(_: Request) -> PlainTextResponse:
 def create_graphql_router(
     *,
     schema: BaseSchema,
-    db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]],
+    db: Callable[[], AsyncContextManager[AsyncSession]],
     model: Model,
     export_path: Path,
     corpus: Optional[Model] = None,
@@ -349,17 +333,14 @@ def create_graphql_router(
 class SessionFactory:
     def __init__(
         self,
-        session_factory: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]],
+        session_factory: Callable[[], AsyncContextManager[AsyncSession]],
         dialect: str,
     ):
         self.session_factory = session_factory
         self.dialect = SupportedSQLDialect(dialect)
 
-    def __call__(
-        self,
-        read_or_write: Literal["read", "write"] = "read",
-    ) -> AsyncContextManager[AsyncSession]:
-        return self.session_factory(read_or_write)
+    def __call__(self) -> AsyncContextManager[AsyncSession]:
+        return self.session_factory()
 
 
 def create_engine_and_run_migrations(
@@ -491,6 +472,7 @@ def create_app(
         title="Arize-Phoenix REST API",
         version=REST_API_VERSION,
         lifespan=_lifespan(
+            dialect=db.dialect,
             read_only=read_only,
             bulk_inserter=bulk_inserter,
             tracer_provider=tracer_provider,

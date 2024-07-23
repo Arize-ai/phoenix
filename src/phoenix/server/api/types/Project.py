@@ -148,7 +148,7 @@ class Project(Node):
             .where(models.Trace.trace_id == str(trace_id))
             .where(models.Trace.project_rowid == self.id_attr)
         )
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             if (id_attr := await session.scalar(stmt)) is None:
                 return None
         return Trace(id_attr=id_attr, trace_id=trace_id, project_rowid=self.id_attr)
@@ -216,7 +216,7 @@ class Project(Node):
             )
         stmt = stmt.order_by(cursor_rowid_column)
         cursors_and_nodes = []
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             span_records = await session.execute(stmt)
             async for span_record in islice(span_records, first):
                 span = span_record[0]
@@ -259,7 +259,7 @@ class Project(Node):
             .where(models.Trace.project_rowid == self.id_attr)
             .where(models.TraceAnnotation.annotator_kind == "LLM")
         )
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             return list(await session.scalars(stmt))
 
     @strawberry.field(
@@ -275,7 +275,7 @@ class Project(Node):
             .join(models.Trace)
             .where(models.Trace.project_rowid == self.id_attr)
         )
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             return list(await session.scalars(stmt))
 
     @strawberry.field(
@@ -293,7 +293,7 @@ class Project(Node):
             .where(models.Trace.project_rowid == self.id_attr)
             .where(models.SpanAnnotation.annotator_kind == "LLM")
         )
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             return list(await session.scalars(stmt))
 
     @strawberry.field(
@@ -310,7 +310,7 @@ class Project(Node):
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
             .where(models.Trace.project_rowid == self.id_attr)
         )
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             return list(await session.scalars(stmt))
 
     @strawberry.field(
@@ -330,7 +330,7 @@ class Project(Node):
         )
         if span_id:
             stmt = stmt.where(models.Span.span_id == str(span_id))
-        async with info.context.db("read") as session:
+        async with info.context.db() as session:
             return list(await session.scalars(stmt))
 
     @strawberry.field

@@ -1,4 +1,4 @@
-from typing import AsyncContextManager, Callable, List, Literal, Optional
+from typing import AsyncContextManager, Callable, List, Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +16,7 @@ Result: TypeAlias = RunLatency
 class AverageExperimentRunLatencyDataLoader(DataLoader[Key, Result]):
     def __init__(
         self,
-        db: Callable[[Literal["read", "write"]], AsyncContextManager[AsyncSession]],
+        db: Callable[[], AsyncContextManager[AsyncSession]],
     ) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db
@@ -43,7 +43,7 @@ class AverageExperimentRunLatencyDataLoader(DataLoader[Key, Result]):
             )
             .group_by(resolved_experiment_ids.c.id)
         )
-        async with self._db("read") as session:
+        async with self._db() as session:
             avg_latencies = {
                 experiment_id: avg_latency
                 async for experiment_id, avg_latency in await session.stream(query)
