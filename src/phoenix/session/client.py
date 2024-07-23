@@ -410,7 +410,7 @@ class Client(TraceDataExtractor):
         if not (records := response.json()["data"]):
             return pd.DataFrame()
         df = pd.DataFrame.from_records(records, index="version_id")
-        df["created_at"] = pd.to_datetime(df.created_at)
+        df["created_at"] = df["created_at"].apply(datetime.fromisoformat)
         return df
 
     def upload_dataset(
