@@ -74,8 +74,7 @@ class OpenAIModel(BaseModel):
             gpt-35-instant. Defaults to "gpt-4".
         temperature (float, optional): What sampling temperature to use. Defaults to 0.0.
         max_tokens (int, optional): The maximum number of tokens to generate in the completion.
-            -1 returns as many tokens as possible given the prompt and the models maximal context
-            size. Defaults to 256.
+            Defaults to 256.
         top_p (float, optional): Total probability mass of tokens to consider at each step.
             Defaults to 1.
         frequency_penalty (float, optional): Penalizes repeated tokens according to frequency.
