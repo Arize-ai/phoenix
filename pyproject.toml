@@ -61,7 +61,6 @@ dependencies = [
   "arize-phoenix-evals>=0.13.1",
   "fastapi",
   "pydantic>=1.0,!=2.0.*,<3,", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
-  "aiorwlock",
 ]
 dynamic = ["version"]
 
@@ -94,7 +93,6 @@ dev = [
   "anthropic",
   "prometheus_client",
   "asgi-lifespan",
-  "aiorwlock",
 ]
 evals = []
 experimental = []
