@@ -1,5 +1,24 @@
 # Changelog
 
+## [4.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.13.1...arize-phoenix-v4.14.0) (2024-07-23)
+
+
+### Features
+
+* **annotations:** annotations UI ([#3914](https://github.com/Arize-ai/phoenix/issues/3914)) ([cd1a48f](https://github.com/Arize-ai/phoenix/commit/cd1a48f60f1f901dd14b8fc04653d6595fbd980f))
+* Extend evals DSL to accept 'annotations' symbol ([#3939](https://github.com/Arize-ai/phoenix/issues/3939)) ([659b674](https://github.com/Arize-ai/phoenix/commit/659b674ed727650d5b43e437be807ced54f7d422))
+
+
+### Bug Fixes
+
+* get_dataset_versions client method does not break on mixed timestamp formats ([#3973](https://github.com/Arize-ai/phoenix/issues/3973)) ([40c448b](https://github.com/Arize-ai/phoenix/commit/40c448bdacd1cfb69eaa6f9d1750fc3b3bc8a63f))
+
+
+### Documentation
+
+* Fix error in LlamaIndex Quickstart (GITBOOK-750) ([40c5b28](https://github.com/Arize-ai/phoenix/commit/40c5b28df792bbca3906361b9d06d13a9f7e85a7))
+* Fix images in Custom Task Evaluation (GITBOOK-749) ([ee7365e](https://github.com/Arize-ai/phoenix/commit/ee7365ec023ee89b08d4688c2a7df16689d3b7e9))
+
 ## [4.13.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.13.0...arize-phoenix-v4.13.1) (2024-07-22)
 
 
