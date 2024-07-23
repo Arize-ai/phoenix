@@ -43,14 +43,17 @@ export function EditSpanAnnotationsDialog(
   const [newAnnotationName, setNewAnnotationName] = useState<string | null>(
     null
   );
+  const [fetchKey, setFetchKey] = useState(0);
   return (
     <Dialog
       title="Annotate"
       size="M"
+      isDismissable
       extra={
         <NewAnnotationButton
           projectId={projectId}
           spanNodeId={spanNodeId}
+          isDisabled={newAnnotationName !== null}
           onAnnotationNameSelect={setNewAnnotationName}
         />
       }
@@ -72,12 +75,13 @@ export function EditSpanAnnotationsDialog(
               }}
               onCreated={() => {
                 setNewAnnotationName(null);
+                setFetchKey((key) => key + 1);
               }}
             />
           </View>
         )}
         <Suspense>
-          <EditSpanAnnotations {...props} />
+          <EditSpanAnnotations {...props} fetchKey={fetchKey} />
         </Suspense>
       </div>
     </Dialog>
@@ -87,11 +91,12 @@ export function EditSpanAnnotationsDialog(
 type NewAnnotationButtonProps = {
   projectId: string;
   spanNodeId: string;
+  isDisabled?: boolean;
   onAnnotationNameSelect: (name: string) => void;
 };
 
 function NewAnnotationButton(props: NewAnnotationButtonProps) {
-  const { projectId, spanNodeId, onAnnotationNameSelect } = props;
+  const { projectId, isDisabled, spanNodeId, onAnnotationNameSelect } = props;
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   return (
     <PopoverTrigger
@@ -104,6 +109,7 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
     >
       <Button
         variant="default"
+        isDisabled={isDisabled}
         size="compact"
         icon={<Icon svg={<Icons.PlusCircleOutline />} />}
         onClick={() => {
@@ -150,8 +156,14 @@ function NewAnnotationPopover(props: NewAnnotationPopoverProps) {
     </Card>
   );
 }
-type EditSpanAnnotationsProps = EditSpanAnnotationsDialogProps;
+type EditSpanAnnotationsProps = EditSpanAnnotationsDialogProps & {
+  /**
+   * Key used to force a refetch of the annotations
+   */
+  fetchKey: number;
+};
 function EditSpanAnnotations(props: EditSpanAnnotationsProps) {
+  const { fetchKey } = props;
   const data = useLazyLoadQuery<EditSpanAnnotationsDialogQuery>(
     graphql`
       query EditSpanAnnotationsDialogQuery($spanId: GlobalID!) {
@@ -170,7 +182,8 @@ function EditSpanAnnotations(props: EditSpanAnnotationsProps) {
         }
       }
     `,
-    { spanId: props.spanNodeId }
+    { spanId: props.spanNodeId },
+    { fetchKey, fetchPolicy: "store-and-network" }
   );
   const annotations = data.span.spanAnnotations || [];
   const hasAnnotations = annotations.length > 0;
@@ -226,6 +239,9 @@ function NewSpanAnnotationCard(props: {
       }
       bodyStyle={{ padding: 0 }}
     >
+      <Alert variant="info" banner>
+        Fill out the fields below and click save to create a new annotation.
+      </Alert>
       <NewSpanAnnotationForm
         annotationName={name}
         spanNodeId={spanNodeId}
@@ -381,7 +397,7 @@ function NewAnnotationPopoverContent(props: {
             paddingBottom="size-100"
             backgroundColor="grey-300"
           >
-            <label>or select from existing</label>
+            <label>select from existing</label>
           </View>
           <ListBox
             selectionMode="single"
@@ -391,7 +407,7 @@ function NewAnnotationPopoverContent(props: {
                 return;
               }
               const name = keys.entries().next().value[0];
-              onAnnotationNameSelect(name);
+              setNewName(name);
             }}
             disabledKeys={existingAnnotationNames}
           >

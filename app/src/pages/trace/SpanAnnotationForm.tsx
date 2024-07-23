@@ -112,6 +112,7 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
               }) => (
                 <TextField
                   label="Score"
+                  type="number"
                   placeholder="e.x. 0.8"
                   description="A numeric grade"
                   errorMessage={error?.message}
