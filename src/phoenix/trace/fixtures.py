@@ -22,8 +22,6 @@ from phoenix.trace.schemas import Span
 from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.trace.utils import is_parquet_file, json_lines_to_df
 
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -202,7 +200,7 @@ def get_trace_fixture_by_name(fixture_name: str) -> TracesFixture:
 def download_traces_fixture(
     fixture: TracesFixture,
     host: Optional[str] = "https://storage.googleapis.com/",
-    bucket: Optional[str] = "arize-phoenix-assets/",
+    bucket: Optional[str] = "arize-phoenix-assets",
     prefix: Optional[str] = "traces/",
 ) -> List[str]:
     """
