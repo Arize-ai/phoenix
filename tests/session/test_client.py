@@ -17,6 +17,7 @@ from phoenix.session.client import Client
 from phoenix.trace import SpanEvaluations
 from phoenix.trace.dsl import SpanQuery
 from phoenix.trace.trace_dataset import TraceDataset
+from pytz import UTC
 from respx import MockRouter
 from strawberry.relay import GlobalID
 
@@ -165,7 +166,18 @@ def test_get_dataset_versions(
 ) -> None:
     dataset_global_id = GlobalID("Dataset", str(999))
     url = urljoin(endpoint, f"v1/datasets/{dataset_global_id}/versions")
-    data = [{"version_id": "abc", "description": "xyz", "created_at": "2024-05-28T00:00:00+00:00"}]
+    data = [
+        {
+            "version_id": "version-id-1",
+            "description": "description-1",
+            "created_at": "2024-07-23T17:32:06.646881+00:00",  # more precise timestamp
+        },
+        {
+            "version_id": "version-id-2",
+            "description": "description-2",
+            "created_at": "2024-07-23T17:32:01+00:00",  # less precise timestamp
+        },
+    ]
     respx_mock.get(url).mock(
         Response(
             200,
@@ -173,8 +185,23 @@ def test_get_dataset_versions(
             json={"next_cursor": "123", "data": data},
         )
     )
-    expected = pd.DataFrame.from_records(data, index="version_id")
-    expected["created_at"] = pd.to_datetime(expected.created_at)
+
+    # create a dataframe from the data
+    expected = pd.DataFrame.from_records(
+        [
+            {
+                "version_id": "version-id-1",
+                "description": "description-1",
+                "created_at": datetime(2024, 7, 23, 17, 32, 6, 646881, tzinfo=UTC),
+            },
+            {
+                "version_id": "version-id-2",
+                "description": "description-2",
+                "created_at": datetime(2024, 7, 23, 17, 32, 1, tzinfo=UTC),
+            },
+        ],
+        index="version_id",
+    )
     actual = client.get_dataset_versions(str(dataset_global_id))
     assert_frame_equal(actual, expected)
 
