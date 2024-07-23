@@ -22,6 +22,7 @@ from typing import (
     cast,
 )
 from urllib.parse import quote, urljoin
+from warnings import warn
 
 import httpx
 import pandas as pd
@@ -531,11 +532,15 @@ class Client(TraceDataExtractor):
                 corresponding to an example in the dataset.
             metadata (Iterable[Mapping[str, Any]]): List of dictionaries object each
                 corresponding to an example in the dataset.
-            dataset_description: (Optional[str]): Description of the dataset.
 
         Returns:
             A Dataset object with its examples.
         """
+        if dataset_description is not None:
+            warn(
+                "The `dataset_description` parameter has been deprecated "
+                "and will be removed in a future release."
+            )
         if dataframe is not None or csv_file_path is not None:
             if dataframe is not None and csv_file_path is not None:
                 raise ValueError(
@@ -555,7 +560,6 @@ class Client(TraceDataExtractor):
                 input_keys=input_keys,
                 output_keys=output_keys,
                 metadata_keys=metadata_keys,
-                dataset_description=dataset_description,
                 action="append",
             )
         return self._upload_json_dataset(
@@ -563,7 +567,6 @@ class Client(TraceDataExtractor):
             inputs=inputs,
             outputs=outputs,
             metadata=metadata,
-            dataset_description=dataset_description,
             action="append",
         )
 
