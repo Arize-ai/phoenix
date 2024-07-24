@@ -475,7 +475,6 @@
     "/v1/datasets/{id}/examples": {
       "get": {
         "tags": [
-          "datasets",
           "datasets"
         ],
         "summary": "Get examples from a dataset",
