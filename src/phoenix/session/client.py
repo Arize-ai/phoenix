@@ -2,8 +2,6 @@ import csv
 import gzip
 import logging
 import re
-import warnings
-import weakref
 from collections import Counter
 from datetime import datetime
 from io import BytesIO
@@ -36,7 +34,6 @@ from opentelemetry.proto.trace.v1.trace_pb2 import ResourceSpans, ScopeSpans
 from pyarrow import ArrowInvalid, Table
 from typing_extensions import TypeAlias, assert_never
 
-from phoenix import __version__ as phoenix_version
 from phoenix.config import (
     get_env_client_headers,
     get_env_collector_endpoint,
@@ -47,11 +44,11 @@ from phoenix.config import (
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.insertion.dataset import DatasetKeys
 from phoenix.experiments.types import Dataset, Example
-from phoenix.server.app import PHOENIX_SERVER_VERSION_HEADER
 from phoenix.session.data_extractor import DEFAULT_SPAN_LIMIT, TraceDataExtractor
 from phoenix.trace import Evaluations, TraceDataset
 from phoenix.trace.dsl import SpanQuery
 from phoenix.trace.otel import encode_span_to_otlp
+from phoenix.utilities.client import VersionedClient
 
 logger = logging.getLogger(__name__)
 
@@ -59,72 +56,6 @@ logger = logging.getLogger(__name__)
 DEFAULT_TIMEOUT_IN_SECONDS = 5
 
 DatasetAction: TypeAlias = Literal["create", "append"]
-
-
-class VersionedClient(httpx.Client):
-    def __init__(self, *args: Any, **kwargs: Any):
-        super().__init__(*args, **kwargs)
-        self._client_phoenix_version = phoenix_version
-        self._major, self._minor, self._patch = map(int, self._client_phoenix_version.split("."))
-        self._warned_on_minor_version_mismatch = False
-        weakref.finalize(self, self.close)
-
-    def _check_version(self, response) -> None:
-        server_version = response.headers.get(PHOENIX_SERVER_VERSION_HEADER)
-        if server_version is None:
-            return
-
-        server_major, server_minor, server_patch = map(int, server_version.split("."))
-        if abs(server_major - self._major) >= 1:
-            warnings.warn(
-                f"⚠️⚠️ The Phoenix server ({server_version}) and client "
-                f"({self._client_phoenix_version}) versions are severely mismatched. Upgrade "
-                " either the client or server to ensure API compatibility ⚠️⚠️"
-            )
-        elif abs(server_minor - self._minor) >= 1 and not self._warned_on_minor_version_mismatch:
-            self._warned_on_minor_version_mismatch = True
-            warnings.warn(
-                f"The Phoenix server ({server_version}) and client ({self._client_phoenix_version})"
-                " versions are mismatched and may have compatibility issues."
-            )
-
-    def request(self, *args: Any, **kwargs: Any) -> Response:
-        response = super().request(*args, **kwargs)
-        self._check_version(response)
-        return response
-
-
-class VersionedAsyncClient(httpx.AsyncClient):
-    def __init__(self, *args: Any, **kwargs: Any):
-        super().__init__(*args, **kwargs)
-        self._client_phoenix_version = phoenix_version
-        self._major, self._minor, self._patch = map(int, self._client_phoenix_version.split("."))
-        self._warned_on_minor_version_mismatch = False
-        weakref.finalize(self, self.close)
-
-    async def _check_version(self, response) -> None:
-        server_version = response.headers.get(PHOENIX_SERVER_VERSION_HEADER)
-        if server_version is None:
-            return
-
-        server_major, server_minor, server_patch = map(int, server_version.split("."))
-        if abs(server_major - self._major) >= 1:
-            warnings.warn(
-                f"⚠️⚠️ The Phoenix server ({server_version}) and client "
-                f"({self._client_phoenix_version}) versions are severely mismatched. Upgrade "
-                " either the client or server to ensure API compatibility ⚠️⚠️"
-            )
-        elif abs(server_minor - self._minor) >= 1 and not self._warned_on_minor_version_mismatch:
-            self._warned_on_minor_version_mismatch = True
-            warnings.warn(
-                f"The Phoenix server ({server_version}) and client ({self._client_phoenix_version})"
-                " versions are mismatched and may have compatibility issues."
-            )
-
-    async def request(self, *args: Any, **kwargs: Any) -> Response:
-        response = await super().request(*args, **kwargs)
-        await self._check_version(response)
-        return response
 
 
 class Client(TraceDataExtractor):
