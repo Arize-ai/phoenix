@@ -532,7 +532,7 @@ async def test_project_spans(
 
 
 @pytest.fixture
-async def llama_index_rag_spans(db: Callable[[], AsyncContextManager[AsyncSession]]):
+async def llama_index_rag_spans(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
     # Inserts the first three traces from the llama-index-rag trace fixture
     # (minus embeddings) along with associated span evaluations.
     async with db() as session:

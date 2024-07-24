@@ -52,7 +52,7 @@ def test_role_precedence() -> None:
     assert len(list(model[TAG])) == 0
 
 
-def test_column_names_coerced_to_str():
+def test_column_names_coerced_to_str() -> None:
     df = pd.DataFrame(columns=["0", 1, "2"])
     model = Schema()(df)
     assert set(model[PRIMARY].columns) == set(map(str, model[PRIMARY].columns))
@@ -60,7 +60,7 @@ def test_column_names_coerced_to_str():
     assert 1 in set(df.columns) - set(model[PRIMARY].columns)
 
 
-def test_df_padding():
+def test_df_padding() -> None:
     model = Schema()(pd.DataFrame({"A": [1]}))
     inf_roles = iter(InferencesRole)
     assert not model[next(inf_roles)].empty
@@ -70,7 +70,7 @@ def test_df_padding():
         assert df.empty
 
 
-def test_df_column_insertion():
+def test_df_column_insertion() -> None:
     model = Schema()(pd.DataFrame())
     for ds_role in InferencesRole:
         df = model[ds_role]
@@ -115,7 +115,7 @@ FULL_SCHEMA = Schema(
 )
 
 
-def test_iterable_column_names():
+def test_iterable_column_names() -> None:
     assert set(iter(Schema())) == set()
     desired_names = (
         set("ABCDEFGHIJKLMNRSTU")
@@ -330,7 +330,7 @@ def test_embedding_dimensions_extraction() -> None:
     ) == {"E": FEATURE, "F": TAG, "G": PROMPT}
 
 
-def test_raise_if_dim_role_is_unassigned():
+def test_raise_if_dim_role_is_unassigned() -> None:
     with pytest.raises(ValueError):
         _ = Dimension()
     for role in InvalidRole:
@@ -365,5 +365,5 @@ def test_raise_if_dim_role_is_unassigned():
         FULL_SCHEMA,
     ],
 )
-def test_schema_to_json(schema: Schema):
+def test_schema_to_json(schema: Schema) -> None:
     assert schema == Schema.from_json(schema.to_json())

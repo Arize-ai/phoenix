@@ -8,7 +8,7 @@ import uuid
 from contextlib import contextmanager
 from dataclasses import replace
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Type
 
 import numpy as np
 import pandas as pd
@@ -38,7 +38,10 @@ class TestParseDataFrameAndSchema:
     _NUM_RECORDS = 5
     _EMBEDDING_DIMENSION = 7
 
-    def test_schema_contains_all_dataframe_columns_results_in_unchanged_output(self, caplog):
+    def test_schema_contains_all_dataframe_columns_results_in_unchanged_output(
+        self,
+        caplog: LogCaptureFixture,
+    ) -> None:
         input_dataframe = DataFrame(
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
@@ -68,7 +71,10 @@ class TestParseDataFrameAndSchema:
             caplog=caplog,
         )
 
-    def test_column_present_in_dataframe_but_missing_from_schema_is_dropped(self, caplog):
+    def test_column_present_in_dataframe_but_missing_from_schema_is_dropped(
+        self,
+        caplog: LogCaptureFixture,
+    ) -> None:
         input_dataframe = DataFrame(
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
@@ -97,7 +103,8 @@ class TestParseDataFrameAndSchema:
         )
 
     def test_some_features_excluded_removes_excluded_features_columns_and_keeps_the_rest(
-        self, caplog
+        self,
+        caplog: LogCaptureFixture,
     ):
         input_dataframe = DataFrame(
             {
@@ -135,8 +142,9 @@ class TestParseDataFrameAndSchema:
         )
 
     def test_all_features_and_tags_excluded_sets_schema_features_and_tags_fields_to_none(
-        self, caplog
-    ):
+        self,
+        caplog: LogCaptureFixture,
+    ) -> None:
         input_dataframe = DataFrame(
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
@@ -173,7 +181,10 @@ class TestParseDataFrameAndSchema:
             caplog=caplog,
         )
 
-    def test_excluded_single_column_schema_fields_set_to_none(self, caplog):
+    def test_excluded_single_column_schema_fields_set_to_none(
+        self,
+        caplog: LogCaptureFixture,
+    ) -> None:
         input_dataframe = DataFrame(
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
@@ -205,7 +216,10 @@ class TestParseDataFrameAndSchema:
             caplog=caplog,
         )
 
-    def test_no_input_schema_features_and_no_excluded_column_names_discovers_features(self, caplog):
+    def test_no_input_schema_features_and_no_excluded_column_names_discovers_features(
+        self,
+        caplog: LogCaptureFixture,
+    ) -> None:
         input_dataframe = DataFrame(
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
@@ -233,8 +247,9 @@ class TestParseDataFrameAndSchema:
         )
 
     def test_no_input_schema_features_and_nonempty_excluded_column_names_discovers_features(
-        self, caplog
-    ):
+        self,
+        caplog: LogCaptureFixture,
+    ) -> None:
         input_dataframe = DataFrame(
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
@@ -272,7 +287,10 @@ class TestParseDataFrameAndSchema:
             caplog=caplog,
         )
 
-    def test_excluded_column_not_contained_in_dataframe_logs_warning(self, caplog):
+    def test_excluded_column_not_contained_in_dataframe_logs_warning(
+        self,
+        caplog: LogCaptureFixture,
+    ) -> None:
         input_dataframe = DataFrame(
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
@@ -307,7 +325,10 @@ class TestParseDataFrameAndSchema:
             caplog=caplog,
         )
 
-    def test_schema_includes_embedding_feature_has_all_embedding_columns_included(self, caplog):
+    def test_schema_includes_embedding_feature_has_all_embedding_columns_included(
+        self,
+        caplog: LogCaptureFixture,
+    ) -> None:
         input_dataframe = DataFrame(
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
@@ -339,7 +360,10 @@ class TestParseDataFrameAndSchema:
             caplog=caplog,
         )
 
-    def test_schema_includes_relationships(self, caplog):
+    def test_schema_includes_relationships(
+        self,
+        caplog: LogCaptureFixture,
+    ) -> None:
         input_dataframe = DataFrame(
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
@@ -365,7 +389,10 @@ class TestParseDataFrameAndSchema:
             caplog=caplog,
         )
 
-    def test_embedding_columns_of_excluded_embedding_feature_are_removed(self, caplog):
+    def test_embedding_columns_of_excluded_embedding_feature_are_removed(
+        self,
+        caplog: LogCaptureFixture,
+    ) -> None:
         input_dataframe = DataFrame(
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
@@ -424,7 +451,10 @@ class TestParseDataFrameAndSchema:
             caplog=caplog,
         )
 
-    def test_excluding_all_embedding_features_sets_schema_embedding_field_to_none(self, caplog):
+    def test_excluding_all_embedding_features_sets_schema_embedding_field_to_none(
+        self,
+        caplog: LogCaptureFixture,
+    ) -> None:
         input_dataframe = DataFrame(
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
@@ -462,8 +492,9 @@ class TestParseDataFrameAndSchema:
         )
 
     def test_excluding_an_embedding_column_rather_than_the_embedding_feature_name_logs_warning(
-        self, caplog
-    ):
+        self,
+        caplog: LogCaptureFixture,
+    ) -> None:
         input_dataframe = DataFrame(
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
@@ -501,8 +532,8 @@ class TestParseDataFrameAndSchema:
 
     def test_excluding_embedding_feature_with_same_name_as_embedding_column_does_not_warn_user(
         self,
-        caplog,
-    ):
+        caplog: LogCaptureFixture,
+    ) -> None:
         input_dataframe = DataFrame(
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
@@ -539,8 +570,8 @@ class TestParseDataFrameAndSchema:
 
     def test_inferences_coerce_vectors_from_lists_to_arrays(
         self,
-        caplog,
-    ):
+        caplog: LogCaptureFixture,
+    ) -> None:
         vec = np.random.random(10)
         input_dataframe = DataFrame(
             {
@@ -605,7 +636,7 @@ class TestParseDataFrameAndSchema:
                 return True
         return False
 
-    def test_inferences_normalization_columns_already_normalized(self):
+    def test_inferences_normalization_columns_already_normalized(self) -> None:
         input_dataframe = DataFrame(
             {
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
@@ -630,7 +661,7 @@ class TestParseDataFrameAndSchema:
 
         assert output_dataframe.equals(input_dataframe)
 
-    def test_inferences_normalization_prediction_id_integer_to_string(self):
+    def test_inferences_normalization_prediction_id_integer_to_string(self) -> None:
         input_dataframe = DataFrame(
             {
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
@@ -656,7 +687,7 @@ class TestParseDataFrameAndSchema:
         expected_dataframe["prediction_id"] = expected_dataframe["prediction_id"].astype(str)
         assert output_dataframe.equals(expected_dataframe)
 
-    def test_inferences_normalization_columns_add_missing_prediction_id(self):
+    def test_inferences_normalization_columns_add_missing_prediction_id(self) -> None:
         input_dataframe = DataFrame(
             {
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
@@ -685,18 +716,18 @@ class TestParseDataFrameAndSchema:
         assert output_dataframe.dtypes["prediction_id"], "string"
 
     @property
-    def num_records(self):
+    def num_records(self) -> None:
         return self._NUM_RECORDS
 
     @property
-    def embedding_dimension(self):
+    def embedding_dimension(self) -> None:
         return self._EMBEDDING_DIMENSION
 
 
 class TestDataset:
     _NUM_RECORDS = 9
 
-    def test_inferences_normalization_columns_already_normalized(self):
+    def test_inferences_normalization_columns_already_normalized(self) -> None:
         input_dataframe = DataFrame(
             {
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
@@ -818,12 +849,15 @@ class TestDataset:
             Inferences(dataframe=input_df, schema=input_schema)
 
     @property
-    def num_records(self):
+    def num_records(self) -> None:
         return self._NUM_RECORDS
 
 
 @contextmanager
-def raises_inferences_error(validation_error_type, message):
+def raises_inferences_error(
+    validation_error_type: Type[BaseException],
+    message: str,
+) -> None:
     with raises(DatasetError) as exc_info:
         yield
     assert [type(error) for error in exc_info.value.errors] == [validation_error_type]
@@ -831,7 +865,7 @@ def raises_inferences_error(validation_error_type, message):
     assert str(error) == str(exc_info.value) == message
 
 
-def random_uuids(num_records: int):
+def random_uuids(num_records: int) -> None:
     return [str(uuid.uuid4()) for _ in range(num_records)]
 
 

@@ -10,7 +10,7 @@ from strawberry.relay import GlobalID
 async def test_experiments_api(
     httpx_client: httpx.AsyncClient,
     simple_dataset: Any,
-):
+) -> None:
     """
     A simple test of the expected flow for the experiments API flow
     """
@@ -90,7 +90,7 @@ async def test_experiments_api(
 async def test_experiment_404s_with_missing_dataset(
     httpx_client: httpx.AsyncClient,
     simple_dataset: Any,
-):
+) -> None:
     incorrect_dataset_gid = GlobalID("Dataset", "1")
     response = await httpx_client.post(
         f"/v1/datasets/{incorrect_dataset_gid}/experiments", json={"version_id": None}
@@ -101,7 +101,7 @@ async def test_experiment_404s_with_missing_dataset(
 async def test_experiment_404s_with_missing_version(
     httpx_client: httpx.AsyncClient,
     simple_dataset: Any,
-):
+) -> None:
     correct_dataset_gid = GlobalID("Dataset", "0")
     incorrect_version_gid = GlobalID("DatasetVersion", "9000")
     response = await httpx_client.post(
@@ -114,7 +114,7 @@ async def test_experiment_404s_with_missing_version(
 async def test_reading_experiments(
     httpx_client: httpx.AsyncClient,
     dataset_with_experiments_without_runs: Any,
-):
+) -> None:
     experiment_gid = GlobalID("Experiment", "0")
     dataset_gid = GlobalID("Dataset", "1")
     dataset_version_gid = GlobalID("DatasetVersion", "1")
@@ -134,7 +134,7 @@ async def test_reading_experiments(
 
 async def test_reading_experiment_404s_with_missing_experiment(
     httpx_client: httpx.AsyncClient,
-):
+) -> None:
     incorrect_experiment_gid = GlobalID("Experiment", "9000")
     response = await httpx_client.get(f"/v1/experiments/{incorrect_experiment_gid}")
     assert response.status_code == 404

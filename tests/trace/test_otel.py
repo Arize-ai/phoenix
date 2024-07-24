@@ -34,7 +34,7 @@ from pytest import approx
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
 
 
-def test_decode_encode(span):
+def test_decode_encode(span) -> None:
     otlp_span = encode_span_to_otlp(span)
     assert otlp_span.name == "test_span"
     assert otlp_span.trace_id == _encode_identifier(span.context.trace_id)
@@ -77,7 +77,7 @@ def test_decode_encode(span):
         (SpanStatusCode.UNSET, otlp.Status.StatusCode.STATUS_CODE_UNSET),
     ],
 )
-def test_decode_encode_status_code(span, span_status_code, otlp_status_code):
+def test_decode_encode_status_code(span, span_status_code, otlp_status_code) -> None:
     span = replace(span, status_code=span_status_code)
     otlp_span = encode_span_to_otlp(span)
     assert otlp_span.status.code == otlp_status_code
@@ -86,7 +86,7 @@ def test_decode_encode_status_code(span, span_status_code, otlp_status_code):
 
 
 @pytest.mark.parametrize("span_kind", list(SpanKind))
-def test_decode_encode_span_kind(span, span_kind):
+def test_decode_encode_span_kind(span, span_kind) -> None:
     span = replace(span, span_kind=span_kind)
     span = replace(
         span,
@@ -141,7 +141,7 @@ def test_decode_encode_span_kind(span, span_kind):
         ),
     ],
 )
-def test_decode_encode_attributes(span, attributes, otlp_key_value):
+def test_decode_encode_attributes(span, attributes, otlp_key_value) -> None:
     span = replace(span, attributes={**span.attributes, **attributes})
     otlp_span = encode_span_to_otlp(span)
     assert MessageToJson(otlp_key_value) in set(map(MessageToJson, otlp_span.attributes))
@@ -149,7 +149,7 @@ def test_decode_encode_attributes(span, attributes, otlp_key_value):
     assert decoded_span.attributes == span.attributes
 
 
-def test_decode_encode_events(span):
+def test_decode_encode_events(span) -> None:
     event_name = str(random())
     exception_message = str(random())
     exception_type = str(random())
@@ -226,7 +226,7 @@ def test_decode_encode_events(span):
     assert decoded_span.events == span.events
 
 
-def test_decode_encode_documents(span):
+def test_decode_encode_documents(span) -> None:
     content = str(random())
     score = random()
     document_metadata = {
@@ -294,7 +294,7 @@ def test_decode_encode_documents(span):
     )
 
 
-def test_decode_encode_embeddings(span):
+def test_decode_encode_embeddings(span) -> None:
     text = str(random())
     vector = list(np.random.rand(3))
     attributes = {
@@ -343,7 +343,7 @@ def test_decode_encode_embeddings(span):
     )
 
 
-def test_decode_encode_message_tool_calls(span):
+def test_decode_encode_message_tool_calls(span) -> None:
     attributes = {
         "llm": {
             "output_messages": [
@@ -398,7 +398,7 @@ def test_decode_encode_message_tool_calls(span):
     )
 
 
-def test_decode_encode_llm_prompt_template_variables(span):
+def test_decode_encode_llm_prompt_template_variables(span) -> None:
     attributes = {
         "llm": {"prompt_template": {"variables": {"context_str": "123", "query_str": "321"}}}
     }
@@ -424,7 +424,7 @@ def test_decode_encode_llm_prompt_template_variables(span):
     )
 
 
-def test_decode_encode_tool_parameters(span):
+def test_decode_encode_tool_parameters(span) -> None:
     attributes = {
         "tool": {
             "parameters": {

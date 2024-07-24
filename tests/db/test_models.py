@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 async def test_projects_with_session_injection(
     db: Callable[[], AsyncContextManager[AsyncSession]],
     project: Any,
-):
+) -> None:
     # this test demonstrates parametrizing the session fixture
     statement = select(models.Project).where(models.Project.name == "test_project")
     async with db() as session:
@@ -19,7 +19,7 @@ async def test_projects_with_session_injection(
 async def test_projects_with_db_injection(
     db: Callable[[], AsyncContextManager[AsyncSession]],
     project: Any,
-):
+) -> None:
     # this test demonstrates mixing the db and model fixtures
     statement = select(models.Project).where(models.Project.name == "test_project")
     async with db() as session:
@@ -29,7 +29,7 @@ async def test_projects_with_db_injection(
 
 async def test_empty_projects(
     db: Callable[[], AsyncContextManager[AsyncSession]],
-):
+) -> None:
     # shows that databases are reset between tests
     statement = select(models.Project).where(models.Project.name == "test_project")
     async with db() as session:

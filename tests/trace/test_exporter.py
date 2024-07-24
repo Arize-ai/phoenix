@@ -3,7 +3,7 @@ from phoenix.config import PORT
 from phoenix.trace.exporter import HttpExporter
 
 
-def test_exporter(monkeypatch: pytest.MonkeyPatch):
+def test_exporter(monkeypatch: pytest.MonkeyPatch) -> None:
     # Test that it defaults to local
     monkeypatch.delenv("PHOENIX_COLLECTOR_ENDPOINT", False)
     exporter = HttpExporter()

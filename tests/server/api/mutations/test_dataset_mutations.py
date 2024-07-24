@@ -15,7 +15,7 @@ from strawberry.relay import GlobalID
 
 async def test_create_dataset(
     httpx_client: httpx.AsyncClient,
-):
+) -> None:
     create_dataset_mutation = """
       mutation ($name: String!, $description: String!, $metadata: JSON!) {
         createDataset(
@@ -515,7 +515,7 @@ async def test_delete_a_dataset(
     db: Callable[[], AsyncContextManager[AsyncSession]],
     httpx_client: httpx.AsyncClient,
     empty_dataset: Any,
-):
+) -> None:
     dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
     mutation = textwrap.dedent(
         """
@@ -553,7 +553,7 @@ async def test_delete_a_dataset(
 
 async def test_deleting_a_nonexistent_dataset_fails(
     httpx_client: httpx.AsyncClient,
-):
+) -> None:
     dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
     mutation = textwrap.dedent(
         """
@@ -583,7 +583,7 @@ async def test_deleting_a_nonexistent_dataset_fails(
 
 
 @pytest.fixture
-async def empty_dataset(db: Callable[[], AsyncContextManager[AsyncSession]]):
+async def empty_dataset(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
     """
     Inserts an empty dataset.
     """
@@ -599,7 +599,7 @@ async def empty_dataset(db: Callable[[], AsyncContextManager[AsyncSession]]):
 
 
 @pytest.fixture
-async def spans(db: Callable[[], AsyncContextManager[AsyncSession]]):
+async def spans(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
     """
     Inserts three spans from a single trace: a chain root span, a retriever
     child span, and an llm child span.
@@ -705,7 +705,9 @@ async def spans(db: Callable[[], AsyncContextManager[AsyncSession]]):
 
 
 @pytest.fixture
-async def dataset_with_a_single_version(db: Callable[[], AsyncContextManager[AsyncSession]]):
+async def dataset_with_a_single_version(
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+) -> None:
     """
     A dataset with a single example and a single version.
     """
@@ -758,7 +760,7 @@ async def dataset_with_a_single_version(db: Callable[[], AsyncContextManager[Asy
 
 
 @pytest.fixture
-async def dataset_with_revisions(db: Callable[[], AsyncContextManager[AsyncSession]]):
+async def dataset_with_revisions(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
     """
     A dataset with three examples and two versions. The first version creates
     all three examples, and the second version deletes the third example.

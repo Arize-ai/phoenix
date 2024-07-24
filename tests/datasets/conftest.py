@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 @pytest.fixture
 async def simple_dataset(
     db: Callable[[], AsyncContextManager[AsyncSession]],
-):
+) -> None:
     """
     A dataset with one example added in one version
     """

@@ -22,7 +22,7 @@ from strawberry.relay import GlobalID
 async def test_get_simple_dataset(
     httpx_client: httpx.AsyncClient,
     simple_dataset: Any,
-):
+) -> None:
     global_id = GlobalID("Dataset", str(0))
     response = await httpx_client.get(f"/v1/datasets/{global_id}")
     assert response.status_code == 200
@@ -43,7 +43,7 @@ async def test_get_simple_dataset(
 async def test_get_empty_dataset(
     httpx_client: httpx.AsyncClient,
     empty_dataset: Any,
-):
+) -> None:
     global_id = GlobalID("Dataset", str(1))
     response = await httpx_client.get(f"/v1/datasets/{global_id}")
     assert response.status_code == 200
@@ -64,7 +64,7 @@ async def test_get_empty_dataset(
 async def test_get_dataset_with_revisions(
     httpx_client: httpx.AsyncClient,
     dataset_with_revisions: Any,
-):
+) -> None:
     global_id = GlobalID("Dataset", str(2))
     response = await httpx_client.get(f"/v1/datasets/{global_id}")
     assert response.status_code == 200
@@ -87,7 +87,7 @@ async def test_list_datasets(
     simple_dataset: Any,
     empty_dataset: Any,
     dataset_with_revisions: Any,
-):
+) -> None:
     response = await httpx_client.get("/v1/datasets")
     assert response.status_code == 200
     datasets_json = response.json()
@@ -133,7 +133,7 @@ async def test_list_fewer_datasets(
     httpx_client: httpx.AsyncClient,
     simple_dataset: Any,
     empty_dataset: Any,
-):
+) -> None:
     response = await httpx_client.get("/v1/datasets")
     assert response.status_code == 200
     datasets_json = response.json()
@@ -170,7 +170,7 @@ async def test_list_datasets_with_cursor(
     simple_dataset: Any,
     empty_dataset: Any,
     dataset_with_revisions: Any,
-):
+) -> None:
     response = await httpx_client.get("/v1/datasets", params={"limit": 2})
     assert response.status_code == 200
     datasets_json = response.json()
@@ -225,7 +225,7 @@ async def test_list_datasets_with_cursor(
 async def test_get_dataset_versions(
     httpx_client: httpx.AsyncClient,
     dataset_with_revisions: Any,
-):
+) -> None:
     dataset_global_id = GlobalID("Dataset", str(2))
     response = await httpx_client.get(f"/v1/datasets/{dataset_global_id}/versions?limit=2")
     assert response.status_code == 200
@@ -252,7 +252,7 @@ async def test_get_dataset_versions(
 async def test_get_dataset_versions_with_cursor(
     httpx_client: httpx.AsyncClient,
     dataset_with_revisions: Any,
-):
+) -> None:
     dataset_global_id = GlobalID("Dataset", str(2))
     response = await httpx_client.get(
         f"/v1/datasets/{dataset_global_id}/versions?limit=2"
@@ -276,7 +276,7 @@ async def test_get_dataset_versions_with_cursor(
 async def test_get_dataset_versions_with_nonexistent_cursor(
     httpx_client: httpx.AsyncClient,
     dataset_with_revisions: Any,
-):
+) -> None:
     dataset_global_id = GlobalID("Dataset", str(2))
     response = await httpx_client.get(
         f"/v1/datasets/{dataset_global_id}/versions?limit=1"
@@ -290,7 +290,7 @@ async def test_get_dataset_versions_with_nonexistent_cursor(
 async def test_get_dataset_download_empty_dataset(
     httpx_client: httpx.AsyncClient,
     empty_dataset: Any,
-):
+) -> None:
     dataset_global_id = GlobalID("Dataset", str(1))
     response = await httpx_client.get(f"/v1/datasets/{dataset_global_id}/csv")
     assert response.status_code == 200
@@ -305,7 +305,7 @@ async def test_get_dataset_download_nonexistent_version(
     httpx_client: httpx.AsyncClient,
     empty_dataset: Any,
     dataset_with_revisions: Any,
-):
+) -> None:
     dataset_global_id = GlobalID("Dataset", str(1))
     dataset_version_global_id = GlobalID("DatasetVersion", str(4))  # Version for Dataset id=2
     response = await httpx_client.get(
@@ -322,7 +322,7 @@ async def test_get_dataset_download_nonexistent_version(
 async def test_get_dataset_download_latest_version(
     httpx_client: httpx.AsyncClient,
     dataset_with_revisions: Any,
-):
+) -> None:
     dataset_global_id = GlobalID("Dataset", str(2))
     response = await httpx_client.get(f"/v1/datasets/{dataset_global_id}/csv")
     assert response.status_code == 200
@@ -346,7 +346,7 @@ async def test_get_dataset_download_latest_version(
 async def test_get_dataset_download_specific_version(
     httpx_client: httpx.AsyncClient,
     dataset_with_revisions: Any,
-):
+) -> None:
     dataset_global_id = GlobalID("Dataset", str(2))
     dataset_version_global_id = GlobalID("DatasetVersion", str(8))
     response = await httpx_client.get(
@@ -374,7 +374,7 @@ async def test_get_dataset_download_specific_version(
 async def test_get_dataset_jsonl_openai_ft(
     httpx_client: httpx.AsyncClient,
     dataset_with_messages: Tuple[int, int],
-):
+) -> None:
     dataset_id, dataset_version_id = dataset_with_messages
     dataset_global_id = GlobalID(Dataset.__name__, str(dataset_id))
     dataset_version_global_id = GlobalID(DatasetVersion.__name__, str(dataset_version_id))
@@ -405,7 +405,7 @@ async def test_get_dataset_jsonl_openai_ft(
 
 async def test_get_dataset_jsonl_openai_evals(
     httpx_client: httpx.AsyncClient, dataset_with_messages: Tuple[int, int]
-):
+) -> None:
     dataset_id, dataset_version_id = dataset_with_messages
     dataset_global_id = GlobalID(Dataset.__name__, str(dataset_id))
     dataset_version_global_id = GlobalID(DatasetVersion.__name__, str(dataset_version_id))
@@ -431,7 +431,7 @@ async def test_get_dataset_jsonl_openai_evals(
 async def test_post_dataset_upload_json_create_then_append(
     httpx_client: httpx.AsyncClient,
     db: Callable[[], AsyncContextManager[AsyncSession]],
-):
+) -> None:
     name = inspect.stack()[0][3]
     response = await httpx_client.post(
         url="v1/datasets/upload?sync=true",
@@ -482,7 +482,7 @@ async def test_post_dataset_upload_json_create_then_append(
 async def test_post_dataset_upload_csv_create_then_append(
     httpx_client: httpx.AsyncClient,
     db: Callable[[], AsyncContextManager[AsyncSession]],
-):
+) -> None:
     name = inspect.stack()[0][3]
     file = gzip.compress(b"a,b,c,d,e,f\n1,2,3,4,5,6\n")
     response = await httpx_client.post(
@@ -537,7 +537,7 @@ async def test_post_dataset_upload_csv_create_then_append(
 async def test_post_dataset_upload_pyarrow_create_then_append(
     httpx_client: httpx.AsyncClient,
     db: Callable[[], AsyncContextManager[AsyncSession]],
-):
+) -> None:
     name = inspect.stack()[0][3]
     df = pd.read_csv(StringIO("a,b,c,d,e,f\n1,2,3,4,5,6\n"))
     table = pa.Table.from_pandas(df)
@@ -613,7 +613,7 @@ async def test_delete_dataset(
 
 async def test_get_dataset_examples_404s_with_nonexistent_dataset_id(
     httpx_client: httpx.AsyncClient,
-):
+) -> None:
     global_id = GlobalID("Dataset", str(0))
     response = await httpx_client.get(f"/v1/datasets/{global_id}/examples")
     assert response.status_code == 404
@@ -623,7 +623,7 @@ async def test_get_dataset_examples_404s_with_nonexistent_dataset_id(
 async def test_get_dataset_examples_404s_with_invalid_global_id(
     httpx_client: httpx.AsyncClient,
     simple_dataset: Any,
-):
+) -> None:
     global_id = GlobalID("InvalidDataset", str(0))
     response = await httpx_client.get(f"/v1/datasets/{global_id}/examples")
     assert response.status_code == 404
@@ -633,7 +633,7 @@ async def test_get_dataset_examples_404s_with_invalid_global_id(
 async def test_get_dataset_examples_404s_with_nonexistent_version_id(
     httpx_client: httpx.AsyncClient,
     simple_dataset: Any,
-):
+) -> None:
     global_id = GlobalID("Dataset", str(0))
     version_id = GlobalID("DatasetVersion", str(99))
     response = await httpx_client.get(
@@ -646,7 +646,7 @@ async def test_get_dataset_examples_404s_with_nonexistent_version_id(
 async def test_get_dataset_examples_404s_with_invalid_version_global_id(
     httpx_client: httpx.AsyncClient,
     simple_dataset: Any,
-):
+) -> None:
     global_id = GlobalID("Dataset", str(0))
     version_id = GlobalID("InvalidDatasetVersion", str(0))
     response = await httpx_client.get(
@@ -659,7 +659,7 @@ async def test_get_dataset_examples_404s_with_invalid_version_global_id(
 async def test_get_simple_dataset_examples(
     httpx_client: httpx.AsyncClient,
     simple_dataset: Any,
-):
+) -> None:
     global_id = GlobalID("Dataset", str(0))
     response = await httpx_client.get(f"/v1/datasets/{global_id}/examples")
     assert response.status_code == 200
@@ -686,7 +686,7 @@ async def test_get_simple_dataset_examples(
 async def test_list_simple_dataset_examples_at_each_version(
     httpx_client: httpx.AsyncClient,
     simple_dataset: Any,
-):
+) -> None:
     global_id = GlobalID("Dataset", str(0))
     v0 = GlobalID("DatasetVersion", str(0))
 
@@ -703,7 +703,7 @@ async def test_list_simple_dataset_examples_at_each_version(
 async def test_list_empty_dataset_examples(
     httpx_client: httpx.AsyncClient,
     empty_dataset: Any,
-):
+) -> None:
     global_id = GlobalID("Dataset", str(1))
     response = await httpx_client.get(f"/v1/datasets/{global_id}/examples")
     assert response.status_code == 200
@@ -715,7 +715,7 @@ async def test_list_empty_dataset_examples(
 async def test_list_empty_dataset_examples_at_each_version(
     httpx_client: httpx.AsyncClient,
     empty_dataset: Any,
-):
+) -> None:
     global_id = GlobalID("Dataset", str(1))
     v1 = GlobalID("DatasetVersion", str(1))
     v2 = GlobalID("DatasetVersion", str(2))
@@ -752,7 +752,7 @@ async def test_list_empty_dataset_examples_at_each_version(
 async def test_list_dataset_with_revisions_examples(
     httpx_client: httpx.AsyncClient,
     dataset_with_revisions: Any,
-):
+) -> None:
     global_id = GlobalID("Dataset", str(2))
     response = await httpx_client.get(f"/v1/datasets/{global_id}/examples")
     assert response.status_code == 200
@@ -791,7 +791,7 @@ async def test_list_dataset_with_revisions_examples(
 async def test_list_dataset_with_revisions_examples_at_each_version(
     httpx_client: httpx.AsyncClient,
     dataset_with_revisions: Any,
-):
+) -> None:
     global_id = GlobalID("Dataset", str(2))
     v4 = GlobalID("DatasetVersion", str(4))
     v5 = GlobalID("DatasetVersion", str(5))

@@ -54,7 +54,7 @@ from phoenix.utilities.re import parse_env_headers
         ),
     ],
 )
-def test_get_env_client_headers(headers, expected, warn, caplog):
+def test_get_env_client_headers(headers, expected, warn, caplog) -> None:
     if warn:
         with caplog.at_level(level="WARNING"):
             assert parse_env_headers(headers) == dict(expected)

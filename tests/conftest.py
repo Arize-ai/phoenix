@@ -38,7 +38,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from starlette.types import ASGIApp
 
 
-def pytest_addoption(parser: Parser):
+def pytest_addoption(parser: Parser) -> None:
     parser.addoption(
         "--run-postgres",
         action="store_true",
@@ -47,7 +47,7 @@ def pytest_addoption(parser: Parser):
     )
 
 
-def pytest_collection_modifyitems(config: Config, items: List[Any]):
+def pytest_collection_modifyitems(config: Config, items: List[Any]) -> None:
     skip_postgres = pytest.mark.skip(reason="Skipping Postgres tests")
     if not config.getoption("--run-postgres"):
         for item in items:

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import AsyncContextManager, Callable
+from typing import Any, AsyncContextManager, Callable
 
 import pandas as pd
 import pytest
@@ -77,7 +77,9 @@ async def test_select_all(
 
 
 async def test_select_all_with_no_data(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = SpanQuery()
     expected = pd.DataFrame(
@@ -103,7 +105,9 @@ async def test_select_all_with_no_data(
 
 
 async def test_select(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = SpanQuery().select("name", tcp="llm.token_count.prompt")
     expected = pd.DataFrame(
@@ -122,7 +126,9 @@ async def test_select(
 
 
 async def test_select_parent_id_as_span_id(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = SpanQuery().select("name", span_id="parent_id")
     expected = pd.DataFrame(
@@ -140,7 +146,9 @@ async def test_select_parent_id_as_span_id(
 
 
 async def test_select_trace_id_as_index(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = SpanQuery().select("span_id").with_index("trace_id")
     expected = pd.DataFrame(
@@ -158,7 +166,9 @@ async def test_select_trace_id_as_index(
 
 
 async def test_select_nonexistent(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = SpanQuery().select("name", "opq", "opq.rst")
     expected = pd.DataFrame(
@@ -178,7 +188,9 @@ async def test_select_nonexistent(
 
 
 async def test_default_project(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = SpanQuery().select(
         "name",
@@ -200,7 +212,9 @@ async def test_default_project(
 
 
 async def test_root_spans_only(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = SpanQuery().select(
         "name",
@@ -222,7 +236,9 @@ async def test_root_spans_only(
 
 
 async def test_start_time(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = SpanQuery().select("name")
     expected = pd.DataFrame(
@@ -246,7 +262,9 @@ async def test_start_time(
 
 
 async def test_end_time(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = SpanQuery().select("name")
     expected = pd.DataFrame(
@@ -270,7 +288,9 @@ async def test_end_time(
 
 
 async def test_limit(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = SpanQuery()
     async with db() as session:
@@ -279,7 +299,9 @@ async def test_limit(
 
 
 async def test_limit_with_select_statement(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = SpanQuery().select("context.span_id")
     expected = pd.DataFrame(
@@ -296,7 +318,9 @@ async def test_limit_with_select_statement(
 
 
 async def test_filter_for_none(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -324,7 +348,9 @@ async def test_filter_for_none(
 
 
 async def test_filter_for_not_none(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -348,7 +374,9 @@ async def test_filter_for_not_none(
 
 
 async def test_filter_for_substring_case_sensitive_not_glob_not_like(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -372,7 +400,9 @@ async def test_filter_for_substring_case_sensitive_not_glob_not_like(
 
 
 async def test_filter_for_not_substring_case_sensitive_not_glob_not_like(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -396,7 +426,9 @@ async def test_filter_for_not_substring_case_sensitive_not_glob_not_like(
 
 
 async def test_filter_on_nonexistent_is_not_none(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -417,7 +449,9 @@ async def test_filter_on_nonexistent_is_not_none(
 
 
 async def test_filter_on_nonexistent_is_none(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -441,7 +475,9 @@ async def test_filter_on_nonexistent_is_none(
 
 
 async def test_filter_on_latency(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -467,7 +503,9 @@ async def test_filter_on_latency(
 
 
 async def test_filter_on_cumulative_token_count(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -489,7 +527,9 @@ async def test_filter_on_cumulative_token_count(
 
 
 async def test_filter_on_metadata_with_arithmetic(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -513,7 +553,9 @@ async def test_filter_on_metadata_with_arithmetic(
 
 
 async def test_filter_on_metadata_cast_as_int(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -537,7 +579,9 @@ async def test_filter_on_metadata_cast_as_int(
 
 
 async def test_filter_on_metadata_substring_search(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -561,7 +605,9 @@ async def test_filter_on_metadata_substring_search(
 
 
 async def test_filter_on_metadata_cast_as_str(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -585,7 +631,9 @@ async def test_filter_on_metadata_cast_as_str(
 
 
 async def test_filter_on_metadata_using_subscript_key(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -609,7 +657,9 @@ async def test_filter_on_metadata_using_subscript_key(
 
 
 async def test_filter_on_metadata_using_subscript_keys_list_with_single_key(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -633,7 +683,9 @@ async def test_filter_on_metadata_using_subscript_keys_list_with_single_key(
 
 
 async def test_filter_on_metadata_using_subscript_keys_list_with_multiple_keys(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -657,7 +709,9 @@ async def test_filter_on_metadata_using_subscript_keys_list_with_multiple_keys(
 
 
 async def test_filter_on_attribute_using_subscript_key(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -681,7 +735,9 @@ async def test_filter_on_attribute_using_subscript_key(
 
 
 async def test_filter_on_attribute_using_subscript_keys_list_with_single_key(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -705,7 +761,9 @@ async def test_filter_on_attribute_using_subscript_keys_list_with_single_key(
 
 
 async def test_filter_on_attribute_using_subscript_keys_list_with_multiple_keys(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -729,7 +787,9 @@ async def test_filter_on_attribute_using_subscript_keys_list_with_multiple_keys(
 
 
 async def test_filter_on_span_id_single(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -753,7 +813,9 @@ async def test_filter_on_span_id_single(
 
 
 async def test_filter_on_span_id_multiple(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -777,7 +839,9 @@ async def test_filter_on_span_id_multiple(
 
 
 async def test_filter_on_trace_id_single(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -801,7 +865,9 @@ async def test_filter_on_trace_id_single(
 
 
 async def test_filter_on_trace_id_multiple(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -825,7 +891,9 @@ async def test_filter_on_trace_id_multiple(
 
 
 async def test_explode_embeddings_no_select(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = SpanQuery().explode("embedding.embeddings")
     expected = pd.DataFrame(
@@ -845,7 +913,9 @@ async def test_explode_embeddings_no_select(
 
 
 async def test_explode_embeddings_with_select_and_no_kwargs(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -872,7 +942,9 @@ async def test_explode_embeddings_with_select_and_no_kwargs(
 
 
 async def test_explode_documents_no_select(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = SpanQuery().explode(
         "retrieval.documents",
@@ -896,7 +968,9 @@ async def test_explode_documents_no_select(
 
 
 async def test_explode_documents_with_select_and_non_ascii_kwargs(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -927,7 +1001,9 @@ async def test_explode_documents_with_select_and_non_ascii_kwargs(
 
 
 async def test_concat_documents_no_select(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = SpanQuery().concat(
         "retrieval.documents",
@@ -948,7 +1024,9 @@ async def test_concat_documents_no_select(
 
 
 async def test_concat_documents_no_select_but_no_data(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = SpanQuery().concat(
         "retrieval.documents",
@@ -966,7 +1044,9 @@ async def test_concat_documents_no_select_but_no_data(
 
 
 async def test_concat_documents_with_select(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -992,7 +1072,9 @@ async def test_concat_documents_with_select(
 
 
 async def test_concat_documents_with_select_but_no_data(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -1014,7 +1096,9 @@ async def test_concat_documents_with_select_but_no_data(
 
 
 async def test_concat_documents_with_select_but_with_typo_in_array_name(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -1036,7 +1120,9 @@ async def test_concat_documents_with_select_but_with_typo_in_array_name(
 
 
 async def test_concat_documents_with_select_and_non_default_separator(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -1062,7 +1148,9 @@ async def test_concat_documents_with_select_and_non_default_separator(
 
 
 async def test_explode_and_concat_on_same_array(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -1092,7 +1180,9 @@ async def test_explode_and_concat_on_same_array(
 
 
 async def test_explode_and_concat_on_same_array_but_no_data(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()
@@ -1122,7 +1212,9 @@ async def test_explode_and_concat_on_same_array_but_no_data(
 
 
 async def test_explode_and_concat_on_same_array_with_same_label(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     async with db() as session:
         if "asyncpg" in str(session.get_bind().url):
@@ -1219,7 +1311,9 @@ async def test_explode_and_concat_on_same_array_but_with_typo_in_explode_array_n
 
 
 async def test_explode_and_concat_on_same_array_with_non_ascii_kwargs(
-    db: Callable[[], AsyncContextManager[AsyncSession]], default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     sq = (
         SpanQuery()

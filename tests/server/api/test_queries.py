@@ -13,7 +13,7 @@ from strawberry.relay import GlobalID
 async def test_projects_omits_experiment_projects(
     httpx_client: httpx.AsyncClient,
     projects_with_and_without_experiments: Any,
-):
+) -> None:
     query = """
       query {
         projects {
@@ -50,7 +50,7 @@ async def test_projects_omits_experiment_projects(
 async def test_compare_experiments_returns_expected_comparisons(
     httpx_client: httpx.AsyncClient,
     comparison_experiments: Any,
-):
+) -> None:
     query = """
       query ($experimentIds: [GlobalID!]!) {
         compareExperiments(
@@ -180,7 +180,7 @@ async def test_compare_experiments_returns_expected_comparisons(
 @pytest.fixture
 async def projects_with_and_without_experiments(
     db: Callable[[], AsyncContextManager[AsyncSession]],
-):
+) -> None:
     """
     Insert two projects, one that contains traces from an experiment and the other that does not.
     """
@@ -226,7 +226,7 @@ async def projects_with_and_without_experiments(
 
 
 @pytest.fixture
-async def comparison_experiments(db: Callable[[], AsyncContextManager[AsyncSession]]):
+async def comparison_experiments(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
     """
     Creates a dataset with four examples, three versions, and four experiments.
 

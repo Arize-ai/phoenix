@@ -15,7 +15,7 @@ from strawberry.relay import GlobalID
 async def test_experiment_resolver_returns_sequence_number(
     httpx_client: httpx.AsyncClient,
     interlaced_experiments: List[int],
-):
+) -> None:
     query = """
       query ($experimentId: GlobalID!) {
         experiment: node(id: $experimentId) {
@@ -43,7 +43,7 @@ async def test_experiment_resolver_returns_sequence_number(
 async def test_runs_resolver_returns_runs_for_experiment(
     httpx_client: httpx.AsyncClient,
     dataset_with_experiment_runs: Any,
-):
+) -> None:
     query = """
       query ($experimentId: GlobalID!) {
         experiment: node(id: $experimentId) {
@@ -123,7 +123,7 @@ async def test_runs_resolver_returns_runs_for_experiment(
 async def test_run_count_resolver_returns_correct_counts(
     httpx_client: httpx.AsyncClient,
     experiments_with_runs_and_annotations: Any,
-):
+) -> None:
     query = """
       query ($datasetId: GlobalID!) {
         dataset: node(id: $datasetId) {
@@ -183,7 +183,7 @@ async def test_run_count_resolver_returns_correct_counts(
 async def test_average_run_latency_resolver_returns_correct_values(
     httpx_client: httpx.AsyncClient,
     experiments_with_runs_and_annotations: Any,
-):
+) -> None:
     query = """
       query ($datasetId: GlobalID!) {
         dataset: node(id: $datasetId) {
@@ -461,7 +461,7 @@ async def test_error_rate_returns_expected_values(
 
 
 @pytest.fixture
-async def dataset_with_experiment_runs(db: Callable[[], AsyncContextManager[AsyncSession]]):
+async def dataset_with_experiment_runs(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
     """
     A dataset with an associated experiment with three runs: one that has no
     associated trace, one that has an associated trace, and one that has a
@@ -593,7 +593,7 @@ async def dataset_with_experiment_runs(db: Callable[[], AsyncContextManager[Asyn
 @pytest.fixture
 async def experiments_with_runs_and_annotations(
     db: Callable[[], AsyncContextManager[AsyncSession]],
-):
+) -> None:
     """
     Inserts three experiments, two with runs and annotations and one without.
     """
@@ -843,7 +843,7 @@ async def experiments_with_runs_and_annotations(
 
 
 @pytest.fixture
-async def experiments_with_runs(db: Callable[[], AsyncContextManager[AsyncSession]]):
+async def experiments_with_runs(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
     """
     Inserts two experiments, the first of which contains one errored run and the
     second of which is empty (i.e., has no runs).

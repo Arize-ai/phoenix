@@ -8,7 +8,7 @@ _NUM_RECORDS = 5
 _EMBEDDING_DIMENSION = 7
 
 
-def test_embeddings_vector_length_mismatch():
+def test_embeddings_vector_length_mismatch() -> None:
     input_dataframe = DataFrame(
         {
             "prediction_id": [str(x) for x in range(_NUM_RECORDS)],
@@ -39,7 +39,7 @@ def test_embeddings_vector_length_mismatch():
     assert isinstance(errors[0], err.EmbeddingVectorSizeMismatch)
 
 
-def test_invalid_embeddings_vector_length():
+def test_invalid_embeddings_vector_length() -> None:
     input_dataframe = DataFrame(
         {
             "prediction_id": [str(x) for x in range(_NUM_RECORDS)],
@@ -69,7 +69,7 @@ def test_invalid_embeddings_vector_length():
     assert isinstance(errors[0], err.InvalidEmbeddingVectorSize)
 
 
-def test_embeddings_vector_invalid_type():
+def test_embeddings_vector_invalid_type() -> None:
     input_dataframe = DataFrame(
         {
             "prediction_id": [str(x) for x in range(_NUM_RECORDS)],
@@ -111,7 +111,7 @@ def test_embeddings_vector_invalid_type():
     assert isinstance(errors[1], err.InvalidEmbeddingVectorValuesDataType)
 
 
-def test_embedding_reserved_columns():
+def test_embedding_reserved_columns() -> None:
     input_dataframe = DataFrame(
         {
             "prediction_id": [str(x) for x in range(_NUM_RECORDS)],

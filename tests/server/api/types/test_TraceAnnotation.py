@@ -96,7 +96,7 @@ async def test_annotating_a_trace(
             },
         },
     )
-
+    assert response.status_code == 200
     data = response.json()["data"]
     annotation_gid = GlobalID.from_id(data["createTraceAnnotations"]["traceAnnotations"][0]["id"])
     annotation_id = from_global_id_with_expected_type(annotation_gid, "TraceAnnotation")
@@ -144,6 +144,7 @@ async def test_annotating_a_trace(
             },
         },
     )
+    assert response.status_code == 200
     async with db() as session:
         orm_annotation = await session.scalar(
             select(models.TraceAnnotation).where(models.TraceAnnotation.id == annotation_id)
@@ -178,6 +179,7 @@ async def test_annotating_a_trace(
             },
         },
     )
+    assert response.status_code == 200
     async with db() as session:
         orm_annotation = await session.scalar(
             select(models.TraceAnnotation).where(models.TraceAnnotation.id == annotation_id)

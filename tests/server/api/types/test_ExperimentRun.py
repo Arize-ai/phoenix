@@ -13,7 +13,7 @@ from strawberry.relay import GlobalID
 async def test_annotations_resolver_returns_annotations_for_run(
     httpx_client: httpx.AsyncClient,
     experiment_run_with_annotations: Any,
-):
+) -> None:
     query = """
       query ($runId: GlobalID!) {
         run: node(id: $runId) {
@@ -97,7 +97,9 @@ async def test_annotations_resolver_returns_annotations_for_run(
 
 
 @pytest.fixture
-async def experiment_run_with_annotations(db: Callable[[], AsyncContextManager[AsyncSession]]):
+async def experiment_run_with_annotations(
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+) -> None:
     """
     An experiment run with two annotations.
     """

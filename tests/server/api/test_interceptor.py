@@ -10,7 +10,7 @@ class T:
     x: Optional[float] = strawberry.field(default=GqlValueMediator())
 
 
-def test_gql_value_mediator():
+def test_gql_value_mediator() -> None:
     assert T(x=np.nan).x is None
     assert T(x=np.array([np.nan], dtype=np.half)[0]).x is None
     assert isinstance(T(x=1).x, int)

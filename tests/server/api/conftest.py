@@ -56,7 +56,7 @@ async def span_data_with_documents(db: Callable[[], AsyncContextManager[AsyncSes
 
 
 @pytest.fixture
-async def simple_dataset(db: Callable[[], AsyncContextManager[AsyncSession]]):
+async def simple_dataset(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
     """
     A dataset with one example added in one version
     """
@@ -100,7 +100,7 @@ async def simple_dataset(db: Callable[[], AsyncContextManager[AsyncSession]]):
 
 
 @pytest.fixture
-async def empty_dataset(db: Callable[[], AsyncContextManager[AsyncSession]]):
+async def empty_dataset(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
     """
     A dataset with three versions, where two examples are added, patched, then deleted
     """
@@ -229,7 +229,7 @@ async def empty_dataset(db: Callable[[], AsyncContextManager[AsyncSession]]):
 
 
 @pytest.fixture
-async def dataset_with_revisions(db: Callable[[], AsyncContextManager[AsyncSession]]):
+async def dataset_with_revisions(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
     """
     A dataset with six versions, first two examples are added, then one example is patched and a
     third example is added.
@@ -442,7 +442,7 @@ async def dataset_with_revisions(db: Callable[[], AsyncContextManager[AsyncSessi
 async def dataset_with_experiments_without_runs(
     db: Callable[[], AsyncContextManager[AsyncSession]],
     empty_dataset: Any,
-):
+) -> None:
     async with db() as session:
         experiment_0 = models.Experiment(
             id=0,
@@ -471,7 +471,7 @@ async def dataset_with_experiments_without_runs(
 async def dataset_with_experiments_and_runs(
     db: Callable[[], AsyncContextManager[AsyncSession]],
     dataset_with_experiments_without_runs: Any,
-):
+) -> None:
     async with db() as session:
         experiment_run_0 = models.ExperimentRun(
             id=0,
@@ -530,7 +530,7 @@ async def dataset_with_experiments_and_runs(
 async def dataset_with_experiments_runs_and_evals(
     db: Callable[[], AsyncContextManager[AsyncSession]],
     dataset_with_experiments_and_runs: Any,
-):
+) -> None:
     async with db() as session:
         experiment_evaluation_0 = models.ExperimentRunAnnotation(
             id=0,

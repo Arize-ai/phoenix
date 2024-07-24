@@ -28,7 +28,7 @@ class Test_insert_on_conflict:
         self,
         on_conflict: OnConflict,
         db: Callable[[], AsyncContextManager[AsyncSession]],
-    ):
+    ) -> None:
         async with db() as session:
             dialect = SupportedSQLDialect(session.bind.dialect.name)
             values = dict(
@@ -66,7 +66,7 @@ class Test_insert_on_conflict:
         self,
         on_conflict: OnConflict,
         db: Callable[[], AsyncContextManager[AsyncSession]],
-    ):
+    ) -> None:
         async with db() as session:
             project_rowid = await session.scalar(
                 insert(models.Project).values(dict(name="abc")).returning(models.Project.id)

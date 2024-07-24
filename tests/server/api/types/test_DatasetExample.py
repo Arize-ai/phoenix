@@ -47,7 +47,7 @@ async def test_dataset_example_span_resolver(
     expected_span: Mapping[str, Any],
     httpx_client: httpx.AsyncClient,
     dataset_with_span_and_nonspan_examples: Any,
-):
+) -> None:
     query = """
       query ($exampleId: GlobalID!) {
         example: node(id: $exampleId) {
@@ -164,7 +164,7 @@ async def test_dataset_example_experiment_runs_resolver_returns_relevant_runs(
 @pytest.fixture
 async def dataset_with_span_and_nonspan_examples(
     db: Callable[[], AsyncContextManager[AsyncSession]],
-):
+) -> None:
     """
     Dataset with two examples, one that comes from a span and one that does not.
     """

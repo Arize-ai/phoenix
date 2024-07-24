@@ -32,7 +32,7 @@ async def test_run_experiment(
     httpx_clients: httpx.AsyncClient,
     simple_dataset: Any,
     acall: Callable[..., Awaitable[Any]],
-):
+) -> None:
     async with db() as session:
         nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
     assert not nonexistent_experiment, "There should be no experiments in the database"
@@ -143,7 +143,7 @@ async def test_run_experiment_with_llm_eval(
     httpx_clients: httpx.AsyncClient,
     simple_dataset: Any,
     acall: Callable[..., Awaitable[Any]],
-):
+) -> None:
     async with db() as session:
         nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
     assert not nonexistent_experiment, "There should be no experiments in the database"
@@ -182,7 +182,7 @@ async def test_run_experiment_with_llm_eval(
 
     with patch("phoenix.experiments.functions._phoenix_clients", return_value=httpx_clients):
 
-        def experiment_task(input, example, metadata):
+        def experiment_task(input, example, metadata) -> None:
             assert input == {"input": "fancy input 1"}
             assert metadata == {}
             assert isinstance(example, Example)
@@ -246,7 +246,7 @@ async def test_run_experiment_with_llm_eval(
             assert evaluations[1].score == 1.0
 
 
-def test_evaluator_decorator():
+def test_evaluator_decorator() -> None:
     @create_evaluator()
     def can_i_count_this_high(x: int) -> bool:
         return x < 3
@@ -258,7 +258,7 @@ def test_evaluator_decorator():
     assert can_i_count_this_high.kind == AnnotatorKind.CODE.value
 
 
-async def test_async_evaluator_decorator():
+async def test_async_evaluator_decorator() -> None:
     @create_evaluator(name="override", kind="LLM")
     async def can_i_count_this_high(x: int) -> bool:
         return x < 3
@@ -270,7 +270,7 @@ async def test_async_evaluator_decorator():
     assert can_i_count_this_high.kind == AnnotatorKind.LLM.value
 
 
-def test_binding_arguments_to_decorated_evaluators():
+def test_binding_arguments_to_decorated_evaluators() -> None:
     example = Example(
         id="1",
         input={"input": "the biggest number I know"},
