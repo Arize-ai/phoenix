@@ -320,7 +320,8 @@ async def test_get_dataset_download_nonexistent_version(
 
 
 async def test_get_dataset_download_latest_version(
-    httpx_client: httpx.AsyncClient, dataset_with_revisions
+    httpx_client: httpx.AsyncClient,
+    dataset_with_revisions: Any,
 ):
     dataset_global_id = GlobalID("Dataset", str(2))
     response = await httpx_client.get(f"/v1/datasets/{dataset_global_id}/csv")
@@ -712,7 +713,8 @@ async def test_list_empty_dataset_examples(
 
 
 async def test_list_empty_dataset_examples_at_each_version(
-    httpx_client: httpx.AsyncClient, empty_dataset
+    httpx_client: httpx.AsyncClient,
+    empty_dataset: Any,
 ):
     global_id = GlobalID("Dataset", str(1))
     v1 = GlobalID("DatasetVersion", str(1))

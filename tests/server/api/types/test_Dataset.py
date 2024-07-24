@@ -1,6 +1,7 @@
 from datetime import datetime
-from typing import AsyncContextManager, Callable, List
+from typing import Any, AsyncContextManager, Callable, List, Mapping
 
+import httpx
 import pytest
 import pytz
 from phoenix.db import models
@@ -30,8 +31,8 @@ class TestDatasetExampleNodeInterface:
 
     async def test_unspecified_version_returns_latest_revision(
         self,
-        httpx_client,
-        dataset_with_patch_revision,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_patch_revision: Any,
     ) -> None:
         example_id = str(GlobalID("DatasetExample", str(1)))
         response = await httpx_client.post(
@@ -60,8 +61,8 @@ class TestDatasetExampleNodeInterface:
 
     async def test_returns_latest_revision_up_to_specified_version(
         self,
-        httpx_client,
-        dataset_with_patch_revision,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_patch_revision: Any,
     ) -> None:
         example_id = str(GlobalID("DatasetExample", str(1)))
         response = await httpx_client.post(
@@ -91,8 +92,8 @@ class TestDatasetExampleNodeInterface:
 
     async def test_returns_latest_revision_up_to_version_even_if_version_does_not_change_example(
         self,
-        httpx_client,
-        dataset_with_three_versions,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_three_versions: Any,
     ) -> None:
         example_id = str(GlobalID("DatasetExample", str(1)))
         response = await httpx_client.post(
@@ -122,8 +123,8 @@ class TestDatasetExampleNodeInterface:
 
     async def test_non_existent_version_id_returns_error(
         self,
-        httpx_client,
-        dataset_with_patch_revision,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_patch_revision: Any,
     ) -> None:
         example_id = str(GlobalID("DatasetExample", str(1)))
         response = await httpx_client.post(
@@ -143,8 +144,8 @@ class TestDatasetExampleNodeInterface:
 
     async def test_deleted_dataset_example_returns_error(
         self,
-        httpx_client,
-        dataset_with_deletion,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_deletion: Any,
     ) -> None:
         example_id = str(GlobalID("DatasetExample", str(1)))
         response = await httpx_client.post(
@@ -174,7 +175,9 @@ class TestDatasetExampleCountResolver:
     """  # noqa: E501
 
     async def test_count_uses_latest_version_when_no_version_is_specified(
-        self, httpx_client, dataset_with_deletion
+        self,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_deletion: Any,
     ) -> None:
         response = await httpx_client.post(
             "/graphql",
@@ -190,7 +193,11 @@ class TestDatasetExampleCountResolver:
         assert response_json.get("errors") is None
         assert response_json["data"] == {"node": {"exampleCount": 0}}
 
-    async def test_count_uses_specified_version(self, httpx_client, dataset_with_deletion) -> None:
+    async def test_count_uses_specified_version(
+        self,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_deletion: Any,
+    ) -> None:
         response = await httpx_client.post(
             "/graphql",
             json={
@@ -232,8 +239,8 @@ class TestDatasetExamplesResolver:
 
     async def test_returns_latest_revisions_when_no_version_is_specified(
         self,
-        httpx_client,
-        dataset_with_patch_revision,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_patch_revision: Any,
     ) -> None:
         response = await httpx_client.post(
             "/graphql",
@@ -273,7 +280,11 @@ class TestDatasetExamplesResolver:
         ]
         assert response_json["data"] == {"node": {"examples": {"edges": edges}}}
 
-    async def test_excludes_deleted_examples(self, httpx_client, dataset_with_deletion) -> None:
+    async def test_excludes_deleted_examples(
+        self,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_deletion: Any,
+    ) -> None:
         response = await httpx_client.post(
             "/graphql",
             json={
@@ -289,7 +300,9 @@ class TestDatasetExamplesResolver:
         assert response_json["data"] == {"node": {"examples": {"edges": []}}}
 
     async def test_returns_latest_revisions_up_to_specified_version(
-        self, httpx_client, dataset_with_patch_revision
+        self,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_patch_revision: Any,
     ) -> None:
         response = await httpx_client.post(
             "/graphql",
@@ -331,7 +344,9 @@ class TestDatasetExamplesResolver:
         assert response_json["data"] == {"node": {"examples": {"edges": edges}}}
 
     async def test_returns_latest_revisions_up_to_version_even_if_version_does_not_change_example(
-        self, httpx_client, dataset_with_three_versions
+        self,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_three_versions: Any,
     ) -> None:
         response = await httpx_client.post(
             "/graphql",
@@ -370,8 +385,8 @@ class TestDatasetExamplesResolver:
 
     async def test_version_id_on_revision_resolver_takes_precedence(
         self,
-        httpx_client,
-        dataset_with_patch_revision,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_patch_revision: Any,
     ) -> None:
         response = await httpx_client.post(
             "/graphql",
@@ -474,7 +489,10 @@ class TestDatasetExamplesResolver:
     ],
 )
 async def test_versions_resolver_returns_versions_in_correct_order(
-    sort_direction, expected_versions, httpx_client, dataset_with_three_versions
+    sort_direction: str,
+    expected_versions: Mapping[str, Any],
+    httpx_client: httpx.AsyncClient,
+    dataset_with_three_versions: Any,
 ):
     query = """
       query ($datasetId: GlobalID!, $dir: SortDir!, $col: DatasetVersionColumn!) {
@@ -522,7 +540,9 @@ class TestDatasetExperimentCountResolver:
     """  # noqa: E501
 
     async def test_experiment_count_uses_all_versions_when_no_version_is_specified(
-        self, httpx_client, dataset_with_deletion
+        self,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_deletion: Any,
     ) -> None:
         response = await httpx_client.post(
             "/graphql",
@@ -539,7 +559,9 @@ class TestDatasetExperimentCountResolver:
         assert response_json["data"] == {"node": {"experimentCount": 2}}
 
     async def test_experiment_count_uses_specified_version(
-        self, httpx_client, dataset_with_deletion
+        self,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_deletion: Any,
     ) -> None:
         response = await httpx_client.post(
             "/graphql",
@@ -577,7 +599,7 @@ class TestDatasetExperimentsResolver:
 
     async def test_experiments_have_sequence_number(
         self,
-        httpx_client,
+        httpx_client: httpx.AsyncClient,
         interlaced_experiments: List[int],
     ) -> None:
         variables = {"datasetId": str(GlobalID("Dataset", str(2)))}

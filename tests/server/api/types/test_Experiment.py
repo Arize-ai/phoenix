@@ -13,7 +13,7 @@ from strawberry.relay import GlobalID
 
 
 async def test_experiment_resolver_returns_sequence_number(
-    httpx_client,
+    httpx_client: httpx.AsyncClient,
     interlaced_experiments: List[int],
 ):
     query = """
@@ -41,7 +41,8 @@ async def test_experiment_resolver_returns_sequence_number(
 
 
 async def test_runs_resolver_returns_runs_for_experiment(
-    httpx_client, dataset_with_experiment_runs
+    httpx_client: httpx.AsyncClient,
+    dataset_with_experiment_runs: Any,
 ):
     query = """
       query ($experimentId: GlobalID!) {
@@ -120,7 +121,8 @@ async def test_runs_resolver_returns_runs_for_experiment(
 
 
 async def test_run_count_resolver_returns_correct_counts(
-    httpx_client, experiments_with_runs_and_annotations
+    httpx_client: httpx.AsyncClient,
+    experiments_with_runs_and_annotations: Any,
 ):
     query = """
       query ($datasetId: GlobalID!) {
@@ -179,7 +181,8 @@ async def test_run_count_resolver_returns_correct_counts(
 
 
 async def test_average_run_latency_resolver_returns_correct_values(
-    httpx_client, experiments_with_runs_and_annotations
+    httpx_client: httpx.AsyncClient,
+    experiments_with_runs_and_annotations: Any,
 ):
     query = """
       query ($datasetId: GlobalID!) {
@@ -239,7 +242,9 @@ async def test_average_run_latency_resolver_returns_correct_values(
 
 class TestExperimentAnnotationSummaries:
     async def test_experiment_resolver_returns_expected_values(
-        self, httpx_client, experiments_with_runs_and_annotations
+        self,
+        httpx_client: httpx.AsyncClient,
+        experiments_with_runs_and_annotations: Any,
     ) -> None:
         query = """
           query ($datasetId: GlobalID!) {
@@ -338,7 +343,9 @@ class TestExperimentAnnotationSummaries:
         }
 
     async def test_dataset_resolver_returns_expected_values(
-        self, httpx_client, experiments_with_runs_and_annotations
+        self,
+        httpx_client: httpx.AsyncClient,
+        experiments_with_runs_and_annotations: Any,
     ) -> None:
         query = """
           query ($datasetId: GlobalID!) {

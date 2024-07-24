@@ -1,6 +1,7 @@
 from datetime import datetime
-from typing import AsyncContextManager, Callable
+from typing import Any, AsyncContextManager, Callable, Mapping
 
+import httpx
 import pytest
 import pytz
 from phoenix.config import DEFAULT_PROJECT_NAME
@@ -42,7 +43,10 @@ from strawberry.relay import GlobalID
     ],
 )
 async def test_dataset_example_span_resolver(
-    example_id, expected_span, httpx_client, dataset_with_span_and_nonspan_examples
+    example_id: str,
+    expected_span: Mapping[str, Any],
+    httpx_client: httpx.AsyncClient,
+    dataset_with_span_and_nonspan_examples: Any,
 ):
     query = """
       query ($exampleId: GlobalID!) {
@@ -92,7 +96,8 @@ async def test_dataset_example_span_resolver(
 
 
 async def test_dataset_example_experiment_runs_resolver_returns_relevant_runs(
-    httpx_client, example_with_experiment_runs
+    httpx_client: httpx.AsyncClient,
+    example_with_experiment_runs: Any,
 ) -> None:
     query = """
       query ($exampleId: GlobalID!) {

@@ -1,6 +1,7 @@
 from datetime import datetime
-from typing import AsyncContextManager, Callable
+from typing import Any, AsyncContextManager, Callable
 
+import httpx
 import pytest
 from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -57,8 +58,8 @@ async def project_with_a_single_trace_and_span(
 
 async def test_annotating_a_span(
     db: Callable[[], AsyncContextManager[AsyncSession]],
-    httpx_client,
-    project_with_a_single_trace_and_span,
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
 ) -> None:
     span_gid = GlobalID("Span", "1")
     response = await httpx_client.post(
@@ -143,10 +144,10 @@ async def test_annotating_a_span(
             },
         },
     )
-
-    orm_annotation = await session.scalar(
-        select(models.SpanAnnotation).where(models.SpanAnnotation.id == annotation_id)
-    )
+    async with db() as session:
+        orm_annotation = await session.scalar(
+            select(models.SpanAnnotation).where(models.SpanAnnotation.id == annotation_id)
+        )
     assert orm_annotation.name == "Updated Annotation"
     assert orm_annotation.label == "Positive"
     assert orm_annotation.explanation == "Updated explanation"
@@ -177,8 +178,8 @@ async def test_annotating_a_span(
             },
         },
     )
-
-    orm_annotation = await session.scalar(
-        select(models.SpanAnnotation).where(models.SpanAnnotation.id == annotation_id)
-    )
+    async with db() as session:
+        orm_annotation = await session.scalar(
+            select(models.SpanAnnotation).where(models.SpanAnnotation.id == annotation_id)
+        )
     assert not orm_annotation

@@ -512,9 +512,9 @@ class TestPatchDatasetExamples:
 
 
 async def test_delete_a_dataset(
-    db,
+    db: Callable[[], AsyncContextManager[AsyncSession]],
     httpx_client: httpx.AsyncClient,
-    empty_dataset,
+    empty_dataset: Any,
 ):
     dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
     mutation = textwrap.dedent(

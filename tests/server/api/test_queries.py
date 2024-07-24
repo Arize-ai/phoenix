@@ -48,7 +48,8 @@ async def test_projects_omits_experiment_projects(
 
 
 async def test_compare_experiments_returns_expected_comparisons(
-    httpx_client, comparison_experiments
+    httpx_client: httpx.AsyncClient,
+    comparison_experiments: Any,
 ):
     query = """
       query ($experimentIds: [GlobalID!]!) {

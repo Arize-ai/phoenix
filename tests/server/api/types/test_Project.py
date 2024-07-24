@@ -1,8 +1,9 @@
 # ruff: noqa: E501
 
 from datetime import datetime
-from typing import AsyncContextManager, Callable
+from typing import Any, AsyncContextManager, Callable
 
+import httpx
 import pytest
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
@@ -481,8 +482,8 @@ async def test_project_spans(
     start_cursor,
     end_cursor,
     has_next_page,
-    httpx_client,
-    llama_index_rag_spans,
+    httpx_client: httpx.AsyncClient,
+    llama_index_rag_spans: Any,
 ) -> None:
     query = """
       query ($projectId: GlobalID!, $after: String = null, $before: String = null, $filterCondition: String = null, $first: Int = null, $last: Int = null, $sort: SpanSort = null) {

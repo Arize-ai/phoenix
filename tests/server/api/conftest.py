@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import AsyncContextManager, Callable, Tuple
+from typing import Any, AsyncContextManager, Callable, Tuple
 
 import pytest
 from phoenix.db import models
@@ -439,7 +439,10 @@ async def dataset_with_revisions(db: Callable[[], AsyncContextManager[AsyncSessi
 
 
 @pytest.fixture
-async def dataset_with_experiments_without_runs(db, empty_dataset):
+async def dataset_with_experiments_without_runs(
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    empty_dataset: Any,
+):
     async with db() as session:
         experiment_0 = models.Experiment(
             id=0,
@@ -465,7 +468,10 @@ async def dataset_with_experiments_without_runs(db, empty_dataset):
 
 
 @pytest.fixture
-async def dataset_with_experiments_and_runs(db, dataset_with_experiments_without_runs):
+async def dataset_with_experiments_and_runs(
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    dataset_with_experiments_without_runs: Any,
+):
     async with db() as session:
         experiment_run_0 = models.ExperimentRun(
             id=0,
@@ -521,7 +527,10 @@ async def dataset_with_experiments_and_runs(db, dataset_with_experiments_without
 
 
 @pytest.fixture
-async def dataset_with_experiments_runs_and_evals(db, dataset_with_experiments_and_runs):
+async def dataset_with_experiments_runs_and_evals(
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    dataset_with_experiments_and_runs: Any,
+):
     async with db() as session:
         experiment_evaluation_0 = models.ExperimentRunAnnotation(
             id=0,

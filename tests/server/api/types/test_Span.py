@@ -1,6 +1,7 @@
 from datetime import datetime
-from typing import AsyncContextManager, Callable
+from typing import Any, AsyncContextManager, Callable
 
+import httpx
 import pytest
 from phoenix.db import models
 from phoenix.server.api.types.Project import Project
@@ -11,7 +12,8 @@ from strawberry.relay import GlobalID
 
 
 async def test_project_resolver_returns_correct_project(
-    httpx_client, project_with_a_single_trace_and_span
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
 ) -> None:
     query = """
       query ($spanId: GlobalID!) {

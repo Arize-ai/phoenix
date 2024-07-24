@@ -1,8 +1,9 @@
 import json
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any, AsyncContextManager, Awaitable, Callable, Dict
 from unittest.mock import patch
 
+import httpx
 from phoenix.db import models
 from phoenix.experiments import run_experiment
 from phoenix.experiments.evaluators import (
@@ -20,11 +21,18 @@ from phoenix.experiments.types import (
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 
 @patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
-async def test_run_experiment(_, db, httpx_clients, simple_dataset, acall):
+async def test_run_experiment(
+    _,
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    httpx_clients: httpx.AsyncClient,
+    simple_dataset: Any,
+    acall: Callable[..., Awaitable[Any]],
+):
     async with db() as session:
         nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
     assert not nonexistent_experiment, "There should be no experiments in the database"
@@ -129,7 +137,13 @@ async def test_run_experiment(_, db, httpx_clients, simple_dataset, acall):
 
 
 @patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
-async def test_run_experiment_with_llm_eval(_, db, httpx_clients, simple_dataset, acall):
+async def test_run_experiment_with_llm_eval(
+    _,
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    httpx_clients: httpx.AsyncClient,
+    simple_dataset: Any,
+    acall: Callable[..., Awaitable[Any]],
+):
     async with db() as session:
         nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
     assert not nonexistent_experiment, "There should be no experiments in the database"
