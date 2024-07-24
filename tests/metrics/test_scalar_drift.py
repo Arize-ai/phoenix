@@ -15,7 +15,7 @@ reference_data = pd.DataFrame(
 )
 
 
-def test_psi_categorical_binning():
+def test_psi_categorical_binning() -> None:
     metric = metrics.PSI(
         operand=Column(column_name),
         reference_data=reference_data,
@@ -33,7 +33,7 @@ def test_psi_categorical_binning():
         )
 
 
-def test_psi_interval_binning():
+def test_psi_interval_binning() -> None:
     metric = metrics.PSI(
         operand=Column(column_name),
         reference_data=reference_data,
@@ -59,7 +59,7 @@ def test_psi_interval_binning():
         )
 
 
-def test_psi_quantile_binning():
+def test_psi_quantile_binning() -> None:
     metric = metrics.PSI(
         operand=Column(column_name),
         reference_data=reference_data,

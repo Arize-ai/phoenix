@@ -11,6 +11,7 @@ from phoenix.server.api.input_types.CreateTraceAnnotationInput import CreateTrac
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
 from phoenix.server.api.input_types.PatchAnnotationInput import PatchAnnotationInput
 from phoenix.server.api.mutations.auth import IsAuthenticated
+from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.TraceAnnotation import TraceAnnotation, to_gql_trace_annotation
 
@@ -18,6 +19,7 @@ from phoenix.server.api.types.TraceAnnotation import TraceAnnotation, to_gql_tra
 @strawberry.type
 class TraceAnnotationMutationPayload:
     trace_annotations: List[TraceAnnotation]
+    query: Query
 
 
 @strawberry.type
@@ -49,7 +51,8 @@ class TraceAnnotationMutationMixin:
         return TraceAnnotationMutationPayload(
             trace_annotations=[
                 to_gql_trace_annotation(annotation) for annotation in inserted_annotations
-            ]
+            ],
+            query=Query(),
         )
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
@@ -89,7 +92,7 @@ class TraceAnnotationMutationMixin:
                 if trace_annotation:
                     patched_annotations.append(to_gql_trace_annotation(trace_annotation))
 
-        return TraceAnnotationMutationPayload(trace_annotations=patched_annotations)
+        return TraceAnnotationMutationPayload(trace_annotations=patched_annotations, query=Query())
 
     @strawberry.mutation(permission_classes=[IsAuthenticated])  # type: ignore
     async def delete_trace_annotations(
@@ -111,4 +114,6 @@ class TraceAnnotationMutationMixin:
             deleted_annotations_gql = [
                 to_gql_trace_annotation(annotation) for annotation in deleted_annotations
             ]
-        return TraceAnnotationMutationPayload(trace_annotations=deleted_annotations_gql)
+        return TraceAnnotationMutationPayload(
+            trace_annotations=deleted_annotations_gql, query=Query()
+        )

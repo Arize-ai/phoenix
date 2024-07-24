@@ -1,5 +1,5 @@
 import React, { Suspense, useMemo, useState } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
+import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { css } from "@emotion/react";
 
 import {
@@ -22,12 +22,14 @@ import { Empty } from "@phoenix/components/Empty";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
-import { EditSpanAnnotationsDialogNewAnnotationQuery } from "./__generated__/EditSpanAnnotationsDialogNewAnnotationQuery.graphql";
 import {
   AnnotatorKind,
-  EditSpanAnnotationsDialogQuery,
-  EditSpanAnnotationsDialogQuery$data,
-} from "./__generated__/EditSpanAnnotationsDialogQuery.graphql";
+  EditSpanAnnotationsDialog_spanAnnotations$data,
+  EditSpanAnnotationsDialog_spanAnnotations$key,
+} from "./__generated__/EditSpanAnnotationsDialog_spanAnnotations.graphql";
+import { EditSpanAnnotationsDialogNewAnnotationQuery } from "./__generated__/EditSpanAnnotationsDialogNewAnnotationQuery.graphql";
+import { EditSpanAnnotationsDialogQuery } from "./__generated__/EditSpanAnnotationsDialogQuery.graphql";
+import { EditSpanAnnotationsDialogSpanAnnotationsQuery } from "./__generated__/EditSpanAnnotationsDialogSpanAnnotationsQuery.graphql";
 import { NewSpanAnnotationForm } from "./NewSpanAnnotationForm";
 import { SpanAnnotationActionMenu } from "./SpanAnnotationActionMenu";
 import { SpanAnnotationForm } from "./SpanAnnotationForm";
@@ -43,7 +45,6 @@ export function EditSpanAnnotationsDialog(
   const [newAnnotationName, setNewAnnotationName] = useState<string | null>(
     null
   );
-  const [fetchKey, setFetchKey] = useState(0);
   const notifySuccess = useNotifySuccess();
   return (
     <Dialog
@@ -76,7 +77,6 @@ export function EditSpanAnnotationsDialog(
               }}
               onCreated={() => {
                 setNewAnnotationName(null);
-                setFetchKey((key) => key + 1);
                 notifySuccess({
                   title: `New Span Annotation`,
                   message: `Annotation ${newAnnotationName} has been created.`,
@@ -86,7 +86,7 @@ export function EditSpanAnnotationsDialog(
           </View>
         )}
         <Suspense>
-          <EditSpanAnnotations {...props} fetchKey={fetchKey} />
+          <EditSpanAnnotations {...props} />
         </Suspense>
       </div>
     </Dialog>
@@ -166,36 +166,52 @@ function NewAnnotationPopover(props: NewAnnotationPopoverProps) {
     </Card>
   );
 }
-type EditSpanAnnotationsProps = EditSpanAnnotationsDialogProps & {
-  /**
-   * Key used to force a refetch of the annotations
-   */
-  fetchKey: number;
-};
+type EditSpanAnnotationsProps = EditSpanAnnotationsDialogProps;
+
 function EditSpanAnnotations(props: EditSpanAnnotationsProps) {
-  const { fetchKey } = props;
   const data = useLazyLoadQuery<EditSpanAnnotationsDialogQuery>(
     graphql`
       query EditSpanAnnotationsDialogQuery($spanId: GlobalID!) {
         span: node(id: $spanId) {
           id
           ... on Span {
-            spanAnnotations {
-              id
-              name
-              annotatorKind
-              score
-              label
-              explanation
-            }
+            ...EditSpanAnnotationsDialog_spanAnnotations
           }
         }
       }
     `,
     { spanId: props.spanNodeId },
-    { fetchKey, fetchPolicy: "store-and-network" }
+    { fetchPolicy: "store-and-network" }
   );
-  const annotations = data.span.spanAnnotations || [];
+  return <SpanAnnotationsList span={data.span} />;
+}
+
+function SpanAnnotationsList(props: {
+  span: EditSpanAnnotationsDialog_spanAnnotations$key;
+}) {
+  const { span } = props;
+  const [data] = useRefetchableFragment<
+    EditSpanAnnotationsDialogSpanAnnotationsQuery,
+    EditSpanAnnotationsDialog_spanAnnotations$key
+  >(
+    graphql`
+      fragment EditSpanAnnotationsDialog_spanAnnotations on Span
+      @refetchable(queryName: "EditSpanAnnotationsDialogSpanAnnotationsQuery") {
+        id
+        spanAnnotations {
+          id
+          name
+          annotatorKind
+          score
+          label
+          explanation
+        }
+      }
+    `,
+    span
+  );
+
+  const annotations = data.spanAnnotations || [];
   const hasAnnotations = annotations.length > 0;
   return (
     <div>
@@ -211,7 +227,7 @@ function EditSpanAnnotations(props: EditSpanAnnotationsProps) {
       >
         {annotations.map((annotation, idx) => (
           <li key={idx}>
-            <SpanAnnotationCard annotation={annotation} />
+            <SpanAnnotationCard annotation={annotation} spanNodeId={data.id} />
           </li>
         ))}
       </ul>
@@ -263,11 +279,14 @@ function NewSpanAnnotationCard(props: {
 }
 
 type Annotation = NonNullable<
-  EditSpanAnnotationsDialogQuery$data["span"]["spanAnnotations"]
+  EditSpanAnnotationsDialog_spanAnnotations$data["spanAnnotations"]
 >[number];
 
-function SpanAnnotationCard(props: { annotation: Annotation }) {
-  const { annotation } = props;
+function SpanAnnotationCard(props: {
+  annotation: Annotation;
+  spanNodeId: string;
+}) {
+  const { annotation, spanNodeId } = props;
   const [error, setError] = useState<Error | null>(null);
   const notifySuccess = useNotifySuccess();
   return (
@@ -287,6 +306,7 @@ function SpanAnnotationCard(props: { annotation: Annotation }) {
           <AnnotatorKindLabel kind={annotation.annotatorKind} />
           <SpanAnnotationActionMenu
             annotationId={annotation.id}
+            spanNodeId={spanNodeId}
             annotationName={annotation.name}
             onSpanAnnotationDelete={() => {
               notifySuccess({
@@ -412,8 +432,9 @@ function NewAnnotationPopoverContent(props: {
               if (keys === "all" || keys.size === 0) {
                 return;
               }
-              const name = keys.entries().next().value[0];
-              setNewName(name);
+              const nameKey = keys.values().next().value;
+              const name = nameKey as string;
+              setNewName(name || "");
             }}
             disabledKeys={existingAnnotationNames}
           >

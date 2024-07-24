@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from phoenix.server.api.input_types.TimeRange import TimeRange
 
 
-def test_ensure_time_range_utc():
+def test_ensure_time_range_utc() -> None:
     t1 = datetime.now()
     assert t1.tzinfo is None
     assert TimeRange(start=t1, end=t1).start.tzinfo.utcoffset(None) == timedelta()

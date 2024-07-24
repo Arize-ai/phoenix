@@ -12,7 +12,7 @@ from phoenix.server.api.types.pagination import (
 )
 
 
-def test_connection_from_list():
+def test_connection_from_list() -> None:
     dimensions = [
         Dimension(
             id_attr=0,
@@ -53,7 +53,7 @@ def test_connection_from_list():
     assert next_connection.page_info.has_next_page is False
 
 
-def test_connection_from_list_reverse():
+def test_connection_from_list_reverse() -> None:
     dimensions = [
         Dimension(
             id_attr=0,
@@ -95,7 +95,7 @@ def test_connection_from_list_reverse():
     assert next_connection.page_info.has_previous_page is False
 
 
-def test_connection_from_empty_list():
+def test_connection_from_empty_list() -> None:
     connection = connection_from_list([], ConnectionArgs(first=2))
 
     assert len(connection.edges) == 0

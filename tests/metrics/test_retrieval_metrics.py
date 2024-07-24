@@ -6,7 +6,7 @@ from sklearn.metrics import ndcg_score
 
 @pytest.mark.parametrize("k", [None, -1, 0, 1, 2, 1000])
 @pytest.mark.parametrize("scores", [[], [0], [1], [0, 0, 1], [np.nan, 1], [np.nan], [0, 2, np.nan]])
-def test_ranking_metrics_ndcg(k, scores):
+def test_ranking_metrics_ndcg(k, scores) -> None:
     actual = RetrievalMetrics(scores).ndcg(k)
     if not np.all(np.isfinite(np.array(scores))):
         desired = np.nan
@@ -25,7 +25,7 @@ def test_ranking_metrics_ndcg(k, scores):
 
 @pytest.mark.parametrize("k", [None, -1, 0, 1, 2, 1000])
 @pytest.mark.parametrize("scores", [[], [0], [1], [0, 0, 1], [np.nan, 1], [np.nan], [0, 2, np.nan]])
-def test_ranking_metrics_precision(k, scores):
+def test_ranking_metrics_precision(k, scores) -> None:
     actual = RetrievalMetrics(scores).precision(k)
     if not np.all(np.isfinite(np.array(scores))):
         desired = np.nan
@@ -47,7 +47,7 @@ def test_ranking_metrics_precision(k, scores):
         ([0, 2, np.nan], 1 / 2),
     ],
 )
-def test_ranking_metrics_reciprocal_rank(scores, desired):
+def test_ranking_metrics_reciprocal_rank(scores, desired) -> None:
     actual = RetrievalMetrics(scores).reciprocal_rank()
     assert np.isclose(actual, desired, equal_nan=True)
 
@@ -64,6 +64,6 @@ def test_ranking_metrics_reciprocal_rank(scores, desired):
         ([0, 2, np.nan], 1),
     ],
 )
-def test_ranking_metrics_hit(scores, desired):
+def test_ranking_metrics_hit(scores, desired) -> None:
     actual = RetrievalMetrics(scores).hit()
     assert np.isclose(actual, desired, equal_nan=True)
