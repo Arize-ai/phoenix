@@ -18,8 +18,10 @@ export default defineConfig(({ command }) => {
       port: 6006,
     },
     server: {
-      origin: "http://127.0.0.1:5173",
+      cors: true,
+      host: "0.0.0.0",
       open: "http://localhost:6006",
+      port: 8080,
     },
     resolve: {
       alias: {
