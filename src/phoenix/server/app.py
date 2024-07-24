@@ -97,6 +97,8 @@ router = APIRouter(include_in_schema=False)
 
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
 
+PHOENIX_SERVER_VERSION_HEADER = "x-phoenix-server-version"
+
 
 class AppConfig(NamedTuple):
     has_inferences: bool
@@ -169,6 +171,7 @@ class HeadersMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         response = await call_next(request)
         response.headers["x-colab-notebook-cache-control"] = "no-cache"
+        response.headers[PHOENIX_SERVER_VERSION_HEADER] = phoenix.__version__
         return response
 
 
