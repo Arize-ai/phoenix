@@ -189,6 +189,7 @@ class AnnotateSpansResponseBody(ResponseBody[List[InsertedSpanAnnotation]]):
         [{"status_code": HTTP_404_NOT_FOUND, "description": "Span not found"}]
     ),
     response_description="Span annotations inserted successfully",
+    include_in_schema=True,
 )
 async def annotate_spans(
     request: Request,
