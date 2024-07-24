@@ -1,11 +1,13 @@
 from asyncio import sleep
 from datetime import datetime
+from typing import AsyncContextManager, Callable
 
 import pytest
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from sqlalchemy import insert, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class Test_insert_on_conflict:
@@ -22,21 +24,26 @@ class Test_insert_on_conflict:
             ),
         ],
     )
-    async def test_inserts_new_tuple_when_no_conflict_is_present(self, on_conflict, session):
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
-        values = dict(
-            name="name",
-            description="description",
-        )
-        await session.execute(
-            insert_on_conflict(
-                values,
-                dialect=dialect,
-                table=models.Project,
-                unique_by=("name",),
-                on_conflict=on_conflict,
+    async def test_inserts_new_tuple_when_no_conflict_is_present(
+        self,
+        on_conflict: OnConflict,
+        db: Callable[[], AsyncContextManager[AsyncSession]],
+    ):
+        async with db() as session:
+            dialect = SupportedSQLDialect(session.bind.dialect.name)
+            values = dict(
+                name="name",
+                description="description",
             )
-        )
+            await session.execute(
+                insert_on_conflict(
+                    values,
+                    dialect=dialect,
+                    table=models.Project,
+                    unique_by=("name",),
+                    on_conflict=on_conflict,
+                )
+            )
         projects = (await session.scalars(select(models.Project))).all()
         assert len(projects) == 1
         assert projects[0].name == "name"
@@ -58,9 +65,9 @@ class Test_insert_on_conflict:
     async def test_handles_conflicts_in_expected_manner(
         self,
         on_conflict: OnConflict,
-        prod_db,  # the insert_on_conflict function is sensitive to the way the DB is set up
+        db: Callable[[], AsyncContextManager[AsyncSession]],
     ):
-        async with prod_db() as session:
+        async with db() as session:
             project_rowid = await session.scalar(
                 insert(models.Project).values(dict(name="abc")).returning(models.Project.id)
             )
@@ -107,7 +114,7 @@ class Test_insert_on_conflict:
 
         await sleep(1)  # increment `updated_at` by 1 second
 
-        async with prod_db() as session:
+        async with db() as session:
             dialect = SupportedSQLDialect(session.bind.dialect.name)
             await session.execute(
                 insert_on_conflict(

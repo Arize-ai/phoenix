@@ -1,16 +1,21 @@
 import textwrap
 from datetime import datetime
+from typing import Any, AsyncContextManager, Callable
 
+import httpx
 import pytest
 import pytz
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from sqlalchemy import insert, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 
-async def test_create_dataset(test_client):
+async def test_create_dataset(
+    httpx_client: httpx.AsyncClient,
+):
     create_dataset_mutation = """
       mutation ($name: String!, $description: String!, $metadata: JSON!) {
         createDataset(
@@ -25,7 +30,7 @@ async def test_create_dataset(test_client):
         }
       }
     """
-    response = await test_client.post(
+    response = await httpx_client.post(
         "/graphql",
         json={
             "query": create_dataset_mutation,
@@ -67,8 +72,12 @@ class TestPatchDatasetMutation:
       }
     """  # noqa: E501
 
-    async def test_patch_all_dataset_fields(self, test_client, dataset_with_a_single_version):
-        response = await test_client.post(
+    async def test_patch_all_dataset_fields(
+        self,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_a_single_version: Any,
+    ):
+        response = await httpx_client.post(
             "/graphql",
             json={
                 "query": self.MUTATION,
@@ -95,9 +104,11 @@ class TestPatchDatasetMutation:
         }
 
     async def test_only_description_field_can_be_set_to_null(
-        self, test_client, dataset_with_a_single_version
+        self,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_a_single_version: Any,
     ):
-        response = await test_client.post(
+        response = await httpx_client.post(
             "/graphql",
             json={
                 "query": self.MUTATION,
@@ -124,9 +135,11 @@ class TestPatchDatasetMutation:
         }
 
     async def test_updating_a_single_field_leaves_remaining_fields_unchannged(
-        self, test_client, dataset_with_a_single_version
+        self,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_a_single_version: Any,
     ):
-        response = await test_client.post(
+        response = await httpx_client.post(
             "/graphql",
             json={
                 "query": self.MUTATION,
@@ -152,7 +165,7 @@ class TestPatchDatasetMutation:
 
 
 async def test_add_span_to_dataset(
-    test_client,
+    httpx_client: httpx.AsyncClient,
     empty_dataset,
     spans,
 ) -> None:
@@ -177,7 +190,7 @@ async def test_add_span_to_dataset(
         }
       }
     """
-    response = await test_client.post(
+    response = await httpx_client.post(
         "/graphql",
         json={
             "query": mutation,
@@ -321,7 +334,7 @@ class TestPatchDatasetExamples:
 
     async def test_happy_path(
         self,
-        test_client,
+        httpx_client: httpx.AsyncClient,
         dataset_with_revisions,
     ) -> None:
         # todo: update this test case to verify that version description and
@@ -365,7 +378,7 @@ class TestPatchDatasetExamples:
                 }
             },
         ]
-        response = await test_client.post(
+        response = await httpx_client.post(
             "/graphql",
             json={
                 "query": self.MUTATION,
@@ -481,11 +494,11 @@ class TestPatchDatasetExamples:
         self,
         mutation_input,
         expected_error_message,
-        test_client,
+        httpx_client: httpx.AsyncClient,
         dataset_with_revisions,
         dataset_with_a_single_version,
     ) -> None:
-        response = await test_client.post(
+        response = await httpx_client.post(
             "/graphql",
             json={
                 "query": self.MUTATION,
@@ -499,8 +512,8 @@ class TestPatchDatasetExamples:
 
 
 async def test_delete_a_dataset(
-    session,
-    test_client,
+    db,
+    httpx_client: httpx.AsyncClient,
     empty_dataset,
 ):
     dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
@@ -516,7 +529,7 @@ async def test_delete_a_dataset(
         """
     )
 
-    response = await test_client.post(
+    response = await httpx_client.post(
         "/graphql",
         json={
             "query": mutation,
@@ -531,13 +544,15 @@ async def test_delete_a_dataset(
     assert response_json["data"]["deleteDataset"]["dataset"] == {
         "id": str(dataset_id)
     }, "deleted dataset is returned"
-    dataset = (await session.execute(select(models.Dataset).where(models.Dataset.id == 1))).first()
+    async with db() as session:
+        dataset = (
+            await session.execute(select(models.Dataset).where(models.Dataset.id == 1))
+        ).first()
     assert not dataset
 
 
 async def test_deleting_a_nonexistent_dataset_fails(
-    session,
-    test_client,
+    httpx_client: httpx.AsyncClient,
 ):
     dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
     mutation = textwrap.dedent(
@@ -552,7 +567,7 @@ async def test_deleting_a_nonexistent_dataset_fails(
         """
     )
 
-    response = await test_client.post(
+    response = await httpx_client.post(
         "/graphql",
         json={
             "query": mutation,
@@ -568,273 +583,280 @@ async def test_deleting_a_nonexistent_dataset_fails(
 
 
 @pytest.fixture
-async def empty_dataset(session):
+async def empty_dataset(db: Callable[[], AsyncContextManager[AsyncSession]]):
     """
     Inserts an empty dataset.
     """
-
-    dataset = models.Dataset(
-        id=1,
-        name="empty dataset",
-        description=None,
-        metadata_={},
-    )
-    session.add(dataset)
-    await session.flush()
+    async with db() as session:
+        dataset = models.Dataset(
+            id=1,
+            name="empty dataset",
+            description=None,
+            metadata_={},
+        )
+        session.add(dataset)
+        await session.flush()
 
 
 @pytest.fixture
-async def spans(session):
+async def spans(db: Callable[[], AsyncContextManager[AsyncSession]]):
     """
     Inserts three spans from a single trace: a chain root span, a retriever
     child span, and an llm child span.
     """
-    project_row_id = await session.scalar(
-        insert(models.Project).values(name=DEFAULT_PROJECT_NAME).returning(models.Project.id)
-    )
-    trace_row_id = await session.scalar(
-        insert(models.Trace)
-        .values(
-            trace_id="1",
-            project_rowid=project_row_id,
-            start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
-            end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
+    async with db() as session:
+        project_row_id = await session.scalar(
+            insert(models.Project).values(name=DEFAULT_PROJECT_NAME).returning(models.Project.id)
         )
-        .returning(models.Trace.id)
-    )
-    await session.execute(
-        insert(models.Span)
-        .values(
-            trace_rowid=trace_row_id,
-            span_id="1",
-            parent_id=None,
-            name="chain span",
-            span_kind="CHAIN",
-            start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
-            end_time=datetime.fromisoformat("2021-01-01T00:00:30.000+00:00"),
-            attributes={
-                "input": {"value": "chain-span-input-value", "mime_type": "text/plain"},
-                "output": {"value": "chain-span-output-value", "mime_type": "text/plain"},
-            },
-            events=[],
-            status_code="OK",
-            status_message="okay",
-            cumulative_error_count=0,
-            cumulative_llm_token_count_prompt=0,
-            cumulative_llm_token_count_completion=0,
+        trace_row_id = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id="1",
+                project_rowid=project_row_id,
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
+            )
+            .returning(models.Trace.id)
         )
-        .returning(models.Span.id)
-    )
-    await session.execute(
-        insert(models.Span).values(
-            trace_rowid=trace_row_id,
-            span_id="2",
-            parent_id="1",
-            name="retriever span",
-            span_kind="RETRIEVER",
-            start_time=datetime.fromisoformat("2021-01-01T00:00:05.000+00:00"),
-            end_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
-            attributes={
-                "input": {
-                    "value": "retriever-span-input",
-                    "mime_type": "text/plain",
+        await session.execute(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace_row_id,
+                span_id="1",
+                parent_id=None,
+                name="chain span",
+                span_kind="CHAIN",
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:00:30.000+00:00"),
+                attributes={
+                    "input": {"value": "chain-span-input-value", "mime_type": "text/plain"},
+                    "output": {"value": "chain-span-output-value", "mime_type": "text/plain"},
                 },
-                "retrieval": {
-                    "documents": [
-                        {"document": {"content": "retrieved-document-content", "score": 1}},
-                    ],
-                },
-            },
-            events=[],
-            status_code="OK",
-            status_message="okay",
-            cumulative_error_count=0,
-            cumulative_llm_token_count_prompt=0,
-            cumulative_llm_token_count_completion=0,
+                events=[],
+                status_code="OK",
+                status_message="okay",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            .returning(models.Span.id)
         )
-    )
-    await session.execute(
-        insert(models.Span).values(
-            trace_rowid=trace_row_id,
-            span_id="3",
-            parent_id="1",
-            name="llm span",
-            span_kind="LLM",
-            start_time=datetime.fromisoformat("2021-01-01T00:00:05.000+00:00"),
-            end_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
-            attributes={
-                "llm": {
-                    "input_messages": [
-                        {"message": {"role": "user", "content": "user-message-content"}}
-                    ],
-                    "output_messages": [
-                        {"message": {"role": "assistant", "content": "assistant-message-content"}},
-                    ],
-                    "invocation_parameters": {"temperature": 1},
+        await session.execute(
+            insert(models.Span).values(
+                trace_rowid=trace_row_id,
+                span_id="2",
+                parent_id="1",
+                name="retriever span",
+                span_kind="RETRIEVER",
+                start_time=datetime.fromisoformat("2021-01-01T00:00:05.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
+                attributes={
+                    "input": {
+                        "value": "retriever-span-input",
+                        "mime_type": "text/plain",
+                    },
+                    "retrieval": {
+                        "documents": [
+                            {"document": {"content": "retrieved-document-content", "score": 1}},
+                        ],
+                    },
                 },
-            },
-            events=[],
-            status_code="OK",
-            status_message="okay",
-            cumulative_error_count=0,
-            cumulative_llm_token_count_prompt=0,
-            cumulative_llm_token_count_completion=0,
+                events=[],
+                status_code="OK",
+                status_message="okay",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
         )
-    )
+        await session.execute(
+            insert(models.Span).values(
+                trace_rowid=trace_row_id,
+                span_id="3",
+                parent_id="1",
+                name="llm span",
+                span_kind="LLM",
+                start_time=datetime.fromisoformat("2021-01-01T00:00:05.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
+                attributes={
+                    "llm": {
+                        "input_messages": [
+                            {"message": {"role": "user", "content": "user-message-content"}}
+                        ],
+                        "output_messages": [
+                            {
+                                "message": {
+                                    "role": "assistant",
+                                    "content": "assistant-message-content",
+                                }
+                            },
+                        ],
+                        "invocation_parameters": {"temperature": 1},
+                    },
+                },
+                events=[],
+                status_code="OK",
+                status_message="okay",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+        )
 
 
 @pytest.fixture
-async def dataset_with_a_single_version(session):
+async def dataset_with_a_single_version(db: Callable[[], AsyncContextManager[AsyncSession]]):
     """
     A dataset with a single example and a single version.
     """
-
-    # insert dataset
-    dataset_id = await session.scalar(
-        insert(models.Dataset)
-        .returning(models.Dataset.id)
-        .values(
-            name="dataset-name",
-            description="dataset-description",
-            metadata_={"dataset-metadata-key": "dataset-metadata-value"},
+    async with db() as session:
+        # insert dataset
+        dataset_id = await session.scalar(
+            insert(models.Dataset)
+            .returning(models.Dataset.id)
+            .values(
+                name="dataset-name",
+                description="dataset-description",
+                metadata_={"dataset-metadata-key": "dataset-metadata-value"},
+            )
         )
-    )
 
-    # insert example
-    example_id = await session.scalar(
-        insert(models.DatasetExample)
-        .values(
-            dataset_id=dataset_id,
-            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+        # insert example
+        example_id = await session.scalar(
+            insert(models.DatasetExample)
+            .values(
+                dataset_id=dataset_id,
+                created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            )
+            .returning(models.DatasetExample.id)
         )
-        .returning(models.DatasetExample.id)
-    )
 
-    # insert version
-    version_id = await session.scalar(
-        insert(models.DatasetVersion)
-        .returning(models.DatasetVersion.id)
-        .values(
-            dataset_id=dataset_id,
-            description="original-description",
-            metadata_={"metadata": "original-metadata"},
+        # insert version
+        version_id = await session.scalar(
+            insert(models.DatasetVersion)
+            .returning(models.DatasetVersion.id)
+            .values(
+                dataset_id=dataset_id,
+                description="original-description",
+                metadata_={"metadata": "original-metadata"},
+            )
         )
-    )
 
-    # insert revision
-    await session.scalar(
-        insert(models.DatasetExampleRevision)
-        .returning(models.DatasetExampleRevision.id)
-        .values(
-            dataset_example_id=example_id,
-            dataset_version_id=version_id,
-            input={"input": "first-input"},
-            output={"output": "first-output"},
-            metadata_={"metadata": "first-metadata"},
-            revision_kind="CREATE",
+        # insert revision
+        await session.scalar(
+            insert(models.DatasetExampleRevision)
+            .returning(models.DatasetExampleRevision.id)
+            .values(
+                dataset_example_id=example_id,
+                dataset_version_id=version_id,
+                input={"input": "first-input"},
+                output={"output": "first-output"},
+                metadata_={"metadata": "first-metadata"},
+                revision_kind="CREATE",
+            )
         )
-    )
 
 
 @pytest.fixture
-async def dataset_with_revisions(session):
+async def dataset_with_revisions(db: Callable[[], AsyncContextManager[AsyncSession]]):
     """
     A dataset with three examples and two versions. The first version creates
     all three examples, and the second version deletes the third example.
     """
 
-    # insert dataset
-    dataset_id = await session.scalar(
-        insert(models.Dataset)
-        .returning(models.Dataset.id)
-        .values(
-            name="original-dataset-name",
-            description="original-dataset-description",
-            metadata_={},
+    async with db() as session:
+        # insert dataset
+        dataset_id = await session.scalar(
+            insert(models.Dataset)
+            .returning(models.Dataset.id)
+            .values(
+                name="original-dataset-name",
+                description="original-dataset-description",
+                metadata_={},
+            )
         )
-    )
 
-    # insert examples
-    example_id_1 = await session.scalar(
-        insert(models.DatasetExample)
-        .values(dataset_id=dataset_id)
-        .returning(models.DatasetExample.id)
-    )
-    example_id_2 = await session.scalar(
-        insert(models.DatasetExample)
-        .values(dataset_id=dataset_id)
-        .returning(models.DatasetExample.id)
-    )
-    example_id_3 = await session.scalar(
-        insert(models.DatasetExample)
-        .values(dataset_id=dataset_id)
-        .returning(models.DatasetExample.id)
-    )
+        # insert examples
+        example_id_1 = await session.scalar(
+            insert(models.DatasetExample)
+            .values(dataset_id=dataset_id)
+            .returning(models.DatasetExample.id)
+        )
+        example_id_2 = await session.scalar(
+            insert(models.DatasetExample)
+            .values(dataset_id=dataset_id)
+            .returning(models.DatasetExample.id)
+        )
+        example_id_3 = await session.scalar(
+            insert(models.DatasetExample)
+            .values(dataset_id=dataset_id)
+            .returning(models.DatasetExample.id)
+        )
 
-    # insert first version
-    version_id_1 = await session.scalar(
-        insert(models.DatasetVersion)
-        .returning(models.DatasetVersion.id)
-        .values(
-            dataset_id=dataset_id,
-            description="original-version-1-description",
-            metadata_={"metadata": "original-version-1-metadata"},
-            created_at=datetime.fromisoformat("2024-05-28T00:00:04+00:00"),
+        # insert first version
+        version_id_1 = await session.scalar(
+            insert(models.DatasetVersion)
+            .returning(models.DatasetVersion.id)
+            .values(
+                dataset_id=dataset_id,
+                description="original-version-1-description",
+                metadata_={"metadata": "original-version-1-metadata"},
+                created_at=datetime.fromisoformat("2024-05-28T00:00:04+00:00"),
+            )
         )
-    )
 
-    # insert revisions for first version
-    await session.execute(
-        insert(models.DatasetExampleRevision).values(
-            dataset_example_id=example_id_1,
-            dataset_version_id=version_id_1,
-            input={"input": "original-example-1-version-1-input"},
-            output={"output": "original-example-1-version-1-output"},
-            metadata_={"metadata": "original-example-1-version-1-metadata"},
-            revision_kind="CREATE",
+        # insert revisions for first version
+        await session.execute(
+            insert(models.DatasetExampleRevision).values(
+                dataset_example_id=example_id_1,
+                dataset_version_id=version_id_1,
+                input={"input": "original-example-1-version-1-input"},
+                output={"output": "original-example-1-version-1-output"},
+                metadata_={"metadata": "original-example-1-version-1-metadata"},
+                revision_kind="CREATE",
+            )
         )
-    )
-    await session.execute(
-        insert(models.DatasetExampleRevision).values(
-            dataset_example_id=example_id_2,
-            dataset_version_id=version_id_1,
-            input={"input": "original-example-2-version-1-input"},
-            output={"output": "original-example-2-version-1-output"},
-            metadata_={"metadata": "original-example-2-version-1-metadata"},
-            revision_kind="CREATE",
+        await session.execute(
+            insert(models.DatasetExampleRevision).values(
+                dataset_example_id=example_id_2,
+                dataset_version_id=version_id_1,
+                input={"input": "original-example-2-version-1-input"},
+                output={"output": "original-example-2-version-1-output"},
+                metadata_={"metadata": "original-example-2-version-1-metadata"},
+                revision_kind="CREATE",
+            )
         )
-    )
-    await session.execute(
-        insert(models.DatasetExampleRevision).values(
-            dataset_example_id=example_id_3,
-            dataset_version_id=version_id_1,
-            input={"input": "original-example-3-version-1-input"},
-            output={"output": "original-example-3-version-1-output"},
-            metadata_={"metadata": "original-example-3-version-1-metadata"},
-            revision_kind="CREATE",
+        await session.execute(
+            insert(models.DatasetExampleRevision).values(
+                dataset_example_id=example_id_3,
+                dataset_version_id=version_id_1,
+                input={"input": "original-example-3-version-1-input"},
+                output={"output": "original-example-3-version-1-output"},
+                metadata_={"metadata": "original-example-3-version-1-metadata"},
+                revision_kind="CREATE",
+            )
         )
-    )
 
-    # insert second version
-    version_id_2 = await session.scalar(
-        insert(models.DatasetVersion)
-        .returning(models.DatasetVersion.id)
-        .values(
-            dataset_id=dataset_id,
-            description="original-version-2-description",
-            metadata_={"metadata": "original-version-2-metadata"},
-            created_at=datetime.fromisoformat("2024-05-28T00:00:04+00:00"),
+        # insert second version
+        version_id_2 = await session.scalar(
+            insert(models.DatasetVersion)
+            .returning(models.DatasetVersion.id)
+            .values(
+                dataset_id=dataset_id,
+                description="original-version-2-description",
+                metadata_={"metadata": "original-version-2-metadata"},
+                created_at=datetime.fromisoformat("2024-05-28T00:00:04+00:00"),
+            )
         )
-    )
 
-    # insert revisions for second version
-    await session.execute(
-        insert(models.DatasetExampleRevision).values(
-            dataset_example_id=example_id_3,
-            dataset_version_id=version_id_2,
-            input={"input": "original-example-3-version-1-input"},
-            output={"output": "original-example-3-version-1-output"},
-            metadata_={"metadata": "original-example-3-version-1-metadata"},
-            revision_kind="DELETE",
+        # insert revisions for second version
+        await session.execute(
+            insert(models.DatasetExampleRevision).values(
+                dataset_example_id=example_id_3,
+                dataset_version_id=version_id_2,
+                input={"input": "original-example-3-version-1-input"},
+                output={"output": "original-example-3-version-1-output"},
+                metadata_={"metadata": "original-example-3-version-1-metadata"},
+                revision_kind="DELETE",
+            )
         )
-    )

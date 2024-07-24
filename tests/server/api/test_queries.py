@@ -1,14 +1,18 @@
 from datetime import datetime
+from typing import Any, AsyncContextManager, Callable
 
+import httpx
 import pytest
 import pytz
 from phoenix.db import models
 from sqlalchemy import insert
+from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 
 async def test_projects_omits_experiment_projects(
-    test_client, projects_with_and_without_experiments
+    httpx_client: httpx.AsyncClient,
+    projects_with_and_without_experiments: Any,
 ):
     query = """
       query {
@@ -22,7 +26,7 @@ async def test_projects_omits_experiment_projects(
         }
       }
     """
-    response = await test_client.post(
+    response = await httpx_client.post(
         "/graphql",
         json={"query": query},
     )
@@ -44,7 +48,7 @@ async def test_projects_omits_experiment_projects(
 
 
 async def test_compare_experiments_returns_expected_comparisons(
-    test_client, comparison_experiments
+    httpx_client, comparison_experiments
 ):
     query = """
       query ($experimentIds: [GlobalID!]!) {
@@ -69,7 +73,7 @@ async def test_compare_experiments_returns_expected_comparisons(
         }
       }
     """
-    response = await test_client.post(
+    response = await httpx_client.post(
         "/graphql",
         json={
             "query": query,
@@ -173,52 +177,55 @@ async def test_compare_experiments_returns_expected_comparisons(
 
 
 @pytest.fixture
-async def projects_with_and_without_experiments(session):
+async def projects_with_and_without_experiments(
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+):
     """
     Insert two projects, one that contains traces from an experiment and the other that does not.
     """
-    await session.scalar(
-        insert(models.Project)
-        .returning(models.Project.id)
-        .values(
-            name="non-experiment-project-name",
-            description="non-experiment-project-description",
+    async with db() as session:
+        await session.scalar(
+            insert(models.Project)
+            .returning(models.Project.id)
+            .values(
+                name="non-experiment-project-name",
+                description="non-experiment-project-description",
+            )
         )
-    )
-    await session.scalar(
-        insert(models.Project)
-        .returning(models.Project.id)
-        .values(
-            name="experiment-project-name",
-            description="experiment-project-description",
+        await session.scalar(
+            insert(models.Project)
+            .returning(models.Project.id)
+            .values(
+                name="experiment-project-name",
+                description="experiment-project-description",
+            )
         )
-    )
-    dataset_id = await session.scalar(
-        insert(models.Dataset)
-        .returning(models.Dataset.id)
-        .values(name="dataset-name", metadata_={})
-    )
-    version_id = await session.scalar(
-        insert(models.DatasetVersion)
-        .returning(models.DatasetVersion.id)
-        .values(dataset_id=dataset_id, metadata_={})
-    )
-    await session.scalar(
-        insert(models.Experiment)
-        .returning(models.Experiment.id)
-        .values(
-            dataset_id=dataset_id,
-            dataset_version_id=version_id,
-            name="experiment-name",
-            repetitions=1,
-            metadata_={},
-            project_name="experiment-project-name",
+        dataset_id = await session.scalar(
+            insert(models.Dataset)
+            .returning(models.Dataset.id)
+            .values(name="dataset-name", metadata_={})
         )
-    )
+        version_id = await session.scalar(
+            insert(models.DatasetVersion)
+            .returning(models.DatasetVersion.id)
+            .values(dataset_id=dataset_id, metadata_={})
+        )
+        await session.scalar(
+            insert(models.Experiment)
+            .returning(models.Experiment.id)
+            .values(
+                dataset_id=dataset_id,
+                dataset_version_id=version_id,
+                name="experiment-name",
+                repetitions=1,
+                metadata_={},
+                project_name="experiment-project-name",
+            )
+        )
 
 
 @pytest.fixture
-async def comparison_experiments(session):
+async def comparison_experiments(db: Callable[[], AsyncContextManager[AsyncSession]]):
     """
     Creates a dataset with four examples, three versions, and four experiments.
 
@@ -234,305 +241,306 @@ async def comparison_experiments(session):
     Experiment 4: V3 (1 repetition)
     """
 
-    dataset_id = await session.scalar(
-        insert(models.Dataset)
-        .returning(models.Dataset.id)
-        .values(
-            name="dataset-name",
-            description="dataset-description",
-            metadata_={"dataset-metadata-key": "dataset-metadata-value"},
-        )
-    )
-
-    example_ids = (
-        await session.scalars(
-            insert(models.DatasetExample)
-            .returning(models.DatasetExample.id)
-            .values([{"dataset_id": dataset_id} for _ in range(4)])
-        )
-    ).all()
-
-    version_ids = (
-        await session.scalars(
-            insert(models.DatasetVersion)
-            .returning(models.DatasetVersion.id)
+    async with db() as session:
+        dataset_id = await session.scalar(
+            insert(models.Dataset)
+            .returning(models.Dataset.id)
             .values(
-                [
-                    {
-                        "dataset_id": dataset_id,
-                        "description": f"version-{index}-description",
-                        "metadata_": {
-                            f"version-{index}-metadata-key": f"version-{index}-metadata-value"
-                        },
-                    }
-                    for index in range(1, 4)
-                ]
+                name="dataset-name",
+                description="dataset-description",
+                metadata_={"dataset-metadata-key": "dataset-metadata-value"},
             )
         )
-    ).all()
 
-    await session.scalars(
-        insert(models.DatasetExampleRevision)
-        .returning(models.DatasetExampleRevision.id)
-        .values(
-            [
-                {
-                    **revision,
-                    "input": {
-                        f"revision-{revision_index + 1}-input-key": f"revision-{revision_index + 1}-input-value"  # noqa: E501
-                    },
-                    "output": {
-                        f"revision-{revision_index + 1}-output-key": f"revision-{revision_index + 1}-output-value"  # noqa: E501
-                    },
-                    "metadata_": {
-                        f"revision-{revision_index + 1}-metadata-key": f"revision-{revision_index + 1}-metadata-value"  # noqa: E501
-                    },
-                }
-                for revision_index, revision in enumerate(
+        example_ids = (
+            await session.scalars(
+                insert(models.DatasetExample)
+                .returning(models.DatasetExample.id)
+                .values([{"dataset_id": dataset_id} for _ in range(4)])
+            )
+        ).all()
+
+        version_ids = (
+            await session.scalars(
+                insert(models.DatasetVersion)
+                .returning(models.DatasetVersion.id)
+                .values(
                     [
                         {
-                            "dataset_example_id": example_ids[0],
-                            "dataset_version_id": version_ids[0],
-                            "revision_kind": "CREATE",
-                        },
-                        {
-                            "dataset_example_id": example_ids[0],
-                            "dataset_version_id": version_ids[1],
-                            "revision_kind": "PATCH",
-                        },
-                        {
-                            "dataset_example_id": example_ids[0],
-                            "dataset_version_id": version_ids[2],
-                            "revision_kind": "PATCH",
-                        },
-                        {
-                            "dataset_example_id": example_ids[1],
-                            "dataset_version_id": version_ids[1],
-                            "revision_kind": "CREATE",
-                        },
-                        {
-                            "dataset_example_id": example_ids[2],
-                            "dataset_version_id": version_ids[0],
-                            "revision_kind": "CREATE",
-                        },
-                        {
-                            "dataset_example_id": example_ids[2],
-                            "dataset_version_id": version_ids[1],
-                            "revision_kind": "DELETE",
-                        },
-                        {
-                            "dataset_example_id": example_ids[3],
-                            "dataset_version_id": version_ids[2],
-                            "revision_kind": "CREATE",
-                        },
+                            "dataset_id": dataset_id,
+                            "description": f"version-{index}-description",
+                            "metadata_": {
+                                f"version-{index}-metadata-key": f"version-{index}-metadata-value"
+                            },
+                        }
+                        for index in range(1, 4)
                     ]
                 )
-            ]
-        )
-    )
+            )
+        ).all()
 
-    experiment_ids = (
         await session.scalars(
-            insert(models.Experiment)
-            .returning(models.Experiment.id)
+            insert(models.DatasetExampleRevision)
+            .returning(models.DatasetExampleRevision.id)
             .values(
                 [
                     {
-                        **experiment,
-                        "name": f"experiment-{experiment_index + 1}-name",
-                        "description": f"experiment-{experiment_index + 1}-description",
-                        "repetitions": 1,
+                        **revision,
+                        "input": {
+                            f"revision-{revision_index + 1}-input-key": f"revision-{revision_index + 1}-input-value"  # noqa: E501
+                        },
+                        "output": {
+                            f"revision-{revision_index + 1}-output-key": f"revision-{revision_index + 1}-output-value"  # noqa: E501
+                        },
                         "metadata_": {
-                            f"experiment-{experiment_index + 1}-metadata-key": f"experiment-{experiment_index + 1}-metadata-value"  # noqa: E501
+                            f"revision-{revision_index + 1}-metadata-key": f"revision-{revision_index + 1}-metadata-value"  # noqa: E501
                         },
                     }
-                    for experiment_index, experiment in enumerate(
+                    for revision_index, revision in enumerate(
                         [
                             {
-                                "dataset_id": dataset_id,
+                                "dataset_example_id": example_ids[0],
                                 "dataset_version_id": version_ids[0],
+                                "revision_kind": "CREATE",
                             },
                             {
-                                "dataset_id": dataset_id,
+                                "dataset_example_id": example_ids[0],
                                 "dataset_version_id": version_ids[1],
+                                "revision_kind": "PATCH",
                             },
                             {
-                                "dataset_id": dataset_id,
+                                "dataset_example_id": example_ids[0],
+                                "dataset_version_id": version_ids[2],
+                                "revision_kind": "PATCH",
+                            },
+                            {
+                                "dataset_example_id": example_ids[1],
                                 "dataset_version_id": version_ids[1],
+                                "revision_kind": "CREATE",
                             },
                             {
-                                "dataset_id": dataset_id,
+                                "dataset_example_id": example_ids[2],
                                 "dataset_version_id": version_ids[0],
+                                "revision_kind": "CREATE",
+                            },
+                            {
+                                "dataset_example_id": example_ids[2],
+                                "dataset_version_id": version_ids[1],
+                                "revision_kind": "DELETE",
+                            },
+                            {
+                                "dataset_example_id": example_ids[3],
+                                "dataset_version_id": version_ids[2],
+                                "revision_kind": "CREATE",
                             },
                         ]
                     )
                 ]
             )
         )
-    ).all()
 
-    await session.scalars(
-        insert(models.ExperimentRun)
-        .returning(models.ExperimentRun.id)
-        .values(
-            [
-                {
-                    **run,
-                    "output": [
-                        {"task_output": {"output": f"run-{run_index + 1}-output-value"}},
-                        {"task_output": f"run-{run_index + 1}-output-value"},
-                        {"task_output": run_index + 1},
-                        {"task_output": ""},
-                        {},
-                    ][run_index % 5],
-                }
-                for run_index, run in enumerate(
+        experiment_ids = (
+            await session.scalars(
+                insert(models.Experiment)
+                .returning(models.Experiment.id)
+                .values(
                     [
                         {
-                            "experiment_id": experiment_ids[0],
-                            "dataset_example_id": example_ids[0],
-                            "trace_id": None,
-                            "repetition_number": 1,
-                            "start_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                            ),
-                            "end_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                            ),
-                            "error": None,
-                        },
-                        {
-                            "experiment_id": experiment_ids[0],
-                            "dataset_example_id": example_ids[3],
-                            "trace_id": None,
-                            "repetition_number": 1,
-                            "start_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                            ),
-                            "end_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                            ),
-                            "error": None,
-                        },
-                        {
-                            "experiment_id": experiment_ids[1],
-                            "dataset_example_id": example_ids[0],
-                            "trace_id": None,
-                            "repetition_number": 1,
-                            "start_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                            ),
-                            "end_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                            ),
-                            "error": None,
-                        },
-                        {
-                            "experiment_id": experiment_ids[1],
-                            "dataset_example_id": example_ids[1],
-                            "trace_id": None,
-                            "repetition_number": 1,
-                            "start_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                            ),
-                            "end_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                            ),
-                            "error": None,
-                        },
-                        {
-                            "experiment_id": experiment_ids[2],
-                            "dataset_example_id": example_ids[0],
-                            "trace_id": None,
-                            "repetition_number": 1,
-                            "start_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                            ),
-                            "end_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                            ),
-                            "error": None,
-                        },
-                        {
-                            "experiment_id": experiment_ids[2],
-                            "dataset_example_id": example_ids[0],
-                            "trace_id": None,
-                            "repetition_number": 2,
-                            "start_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                            ),
-                            "end_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                            ),
-                            "error": None,
-                        },
-                        {
-                            "experiment_id": experiment_ids[2],
-                            "dataset_example_id": example_ids[1],
-                            "trace_id": None,
-                            "repetition_number": 1,
-                            "start_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                            ),
-                            "end_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                            ),
-                            "error": None,
-                        },
-                        {
-                            "experiment_id": experiment_ids[2],
-                            "dataset_example_id": example_ids[1],
-                            "trace_id": None,
-                            "repetition_number": 2,
-                            "start_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                            ),
-                            "end_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                            ),
-                            "error": None,
-                        },
-                        {
-                            "experiment_id": experiment_ids[3],
-                            "dataset_example_id": example_ids[0],
-                            "trace_id": None,
-                            "repetition_number": 1,
-                            "start_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                            ),
-                            "end_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                            ),
-                            "error": None,
-                        },
-                        {
-                            "experiment_id": experiment_ids[3],
-                            "dataset_example_id": example_ids[1],
-                            "trace_id": None,
-                            "repetition_number": 1,
-                            "start_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                            ),
-                            "end_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                            ),
-                            "error": None,
-                        },
-                        {
-                            "experiment_id": experiment_ids[3],
-                            "dataset_example_id": example_ids[3],
-                            "trace_id": None,
-                            "repetition_number": 1,
-                            "start_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                            ),
-                            "end_time": datetime(
-                                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
-                            ),
-                            "error": None,
-                        },
+                            **experiment,
+                            "name": f"experiment-{experiment_index + 1}-name",
+                            "description": f"experiment-{experiment_index + 1}-description",
+                            "repetitions": 1,
+                            "metadata_": {
+                                f"experiment-{experiment_index + 1}-metadata-key": f"experiment-{experiment_index + 1}-metadata-value"  # noqa: E501
+                            },
+                        }
+                        for experiment_index, experiment in enumerate(
+                            [
+                                {
+                                    "dataset_id": dataset_id,
+                                    "dataset_version_id": version_ids[0],
+                                },
+                                {
+                                    "dataset_id": dataset_id,
+                                    "dataset_version_id": version_ids[1],
+                                },
+                                {
+                                    "dataset_id": dataset_id,
+                                    "dataset_version_id": version_ids[1],
+                                },
+                                {
+                                    "dataset_id": dataset_id,
+                                    "dataset_version_id": version_ids[0],
+                                },
+                            ]
+                        )
                     ]
                 )
-            ]
+            )
+        ).all()
+
+        await session.scalars(
+            insert(models.ExperimentRun)
+            .returning(models.ExperimentRun.id)
+            .values(
+                [
+                    {
+                        **run,
+                        "output": [
+                            {"task_output": {"output": f"run-{run_index + 1}-output-value"}},
+                            {"task_output": f"run-{run_index + 1}-output-value"},
+                            {"task_output": run_index + 1},
+                            {"task_output": ""},
+                            {},
+                        ][run_index % 5],
+                    }
+                    for run_index, run in enumerate(
+                        [
+                            {
+                                "experiment_id": experiment_ids[0],
+                                "dataset_example_id": example_ids[0],
+                                "trace_id": None,
+                                "repetition_number": 1,
+                                "start_time": datetime(
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                ),
+                                "end_time": datetime(
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                ),
+                                "error": None,
+                            },
+                            {
+                                "experiment_id": experiment_ids[0],
+                                "dataset_example_id": example_ids[3],
+                                "trace_id": None,
+                                "repetition_number": 1,
+                                "start_time": datetime(
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                ),
+                                "end_time": datetime(
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                ),
+                                "error": None,
+                            },
+                            {
+                                "experiment_id": experiment_ids[1],
+                                "dataset_example_id": example_ids[0],
+                                "trace_id": None,
+                                "repetition_number": 1,
+                                "start_time": datetime(
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                ),
+                                "end_time": datetime(
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                ),
+                                "error": None,
+                            },
+                            {
+                                "experiment_id": experiment_ids[1],
+                                "dataset_example_id": example_ids[1],
+                                "trace_id": None,
+                                "repetition_number": 1,
+                                "start_time": datetime(
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                ),
+                                "end_time": datetime(
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                ),
+                                "error": None,
+                            },
+                            {
+                                "experiment_id": experiment_ids[2],
+                                "dataset_example_id": example_ids[0],
+                                "trace_id": None,
+                                "repetition_number": 1,
+                                "start_time": datetime(
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                ),
+                                "end_time": datetime(
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                ),
+                                "error": None,
+                            },
+                            {
+                                "experiment_id": experiment_ids[2],
+                                "dataset_example_id": example_ids[0],
+                                "trace_id": None,
+                                "repetition_number": 2,
+                                "start_time": datetime(
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                ),
+                                "end_time": datetime(
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                ),
+                                "error": None,
+                            },
+                            {
+                                "experiment_id": experiment_ids[2],
+                                "dataset_example_id": example_ids[1],
+                                "trace_id": None,
+                                "repetition_number": 1,
+                                "start_time": datetime(
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                ),
+                                "end_time": datetime(
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                ),
+                                "error": None,
+                            },
+                            {
+                                "experiment_id": experiment_ids[2],
+                                "dataset_example_id": example_ids[1],
+                                "trace_id": None,
+                                "repetition_number": 2,
+                                "start_time": datetime(
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                ),
+                                "end_time": datetime(
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                ),
+                                "error": None,
+                            },
+                            {
+                                "experiment_id": experiment_ids[3],
+                                "dataset_example_id": example_ids[0],
+                                "trace_id": None,
+                                "repetition_number": 1,
+                                "start_time": datetime(
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                ),
+                                "end_time": datetime(
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                ),
+                                "error": None,
+                            },
+                            {
+                                "experiment_id": experiment_ids[3],
+                                "dataset_example_id": example_ids[1],
+                                "trace_id": None,
+                                "repetition_number": 1,
+                                "start_time": datetime(
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                ),
+                                "end_time": datetime(
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                ),
+                                "error": None,
+                            },
+                            {
+                                "experiment_id": experiment_ids[3],
+                                "dataset_example_id": example_ids[3],
+                                "trace_id": None,
+                                "repetition_number": 1,
+                                "start_time": datetime(
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                ),
+                                "end_time": datetime(
+                                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                                ),
+                                "error": None,
+                            },
+                        ]
+                    )
+                ]
+            )
         )
-    )

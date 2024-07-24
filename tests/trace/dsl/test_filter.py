@@ -1,6 +1,6 @@
 import ast
 import sys
-from typing import List, Optional
+from typing import Any, AsyncContextManager, Callable, List, Optional
 from unittest.mock import patch
 from uuid import UUID
 
@@ -149,7 +149,11 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[List[str]])
     ],
 )
 async def test_filter_translated(
-    session: AsyncSession, expression: str, expected: str, default_project: None, abc_project: None
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+    expression: str,
+    expected: str,
+    default_project: Any,
+    abc_project: Any,
 ) -> None:
     with patch.object(
         phoenix.trace.dsl.filter,
@@ -159,7 +163,8 @@ async def test_filter_translated(
         f = SpanFilter(expression)
     assert unparse(f.translated).strip() == expected
     # next line is only to test that the syntax is accepted
-    await session.execute(f(select(models.Span.id)))
+    async with db() as session:
+        await session.execute(f(select(models.Span.id)))
 
 
 @pytest.mark.parametrize(

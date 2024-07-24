@@ -1,6 +1,10 @@
+from typing import Any, AsyncContextManager, Callable
+
+import httpx
 import pytest
 from phoenix.db import models
 from sqlalchemy import func, insert
+from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 
@@ -20,12 +24,13 @@ class TestDeleteExperiment:
 
     async def test_deletes_and_returns_experiments(
         self,
-        session,
-        test_client,
-        simple_experiments,
+        db: Callable[[], AsyncContextManager[AsyncSession]],
+        httpx_client: httpx.AsyncClient,
+        simple_experiments: Any,
     ) -> None:
-        assert (await session.scalar(func.count(models.Experiment.id))) == 2
-        response = await test_client.post(
+        async with db() as session:
+            assert (await session.scalar(func.count(models.Experiment.id))) == 2
+        response = await httpx_client.post(
             "/graphql",
             json={
                 "query": self.MUTATION,
@@ -62,12 +67,13 @@ class TestDeleteExperiment:
 
     async def test_non_existent_experiment_id_results_in_no_deletions_and_returns_error(
         self,
-        session,
-        test_client,
-        simple_experiments,
+        db: Callable[[], AsyncContextManager[AsyncSession]],
+        httpx_client: httpx.AsyncClient,
+        simple_experiments: Any,
     ) -> None:
-        assert (await session.scalar(func.count(models.Experiment.id))) == 2
-        response = await test_client.post(
+        async with db() as session:
+            assert (await session.scalar(func.count(models.Experiment.id))) == 2
+        response = await httpx_client.post(
             "/graphql",
             json={
                 "query": self.MUTATION,
@@ -90,78 +96,79 @@ class TestDeleteExperiment:
 
 
 @pytest.fixture
-async def simple_experiments(session) -> None:
+async def simple_experiments(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
     """
     A dataset with one example and two experiments.
     """
 
-    # insert dataset
-    dataset_id = await session.scalar(
-        insert(models.Dataset)
-        .returning(models.Dataset.id)
-        .values(
-            name="dataset-name",
-            description=None,
-            metadata_={},
+    async with db() as session:
+        # insert dataset
+        dataset_id = await session.scalar(
+            insert(models.Dataset)
+            .returning(models.Dataset.id)
+            .values(
+                name="dataset-name",
+                description=None,
+                metadata_={},
+            )
         )
-    )
 
-    # insert example
-    example_id = await session.scalar(
-        insert(models.DatasetExample)
-        .values(
-            dataset_id=dataset_id,
+        # insert example
+        example_id = await session.scalar(
+            insert(models.DatasetExample)
+            .values(
+                dataset_id=dataset_id,
+            )
+            .returning(models.DatasetExample.id)
         )
-        .returning(models.DatasetExample.id)
-    )
 
-    # insert version
-    version_id = await session.scalar(
-        insert(models.DatasetVersion)
-        .returning(models.DatasetVersion.id)
-        .values(
-            dataset_id=dataset_id,
-            description="original-description",
-            metadata_={"metadata": "original-metadata"},
+        # insert version
+        version_id = await session.scalar(
+            insert(models.DatasetVersion)
+            .returning(models.DatasetVersion.id)
+            .values(
+                dataset_id=dataset_id,
+                description="original-description",
+                metadata_={"metadata": "original-metadata"},
+            )
         )
-    )
 
-    # insert revision
-    await session.scalar(
-        insert(models.DatasetExampleRevision)
-        .returning(models.DatasetExampleRevision.id)
-        .values(
-            dataset_example_id=example_id,
-            dataset_version_id=version_id,
-            input={"input": "first-input"},
-            output={"output": "first-output"},
-            metadata_={"metadata": "first-metadata"},
-            revision_kind="CREATE",
+        # insert revision
+        await session.scalar(
+            insert(models.DatasetExampleRevision)
+            .returning(models.DatasetExampleRevision.id)
+            .values(
+                dataset_example_id=example_id,
+                dataset_version_id=version_id,
+                input={"input": "first-input"},
+                output={"output": "first-output"},
+                metadata_={"metadata": "first-metadata"},
+                revision_kind="CREATE",
+            )
         )
-    )
 
-    # insert two experiments
-    await session.scalar(
-        insert(models.Experiment)
-        .returning(models.Experiment.id)
-        .values(
-            dataset_id=dataset_id,
-            dataset_version_id=version_id,
-            name="experiment-1-name",
-            description="experiment-1-description",
-            metadata_={"experiment-1-metadata-key": "experiment-1-metadata-value"},
-            repetitions=1,
+        # insert two experiments
+        await session.scalar(
+            insert(models.Experiment)
+            .returning(models.Experiment.id)
+            .values(
+                dataset_id=dataset_id,
+                dataset_version_id=version_id,
+                name="experiment-1-name",
+                description="experiment-1-description",
+                metadata_={"experiment-1-metadata-key": "experiment-1-metadata-value"},
+                repetitions=1,
+            )
         )
-    )
-    await session.scalar(
-        insert(models.Experiment)
-        .returning(models.Experiment.id)
-        .values(
-            dataset_id=dataset_id,
-            dataset_version_id=version_id,
-            name="experiment-2-name",
-            description="experiment-2-description",
-            metadata_={"experiment-2-metadata-key": "experiment-2-metadata-value"},
-            repetitions=1,
+        await session.scalar(
+            insert(models.Experiment)
+            .returning(models.Experiment.id)
+            .values(
+                dataset_id=dataset_id,
+                dataset_version_id=version_id,
+                name="experiment-2-name",
+                description="experiment-2-description",
+                metadata_={"experiment-2-metadata-key": "experiment-2-metadata-value"},
+                repetitions=1,
+            )
         )
-    )

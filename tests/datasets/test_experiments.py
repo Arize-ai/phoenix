@@ -3,8 +3,6 @@ from datetime import datetime, timezone
 from typing import Any, Dict
 from unittest.mock import patch
 
-import nest_asyncio
-import pytest
 from phoenix.db import models
 from phoenix.experiments import run_experiment
 from phoenix.experiments.evaluators import (
@@ -26,15 +24,9 @@ from strawberry.relay import GlobalID
 
 
 @patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
-async def test_run_experiment(_, session, test_phoenix_clients, simple_dataset):
-    if "asyncpg" in str(session.get_bind().url):
-        pytest.xfail(
-            "FIX THIS: sqlalchemy.exc.InvalidRequestError: Can't operate on "
-            "closed transaction inside context manager."
-        )
-    nest_asyncio.apply()
-
-    nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
+async def test_run_experiment(_, db, httpx_clients, simple_dataset, acall):
+    async with db() as session:
+        nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
     assert not nonexistent_experiment, "There should be no experiments in the database"
 
     example_input = {"input": "fancy input 1"}
@@ -54,7 +46,7 @@ async def test_run_experiment(_, session, test_phoenix_clients, simple_dataset):
         },
     )
 
-    with patch("phoenix.experiments.functions._phoenix_clients", return_value=test_phoenix_clients):
+    with patch("phoenix.experiments.functions._phoenix_clients", return_value=httpx_clients):
         task_output = {"doesn't matter": "this is the output"}
 
         def experiment_task(_) -> Dict[str, str]:
@@ -78,7 +70,8 @@ async def test_run_experiment(_, session, test_phoenix_clients, simple_dataset):
             lambda reference, expected: expected == reference,
             lambda reference, expected: expected is reference,
         ]
-        experiment = run_experiment(
+        experiment = await acall(
+            run_experiment,
             dataset=test_dataset,
             task=experiment_task,
             experiment_name="test",
@@ -100,30 +93,34 @@ async def test_run_experiment(_, session, test_phoenix_clients, simple_dataset):
         assert experiment_model.description == "test description"
         assert experiment_model.repetitions == 1  # TODO: Enable repetitions #3584
 
-        experiment_runs = (
-            (
-                await session.execute(
-                    select(models.ExperimentRun).where(models.ExperimentRun.dataset_example_id == 0)
-                )
-            )
-            .scalars()
-            .all()
-        )
-        assert len(experiment_runs) == 1, "The experiment was configured to have 1 repetition"
-        for run in experiment_runs:
-            assert run.output == {"task_output": {"doesn't matter": "this is the output"}}
-
-            evaluations = (
+        async with db() as session:
+            experiment_runs = (
                 (
                     await session.execute(
-                        select(models.ExperimentRunAnnotation)
-                        .where(models.ExperimentRunAnnotation.experiment_run_id == run.id)
-                        .order_by(models.ExperimentRunAnnotation.name)
+                        select(models.ExperimentRun).where(
+                            models.ExperimentRun.dataset_example_id == 0
+                        )
                     )
                 )
                 .scalars()
                 .all()
             )
+        assert len(experiment_runs) == 1, "The experiment was configured to have 1 repetition"
+        for run in experiment_runs:
+            assert run.output == {"task_output": {"doesn't matter": "this is the output"}}
+
+            async with db() as session:
+                evaluations = (
+                    (
+                        await session.execute(
+                            select(models.ExperimentRunAnnotation)
+                            .where(models.ExperimentRunAnnotation.experiment_run_id == run.id)
+                            .order_by(models.ExperimentRunAnnotation.name)
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
             assert len(evaluations) == len(evaluators)
             assert evaluations[0].score == 0.0
             assert evaluations[1].score == 1.0
@@ -132,15 +129,9 @@ async def test_run_experiment(_, session, test_phoenix_clients, simple_dataset):
 
 
 @patch("opentelemetry.sdk.trace.export.SimpleSpanProcessor.on_end")
-async def test_run_experiment_with_llm_eval(_, session, test_phoenix_clients, simple_dataset):
-    if "asyncpg" in str(session.get_bind().url):
-        pytest.xfail(
-            "FIX THIS: sqlalchemy.exc.InvalidRequestError: Can't operate on "
-            "closed transaction inside context manager."
-        )
-    nest_asyncio.apply()
-
-    nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
+async def test_run_experiment_with_llm_eval(_, db, httpx_clients, simple_dataset, acall):
+    async with db() as session:
+        nonexistent_experiment = (await session.execute(select(models.Experiment))).scalar()
     assert not nonexistent_experiment, "There should be no experiments in the database"
 
     test_dataset = Dataset(
@@ -175,7 +166,7 @@ async def test_run_experiment_with_llm_eval(_, session, test_phoenix_clients, si
         async def _async_generate(self, prompt: str, **kwargs: Any) -> str:
             return " doesn't matter I can't think!\nLABEL: false"
 
-    with patch("phoenix.experiments.functions._phoenix_clients", return_value=test_phoenix_clients):
+    with patch("phoenix.experiments.functions._phoenix_clients", return_value=httpx_clients):
 
         def experiment_task(input, example, metadata):
             assert input == {"input": "fancy input 1"}
@@ -183,7 +174,8 @@ async def test_run_experiment_with_llm_eval(_, session, test_phoenix_clients, si
             assert isinstance(example, Example)
             return "doesn't matter, this is the output"
 
-        experiment = run_experiment(
+        experiment = await acall(
+            run_experiment,
             dataset=test_dataset,
             task=experiment_task,
             experiment_name="test",
@@ -206,31 +198,35 @@ async def test_run_experiment_with_llm_eval(_, session, test_phoenix_clients, si
         assert experiment_model.name == "test"
         assert experiment_model.description == "test description"
 
-        experiment_runs = (
-            (
-                await session.execute(
-                    select(models.ExperimentRun).where(models.ExperimentRun.dataset_example_id == 0)
-                )
-            )
-            .scalars()
-            .all()
-        )
-        assert len(experiment_runs) == 1, "The experiment was configured to have 1 repetition"
-        for run in experiment_runs:
-            assert run.output == {"task_output": "doesn't matter, this is the output"}
-
-        for run in experiment_runs:
-            evaluations = (
+        async with db() as session:
+            experiment_runs = (
                 (
                     await session.execute(
-                        select(models.ExperimentRunAnnotation)
-                        .where(models.ExperimentRunAnnotation.experiment_run_id == run.id)
-                        .order_by(models.ExperimentRunAnnotation.name)
+                        select(models.ExperimentRun).where(
+                            models.ExperimentRun.dataset_example_id == 0
+                        )
                     )
                 )
                 .scalars()
                 .all()
             )
+        assert len(experiment_runs) == 1, "The experiment was configured to have 1 repetition"
+        for run in experiment_runs:
+            assert run.output == {"task_output": "doesn't matter, this is the output"}
+
+        for run in experiment_runs:
+            async with db() as session:
+                evaluations = (
+                    (
+                        await session.execute(
+                            select(models.ExperimentRunAnnotation)
+                            .where(models.ExperimentRunAnnotation.experiment_run_id == run.id)
+                            .order_by(models.ExperimentRunAnnotation.name)
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
             assert len(evaluations) == 2
             assert evaluations[0].score == 0.0
             assert evaluations[1].score == 1.0
