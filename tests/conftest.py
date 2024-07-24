@@ -218,18 +218,8 @@ def px_client(
 
 
 @pytest.fixture
-def acall(
-    loop: AbstractEventLoop,
-) -> Callable[..., Awaitable[Any]]:
-    async def _(f: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
-        return (
-            await asyncio.gather(
-                loop.run_in_executor(None, partial(f, *args, **kwargs)),
-                asyncio.sleep(0.1),
-            )
-        )[0]
-
-    return _
+def acall(loop: AbstractEventLoop) -> Callable[..., Awaitable[Any]]:
+    return lambda f, *_, **__: loop.run_in_executor(None, partial(f, *_, **__))
 
 
 @contextlib.asynccontextmanager
