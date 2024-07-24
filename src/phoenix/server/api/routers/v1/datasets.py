@@ -121,7 +121,7 @@ async def list_datasets(
                     status_code=HTTP_422_UNPROCESSABLE_ENTITY,
                 )
         if name:
-            query = query.filter(models.Dataset.name.is_(name))
+            query = query.filter(models.Dataset.name == name)
 
         query = query.limit(limit + 1)
         result = await session.execute(query)
