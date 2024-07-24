@@ -1194,6 +1194,7 @@ type SpanAnnotation implements Node & Annotation {
 
 type SpanAnnotationMutationPayload {
   spanAnnotations: [SpanAnnotation!]!
+  query: Query!
 }
 
 type SpanAsExampleRevision implements ExampleRevision {
@@ -1339,6 +1340,7 @@ type TraceAnnotation implements Node {
 
 type TraceAnnotationMutationPayload {
   traceAnnotations: [TraceAnnotation!]!
+  query: Query!
 }
 
 type TraceEvaluation implements Annotation {

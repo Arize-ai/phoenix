@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7c443ddd13fc27d1f78994baa4d450ab>>
+ * @generated SignedSource<<d38196355e8260f5110167c3949c484d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,18 +10,17 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type EditSpanAnnotationsDialogQuery$variables = {
-  spanId: string;
+export type EditSpanAnnotationsDialogSpanAnnotationsQuery$variables = {
+  id: string;
 };
-export type EditSpanAnnotationsDialogQuery$data = {
-  readonly span: {
-    readonly id: string;
+export type EditSpanAnnotationsDialogSpanAnnotationsQuery$data = {
+  readonly node: {
     readonly " $fragmentSpreads": FragmentRefs<"EditSpanAnnotationsDialog_spanAnnotations">;
   };
 };
-export type EditSpanAnnotationsDialogQuery = {
-  response: EditSpanAnnotationsDialogQuery$data;
-  variables: EditSpanAnnotationsDialogQuery$variables;
+export type EditSpanAnnotationsDialogSpanAnnotationsQuery = {
+  response: EditSpanAnnotationsDialogSpanAnnotationsQuery$data;
+  variables: EditSpanAnnotationsDialogSpanAnnotationsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -29,14 +28,14 @@ var v0 = [
   {
     "defaultValue": null,
     "kind": "LocalArgument",
-    "name": "spanId"
+    "name": "id"
   }
 ],
 v1 = [
   {
     "kind": "Variable",
     "name": "id",
-    "variableName": "spanId"
+    "variableName": "id"
   }
 ],
 v2 = {
@@ -51,28 +50,20 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "EditSpanAnnotationsDialogQuery",
+    "name": "EditSpanAnnotationsDialogSpanAnnotationsQuery",
     "selections": [
       {
-        "alias": "span",
+        "alias": null,
         "args": (v1/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
           {
-            "kind": "InlineFragment",
-            "selections": [
-              {
-                "args": null,
-                "kind": "FragmentSpread",
-                "name": "EditSpanAnnotationsDialog_spanAnnotations"
-              }
-            ],
-            "type": "Span",
-            "abstractKey": null
+            "args": null,
+            "kind": "FragmentSpread",
+            "name": "EditSpanAnnotationsDialog_spanAnnotations"
           }
         ],
         "storageKey": null
@@ -85,10 +76,10 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "EditSpanAnnotationsDialogQuery",
+    "name": "EditSpanAnnotationsDialogSpanAnnotationsQuery",
     "selections": [
       {
-        "alias": "span",
+        "alias": null,
         "args": (v1/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
@@ -101,6 +92,10 @@ return {
             "kind": "ScalarField",
             "name": "__typename",
             "storageKey": null
+          },
+          {
+            "kind": "TypeDiscriminator",
+            "abstractKey": "__isNode"
           },
           (v2/*: any*/),
           {
@@ -163,16 +158,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "532b3c148c3bf1411b8820714c68f4e3",
+    "cacheID": "8649eb1dd42a29a0d38b9a1538490de4",
     "id": null,
     "metadata": {},
-    "name": "EditSpanAnnotationsDialogQuery",
+    "name": "EditSpanAnnotationsDialogSpanAnnotationsQuery",
     "operationKind": "query",
-    "text": "query EditSpanAnnotationsDialogQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      ...EditSpanAnnotationsDialog_spanAnnotations\n    }\n  }\n}\n\nfragment EditSpanAnnotationsDialog_spanAnnotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n  }\n}\n"
+    "text": "query EditSpanAnnotationsDialogSpanAnnotationsQuery(\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...EditSpanAnnotationsDialog_spanAnnotations\n    __isNode: __typename\n    id\n  }\n}\n\nfragment EditSpanAnnotationsDialog_spanAnnotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "36093f4285a168993ec87fd6aac82365";
+(node as any).hash = "07aedb847a2af03a77823f0afc0c98d4";
 
 export default node;

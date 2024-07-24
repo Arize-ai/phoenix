@@ -19,11 +19,15 @@ export function NewSpanAnnotationForm(props: NewSpanAnnotationFormProps) {
     graphql`
       mutation NewSpanAnnotationFormMutation(
         $input: CreateSpanAnnotationInput!
+        $spanId: GlobalID!
       ) {
         createSpanAnnotations(input: [$input]) {
-          spanAnnotations {
-            id
-            name
+          query {
+            node(id: $spanId) {
+              ... on Span {
+                ...EditSpanAnnotationsDialog_spanAnnotations
+              }
+            }
           }
         }
       }
@@ -37,6 +41,7 @@ export function NewSpanAnnotationForm(props: NewSpanAnnotationFormProps) {
           annotatorKind: "HUMAN",
           ...data,
         },
+        spanId: spanNodeId,
       },
       onCompleted: () => {
         onCreated();
