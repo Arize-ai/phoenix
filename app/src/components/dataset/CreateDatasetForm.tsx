@@ -4,12 +4,17 @@ import { graphql, useMutation } from "react-relay";
 
 import {
   Button,
+  Field,
   Flex,
   Form,
   TextArea,
   TextField,
   View,
 } from "@arizeai/components";
+
+import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
+
+import { JSONEditor } from "../code";
 
 import {
   CreateDatasetFormMutation,
@@ -19,7 +24,7 @@ import {
 type CreateDatasetParams = {
   name: string;
   description: string;
-  metadata: Record<string, unknown>;
+  metadata: string;
 };
 
 export type CreateDatasetFormProps = {
@@ -39,7 +44,7 @@ export function CreateDatasetForm(props: CreateDatasetFormProps) {
     defaultValues: {
       name: "Dataset " + new Date().toISOString(),
       description: "",
-      metadata: {},
+      metadata: "{}",
     } as CreateDatasetParams,
   });
   const [commit, isCommitting] = useMutation<CreateDatasetFormMutation>(graphql`
@@ -115,6 +120,30 @@ export function CreateDatasetForm(props: CreateDatasetFormProps) {
               onBlur={onBlur}
               value={value.toString()}
             />
+          )}
+        />
+        <Controller
+          name="metadata"
+          control={control}
+          rules={{
+            validate: (value) => {
+              if (!isJSONObjectString(value)) {
+                return "metadata must be a valid JSON object";
+              }
+              return true;
+            },
+          }}
+          render={({
+            field: { onChange, onBlur, value },
+            fieldState: { invalid, error },
+          }) => (
+            <Field
+              label={"metadata"}
+              validationState={invalid ? "invalid" : "valid"}
+              errorMessage={error?.message}
+            >
+              <JSONEditor value={value} onChange={onChange} onBlur={onBlur} />
+            </Field>
           )}
         />
       </View>
