@@ -3,8 +3,9 @@ import inspect
 import io
 import json
 from io import BytesIO, StringIO
-from typing import Tuple
+from typing import Any, AsyncContextManager, Callable, Tuple
 
+import httpx
 import pandas as pd
 import pyarrow as pa
 import pytest
@@ -14,12 +15,16 @@ from phoenix.db import models
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 
-async def test_get_simple_dataset(test_client, simple_dataset):
+async def test_get_simple_dataset(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+) -> None:
     global_id = GlobalID("Dataset", str(0))
-    response = await test_client.get(f"/v1/datasets/{global_id}")
+    response = await httpx_client.get(f"/v1/datasets/{global_id}")
     assert response.status_code == 200
     dataset_json = response.json()["data"]
 
@@ -35,9 +40,12 @@ async def test_get_simple_dataset(test_client, simple_dataset):
     assert all(item in dataset_json.items() for item in fixture_values.items())
 
 
-async def test_get_empty_dataset(test_client, empty_dataset):
+async def test_get_empty_dataset(
+    httpx_client: httpx.AsyncClient,
+    empty_dataset: Any,
+) -> None:
     global_id = GlobalID("Dataset", str(1))
-    response = await test_client.get(f"/v1/datasets/{global_id}")
+    response = await httpx_client.get(f"/v1/datasets/{global_id}")
     assert response.status_code == 200
     dataset_json = response.json()["data"]
 
@@ -53,9 +61,12 @@ async def test_get_empty_dataset(test_client, empty_dataset):
     assert all(item in dataset_json.items() for item in fixture_values.items())
 
 
-async def test_get_dataset_with_revisions(test_client, dataset_with_revisions):
+async def test_get_dataset_with_revisions(
+    httpx_client: httpx.AsyncClient,
+    dataset_with_revisions: Any,
+) -> None:
     global_id = GlobalID("Dataset", str(2))
-    response = await test_client.get(f"/v1/datasets/{global_id}")
+    response = await httpx_client.get(f"/v1/datasets/{global_id}")
     assert response.status_code == 200
     dataset_json = response.json()["data"]
 
@@ -71,8 +82,13 @@ async def test_get_dataset_with_revisions(test_client, dataset_with_revisions):
     assert all(item in dataset_json.items() for item in fixture_values.items())
 
 
-async def test_list_datasets(test_client, simple_dataset, empty_dataset, dataset_with_revisions):
-    response = await test_client.get("/v1/datasets")
+async def test_list_datasets(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+    empty_dataset: Any,
+    dataset_with_revisions: Any,
+) -> None:
+    response = await httpx_client.get("/v1/datasets")
     assert response.status_code == 200
     datasets_json = response.json()
 
@@ -113,8 +129,12 @@ async def test_list_datasets(test_client, simple_dataset, empty_dataset, dataset
     assert all(item in datasets[2].items() for item in fixture_values.items())
 
 
-async def test_list_fewer_datasets(test_client, simple_dataset, empty_dataset):
-    response = await test_client.get("/v1/datasets")
+async def test_list_fewer_datasets(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+    empty_dataset: Any,
+) -> None:
+    response = await httpx_client.get("/v1/datasets")
     assert response.status_code == 200
     datasets_json = response.json()
 
@@ -146,9 +166,12 @@ async def test_list_fewer_datasets(test_client, simple_dataset, empty_dataset):
 
 
 async def test_list_datasets_with_cursor(
-    test_client, simple_dataset, empty_dataset, dataset_with_revisions
-):
-    response = await test_client.get("/v1/datasets", params={"limit": 2})
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+    empty_dataset: Any,
+    dataset_with_revisions: Any,
+) -> None:
+    response = await httpx_client.get("/v1/datasets", params={"limit": 2})
     assert response.status_code == 200
     datasets_json = response.json()
 
@@ -179,7 +202,7 @@ async def test_list_datasets_with_cursor(
     }
     assert all(item in datasets[1].items() for item in fixture_values.items())
 
-    second_page = await test_client.get("/v1/datasets", params={"limit": 2, "cursor": next_cursor})
+    second_page = await httpx_client.get("/v1/datasets", params={"limit": 2, "cursor": next_cursor})
     assert second_page.status_code == 200
 
     second_page_json = second_page.json()
@@ -199,9 +222,12 @@ async def test_list_datasets_with_cursor(
     assert all(item in second_page_datasets[0].items() for item in fixture_values.items())
 
 
-async def test_get_dataset_versions(test_client, dataset_with_revisions):
+async def test_get_dataset_versions(
+    httpx_client: httpx.AsyncClient,
+    dataset_with_revisions: Any,
+) -> None:
     dataset_global_id = GlobalID("Dataset", str(2))
-    response = await test_client.get(f"/v1/datasets/{dataset_global_id}/versions?limit=2")
+    response = await httpx_client.get(f"/v1/datasets/{dataset_global_id}/versions?limit=2")
     assert response.status_code == 200
     assert response.headers.get("content-type") == "application/json"
     assert response.json() == {
@@ -223,9 +249,12 @@ async def test_get_dataset_versions(test_client, dataset_with_revisions):
     }
 
 
-async def test_get_dataset_versions_with_cursor(test_client, dataset_with_revisions):
+async def test_get_dataset_versions_with_cursor(
+    httpx_client: httpx.AsyncClient,
+    dataset_with_revisions: Any,
+) -> None:
     dataset_global_id = GlobalID("Dataset", str(2))
-    response = await test_client.get(
+    response = await httpx_client.get(
         f"/v1/datasets/{dataset_global_id}/versions?limit=2"
         f'&cursor={GlobalID("DatasetVersion", str(4))}'
     )
@@ -244,9 +273,12 @@ async def test_get_dataset_versions_with_cursor(test_client, dataset_with_revisi
     }
 
 
-async def test_get_dataset_versions_with_nonexistent_cursor(test_client, dataset_with_revisions):
+async def test_get_dataset_versions_with_nonexistent_cursor(
+    httpx_client: httpx.AsyncClient,
+    dataset_with_revisions: Any,
+) -> None:
     dataset_global_id = GlobalID("Dataset", str(2))
-    response = await test_client.get(
+    response = await httpx_client.get(
         f"/v1/datasets/{dataset_global_id}/versions?limit=1"
         f'&cursor={GlobalID("DatasetVersion", str(1))}'
     )
@@ -255,9 +287,12 @@ async def test_get_dataset_versions_with_nonexistent_cursor(test_client, dataset
     assert response.json() == {"next_cursor": None, "data": []}
 
 
-async def test_get_dataset_download_empty_dataset(test_client, empty_dataset):
+async def test_get_dataset_download_empty_dataset(
+    httpx_client: httpx.AsyncClient,
+    empty_dataset: Any,
+) -> None:
     dataset_global_id = GlobalID("Dataset", str(1))
-    response = await test_client.get(f"/v1/datasets/{dataset_global_id}/csv")
+    response = await httpx_client.get(f"/v1/datasets/{dataset_global_id}/csv")
     assert response.status_code == 200
     assert response.headers.get("content-type") == "text/csv"
     assert response.headers.get("content-encoding") == "gzip"
@@ -267,11 +302,13 @@ async def test_get_dataset_download_empty_dataset(test_client, empty_dataset):
 
 
 async def test_get_dataset_download_nonexistent_version(
-    test_client, empty_dataset, dataset_with_revisions
-):
+    httpx_client: httpx.AsyncClient,
+    empty_dataset: Any,
+    dataset_with_revisions: Any,
+) -> None:
     dataset_global_id = GlobalID("Dataset", str(1))
     dataset_version_global_id = GlobalID("DatasetVersion", str(4))  # Version for Dataset id=2
-    response = await test_client.get(
+    response = await httpx_client.get(
         f"/v1/datasets/{dataset_global_id}/csv?version_id={dataset_version_global_id}"
     )
     assert response.status_code == 200
@@ -282,9 +319,12 @@ async def test_get_dataset_download_nonexistent_version(
         pd.read_csv(StringIO(response.content.decode()))
 
 
-async def test_get_dataset_download_latest_version(test_client, dataset_with_revisions):
+async def test_get_dataset_download_latest_version(
+    httpx_client: httpx.AsyncClient,
+    dataset_with_revisions: Any,
+) -> None:
     dataset_global_id = GlobalID("Dataset", str(2))
-    response = await test_client.get(f"/v1/datasets/{dataset_global_id}/csv")
+    response = await httpx_client.get(f"/v1/datasets/{dataset_global_id}/csv")
     assert response.status_code == 200
     assert response.headers.get("content-type") == "text/csv"
     assert response.headers.get("content-encoding") == "gzip"
@@ -303,10 +343,13 @@ async def test_get_dataset_download_latest_version(test_client, dataset_with_rev
     assert_frame_equal(actual, expected)
 
 
-async def test_get_dataset_download_specific_version(test_client, dataset_with_revisions):
+async def test_get_dataset_download_specific_version(
+    httpx_client: httpx.AsyncClient,
+    dataset_with_revisions: Any,
+) -> None:
     dataset_global_id = GlobalID("Dataset", str(2))
     dataset_version_global_id = GlobalID("DatasetVersion", str(8))
-    response = await test_client.get(
+    response = await httpx_client.get(
         f"/v1/datasets/{dataset_global_id}/csv?version_id={dataset_version_global_id}"
     )
     assert response.status_code == 200
@@ -328,11 +371,14 @@ async def test_get_dataset_download_specific_version(test_client, dataset_with_r
     assert_frame_equal(actual, expected)
 
 
-async def test_get_dataset_jsonl_openai_ft(test_client, dataset_with_messages: Tuple[int, int]):
+async def test_get_dataset_jsonl_openai_ft(
+    httpx_client: httpx.AsyncClient,
+    dataset_with_messages: Tuple[int, int],
+) -> None:
     dataset_id, dataset_version_id = dataset_with_messages
     dataset_global_id = GlobalID(Dataset.__name__, str(dataset_id))
     dataset_version_global_id = GlobalID(DatasetVersion.__name__, str(dataset_version_id))
-    response = await test_client.get(
+    response = await httpx_client.get(
         f"/v1/datasets/{dataset_global_id}/jsonl/openai_ft?version_id={dataset_version_global_id}"
     )
     assert response.status_code == 200
@@ -357,11 +403,13 @@ async def test_get_dataset_jsonl_openai_ft(test_client, dataset_with_messages: T
     }
 
 
-async def test_get_dataset_jsonl_openai_evals(test_client, dataset_with_messages: Tuple[int, int]):
+async def test_get_dataset_jsonl_openai_evals(
+    httpx_client: httpx.AsyncClient, dataset_with_messages: Tuple[int, int]
+) -> None:
     dataset_id, dataset_version_id = dataset_with_messages
     dataset_global_id = GlobalID(Dataset.__name__, str(dataset_id))
     dataset_version_global_id = GlobalID(DatasetVersion.__name__, str(dataset_version_id))
-    response = await test_client.get(
+    response = await httpx_client.get(
         f"/v1/datasets/{dataset_global_id}/jsonl/openai_evals?version_id={dataset_version_global_id}"
     )
     assert response.status_code == 200
@@ -380,9 +428,12 @@ async def test_get_dataset_jsonl_openai_evals(test_client, dataset_with_messages
     }
 
 
-async def test_post_dataset_upload_json_create_then_append(test_client, session):
+async def test_post_dataset_upload_json_create_then_append(
+    httpx_client: httpx.AsyncClient,
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+) -> None:
     name = inspect.stack()[0][3]
-    response = await test_client.post(
+    response = await httpx_client.post(
         url="v1/datasets/upload?sync=true",
         json={
             "action": "create",
@@ -396,7 +447,7 @@ async def test_post_dataset_upload_json_create_then_append(test_client, session)
     assert (data := response.json().get("data"))
     assert (dataset_id := data.get("dataset_id"))
     del response, data
-    response = await test_client.post(
+    response = await httpx_client.post(
         url="v1/datasets/upload?sync=true",
         json={
             "action": "append",
@@ -409,15 +460,16 @@ async def test_post_dataset_upload_json_create_then_append(test_client, session)
     assert response.status_code == 200
     assert (data := response.json().get("data"))
     assert dataset_id == data.get("dataset_id")
-    revisions = list(
-        await session.scalars(
-            select(models.DatasetExampleRevision)
-            .join(models.DatasetExample)
-            .join_from(models.DatasetExample, models.Dataset)
-            .where(models.Dataset.name == name)
-            .order_by(models.DatasetExample.id)
+    async with db() as session:
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .join_from(models.DatasetExample, models.Dataset)
+                .where(models.Dataset.name == name)
+                .order_by(models.DatasetExample.id)
+            )
         )
-    )
     assert len(revisions) == 2
     assert revisions[0].input == {"a": 1, "b": 2, "c": 3}
     assert revisions[0].output == {"b": "2", "c": "3", "d": "4"}
@@ -427,10 +479,13 @@ async def test_post_dataset_upload_json_create_then_append(test_client, session)
     assert revisions[1].metadata_ == {}
 
 
-async def test_post_dataset_upload_csv_create_then_append(test_client, session):
+async def test_post_dataset_upload_csv_create_then_append(
+    httpx_client: httpx.AsyncClient,
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+) -> None:
     name = inspect.stack()[0][3]
     file = gzip.compress(b"a,b,c,d,e,f\n1,2,3,4,5,6\n")
-    response = await test_client.post(
+    response = await httpx_client.post(
         url="v1/datasets/upload?sync=true",
         files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
         data={
@@ -446,7 +501,7 @@ async def test_post_dataset_upload_csv_create_then_append(test_client, session):
     assert (dataset_id := data.get("dataset_id"))
     del response, file, data
     file = gzip.compress(b"a,b,c,d,e,f\n11,22,33,44,55,66\n")
-    response = await test_client.post(
+    response = await httpx_client.post(
         url="v1/datasets/upload?sync=true",
         files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
         data={
@@ -460,15 +515,16 @@ async def test_post_dataset_upload_csv_create_then_append(test_client, session):
     assert response.status_code == 200
     assert (data := response.json().get("data"))
     assert dataset_id == data.get("dataset_id")
-    revisions = list(
-        await session.scalars(
-            select(models.DatasetExampleRevision)
-            .join(models.DatasetExample)
-            .join_from(models.DatasetExample, models.Dataset)
-            .where(models.Dataset.name == name)
-            .order_by(models.DatasetExample.id)
+    async with db() as session:
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .join_from(models.DatasetExample, models.Dataset)
+                .where(models.Dataset.name == name)
+                .order_by(models.DatasetExample.id)
+            )
         )
-    )
     assert len(revisions) == 2
     assert revisions[0].input == {"a": "1", "b": "2", "c": "3"}
     assert revisions[0].output == {"b": "2", "c": "3", "d": "4"}
@@ -478,7 +534,10 @@ async def test_post_dataset_upload_csv_create_then_append(test_client, session):
     assert revisions[1].metadata_ == {"c": "33", "d": "44", "e": "55"}
 
 
-async def test_post_dataset_upload_pyarrow_create_then_append(test_client, session):
+async def test_post_dataset_upload_pyarrow_create_then_append(
+    httpx_client: httpx.AsyncClient,
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+) -> None:
     name = inspect.stack()[0][3]
     df = pd.read_csv(StringIO("a,b,c,d,e,f\n1,2,3,4,5,6\n"))
     table = pa.Table.from_pandas(df)
@@ -486,7 +545,7 @@ async def test_post_dataset_upload_pyarrow_create_then_append(test_client, sessi
     with pa.ipc.new_stream(sink, table.schema) as writer:
         writer.write_table(table)
     file = BytesIO(sink.getvalue().to_pybytes())
-    response = await test_client.post(
+    response = await httpx_client.post(
         url="v1/datasets/upload?sync=true",
         files={"file": (" ", file, "application/x-pandas-pyarrow", {})},
         data={
@@ -507,7 +566,7 @@ async def test_post_dataset_upload_pyarrow_create_then_append(test_client, sessi
     with pa.ipc.new_stream(sink, table.schema) as writer:
         writer.write_table(table)
     file = BytesIO(sink.getvalue().to_pybytes())
-    response = await test_client.post(
+    response = await httpx_client.post(
         url="v1/datasets/upload?sync=true",
         files={"file": (" ", file, "application/x-pandas-pyarrow", {})},
         data={
@@ -521,15 +580,16 @@ async def test_post_dataset_upload_pyarrow_create_then_append(test_client, sessi
     assert response.status_code == 200
     assert (data := response.json().get("data"))
     assert dataset_id == data.get("dataset_id")
-    revisions = list(
-        await session.scalars(
-            select(models.DatasetExampleRevision)
-            .join(models.DatasetExample)
-            .join_from(models.DatasetExample, models.Dataset)
-            .where(models.Dataset.name == name)
-            .order_by(models.DatasetExample.id)
+    async with db() as session:
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .join_from(models.DatasetExample, models.Dataset)
+                .where(models.Dataset.name == name)
+                .order_by(models.DatasetExample.id)
+            )
         )
-    )
     assert len(revisions) == 2
     assert revisions[0].input == {"a": 1, "b": 2, "c": 3}
     assert revisions[0].output == {"b": 2, "c": 3, "d": 4}
@@ -539,33 +599,44 @@ async def test_post_dataset_upload_pyarrow_create_then_append(test_client, sessi
     assert revisions[1].metadata_ == {"c": 33, "d": 44, "e": 55}
 
 
-async def test_delete_dataset(test_client, empty_dataset) -> None:
+async def test_delete_dataset(
+    httpx_client: httpx.AsyncClient,
+    empty_dataset: Any,
+) -> None:
     url = f"v1/datasets/{GlobalID(Dataset.__name__, str(1))}"
-    assert len((await test_client.get("v1/datasets")).json()["data"]) > 0
-    (await test_client.delete(url)).raise_for_status()
-    assert len((await test_client.get("v1/datasets")).json()["data"]) == 0
+    assert len((await httpx_client.get("v1/datasets")).json()["data"]) > 0
+    (await httpx_client.delete(url)).raise_for_status()
+    assert len((await httpx_client.get("v1/datasets")).json()["data"]) == 0
     with pytest.raises(HTTPStatusError):
-        (await test_client.delete(url)).raise_for_status()
+        (await httpx_client.delete(url)).raise_for_status()
 
 
-async def test_get_dataset_examples_404s_with_nonexistent_dataset_id(test_client):
+async def test_get_dataset_examples_404s_with_nonexistent_dataset_id(
+    httpx_client: httpx.AsyncClient,
+) -> None:
     global_id = GlobalID("Dataset", str(0))
-    response = await test_client.get(f"/v1/datasets/{global_id}/examples")
+    response = await httpx_client.get(f"/v1/datasets/{global_id}/examples")
     assert response.status_code == 404
     assert response.content.decode() == f"No dataset with id {global_id} can be found."
 
 
-async def test_get_dataset_examples_404s_with_invalid_global_id(test_client, simple_dataset):
+async def test_get_dataset_examples_404s_with_invalid_global_id(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+) -> None:
     global_id = GlobalID("InvalidDataset", str(0))
-    response = await test_client.get(f"/v1/datasets/{global_id}/examples")
+    response = await httpx_client.get(f"/v1/datasets/{global_id}/examples")
     assert response.status_code == 404
     assert "refers to a InvalidDataset" in response.content.decode()
 
 
-async def test_get_dataset_examples_404s_with_nonexistent_version_id(test_client, simple_dataset):
+async def test_get_dataset_examples_404s_with_nonexistent_version_id(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+) -> None:
     global_id = GlobalID("Dataset", str(0))
     version_id = GlobalID("DatasetVersion", str(99))
-    response = await test_client.get(
+    response = await httpx_client.get(
         f"/v1/datasets/{global_id}/examples", params={"version_id": str(version_id)}
     )
     assert response.status_code == 404
@@ -573,20 +644,24 @@ async def test_get_dataset_examples_404s_with_nonexistent_version_id(test_client
 
 
 async def test_get_dataset_examples_404s_with_invalid_version_global_id(
-    test_client, simple_dataset
-):
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+) -> None:
     global_id = GlobalID("Dataset", str(0))
     version_id = GlobalID("InvalidDatasetVersion", str(0))
-    response = await test_client.get(
+    response = await httpx_client.get(
         f"/v1/datasets/{global_id}/examples", params={"version_id": str(version_id)}
     )
     assert response.status_code == 404
     assert "refers to a InvalidDatasetVersion" in response.content.decode()
 
 
-async def test_get_simple_dataset_examples(test_client, simple_dataset):
+async def test_get_simple_dataset_examples(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+) -> None:
     global_id = GlobalID("Dataset", str(0))
-    response = await test_client.get(f"/v1/datasets/{global_id}/examples")
+    response = await httpx_client.get(f"/v1/datasets/{global_id}/examples")
     assert response.status_code == 200
     result = response.json()
     data = result["data"]
@@ -608,12 +683,15 @@ async def test_get_simple_dataset_examples(test_client, simple_dataset):
         assert example_subset == expected
 
 
-async def test_list_simple_dataset_examples_at_each_version(test_client, simple_dataset):
+async def test_list_simple_dataset_examples_at_each_version(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+) -> None:
     global_id = GlobalID("Dataset", str(0))
     v0 = GlobalID("DatasetVersion", str(0))
 
     # one example is created in version 0
-    response = await test_client.get(
+    response = await httpx_client.get(
         f"/v1/datasets/{global_id}/examples", params={"version_id": str(v0)}
     )
     assert response.status_code == 200
@@ -622,23 +700,29 @@ async def test_list_simple_dataset_examples_at_each_version(test_client, simple_
     assert len(data["examples"]) == 1
 
 
-async def test_list_empty_dataset_examples(test_client, empty_dataset):
+async def test_list_empty_dataset_examples(
+    httpx_client: httpx.AsyncClient,
+    empty_dataset: Any,
+) -> None:
     global_id = GlobalID("Dataset", str(1))
-    response = await test_client.get(f"/v1/datasets/{global_id}/examples")
+    response = await httpx_client.get(f"/v1/datasets/{global_id}/examples")
     assert response.status_code == 200
     result = response.json()
     data = result["data"]
     assert len(data["examples"]) == 0
 
 
-async def test_list_empty_dataset_examples_at_each_version(test_client, empty_dataset):
+async def test_list_empty_dataset_examples_at_each_version(
+    httpx_client: httpx.AsyncClient,
+    empty_dataset: Any,
+) -> None:
     global_id = GlobalID("Dataset", str(1))
     v1 = GlobalID("DatasetVersion", str(1))
     v2 = GlobalID("DatasetVersion", str(2))
     v3 = GlobalID("DatasetVersion", str(3))
 
     # two examples are created in version 1
-    response = await test_client.get(
+    response = await httpx_client.get(
         f"/v1/datasets/{global_id}/examples", params={"version_id": str(v1)}
     )
     assert response.status_code == 200
@@ -647,7 +731,7 @@ async def test_list_empty_dataset_examples_at_each_version(test_client, empty_da
     assert len(data["examples"]) == 2
 
     # two examples are patched in version 2
-    response = await test_client.get(
+    response = await httpx_client.get(
         f"/v1/datasets/{global_id}/examples", params={"version_id": str(v2)}
     )
     assert response.status_code == 200
@@ -656,7 +740,7 @@ async def test_list_empty_dataset_examples_at_each_version(test_client, empty_da
     assert len(data["examples"]) == 2
 
     # two examples are deleted in version 3
-    response = await test_client.get(
+    response = await httpx_client.get(
         f"/v1/datasets/{global_id}/examples", params={"version_id": str(v3)}
     )
     assert response.status_code == 200
@@ -665,9 +749,12 @@ async def test_list_empty_dataset_examples_at_each_version(test_client, empty_da
     assert len(data["examples"]) == 0
 
 
-async def test_list_dataset_with_revisions_examples(test_client, dataset_with_revisions):
+async def test_list_dataset_with_revisions_examples(
+    httpx_client: httpx.AsyncClient,
+    dataset_with_revisions: Any,
+) -> None:
     global_id = GlobalID("Dataset", str(2))
-    response = await test_client.get(f"/v1/datasets/{global_id}/examples")
+    response = await httpx_client.get(f"/v1/datasets/{global_id}/examples")
     assert response.status_code == 200
     result = response.json()
     data = result["data"]
@@ -702,8 +789,9 @@ async def test_list_dataset_with_revisions_examples(test_client, dataset_with_re
 
 
 async def test_list_dataset_with_revisions_examples_at_each_version(
-    test_client, dataset_with_revisions
-):
+    httpx_client: httpx.AsyncClient,
+    dataset_with_revisions: Any,
+) -> None:
     global_id = GlobalID("Dataset", str(2))
     v4 = GlobalID("DatasetVersion", str(4))
     v5 = GlobalID("DatasetVersion", str(5))
@@ -713,7 +801,7 @@ async def test_list_dataset_with_revisions_examples_at_each_version(
     v9 = GlobalID("DatasetVersion", str(9))
 
     # two examples are created in version 4
-    response = await test_client.get(
+    response = await httpx_client.get(
         f"/v1/datasets/{global_id}/examples", params={"version_id": str(v4)}
     )
     assert response.status_code == 200
@@ -722,7 +810,7 @@ async def test_list_dataset_with_revisions_examples_at_each_version(
     assert len(data["examples"]) == 2
 
     # two examples are patched in version 5
-    response = await test_client.get(
+    response = await httpx_client.get(
         f"/v1/datasets/{global_id}/examples", params={"version_id": str(v5)}
     )
     assert response.status_code == 200
@@ -731,7 +819,7 @@ async def test_list_dataset_with_revisions_examples_at_each_version(
     assert len(data["examples"]) == 3
 
     # one example is added in version 6
-    response = await test_client.get(
+    response = await httpx_client.get(
         f"/v1/datasets/{global_id}/examples", params={"version_id": str(v6)}
     )
     assert response.status_code == 200
@@ -740,7 +828,7 @@ async def test_list_dataset_with_revisions_examples_at_each_version(
     assert len(data["examples"]) == 4
 
     # one example is deleted in version 7
-    response = await test_client.get(
+    response = await httpx_client.get(
         f"/v1/datasets/{global_id}/examples", params={"version_id": str(v7)}
     )
     assert response.status_code == 200
@@ -749,7 +837,7 @@ async def test_list_dataset_with_revisions_examples_at_each_version(
     assert len(data["examples"]) == 3
 
     # one example is added in version 8
-    response = await test_client.get(
+    response = await httpx_client.get(
         f"/v1/datasets/{global_id}/examples", params={"version_id": str(v8)}
     )
     assert response.status_code == 200
@@ -758,7 +846,7 @@ async def test_list_dataset_with_revisions_examples_at_each_version(
     assert len(data["examples"]) == 4
 
     # one example is deleted in version 9
-    response = await test_client.get(
+    response = await httpx_client.get(
         f"/v1/datasets/{global_id}/examples", params={"version_id": str(v9)}
     )
     assert response.status_code == 200

@@ -1,7 +1,7 @@
 from phoenix.trace.span_json_decoder import json_to_span
 
 
-def test_span_json_decoder_document_retrieval():
+def test_span_json_decoder_document_retrieval() -> None:
     span = json_to_span(
         {
             "name": "retrieve",

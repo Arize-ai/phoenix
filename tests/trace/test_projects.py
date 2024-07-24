@@ -3,7 +3,7 @@ from opentelemetry.sdk.trace import ReadableSpan
 from phoenix.trace import using_project
 
 
-def test_enable_tracing_can_dynamically_modify_resource_project():
+def test_enable_tracing_can_dynamically_modify_resource_project() -> None:
     # all spans created while managed by `using_project` will have their project name
     # dynamically overridden
     pre_override = ReadableSpan(name="pre-override")
@@ -15,7 +15,7 @@ def test_enable_tracing_can_dynamically_modify_resource_project():
     assert ResourceAttributes.PROJECT_NAME not in post_override.resource.attributes
 
 
-def test_nested_project_overrides():
+def test_nested_project_overrides() -> None:
     with using_project(project_name="project1"):
         with_override = ReadableSpan(name="override")
         with using_project(project_name="project2"):
