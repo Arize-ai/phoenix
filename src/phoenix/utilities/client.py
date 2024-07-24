@@ -1,5 +1,4 @@
 import warnings
-import weakref
 from typing import Any
 
 import httpx
@@ -19,9 +18,8 @@ class VersionedClient(httpx.Client):
         self._client_phoenix_version = phoenix_version
         self._major, self._minor, self._patch = map(int, self._client_phoenix_version.split("."))
         self._warned_on_minor_version_mismatch = False
-        weakref.finalize(self, self.close)
 
-    def _check_version(self, response) -> None:
+    def _check_version(self, response: httpx.Response) -> None:
         server_version = response.headers.get(PHOENIX_SERVER_VERSION_HEADER)
         if server_version is None:
             return
@@ -58,9 +56,8 @@ class VersionedAsyncClient(httpx.AsyncClient):
         self._client_phoenix_version = phoenix_version
         self._major, self._minor, self._patch = map(int, self._client_phoenix_version.split("."))
         self._warned_on_minor_version_mismatch = False
-        weakref.finalize(self, self.close)
 
-    async def _check_version(self, response) -> None:
+    async def _check_version(self, response: httpx.Response) -> None:
         server_version = response.headers.get(PHOENIX_SERVER_VERSION_HEADER)
         if server_version is None:
             return
