@@ -10,7 +10,6 @@ from typing import (
     AsyncIterator,
     Awaitable,
     Callable,
-    Iterator,
     List,
     Literal,
     Tuple,
@@ -113,7 +112,10 @@ async def sqlite_engine() -> AsyncIterator[AsyncEngine]:
 
 
 @pytest.fixture
-def db(request: SubRequest, dialect: str) -> Callable[[], AsyncContextManager[AsyncSession]]:
+def db(
+    request: SubRequest,
+    dialect: str,
+) -> Callable[[], AsyncContextManager[AsyncSession]]:
     if dialect == "sqlite":
         return _db_with_lock(request.getfixturevalue("sqlite_engine"))
     elif dialect == "postgresql":
@@ -137,14 +139,6 @@ async def project(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
     project = models.Project(name="test_project")
     async with db() as session:
         session.add(project)
-
-
-@pytest.fixture
-async def httpx_client(app: ASGIApp) -> AsyncIterator[httpx.AsyncClient]:
-    async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app), base_url="http://test"
-    ) as client:
-        yield client
 
 
 @pytest.fixture
@@ -205,19 +199,28 @@ def httpx_clients(
 
 
 @pytest.fixture
+def httpx_client(
+    httpx_clients: Tuple[httpx.Client, httpx.AsyncClient],
+) -> httpx.AsyncClient:
+    return httpx_clients[1]
+
+
+@pytest.fixture
 def px_client(
-    httpx_clients,
-) -> Iterator[Client]:
+    httpx_clients: Tuple[httpx.Client, httpx.AsyncClient],
+) -> Client:
     sync_client, _ = httpx_clients
     client = Client()
     client._client = sync_client
     client._base_url = str(sync_client.base_url)
     sync_client._base_url = URL("")
-    yield client
+    return client
 
 
 @pytest.fixture
-def acall(loop: AbstractEventLoop) -> Callable[..., Awaitable[Any]]:
+def acall(
+    loop: AbstractEventLoop,
+) -> Callable[..., Awaitable[Any]]:
     async def _(f: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         return (
             await asyncio.gather(
