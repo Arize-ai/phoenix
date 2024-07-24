@@ -43,7 +43,7 @@ def pytest_addoption(parser: Parser):
     parser.addoption(
         "--run-postgres",
         action="store_true",
-        default=True,
+        default=False,
         help="Run tests that require Postgres",
     )
 
