@@ -81,7 +81,7 @@ class VersionedClient(httpx.Client):
                 f"({self._client_phoenix_version}) versions are severely mismatched. Upgrade "
                 " either the client or server to ensure API compatibility ⚠️⚠️"
             )
-        elif abs(server_minor - self._minor) >= 1 and self._warned_on_minor_version_mismatch:
+        elif abs(server_minor - self._minor) >= 1 and not self._warned_on_minor_version_mismatch:
             self._warned_on_minor_version_mismatch = True
             warnings.warn(
                 f"The Phoenix server ({server_version}) and client ({self._client_phoenix_version})"
@@ -114,7 +114,7 @@ class VersionedAsyncClient(httpx.AsyncClient):
                 f"({self._client_phoenix_version}) versions are severely mismatched. Upgrade "
                 " either the client or server to ensure API compatibility ⚠️⚠️"
             )
-        elif abs(server_minor - self._minor) >= 1 and self._warned_on_minor_version_mismatch:
+        elif abs(server_minor - self._minor) >= 1 and not self._warned_on_minor_version_mismatch:
             self._warned_on_minor_version_mismatch = True
             warnings.warn(
                 f"The Phoenix server ({server_version}) and client ({self._client_phoenix_version})"
