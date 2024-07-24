@@ -16,27 +16,46 @@ class VersionedClient(httpx.Client):
 
         super().__init__(*args, **kwargs)
         self._client_phoenix_version = phoenix_version
-        self._major, self._minor, self._patch = map(int, self._client_phoenix_version.split("."))
         self._warned_on_minor_version_mismatch = False
 
     def _check_version(self, response: httpx.Response) -> None:
         server_version = response.headers.get(PHOENIX_SERVER_VERSION_HEADER)
+
         if server_version is None:
+            warnings.warn(
+                "The Phoenix server has an unknown version and may have compatibility issues."
+            )
             return
 
-        server_major, server_minor, server_patch = map(int, server_version.split("."))
-        if abs(server_major - self._major) >= 1:
-            warnings.warn(
-                f"⚠️⚠️ The Phoenix server ({server_version}) and client "
-                f"({self._client_phoenix_version}) versions are severely mismatched. Upgrade "
-                " either the client or server to ensure API compatibility ⚠️⚠️"
+        try:
+            client_major, client_minor, client_patch = map(
+                int, self._client_phoenix_version.split(".")
             )
-        elif abs(server_minor - self._minor) >= 1 and not self._warned_on_minor_version_mismatch:
-            self._warned_on_minor_version_mismatch = True
-            warnings.warn(
-                f"The Phoenix server ({server_version}) and client ({self._client_phoenix_version})"
-                " versions are mismatched and may have compatibility issues."
-            )
+            server_major, server_minor, server_patch = map(int, server_version.split("."))
+            if abs(server_major - client_major) >= 1:
+                warnings.warn(
+                    f"⚠️⚠️ The Phoenix server ({server_version}) and client "
+                    f"({self._client_phoenix_version}) versions are severely mismatched. Upgrade "
+                    " either the client or server to ensure API compatibility ⚠️⚠️"
+                )
+            elif (
+                abs(server_minor - client_minor) >= 1 and not self._warned_on_minor_version_mismatch
+            ):
+                self._warned_on_minor_version_mismatch = True
+                warnings.warn(
+                    f"The Phoenix server ({server_version}) and client "
+                    f"({self._client_phoenix_version}) versions are mismatched and may have "
+                    "compatibility issues."
+                )
+        except ValueError:
+            # if either the client or server version includes a suffix e.g. "rc1", check for an
+            # exact version match of the version string
+            if self._client_phoenix_version != server_version:
+                warnings.warn(
+                    f"The Phoenix server ({server_version}) and client "
+                    f"({self._client_phoenix_version}) versions are mismatched and may have "
+                    "compatibility issues."
+                )
 
     def request(self, *args: Any, **kwargs: Any) -> httpx.Response:
         response = super().request(*args, **kwargs)
@@ -54,27 +73,42 @@ class VersionedAsyncClient(httpx.AsyncClient):
 
         super().__init__(*args, **kwargs)
         self._client_phoenix_version = phoenix_version
-        self._major, self._minor, self._patch = map(int, self._client_phoenix_version.split("."))
         self._warned_on_minor_version_mismatch = False
 
-    async def _check_version(self, response: httpx.Response) -> None:
+    def _check_version(self, response: httpx.Response) -> None:
         server_version = response.headers.get(PHOENIX_SERVER_VERSION_HEADER)
+
         if server_version is None:
             return
 
-        server_major, server_minor, server_patch = map(int, server_version.split("."))
-        if abs(server_major - self._major) >= 1:
-            warnings.warn(
-                f"⚠️⚠️ The Phoenix server ({server_version}) and client "
-                f"({self._client_phoenix_version}) versions are severely mismatched. Upgrade "
-                " either the client or server to ensure API compatibility ⚠️⚠️"
+        try:
+            client_major, client_minor, client_patch = map(
+                int, self._client_phoenix_version.split(".")
             )
-        elif abs(server_minor - self._minor) >= 1 and not self._warned_on_minor_version_mismatch:
-            self._warned_on_minor_version_mismatch = True
-            warnings.warn(
-                f"The Phoenix server ({server_version}) and client ({self._client_phoenix_version})"
-                " versions are mismatched and may have compatibility issues."
-            )
+            server_major, server_minor, server_patch = map(int, server_version.split("."))
+            if abs(server_major - client_major) >= 1:
+                warnings.warn(
+                    f"⚠️⚠️ The Phoenix server ({server_version}) and client "
+                    f"({self._client_phoenix_version}) versions are severely mismatched. Upgrade "
+                    " either the client or server to ensure API compatibility ⚠️⚠️"
+                )
+            elif (
+                abs(server_minor - client_minor) >= 1 and not self._warned_on_minor_version_mismatch
+            ):
+                self._warned_on_minor_version_mismatch = True
+                warnings.warn(
+                    f"The Phoenix server ({server_version}) and client "
+                    f"({self._client_phoenix_version}) versions are mismatched and may have "
+                    "compatibility issues."
+                )
+        except ValueError:
+            # if the version includes a suffix e.g. "rc1", check for an exact version match
+            if self._client_phoenix_version != server_version:
+                warnings.warn(
+                    f"The Phoenix server ({server_version}) and client "
+                    f"({self._client_phoenix_version}) versions are mismatched and may have "
+                    "compatibility issues."
+                )
 
     async def request(self, *args: Any, **kwargs: Any) -> httpx.Response:
         response = await super().request(*args, **kwargs)
