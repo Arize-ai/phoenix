@@ -770,10 +770,197 @@
           }
         }
       }
+    },
+    "/v1/trace_annotations": {
+      "post": {
+        "tags": [
+          "traces"
+        ],
+        "summary": "Create or update trace annotations",
+        "operationId": "annotateTraces",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnotateTracesRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnnotateTracesResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Trace not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/span_annotations": {
+      "post": {
+        "tags": [
+          "traces"
+        ],
+        "summary": "Create or update span annotations",
+        "operationId": "annotateSpans",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnotateSpansRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Span annotations inserted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnnotateSpansResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Span not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AnnotateSpansRequestBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/SpanAnnotation"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "AnnotateSpansRequestBody"
+      },
+      "AnnotateSpansResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/InsertedSpanAnnotation"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "AnnotateSpansResponseBody"
+      },
+      "AnnotateTracesRequestBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/TraceAnnotation"
+            },
+            "type": "array",
+            "title": "Data",
+            "description": "The trace annotations to be upserted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "AnnotateTracesRequestBody"
+      },
+      "AnnotateTracesResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/InsertedTraceAnnotation"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "AnnotateTracesResponseBody"
+      },
       "Dataset": {
         "properties": {
           "id": {
@@ -968,6 +1155,34 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "InsertedSpanAnnotation": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The ID of the inserted span annotation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "InsertedSpanAnnotation"
+      },
+      "InsertedTraceAnnotation": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The ID of the inserted trace annotation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "InsertedTraceAnnotation"
+      },
       "ListDatasetExamplesData": {
         "properties": {
           "dataset_id": {
@@ -1061,6 +1276,196 @@
           "next_cursor"
         ],
         "title": "ListDatasetsResponseBody"
+      },
+      "SpanAnnotation": {
+        "properties": {
+          "span_id": {
+            "type": "string",
+            "title": "Span Id",
+            "description": "The ID of the span being annotated"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the annotation"
+          },
+          "annotator_kind": {
+            "type": "string",
+            "enum": [
+              "LLM",
+              "HUMAN"
+            ],
+            "title": "Annotator Kind",
+            "description": "The kind of annotator used for the annotation"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpanAnnotationResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The result of the annotation"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Metadata for the annotation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "span_id",
+          "name",
+          "annotator_kind"
+        ],
+        "title": "SpanAnnotation"
+      },
+      "SpanAnnotationResult": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "The label assigned by the annotation"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score",
+            "description": "The score assigned by the annotation"
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation",
+            "description": "Explanation of the annotation result"
+          }
+        },
+        "type": "object",
+        "title": "SpanAnnotationResult"
+      },
+      "TraceAnnotation": {
+        "properties": {
+          "trace_id": {
+            "type": "string",
+            "title": "Trace Id",
+            "description": "The ID of the trace being annotated"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the annotation"
+          },
+          "annotator_kind": {
+            "type": "string",
+            "enum": [
+              "LLM",
+              "HUMAN"
+            ],
+            "title": "Annotator Kind",
+            "description": "The kind of annotator used for the annotation"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TraceAnnotationResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The result of the annotation"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Metadata for the annotation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trace_id",
+          "name",
+          "annotator_kind"
+        ],
+        "title": "TraceAnnotation"
+      },
+      "TraceAnnotationResult": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "The label assigned by the annotation"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score",
+            "description": "The score assigned by the annotation"
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation",
+            "description": "Explanation of the annotation result"
+          }
+        },
+        "type": "object",
+        "title": "TraceAnnotationResult"
       },
       "UploadDatasetData": {
         "properties": {
