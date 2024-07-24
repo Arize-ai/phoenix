@@ -201,7 +201,6 @@ def _db(engine: AsyncEngine) -> Callable[[], AsyncContextManager[AsyncSession]]:
 
     @contextlib.asynccontextmanager
     async def factory() -> AsyncIterator[AsyncSession]:
-        global DB_MUTEX
         async with contextlib.AsyncExitStack() as stack:
             if DB_MUTEX:
                 await stack.enter_async_context(DB_MUTEX)
