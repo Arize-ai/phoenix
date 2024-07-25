@@ -70,7 +70,7 @@ Install the following libraries
 pip install arize-otel openinference-instrumentation-openai openai
 ```
 
-Then, use our library arize-otel, which sets up OpenTelemetry tracing with Hosted Phoenix. Run the following code to start instrumentation.
+Then, use our library `arize-otel`, which sets up OpenTelemetry tracing with Hosted Phoenix. Run the following code to start instrumentation.
 
 ```python
 import os
