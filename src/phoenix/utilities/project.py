@@ -11,4 +11,3 @@ def get_project_name(attributes: Iterable[KeyValue]) -> str:
         if kv.key == ResourceAttributes.PROJECT_NAME and (v := kv.value.string_value):
             return str(v)
     return DEFAULT_PROJECT_NAME
-
