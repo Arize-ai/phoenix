@@ -11,7 +11,7 @@ from .session.session import (
     delete_all,
     launch_app,
 )
-from .trace.fixtures import load_traces_df
+from .trace.fixtures import load_example_traces
 from .trace.trace_dataset import TraceDataset
 from .version import __version__
 
@@ -44,7 +44,7 @@ __all__ = [
     "launch_app",
     "delete_all",
     "Session",
-    "load_traces_df",
+    "load_example_traces",
     "TraceDataset",
     "NotebookEnvironment",
     "log_evaluations",
