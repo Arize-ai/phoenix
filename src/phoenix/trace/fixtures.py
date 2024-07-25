@@ -19,7 +19,7 @@ import phoenix.trace.v1 as pb
 from phoenix import Client
 from phoenix.trace.schemas import Span
 from phoenix.trace.trace_dataset import TraceDataset
-from phoenix.trace.utils import is_jsonl_file, json_lines_to_df, store_json_traces_fixture
+from phoenix.trace.utils import download_json_traces_fixture, is_jsonl_file, json_lines_to_df
 
 logger = logging.getLogger(__name__)
 
@@ -200,15 +200,15 @@ def load_example_traces(fixture_name: str) -> TraceDataset:
     """
     Loads a trace dataframe by name.
     """
-    host = ("https://storage.googleapis.com/",)
-    bucket = ("arize-phoenix-assets",)
-    prefix = ("traces/",)
+    host = "https://storage.googleapis.com/"
+    bucket = "arize-phoenix-assets"
+    prefix = "traces/"
     fixture = get_trace_fixture_by_name(fixture_name)
 
     url = f"{host}{bucket}/{prefix}{fixture.file_name}"
 
     if is_jsonl_file(fixture.file_name):
-        return TraceDataset(json_lines_to_df(store_json_traces_fixture(url)))
+        return TraceDataset(json_lines_to_df(download_json_traces_fixture(url)))
 
     return TraceDataset(pd.read_parquet(url))
 

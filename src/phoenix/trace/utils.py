@@ -18,7 +18,7 @@ def is_jsonl_file(file_path: str) -> bool:
     return False
 
 
-def store_json_traces_fixture(
+def download_json_traces_fixture(
     url: str,
 ) -> List[str]:
     """
