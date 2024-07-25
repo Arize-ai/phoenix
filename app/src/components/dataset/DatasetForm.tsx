@@ -79,6 +79,7 @@ export function DatasetForm({
           }) => (
             <TextArea
               label="description"
+              description={`A description of the dataset`}
               isRequired={false}
               height={100}
               errorMessage={error?.message}
@@ -108,6 +109,7 @@ export function DatasetForm({
               validationState={invalid ? "invalid" : "valid"}
               label={"metadata"}
               errorMessage={error?.message}
+              description={`A JSON object containing metadata for the dataset`}
             >
               <JSONEditor value={value} onChange={onChange} onBlur={onBlur} />
             </CodeEditorFormWrapper>
