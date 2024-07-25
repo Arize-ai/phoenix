@@ -215,7 +215,6 @@ if __name__ == "__main__":
     fixture_spans: List[Span] = []
     fixture_evals: List[pb.Evaluation] = []
     if trace_dataset_name is not None:
-
         fixture_spans, fixture_evals = reset_fixture_span_ids_and_timestamps(
             (
                 # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
@@ -225,6 +224,8 @@ if __name__ == "__main__":
             ),
             get_evals_from_fixture(trace_dataset_name),
         )
+        print(fixture_spans[0])
+
         dataset_fixtures = list(get_dataset_fixtures(trace_dataset_name))
         if not read_only:
             Thread(
