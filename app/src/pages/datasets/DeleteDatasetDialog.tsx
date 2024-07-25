@@ -4,7 +4,7 @@ import { graphql } from "relay-runtime";
 
 import { Button, Dialog, Flex, Text, View } from "@arizeai/components";
 
-import { DatasetActionMenuDeleteMutation } from "./__generated__/DatasetActionMenuDeleteMutation.graphql";
+import { DeleteDatasetDialogMutation } from "./__generated__/DeleteDatasetDialogMutation.graphql";
 
 export function DeleteDatasetDialog({
   datasetId,
@@ -18,7 +18,7 @@ export function DeleteDatasetDialog({
   onDatasetDeleteError: (error: Error) => void;
 }) {
   const [commitDelete, isCommittingDelete] =
-    useMutation<DatasetActionMenuDeleteMutation>(graphql`
+    useMutation<DeleteDatasetDialogMutation>(graphql`
       mutation DeleteDatasetDialogMutation($datasetId: GlobalID!) {
         deleteDataset(input: { datasetId: $datasetId }) {
           __typename
