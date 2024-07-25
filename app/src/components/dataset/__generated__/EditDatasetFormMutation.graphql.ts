@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2598b874badca3140040185d85190e45>>
+ * @generated SignedSource<<b6d216dd10399c4c89ae69a816f7e1e2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,22 +9,24 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Mutation } from 'relay-runtime';
-export type EditDatasetDialogMutation$variables = {
+export type EditDatasetFormMutation$variables = {
   datasetId: string;
   description?: string | null;
+  metadata?: any | null;
   name: string;
 };
-export type EditDatasetDialogMutation$data = {
+export type EditDatasetFormMutation$data = {
   readonly patchDataset: {
     readonly dataset: {
       readonly description: string | null;
+      readonly metadata: any;
       readonly name: string;
     };
   };
 };
-export type EditDatasetDialogMutation = {
-  response: EditDatasetDialogMutation$data;
-  variables: EditDatasetDialogMutation$variables;
+export type EditDatasetFormMutation = {
+  response: EditDatasetFormMutation$data;
+  variables: EditDatasetFormMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -41,9 +43,14 @@ v1 = {
 v2 = {
   "defaultValue": null,
   "kind": "LocalArgument",
+  "name": "metadata"
+},
+v3 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
   "name": "name"
 },
-v3 = [
+v4 = [
   {
     "alias": null,
     "args": [
@@ -58,6 +65,11 @@ v3 = [
             "kind": "Variable",
             "name": "description",
             "variableName": "description"
+          },
+          {
+            "kind": "Variable",
+            "name": "metadata",
+            "variableName": "metadata"
           },
           {
             "kind": "Variable",
@@ -95,6 +107,13 @@ v3 = [
             "kind": "ScalarField",
             "name": "description",
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "metadata",
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -108,12 +127,13 @@ return {
     "argumentDefinitions": [
       (v0/*: any*/),
       (v1/*: any*/),
-      (v2/*: any*/)
+      (v2/*: any*/),
+      (v3/*: any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "EditDatasetDialogMutation",
-    "selections": (v3/*: any*/),
+    "name": "EditDatasetFormMutation",
+    "selections": (v4/*: any*/),
     "type": "Mutation",
     "abstractKey": null
   },
@@ -121,24 +141,25 @@ return {
   "operation": {
     "argumentDefinitions": [
       (v0/*: any*/),
-      (v2/*: any*/),
-      (v1/*: any*/)
+      (v3/*: any*/),
+      (v1/*: any*/),
+      (v2/*: any*/)
     ],
     "kind": "Operation",
-    "name": "EditDatasetDialogMutation",
-    "selections": (v3/*: any*/)
+    "name": "EditDatasetFormMutation",
+    "selections": (v4/*: any*/)
   },
   "params": {
-    "cacheID": "506932e00aeac9d88208a95849fdf74a",
+    "cacheID": "d68da97aac0aaababba2324b7d10e250",
     "id": null,
     "metadata": {},
-    "name": "EditDatasetDialogMutation",
+    "name": "EditDatasetFormMutation",
     "operationKind": "mutation",
-    "text": "mutation EditDatasetDialogMutation(\n  $datasetId: GlobalID!\n  $name: String!\n  $description: String = null\n) {\n  patchDataset(input: {datasetId: $datasetId, name: $name, description: $description}) {\n    dataset {\n      name\n      description\n    }\n  }\n}\n"
+    "text": "mutation EditDatasetFormMutation(\n  $datasetId: GlobalID!\n  $name: String!\n  $description: String = null\n  $metadata: JSON = null\n) {\n  patchDataset(input: {datasetId: $datasetId, name: $name, description: $description, metadata: $metadata}) {\n    dataset {\n      name\n      description\n      metadata\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0069a1443b2eee4ff35b332aef321684";
+(node as any).hash = "17e232f5c22d36d0663f140c00343680";
 
 export default node;

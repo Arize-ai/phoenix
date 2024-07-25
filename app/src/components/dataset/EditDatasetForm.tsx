@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 
@@ -12,86 +12,91 @@ import {
   View,
 } from "@arizeai/components";
 
+import { JSONEditor } from "@phoenix/components/code";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
-import { JSONEditor } from "../code";
-
 import {
-  CreateDatasetFormMutation,
-  CreateDatasetFormMutation$data,
-} from "./__generated__/CreateDatasetFormMutation.graphql";
+  EditDatasetFormMutation,
+  EditDatasetFormMutation$variables,
+} from "./__generated__/EditDatasetFormMutation.graphql";
 import { metadataFieldWrapperCSS } from "./styles";
 
-type CreateDatasetParams = {
-  name: string;
-  description: string;
-  metadata: string;
-};
+type PatchDatasetParams = Omit<EditDatasetFormMutation$variables, "datasetId">;
 
-export type CreateDatasetFormProps = {
-  onDatasetCreated: (
-    dataset: CreateDatasetFormMutation$data["createDataset"]["dataset"]
-  ) => void;
-  onDatasetCreateError: (error: Error) => void;
-};
-
-export function CreateDatasetForm(props: CreateDatasetFormProps) {
-  const { onDatasetCreated, onDatasetCreateError } = props;
+export function EditDatasetForm({
+  datasetName,
+  datasetId,
+  datasetDescription,
+  onDatasetEdited,
+  onDatasetEditError,
+  datasetMetadata,
+}: {
+  datasetName: string;
+  datasetId: string;
+  datasetDescription?: string | null;
+  datasetMetadata?: Record<string, unknown> | null;
+  onDatasetEdited: () => void;
+  onDatasetEditError: (error: Error) => void;
+}) {
   const {
     control,
     handleSubmit,
-    formState: { isDirty, isValid },
-  } = useForm({
+    formState: { isDirty },
+  } = useForm<PatchDatasetParams>({
     defaultValues: {
-      name: "Dataset " + new Date().toISOString(),
-      description: "",
-      metadata: "{}",
-    } as CreateDatasetParams,
+      name: datasetName,
+      description: datasetDescription,
+      metadata: datasetMetadata ?? "{}",
+    },
   });
-  const [commit, isCommitting] = useMutation<CreateDatasetFormMutation>(graphql`
-    mutation CreateDatasetFormMutation(
+  const [commit, isCommitting] = useMutation<EditDatasetFormMutation>(graphql`
+    mutation EditDatasetFormMutation(
+      $datasetId: GlobalID!
       $name: String!
       $description: String = null
       $metadata: JSON = null
     ) {
-      createDataset(
-        input: { name: $name, description: $description, metadata: $metadata }
+      patchDataset(
+        input: {
+          datasetId: $datasetId
+          name: $name
+          description: $description
+          metadata: $metadata
+        }
       ) {
         dataset {
-          id
           name
           description
           metadata
-          createdAt
-          exampleCount
-          experimentCount
         }
       }
     }
   `);
-  const onSubmit = useCallback(
-    (params: CreateDatasetParams) => {
-      commit({
-        variables: { ...params, metadata: JSON.parse(params.metadata) },
-        onCompleted: (response) => {
-          onDatasetCreated(response["createDataset"]["dataset"]);
-        },
-        onError: (error) => {
-          // TODO(datasets): cleanup error handling to show human friendly error
-          onDatasetCreateError(error);
-        },
-      });
-    },
-    [commit, onDatasetCreated, onDatasetCreateError]
-  );
+
+  const onSubmit = (params: PatchDatasetParams) => {
+    commit({
+      variables: {
+        datasetId,
+        ...params,
+        metadata: JSON.parse(params.metadata),
+      },
+      onCompleted: () => {
+        onDatasetEdited();
+      },
+      onError: (error) => {
+        onDatasetEditError(error);
+      },
+    });
+  };
+
   return (
-    <Form onSubmit={handleSubmit(onSubmit)}>
+    <Form>
       <View padding="size-200">
         <Controller
           name="name"
           control={control}
           rules={{
-            required: "field is required",
+            required: "Dataset name is required",
           }}
           render={({
             field: { onChange, onBlur, value },
@@ -123,7 +128,7 @@ export function CreateDatasetForm(props: CreateDatasetFormProps) {
               validationState={invalid ? "invalid" : "valid"}
               onChange={onChange}
               onBlur={onBlur}
-              value={value.toString()}
+              value={value?.toString()}
             />
           )}
         />
@@ -168,13 +173,13 @@ export function CreateDatasetForm(props: CreateDatasetFormProps) {
       >
         <Flex direction="row" justifyContent="end">
           <Button
-            type="submit"
-            isDisabled={!isValid}
+            disabled={!isDirty}
             variant={isDirty ? "primary" : "default"}
             size="compact"
             loading={isCommitting}
+            onClick={handleSubmit(onSubmit)}
           >
-            {isCommitting ? "Creating..." : "Create Dataset"}
+            {isCommitting ? "Saving..." : "Save"}
           </Button>
         </Flex>
       </View>
