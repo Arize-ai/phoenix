@@ -2,7 +2,7 @@ import React, { ReactNode, useState } from "react";
 import { clsx as classNames } from "clsx";
 import { css } from "@emotion/react";
 
-import { ValidationState } from "@arizeai/components";
+import { Field, FieldProps, ValidationState } from "@arizeai/components";
 
 const codeEditorFormWrapperCSS = css`
   &.is-hovered {
@@ -34,27 +34,30 @@ const codeEditorFormWrapperCSS = css`
 export function CodeEditorFormWrapper({
   children,
   validationState,
+  ...fieldProps
 }: {
   children: ReactNode;
   validationState: ValidationState;
-}) {
+} & FieldProps) {
   const [isFocused, setIsFocused] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const isInvalid = validationState === "invalid";
   return (
-    <div
-      className={classNames("json-editor-wrap", {
-        "is-hovered": isHovered,
-        "is-focused": isFocused,
-        "is-invalid": isInvalid,
-      })}
-      onFocus={() => setIsFocused(true)}
-      onBlur={() => setIsFocused(false)}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      css={codeEditorFormWrapperCSS}
-    >
-      {children}
-    </div>
+    <Field {...fieldProps}>
+      <div
+        className={classNames("json-editor-wrap", {
+          "is-hovered": isHovered,
+          "is-focused": isFocused,
+          "is-invalid": isInvalid,
+        })}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        css={codeEditorFormWrapperCSS}
+      >
+        {children}
+      </div>
+    </Field>
   );
 }

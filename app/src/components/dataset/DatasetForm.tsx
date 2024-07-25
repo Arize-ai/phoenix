@@ -3,7 +3,6 @@ import { Controller, useForm } from "react-hook-form";
 
 import {
   Button,
-  Field,
   Flex,
   Form,
   TextArea,
@@ -13,8 +12,6 @@ import {
 
 import { CodeEditorFormWrapper, JSONEditor } from "@phoenix/components/code";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
-
-import { metadataFieldWrapperCSS } from "./styles";
 
 export type DatasetFormParams = {
   name: string;
@@ -107,23 +104,13 @@ export function DatasetForm({
             field: { onChange, onBlur, value },
             fieldState: { invalid, error },
           }) => (
-            <div css={metadataFieldWrapperCSS}>
-              <Field
-                label={"metadata"}
-                validationState={invalid ? "invalid" : "valid"}
-                errorMessage={error?.message}
-              >
-                <CodeEditorFormWrapper
-                  validationState={invalid ? "invalid" : "valid"}
-                >
-                  <JSONEditor
-                    value={value}
-                    onChange={onChange}
-                    onBlur={onBlur}
-                  />
-                </CodeEditorFormWrapper>
-              </Field>
-            </div>
+            <CodeEditorFormWrapper
+              validationState={invalid ? "invalid" : "valid"}
+              label={"metadata"}
+              errorMessage={error?.message}
+            >
+              <JSONEditor value={value} onChange={onChange} onBlur={onBlur} />
+            </CodeEditorFormWrapper>
           )}
         />
       </View>
