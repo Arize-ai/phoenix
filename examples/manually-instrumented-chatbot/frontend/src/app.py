@@ -4,7 +4,7 @@ import os
 import streamlit as st
 from httpx import Client
 
-from frontend.request_types import Message, MessagesPayload, MessagesResponse
+from src.request_types import Message, MessagesPayload, MessagesResponse
 
 http_client = Client()
 
@@ -21,7 +21,7 @@ if "messages" not in st.session_state:
 for user_message in st.session_state.messages:
     with st.chat_message(user_message.role):
         st.markdown(user_message.content)
-
+            
 if user_message_content := st.chat_input("Message"):
     user_message = Message(role="user", content=user_message_content)
     st.session_state.messages.append(user_message)
@@ -47,4 +47,10 @@ if user_message_content := st.chat_input("Message"):
             messages_response = MessagesResponse.model_validate(response.json())
             assistant_message = messages_response.message
             st.markdown(assistant_message.content)
+            with st.container():
+                col1, col2 = st.columns(2, gap="small")
+            with col1:
+                st.button("👍", key=f"thumbs_up_{assistant_message.content}")
+            with col2:
+                st.button("👎", key=f"thumbs_down_{assistant_message.content}")
             st.session_state.messages.append(assistant_message)
