@@ -112,5 +112,5 @@ class VersionedAsyncClient(httpx.AsyncClient):
 
     async def request(self, *args: Any, **kwargs: Any) -> httpx.Response:
         response = await super().request(*args, **kwargs)
-        await self._check_version(response)
+        self._check_version(response)
         return response
