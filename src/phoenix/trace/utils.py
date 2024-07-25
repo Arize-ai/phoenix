@@ -3,6 +3,7 @@ import os
 import re
 from traceback import format_exception
 from typing import List, Optional, Tuple, cast
+from urllib import request
 
 import pandas as pd
 
@@ -15,6 +16,17 @@ def is_parquet_file(file_path: str) -> bool:
     if file_extension == ".parquet":
         return True
     return False
+
+
+def store_json_traces_fixture(
+    url: str,
+) -> List[str]:
+    """
+    Stores the traces fixture as list of jsons from the jsonl files in the phoenix bucket.
+    """
+
+    with request.urlopen(url) as f:
+        return cast(List[str], f.readlines())
 
 
 def json_lines_to_df(lines: List[str]) -> pd.DataFrame:

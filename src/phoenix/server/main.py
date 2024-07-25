@@ -44,7 +44,7 @@ from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
     get_dataset_fixtures,
     get_evals_from_fixture,
-    load_example_traces,
+    load_traces_df,
     reset_fixture_span_ids_and_timestamps,
     send_dataset_fixtures,
 )
@@ -220,12 +220,10 @@ if __name__ == "__main__":
                 # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
                 # `encode` removes the hyphens in the UUIDs.
                 decode_otlp_span(encode_span_to_otlp(span))
-                for span in load_example_traces(trace_dataset_name).to_spans()
+                for span in load_traces_df(trace_dataset_name).to_spans()
             ),
             get_evals_from_fixture(trace_dataset_name),
         )
-        print(fixture_spans[0])
-
         dataset_fixtures = list(get_dataset_fixtures(trace_dataset_name))
         if not read_only:
             Thread(

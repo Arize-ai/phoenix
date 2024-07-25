@@ -8,7 +8,6 @@ from random import getrandbits
 from tempfile import NamedTemporaryFile
 from time import sleep, time
 from typing import Dict, Iterable, Iterator, List, NamedTuple, Optional, Sequence, Tuple, cast
-from urllib import request
 from urllib.parse import urljoin
 
 import httpx
@@ -20,7 +19,7 @@ import phoenix.trace.v1 as pb
 from phoenix import Client
 from phoenix.trace.schemas import Span
 from phoenix.trace.trace_dataset import TraceDataset
-from phoenix.trace.utils import is_parquet_file, json_lines_to_df
+from phoenix.trace.utils import is_parquet_file, json_lines_to_df, store_json_traces_fixture
 
 logger = logging.getLogger(__name__)
 
@@ -197,32 +196,21 @@ def get_trace_fixture_by_name(fixture_name: str) -> TracesFixture:
     return NAME_TO_TRACES_FIXTURE[fixture_name]
 
 
-def download_traces_fixture(
-    fixture: TracesFixture,
-    host: Optional[str] = "https://storage.googleapis.com/",
-    bucket: Optional[str] = "arize-phoenix-assets",
-    prefix: Optional[str] = "traces/",
-) -> List[str]:
-    """
-    Downloads the traces fixture from the phoenix bucket.
-    """
-    url = f"{host}{bucket}/{prefix}{fixture.file_name}"
-    if is_parquet_file(url):
-        return [url]
-
-    with request.urlopen(url) as f:
-        return cast(List[str], f.readlines())
-
-
-def load_example_traces(fixture_name: str) -> TraceDataset:
+def load_traces_df(fixture_name: str) -> TraceDataset:
     """
     Loads a trace dataframe by name.
     """
+    host = ("https://storage.googleapis.com/",)
+    bucket = ("arize-phoenix-assets",)
+    prefix = ("traces/",)
     fixture = get_trace_fixture_by_name(fixture_name)
-    if is_parquet_file(fixture.file_name):
-        return TraceDataset(pd.read_parquet(download_traces_fixture(fixture)[0]))
 
-    return TraceDataset(json_lines_to_df(download_traces_fixture(fixture)))
+    url = f"{host}{bucket}/{prefix}{fixture.file_name}"
+
+    if is_parquet_file(fixture.file_name):
+        return TraceDataset(pd.read_parquet(url))
+
+    return TraceDataset(json_lines_to_df(store_json_traces_fixture(url)))
 
 
 def get_dataset_fixtures(fixture_name: str) -> Iterable[DatasetFixture]:
