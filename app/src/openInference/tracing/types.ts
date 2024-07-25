@@ -29,6 +29,7 @@ export type AttributeToolCall = {
 export type AttributeMessages = {
   [SemanticAttributePrefixes.message]?: AttributeMessage;
 }[];
+
 export type AttributeMessage = {
   [MessageAttributePostfixes.role]?: string;
   [MessageAttributePostfixes.content]?: string;
