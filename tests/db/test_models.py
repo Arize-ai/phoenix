@@ -1,12 +1,12 @@
-from typing import Any, AsyncContextManager, Callable
+from typing import Any
 
 from phoenix.db import models
+from phoenix.server.types import DbSessionFactory
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def test_projects_with_session_injection(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
     project: Any,
 ) -> None:
     # this test demonstrates parametrizing the session fixture
@@ -17,7 +17,7 @@ async def test_projects_with_session_injection(
 
 
 async def test_projects_with_db_injection(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
     project: Any,
 ) -> None:
     # this test demonstrates mixing the db and model fixtures
@@ -28,7 +28,7 @@ async def test_projects_with_db_injection(
 
 
 async def test_empty_projects(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
 ) -> None:
     # shows that databases are reset between tests
     statement = select(models.Project).where(models.Project.name == "test_project")

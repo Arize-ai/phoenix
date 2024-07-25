@@ -1,13 +1,13 @@
 from datetime import datetime
-from typing import Any, AsyncContextManager, Callable, List, Mapping
+from typing import Any, List, Mapping
 
 import httpx
 import pytest
 import pytz
 from phoenix.db import models
 from phoenix.server.api.types.Experiment import Experiment
+from phoenix.server.types import DbSessionFactory
 from sqlalchemy import insert
-from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 
@@ -620,7 +620,7 @@ class TestDatasetExperimentsResolver:
 
 
 @pytest.fixture
-async def dataset_with_patch_revision(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+async def dataset_with_patch_revision(db: DbSessionFactory) -> None:
     """
     A dataset with a single example and two versions. In the first version, the
     dataset example is created. In the second version, the dataset example is
@@ -704,7 +704,7 @@ async def dataset_with_patch_revision(db: Callable[[], AsyncContextManager[Async
 
 
 @pytest.fixture
-async def dataset_with_three_versions(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+async def dataset_with_three_versions(db: DbSessionFactory) -> None:
     """
     A dataset with a single example and three versions. In the first version,
     the dataset example is created. The second version has no associated
@@ -788,7 +788,7 @@ async def dataset_with_three_versions(db: Callable[[], AsyncContextManager[Async
 
 
 @pytest.fixture
-async def dataset_with_deletion(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+async def dataset_with_deletion(db: DbSessionFactory) -> None:
     """
     A dataset with a single example and two versions. In the first version, the
     dataset example is created. In the second version, the dataset example is

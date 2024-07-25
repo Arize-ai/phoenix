@@ -1,7 +1,5 @@
 from collections import defaultdict
 from typing import (
-    AsyncContextManager,
-    Callable,
     DefaultDict,
     Dict,
     List,
@@ -13,13 +11,13 @@ from typing import (
 import numpy as np
 from aioitertools.itertools import groupby
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
+from phoenix.server.types import DbSessionFactory
 
 RowId: TypeAlias = int
 NumDocs: TypeAlias = int
@@ -30,7 +28,7 @@ Result: TypeAlias = List[DocumentRetrievalMetrics]
 
 
 class DocumentRetrievalMetricsDataLoader(DataLoader[Key, Result]):
-    def __init__(self, db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+    def __init__(self, db: DbSessionFactory) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db
 

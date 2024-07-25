@@ -1,17 +1,16 @@
 from datetime import datetime
-from typing import AsyncContextManager, Callable
 
 import pandas as pd
 import pytest
 from phoenix.db import models
 from phoenix.server.api.dataloaders import EvaluationSummaryDataLoader
 from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.types import DbSessionFactory
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def test_evaluation_summaries(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
     data_for_testing_dataloaders: None,
 ) -> None:
     start_time = datetime.fromisoformat("2021-01-01T00:00:10.000+00:00")

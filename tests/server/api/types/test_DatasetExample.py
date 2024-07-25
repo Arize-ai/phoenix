@@ -1,13 +1,13 @@
 from datetime import datetime
-from typing import Any, AsyncContextManager, Callable, Mapping
+from typing import Any, Mapping
 
 import httpx
 import pytest
 import pytz
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
+from phoenix.server.types import DbSessionFactory
 from sqlalchemy import insert
-from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 
@@ -163,7 +163,7 @@ async def test_dataset_example_experiment_runs_resolver_returns_relevant_runs(
 
 @pytest.fixture
 async def dataset_with_span_and_nonspan_examples(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
 ) -> None:
     """
     Dataset with two examples, one that comes from a span and one that does not.
@@ -260,7 +260,7 @@ async def dataset_with_span_and_nonspan_examples(
 
 
 @pytest.fixture
-async def example_with_experiment_runs(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+async def example_with_experiment_runs(db: DbSessionFactory) -> None:
     """
     A dataset with a single example and two experiments that use the example in
     their runs.

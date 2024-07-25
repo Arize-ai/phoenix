@@ -1,11 +1,11 @@
-from typing import AsyncContextManager, Callable, List, Optional
+from typing import List, Optional
 
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
+from phoenix.server.types import DbSessionFactory
 
 ExperimentID: TypeAlias = int
 RunLatency: TypeAlias = Optional[float]
@@ -16,7 +16,7 @@ Result: TypeAlias = RunLatency
 class AverageExperimentRunLatencyDataLoader(DataLoader[Key, Result]):
     def __init__(
         self,
-        db: Callable[[], AsyncContextManager[AsyncSession]],
+        db: DbSessionFactory,
     ) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db

@@ -2,8 +2,6 @@ from collections import defaultdict
 from datetime import datetime
 from typing import (
     Any,
-    AsyncContextManager,
-    Callable,
     DefaultDict,
     List,
     Optional,
@@ -14,7 +12,6 @@ import numpy as np
 from aioitertools.itertools import groupby
 from cachetools import LFUCache, TTLCache
 from sqlalchemy import Select, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias
 
@@ -24,6 +21,7 @@ from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
+from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
 ProjectRowId: TypeAlias = int
@@ -77,7 +75,7 @@ class DocumentEvaluationSummaryCache(
 class DocumentEvaluationSummaryDataLoader(DataLoader[Key, Result]):
     def __init__(
         self,
-        db: Callable[[], AsyncContextManager[AsyncSession]],
+        db: DbSessionFactory,
         cache_map: Optional[AbstractCache[Key, Result]] = None,
     ) -> None:
         super().__init__(

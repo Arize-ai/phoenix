@@ -1,18 +1,18 @@
 from datetime import datetime
-from typing import Any, AsyncContextManager, Callable
+from typing import Any
 
 import httpx
 import pytest
 from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.types import DbSessionFactory
 from sqlalchemy import insert, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 
 @pytest.fixture
 async def project_with_a_single_trace_and_span(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
 ) -> None:
     """
     Contains a project with a single trace and a single span.
@@ -57,7 +57,7 @@ async def project_with_a_single_trace_and_span(
 
 
 async def test_annotating_a_span(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
     project_with_a_single_trace_and_span: Any,
 ) -> None:

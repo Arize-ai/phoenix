@@ -1,7 +1,7 @@
 from asyncio import sleep
 from datetime import datetime
 from random import getrandbits
-from typing import Any, AsyncContextManager, Awaitable, Callable, cast
+from typing import Any, Awaitable, Callable, cast
 
 import httpx
 import pandas as pd
@@ -9,9 +9,9 @@ import pytest
 from phoenix import Client, TraceDataset
 from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanQuery
 from sqlalchemy import insert, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 
@@ -39,7 +39,7 @@ async def test_span_round_tripping_with_docs(
 
 
 async def test_rest_span_annotation(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
     project_with_a_single_trace_and_span: Any,
 ) -> None:
@@ -82,7 +82,7 @@ async def test_rest_span_annotation(
 
 @pytest.fixture
 async def project_with_a_single_trace_and_span(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
 ) -> None:
     """
     Contains a project with a single trace and a single span.

@@ -33,12 +33,12 @@ from phoenix.pointcloud.umap_parameters import (
     UMAPParameters,
 )
 from phoenix.server.app import (
-    SessionFactory,
     _db,
     create_app,
     create_engine_and_run_migrations,
     instrument_engine_if_enabled,
 )
+from phoenix.server.types import DbSessionFactory
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
@@ -250,7 +250,7 @@ if __name__ == "__main__":
     working_dir = get_working_dir().resolve()
     engine = create_engine_and_run_migrations(db_connection_str)
     instrumentation_cleanups = instrument_engine_if_enabled(engine)
-    factory = SessionFactory(session_factory=_db(engine), dialect=engine.dialect.name)
+    factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
     app = create_app(
         db=factory,
         export_path=export_path,

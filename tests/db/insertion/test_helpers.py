@@ -1,13 +1,12 @@
 from asyncio import sleep
 from datetime import datetime
-from typing import AsyncContextManager, Callable
 
 import pytest
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.server.types import DbSessionFactory
 from sqlalchemy import insert, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class Test_insert_on_conflict:
@@ -27,7 +26,7 @@ class Test_insert_on_conflict:
     async def test_inserts_new_tuple_when_no_conflict_is_present(
         self,
         on_conflict: OnConflict,
-        db: Callable[[], AsyncContextManager[AsyncSession]],
+        db: DbSessionFactory,
     ) -> None:
         async with db() as session:
             dialect = SupportedSQLDialect(session.bind.dialect.name)
@@ -65,7 +64,7 @@ class Test_insert_on_conflict:
     async def test_handles_conflicts_in_expected_manner(
         self,
         on_conflict: OnConflict,
-        db: Callable[[], AsyncContextManager[AsyncSession]],
+        db: DbSessionFactory,
     ) -> None:
         async with db() as session:
             project_rowid = await session.scalar(

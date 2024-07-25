@@ -1,19 +1,17 @@
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import (
-    AsyncContextManager,
-    Callable,
     DefaultDict,
     List,
     Optional,
 )
 
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
+from phoenix.server.types import DbSessionFactory
 
 
 @dataclass
@@ -34,7 +32,7 @@ Result: TypeAlias = List[ExperimentAnnotationSummary]
 class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
     def __init__(
         self,
-        db: Callable[[], AsyncContextManager[AsyncSession]],
+        db: DbSessionFactory,
         cache_map: Optional[AbstractCache[Key, Result]] = None,
     ) -> None:
         super().__init__(load_fn=self._load_fn)
