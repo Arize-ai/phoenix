@@ -9,5 +9,6 @@ from phoenix.config import DEFAULT_PROJECT_NAME
 def get_project_name(attributes: Iterable[KeyValue]) -> str:
     for kv in attributes:
         if kv.key == ResourceAttributes.PROJECT_NAME and (v := kv.value.string_value):
-            return v
+            return str(v)
     return DEFAULT_PROJECT_NAME
+
