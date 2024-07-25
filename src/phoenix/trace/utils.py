@@ -8,12 +8,12 @@ from urllib import request
 import pandas as pd
 
 
-def is_parquet_file(file_path: str) -> bool:
+def is_jsonl_file(file_path: str) -> bool:
     """
     Check if the given file is a Parquet file.
     """
     file_extension = os.path.splitext(file_path)[-1]
-    if file_extension == ".parquet":
+    if file_extension == ".jsonl":
         return True
     return False
 

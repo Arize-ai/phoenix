@@ -19,7 +19,7 @@ import phoenix.trace.v1 as pb
 from phoenix import Client
 from phoenix.trace.schemas import Span
 from phoenix.trace.trace_dataset import TraceDataset
-from phoenix.trace.utils import is_parquet_file, json_lines_to_df, store_json_traces_fixture
+from phoenix.trace.utils import is_jsonl_file, json_lines_to_df, store_json_traces_fixture
 
 logger = logging.getLogger(__name__)
 
@@ -207,10 +207,10 @@ def load_example_traces(fixture_name: str) -> TraceDataset:
 
     url = f"{host}{bucket}/{prefix}{fixture.file_name}"
 
-    if is_parquet_file(fixture.file_name):
-        return TraceDataset(pd.read_parquet(url))
+    if is_jsonl_file(fixture.file_name):
+        return TraceDataset(json_lines_to_df(store_json_traces_fixture(url)))
 
-    return TraceDataset(json_lines_to_df(store_json_traces_fixture(url)))
+    return TraceDataset(pd.read_parquet(url))
 
 
 def get_dataset_fixtures(fixture_name: str) -> Iterable[DatasetFixture]:
