@@ -88,6 +88,7 @@ from phoenix.server.api.schema import schema
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.trace.schemas import Span
+from phoenix.utilities.client import PHOENIX_SERVER_VERSION_HEADER
 
 if TYPE_CHECKING:
     from opentelemetry.trace import TracerProvider
@@ -168,8 +169,11 @@ class HeadersMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: RequestResponseEndpoint,
     ) -> Response:
+        from phoenix import __version__ as phoenix_version
+
         response = await call_next(request)
         response.headers["x-colab-notebook-cache-control"] = "no-cache"
+        response.headers[PHOENIX_SERVER_VERSION_HEADER] = phoenix_version
         return response
 
 

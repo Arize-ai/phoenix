@@ -72,15 +72,16 @@ from phoenix.experiments.types import (
 )
 from phoenix.experiments.utils import get_dataset_experiments_url, get_experiment_url, get_func_name
 from phoenix.trace.attributes import flatten
+from phoenix.utilities.client import VersionedAsyncClient, VersionedClient
 from phoenix.utilities.json import jsonify
 
 
 def _phoenix_clients() -> Tuple[httpx.Client, httpx.AsyncClient]:
     headers = get_env_client_headers()
-    return httpx.Client(
+    return VersionedClient(
         base_url=get_base_url(),
         headers=headers,
-    ), httpx.AsyncClient(
+    ), VersionedAsyncClient(
         base_url=get_base_url(),
         headers=headers,
     )

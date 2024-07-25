@@ -49,6 +49,7 @@ from phoenix.session.data_extractor import DEFAULT_SPAN_LIMIT, TraceDataExtracto
 from phoenix.trace import Evaluations, TraceDataset
 from phoenix.trace.dsl import SpanQuery
 from phoenix.trace.otel import encode_span_to_otlp
+from phoenix.utilities.client import VersionedClient
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +93,7 @@ class Client(TraceDataExtractor):
             host = "127.0.0.1"
         base_url = endpoint or get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
         self._base_url = base_url if base_url.endswith("/") else base_url + "/"
-        self._client = httpx.Client(headers=headers)
+        self._client = VersionedClient(headers=headers)
         weakref.finalize(self, self._client.close)
         if warn_if_server_not_running:
             self._warn_if_phoenix_is_not_running()
