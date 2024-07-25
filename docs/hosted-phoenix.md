@@ -30,13 +30,9 @@ Click signup on [phoenix.arize.com](https://app.phoenix.arize.com). We offer log
 
 <figure><img src=".gitbook/assets/image.png" alt=""><figcaption></figcaption></figure>
 
-Get your API keys from your Phoenix application on the left hand side, and add this as the header to your tracer.
+Get your API keys from your Phoenix application on the left hand side.&#x20;
 
-```python
-os.environ["OTEL_EXPORTER_OTLP_HEADERS"] = "api_key=..."
-```
-
-Here's the sample code on how to send traces to Hosted Phoenix with OpenAI.
+Here's the full sample code for LlamaIndex and OpenAI instrumentation. You can see all of our automatic tracing options [here](tracing/how-to-tracing/instrumentation/).
 
 {% tabs %}
 {% tab title="LlamaIndex" %}
@@ -48,7 +44,7 @@ Install the following libraries
 !pip install -U llama-index-callbacks-arize-phoenix
 ```
 
-Use the following python code to start instrumentation
+Use the following python code to start instrumentation. LlamaIndex has also added a helper function with `llama_index.core.set_global_handler()`.
 
 ```python
 import llama_index.core
@@ -61,36 +57,41 @@ llama_index.core.set_global_handler(
     endpoint="https://app.phoenix.arize.com/v1/traces"
 )
 ```
+
+Checkout our colab tutorial here:
+
+{% embed url="https://colab.research.google.com/gist/exiao/7306d3c22a1f914650e8b23451859110/hosted-phoenix.ipynb" %}
 {% endtab %}
 
 {% tab title="OpenAI" %}
+Install the following libraries
+
+```bash
+pip install arize-otel openinference-instrumentation-openai openai
+```
+
+Then, use our library arize-otel, which sets up OpenTelemetry tracing with Hosted Phoenix. Run the following code to start instrumentation.
+
 ```python
 import os
-from opentelemetry import trace as trace_api
-from opentelemetry.sdk import trace as trace_sdk
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor, ConsoleSpanExporter
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
-    OTLPSpanExporter as HTTPSpanExporter,
-)
+from arize_otel import register_otel, Endpoints
 from openinference.instrumentation.openai import OpenAIInstrumentor
 
-
-# Add API key
-os.environ["OTEL_EXPORTER_OTLP_HEADERS"] = "api_key=..." # Your API Key here
-
-# Add Phoenix URL as collector
-span_phoenix_processor = SimpleSpanProcessor(HTTPSpanExporter(endpoint="https://app.phoenix.arize.com/v1/traces"))
-
-# Setup the tracer
-tracer_provider = trace_sdk.TracerProvider()
-tracer_provider.add_span_processor(span_processor=span_phoenix_processor)
-tracer_provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
-trace_api.set_tracer_provider(tracer_provider=tracer_provider)
+# Setup OTEL tracing for hosted Phoenix
+# Endpoints.HOSTED_PHOENIX = "https://app.phoenix.arize.com"
+PHOENIX_API_KEY = os.environ["PHOENIX_API_KEY"]
+register_otel(
+    endpoints=[Endpoints.HOSTED_PHOENIX],
+    api_key=PHOENIX_API_KEY
+)
 
 # Turn on instrumentation for OpenAI
 OpenAIInstrumentor().instrument()
 ```
+
+Checkout our colab tutorial here:
+
+{% embed url="https://colab.research.google.com/gist/exiao/322535cb53c28d2871e78e98ea10c060/hosted-phoenix.ipynb" %}
 {% endtab %}
 {% endtabs %}
 
