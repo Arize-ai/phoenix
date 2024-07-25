@@ -171,12 +171,12 @@ random_fixture = TracesFixture(
 
 TRACES_FIXTURES: List[TracesFixture] = [
     llama_index_rag_fixture,
-    # llama_index_rag_fixture_with_davinci,
-    # langchain_rag_stuff_document_chain_fixture,
-    # langchain_titanic_csv_agent_evaluator_fixture,
-    # random_fixture,
-    # langchain_qa_with_sources_fixture,
-    # llama_index_calculator_agent_fixture,
+    llama_index_rag_fixture_with_davinci,
+    langchain_rag_stuff_document_chain_fixture,
+    langchain_titanic_csv_agent_evaluator_fixture,
+    random_fixture,
+    langchain_qa_with_sources_fixture,
+    llama_index_calculator_agent_fixture,
 ]
 
 NAME_TO_TRACES_FIXTURE = {fixture.name: fixture for fixture in TRACES_FIXTURES}
