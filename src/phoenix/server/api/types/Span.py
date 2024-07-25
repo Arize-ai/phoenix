@@ -258,6 +258,11 @@ class Span(Node):
         project = await info.context.data_loaders.span_projects.load(span_id)
         return to_gql_project(project)
 
+    @strawberry.field(description="Indicates if the span is contained in any dataset")  # type: ignore
+    async def contained_in_dataset(self, info: Info[Context, None]) -> bool:
+        examples = await info.context.data_loaders.span_dataset_examples.load(self.id_attr)
+        return bool(examples)
+
 
 def to_gql_span(span: models.Span) -> Span:
     events: List[SpanEvent] = list(map(SpanEvent.from_dict, span.events))
