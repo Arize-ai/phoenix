@@ -8,7 +8,7 @@ from phoenix.trace.schemas import (
 )
 
 
-def test_span_construction():
+def test_span_construction() -> None:
     span = Span(
         name="test",
         parent_id=None,
@@ -25,7 +25,7 @@ def test_span_construction():
     assert span.name == "test"
 
 
-def test_span_with_exception():
+def test_span_with_exception() -> None:
     span = Span(
         name="exception-span",
         parent_id=None,

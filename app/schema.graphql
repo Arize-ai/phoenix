@@ -1166,6 +1166,9 @@ type Span implements Node {
 
   """The project that this span belongs to."""
   project: Project!
+
+  """Indicates if the span is contained in any dataset"""
+  containedInDataset: Boolean!
 }
 
 type SpanAnnotation implements Node & Annotation {
@@ -1194,6 +1197,7 @@ type SpanAnnotation implements Node & Annotation {
 
 type SpanAnnotationMutationPayload {
   spanAnnotations: [SpanAnnotation!]!
+  query: Query!
 }
 
 type SpanAsExampleRevision implements ExampleRevision {
@@ -1339,6 +1343,7 @@ type TraceAnnotation implements Node {
 
 type TraceAnnotationMutationPayload {
   traceAnnotations: [TraceAnnotation!]!
+  query: Query!
 }
 
 type TraceEvaluation implements Annotation {

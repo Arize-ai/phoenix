@@ -16,6 +16,7 @@ import {
 } from "@arizeai/components";
 
 import { DatasetSelectorPopoverContent_datasets$key } from "./__generated__/DatasetSelectorPopoverContent_datasets.graphql";
+import { DatasetSelectorPopoverContentDatasetsQuery } from "./__generated__/DatasetSelectorPopoverContentDatasetsQuery.graphql";
 import { DatasetSelectorPopoverContentQuery } from "./__generated__/DatasetSelectorPopoverContentQuery.graphql";
 
 export type DatasetSelectorPopoverContentProps = {
@@ -83,7 +84,10 @@ function DatasetsListBox(props: {
   onDatasetSelected: (datasetId: string) => void;
 }) {
   const { search, onDatasetSelected } = props;
-  const [data] = useRefetchableFragment(
+  const [data] = useRefetchableFragment<
+    DatasetSelectorPopoverContentDatasetsQuery,
+    DatasetSelectorPopoverContent_datasets$key
+  >(
     graphql`
       fragment DatasetSelectorPopoverContent_datasets on Query
       @refetchable(queryName: "DatasetSelectorPopoverContentDatasetsQuery") {

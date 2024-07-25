@@ -26,6 +26,7 @@ from phoenix.server.api.dataloaders import (
     ProjectByNameDataLoader,
     RecordCountDataLoader,
     SpanAnnotationsDataLoader,
+    SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
     SpanEvaluationsDataLoader,
     SpanProjectsDataLoader,
@@ -51,6 +52,7 @@ class DataLoaders:
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
     record_counts: RecordCountDataLoader
+    span_dataset_examples: SpanDatasetExamplesDataLoader
     span_descendants: SpanDescendantsDataLoader
     span_evaluations: SpanEvaluationsDataLoader
     span_projects: SpanProjectsDataLoader

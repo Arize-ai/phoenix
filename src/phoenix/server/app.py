@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 import json
 import logging
@@ -74,6 +75,7 @@ from phoenix.server.api.dataloaders import (
     ProjectByNameDataLoader,
     RecordCountDataLoader,
     SpanAnnotationsDataLoader,
+    SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
     SpanEvaluationsDataLoader,
     SpanProjectsDataLoader,
@@ -87,6 +89,7 @@ from phoenix.server.api.schema import schema
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.trace.schemas import Span
+from phoenix.utilities.client import PHOENIX_SERVER_VERSION_HEADER
 
 if TYPE_CHECKING:
     from opentelemetry.trace import TracerProvider
@@ -167,8 +170,11 @@ class HeadersMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: RequestResponseEndpoint,
     ) -> Response:
+        from phoenix import __version__ as phoenix_version
+
         response = await call_next(request)
         response.headers["x-colab-notebook-cache-control"] = "no-cache"
+        response.headers[PHOENIX_SERVER_VERSION_HEADER] = phoenix_version
         return response
 
 
@@ -192,19 +198,25 @@ async def version() -> PlainTextResponse:
     return PlainTextResponse(f"{phoenix.__version__}")
 
 
+DB_MUTEX: Optional[asyncio.Lock] = None
+
+
 def _db(engine: AsyncEngine) -> Callable[[], AsyncContextManager[AsyncSession]]:
     Session = async_sessionmaker(engine, expire_on_commit=False)
 
     @contextlib.asynccontextmanager
     async def factory() -> AsyncIterator[AsyncSession]:
-        async with Session.begin() as session:
-            yield session
+        async with contextlib.AsyncExitStack() as stack:
+            if DB_MUTEX:
+                await stack.enter_async_context(DB_MUTEX)
+            yield await stack.enter_async_context(Session.begin())
 
     return factory
 
 
 def _lifespan(
     *,
+    dialect: SupportedSQLDialect,
     bulk_inserter: BulkInserter,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
@@ -213,6 +225,8 @@ def _lifespan(
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[Dict[str, Any]]:
+        global DB_MUTEX
+        DB_MUTEX = asyncio.Lock() if dialect is SupportedSQLDialect.SQLITE else None
         async with bulk_inserter as (
             queue_span,
             queue_evaluation,
@@ -296,6 +310,7 @@ def create_graphql_router(
                     cache_map=cache_for_dataloaders.record_count if cache_for_dataloaders else None,
                 ),
                 span_annotations=SpanAnnotationsDataLoader(db),
+                span_dataset_examples=SpanDatasetExamplesDataLoader(db),
                 span_descendants=SpanDescendantsDataLoader(db),
                 span_evaluations=SpanEvaluationsDataLoader(db),
                 span_projects=SpanProjectsDataLoader(db),
@@ -462,6 +477,7 @@ def create_app(
         title="Arize-Phoenix REST API",
         version=REST_API_VERSION,
         lifespan=_lifespan(
+            dialect=db.dialect,
             read_only=read_only,
             bulk_inserter=bulk_inserter,
             tracer_provider=tracer_provider,

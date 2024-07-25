@@ -86,7 +86,7 @@ def test_dimension_filter(
     desired: List[bool],
     types: Optional[List[DimensionType]],
     shapes: Optional[List[DimensionShape]],
-):
+) -> None:
     """
     Dimensions
 

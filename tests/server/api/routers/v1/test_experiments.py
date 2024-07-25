@@ -1,11 +1,16 @@
 import datetime
+from typing import Any
 
+import httpx
 import pytest
 from httpx import HTTPStatusError
 from strawberry.relay import GlobalID
 
 
-async def test_experiments_api(test_client, simple_dataset):
+async def test_experiments_api(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+) -> None:
     """
     A simple test of the expected flow for the experiments API flow
     """
@@ -14,7 +19,7 @@ async def test_experiments_api(test_client, simple_dataset):
 
     # first, create an experiment associated with a dataset
     created_experiment = (
-        await test_client.post(
+        await httpx_client.post(
             f"/v1/datasets/{dataset_gid}/experiments",
             json={"version_id": None, "repetitions": 1},
         )
@@ -25,14 +30,14 @@ async def test_experiments_api(test_client, simple_dataset):
     assert created_experiment["repetitions"] == 1
 
     dataset_examples = (
-        await test_client.get(
+        await httpx_client.get(
             f"/v1/datasets/{dataset_gid}/examples",
             params={"version_id": str(version_gid)},
         )
     ).json()["data"]["examples"]
 
     # experiments can be read using the GET /experiments route
-    experiment = (await test_client.get(f"/v1/experiments/{experiment_gid}")).json()["data"]
+    experiment = (await httpx_client.get(f"/v1/experiments/{experiment_gid}")).json()["data"]
     assert experiment
     assert created_experiment["repetitions"] == 1
 
@@ -47,14 +52,14 @@ async def test_experiments_api(test_client, simple_dataset):
         "error": "an error message, if applicable",
     }
     run_payload["id"] = (
-        await test_client.post(
+        await httpx_client.post(
             f"/v1/experiments/{experiment_gid}/runs",
             json=run_payload,
         )
     ).json()["data"]["id"]
 
     # experiment runs can be listed for evaluations
-    experiment_runs = (await test_client.get(f"/v1/experiments/{experiment_gid}/runs")).json()[
+    experiment_runs = (await httpx_client.get(f"/v1/experiments/{experiment_gid}/runs")).json()[
         "data"
     ]
     assert experiment_runs
@@ -77,34 +82,43 @@ async def test_experiments_api(test_client, simple_dataset):
         "end_time": datetime.datetime.now().isoformat(),
     }
     experiment_evaluation = (
-        await test_client.post("/v1/experiment_evaluations", json=evaluation_payload)
+        await httpx_client.post("/v1/experiment_evaluations", json=evaluation_payload)
     ).json()
     assert experiment_evaluation
 
 
-async def test_experiment_404s_with_missing_dataset(test_client, simple_dataset):
+async def test_experiment_404s_with_missing_dataset(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+) -> None:
     incorrect_dataset_gid = GlobalID("Dataset", "1")
-    response = await test_client.post(
+    response = await httpx_client.post(
         f"/v1/datasets/{incorrect_dataset_gid}/experiments", json={"version_id": None}
     )
     assert response.status_code == 404
 
 
-async def test_experiment_404s_with_missing_version(test_client, simple_dataset):
+async def test_experiment_404s_with_missing_version(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+) -> None:
     correct_dataset_gid = GlobalID("Dataset", "0")
     incorrect_version_gid = GlobalID("DatasetVersion", "9000")
-    response = await test_client.post(
+    response = await httpx_client.post(
         f"/v1/datasets/{correct_dataset_gid}/experiments",
         json={"version_id": str(incorrect_version_gid)},
     )
     assert response.status_code == 404
 
 
-async def test_reading_experiments(test_client, dataset_with_experiments_without_runs):
+async def test_reading_experiments(
+    httpx_client: httpx.AsyncClient,
+    dataset_with_experiments_without_runs: Any,
+) -> None:
     experiment_gid = GlobalID("Experiment", "0")
     dataset_gid = GlobalID("Dataset", "1")
     dataset_version_gid = GlobalID("DatasetVersion", "1")
-    response = await test_client.get(f"/v1/experiments/{experiment_gid}")
+    response = await httpx_client.get(f"/v1/experiments/{experiment_gid}")
     assert response.status_code == 200
     experiment = response.json()["data"]
     assert "created_at" in experiment
@@ -118,22 +132,24 @@ async def test_reading_experiments(test_client, dataset_with_experiments_without
     assert all(experiment[key] == value for key, value in expected.items())
 
 
-async def test_reading_experiment_404s_with_missing_experiment(test_client):
+async def test_reading_experiment_404s_with_missing_experiment(
+    httpx_client: httpx.AsyncClient,
+) -> None:
     incorrect_experiment_gid = GlobalID("Experiment", "9000")
-    response = await test_client.get(f"/v1/experiments/{incorrect_experiment_gid}")
+    response = await httpx_client.get(f"/v1/experiments/{incorrect_experiment_gid}")
     assert response.status_code == 404
 
 
 async def test_deleting_dataset_also_deletes_experiments(
-    test_client,
-    dataset_with_experiments_runs_and_evals,
+    httpx_client: httpx.AsyncClient,
+    dataset_with_experiments_runs_and_evals: Any,
 ) -> None:
     ds_url = f"v1/datasets/{GlobalID('Dataset', str(1))}"
     exp_url = f"v1/experiments/{GlobalID('Experiment', str(1))}"
     runs_url = f"{exp_url}/runs"
-    (await test_client.get(exp_url)).raise_for_status()
-    assert len((await test_client.get(runs_url)).json()["data"]) > 0
-    (await test_client.delete(ds_url)).raise_for_status()
-    assert len((await test_client.get(runs_url)).json()["data"]) == 0
+    (await httpx_client.get(exp_url)).raise_for_status()
+    assert len((await httpx_client.get(runs_url)).json()["data"]) > 0
+    (await httpx_client.delete(ds_url)).raise_for_status()
+    assert len((await httpx_client.get(runs_url)).json()["data"]) == 0
     with pytest.raises(HTTPStatusError):
-        (await test_client.get(exp_url)).raise_for_status()
+        (await httpx_client.get(exp_url)).raise_for_status()

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<79ed54366bce1fa7c735125598139cc8>>
+ * @generated SignedSource<<01d86be78c16abd5b9e41431b756515e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,6 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Mutation } from 'relay-runtime';
+import { FragmentRefs } from "relay-runtime";
 export type AnnotatorKind = "HUMAN" | "LLM";
 export type CreateSpanAnnotationInput = {
   annotatorKind: AnnotatorKind;
@@ -21,13 +22,15 @@ export type CreateSpanAnnotationInput = {
 };
 export type NewSpanAnnotationFormMutation$variables = {
   input: CreateSpanAnnotationInput;
+  spanId: string;
 };
 export type NewSpanAnnotationFormMutation$data = {
   readonly createSpanAnnotations: {
-    readonly spanAnnotations: ReadonlyArray<{
-      readonly id: string;
-      readonly name: string;
-    }>;
+    readonly query: {
+      readonly node: {
+        readonly " $fragmentSpreads": FragmentRefs<"EditSpanAnnotationsDialog_spanAnnotations">;
+      };
+    };
   };
 };
 export type NewSpanAnnotationFormMutation = {
@@ -41,65 +44,93 @@ var v0 = [
     "defaultValue": null,
     "kind": "LocalArgument",
     "name": "input"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "spanId"
   }
 ],
 v1 = [
   {
-    "alias": null,
-    "args": [
+    "items": [
       {
-        "items": [
-          {
-            "kind": "Variable",
-            "name": "input.0",
-            "variableName": "input"
-          }
-        ],
-        "kind": "ListValue",
-        "name": "input"
+        "kind": "Variable",
+        "name": "input.0",
+        "variableName": "input"
       }
     ],
-    "concreteType": "SpanAnnotationMutationPayload",
-    "kind": "LinkedField",
-    "name": "createSpanAnnotations",
-    "plural": false,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "SpanAnnotation",
-        "kind": "LinkedField",
-        "name": "spanAnnotations",
-        "plural": true,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "id",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "name",
-            "storageKey": null
-          }
-        ],
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
+    "kind": "ListValue",
+    "name": "input"
   }
-];
+],
+v2 = [
+  {
+    "kind": "Variable",
+    "name": "id",
+    "variableName": "spanId"
+  }
+],
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "NewSpanAnnotationFormMutation",
-    "selections": (v1/*: any*/),
+    "selections": [
+      {
+        "alias": null,
+        "args": (v1/*: any*/),
+        "concreteType": "SpanAnnotationMutationPayload",
+        "kind": "LinkedField",
+        "name": "createSpanAnnotations",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "Query",
+            "kind": "LinkedField",
+            "name": "query",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": (v2/*: any*/),
+                "concreteType": null,
+                "kind": "LinkedField",
+                "name": "node",
+                "plural": false,
+                "selections": [
+                  {
+                    "kind": "InlineFragment",
+                    "selections": [
+                      {
+                        "args": null,
+                        "kind": "FragmentSpread",
+                        "name": "EditSpanAnnotationsDialog_spanAnnotations"
+                      }
+                    ],
+                    "type": "Span",
+                    "abstractKey": null
+                  }
+                ],
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ],
     "type": "Mutation",
     "abstractKey": null
   },
@@ -108,19 +139,119 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "NewSpanAnnotationFormMutation",
-    "selections": (v1/*: any*/)
+    "selections": [
+      {
+        "alias": null,
+        "args": (v1/*: any*/),
+        "concreteType": "SpanAnnotationMutationPayload",
+        "kind": "LinkedField",
+        "name": "createSpanAnnotations",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "Query",
+            "kind": "LinkedField",
+            "name": "query",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": (v2/*: any*/),
+                "concreteType": null,
+                "kind": "LinkedField",
+                "name": "node",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "__typename",
+                    "storageKey": null
+                  },
+                  {
+                    "kind": "TypeDiscriminator",
+                    "abstractKey": "__isNode"
+                  },
+                  (v3/*: any*/),
+                  {
+                    "kind": "InlineFragment",
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "SpanAnnotation",
+                        "kind": "LinkedField",
+                        "name": "spanAnnotations",
+                        "plural": true,
+                        "selections": [
+                          (v3/*: any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "name",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "annotatorKind",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "score",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "label",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "explanation",
+                            "storageKey": null
+                          }
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "type": "Span",
+                    "abstractKey": null
+                  }
+                ],
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ]
   },
   "params": {
-    "cacheID": "0a925286639f9e4c3e0d8dd9a7fbb359",
+    "cacheID": "d6f016f4dfb0c142854c3ecd840b09f5",
     "id": null,
     "metadata": {},
     "name": "NewSpanAnnotationFormMutation",
     "operationKind": "mutation",
-    "text": "mutation NewSpanAnnotationFormMutation(\n  $input: CreateSpanAnnotationInput!\n) {\n  createSpanAnnotations(input: [$input]) {\n    spanAnnotations {\n      id\n      name\n    }\n  }\n}\n"
+    "text": "mutation NewSpanAnnotationFormMutation(\n  $input: CreateSpanAnnotationInput!\n  $spanId: GlobalID!\n) {\n  createSpanAnnotations(input: [$input]) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...EditSpanAnnotationsDialog_spanAnnotations\n        }\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n\nfragment EditSpanAnnotationsDialog_spanAnnotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f15659fb1f6af1293742a5fa1edf52e5";
+(node as any).hash = "ded0a7a64a2706f6ec472a63c1c57eca";
 
 export default node;
