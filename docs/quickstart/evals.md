@@ -80,7 +80,7 @@ qa_evaluator = QAEvaluator(eval_model)
 
 # Run the evaluations
 # Assume 'queries_df' is your input dataframe for Q&A correctness
-# and 'spans_df' is your input dataframe for hallucinations
+# and Hallucination.
 hallucination_eval_df, qa_eval_df = run_evals(
     dataframe=queries_df,
     evaluators=[hallucination_evaluator, qa_evaluator],
@@ -101,6 +101,10 @@ px.Client().log_evaluations(
 {% hint style="info" %}
 This quickstart uses OpenAI and requires an OpenAI API key, but we support a wide variety of APIs and [models](../api/evaluation-models.md).
 {% endhint %}
+
+Explanation of the parameters used in run\_evals above:
+
+* `dataframe` - a pandas dataframe that includes the data you want to evaluate. This could be spans exported from Phoenix, or data you've brought in from elsewhere. This dataframe must include the columns expected by the `evaluators` you are using. To see the columns expected by each built-in evaluator, check the corresponding page in the [Using Phoenix Evaluators](../evaluation/how-to-evals/running-pre-tested-evals/) section.
 
 ## 4. Analyze Your Evaluations
 

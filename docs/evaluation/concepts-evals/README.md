@@ -4,11 +4,11 @@ description: How to leverage Evals to validate and monitor your application
 
 # Concepts: Evals
 
-## [LLM as a Judge](./#llm-as-a-judge)
+## [LLM as a Judge](llm-as-a-judge.md)
 
-## [Eval Data Types](./#eval-data-types)
+## [Eval Data Types](evaluation-types.md)
 
-## [Evals With Explanations](evals-with-explanations.md)
+## [Evals With Explanations](./#evals-with-explanations)
 
 ## [Evaluators](evaluation.md)
 
