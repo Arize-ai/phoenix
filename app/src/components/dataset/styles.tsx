@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 
 export const metadataFieldWrapperCSS = css`
-  .ac-field__field {
+  .ac-view {
     width: 100%;
   }
 `;

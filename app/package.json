@@ -19,6 +19,7 @@
     "@tanstack/react-table": "^8.19.3",
     "@uiw/codemirror-theme-nord": "^4.23.0",
     "@uiw/react-codemirror": "^4.23.0",
+    "clsx": "^2.1.1",
     "copy-to-clipboard": "^3.3.3",
     "d3-format": "^3.1.0",
     "d3-scale-chromatic": "^3.1.0",

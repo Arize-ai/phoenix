@@ -11,7 +11,7 @@ import {
   View,
 } from "@arizeai/components";
 
-import { JSONEditor } from "@phoenix/components/code";
+import { CodeEditorFormWrapper, JSONEditor } from "@phoenix/components/code";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
 import { metadataFieldWrapperCSS } from "./styles";
@@ -113,12 +113,15 @@ export function DatasetForm({
                 validationState={invalid ? "invalid" : "valid"}
                 errorMessage={error?.message}
               >
-                <JSONEditor
-                  value={value}
-                  onChange={onChange}
-                  onBlur={onBlur}
-                  width="100%"
-                />
+                <CodeEditorFormWrapper
+                  validationState={invalid ? "invalid" : "valid"}
+                >
+                  <JSONEditor
+                    value={value}
+                    onChange={onChange}
+                    onBlur={onBlur}
+                  />
+                </CodeEditorFormWrapper>
               </Field>
             </div>
           )}
