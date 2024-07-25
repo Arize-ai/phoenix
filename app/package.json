@@ -6,7 +6,7 @@
   "license": "None",
   "private": true,
   "dependencies": {
-    "@arizeai/components": "^1.5.1",
+    "@arizeai/components": "^1.7.0",
     "@arizeai/openinference-semantic-conventions": "^0.8.0",
     "@arizeai/point-cloud": "^3.0.6",
     "@codemirror/autocomplete": "6.12.0",
@@ -19,7 +19,6 @@
     "@tanstack/react-table": "^8.19.3",
     "@uiw/codemirror-theme-nord": "^4.23.0",
     "@uiw/react-codemirror": "^4.23.0",
-    "clsx": "^2.1.1",
     "copy-to-clipboard": "^3.3.3",
     "d3-format": "^3.1.0",
     "d3-scale-chromatic": "^3.1.0",

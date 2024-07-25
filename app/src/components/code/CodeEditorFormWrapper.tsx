@@ -1,8 +1,13 @@
 import React, { ReactNode, useState } from "react";
-import { clsx as classNames } from "clsx";
 import { css } from "@emotion/react";
 
-import { Field, FieldProps, ValidationState } from "@arizeai/components";
+import {
+  classNames,
+  Field,
+  FieldProps,
+  theme,
+  ValidationState,
+} from "@arizeai/components";
 
 const codeEditorFormWrapperCSS = css`
   &.is-hovered {
@@ -14,13 +19,13 @@ const codeEditorFormWrapperCSS = css`
   &.is-invalid {
     border: 1px solid var(--ac-global-color-danger);
   }
-  border-radius: var(--ac-global-rounding-medium);
+  border-radius: ${theme.borderRadius.medium}px;
   border: 1px solid var(--ac-global-input-field-border-color);
   width: 100%;
   .cm-gutters,
   .cm-content,
   .cm-editor {
-    border-radius: var(--ac-global-rounding-medium);
+    border-radius: var(--ac-global-rounding-small);
   }
   .cm-focused {
     outline: none;
