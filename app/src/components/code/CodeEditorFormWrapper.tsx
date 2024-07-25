@@ -48,7 +48,7 @@ export function CodeEditorFormWrapper({
   const [isHovered, setIsHovered] = useState(false);
   const isInvalid = validationState === "invalid";
   return (
-    <Field {...fieldProps}>
+    <Field {...fieldProps} validationState={isInvalid ? "invalid" : "valid"}>
       <div
         className={classNames("json-editor-wrap", {
           "is-hovered": isHovered,
