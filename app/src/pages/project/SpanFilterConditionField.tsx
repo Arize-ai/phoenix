@@ -6,7 +6,14 @@ import React, {
   useState,
 } from "react";
 import { useParams } from "react-router";
-import { autocompletion, CompletionContext } from "@codemirror/autocomplete";
+import {
+  autocompletion,
+  CompletionContext,
+  CompletionResult,
+  hasNextSnippetField,
+  nextSnippetField,
+  snippetCompletion,
+} from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
 import { EditorView, keymap } from "@codemirror/view";
 import { nord } from "@uiw/codemirror-theme-nord";
@@ -70,7 +77,9 @@ const fieldCSS = css`
   box-sizing: border-box;
 `;
 
-function filterConditionCompletions(context: CompletionContext) {
+function filterConditionCompletions(
+  context: CompletionContext
+): CompletionResult | null {
   const word = context.matchBefore(/\w*/);
   if (!word) return null;
 
@@ -171,6 +180,37 @@ function filterConditionCompletions(context: CompletionContext) {
         apply: "evals['Hallucination'].label == 'hallucinated'",
         detail: "macro",
       },
+      snippetCompletion("annotations['${1}'].label == '${2}'", {
+        label: "Annotations",
+        type: "text",
+        detail: "macro",
+        
+      }),
+      {
+        label: "Annotations",
+        type: "text",
+        apply: (view, completion, from, to) => {
+          const ANNOTATIONS_SNIPPET_START = "annotations['";
+          const ANNOTATIONS_SNIPPET_MIDDLE = "'].label == '";
+          const ANNOTATIONS_SNIPPET_END = "'";
+          const ANNOTATIONS_SNIPPET =
+            ANNOTATIONS_SNIPPET_START +
+            ANNOTATIONS_SNIPPET_MIDDLE +
+            ANNOTATIONS_SNIPPET_END;
+          view.dispatch({
+            changes: { from, to, insert: ANNOTATIONS_SNIPPET },
+            selection: { anchor: from + ANNOTATIONS_SNIPPET_START.length },
+          });
+          // return {
+          //   cursor: from + ANNOTATIONS_SNIPPET_START.length,
+          //   nextCursor:
+          //     from +
+          //     ANNOTATIONS_SNIPPET_START.length +
+          //     ANNOTATIONS_SNIPPET_MIDDLE.length,
+          // };
+        },
+        detail: "macro",
+      },
       {
         label: "Metadata",
         type: "text",
@@ -233,6 +273,14 @@ const extensions = [
         return true;
       },
     },
+    // {
+    //   key: "Tab",
+    //   run: (e) => {
+    //     console.log("test--");
+    //     debugger;
+    //     return nextSnippetField(e);
+    //   },
+    // },
   ]),
   python(),
   autocompletion({ override: [filterConditionCompletions] }),
@@ -271,8 +319,11 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   useEffect(() => {
     isConditionValid(deferredFilterCondition, projectId as string).then(
       (result) => {
-        if (!result?.isValid && result?.errorMessage) {
-          setErrorMessage(result.errorMessage);
+        if (!result?.isValid) {
+          if (result?.errorMessage) {
+            setErrorMessage(result.errorMessage);
+            return;
+          }
         } else {
           setErrorMessage("");
           startTransition(() => {
@@ -298,6 +349,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
         </AddonBefore>
         <CodeMirror
           css={codeMirrorCSS}
+          indentWithTab={false}
           basicSetup={{
             lineNumbers: false,
             foldGutter: false,
@@ -306,6 +358,9 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
             highlightActiveLine: false,
             highlightActiveLineGutter: false,
             defaultKeymap: false,
+          }}
+          onKeyDown={(e) => {
+          if {e.key === ""}
           }}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
