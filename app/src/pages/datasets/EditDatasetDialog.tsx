@@ -8,12 +8,14 @@ export function EditDatasetDialog({
   datasetName,
   datasetId,
   datasetDescription,
+  datasetMetadata,
   onDatasetEdited,
   onDatasetEditError,
 }: {
   datasetName: string;
   datasetId: string;
   datasetDescription?: string | null;
+  datasetMetadata?: Record<string, unknown> | null;
   onDatasetEdited: () => void;
   onDatasetEditError: (error: Error) => void;
 }) {
@@ -23,6 +25,7 @@ export function EditDatasetDialog({
         datasetName={datasetName}
         datasetId={datasetId}
         datasetDescription={datasetDescription}
+        datasetMetadata={datasetMetadata}
         onDatasetEdited={onDatasetEdited}
         onDatasetEditError={onDatasetEditError}
       />

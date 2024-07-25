@@ -17,6 +17,7 @@ type DatasetActionMenuProps = {
   datasetId: string;
   datasetName: string;
   datasetDescription?: string | null;
+  datasetMetadata?: Record<string, unknown> | null;
   onDatasetDelete: () => void;
   onDatasetDeleteError: (error: Error) => void;
   onDatasetEdit: () => void;
@@ -33,6 +34,7 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
     datasetId,
     datasetName,
     datasetDescription,
+    datasetMetadata,
     onDatasetDelete,
     onDatasetDeleteError,
     onDatasetEdit,
@@ -60,6 +62,7 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
         datasetId={datasetId}
         datasetName={datasetName}
         datasetDescription={datasetDescription}
+        datasetMetadata={datasetMetadata}
         onDatasetEdited={() => {
           onDatasetEdit();
           setDialog(null);
@@ -70,6 +73,7 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
   }, [
     datasetDescription,
     datasetId,
+    datasetMetadata,
     datasetName,
     onDatasetEdit,
     onDatasetEditError,

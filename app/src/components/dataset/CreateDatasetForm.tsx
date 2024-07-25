@@ -148,12 +148,7 @@ export function CreateDatasetForm(props: CreateDatasetFormProps) {
                 validationState={invalid ? "invalid" : "valid"}
                 errorMessage={error?.message}
               >
-                <JSONEditor
-                  value={value}
-                  onChange={onChange}
-                  onBlur={onBlur}
-                  width="100%"
-                />
+                <JSONEditor value={value} onChange={onChange} onBlur={onBlur} />
               </Field>
             </div>
           )}

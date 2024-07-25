@@ -46,7 +46,7 @@ export function EditDatasetForm({
     defaultValues: {
       name: datasetName,
       description: datasetDescription,
-      metadata: datasetMetadata ?? "{}",
+      metadata: JSON.stringify(datasetMetadata, null, 2) ?? "{}",
     },
   });
   const [commit, isCommitting] = useMutation<EditDatasetFormMutation>(graphql`
