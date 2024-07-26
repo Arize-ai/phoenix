@@ -4,6 +4,7 @@ import { createSpanTree } from "../utils";
 describe("createSpanTree", () => {
   const traceSpans: ISpanItem[] = [
     {
+      id: "1",
       spanKind: "chain",
       name: "query",
       statusCode: "OK",
@@ -16,6 +17,7 @@ describe("createSpanTree", () => {
       },
     },
     {
+      id: "2",
       spanKind: "chain",
       name: "synthesize",
       statusCode: "OK",
@@ -28,6 +30,7 @@ describe("createSpanTree", () => {
       },
     },
     {
+      id: "3",
       spanKind: "llm",
       name: "llm",
       statusCode: "OK",
@@ -41,6 +44,7 @@ describe("createSpanTree", () => {
       },
     },
     {
+      id: "4",
       spanKind: "retriever",
       name: "retrieve",
       statusCode: "OK",
@@ -54,6 +58,7 @@ describe("createSpanTree", () => {
       },
     },
     {
+      id: "5",
       spanKind: "embedding",
       name: "embedding",
       statusCode: "OK",
