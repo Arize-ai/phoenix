@@ -27,25 +27,24 @@ async def test_sending_evaluations_before_span(
         ]
     ).set_index("context.span_id", drop=False)
     eval_name, project_name = fake.pystr(), fake.pystr()
-    z = fake.pyfloat(0, 1)
     for i in range(10, -1, -1):
-        s = z - i * fake.pyfloat()
+        s = i * fake.pyfloat()
         await acall(
             px_client.log_evaluations,
             SpanEvaluations(
                 eval_name,
-                pd.DataFrame([dict(score=s - j, span_id=_) for j, _ in enumerate(span_ids)]),
+                pd.DataFrame([dict(score=j + s, span_id=_) for j, _ in enumerate(span_ids)]),
             ),
             TraceEvaluations(
                 eval_name,
-                pd.DataFrame([dict(score=s - j, trace_id=_) for j, _ in enumerate(trace_ids)]),
+                pd.DataFrame([dict(score=j + s, trace_id=_) for j, _ in enumerate(trace_ids)]),
             ),
             DocumentEvaluations(
                 eval_name,
                 pd.DataFrame(
-                    [dict(score=s - j, span_id=_, position=0) for j, _ in enumerate(span_ids)]
+                    [dict(score=j + s, span_id=_, position=0) for j, _ in enumerate(span_ids)]
                     + [
-                        dict(score=s - j, span_id=_, position=999_999_999)
+                        dict(score=j + s, span_id=_, position=999_999_999)
                         for j, _ in enumerate(span_ids)
                     ]
                 ),
@@ -62,14 +61,13 @@ async def test_sending_evaluations_before_span(
     assert len(evals) == 3
     for e in evals:
         _ = e.dataframe.sort_index()
+        assert len(_) == size
+        assert _.score.to_list() == list(range(size))
         if isinstance(e, SpanEvaluations):
             assert _.index.to_list() == span_ids
-            assert _.score.to_list() == [z - j for j in range(size)]
         elif isinstance(e, TraceEvaluations):
             assert _.index.to_list() == trace_ids
-            assert _.score.to_list() == [z - j for j in range(size)]
         elif isinstance(e, DocumentEvaluations):
             assert _.index.to_list() == [(span_id, 0) for span_id in span_ids]
-            assert _.score.to_list() == [z - j for j in range(size)]
         else:
             assert_never(e)
