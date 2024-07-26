@@ -127,13 +127,13 @@ class _AnnoAttr(NamedTuple):
     updated_at: datetime
 
 
-def _key(_: Received[Precursors.SpanAnnotation]) -> _Key:
-    return _.item.entity.name, _.item.span_id
+def _key(p: Received[Precursors.SpanAnnotation]) -> _Key:
+    return p.item.entity.name, p.item.span_id
 
 
-def _unique_by(_: Received[Insertables.SpanAnnotation]) -> _UniqueBy:
-    return _.item.entity.name, _.item.span_rowid
+def _unique_by(p: Received[Insertables.SpanAnnotation]) -> _UniqueBy:
+    return p.item.entity.name, p.item.span_rowid
 
 
-def _time(_: Received[Any]) -> datetime:
-    return _.received_at
+def _time(p: Received[Any]) -> datetime:
+    return p.received_at

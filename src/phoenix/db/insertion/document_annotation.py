@@ -43,7 +43,7 @@ class DocumentAnnotationQueueInserter(
         to_discard: List[Received[Precursors.DocumentAnnotation]] = []
 
         dialect = SupportedSQLDialect(session.bind.dialect.name)
-        stmt = _select_existing(*map(_key, parcels), dialect=dialect)
+        stmt = _select_existing(dialect, *map(_key, parcels))
         existing = [_ async for _ in await session.stream(stmt)]
         existing_spans: Mapping[str, _SpanAttr] = {
             span_id: _SpanAttr(span_rowid, num_docs)
@@ -97,8 +97,8 @@ class DocumentAnnotationQueueInserter(
 
 
 def _select_existing(
-    *identifiers: Tuple[str, str, int],
     dialect: SupportedSQLDialect,
+    *identifiers: Tuple[str, str, int],
 ) -> Select[Tuple[int, str, int, str, int, datetime]]:
     existing = (
         select(
@@ -143,13 +143,13 @@ class _AnnoAttr(NamedTuple):
     updated_at: datetime
 
 
-def _key(_: Received[Precursors.DocumentAnnotation]) -> _Key:
-    return _.item.entity.name, _.item.span_id, _.item.document_position
+def _key(p: Received[Precursors.DocumentAnnotation]) -> _Key:
+    return p.item.entity.name, p.item.span_id, p.item.document_position
 
 
-def _unique_by(_: Received[Insertables.DocumentAnnotation]) -> _UniqueBy:
-    return _.item.entity.name, _.item.span_rowid, _.item.document_position
+def _unique_by(p: Received[Insertables.DocumentAnnotation]) -> _UniqueBy:
+    return p.item.entity.name, p.item.span_rowid, p.item.document_position
 
 
-def _time(_: Received[Any]) -> datetime:
-    return _.received_at
+def _time(p: Received[Any]) -> datetime:
+    return p.received_at

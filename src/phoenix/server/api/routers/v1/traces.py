@@ -151,12 +151,12 @@ async def annotate_traces(
     request_body: AnnotateTracesRequestBody,
     sync: bool = Query(default=True, description="If true, fulfill request synchronously."),
 ) -> AnnotateTracesResponseBody:
-    precursors = [_.as_precursor() for _ in request_body.data]
+    precursors = [d.as_precursor() for d in request_body.data]
     if not sync:
         await request.state.enqueue(*precursors)
         return AnnotateTracesResponseBody(data=[])
 
-    trace_ids = {_.trace_id for _ in precursors}
+    trace_ids = {p.trace_id for p in precursors}
     async with request.app.state.db() as session:
         existing_traces = {
             trace.trace_id: trace.id
@@ -175,8 +175,8 @@ async def annotate_traces(
         inserted_annotations = []
 
         dialect = SupportedSQLDialect(session.bind.dialect.name)
-        for _ in precursors:
-            values = dict(as_kv(_.as_insertable(existing_traces[_.trace_id]).row))
+        for p in precursors:
+            values = dict(as_kv(p.as_insertable(existing_traces[p.trace_id]).row))
             trace_annotation_id = await session.scalar(
                 insert_on_conflict(
                     values,

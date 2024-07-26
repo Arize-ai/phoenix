@@ -127,13 +127,13 @@ class _AnnoAttr(NamedTuple):
     updated_at: datetime
 
 
-def _key(_: Received[Precursors.TraceAnnotation]) -> _Key:
-    return _.item.entity.name, _.item.trace_id
+def _key(p: Received[Precursors.TraceAnnotation]) -> _Key:
+    return p.item.entity.name, p.item.trace_id
 
 
-def _unique_by(_: Received[Insertables.TraceAnnotation]) -> _UniqueBy:
-    return _.item.entity.name, _.item.trace_rowid
+def _unique_by(p: Received[Insertables.TraceAnnotation]) -> _UniqueBy:
+    return p.item.entity.name, p.item.trace_rowid
 
 
-def _time(_: Received[Any]) -> datetime:
-    return _.received_at
+def _time(p: Received[Any]) -> datetime:
+    return p.received_at

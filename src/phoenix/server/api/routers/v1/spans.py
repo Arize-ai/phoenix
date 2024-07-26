@@ -195,12 +195,12 @@ async def annotate_spans(
     request_body: AnnotateSpansRequestBody,
     sync: bool = Query(default=True, description="If true, fulfill request synchronously."),
 ) -> AnnotateSpansResponseBody:
-    precursors = [_.as_precursor() for _ in request_body.data]
+    precursors = [d.as_precursor() for d in request_body.data]
     if not sync:
         await request.state.enqueue(*precursors)
         return AnnotateSpansResponseBody(data=[])
 
-    span_ids = {_.span_id for _ in precursors}
+    span_ids = {p.span_id for p in precursors}
     async with request.app.state.db() as session:
         existing_spans = {
             span.span_id: span.id
@@ -219,8 +219,8 @@ async def annotate_spans(
         inserted_annotations = []
 
         dialect = SupportedSQLDialect(session.bind.dialect.name)
-        for _ in precursors:
-            values = dict(as_kv(_.as_insertable(existing_spans[_.span_id]).row))
+        for p in precursors:
+            values = dict(as_kv(p.as_insertable(existing_spans[p.span_id]).row))
             span_annotation_id = await session.scalar(
                 insert_on_conflict(
                     values,
