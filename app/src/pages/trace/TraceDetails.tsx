@@ -1,4 +1,4 @@
-import React, { PropsWithChildren, useEffect, useMemo } from "react";
+import React, { PropsWithChildren, Suspense, useEffect, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useSearchParams } from "react-router-dom";
@@ -6,6 +6,7 @@ import { css } from "@emotion/react";
 
 import { Flex, Text, View } from "@arizeai/components";
 
+import { Loading } from "@phoenix/components";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
@@ -19,6 +20,8 @@ import {
   TraceDetailsQuery$data,
 } from "./__generated__/TraceDetailsQuery.graphql";
 import { SpanDetails } from "./SpanDetails";
+
+export const SELECTED_SPAN_NODE_ID_URL_PARAM = "selectedSpanNodeId";
 
 type Span = NonNullable<
   TraceDetailsQuery$data["project"]["trace"]
@@ -70,46 +73,17 @@ export function TraceDetails(props: TraceDetailsProps) {
                     name
                     spanKind
                     statusCode: propagatedStatusCode
-                    statusMessage
                     startTime
                     parentId
                     latencyMs
                     tokenCountTotal
                     tokenCountPrompt
                     tokenCountCompletion
-                    input {
-                      value
-                      mimeType
-                    }
-                    output {
-                      value
-                      mimeType
-                    }
-                    attributes
-                    events {
-                      name
-                      message
-                      timestamp
-                    }
                     spanEvaluations {
                       name
                       label
                       score
                     }
-                    documentRetrievalMetrics {
-                      evaluationName
-                      ndcg
-                      precision
-                      hit
-                    }
-                    documentEvaluations {
-                      documentPosition
-                      name
-                      label
-                      score
-                      explanation
-                    }
-                    ...SpanEvaluationsTable_evals
                   }
                 }
               }
@@ -127,11 +101,9 @@ export function TraceDetails(props: TraceDetailsProps) {
     const gqlSpans = data.project.trace?.spans.edges || [];
     return gqlSpans.map((node) => node.span);
   }, [data]);
-  const urlSelectedSpanId = searchParams.get("selectedSpanId");
-  const selectedSpanId = urlSelectedSpanId ?? spansList[0].context.spanId;
-  const selectedSpan = spansList.find(
-    (span) => span.context.spanId === selectedSpanId
-  );
+  const urlSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_URL_PARAM);
+  const selectedSpanNodeId = urlSpanNodeId ?? spansList[0].id;
+  const selectedSpan = spansList.find((span) => span.id === selectedSpanNodeId);
   const rootSpan = useMemo(() => findRootSpan(spansList), [spansList]);
 
   // Clear the selected span param when the component unmounts
@@ -139,7 +111,7 @@ export function TraceDetails(props: TraceDetailsProps) {
     return () => {
       setSearchParams(
         (searchParams) => {
-          searchParams.delete("selectedSpanId");
+          searchParams.delete("spanNodeId");
           return searchParams;
         },
         { replace: true }
@@ -169,11 +141,11 @@ export function TraceDetails(props: TraceDetailsProps) {
           <ScrollingPanelContent>
             <TraceTree
               spans={spansList}
-              selectedSpanId={selectedSpanId}
-              onSpanClick={(spanId) => {
+              selectedSpanNodeId={selectedSpanNodeId}
+              onSpanClick={(span) => {
                 setSearchParams(
                   (searchParams) => {
-                    searchParams.set("selectedSpanId", spanId);
+                    searchParams.set(SELECTED_SPAN_NODE_ID_URL_PARAM, span.id);
                     return searchParams;
                   },
                   { replace: true }
@@ -185,8 +157,10 @@ export function TraceDetails(props: TraceDetailsProps) {
         <PanelResizeHandle css={resizeHandleCSS} />
         <Panel>
           <ScrollingTabsWrapper>
-            {selectedSpan ? (
-              <SpanDetails selectedSpan={selectedSpan} projectId={projectId} />
+            {selectedSpan && urlSpanNodeId ? (
+              <Suspense fallback={<Loading />}>
+                <SpanDetails spanNodeId={urlSpanNodeId} projectId={projectId} />
+              </Suspense>
             ) : null}
           </ScrollingTabsWrapper>
         </Panel>
@@ -201,8 +175,8 @@ function TraceHeader({ rootSpan }: { rootSpan: Span | null }) {
     statusCode: "UNSET",
     spanEvaluations: [],
   };
+  const hasEvaluations = spanEvaluations.length > 0;
   const statusColor = useSpanStatusCodeColor(statusCode);
-  const hasEvaluations = spanEvaluations.length;
   return (
     <View padding="size-200" borderBottomWidth="thin" borderBottomColor="dark">
       <Flex direction="row" gap="size-400">

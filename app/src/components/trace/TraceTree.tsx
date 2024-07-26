@@ -13,12 +13,12 @@ import { createSpanTree, SpanTreeNode } from "./utils";
 
 type TraceTreeProps = {
   spans: ISpanItem[];
-  onSpanClick?: (spanId: string) => void;
-  selectedSpanId: string;
+  onSpanClick?: (span: ISpanItem) => void;
+  selectedSpanNodeId: string;
 };
 
 export function TraceTree(props: TraceTreeProps) {
-  const { spans, onSpanClick, selectedSpanId } = props;
+  const { spans, onSpanClick, selectedSpanNodeId } = props;
   const spanTree = createSpanTree(spans);
   return (
     <ul
@@ -31,10 +31,10 @@ export function TraceTree(props: TraceTreeProps) {
     >
       {spanTree.map((spanNode) => (
         <SpanTreeItem
-          key={spanNode.span.context.spanId}
+          key={spanNode.span.id}
           node={spanNode}
           onSpanClick={onSpanClick}
-          selectedSpanId={selectedSpanId}
+          selectedSpanNodeId={selectedSpanNodeId}
         />
       ))}
     </ul>
@@ -43,10 +43,10 @@ export function TraceTree(props: TraceTreeProps) {
 
 function SpanTreeItem<TSpan extends ISpanItem>(props: {
   node: SpanTreeNode<TSpan>;
-  selectedSpanId: string;
-  onSpanClick?: (spanId: string) => void;
+  selectedSpanNodeId: string;
+  onSpanClick?: (span: ISpanItem) => void;
 }) {
-  const { node, selectedSpanId, onSpanClick } = props;
+  const { node, selectedSpanNodeId, onSpanClick } = props;
   const childNodes = node.children;
   return (
     <div>
@@ -58,11 +58,11 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
         `}
         onClick={() => {
           startTransition(() => {
-            onSpanClick && onSpanClick(node.span.context.spanId);
+            onSpanClick && onSpanClick(node.span);
           });
         }}
       >
-        <SpanNodeWrap isSelected={selectedSpanId === node.span.context.spanId}>
+        <SpanNodeWrap isSelected={selectedSpanNodeId === node.span.id}>
           <Flex
             direction="row"
             gap="size-100"
@@ -102,7 +102,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
                 <SpanTreeItem
                   node={leafNode}
                   onSpanClick={onSpanClick}
-                  selectedSpanId={selectedSpanId}
+                  selectedSpanNodeId={selectedSpanNodeId}
                 />
               </div>
             );

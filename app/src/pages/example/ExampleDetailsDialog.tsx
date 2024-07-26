@@ -47,8 +47,8 @@ export function ExampleDetailsDialog({
               metadata
             }
             span {
+              id
               context {
-                spanId
                 traceId
               }
               project {
@@ -77,7 +77,7 @@ export function ExampleDetailsDialog({
       return null;
     }
     return {
-      spanId: sourceSpan.context.spanId,
+      id: sourceSpan.id,
       traceId: sourceSpan.context.traceId,
       projectId: sourceSpan.project.id,
     };
@@ -98,7 +98,7 @@ export function ExampleDetailsDialog({
                 size="compact"
                 onClick={() => {
                   navigate(
-                    `/projects/${sourceSpanInfo.projectId}/traces/${sourceSpanInfo.traceId}?selectedSpanId=${sourceSpanInfo.spanId}`
+                    `/projects/${sourceSpanInfo.projectId}/traces/${sourceSpanInfo.traceId}?selectedSpanNodeId=${sourceSpanInfo.id}`
                   );
                 }}
               >

@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 import { json } from "@codemirror/lang-json";
 import { nord } from "@uiw/codemirror-theme-nord";
@@ -80,8 +81,9 @@ import { RetrievalEvaluationLabel } from "../project/RetrievalEvaluationLabel";
 
 import {
   MimeType,
-  TraceDetailsQuery$data,
-} from "./__generated__/TraceDetailsQuery.graphql";
+  SpanDetailsQuery,
+  SpanDetailsQuery$data,
+} from "./__generated__/SpanDetailsQuery.graphql";
 import { EditSpanAnnotationsButton } from "./EditSpanAnnotationsButton";
 import { SpanCodeDropdown } from "./SpanCodeDropdown";
 import { SpanEvaluationsTable } from "./SpanEvaluationsTable";
@@ -98,11 +100,9 @@ type AttributeObject = {
   [SemanticAttributePrefixes.llm]?: AttributeLlm;
 };
 
-type Span = NonNullable<
-  TraceDetailsQuery$data["project"]["trace"]
->["spans"]["edges"][number]["span"];
+type Span = Extract<SpanDetailsQuery$data["span"], { __typename: "Span" }>;
 
-type DocumentEvaluation = Span["documentEvaluations"][number];
+type DocumentEvaluation = NonNullable<Span["documentEvaluations"]>[number];
 
 /**
  * Hook that safely parses a JSON string.
@@ -134,15 +134,87 @@ const defaultCardProps: Partial<CardProps> = {
 };
 
 export function SpanDetails({
-  selectedSpan,
+  spanNodeId,
   projectId,
 }: {
-  selectedSpan: Span;
+  /**
+   * The Global ID of the span
+   */
+  spanNodeId: string;
   projectId: string;
 }) {
+  const { span } = useLazyLoadQuery<SpanDetailsQuery>(
+    graphql`
+      query SpanDetailsQuery($spanId: GlobalID!) {
+        span: node(id: $spanId) {
+          __typename
+          ... on Span {
+            id
+            context {
+              spanId
+              traceId
+            }
+            name
+            spanKind
+            statusCode: propagatedStatusCode
+            statusMessage
+            startTime
+            parentId
+            latencyMs
+            tokenCountTotal
+            tokenCountPrompt
+            tokenCountCompletion
+            input {
+              value
+              mimeType
+            }
+            output {
+              value
+              mimeType
+            }
+            attributes
+            events @required(action: THROW) {
+              name
+              message
+              timestamp
+            }
+            spanEvaluations {
+              name
+              label
+              score
+            }
+            documentRetrievalMetrics {
+              evaluationName
+              ndcg
+              precision
+              hit
+            }
+            documentEvaluations {
+              documentPosition
+              name
+              label
+              score
+              explanation
+            }
+            ...SpanEvaluationsTable_evals
+          }
+        }
+      }
+    `,
+    {
+      spanId: spanNodeId,
+    }
+  );
+
+  if (span.__typename !== "Span") {
+    throw new Error(
+      "Expected a span, but got a different type" + span.__typename
+    );
+  }
+
   const hasExceptions = useMemo<boolean>(() => {
-    return spanHasException(selectedSpan);
-  }, [selectedSpan]);
+    return spanHasException(span);
+  }, [span]);
   const showAnnotations = useFeatureFlag("annotations");
   return (
     <Flex direction="column" flex="1 1 auto" height="100%">
@@ -159,16 +231,16 @@ export function SpanDetails({
           justifyContent="space-between"
           alignItems="center"
         >
-          <SpanItem {...selectedSpan} />
+          <SpanItem {...span} />
           <Flex flex="none" direction="row" alignItems="center" gap="size-100">
             <SpanCodeDropdown
-              traceId={selectedSpan.context.traceId}
-              spanId={selectedSpan.context.spanId}
+              traceId={span.context.traceId}
+              spanId={span.context.spanId}
             />
-            <AddSpanToDatasetButton span={selectedSpan} />
+            <AddSpanToDatasetButton span={span} />
             {showAnnotations ? (
               <EditSpanAnnotationsButton
-                spanNodeId={selectedSpan.id}
+                spanNodeId={span.id}
                 projectId={projectId}
               />
             ) : null}
@@ -177,18 +249,16 @@ export function SpanDetails({
       </View>
       <Tabs>
         <TabPane name={"Info"}>
-          <SpanInfo span={selectedSpan} />
+          <SpanInfo span={span} />
         </TabPane>
         <TabPane
           name={"Evaluations"}
           extra={
-            <Counter variant={"light"}>
-              {selectedSpan.spanEvaluations.length}
-            </Counter>
+            <Counter variant={"light"}>{span.spanEvaluations.length}</Counter>
           }
         >
           {(selected) => {
-            return selected ? <SpanEvaluations span={selectedSpan} /> : null;
+            return selected ? <SpanEvaluations span={span} /> : null;
           }}
         </TabPane>
         <TabPane name={"Attributes"} title="Attributes">
@@ -197,10 +267,10 @@ export function SpanDetails({
               title="All Attributes"
               {...defaultCardProps}
               titleExtra={attributesContextualHelp}
-              extra={<CopyToClipboardButton text={selectedSpan.attributes} />}
+              extra={<CopyToClipboardButton text={span.attributes} />}
               bodyStyle={{ padding: 0 }}
             >
-              <JSONBlock>{selectedSpan.attributes}</JSONBlock>
+              <JSONBlock>{span.attributes}</JSONBlock>
             </Card>
           </View>
         </TabPane>
@@ -208,11 +278,11 @@ export function SpanDetails({
           name={"Events"}
           extra={
             <Counter variant={hasExceptions ? "danger" : "light"}>
-              {selectedSpan.events.length}
+              {span.events.length}
             </Counter>
           }
         >
-          <SpanEventsList events={selectedSpan.events} />
+          <SpanEventsList events={span.events} />
         </TabPane>
       </Tabs>
     </Flex>

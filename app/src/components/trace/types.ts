@@ -2,6 +2,7 @@
  * A generic interface for a span to be re-used as a constraint
  */
 export interface ISpanItem {
+  id: string;
   name: string;
   spanKind: string;
   statusCode: SpanStatusCodeType;
