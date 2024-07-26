@@ -20,6 +20,8 @@ with using_prompt_template(
     variables=prompt_template_variables,
     version="v1.0",
     ):
+    # Commonly preceeds a chat completion to append templates to auto instrumentation
+    # response = client.chat.completions.create()
     # Calls within this block will generate spans with the attributes:
     # "llm.prompt_template.template" = "Please describe the weather forecast for {city} on {date}"
     # "llm.prompt_template.version" = "v1.0"
