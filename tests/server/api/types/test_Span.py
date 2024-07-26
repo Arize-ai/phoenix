@@ -153,7 +153,7 @@ async def project_with_a_single_trace_and_span(
 
 @pytest.fixture
 async def simple_dataset(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
 ) -> None:
     """
     A dataset with one example added in one version
