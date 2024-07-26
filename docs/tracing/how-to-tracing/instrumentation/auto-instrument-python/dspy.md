@@ -1,5 +1,5 @@
 ---
-description: Instrument and observe your DSPy application
+description: Instrument and observe your DSPy application via the DSPyInstrumentor
 ---
 
 # DSPy

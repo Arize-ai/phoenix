@@ -4,7 +4,7 @@ description: Tracing the execution of LLM applications using Telemetry
 
 # Overview: Tracing
 
-Tracing is a powerful tool for understanding how your LLM application works. Phoenix has best-class tracing capabilities and is not tied to any LLM vendor or framework.
+Tracing is a powerful tool for understanding how your LLM application works. Phoenix has best-class tracing capabilities and is not tied to any LLM vendor or framework. Phoenix accepts traces over the OpenTelemetry protocol (OTLP) and supports first-class instrumentation for a variety of frameworks ( [LlamaIndex](../tracing/how-to-tracing/instrumentation/auto-instrument-python/llamaindex.md), [LangChain](../tracing/how-to-tracing/instrumentation/auto-instrument-python/langchain.md),[ DSPy](../tracing/how-to-tracing/instrumentation/auto-instrument-python/dspy.md)),  SDKs ([OpenAI](../tracing/how-to-tracing/instrumentation/auto-instrument-python/openai.md), [Bedrock](../tracing/how-to-tracing/instrumentation/auto-instrument-python/bedrock.md), [Mistral](../tracing/how-to-tracing/instrumentation/auto-instrument-python/mistralai.md), [Vertex](../tracing/how-to-tracing/instrumentation/auto-instrument-python/vertexai.md)), and Languages. (Python, Javascript, etc.)
 
 Tracing can help you track down issues like:
 

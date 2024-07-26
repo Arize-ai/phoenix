@@ -1,5 +1,7 @@
 ---
-description: Instrument LLM calls to AWS Bedrock via the boto3 client using OpenInference.
+description: >-
+  Instrument LLM calls to AWS Bedrock via the boto3 client using the
+  BedrockInstrumentor
 ---
 
 # Bedrock

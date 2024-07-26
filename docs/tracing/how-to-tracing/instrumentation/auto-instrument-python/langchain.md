@@ -1,3 +1,7 @@
+---
+description: How to use the python LangChainInstrumentor to trace LangChain and LangGraph
+---
+
 # LangChain
 
 Phoenix has first-class support for [LangChain](https://langchain.com/) applications.
@@ -9,7 +13,7 @@ import phoenix as px
 session = px.launch_app()
 ```
 
-Once you have started a Phoenix server,  You will instrument LangChain so that spans are created whenever you run a chain.
+Once you have started a Phoenix server,  You will instrument LangChain via the `LangChainInstrumentor` so that spans are created whenever you run a chain.
 
 {% tabs %}
 {% tab title="Python" %}

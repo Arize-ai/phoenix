@@ -6,22 +6,22 @@ description: Inspect the inner-workings of your LLM Application using OpenInfere
 
 ## Overview
 
-Tracing is a powerful tool for understanding the behavior of your LLM application. Phoenix has best-in-class tracing, irregardless of what framework you use.
+Tracing is a powerful tool for understanding the behavior of your LLM application. Phoenix has best-in-class tracing, irregardless of what framework you use and has first-class instrumentation for a variety of frameworks ( [LlamaIndex](../tracing/how-to-tracing/instrumentation/auto-instrument-python/llamaindex.md), [LangChain](../tracing/how-to-tracing/instrumentation/auto-instrument-python/langchain.md),[ DSPy](../tracing/how-to-tracing/instrumentation/auto-instrument-python/dspy.md)),  SDKs ([OpenAI](../tracing/how-to-tracing/instrumentation/auto-instrument-python/openai.md), [Bedrock](../tracing/how-to-tracing/instrumentation/auto-instrument-python/bedrock.md), [Mistral](../tracing/how-to-tracing/instrumentation/auto-instrument-python/mistralai.md), [Vertex](../tracing/how-to-tracing/instrumentation/auto-instrument-python/vertexai.md)), and Languages (Python, Javascript). You can also [manually instrument](../tracing/how-to-tracing/manual-instrumentation/) your application using the OpenTelemetry SDK.
 
-To get started with traces, you will first want to start a local Phoenix app.
+To get started with traces, you will first want to start a local Phoenix app. Below we will explore how to use Phoenix in a notebook but you can [deploy phoenix ](../deployment/) once you are ready for a persistent observability platform.
 
 In your Jupyter or Colab environment, run the following command to install.
 
 {% tabs %}
 {% tab title="Using pip" %}
 ```sh
-pip install 'arize-phoenix[evals]'
+pip install arize-phoenix
 ```
 {% endtab %}
 
 {% tab title="Using conda" %}
 ```sh
-conda install -c conda-forge arize-phoenix[evals]
+conda install -c conda-forge arize-phoenix
 ```
 {% endtab %}
 {% endtabs %}
@@ -43,7 +43,7 @@ The above launches a Phoenix server that acts as a trace collector for any LLM a
 
 The `launch_app` command will spit out a URL for you to view the Phoenix UI. You can access this url again at any time via the [session](../api/session.md).\
 \
-Now that phoenix is up and running, you can now run a [LlamaIndex](../tracing/how-to-tracing/instrumentation/auto-instrument-python/llamaindex.md) or [LangChain](../tracing/how-to-tracing/instrumentation/auto-instrument-python/langchain.md) application OR just run the OpenAI API and debug your application as the traces stream in.
+Now that phoenix is up and running, you can setup tracing for your AI application so that you can debug your application as the traces stream in.
 
 {% tabs %}
 {% tab title="LlamaIndex" %}
@@ -208,17 +208,6 @@ response = client.chat.completions.create(
 # Extract and print the assistant's reply
 # The traces will be available in the Phoenix App for the above messsages
 assistant_reply = response.choices[0].message.content
-```
-{% endtab %}
-
-{% tab title="AutoGen" %}
-```python
-from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
-from phoenix.trace.openai import OpenAIInstrumentor
-
-import phoenix as px
-px.launch_app()
-OpenAIInstrumentor().instrument()
 ```
 {% endtab %}
 {% endtabs %}

@@ -1,5 +1,5 @@
 ---
-description: Instrument LLM calls made using VertexAI's SDK
+description: Instrument LLM calls made using VertexAI's SDK via the VertexAIInstrumentor
 ---
 
 # VertexAI
