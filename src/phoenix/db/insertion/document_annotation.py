@@ -93,13 +93,7 @@ class DocumentAnnotationQueueInserter(
                 to_discard.append(p)
 
         assert len(to_insert) + len(to_postpone) + len(to_discard) == len(parcels)
-
-        if to_insert:
-            to_insert = dedup(
-                sorted(to_insert, key=lambda p: p.received_at, reverse=True),
-                lambda p: (p.item.entity.name, p.item.span_rowid),
-            )[::-1]
-
+        to_insert = dedup(sorted(to_insert, key=_time, reverse=True), _unique_by)[::-1]
         return to_insert, to_postpone, to_discard
 
 

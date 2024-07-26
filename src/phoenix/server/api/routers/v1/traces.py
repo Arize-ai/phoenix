@@ -175,8 +175,8 @@ async def annotate_traces(
         inserted_annotations = []
 
         dialect = SupportedSQLDialect(session.bind.dialect.name)
-        for p in precursors:
-            values = dict(as_kv(p.as_insertable(existing_traces[p.trace_id]).row()))
+        for _ in precursors:
+            values = dict(as_kv(_.as_insertable(existing_traces[_.trace_id]).row))
             trace_annotation_id = await session.scalar(
                 insert_on_conflict(
                     values,

@@ -31,6 +31,7 @@ logger = logging.getLogger("__name__")
 
 
 class Insertable(Protocol):
+    @property
     def row(self) -> models.Base: ...
 
 
@@ -123,7 +124,7 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT]):
         session: AsyncSession,
         *insertions: Received[_InsertableT],
     ) -> List[Postponed[_PrecursorT]]:
-        records = [dict(as_kv(_.item.row())) for _ in insertions]
+        records = [dict(as_kv(_.item.row)) for _ in insertions]
         dialect = SupportedSQLDialect(session.bind.dialect.name)
         to_postpone = []
         try:
@@ -222,6 +223,7 @@ class Insertables(ABC):
         span_rowid: int
         id_: Optional[int]
 
+        @property
         def row(self) -> models.SpanAnnotation:
             ans = copy(self.entity)
             ans.span_rowid = self.span_rowid
@@ -234,6 +236,7 @@ class Insertables(ABC):
         trace_rowid: int
         id_: Optional[int]
 
+        @property
         def row(self) -> models.TraceAnnotation:
             ans = copy(self.entity)
             ans.trace_rowid = self.trace_rowid
@@ -246,6 +249,7 @@ class Insertables(ABC):
         span_rowid: int
         id_: Optional[int]
 
+        @property
         def row(self) -> models.DocumentAnnotation:
             ans = copy(self.entity)
             ans.span_rowid = self.span_rowid

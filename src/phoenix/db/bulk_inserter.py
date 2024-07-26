@@ -303,26 +303,17 @@ class _QueueInserters:
     @singledispatchmethod
     async def _enqueue(self, item: Any) -> None: ...
 
-    @_enqueue.register
+    @_enqueue.register(Precursors.SpanAnnotation)
+    @_enqueue.register(Insertables.SpanAnnotation)
     async def _(self, item: Precursors.SpanAnnotation) -> None:
         await self._span_annotations.enqueue(item)
 
-    @_enqueue.register
-    async def _(self, item: Insertables.SpanAnnotation) -> None:
-        await self._span_annotations.enqueue(item)
-
-    @_enqueue.register
+    @_enqueue.register(Precursors.TraceAnnotation)
+    @_enqueue.register(Insertables.TraceAnnotation)
     async def _(self, item: Precursors.TraceAnnotation) -> None:
         await self._trace_annotations.enqueue(item)
 
-    @_enqueue.register
-    async def _(self, item: Insertables.TraceAnnotation) -> None:
-        await self._trace_annotations.enqueue(item)
-
-    @_enqueue.register
+    @_enqueue.register(Precursors.DocumentAnnotation)
+    @_enqueue.register(Insertables.DocumentAnnotation)
     async def _(self, item: Precursors.DocumentAnnotation) -> None:
-        await self._document_annotations.enqueue(item)
-
-    @_enqueue.register
-    async def _(self, item: Insertables.DocumentAnnotation) -> None:
         await self._document_annotations.enqueue(item)
