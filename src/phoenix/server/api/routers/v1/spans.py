@@ -197,7 +197,7 @@ async def annotate_spans(
 ) -> AnnotateSpansResponseBody:
     precursors = [_.as_precursor() for _ in request_body.data]
     if not sync:
-        request.state.enqueue(*precursors)
+        await request.state.enqueue(*precursors)
         return AnnotateSpansResponseBody(data=[])
 
     span_ids = {_.span_id for _ in precursors}

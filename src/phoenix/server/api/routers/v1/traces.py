@@ -153,7 +153,7 @@ async def annotate_traces(
 ) -> AnnotateTracesResponseBody:
     precursors = [_.as_precursor() for _ in request_body.data]
     if not sync:
-        request.state.enqueue(*precursors)
+        await request.state.enqueue(*precursors)
         return AnnotateTracesResponseBody(data=[])
 
     trace_ids = {_.trace_id for _ in precursors}

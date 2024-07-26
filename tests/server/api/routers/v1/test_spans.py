@@ -6,13 +6,12 @@ from typing import Any, Awaitable, Callable, cast
 import httpx
 import pandas as pd
 import pytest
+from faker import Faker
 from phoenix import Client, TraceDataset
 from phoenix.db import models
-from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanQuery
 from sqlalchemy import insert, select
-from strawberry.relay import GlobalID
 
 
 async def test_span_round_tripping_with_docs(
@@ -38,16 +37,20 @@ async def test_span_round_tripping_with_docs(
     assert new_count == orig_count * 2
 
 
+@pytest.mark.parametrize("sync", [False, True])
 async def test_rest_span_annotation(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
     project_with_a_single_trace_and_span: Any,
+    sync: bool,
+    fake: Faker,
 ) -> None:
+    name = fake.pystr()
     request_body = {
         "data": [
             {
                 "span_id": "7e2f08cb43bbf521",
-                "name": "Test Annotation",
+                "name": name,
                 "annotator_kind": "HUMAN",
                 "result": {
                     "label": "True",
@@ -59,19 +62,16 @@ async def test_rest_span_annotation(
         ]
     }
 
-    response = await httpx_client.post("/v1/span_annotations", json=request_body)
+    response = await httpx_client.post(f"v1/span_annotations?sync={sync}", json=request_body)
     assert response.status_code == 200
-
-    data = response.json()["data"]
-    annotation_gid = GlobalID.from_id(data[0]["id"])
-    annotation_id = from_global_id_with_expected_type(annotation_gid, "SpanAnnotation")
+    await sleep(0.1)
     async with db() as session:
         orm_annotation = await session.scalar(
-            select(models.SpanAnnotation).where(models.SpanAnnotation.id == annotation_id)
+            select(models.SpanAnnotation).where(models.SpanAnnotation.name == name)
         )
 
     assert orm_annotation is not None
-    assert orm_annotation.name == "Test Annotation"
+    assert orm_annotation.name == name
     assert orm_annotation.annotator_kind == "HUMAN"
     assert orm_annotation.label == "True"
     assert orm_annotation.score == 0.95
