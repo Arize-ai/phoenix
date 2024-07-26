@@ -4,6 +4,7 @@ import { createSpanTree } from "../utils";
 describe("createSpanTree", () => {
   const traceSpans: ISpanItem[] = [
     {
+      id: "1",
       spanKind: "chain",
       name: "query",
       statusCode: "OK",
@@ -16,6 +17,7 @@ describe("createSpanTree", () => {
       },
     },
     {
+      id: "2",
       spanKind: "chain",
       name: "synthesize",
       statusCode: "OK",
@@ -28,6 +30,7 @@ describe("createSpanTree", () => {
       },
     },
     {
+      id: "3",
       spanKind: "llm",
       name: "llm",
       statusCode: "OK",
@@ -41,6 +44,7 @@ describe("createSpanTree", () => {
       },
     },
     {
+      id: "4",
       spanKind: "retriever",
       name: "retrieve",
       statusCode: "OK",
@@ -54,6 +58,7 @@ describe("createSpanTree", () => {
       },
     },
     {
+      id: "5",
       spanKind: "embedding",
       name: "embedding",
       statusCode: "OK",
@@ -80,6 +85,7 @@ describe("createSpanTree", () => {
                       "spanId": "86433110-f83a-429e-b6e9-5f23131d14f7",
                       "traceId": "c399b6c1-2826-4e4c-90f4-068afccb81c2",
                     },
+                    "id": "5",
                     "latencyMs": 118,
                     "name": "embedding",
                     "parentId": "de0d1e57-70d4-4b2b-a100-30b706902da3",
@@ -94,6 +100,7 @@ describe("createSpanTree", () => {
                   "spanId": "de0d1e57-70d4-4b2b-a100-30b706902da3",
                   "traceId": "c399b6c1-2826-4e4c-90f4-068afccb81c2",
                 },
+                "id": "4",
                 "latencyMs": 352,
                 "name": "retrieve",
                 "parentId": "86d5abea-ca78-4e59-a3f7-02548bb4e19a",
@@ -112,6 +119,7 @@ describe("createSpanTree", () => {
                       "spanId": "5530a9fc-43d7-4add-bff9-91449ec0b1c3",
                       "traceId": "c399b6c1-2826-4e4c-90f4-068afccb81c2",
                     },
+                    "id": "3",
                     "latencyMs": 1921,
                     "name": "llm",
                     "parentId": "6cd91cc2-c29d-45c9-b98b-dd37cffa1d7a",
@@ -127,6 +135,7 @@ describe("createSpanTree", () => {
                   "spanId": "6cd91cc2-c29d-45c9-b98b-dd37cffa1d7a",
                   "traceId": "c399b6c1-2826-4e4c-90f4-068afccb81c2",
                 },
+                "id": "2",
                 "latencyMs": 1923,
                 "name": "synthesize",
                 "parentId": "86d5abea-ca78-4e59-a3f7-02548bb4e19a",
@@ -141,6 +150,7 @@ describe("createSpanTree", () => {
               "spanId": "86d5abea-ca78-4e59-a3f7-02548bb4e19a",
               "traceId": "c399b6c1-2826-4e4c-90f4-068afccb81c2",
             },
+            "id": "1",
             "latencyMs": 2275,
             "name": "query",
             "parentId": null,

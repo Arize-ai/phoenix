@@ -54,7 +54,7 @@ type SpansTableProps = {
   project: SpansTable_spans$key;
 };
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 50;
 
 export function SpansTable(props: SpansTableProps) {
   const { fetchKey } = useStreamState();
@@ -264,9 +264,10 @@ export function SpansTable(props: SpansTableProps) {
       accessorKey: "name",
       enableSorting: false,
       cell: ({ getValue, row }) => {
-        const { spanId, traceId } = row.original.context;
+        const span = row.original;
+        const { traceId } = span.context;
         return (
-          <Link to={`traces/${traceId}?selectedSpanId=${spanId}`}>
+          <Link to={`traces/${traceId}?selectedSpanNodeId=${span.id}`}>
             {getValue() as string}
           </Link>
         );
@@ -470,7 +471,7 @@ export function SpansTable(props: SpansTableProps) {
                     key={row.id}
                     onClick={() =>
                       navigate(
-                        `traces/${row.original.context.traceId}?selectedSpanId=${row.original.context.spanId}`
+                        `traces/${row.original.context.traceId}?selectedSpanNodeId=${row.original.id}`
                       )
                     }
                   >

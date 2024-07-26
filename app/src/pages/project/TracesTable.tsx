@@ -61,7 +61,7 @@ type TracesTableProps = {
   project: TracesTable_spans$key;
 };
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 50;
 
 /**
  * A nested table row is a span with a children that recursively
@@ -372,9 +372,9 @@ export function TracesTable(props: TracesTableProps) {
       accessorKey: "name",
       enableSorting: false,
       cell: ({ getValue, row }) => {
-        const { spanId, traceId } = row.original.context;
+        const { traceId } = row.original.context;
         return (
-          <Link to={`traces/${traceId}?selectedSpanId=${spanId}`}>
+          <Link to={`traces/${traceId}?selectedSpanNodeId=${row.original.id}`}>
             {getValue() as string}
           </Link>
         );
