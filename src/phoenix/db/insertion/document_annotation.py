@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, FrozenSet, List, Mapping, NamedTuple, Tuple
+from typing import Any, List, Mapping, NamedTuple, Tuple
 
 from sqlalchemy import Select, and_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,9 +42,8 @@ class DocumentAnnotationQueueInserter(
         to_postpone: List[Postponed[Precursors.DocumentAnnotation]] = []
         to_discard: List[Received[Precursors.DocumentAnnotation]] = []
 
-        identifiers = frozenset({_key(_) for _ in parcels})
         dialect = SupportedSQLDialect(session.bind.dialect.name)
-        stmt = existing_spans_and_document_annotations_stmt(dialect, identifiers)
+        stmt = _select_existing(*map(_key, parcels), dialect=dialect)
         existing = [_ async for _ in await session.stream(stmt)]
         existing_spans: Mapping[str, _SpanAttr] = {
             span_id: _SpanAttr(span_rowid, num_docs)
@@ -97,9 +96,9 @@ class DocumentAnnotationQueueInserter(
         return to_insert, to_postpone, to_discard
 
 
-def existing_spans_and_document_annotations_stmt(
+def _select_existing(
+    *identifiers: Tuple[str, str, int],
     dialect: SupportedSQLDialect,
-    identifiers: FrozenSet[Tuple[str, str, int]],
 ) -> Select[Tuple[int, str, int, str, int, datetime]]:
     existing = (
         select(

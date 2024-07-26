@@ -20,7 +20,7 @@ async def test_sending_evaluations_before_span(
     size = 100
     span_ids = sorted(getrandbits(64).to_bytes(8, "big").hex() for _ in range(size))
     trace_ids = sorted(getrandbits(128).to_bytes(16, "big").hex() for _ in range(size))
-    df = pd.concat(
+    traces = pd.concat(
         [
             span.assign(**{"context.span_id": span_id, "context.trace_id": trace_id})
             for span_id, trace_id in zip(span_ids, trace_ids)
@@ -33,25 +33,32 @@ async def test_sending_evaluations_before_span(
             px_client.log_evaluations,
             SpanEvaluations(
                 eval_name,
-                pd.DataFrame([dict(score=j + s, span_id=_) for j, _ in enumerate(span_ids)]),
+                pd.DataFrame(
+                    [dict(score=j + s, span_id=span_id) for j, span_id in enumerate(span_ids)]
+                ),
             ),
             TraceEvaluations(
                 eval_name,
-                pd.DataFrame([dict(score=j + s, trace_id=_) for j, _ in enumerate(trace_ids)]),
+                pd.DataFrame(
+                    [dict(score=j + s, trace_id=trace_id) for j, trace_id in enumerate(trace_ids)]
+                ),
             ),
             DocumentEvaluations(
                 eval_name,
                 pd.DataFrame(
-                    [dict(score=j + s, span_id=_, position=0) for j, _ in enumerate(span_ids)]
+                    [
+                        dict(score=j + s, span_id=span_id, position=0)
+                        for j, span_id in enumerate(span_ids)
+                    ]
                     + [
-                        dict(score=j + s, span_id=_, position=999_999_999)
-                        for j, _ in enumerate(span_ids)
+                        dict(score=j + s, span_id=span_id, position=999_999_999)
+                        for j, span_id in enumerate(span_ids)
                     ]
                 ),
             ),
         )
         await sleep(0.001)
-    await acall(px_client.log_traces, TraceDataset(df), project_name=project_name)
+    await acall(px_client.log_traces, TraceDataset(traces), project_name=project_name)
     await sleep(1)
     evals = cast(
         List[Union[SpanEvaluations, TraceEvaluations, DocumentEvaluations]],
@@ -60,14 +67,14 @@ async def test_sending_evaluations_before_span(
     evals = [ev for ev in evals if ev.eval_name == eval_name]
     assert len(evals) == 3
     for e in evals:
-        _ = e.dataframe.sort_index()
-        assert len(_) == size
-        assert _.score.to_list() == list(range(size))
+        df = e.dataframe.sort_index()
+        assert len(df) == size
+        assert df.score.to_list() == list(range(size))
         if isinstance(e, SpanEvaluations):
-            assert _.index.to_list() == span_ids
+            assert df.index.to_list() == span_ids
         elif isinstance(e, TraceEvaluations):
-            assert _.index.to_list() == trace_ids
+            assert df.index.to_list() == trace_ids
         elif isinstance(e, DocumentEvaluations):
-            assert _.index.to_list() == [(span_id, 0) for span_id in span_ids]
+            assert df.index.to_list() == [(span_id, 0) for span_id in span_ids]
         else:
             assert_never(e)

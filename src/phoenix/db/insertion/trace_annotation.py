@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, FrozenSet, List, Mapping, NamedTuple, Tuple
+from typing import Any, List, Mapping, NamedTuple, Tuple
 
 from sqlalchemy import Select, and_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,8 +42,7 @@ class TraceAnnotationQueueInserter(
         to_postpone: List[Postponed[Precursors.TraceAnnotation]] = []
         to_discard: List[Received[Precursors.TraceAnnotation]] = []
 
-        identifiers = frozenset({_key(_) for _ in parcels})
-        stmt = existing_traces_and_trace_annotations_stmt(identifiers)
+        stmt = _select_existing(*map(_key, parcels))
         existing = [_ async for _ in await session.stream(stmt)]
         existing_traces: Mapping[str, _TraceAttr] = {
             trace_id: _TraceAttr(trace_rowid) for trace_rowid, trace_id, *_ in existing
@@ -92,8 +91,8 @@ class TraceAnnotationQueueInserter(
         return to_insert, to_postpone, to_discard
 
 
-def existing_traces_and_trace_annotations_stmt(
-    identifiers: FrozenSet[Tuple[str, str]],
+def _select_existing(
+    *identifiers: Tuple[str, str],
 ) -> Select[Tuple[int, str, int, str, datetime]]:
     existing_traces = (
         select(models.Trace.id, models.Trace.trace_id)
