@@ -1,5 +1,30 @@
 # Changelog
 
+## [4.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.14.1...arize-phoenix-v4.15.0) (2024-07-26)
+
+
+### Features
+
+* Add containedInDataset boolean field to gql Spans ([#4015](https://github.com/Arize-ai/phoenix/issues/4015)) ([3c096ca](https://github.com/Arize-ai/phoenix/commit/3c096ca192c0676c43043197062603c0ef211f96))
+* **annotations:** add annot ation macro and filter condition snippet to project page ([#4024](https://github.com/Arize-ai/phoenix/issues/4024)) ([acc2ff1](https://github.com/Arize-ai/phoenix/commit/acc2ff13b8760566c30eb4044a3a2c86bd1910eb))
+* **annotations:** refetch annootations on annotation changes ([#3980](https://github.com/Arize-ai/phoenix/issues/3980)) ([9ba7cb9](https://github.com/Arize-ai/phoenix/commit/9ba7cb9294e7b15ebdc5fbd55d8df5d98c7b0f01))
+* **datasets:** add dataset edit UI and dataset metadata on create ([#4005](https://github.com/Arize-ai/phoenix/issues/4005)) ([d80c438](https://github.com/Arize-ai/phoenix/commit/d80c438cc51f40200716e73a7f00edcc16e9572c))
+* **trace:** UI lazy loading of spans ([#4014](https://github.com/Arize-ai/phoenix/issues/4014)) ([ab4fafa](https://github.com/Arize-ai/phoenix/commit/ab4fafaf18a22084d16e6e648676cbc8e1ed390a))
+* Version mismatch checks ([#3989](https://github.com/Arize-ai/phoenix/issues/3989)) ([8454183](https://github.com/Arize-ai/phoenix/commit/845418390aa53863dc87943f7c95e8cf0f52aaa5))
+
+
+### Bug Fixes
+
+* add mutex for sqlite ([#3981](https://github.com/Arize-ai/phoenix/issues/3981)) ([91f96ef](https://github.com/Arize-ai/phoenix/commit/91f96eff869baf9f88eeb0cca6457e3ba3181f88))
+* Changes dataset name query from is to equal ([#3983](https://github.com/Arize-ai/phoenix/issues/3983)) ([3f77759](https://github.com/Arize-ai/phoenix/commit/3f77759c4c56609d7dce48de7b136386e6c0b005))
+* move all fixtures from jsonl to parquet ([#3943](https://github.com/Arize-ai/phoenix/issues/3943)) ([0587462](https://github.com/Arize-ai/phoenix/commit/058746207250c94d9387600f773b03f4d7a23587))
+* remove invalid command from dev:ui script ([#3982](https://github.com/Arize-ai/phoenix/issues/3982)) ([02f264c](https://github.com/Arize-ai/phoenix/commit/02f264c263382d4b561ecf4ad95624645e390204))
+
+
+### Documentation
+
+* add reverse proxy example ([#3977](https://github.com/Arize-ai/phoenix/issues/3977)) ([6b201e0](https://github.com/Arize-ai/phoenix/commit/6b201e074e4a54df21441b8159bf77ad8b63bffd))
+
 ## [4.14.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.14.0...arize-phoenix-v4.14.1) (2024-07-23)
 
 
