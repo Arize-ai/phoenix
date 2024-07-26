@@ -191,7 +191,7 @@ def existing_traces_and_trace_annotations_stmt(
                 tuple_(table.name, existing.c.trace_id).in_(
                     (name, trace_id) for name, trace_id in name_and_trace_id
                 ),
-                tuple_(existing.c.id, table.name).in_(
+                tuple_(table.name, existing.c.id).in_(
                     (name, trace_rowid) for name, trace_rowid in name_and_trace_rowid
                 ),
             ),

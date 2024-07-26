@@ -191,7 +191,7 @@ def existing_spans_and_span_annotations_stmt(
                 tuple_(table.name, existing.c.span_id).in_(
                     (name, span_id) for name, span_id in name_and_span_id
                 ),
-                tuple_(existing.c.id, table.name).in_(
+                tuple_(table.name, existing.c.id).in_(
                     (name, span_rowid) for name, span_rowid in name_and_span_rowid
                 ),
             ),
