@@ -4,6 +4,7 @@
 module.exports = {
   preset: "ts-jest",
   testEnvironment: "node",
+  prettierPath: null,
   transform: {
     "^.+\\.[jt]sx?$": ["esbuild-jest"],
   },

@@ -103,7 +103,6 @@ export function TraceDetails(props: TraceDetailsProps) {
   }, [data]);
   const urlSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_URL_PARAM);
   const selectedSpanNodeId = urlSpanNodeId ?? spansList[0].id;
-  const selectedSpan = spansList.find((span) => span.id === selectedSpanNodeId);
   const rootSpan = useMemo(() => findRootSpan(spansList), [spansList]);
 
   // Clear the selected span param when the component unmounts
@@ -157,9 +156,12 @@ export function TraceDetails(props: TraceDetailsProps) {
         <PanelResizeHandle css={resizeHandleCSS} />
         <Panel>
           <ScrollingTabsWrapper>
-            {selectedSpan && urlSpanNodeId ? (
+            {selectedSpanNodeId ? (
               <Suspense fallback={<Loading />}>
-                <SpanDetails spanNodeId={urlSpanNodeId} projectId={projectId} />
+                <SpanDetails
+                  spanNodeId={selectedSpanNodeId}
+                  projectId={projectId}
+                />
               </Suspense>
             ) : null}
           </ScrollingTabsWrapper>

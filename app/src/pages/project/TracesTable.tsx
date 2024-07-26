@@ -61,7 +61,7 @@ type TracesTableProps = {
   project: TracesTable_spans$key;
 };
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 50;
 
 /**
  * A nested table row is a span with a children that recursively

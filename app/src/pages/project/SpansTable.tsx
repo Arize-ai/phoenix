@@ -54,7 +54,7 @@ type SpansTableProps = {
   project: SpansTable_spans$key;
 };
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 50;
 
 export function SpansTable(props: SpansTableProps) {
   const { fetchKey } = useStreamState();
