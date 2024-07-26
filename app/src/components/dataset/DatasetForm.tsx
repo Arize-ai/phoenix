@@ -10,7 +10,7 @@ import {
   View,
 } from "@arizeai/components";
 
-import { CodeEditorFormWrapper, JSONEditor } from "@phoenix/components/code";
+import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
 export type DatasetFormParams = {
@@ -105,14 +105,14 @@ export function DatasetForm({
             field: { onChange, onBlur, value },
             fieldState: { invalid, error },
           }) => (
-            <CodeEditorFormWrapper
+            <CodeEditorFieldWrapper
               validationState={invalid ? "invalid" : "valid"}
               label={"metadata"}
               errorMessage={error?.message}
               description={`A JSON object containing metadata for the dataset`}
             >
               <JSONEditor value={value} onChange={onChange} onBlur={onBlur} />
-            </CodeEditorFormWrapper>
+            </CodeEditorFieldWrapper>
           )}
         />
       </View>

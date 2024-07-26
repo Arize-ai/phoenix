@@ -36,7 +36,7 @@ const codeEditorFormWrapperCSS = css`
 /**
  * Wrapper for code editor components (e.g. JSONEditor) that provides hover, focus, and validation state styles
  */
-export function CodeEditorFormWrapper({
+export function CodeEditorFieldWrapper({
   children,
   validationState,
   ...fieldProps
