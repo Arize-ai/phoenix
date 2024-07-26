@@ -24,7 +24,7 @@ async def project_with_a_single_trace_and_span(
         trace_id = await session.scalar(
             insert(models.Trace)
             .values(
-                trace_id="1",
+                trace_id="82c6c9c33ccc586e0d3bdf46b20db309",
                 project_rowid=project_row_id,
                 start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
@@ -35,7 +35,7 @@ async def project_with_a_single_trace_and_span(
             insert(models.Span)
             .values(
                 trace_rowid=trace_id,
-                span_id="1",
+                span_id="f0d808aedd5591b6",
                 parent_id=None,
                 name="chain span",
                 span_kind="CHAIN",
@@ -61,11 +61,10 @@ async def test_rest_trace_annotation(
     httpx_client: httpx.AsyncClient,
     project_with_a_single_trace_and_span: Any,
 ) -> None:
-    trace_gid = GlobalID("Trace", "1")
     request_body = {
         "data": [
             {
-                "trace_id": str(trace_gid),
+                "trace_id": "82c6c9c33ccc586e0d3bdf46b20db309",
                 "name": "Test Annotation",
                 "annotator_kind": "HUMAN",
                 "result": {

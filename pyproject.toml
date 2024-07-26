@@ -93,6 +93,7 @@ dev = [
   "anthropic",
   "prometheus_client",
   "asgi-lifespan",
+  "Faker>=26.0.0",
 ]
 evals = []
 experimental = []
@@ -171,6 +172,7 @@ dependencies = [
   "nest-asyncio", # for executor testing
   "astunparse; python_version<'3.9'",  # `ast.unparse(...)` is only available starting with Python 3.9
   "asgi-lifespan",
+  "Faker>=26.0.0",
 ]
 
 [tool.hatch.envs.type]

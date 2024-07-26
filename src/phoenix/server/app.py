@@ -228,6 +228,7 @@ def _lifespan(
         global DB_MUTEX
         DB_MUTEX = asyncio.Lock() if dialect is SupportedSQLDialect.SQLITE else None
         async with bulk_inserter as (
+            enqueue,
             queue_span,
             queue_evaluation,
             enqueue_operation,
@@ -238,6 +239,7 @@ def _lifespan(
             enable_prometheus=enable_prometheus,
         ):
             yield {
+                "enqueue": enqueue,
                 "queue_span_for_bulk_insert": queue_span,
                 "queue_evaluation_for_bulk_insert": queue_evaluation,
                 "enqueue_operation": enqueue_operation,

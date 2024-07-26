@@ -1,6 +1,6 @@
 import gzip
 from itertools import chain
-from typing import AsyncContextManager, Callable, Iterator, Optional, Tuple
+from typing import AsyncContextManager, Callable, Iterator, Optional, Sequence, Tuple, Union, cast
 
 import pandas as pd
 import pyarrow as pa
@@ -27,9 +27,9 @@ from typing_extensions import TypeAlias
 import phoenix.trace.v1 as pb
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
+from phoenix.db.insertion.types import Precursors
 from phoenix.exceptions import PhoenixEvaluationNameIsMissing
 from phoenix.server.api.routers.utils import table_to_bytes
-from phoenix.session.evaluation import encode_evaluations
 from phoenix.trace.span_evaluations import (
     DocumentEvaluations,
     Evaluations,
@@ -196,8 +196,84 @@ async def _process_pyarrow(request: Request) -> Response:
 
 
 async def _add_evaluations(state: State, evaluations: Evaluations) -> None:
-    for evaluation in encode_evaluations(evaluations):
-        await state.queue_evaluation_for_bulk_insert(evaluation)
+    dataframe = evaluations.dataframe
+    eval_name = evaluations.eval_name
+    index_names = dataframe.index.names
+    if (cls := _annotation_factory(index_names)) is None:
+        return
+    for index, row in dataframe.iterrows():
+        score = cast(Optional[float], row.get("score"))
+        label = cast(Optional[str], row.get("label"))
+        explanation = cast(Optional[str], row.get("explanation"))
+        annotation = cls(cast(Union[str, Sequence[Union[str, int]]], index))(
+            name=eval_name,
+            annotator_kind="LLM",
+            score=score,
+            label=label,
+            explanation=explanation,
+            metadata_={},
+        )
+        await state.enqueue(annotation)
+
+
+def _annotation_factory(
+    names: Sequence[str],
+) -> Optional[
+    Callable[
+        [Union[str, Sequence[Union[str, int]]]],
+        Callable[
+            ...,
+            Union[
+                Precursors.SpanAnnotation,
+                Precursors.TraceAnnotation,
+                Precursors.DocumentAnnotation,
+            ],
+        ],
+    ]
+]:
+    """
+    Decode`index_names`. Allowed formats are:
+        - Document Retrieval ID
+            - index_names=["context.span_id", "document_position"]
+            - index_names=["span_id", "document_position"]
+            - index_names=["document_position", "context.span_id"]
+            - index_names=["document_position", "span_id"]
+        - Span ID
+            - index_names=["span_id"]
+            - index_names=["context.span_id"]
+        - Trace ID
+            - index_names=["context.span_id"]
+            - index_names=["trace_id"]
+    """
+    if len(names) == 2:
+        if "document_position" in names:
+            document_position_idx = names.index("document_position")
+            if "context.span_id" in names:
+                span_id_idx = names.index("context.span_id")
+            elif "span_id" in names:
+                span_id_idx = names.index("span_id")
+            else:
+                return None
+            return lambda _: lambda **__: Precursors.DocumentAnnotation(
+                span_id=cast(str, _[span_id_idx]),
+                document_position=cast(int, _[document_position_idx]),
+                entity=models.DocumentAnnotation(
+                    document_position=cast(int, _[document_position_idx]),
+                    **__,
+                ),
+            )
+    elif len(names) == 1:
+        if names[0] in ("context.span_id", "span_id"):
+            return lambda _: lambda **__: Precursors.SpanAnnotation(
+                span_id=str(_),
+                entity=models.SpanAnnotation(**__),
+            )
+        if names[0] in ("context.trace_id", "trace_id"):
+            return lambda _: lambda **__: Precursors.TraceAnnotation(
+                trace_id=str(_),
+                entity=models.TraceAnnotation(**__),
+            )
+    return None
 
 
 def _read_sql_trace_evaluations_into_dataframe(
