@@ -1,95 +1,83 @@
-import React, {
-  ReactNode,
-  startTransition,
-  useCallback,
-  useState,
-} from "react";
-import { graphql, useMutation } from "react-relay";
+import React, { ReactNode, useCallback, useState } from "react";
 
 import {
   ActionMenu,
-  Button,
-  Dialog,
   DialogContainer,
   Flex,
   Icon,
   Icons,
   Item,
   Text,
-  View,
 } from "@arizeai/components";
 
-import { DatasetActionMenuDeleteMutation } from "./__generated__/DatasetActionMenuDeleteMutation.graphql";
+import { DeleteDatasetDialog } from "./DeleteDatasetDialog";
+import { EditDatasetDialog } from "./EditDatasetDialog";
 
 type DatasetActionMenuProps = {
   datasetId: string;
   datasetName: string;
+  datasetDescription?: string | null;
+  datasetMetadata?: Record<string, unknown> | null;
   onDatasetDelete: () => void;
   onDatasetDeleteError: (error: Error) => void;
+  onDatasetEdit: () => void;
+  onDatasetEditError: (error: Error) => void;
 };
 
 enum DatasetAction {
   DELETE = "deleteDataset",
+  EDIT = "editDataset",
 }
 
 export function DatasetActionMenu(props: DatasetActionMenuProps) {
-  const { datasetId, datasetName, onDatasetDelete, onDatasetDeleteError } =
-    props;
-  const [confirmDialog, setConfirmDialog] = useState<ReactNode>(null);
-  const [commitDelete, isCommittingDelete] =
-    useMutation<DatasetActionMenuDeleteMutation>(graphql`
-      mutation DatasetActionMenuDeleteMutation($datasetId: GlobalID!) {
-        deleteDataset(input: { datasetId: $datasetId }) {
-          __typename
-        }
-      }
-    `);
+  const {
+    datasetId,
+    datasetName,
+    datasetDescription,
+    datasetMetadata,
+    onDatasetDelete,
+    onDatasetDeleteError,
+    onDatasetEdit,
+    onDatasetEditError,
+  } = props;
+  const [dialog, setDialog] = useState<ReactNode>(null);
 
-  const handleDelete = useCallback(() => {
-    startTransition(() => {
-      commitDelete({
-        variables: {
-          datasetId,
-        },
-        onCompleted: () => {
-          onDatasetDelete();
-        },
-        onError: (error) => {
-          onDatasetDeleteError(error);
-        },
-      });
-    });
-  }, [commitDelete, datasetId, onDatasetDelete, onDatasetDeleteError]);
   const onDelete = useCallback(() => {
-    setConfirmDialog(
-      <Dialog size="S" title="Delete Dataset">
-        <View padding="size-200">
-          <Text color="danger">
-            {`Are you sure you want to delete dataset ${datasetName}? This will also delete all associated experiments and traces, and it cannot be undone.`}
-          </Text>
-        </View>
-        <View
-          paddingEnd="size-200"
-          paddingTop="size-100"
-          paddingBottom="size-100"
-          borderTopColor="light"
-          borderTopWidth="thin"
-        >
-          <Flex direction="row" justifyContent="end">
-            <Button
-              variant="danger"
-              onClick={() => {
-                handleDelete();
-                setConfirmDialog(null);
-              }}
-            >
-              Delete Dataset
-            </Button>
-          </Flex>
-        </View>
-      </Dialog>
+    setDialog(
+      <DeleteDatasetDialog
+        datasetId={datasetId}
+        datasetName={datasetName}
+        onDatasetDelete={() => {
+          onDatasetDelete();
+          setDialog(null);
+        }}
+        onDatasetDeleteError={onDatasetDeleteError}
+      />
     );
-  }, [handleDelete, datasetName]);
+  }, [datasetId, datasetName, onDatasetDelete, onDatasetDeleteError]);
+
+  const onEdit = useCallback(() => {
+    setDialog(
+      <EditDatasetDialog
+        datasetId={datasetId}
+        datasetName={datasetName}
+        datasetDescription={datasetDescription}
+        datasetMetadata={datasetMetadata}
+        onDatasetEdited={() => {
+          onDatasetEdit();
+          setDialog(null);
+        }}
+        onDatasetEditError={onDatasetEditError}
+      />
+    );
+  }, [
+    datasetDescription,
+    datasetId,
+    datasetMetadata,
+    datasetName,
+    onDatasetEdit,
+    onDatasetEditError,
+  ]);
   return (
     <div
       // TODO: add this logic to the ActionMenu component
@@ -102,11 +90,13 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
       <ActionMenu
         align="end"
         buttonSize="compact"
-        isDisabled={isCommittingDelete}
         onAction={(action) => {
           switch (action) {
             case DatasetAction.DELETE:
               onDelete();
+              break;
+            case DatasetAction.EDIT:
+              onEdit();
               break;
           }
         }}
@@ -122,13 +112,24 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
             <Text>Delete</Text>
           </Flex>
         </Item>
+        <Item key={DatasetAction.EDIT}>
+          <Flex
+            direction={"row"}
+            gap="size-75"
+            justifyContent={"start"}
+            alignItems={"center"}
+          >
+            <Icon svg={<Icons.Edit2Outline />} />
+            <Text>Edit</Text>
+          </Flex>
+        </Item>
       </ActionMenu>
       <DialogContainer
         type="modal"
         isDismissable
-        onDismiss={() => setConfirmDialog(null)}
+        onDismiss={() => setDialog(null)}
       >
-        {confirmDialog}
+        {dialog}
       </DialogContainer>
     </div>
   );

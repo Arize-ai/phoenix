@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b893b50c8e8465a9ae5ad13ccb7284b7>>
+ * @generated SignedSource<<f10fbd896f47cd64471075f4f1f24f48>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,6 +19,7 @@ export type DatasetsTable_datasets$data = {
         readonly exampleCount: number;
         readonly experimentCount: number;
         readonly id: string;
+        readonly metadata: any;
         readonly name: string;
       };
     }>;
@@ -137,6 +138,13 @@ return {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
+                  "name": "metadata",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
                   "name": "createdAt",
                   "storageKey": null
                 },
@@ -208,6 +216,6 @@ return {
 };
 })();
 
-(node as any).hash = "ead09294d86188dc9d76825bdef37fbf";
+(node as any).hash = "fa378bc7ec26f5e877e6cf90e5ee553d";
 
 export default node;
