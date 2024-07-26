@@ -284,10 +284,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
     isConditionValid(deferredFilterCondition, projectId as string).then(
       (result) => {
         if (!result?.isValid) {
-          if (result?.errorMessage) {
-            setErrorMessage(result.errorMessage);
-            return;
-          }
+          setErrorMessage(result?.errorMessage ?? "Invalid filter condition");
         } else {
           setErrorMessage("");
           startTransition(() => {
