@@ -10,14 +10,10 @@ import {
   autocompletion,
   CompletionContext,
   CompletionResult,
-  hasNextSnippetField,
-  nextSnippetField,
-  snippetCompletion,
 } from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
-import { EditorView, keymap } from "@codemirror/view";
 import { nord } from "@uiw/codemirror-theme-nord";
-import CodeMirror from "@uiw/react-codemirror";
+import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
 import { fetchQuery, graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
@@ -84,6 +80,7 @@ function filterConditionCompletions(
   if (!word) return null;
 
   if (word.from == word.to && !context.explicit) return null;
+
   return {
     from: word.from,
     options: [
@@ -177,38 +174,13 @@ function filterConditionCompletions(
       {
         label: "Hallucinations",
         type: "text",
-        apply: "evals['Hallucination'].label == 'hallucinated'",
+        apply: "annotations['Hallucination'].label == 'hallucinated'",
         detail: "macro",
       },
-      snippetCompletion("annotations['${1}'].label == '${2}'", {
-        label: "Annotations",
-        type: "text",
-        detail: "macro",
-        
-      }),
       {
         label: "Annotations",
         type: "text",
-        apply: (view, completion, from, to) => {
-          const ANNOTATIONS_SNIPPET_START = "annotations['";
-          const ANNOTATIONS_SNIPPET_MIDDLE = "'].label == '";
-          const ANNOTATIONS_SNIPPET_END = "'";
-          const ANNOTATIONS_SNIPPET =
-            ANNOTATIONS_SNIPPET_START +
-            ANNOTATIONS_SNIPPET_MIDDLE +
-            ANNOTATIONS_SNIPPET_END;
-          view.dispatch({
-            changes: { from, to, insert: ANNOTATIONS_SNIPPET },
-            selection: { anchor: from + ANNOTATIONS_SNIPPET_START.length },
-          });
-          // return {
-          //   cursor: from + ANNOTATIONS_SNIPPET_START.length,
-          //   nextCursor:
-          //     from +
-          //     ANNOTATIONS_SNIPPET_START.length +
-          //     ANNOTATIONS_SNIPPET_MIDDLE.length,
-          // };
-        },
+        apply: "annotations['Hallucination'].label == 'hallucinated'",
         detail: "macro",
       },
       {
@@ -273,14 +245,6 @@ const extensions = [
         return true;
       },
     },
-    // {
-    //   key: "Tab",
-    //   run: (e) => {
-    //     console.log("test--");
-    //     debugger;
-    //     return nextSnippetField(e);
-    //   },
-    // },
   ]),
   python(),
   autocompletion({ override: [filterConditionCompletions] }),
@@ -358,9 +322,6 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
             highlightActiveLine: false,
             highlightActiveLineGutter: false,
             defaultKeymap: false,
-          }}
-          onKeyDown={(e) => {
-          if {e.key === ""}
           }}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
@@ -449,6 +410,12 @@ function FilterConditionBuilder(props: {
           key="token_count"
           label="filter by token count"
           initialSnippet="cumulative_token_count.total > 1000"
+          onAddFilterConditionSnippet={onAddFilterConditionSnippet}
+        />
+        <FilterConditionSnippet
+          key="annotation_label"
+          label="filter by annotation label"
+          initialSnippet="annotations['Hallucination'].label == 'hallucinated'"
           onAddFilterConditionSnippet={onAddFilterConditionSnippet}
         />
         <FilterConditionSnippet
