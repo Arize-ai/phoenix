@@ -1,16 +1,15 @@
 from datetime import datetime, timedelta
 from random import randint, random, seed
-from typing import AsyncContextManager, Callable
 
 import pytest
 from phoenix.db import models
+from phoenix.server.types import DbSessionFactory
 from sqlalchemy import insert
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.fixture
 async def data_for_testing_dataloaders(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
 ) -> None:
     seed(42)
     orig_time = datetime.fromisoformat("2021-01-01T00:00:00.000+00:00")

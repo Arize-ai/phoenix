@@ -2,8 +2,6 @@ from collections import defaultdict
 from datetime import datetime
 from typing import (
     Any,
-    AsyncContextManager,
-    Callable,
     DefaultDict,
     List,
     Literal,
@@ -14,7 +12,6 @@ from typing import (
 from cachetools import LFUCache, TTLCache
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import Select, func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.functions import coalesce
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias
@@ -22,6 +19,7 @@ from typing_extensions import TypeAlias
 from phoenix.db import models
 from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
 Kind: TypeAlias = Literal["prompt", "completion", "total"]
@@ -71,7 +69,7 @@ class TokenCountCache(
 class TokenCountDataLoader(DataLoader[Key, Result]):
     def __init__(
         self,
-        db: Callable[[], AsyncContextManager[AsyncSession]],
+        db: DbSessionFactory,
         cache_map: Optional[AbstractCache[Key, Result]] = None,
     ) -> None:
         super().__init__(

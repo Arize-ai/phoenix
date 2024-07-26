@@ -1,6 +1,6 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import AsyncContextManager, Callable, List, Optional
+from typing import Callable, List, Optional
 from unittest.mock import Mock
 
 import pytest
@@ -10,8 +10,8 @@ from phoenix.db import models
 from phoenix.inferences.inferences import Inferences
 from phoenix.server.api.context import Context
 from phoenix.server.api.schema import Query
+from phoenix.server.types import DbSessionFactory
 from sqlalchemy import insert
-from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.schema import Schema as StrawberrySchema
 from strawberry.types.info import Info
 
@@ -59,7 +59,7 @@ def strawberry_schema() -> StrawberrySchema:
 
 
 @pytest.fixture
-async def interlaced_experiments(db: Callable[[], AsyncContextManager[AsyncSession]]) -> List[int]:
+async def interlaced_experiments(db: DbSessionFactory) -> List[int]:
     async with db() as session:
         dataset_ids = list(
             await session.scalars(

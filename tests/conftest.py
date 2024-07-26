@@ -28,8 +28,9 @@ from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import aio_postgresql_engine, aio_sqlite_engine
 from phoenix.inferences.inferences import EMPTY_INFERENCES
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
-from phoenix.server.app import SessionFactory, _db, create_app
+from phoenix.server.app import _db, create_app
 from phoenix.server.grpc_server import GrpcServer
+from phoenix.server.types import DbSessionFactory
 from phoenix.session.client import Client
 from psycopg import Connection
 from pytest_postgresql import factories
@@ -115,7 +116,7 @@ async def sqlite_engine() -> AsyncIterator[AsyncEngine]:
 def db(
     request: SubRequest,
     dialect: str,
-) -> Callable[[], AsyncContextManager[AsyncSession]]:
+) -> DbSessionFactory:
     if dialect == "sqlite":
         return _db_with_lock(request.getfixturevalue("sqlite_engine"))
     elif dialect == "postgresql":
@@ -123,7 +124,7 @@ def db(
     raise ValueError(f"Unknown db fixture: {dialect}")
 
 
-def _db_with_lock(engine: AsyncEngine) -> Callable[[], AsyncContextManager[AsyncSession]]:
+def _db_with_lock(engine: AsyncEngine) -> DbSessionFactory:
     lock, db = asyncio.Lock(), _db(engine)
 
     @contextlib.asynccontextmanager
@@ -135,7 +136,7 @@ def _db_with_lock(engine: AsyncEngine) -> Callable[[], AsyncContextManager[Async
 
 
 @pytest.fixture
-async def project(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+async def project(db: DbSessionFactory) -> None:
     project = models.Project(name="test_project")
     async with db() as session:
         session.add(project)
@@ -146,7 +147,7 @@ async def app(
     dialect: str,
     db: Callable[[], AsyncContextManager[AsyncSession]],
 ) -> AsyncIterator[ASGIApp]:
-    factory = SessionFactory(session_factory=db, dialect=dialect)
+    factory = DbSessionFactory(db=db, dialect=dialect)
     async with contextlib.AsyncExitStack() as stack:
         await stack.enter_async_context(patch_bulk_inserter())
         await stack.enter_async_context(patch_grpc_server())

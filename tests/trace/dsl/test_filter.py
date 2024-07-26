@@ -1,15 +1,15 @@
 import ast
 import sys
-from typing import Any, AsyncContextManager, Callable, List, Optional
+from typing import Any, List, Optional
 from unittest.mock import patch
 from uuid import UUID
 
 import phoenix.trace.dsl.filter
 import pytest
 from phoenix.db import models
+from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl.filter import SpanFilter, _apply_eval_aliasing, _get_attribute_keys_list
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 if sys.version_info >= (3, 9):
     from ast import unparse
@@ -149,7 +149,7 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[List[str]])
     ],
 )
 async def test_filter_translated(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
     expression: str,
     expected: str,
     default_project: Any,

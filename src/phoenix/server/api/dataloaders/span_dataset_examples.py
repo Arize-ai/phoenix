@@ -1,16 +1,14 @@
 from typing import (
-    AsyncContextManager,
-    Callable,
     Dict,
     List,
 )
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
+from phoenix.server.types import DbSessionFactory
 
 SpanID: TypeAlias = int
 Key: TypeAlias = SpanID
@@ -18,7 +16,7 @@ Result: TypeAlias = List[models.DatasetExample]
 
 
 class SpanDatasetExamplesDataLoader(DataLoader[Key, Result]):
-    def __init__(self, db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+    def __init__(self, db: DbSessionFactory) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db
 

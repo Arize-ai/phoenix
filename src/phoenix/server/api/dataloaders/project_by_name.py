@@ -1,12 +1,12 @@
 from collections import defaultdict
-from typing import AsyncContextManager, Callable, DefaultDict, List, Optional
+from typing import DefaultDict, List, Optional
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
+from phoenix.server.types import DbSessionFactory
 
 ProjectName: TypeAlias = str
 Key: TypeAlias = ProjectName
@@ -14,7 +14,7 @@ Result: TypeAlias = Optional[models.Project]
 
 
 class ProjectByNameDataLoader(DataLoader[Key, Result]):
-    def __init__(self, db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+    def __init__(self, db: DbSessionFactory) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db
 

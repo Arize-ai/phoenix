@@ -1,14 +1,14 @@
 from datetime import datetime
 from statistics import mean
-from typing import Any, AsyncContextManager, Callable, List
+from typing import Any, List
 
 import httpx
 import pytest
 import pytz
 from phoenix.db import models
 from phoenix.server.api.types.Experiment import Experiment
+from phoenix.server.types import DbSessionFactory
 from sqlalchemy import insert
-from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 
@@ -461,7 +461,7 @@ async def test_error_rate_returns_expected_values(
 
 
 @pytest.fixture
-async def dataset_with_experiment_runs(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+async def dataset_with_experiment_runs(db: DbSessionFactory) -> None:
     """
     A dataset with an associated experiment with three runs: one that has no
     associated trace, one that has an associated trace, and one that has a
@@ -592,7 +592,7 @@ async def dataset_with_experiment_runs(db: Callable[[], AsyncContextManager[Asyn
 
 @pytest.fixture
 async def experiments_with_runs_and_annotations(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
 ) -> None:
     """
     Inserts three experiments, two with runs and annotations and one without.
@@ -843,7 +843,7 @@ async def experiments_with_runs_and_annotations(
 
 
 @pytest.fixture
-async def experiments_with_runs(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+async def experiments_with_runs(db: DbSessionFactory) -> None:
     """
     Inserts two experiments, the first of which contains one errored run and the
     second of which is empty (i.e., has no runs).

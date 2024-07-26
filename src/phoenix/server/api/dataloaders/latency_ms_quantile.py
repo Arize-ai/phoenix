@@ -2,9 +2,7 @@ from collections import defaultdict
 from datetime import datetime
 from typing import (
     Any,
-    AsyncContextManager,
     AsyncIterator,
-    Callable,
     DefaultDict,
     List,
     Literal,
@@ -36,6 +34,7 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
 Kind: TypeAlias = Literal["span", "trace"]
@@ -88,7 +87,7 @@ class LatencyMsQuantileCache(
 class LatencyMsQuantileDataLoader(DataLoader[Key, Result]):
     def __init__(
         self,
-        db: Callable[[], AsyncContextManager[AsyncSession]],
+        db: DbSessionFactory,
         cache_map: Optional[AbstractCache[Key, Result]] = None,
     ) -> None:
         super().__init__(

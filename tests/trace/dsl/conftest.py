@@ -1,15 +1,14 @@
 from datetime import datetime
-from typing import AsyncContextManager, Callable
 
 import pytest
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
+from phoenix.server.types import DbSessionFactory
 from sqlalchemy import insert
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.fixture
-async def default_project(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+async def default_project(db: DbSessionFactory) -> None:
     async with db() as session:
         project_row_id = await session.scalar(
             insert(models.Project).values(name=DEFAULT_PROJECT_NAME).returning(models.Project.id)
@@ -81,7 +80,7 @@ async def default_project(db: Callable[[], AsyncContextManager[AsyncSession]]) -
 
 
 @pytest.fixture
-async def abc_project(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+async def abc_project(db: DbSessionFactory) -> None:
     async with db() as session:
         project_row_id = await session.scalar(
             insert(models.Project).values(name="abc").returning(models.Project.id)

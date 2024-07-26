@@ -88,6 +88,7 @@ from phoenix.server.api.routers.v1 import router as v1_router
 from phoenix.server.api.schema import schema
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
+from phoenix.server.types import DbSessionFactory
 from phoenix.trace.schemas import Span
 from phoenix.utilities.client import PHOENIX_SERVER_VERSION_HEADER
 
@@ -256,7 +257,7 @@ async def check_healthz(_: Request) -> PlainTextResponse:
 def create_graphql_router(
     *,
     schema: BaseSchema,
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
     model: Model,
     export_path: Path,
     corpus: Optional[Model] = None,
@@ -335,19 +336,6 @@ def create_graphql_router(
     )
 
 
-class SessionFactory:
-    def __init__(
-        self,
-        session_factory: Callable[[], AsyncContextManager[AsyncSession]],
-        dialect: str,
-    ):
-        self.session_factory = session_factory
-        self.dialect = SupportedSQLDialect(dialect)
-
-    def __call__(self) -> AsyncContextManager[AsyncSession]:
-        return self.session_factory()
-
-
 def create_engine_and_run_migrations(
     database_url: str,
 ) -> AsyncEngine:
@@ -396,7 +384,7 @@ async def plain_text_http_exception_handler(request: Request, exc: HTTPException
 
 
 def create_app(
-    db: SessionFactory,
+    db: DbSessionFactory,
     export_path: Path,
     model: Model,
     umap_params: UMAPParameters,

@@ -1,6 +1,6 @@
 import textwrap
 from datetime import datetime
-from typing import Any, AsyncContextManager, Callable
+from typing import Any
 
 import httpx
 import pytest
@@ -8,8 +8,8 @@ import pytz
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.server.api.types.DatasetExample import DatasetExample
+from phoenix.server.types import DbSessionFactory
 from sqlalchemy import insert, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 
@@ -512,7 +512,7 @@ class TestPatchDatasetExamples:
 
 
 async def test_delete_a_dataset(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
     empty_dataset: Any,
 ) -> None:
@@ -583,7 +583,7 @@ async def test_deleting_a_nonexistent_dataset_fails(
 
 
 @pytest.fixture
-async def empty_dataset(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+async def empty_dataset(db: DbSessionFactory) -> None:
     """
     Inserts an empty dataset.
     """
@@ -599,7 +599,7 @@ async def empty_dataset(db: Callable[[], AsyncContextManager[AsyncSession]]) -> 
 
 
 @pytest.fixture
-async def spans(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+async def spans(db: DbSessionFactory) -> None:
     """
     Inserts three spans from a single trace: a chain root span, a retriever
     child span, and an llm child span.
@@ -706,7 +706,7 @@ async def spans(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
 
 @pytest.fixture
 async def dataset_with_a_single_version(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
 ) -> None:
     """
     A dataset with a single example and a single version.
@@ -760,7 +760,7 @@ async def dataset_with_a_single_version(
 
 
 @pytest.fixture
-async def dataset_with_revisions(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+async def dataset_with_revisions(db: DbSessionFactory) -> None:
     """
     A dataset with three examples and two versions. The first version creates
     all three examples, and the second version deletes the third example.

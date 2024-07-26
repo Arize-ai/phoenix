@@ -1,14 +1,14 @@
 from datetime import datetime
-from typing import Any, AsyncContextManager, Callable, Tuple
+from typing import Any, Tuple
 
 import pytest
 from phoenix.db import models
+from phoenix.server.types import DbSessionFactory
 from sqlalchemy import insert
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.fixture
-async def span_data_with_documents(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+async def span_data_with_documents(db: DbSessionFactory) -> None:
     async with db() as session:
         project = models.Project(name="default")
         session.add(project)
@@ -56,7 +56,7 @@ async def span_data_with_documents(db: Callable[[], AsyncContextManager[AsyncSes
 
 
 @pytest.fixture
-async def simple_dataset(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+async def simple_dataset(db: DbSessionFactory) -> None:
     """
     A dataset with one example added in one version
     """
@@ -100,7 +100,7 @@ async def simple_dataset(db: Callable[[], AsyncContextManager[AsyncSession]]) ->
 
 
 @pytest.fixture
-async def empty_dataset(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+async def empty_dataset(db: DbSessionFactory) -> None:
     """
     A dataset with three versions, where two examples are added, patched, then deleted
     """
@@ -229,7 +229,7 @@ async def empty_dataset(db: Callable[[], AsyncContextManager[AsyncSession]]) -> 
 
 
 @pytest.fixture
-async def dataset_with_revisions(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+async def dataset_with_revisions(db: DbSessionFactory) -> None:
     """
     A dataset with six versions, first two examples are added, then one example is patched and a
     third example is added.
@@ -440,7 +440,7 @@ async def dataset_with_revisions(db: Callable[[], AsyncContextManager[AsyncSessi
 
 @pytest.fixture
 async def dataset_with_experiments_without_runs(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
     empty_dataset: Any,
 ) -> None:
     async with db() as session:
@@ -469,7 +469,7 @@ async def dataset_with_experiments_without_runs(
 
 @pytest.fixture
 async def dataset_with_experiments_and_runs(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
     dataset_with_experiments_without_runs: Any,
 ) -> None:
     async with db() as session:
@@ -528,7 +528,7 @@ async def dataset_with_experiments_and_runs(
 
 @pytest.fixture
 async def dataset_with_experiments_runs_and_evals(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
     dataset_with_experiments_and_runs: Any,
 ) -> None:
     async with db() as session:
@@ -599,7 +599,7 @@ async def dataset_with_experiments_runs_and_evals(
 
 @pytest.fixture
 async def dataset_with_messages(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
 ) -> Tuple[int, int]:
     async with db() as session:
         dataset_id = await session.scalar(

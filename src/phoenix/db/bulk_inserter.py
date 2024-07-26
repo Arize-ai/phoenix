@@ -7,7 +7,6 @@ from itertools import islice
 from time import perf_counter
 from typing import (
     Any,
-    AsyncContextManager,
     Awaitable,
     Callable,
     Iterable,
@@ -19,7 +18,6 @@ from typing import (
 )
 
 from cachetools import LRUCache
-from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import TypeAlias
 
 import phoenix.trace.v1 as pb
@@ -31,6 +29,7 @@ from phoenix.db.insertion.evaluation import (
 from phoenix.db.insertion.helpers import DataManipulation, DataManipulationEvent
 from phoenix.db.insertion.span import SpanInsertionEvent, insert_span
 from phoenix.server.api.dataloaders import CacheForDataLoaders
+from phoenix.server.types import DbSessionFactory
 from phoenix.trace.schemas import Span
 
 logger = logging.getLogger(__name__)
@@ -46,7 +45,7 @@ class TransactionResult:
 class BulkInserter:
     def __init__(
         self,
-        db: Callable[[], AsyncContextManager[AsyncSession]],
+        db: DbSessionFactory,
         *,
         cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
         initial_batch_of_operations: Iterable[DataManipulation] = (),
