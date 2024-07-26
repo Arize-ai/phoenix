@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e2745ff737f19108b64aa4789d0ceee9>>
+ * @generated SignedSource<<49e45c4d516db1342875494a9b8ff313>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -138,6 +138,13 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "metadata",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "createdAt",
                     "storageKey": null
                   },
@@ -217,16 +224,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "563b248ababc0a0549a1e4dd039d9fc5",
+    "cacheID": "5ac1688f54e51f9bb3247c83e23d98fb",
     "id": null,
     "metadata": {},
     "name": "DatasetsTableDatasetsQuery",
     "operationKind": "query",
-    "text": "query DatasetsTableDatasetsQuery(\n  $after: String = null\n  $first: Int = 100\n  $sort: DatasetSort = {col: createdAt, dir: desc}\n) {\n  ...DatasetsTable_datasets_dWkdd\n}\n\nfragment DatasetsTable_datasets_dWkdd on Query {\n  datasets(first: $first, after: $after, sort: $sort) {\n    edges {\n      node {\n        id\n        name\n        description\n        createdAt\n        exampleCount\n        experimentCount\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query DatasetsTableDatasetsQuery(\n  $after: String = null\n  $first: Int = 100\n  $sort: DatasetSort = {col: createdAt, dir: desc}\n) {\n  ...DatasetsTable_datasets_dWkdd\n}\n\nfragment DatasetsTable_datasets_dWkdd on Query {\n  datasets(first: $first, after: $after, sort: $sort) {\n    edges {\n      node {\n        id\n        name\n        description\n        metadata\n        createdAt\n        exampleCount\n        experimentCount\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ead09294d86188dc9d76825bdef37fbf";
+(node as any).hash = "fa378bc7ec26f5e877e6cf90e5ee553d";
 
 export default node;

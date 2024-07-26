@@ -41,10 +41,10 @@ export function DatasetsPageContent() {
     {},
     {
       fetchKey: fetchKey,
+      fetchPolicy: "store-and-network",
     }
   );
 
-  // TODO(persistence): figure out how to refresh the data after a dataset is created
   const onDatasetCreated = useCallback(() => {
     setFetchKey((prev) => prev + 1);
   }, [setFetchKey]);

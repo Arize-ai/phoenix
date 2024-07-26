@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<eae0812022ee81895472b0eb76a76429>>
+ * @generated SignedSource<<7928e987c313af9e393b263cf3c17e93>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -106,6 +106,13 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "metadata",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "createdAt",
                     "storageKey": null
                   },
@@ -185,12 +192,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d601b31a6b08ca286a660c02a5d47ed6",
+    "cacheID": "695b221e981c4795492d79faa7d007e4",
     "id": null,
     "metadata": {},
     "name": "DatasetsPageQuery",
     "operationKind": "query",
-    "text": "query DatasetsPageQuery {\n  ...DatasetsTable_datasets\n}\n\nfragment DatasetsTable_datasets on Query {\n  datasets(first: 100, sort: {col: createdAt, dir: desc}) {\n    edges {\n      node {\n        id\n        name\n        description\n        createdAt\n        exampleCount\n        experimentCount\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query DatasetsPageQuery {\n  ...DatasetsTable_datasets\n}\n\nfragment DatasetsTable_datasets on Query {\n  datasets(first: 100, sort: {col: createdAt, dir: desc}) {\n    edges {\n      node {\n        id\n        name\n        description\n        metadata\n        createdAt\n        exampleCount\n        experimentCount\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

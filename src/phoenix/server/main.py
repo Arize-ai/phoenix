@@ -42,16 +42,14 @@ from phoenix.server.types import DbSessionFactory
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
-    download_traces_fixture,
     get_dataset_fixtures,
     get_evals_from_fixture,
-    get_trace_fixture_by_name,
+    load_example_traces,
     reset_fixture_span_ids_and_timestamps,
     send_dataset_fixtures,
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
-from phoenix.trace.span_json_decoder import json_string_to_span
 
 logger = logging.getLogger(__name__)
 
@@ -221,10 +219,8 @@ if __name__ == "__main__":
             (
                 # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
                 # `encode` removes the hyphens in the UUIDs.
-                decode_otlp_span(encode_span_to_otlp(json_string_to_span(json_span)))
-                for json_span in download_traces_fixture(
-                    get_trace_fixture_by_name(trace_dataset_name)
-                )
+                decode_otlp_span(encode_span_to_otlp(span))
+                for span in load_example_traces(trace_dataset_name).to_spans()
             ),
             get_evals_from_fixture(trace_dataset_name),
         )

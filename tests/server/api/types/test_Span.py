@@ -47,6 +47,64 @@ async def test_project_resolver_returns_correct_project(
     }
 
 
+async def test_querying_spans_contained_in_datasets(
+    httpx_client: httpx.AsyncClient, project_with_a_single_trace_and_span: Any, simple_dataset: Any
+):
+    query = """
+      query ($spanId: GlobalID!) {
+        span: node(id: $spanId) {
+          ... on Span {
+            containedInDataset
+          }
+        }
+      }
+    """
+    span_id = str(GlobalID(Span.__name__, str(1)))
+    response = await httpx_client.post(
+        "/graphql",
+        json={
+            "query": query,
+            "variables": {
+                "spanId": span_id,
+            },
+        },
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json.get("errors") is None
+    actual_contained_in_dataset = response_json["data"]["span"]["containedInDataset"]
+    assert actual_contained_in_dataset is True
+
+
+async def test_querying_spans_not_contained_in_datasets(
+    httpx_client: httpx.AsyncClient, project_with_a_single_trace_and_span: Any
+):
+    query = """
+      query ($spanId: GlobalID!) {
+        span: node(id: $spanId) {
+          ... on Span {
+            containedInDataset
+          }
+        }
+      }
+    """
+    span_id = str(GlobalID(Span.__name__, str(1)))
+    response = await httpx_client.post(
+        "/graphql",
+        json={
+            "query": query,
+            "variables": {
+                "spanId": span_id,
+            },
+        },
+    )
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json.get("errors") is None
+    actual_contained_in_dataset = response_json["data"]["span"]["containedInDataset"]
+    assert actual_contained_in_dataset is False
+
+
 @pytest.fixture
 async def project_with_a_single_trace_and_span(
     db: DbSessionFactory,
@@ -91,3 +149,50 @@ async def project_with_a_single_trace_and_span(
             )
             .returning(models.Span.id)
         )
+
+
+@pytest.fixture
+async def simple_dataset(
+    db: Callable[[], AsyncContextManager[AsyncSession]],
+) -> None:
+    """
+    A dataset with one example added in one version
+    """
+    async with db() as session:
+        dataset = models.Dataset(
+            id=0,
+            name="simple dataset",
+            description=None,
+            metadata_={"info": "a test dataset"},
+        )
+        session.add(dataset)
+        await session.flush()
+
+        dataset_version_0 = models.DatasetVersion(
+            id=0,
+            dataset_id=0,
+            description="the first version",
+            metadata_={"info": "gotta get some test data somewhere"},
+        )
+        session.add(dataset_version_0)
+        await session.flush()
+
+        example_0 = models.DatasetExample(
+            id=0,
+            dataset_id=0,
+            span_rowid=1,
+        )
+        session.add(example_0)
+        await session.flush()
+
+        example_0_revision_0 = models.DatasetExampleRevision(
+            id=0,
+            dataset_example_id=0,
+            dataset_version_id=0,
+            input={"in": "foo"},
+            output={"out": "bar"},
+            metadata_={"info": "the first reivision"},
+            revision_kind="CREATE",
+        )
+        session.add(example_0_revision_0)
+        await session.flush()

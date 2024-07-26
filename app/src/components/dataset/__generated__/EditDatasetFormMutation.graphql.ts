@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<86ba9c736e9305c4603f8126a0c93ffc>>
+ * @generated SignedSource<<b6d216dd10399c4c89ae69a816f7e1e2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,51 +9,58 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Mutation } from 'relay-runtime';
-export type CreateDatasetFormMutation$variables = {
+export type EditDatasetFormMutation$variables = {
+  datasetId: string;
   description?: string | null;
   metadata?: any | null;
   name: string;
 };
-export type CreateDatasetFormMutation$data = {
-  readonly createDataset: {
+export type EditDatasetFormMutation$data = {
+  readonly patchDataset: {
     readonly dataset: {
-      readonly createdAt: string;
       readonly description: string | null;
-      readonly exampleCount: number;
-      readonly experimentCount: number;
-      readonly id: string;
       readonly metadata: any;
       readonly name: string;
     };
   };
 };
-export type CreateDatasetFormMutation = {
-  response: CreateDatasetFormMutation$data;
-  variables: CreateDatasetFormMutation$variables;
+export type EditDatasetFormMutation = {
+  response: EditDatasetFormMutation$data;
+  variables: EditDatasetFormMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
 var v0 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "description"
+  "name": "datasetId"
 },
 v1 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "metadata"
+  "name": "description"
 },
 v2 = {
   "defaultValue": null,
   "kind": "LocalArgument",
+  "name": "metadata"
+},
+v3 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
   "name": "name"
 },
-v3 = [
+v4 = [
   {
     "alias": null,
     "args": [
       {
         "fields": [
+          {
+            "kind": "Variable",
+            "name": "datasetId",
+            "variableName": "datasetId"
+          },
           {
             "kind": "Variable",
             "name": "description",
@@ -76,7 +83,7 @@ v3 = [
     ],
     "concreteType": "DatasetMutationPayload",
     "kind": "LinkedField",
-    "name": "createDataset",
+    "name": "patchDataset",
     "plural": false,
     "selections": [
       {
@@ -87,13 +94,6 @@ v3 = [
         "name": "dataset",
         "plural": false,
         "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "id",
-            "storageKey": null
-          },
           {
             "alias": null,
             "args": null,
@@ -114,27 +114,6 @@ v3 = [
             "kind": "ScalarField",
             "name": "metadata",
             "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "createdAt",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "exampleCount",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "experimentCount",
-            "storageKey": null
           }
         ],
         "storageKey": null
@@ -148,37 +127,39 @@ return {
     "argumentDefinitions": [
       (v0/*: any*/),
       (v1/*: any*/),
-      (v2/*: any*/)
+      (v2/*: any*/),
+      (v3/*: any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "CreateDatasetFormMutation",
-    "selections": (v3/*: any*/),
+    "name": "EditDatasetFormMutation",
+    "selections": (v4/*: any*/),
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v2/*: any*/),
       (v0/*: any*/),
-      (v1/*: any*/)
+      (v3/*: any*/),
+      (v1/*: any*/),
+      (v2/*: any*/)
     ],
     "kind": "Operation",
-    "name": "CreateDatasetFormMutation",
-    "selections": (v3/*: any*/)
+    "name": "EditDatasetFormMutation",
+    "selections": (v4/*: any*/)
   },
   "params": {
-    "cacheID": "6aa615e27e1ccaa5431ba481842b43d0",
+    "cacheID": "d68da97aac0aaababba2324b7d10e250",
     "id": null,
     "metadata": {},
-    "name": "CreateDatasetFormMutation",
+    "name": "EditDatasetFormMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateDatasetFormMutation(\n  $name: String!\n  $description: String = null\n  $metadata: JSON = null\n) {\n  createDataset(input: {name: $name, description: $description, metadata: $metadata}) {\n    dataset {\n      id\n      name\n      description\n      metadata\n      createdAt\n      exampleCount\n      experimentCount\n    }\n  }\n}\n"
+    "text": "mutation EditDatasetFormMutation(\n  $datasetId: GlobalID!\n  $name: String!\n  $description: String = null\n  $metadata: JSON = null\n) {\n  patchDataset(input: {datasetId: $datasetId, name: $name, description: $description, metadata: $metadata}) {\n    dataset {\n      name\n      description\n      metadata\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5921369d33cc0fb1dffb5d943469a378";
+(node as any).hash = "17e232f5c22d36d0663f140c00343680";
 
 export default node;

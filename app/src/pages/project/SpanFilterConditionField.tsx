@@ -6,11 +6,14 @@ import React, {
   useState,
 } from "react";
 import { useParams } from "react-router";
-import { autocompletion, CompletionContext } from "@codemirror/autocomplete";
+import {
+  autocompletion,
+  CompletionContext,
+  CompletionResult,
+} from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
-import { EditorView, keymap } from "@codemirror/view";
 import { nord } from "@uiw/codemirror-theme-nord";
-import CodeMirror from "@uiw/react-codemirror";
+import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
 import { fetchQuery, graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
@@ -70,11 +73,14 @@ const fieldCSS = css`
   box-sizing: border-box;
 `;
 
-function filterConditionCompletions(context: CompletionContext) {
+function filterConditionCompletions(
+  context: CompletionContext
+): CompletionResult | null {
   const word = context.matchBefore(/\w*/);
   if (!word) return null;
 
   if (word.from == word.to && !context.explicit) return null;
+
   return {
     from: word.from,
     options: [
@@ -168,7 +174,13 @@ function filterConditionCompletions(context: CompletionContext) {
       {
         label: "Hallucinations",
         type: "text",
-        apply: "evals['Hallucination'].label == 'hallucinated'",
+        apply: "annotations['Hallucination'].label == 'hallucinated'",
+        detail: "macro",
+      },
+      {
+        label: "Annotations",
+        type: "text",
+        apply: "annotations['Hallucination'].label == 'hallucinated'",
         detail: "macro",
       },
       {
@@ -271,8 +283,8 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   useEffect(() => {
     isConditionValid(deferredFilterCondition, projectId as string).then(
       (result) => {
-        if (!result?.isValid && result?.errorMessage) {
-          setErrorMessage(result.errorMessage);
+        if (!result?.isValid) {
+          setErrorMessage(result?.errorMessage ?? "Invalid filter condition");
         } else {
           setErrorMessage("");
           startTransition(() => {
@@ -298,6 +310,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
         </AddonBefore>
         <CodeMirror
           css={codeMirrorCSS}
+          indentWithTab={false}
           basicSetup={{
             lineNumbers: false,
             foldGutter: false,
@@ -394,6 +407,12 @@ function FilterConditionBuilder(props: {
           key="token_count"
           label="filter by token count"
           initialSnippet="cumulative_token_count.total > 1000"
+          onAddFilterConditionSnippet={onAddFilterConditionSnippet}
+        />
+        <FilterConditionSnippet
+          key="annotation_label"
+          label="filter by annotation label"
+          initialSnippet="annotations['Hallucination'].label == 'hallucinated'"
           onAddFilterConditionSnippet={onAddFilterConditionSnippet}
         />
         <FilterConditionSnippet

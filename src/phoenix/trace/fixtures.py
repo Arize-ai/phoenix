@@ -8,7 +8,6 @@ from random import getrandbits
 from tempfile import NamedTemporaryFile
 from time import sleep, time
 from typing import Dict, Iterable, Iterator, List, NamedTuple, Optional, Sequence, Tuple, cast
-from urllib import request
 from urllib.parse import urljoin
 
 import httpx
@@ -20,7 +19,7 @@ import phoenix.trace.v1 as pb
 from phoenix import Client
 from phoenix.trace.schemas import Span
 from phoenix.trace.trace_dataset import TraceDataset
-from phoenix.trace.utils import json_lines_to_df
+from phoenix.trace.utils import download_json_traces_fixture, is_jsonl_file, json_lines_to_df
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +85,7 @@ class TracesFixture:
 llama_index_rag_fixture = TracesFixture(
     name="llama_index_rag",
     description="Traces from running the llama_index on a RAG use case.",
-    file_name="llama_index_rag_v8.jsonl",
+    file_name="llama_index_rag_v8.parquet",
     evaluation_fixtures=(
         EvaluationFixture(
             evaluation_name="Q&A Correctness",
@@ -136,31 +135,31 @@ llama_index_rag_fixture = TracesFixture(
 llama_index_calculator_agent_fixture = TracesFixture(
     name="llama_index_calculator_agent",
     description="Traces from running the llama_index with calculator tools.",
-    file_name="llama_index_calculator_agent_v3.jsonl",
+    file_name="llama_index_calculator_agent_v3.parquet",
 )
 
 llama_index_rag_fixture_with_davinci = TracesFixture(
     name="llama_index_rag_with_davinci",
     description="Traces from running llama_index on a RAG use case with the completions API.",
-    file_name="llama_index_rag_with_davinci_v0.jsonl",
+    file_name="llama_index_rag_with_davinci_v0.parquet",
 )
 
 langchain_rag_stuff_document_chain_fixture = TracesFixture(
     name="langchain_rag_stuff_document_chain",
     description="LangChain RAG data",
-    file_name="langchain_rag.jsonl",
+    file_name="langchain_rag.parquet",
 )
 
 langchain_titanic_csv_agent_evaluator_fixture = TracesFixture(
     name="lc_titanic",
     description="LangChain titanic.csv Agent Evaluator",
-    file_name="lc_titanic.jsonl",
+    file_name="lc_titanic.parquet",
 )
 
 langchain_qa_with_sources_fixture = TracesFixture(
     name="langchain_qa_with_sources",
     description="LangChain QA with sources on financial data",
-    file_name="langchain_qa_with_sources_chain.jsonl",
+    file_name="langchain_qa_with_sources_chain.parquet",
 )
 
 random_fixture = TracesFixture(
@@ -197,26 +196,21 @@ def get_trace_fixture_by_name(fixture_name: str) -> TracesFixture:
     return NAME_TO_TRACES_FIXTURE[fixture_name]
 
 
-def download_traces_fixture(
-    fixture: TracesFixture,
-    host: Optional[str] = "https://storage.googleapis.com/",
-    bucket: Optional[str] = "arize-assets",
-    prefix: Optional[str] = "phoenix/traces/",
-) -> List[str]:
-    """
-    Downloads the traces fixture from the phoenix bucket.
-    """
-    url = f"{host}{bucket}/{prefix}{fixture.file_name}"
-    with request.urlopen(url) as f:
-        return cast(List[str], f.readlines())
-
-
 def load_example_traces(fixture_name: str) -> TraceDataset:
     """
     Loads a trace dataframe by name.
     """
+    host = "https://storage.googleapis.com/"
+    bucket = "arize-phoenix-assets"
+    prefix = "traces/"
     fixture = get_trace_fixture_by_name(fixture_name)
-    return TraceDataset(json_lines_to_df(download_traces_fixture(fixture)))
+
+    url = f"{host}{bucket}/{prefix}{fixture.file_name}"
+
+    if is_jsonl_file(fixture.file_name):
+        return TraceDataset(json_lines_to_df(download_json_traces_fixture(url)))
+
+    return TraceDataset(pd.read_parquet(url))
 
 
 def get_dataset_fixtures(fixture_name: str) -> Iterable[DatasetFixture]:

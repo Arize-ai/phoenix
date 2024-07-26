@@ -7,7 +7,7 @@ import CodeMirror, { ReactCodeMirrorProps } from "@uiw/react-codemirror";
 
 import { useTheme } from "@phoenix/contexts";
 
-type JSONEditorProps = Omit<
+export type JSONEditorProps = Omit<
   ReactCodeMirrorProps,
   "theme" | "extensions" | "editable"
 >;

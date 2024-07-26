@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6ada18701f4f9b63ea990b17751e80ce>>
+ * @generated SignedSource<<75c393b1d6d1d353271b06c3e1a7edf1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,17 +9,17 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Mutation } from 'relay-runtime';
-export type DatasetActionMenuDeleteMutation$variables = {
+export type DeleteDatasetDialogMutation$variables = {
   datasetId: string;
 };
-export type DatasetActionMenuDeleteMutation$data = {
+export type DeleteDatasetDialogMutation$data = {
   readonly deleteDataset: {
     readonly __typename: "DatasetMutationPayload";
   };
 };
-export type DatasetActionMenuDeleteMutation = {
-  response: DatasetActionMenuDeleteMutation$data;
-  variables: DatasetActionMenuDeleteMutation$variables;
+export type DeleteDatasetDialogMutation = {
+  response: DeleteDatasetDialogMutation$data;
+  variables: DeleteDatasetDialogMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -67,7 +67,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "DatasetActionMenuDeleteMutation",
+    "name": "DeleteDatasetDialogMutation",
     "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -76,20 +76,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "DatasetActionMenuDeleteMutation",
+    "name": "DeleteDatasetDialogMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "4749f861cca561a1178904c53c396e39",
+    "cacheID": "3d32b97acd630dd7dbc9c85a632a1d49",
     "id": null,
     "metadata": {},
-    "name": "DatasetActionMenuDeleteMutation",
+    "name": "DeleteDatasetDialogMutation",
     "operationKind": "mutation",
-    "text": "mutation DatasetActionMenuDeleteMutation(\n  $datasetId: GlobalID!\n) {\n  deleteDataset(input: {datasetId: $datasetId}) {\n    __typename\n  }\n}\n"
+    "text": "mutation DeleteDatasetDialogMutation(\n  $datasetId: GlobalID!\n) {\n  deleteDataset(input: {datasetId: $datasetId}) {\n    __typename\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d98c682a2c908030c2f772209a4a25b8";
+(node as any).hash = "7066cca7015a7e344b77862b0bdab21c";
 
 export default node;

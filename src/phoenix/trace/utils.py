@@ -1,9 +1,32 @@
 import json
+import os
 import re
 from traceback import format_exception
 from typing import List, Optional, Tuple, cast
+from urllib import request
 
 import pandas as pd
+
+
+def is_jsonl_file(file_path: str) -> bool:
+    """
+    Check if the given file is a Parquet file.
+    """
+    file_extension = os.path.splitext(file_path)[-1]
+    if file_extension == ".jsonl":
+        return True
+    return False
+
+
+def download_json_traces_fixture(
+    url: str,
+) -> List[str]:
+    """
+    Stores the traces fixture as list of jsons from the jsonl files in the phoenix bucket.
+    """
+
+    with request.urlopen(url) as f:
+        return cast(List[str], f.readlines())
 
 
 def json_lines_to_df(lines: List[str]) -> pd.DataFrame:
