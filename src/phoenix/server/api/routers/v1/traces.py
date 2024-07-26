@@ -156,7 +156,7 @@ async def annotate_traces(
         request.state.enqueue(*precursors)
         return AnnotateTracesResponseBody(data=[])
 
-    trace_ids = {trace_id for trace_id, *_ in precursors}
+    trace_ids = {_.trace_id for _ in precursors}
     async with request.app.state.db() as session:
         existing_traces = {
             trace.trace_id: trace.id

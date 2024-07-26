@@ -12,14 +12,12 @@ from typing import (
     Generic,
     Iterator,
     List,
-    NamedTuple,
     Optional,
     Protocol,
     Sequence,
     Tuple,
     Type,
     TypeVar,
-    Union,
 )
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -81,7 +79,7 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT]):
         retry_delay_sec: float = DEFAULT_RETRY_DELAY_SEC,
         retry_allowance: int = DEFAULT_RETRY_ALLOWANCE,
     ) -> None:
-        self._queue: List[Union[Received[_PrecursorT], Received[_InsertableT]]] = []
+        self._queue: List[Received[_PrecursorT]] = []
         self._db = db
         self._retry_delay_sec = retry_delay_sec
         self._retry_allowance = retry_allowance
@@ -90,7 +88,7 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT]):
     def empty(self) -> bool:
         return not bool(self._queue)
 
-    async def enqueue(self, *items: Union[_PrecursorT, _InsertableT]) -> None:
+    async def enqueue(self, *items: _PrecursorT) -> None:
         self._queue.extend([Received(_) for _ in items])
 
     @staticmethod
@@ -98,21 +96,21 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT]):
     async def _partition(
         session: AsyncSession,
         retry_allowance: int,
-        *requests: Union[Received[_PrecursorT], Received[_InsertableT]],
+        *parcels: Received[_PrecursorT],
     ) -> Tuple[
         List[Received[_InsertableT]],
-        List[Union[Postponed[_PrecursorT], Postponed[_InsertableT]]],
-        List[Union[Received[_PrecursorT], Received[_InsertableT]]],
+        List[Postponed[_PrecursorT]],
+        List[Received[_PrecursorT]],
     ]: ...
 
     async def insert(self) -> None:
         if not self._queue:
             return
-        requests = self._queue
+        parcels = self._queue
         self._queue = []
         async with self._db() as session:
             to_insert, to_postpone, to_discard = await self._partition(
-                session, self._retry_allowance, *requests
+                session, self._retry_allowance, *parcels
             )
             if to_insert:
                 to_postpone.extend(await self._insert(session, *to_insert))
@@ -124,7 +122,7 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT]):
         self,
         session: AsyncSession,
         *insertions: Received[_InsertableT],
-    ) -> List[Postponed[_InsertableT]]:
+    ) -> List[Postponed[_PrecursorT]]:
         records = [dict(as_kv(_.item.row())) for _ in insertions]
         dialect = SupportedSQLDialect(session.bind.dialect.name)
         to_postpone = []
@@ -164,39 +162,63 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT]):
 
 
 class Precursors(ABC):
-    class SpanAnnotation(NamedTuple):
+    @dataclass(frozen=True)
+    class SpanAnnotation:
         span_id: str
         entity: models.SpanAnnotation
 
         def as_insertable(
-            self, span_rowid: int, id_: Optional[int] = None
+            self,
+            span_rowid: int,
+            id_: Optional[int] = None,
         ) -> Insertables.SpanAnnotation:
-            return Insertables.SpanAnnotation(*self, span_rowid=span_rowid, id_=id_)
+            return Insertables.SpanAnnotation(
+                span_id=self.span_id,
+                entity=self.entity,
+                span_rowid=span_rowid,
+                id_=id_,
+            )
 
-    class TraceAnnotation(NamedTuple):
+    @dataclass(frozen=True)
+    class TraceAnnotation:
         trace_id: str
         entity: models.TraceAnnotation
 
         def as_insertable(
-            self, trace_rowid: int, id_: Optional[int] = None
+            self,
+            trace_rowid: int,
+            id_: Optional[int] = None,
         ) -> Insertables.TraceAnnotation:
-            return Insertables.TraceAnnotation(*self, trace_rowid=trace_rowid, id_=id_)
+            return Insertables.TraceAnnotation(
+                trace_id=self.trace_id,
+                entity=self.entity,
+                trace_rowid=trace_rowid,
+                id_=id_,
+            )
 
-    class DocumentAnnotation(NamedTuple):
+    @dataclass(frozen=True)
+    class DocumentAnnotation:
         span_id: str
         document_position: int
         entity: models.DocumentAnnotation
 
         def as_insertable(
-            self, span_rowid: int, id_: Optional[int] = None
+            self,
+            span_rowid: int,
+            id_: Optional[int] = None,
         ) -> Insertables.DocumentAnnotation:
-            return Insertables.DocumentAnnotation(*self, span_rowid=span_rowid, id_=id_)
+            return Insertables.DocumentAnnotation(
+                span_id=self.span_id,
+                document_position=self.document_position,
+                entity=self.entity,
+                span_rowid=span_rowid,
+                id_=id_,
+            )
 
 
 class Insertables(ABC):
-    class SpanAnnotation(NamedTuple):
-        span_id: str
-        entity: models.SpanAnnotation
+    @dataclass(frozen=True)
+    class SpanAnnotation(Precursors.SpanAnnotation):
         span_rowid: int
         id_: Optional[int]
 
@@ -207,9 +229,8 @@ class Insertables(ABC):
                 ans.id = self.id_
             return ans
 
-    class TraceAnnotation(NamedTuple):
-        trace_id: str
-        entity: models.TraceAnnotation
+    @dataclass(frozen=True)
+    class TraceAnnotation(Precursors.TraceAnnotation):
         trace_rowid: int
         id_: Optional[int]
 
@@ -220,10 +241,8 @@ class Insertables(ABC):
                 ans.id = self.id_
             return ans
 
-    class DocumentAnnotation(NamedTuple):
-        span_id: str
-        document_position: int
-        entity: models.DocumentAnnotation
+    @dataclass(frozen=True)
+    class DocumentAnnotation(Precursors.DocumentAnnotation):
         span_rowid: int
         id_: Optional[int]
 

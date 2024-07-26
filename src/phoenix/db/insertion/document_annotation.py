@@ -1,9 +1,9 @@
 from datetime import datetime
-from itertools import chain
-from typing import Iterable, List, NamedTuple, Tuple, Union
+from typing import Any, FrozenSet, List, Mapping, NamedTuple, Tuple
 
-from sqlalchemy import Select, and_, or_, select, tuple_
+from sqlalchemy import Select, and_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, dedup, num_docs_col
@@ -14,6 +14,9 @@ from phoenix.db.insertion.types import (
     QueueInserter,
     Received,
 )
+
+_Key: TypeAlias = Tuple[str, str, int]
+_UniqueBy: TypeAlias = Tuple[str, int, int]
 
 
 class DocumentAnnotationQueueInserter(
@@ -29,130 +32,63 @@ class DocumentAnnotationQueueInserter(
     async def _partition(
         session: AsyncSession,
         retry_allowance: int,
-        *parcels: Union[
-            Received[Precursors.DocumentAnnotation],
-            Received[Insertables.DocumentAnnotation],
-        ],
+        *parcels: Received[Precursors.DocumentAnnotation],
     ) -> Tuple[
         List[Received[Insertables.DocumentAnnotation]],
-        List[
-            Union[
-                Postponed[Precursors.DocumentAnnotation],
-                Postponed[Insertables.DocumentAnnotation],
-            ]
-        ],
-        List[
-            Union[
-                Received[Precursors.DocumentAnnotation],
-                Received[Insertables.DocumentAnnotation],
-            ]
-        ],
+        List[Postponed[Precursors.DocumentAnnotation]],
+        List[Received[Precursors.DocumentAnnotation]],
     ]:
         to_insert: List[Received[Insertables.DocumentAnnotation]] = []
-        to_postpone: List[
-            Union[
-                Postponed[Precursors.DocumentAnnotation],
-                Postponed[Insertables.DocumentAnnotation],
-            ]
-        ] = []
-        to_discard: List[
-            Union[
-                Received[Precursors.DocumentAnnotation],
-                Received[Insertables.DocumentAnnotation],
-            ]
-        ] = []
+        to_postpone: List[Postponed[Precursors.DocumentAnnotation]] = []
+        to_discard: List[Received[Precursors.DocumentAnnotation]] = []
 
-        name_and_span_id_and_document_position = {
-            (item.entity.name, item.span_id, item.document_position)
-            for item, *_ in parcels
-            if isinstance(item, Precursors.DocumentAnnotation)
-        }
-        name_and_span_rowid_and_document_position = {
-            (item.entity.name, item.span_rowid, item.document_position)
-            for item, *_ in parcels
-            if isinstance(item, Insertables.DocumentAnnotation)
-        }
-
-        stmt = existing_spans_and_document_annotations_stmt(
-            SupportedSQLDialect(session.bind.dialect.name),
-            name_and_span_id_and_document_position,
-            name_and_span_rowid_and_document_position,
-        )
-        existing_spans_and_document_annotations = [_ async for _ in await session.stream(stmt)]
-        existing_spans = {
+        identifiers = frozenset({_key(_) for _ in parcels})
+        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        stmt = existing_spans_and_document_annotations_stmt(dialect, identifiers)
+        existing = [_ async for _ in await session.stream(stmt)]
+        existing_spans: Mapping[str, _SpanAttr] = {
             span_id: _SpanAttr(span_rowid, num_docs)
-            for span_rowid, span_id, num_docs, *_ in existing_spans_and_document_annotations
+            for span_rowid, span_id, num_docs, *_ in existing
         }
-        existing_annotations_by_name_and_span_id = {
+        existing_annos: Mapping[_Key, _AnnoAttr] = {
             (name, span_id, document_position): _AnnoAttr(span_rowid, id_, updated_at)
-            for span_rowid, span_id, _, id_, name, document_position, updated_at in existing_spans_and_document_annotations  # noqa: E501
-            if id_ is not None
-        }
-        existing_annotations_by_name_and_span_rowid = {
-            (name, span_rowid, document_position): _AnnoAttr(span_rowid, id_, updated_at)
-            for span_rowid, span_id, _, id_, name, document_position, updated_at in existing_spans_and_document_annotations  # noqa: E501
+            for span_rowid, span_id, _, id_, name, document_position, updated_at in existing
             if id_ is not None
         }
 
         for p in parcels:
-            if (
-                isinstance(p.item, Insertables.DocumentAnnotation)
-                and (
-                    existing_annotations_by_name_and_span_rowid.get(
-                        (p.item.entity.name, p.item.span_rowid, p.item.document_position)
-                    )
-                )
-                is not None
-            ):
-                to_insert.append(p)
-            elif (
-                isinstance(p.item, Precursors.DocumentAnnotation)
-                and (
-                    existing_anno := existing_annotations_by_name_and_span_id.get(
-                        (p.item.entity.name, p.item.span_id, p.item.document_position)
-                    )
-                )
-                is not None
-            ):
-                if p.received_at <= existing_anno.updated_at:
+            if (anno := existing_annos.get(_key(p))) is not None:
+                if p.received_at <= anno.updated_at:
                     to_discard.append(p)
                 else:
                     to_insert.append(
                         Received(
                             received_at=p.received_at,
                             item=p.item.as_insertable(
-                                span_rowid=existing_anno.span_rowid,
-                                id_=existing_anno.id_,
+                                span_rowid=anno.span_rowid,
+                                id_=anno.id_,
                             ),
                         )
                     )
-            elif (
-                isinstance(p.item, Precursors.DocumentAnnotation)
-                and (existing_span := existing_spans.get(p.item.span_id)) is not None
-            ):
-                if p.item.document_position < existing_span.num_docs:
+            elif (span := existing_spans.get(p.item.span_id)) is not None:
+                if p.item.document_position < span.num_docs:
                     to_insert.append(
                         Received(
                             received_at=p.received_at,
                             item=p.item.as_insertable(
-                                span_rowid=existing_span.span_rowid,
+                                span_rowid=span.span_rowid,
                             ),
                         )
                     )
                 else:
                     to_discard.append(p)
-            elif isinstance(
-                p.item, (Precursors.DocumentAnnotation, Insertables.DocumentAnnotation)
-            ):
-                if isinstance(p, Postponed):
-                    if p.retries_left > 1:
-                        to_postpone.append(p.postpone(p.retries_left - 1))
-                    else:
-                        to_discard.append(p)
-                elif isinstance(p, Received):
-                    to_postpone.append(p.postpone(retry_allowance))
+            elif isinstance(p, Postponed):
+                if p.retries_left > 1:
+                    to_postpone.append(p.postpone(p.retries_left - 1))
                 else:
                     to_discard.append(p)
+            elif isinstance(p, Received):
+                to_postpone.append(p.postpone(retry_allowance))
             else:
                 to_discard.append(p)
 
@@ -169,27 +105,15 @@ class DocumentAnnotationQueueInserter(
 
 def existing_spans_and_document_annotations_stmt(
     dialect: SupportedSQLDialect,
-    name_and_span_id_and_document_position: Iterable[Tuple[str, str, int]] = (),
-    name_and_span_rowid_and_document_position: Iterable[Tuple[str, int, int]] = (),
+    identifiers: FrozenSet[Tuple[str, str, int]],
 ) -> Select[Tuple[int, str, int, str, int, datetime]]:
-    name_and_span_id_and_document_position = list(name_and_span_id_and_document_position)
-    name_and_span_rowid_and_document_position = list(name_and_span_rowid_and_document_position)
     existing = (
         select(
             models.Span.id,
             models.Span.span_id,
             num_docs_col(dialect),
         )
-        .where(
-            or_(
-                models.Span.span_id.in_(
-                    {span_id for _, span_id, *_ in name_and_span_id_and_document_position}
-                ),
-                models.Span.id.in_(
-                    {span_rowid for _, span_rowid, *_ in name_and_span_rowid_and_document_position}
-                ),
-            )
-        )
+        .where(models.Span.span_id.in_({span_id for _, span_id, *_ in identifiers}))
         .cte()
     )
     table = models.DocumentAnnotation
@@ -206,24 +130,10 @@ def existing_spans_and_document_annotations_stmt(
         table,
         and_(
             existing.c.id == table.span_rowid,
-            table.name.in_(
-                {
-                    name
-                    for name, *_ in chain(
-                        name_and_span_id_and_document_position,
-                        name_and_span_rowid_and_document_position,
-                    )
-                }
-            ),
-            or_(
-                tuple_(table.name, existing.c.span_id, table.document_position).in_(
-                    (name, span_id, document_position)
-                    for name, span_id, document_position in name_and_span_id_and_document_position
-                ),
-                tuple_(table.name, existing.c.id, table.document_position).in_(
-                    (name, span_rowid, document_position)
-                    for name, span_rowid, document_position in name_and_span_rowid_and_document_position  # noqa: E501
-                ),
+            table.name.in_({name for name, *_ in identifiers}),
+            tuple_(table.name, existing.c.span_id, table.document_position).in_(
+                (name, span_id, document_position)
+                for name, span_id, document_position in identifiers
             ),
         ),
     )
@@ -238,3 +148,15 @@ class _AnnoAttr(NamedTuple):
     span_rowid: int
     id_: int
     updated_at: datetime
+
+
+def _key(_: Received[Precursors.DocumentAnnotation]) -> _Key:
+    return _.item.entity.name, _.item.span_id, _.item.document_position
+
+
+def _unique_by(_: Received[Insertables.DocumentAnnotation]) -> _UniqueBy:
+    return _.item.entity.name, _.item.span_rowid, _.item.document_position
+
+
+def _time(_: Received[Any]) -> datetime:
+    return _.received_at

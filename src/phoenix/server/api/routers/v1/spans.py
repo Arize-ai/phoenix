@@ -200,7 +200,7 @@ async def annotate_spans(
         request.state.enqueue(*precursors)
         return AnnotateSpansResponseBody(data=[])
 
-    span_ids = {span_id for span_id, *_ in precursors}
+    span_ids = {_.span_id for _ in precursors}
     async with request.app.state.db() as session:
         existing_spans = {
             span.span_id: span.id
