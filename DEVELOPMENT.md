@@ -4,6 +4,7 @@
   - [Setting Up Your macOS Development Environment](#setting-up-your-macos-development-environment)
   - [Testing and Linting](#testing-and-linting)
   - [Installing Pre-Commit Hooks](#installing-pre-commit-hooks)
+  - [Contributing Notebooks](#contributing-notebooks)
   - [Building the Package](#building-the-package)
   - [Installing a Phoenix Build](#installing-a-phoenix-build)
   - [Installing a `git` Branch on Colab](#installing-a-git-branch-on-colab)
@@ -146,6 +147,14 @@ pre-commit install
 ```
 
 Once installed, the pre-commit hooks configured in `.pre-commit-config.yaml` will automatically run prior to each `git commit`. Pre-commit hooks can be skipped by passing the `-n`/ `--no-verify` flag to the `git commit` command.
+
+## Contributing Notebooks
+
+To add or modify a Jupyter notebook, the following commands are needed to pass CI.
+
+- `hatch run type:check`: Run type checks
+- `hatch run style:fix`: Runs formatters
+- `hatch run notebooks:clean`: Removes cell output and notebook metadata to keep the diff as small as possible
 
 ## Building the Package
 
