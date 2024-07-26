@@ -24,7 +24,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import TypeAlias
 
 import phoenix.trace.v1 as pb
-from phoenix.db import models
 from phoenix.db.insertion.constants import DEFAULT_RETRY_ALLOWANCE, DEFAULT_RETRY_DELAY_SEC
 from phoenix.db.insertion.document_annotation import DocumentAnnotationQueueInserter
 from phoenix.db.insertion.evaluation import (
@@ -103,7 +102,7 @@ class BulkInserter:
     async def __aenter__(
         self,
     ) -> Tuple[
-        Callable[[models.Base], Awaitable[None]],
+        Callable[[Any], Awaitable[None]],
         Callable[[Span, str], Awaitable[None]],
         Callable[[pb.Evaluation], Awaitable[None]],
         Callable[[DataManipulation], None],
