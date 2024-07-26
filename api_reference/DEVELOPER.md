@@ -1,4 +1,4 @@
-# Maintenance README for Phoenix Sphinx API Documentation
+# Maintenance for Phoenix Sphinx API Documentation
 
 This API reference provides comprehensive details for Phoenix's API. The documentation covers only public, user-facing API endpoints offered in Phoenix. The main GitBook-based documentation for Phoenix is located in phoenix/docs.
 
