@@ -252,24 +252,24 @@ def _annotation_factory(
                 span_id_idx = names.index("span_id")
             else:
                 return None
-            return lambda _: lambda **__: Precursors.DocumentAnnotation(
-                span_id=cast(str, _[span_id_idx]),
-                document_position=cast(int, _[document_position_idx]),
+            return lambda index: lambda **kwargs: Precursors.DocumentAnnotation(
+                span_id=str(index[span_id_idx]),
+                document_position=int(index[document_position_idx]),
                 entity=models.DocumentAnnotation(
-                    document_position=cast(int, _[document_position_idx]),
-                    **__,
+                    document_position=int(index[document_position_idx]),
+                    **kwargs,
                 ),
             )
     elif len(names) == 1:
         if names[0] in ("context.span_id", "span_id"):
-            return lambda _: lambda **__: Precursors.SpanAnnotation(
-                span_id=str(_),
-                entity=models.SpanAnnotation(**__),
+            return lambda span_id: lambda **kwargs: Precursors.SpanAnnotation(
+                span_id=str(span_id),
+                entity=models.SpanAnnotation(**kwargs),
             )
         if names[0] in ("context.trace_id", "trace_id"):
-            return lambda _: lambda **__: Precursors.TraceAnnotation(
-                trace_id=str(_),
-                entity=models.TraceAnnotation(**__),
+            return lambda trace_id: lambda **kwargs: Precursors.TraceAnnotation(
+                trace_id=str(trace_id),
+                entity=models.TraceAnnotation(**kwargs),
             )
     return None
 
