@@ -3,7 +3,7 @@ import inspect
 import io
 import json
 from io import BytesIO, StringIO
-from typing import Any, AsyncContextManager, Callable, Tuple
+from typing import Any, Tuple
 
 import httpx
 import pandas as pd
@@ -14,8 +14,8 @@ from pandas.testing import assert_frame_equal
 from phoenix.db import models
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
+from phoenix.server.types import DbSessionFactory
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 
@@ -430,7 +430,7 @@ async def test_get_dataset_jsonl_openai_evals(
 
 async def test_post_dataset_upload_json_create_then_append(
     httpx_client: httpx.AsyncClient,
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
 ) -> None:
     name = inspect.stack()[0][3]
     response = await httpx_client.post(
@@ -481,7 +481,7 @@ async def test_post_dataset_upload_json_create_then_append(
 
 async def test_post_dataset_upload_csv_create_then_append(
     httpx_client: httpx.AsyncClient,
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
 ) -> None:
     name = inspect.stack()[0][3]
     file = gzip.compress(b"a,b,c,d,e,f\n1,2,3,4,5,6\n")
@@ -536,7 +536,7 @@ async def test_post_dataset_upload_csv_create_then_append(
 
 async def test_post_dataset_upload_pyarrow_create_then_append(
     httpx_client: httpx.AsyncClient,
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
 ) -> None:
     name = inspect.stack()[0][3]
     df = pd.read_csv(StringIO("a,b,c,d,e,f\n1,2,3,4,5,6\n"))

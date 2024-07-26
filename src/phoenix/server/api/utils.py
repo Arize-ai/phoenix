@@ -1,13 +1,13 @@
-from typing import AsyncContextManager, Callable, List
+from typing import List
 
 from sqlalchemy import delete
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
+from phoenix.server.types import DbSessionFactory
 
 
 async def delete_projects(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
     *project_names: str,
 ) -> List[int]:
     if not project_names:
@@ -22,7 +22,7 @@ async def delete_projects(
 
 
 async def delete_traces(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
     *trace_ids: str,
 ) -> List[int]:
     if not trace_ids:

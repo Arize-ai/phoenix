@@ -1,19 +1,17 @@
 from random import randint
 from typing import (
-    AsyncContextManager,
-    Callable,
     Dict,
     List,
 )
 
 from aioitertools.itertools import groupby
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
+from phoenix.server.types import DbSessionFactory
 
 SpanId: TypeAlias = str
 
@@ -22,7 +20,7 @@ Result: TypeAlias = List[models.Span]
 
 
 class SpanDescendantsDataLoader(DataLoader[Key, Result]):
-    def __init__(self, db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+    def __init__(self, db: DbSessionFactory) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db
 

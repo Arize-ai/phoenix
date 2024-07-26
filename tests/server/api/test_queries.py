@@ -1,12 +1,12 @@
 from datetime import datetime
-from typing import Any, AsyncContextManager, Callable
+from typing import Any
 
 import httpx
 import pytest
 import pytz
 from phoenix.db import models
+from phoenix.server.types import DbSessionFactory
 from sqlalchemy import insert
-from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 
@@ -179,7 +179,7 @@ async def test_compare_experiments_returns_expected_comparisons(
 
 @pytest.fixture
 async def projects_with_and_without_experiments(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
 ) -> None:
     """
     Insert two projects, one that contains traces from an experiment and the other that does not.
@@ -226,7 +226,7 @@ async def projects_with_and_without_experiments(
 
 
 @pytest.fixture
-async def comparison_experiments(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+async def comparison_experiments(db: DbSessionFactory) -> None:
     """
     Creates a dataset with four examples, three versions, and four experiments.
 

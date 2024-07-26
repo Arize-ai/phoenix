@@ -1,10 +1,10 @@
-from typing import Any, AsyncContextManager, Callable
+from typing import Any
 
 import httpx
 import pytest
 from phoenix.db import models
+from phoenix.server.types import DbSessionFactory
 from sqlalchemy import func, insert
-from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 
@@ -24,7 +24,7 @@ class TestDeleteExperiment:
 
     async def test_deletes_and_returns_experiments(
         self,
-        db: Callable[[], AsyncContextManager[AsyncSession]],
+        db: DbSessionFactory,
         httpx_client: httpx.AsyncClient,
         simple_experiments: Any,
     ) -> None:
@@ -67,7 +67,7 @@ class TestDeleteExperiment:
 
     async def test_non_existent_experiment_id_results_in_no_deletions_and_returns_error(
         self,
-        db: Callable[[], AsyncContextManager[AsyncSession]],
+        db: DbSessionFactory,
         httpx_client: httpx.AsyncClient,
         simple_experiments: Any,
     ) -> None:
@@ -96,7 +96,7 @@ class TestDeleteExperiment:
 
 
 @pytest.fixture
-async def simple_experiments(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+async def simple_experiments(db: DbSessionFactory) -> None:
     """
     A dataset with one example and two experiments.
     """

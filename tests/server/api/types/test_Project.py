@@ -1,15 +1,15 @@
 # ruff: noqa: E501
 
 from datetime import datetime
-from typing import Any, AsyncContextManager, Callable
+from typing import Any
 
 import httpx
 import pytest
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
+from phoenix.server.types import DbSessionFactory
 from sqlalchemy import insert
-from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 PROJECT_ID = str(GlobalID(type_name="Project", node_id="1"))
@@ -532,7 +532,7 @@ async def test_project_spans(
 
 
 @pytest.fixture
-async def llama_index_rag_spans(db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+async def llama_index_rag_spans(db: DbSessionFactory) -> None:
     # Inserts the first three traces from the llama-index-rag trace fixture
     # (minus embeddings) along with associated span evaluations.
     async with db() as session:

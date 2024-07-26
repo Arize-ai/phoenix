@@ -41,13 +41,13 @@ from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import (
-    SessionFactory,
     _db,
     create_app,
     create_engine_and_run_migrations,
     instrument_engine_if_enabled,
 )
 from phoenix.server.thread_server import ThreadServer
+from phoenix.server.types import DbSessionFactory
 from phoenix.services import AppService
 from phoenix.session.client import Client
 from phoenix.session.data_extractor import DEFAULT_SPAN_LIMIT, TraceDataExtractor
@@ -375,7 +375,7 @@ class ThreadSession(Session):
         # Initialize an app service that keeps the server running
         engine = create_engine_and_run_migrations(database_url)
         instrumentation_cleanups = instrument_engine_if_enabled(engine)
-        factory = SessionFactory(session_factory=_db(engine), dialect=engine.dialect.name)
+        factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
         self.app = create_app(
             db=factory,
             export_path=self.export_path,

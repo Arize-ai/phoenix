@@ -1,12 +1,12 @@
 from datetime import datetime
-from typing import Any, AsyncContextManager, Callable
+from typing import Any
 
 import httpx
 import pytest
 import pytz
 from phoenix.db import models
+from phoenix.server.types import DbSessionFactory
 from sqlalchemy import insert
-from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 
@@ -98,7 +98,7 @@ async def test_annotations_resolver_returns_annotations_for_run(
 
 @pytest.fixture
 async def experiment_run_with_annotations(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
 ) -> None:
     """
     An experiment run with two annotations.

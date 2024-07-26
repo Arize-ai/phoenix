@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import AsyncContextManager, Callable, Optional
+from typing import Callable, Optional
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.fastapi import BaseContext
 from typing_extensions import TypeAlias
 
@@ -34,6 +33,7 @@ from phoenix.server.api.dataloaders import (
     TraceEvaluationsDataLoader,
     TraceRowIdsDataLoader,
 )
+from phoenix.server.types import DbSessionFactory
 
 
 @dataclass
@@ -68,7 +68,7 @@ ProjectRowId: TypeAlias = int
 
 @dataclass
 class Context(BaseContext):
-    db: Callable[[], AsyncContextManager[AsyncSession]]
+    db: DbSessionFactory
     data_loaders: DataLoaders
     cache_for_dataloaders: Optional[CacheForDataLoaders]
     model: Model

@@ -1,6 +1,6 @@
 import gzip
 from itertools import chain
-from typing import AsyncContextManager, Callable, Iterator, Optional, Sequence, Tuple, Union, cast
+from typing import Callable, Iterator, Optional, Sequence, Tuple, Union, cast
 
 import pandas as pd
 import pyarrow as pa
@@ -9,9 +9,6 @@ from google.protobuf.message import DecodeError
 from pandas import DataFrame
 from sqlalchemy import select
 from sqlalchemy.engine import Connectable
-from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-)
 from starlette.background import BackgroundTask
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -30,6 +27,7 @@ from phoenix.db import models
 from phoenix.db.insertion.types import Precursors
 from phoenix.exceptions import PhoenixEvaluationNameIsMissing
 from phoenix.server.api.routers.utils import table_to_bytes
+from phoenix.server.types import DbSessionFactory
 from phoenix.trace.span_evaluations import (
     DocumentEvaluations,
     Evaluations,
@@ -128,7 +126,7 @@ async def get_evaluations(
         or DEFAULT_PROJECT_NAME
     )
 
-    db: Callable[[], AsyncContextManager[AsyncSession]] = request.app.state.db
+    db: DbSessionFactory = request.app.state.db
     async with db() as session:
         connection = await session.connection()
         trace_evals_dataframe = await connection.run_sync(

@@ -1,17 +1,15 @@
 from typing import (
-    AsyncContextManager,
-    Callable,
     List,
     Optional,
 )
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
+from phoenix.server.types import DbSessionFactory
 
 ExampleID: TypeAlias = int
 Key: TypeAlias = ExampleID
@@ -19,7 +17,7 @@ Result: TypeAlias = Optional[models.Span]
 
 
 class DatasetExampleSpansDataLoader(DataLoader[Key, Result]):
-    def __init__(self, db: Callable[[], AsyncContextManager[AsyncSession]]) -> None:
+    def __init__(self, db: DbSessionFactory) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db
 

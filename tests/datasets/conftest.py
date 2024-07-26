@@ -1,13 +1,11 @@
-from typing import AsyncContextManager, Callable
-
 import pytest
 from phoenix.db import models
-from sqlalchemy.ext.asyncio import AsyncSession
+from phoenix.server.types import DbSessionFactory
 
 
 @pytest.fixture
 async def simple_dataset(
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
 ) -> None:
     """
     A dataset with one example added in one version
