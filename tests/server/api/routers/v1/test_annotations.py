@@ -51,9 +51,9 @@ async def test_sending_evaluations_before_span(
                 ),
             ),
         )
-        await sleep(0.01)
+        await sleep(0.001)
     await acall(px_client.log_traces, TraceDataset(df), project_name=project_name)
-    await sleep(0.1)
+    await sleep(1)
     evals = cast(
         List[Union[SpanEvaluations, TraceEvaluations, DocumentEvaluations]],
         await acall(px_client.get_evaluations, project_name=project_name),
