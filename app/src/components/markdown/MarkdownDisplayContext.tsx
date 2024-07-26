@@ -31,7 +31,9 @@ export function useMarkdownMode(): MarkdownDisplayContextType {
 }
 
 export function MarkdownDisplayProvider(props: PropsWithChildren) {
-  const mode = usePreferencesContext((state) => state.markdownDisplayMode);
+  const mode = usePreferencesContext((state) => {
+    return state.markdownDisplayMode;
+  });
   const setMarkdownDisplayMode = usePreferencesContext(
     (state) => state.setMarkdownDisplayMode
   );
