@@ -13,6 +13,7 @@ from typing_extensions import Literal
 class Message(BaseModel):
     role: Literal['system', 'assistant', 'user'] = Field(..., title='Role')
     content: str = Field(..., title='Content')
+    uuid: str = Field(..., title='UUID')
 
 
 class MessagesPayload(BaseModel):

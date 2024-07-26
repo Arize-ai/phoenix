@@ -1,5 +1,6 @@
 import json
 import os
+from uuid import uuid4
 from typing import Any, Dict, Iterator, List, Tuple
 
 from fastapi import FastAPI, HTTPException
@@ -78,9 +79,11 @@ async def messages(messages_payload: MessagesPayload) -> MessagesResponse:
         span.set_status(trace_api.StatusCode.OK)
         response_data = response.json()
         assistant_message_content = response_data["choices"][0]["message"]["content"]
+        message_uuid = str(uuid4())
         assistant_message = Message(
             role="assistant",
             content=assistant_message_content,
+            uuid=message_uuid,
         )
         for (
             attribute_key,

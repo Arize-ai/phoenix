@@ -8,6 +8,7 @@ Role = Literal["system", "assistant", "user"]
 class Message(BaseModel):
     role: Role
     content: str
+    uuid: str
 
 
 class MessagesPayload(BaseModel):
