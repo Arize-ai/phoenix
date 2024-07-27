@@ -6,6 +6,8 @@ import React, {
   useState,
 } from "react";
 
+import { usePreferencesContext } from "./PreferencesContext";
+
 export type StreamStateContextType = {
   /**
    * Whether or not streaming is enabled.
@@ -44,7 +46,12 @@ export function StreamStateProvider({
   initialFetchKey = "initial",
   children,
 }: PropsWithChildren<{ initialFetchKey?: string }>) {
-  const [isStreaming, setIsStreaming] = useState<boolean>(true);
+  const isStreaming = usePreferencesContext(
+    (state) => state.traceStreamingEnabled
+  );
+  const setIsStreaming = usePreferencesContext(
+    (state) => state.setTraceStreamingEnabled
+  );
   const [fetchKey, _setFetchKey] = useState<string>(initialFetchKey);
 
   const setFetchKey = useCallback(
