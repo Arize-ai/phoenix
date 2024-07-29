@@ -27,7 +27,7 @@ A client for making HTTP requests to the Phoenix server for extracting/downloadi
 
 ### Parameters
 
-* **endpoint** (Optional\[str]): Phoenix server endpoint. This is the URL for a remote server. If not provided, the endpoint will be inferred from environment variables. See [#environment-variables](client.md#environment-variables "mention").
+* **endpoint** (Optional\[str]): Phoenix server endpoint. This is the URL for a remote server. If not provided, the endpoint will be inferred from environment variables. This endpoint should just be a base url, without a `v1/traces` url slug. See [#environment-variables](client.md#environment-variables "mention").
 * **use\_active\_session\_if\_available** (Optional\[bool]): This is set to False if **endpoint** is set explicitly. If True and `px.active_session()` is available in the same runtime environment, e.g. the same Jupyter notebook, then delegate the requests to the `Session` object instead of making an HTTP request to the Phoenix server.
 
 ### Methods
@@ -111,7 +111,7 @@ Get dataset versions as pandas DataFrame.\
 \
 **Parameters**
 
-* **dataset_id** (str): Dataset ID.
+* **dataset\_id** (str): Dataset ID.
 * **limit** (Optional\[int]): maximum number of versions to return, starting from the most recent version.
 
 ## _**upload\_dataset**_
@@ -122,8 +122,8 @@ Upload a dataset to Phoenix. See [Usage](client.md#usage) below for examples. It
 \
 **Parameters**
 
-* **dataset_name** (str): The name of the dataset.
-* **dataset\_description**: (Optional[str]): Description of the dataset.
+* **dataset\_name** (str): The name of the dataset.
+* **dataset\_description**: (Optional\[str]): Description of the dataset.
 * **dataframe** (Optional\[pandas.DataFrame]): pandas DataFrame.
 * **csv\_file\_path** (Optional\[str | Path]): Location of the CSV file.
 * **input\_keys** (Optional\[Iterable\[str]): When uploading a dataframe or CSV file, this specifies the list of column names for inputs. Column names must actually exist among the column headers of the dataframe or CSV file.
@@ -137,7 +137,7 @@ Upload a dataset to Phoenix. See [Usage](client.md#usage) below for examples. It
 
 \-> Dataset\
 \
-Method signature is identical to that of the _upload_dataset_ method. If dataset doesn't already exist on the Phoenix server, it will be created.
+Method signature is identical to that of the _upload\_dataset_ method. If dataset doesn't already exist on the Phoenix server, it will be created.
 
 ### Usage
 
@@ -192,7 +192,6 @@ Each item in the `Dataset` is called an `Example`, and you can look at the first
 ```python
 dataset[0]
 ```
-
 
 ### Environment Variables
 
