@@ -61,7 +61,7 @@ export function AnnotationLabel({
 
   return (
     <div
-      role="button"
+      role={clickable ? "button" : undefined}
       css={css`
         cursor: ${clickable ? "pointer" : "default"};
         border-radius: var(--ac-global-dimension-size-50);
@@ -76,7 +76,11 @@ export function AnnotationLabel({
           font-size: 12px;
         }
       `}
-      aria-label="Click to view the annotation trace"
+      aria-label={
+        clickable
+          ? "Click to view the annotation trace"
+          : `Annotation: ${annotation.name}`
+      }
       onClick={(e) => {
         e.stopPropagation();
         e.preventDefault();
