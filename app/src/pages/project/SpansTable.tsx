@@ -23,7 +23,6 @@ import { Flex, Icon, Icons, View } from "@arizeai/components";
 import { Link } from "@phoenix/components/Link";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
-import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -38,6 +37,7 @@ import {
 } from "./__generated__/SpansTable_spans.graphql";
 import { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.graphql";
 import { EvaluationLabel } from "./EvaluationLabel";
+import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
@@ -462,7 +462,7 @@ export function SpansTable(props: SpansTableProps) {
             ))}
           </thead>
           {isEmpty ? (
-            <TableEmpty />
+            <ProjectTableEmpty />
           ) : (
             <tbody>
               {rows.map((row) => {
