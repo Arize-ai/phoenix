@@ -10,6 +10,7 @@ import {
   TriggerWrap,
 } from "@arizeai/components";
 
+import { useWordColor } from "@phoenix/hooks/useWordColor";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 interface Evaluation {
@@ -34,10 +35,17 @@ export function EvaluationLabel({ evaluation }: { evaluation: Evaluation }) {
     evaluation.label ||
     (typeof evaluation.score == "number" && formatFloat(evaluation.score)) ||
     "n/a";
+  const evalLabelColor = useWordColor(evaluation.name);
   return (
     <TooltipTrigger delay={500} offset={3}>
       <TriggerWrap>
-        <Label color="cyan-1000" shape="badge">
+        <Label
+          shape="badge"
+          css={css`
+            color: ${evalLabelColor};
+            border-color: 1px solid ${evalLabelColor};
+          `}
+        >
           <Flex direction="row" gap="size-50">
             <div css={textCSS}>
               <Text weight="heavy" textSize="small" color="inherit">

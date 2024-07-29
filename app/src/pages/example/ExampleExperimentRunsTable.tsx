@@ -11,7 +11,10 @@ import { css } from "@emotion/react";
 
 import { Button, Flex, Icon, Icons, Text } from "@arizeai/components";
 
-import { AnnotationLabel } from "@phoenix/components/experiment";
+import {
+  AnnotationLabel,
+  AnnotationTooltip,
+} from "@phoenix/components/experiment";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -151,17 +154,19 @@ export function ExampleExperimentRunsTable({
             {row.original.annotations.edges.map((annotationEdge, index) => {
               const annotation = annotationEdge.annotation;
               return (
-                <AnnotationLabel
-                  key={index}
-                  annotation={annotation}
-                  onClick={() => {
-                    if (annotation.trace) {
-                      navigate(
-                        `/projects/${annotation.trace.projectId}/traces/${annotation.trace.traceId}`
-                      );
-                    }
-                  }}
-                />
+                <AnnotationTooltip key={index} annotation={annotation}>
+                  <AnnotationLabel
+                    key={index}
+                    annotation={annotation}
+                    onClick={() => {
+                      if (annotation.trace) {
+                        navigate(
+                          `/projects/${annotation.trace.projectId}/traces/${annotation.trace.traceId}`
+                        );
+                      }
+                    }}
+                  />
+                </AnnotationTooltip>
               );
             })}
           </Flex>

@@ -40,7 +40,10 @@ import {
 import { CopyToClipboardButton, ViewSummaryAside } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
 import { JSONText } from "@phoenix/components/code/JSONText";
-import { AnnotationLabel } from "@phoenix/components/experiment";
+import {
+  AnnotationLabel,
+  AnnotationTooltip,
+} from "@phoenix/components/experiment";
 import { SequenceNumberLabel } from "@phoenix/components/experiment/SequenceNumberLabel";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { CompactJSONCell } from "@phoenix/components/table";
@@ -613,23 +616,25 @@ function ExperimentRunOutput(
         </li>
         {annotationsList.map((annotation) => (
           <li key={annotation.id}>
-            <AnnotationLabel
-              annotation={annotation}
-              onClick={() => {
-                const trace = annotation.trace;
-                if (trace) {
-                  startTransition(() => {
-                    setDialog(
-                      <TraceDetailsDialog
-                        traceId={trace.traceId}
-                        projectId={trace.projectId}
-                        title={`Evaluator Trace: ${annotation.name}`}
-                      />
-                    );
-                  });
-                }
-              }}
-            />
+            <AnnotationTooltip annotation={annotation}>
+              <AnnotationLabel
+                annotation={annotation}
+                onClick={() => {
+                  const trace = annotation.trace;
+                  if (trace) {
+                    startTransition(() => {
+                      setDialog(
+                        <TraceDetailsDialog
+                          traceId={trace.traceId}
+                          projectId={trace.projectId}
+                          title={`Evaluator Trace: ${annotation.name}`}
+                        />
+                      );
+                    });
+                  }
+                }}
+              />
+            </AnnotationTooltip>
           </li>
         ))}
       </ul>

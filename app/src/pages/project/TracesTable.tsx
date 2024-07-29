@@ -24,6 +24,10 @@ import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, View } from "@arizeai/components";
 
+import {
+  AnnotationLabel,
+  AnnotationTooltip,
+} from "@phoenix/components/experiment";
 import { Link } from "@phoenix/components/Link";
 import { TextCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
@@ -44,8 +48,6 @@ import {
   TracesTable_spans$key,
 } from "./__generated__/TracesTable_spans.graphql";
 import { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
-import { EvaluationLabel } from "./EvaluationLabel";
-import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
@@ -263,34 +265,50 @@ export function TracesTable(props: TracesTableProps) {
         return (
           <Flex direction="row" gap="size-50" wrap="wrap">
             {row.original.spanEvaluations.map((evaluation) => {
+              const annotation = {
+                ...evaluation,
+                trace: null,
+                annotatorKind: "LLM",
+              };
               return (
-                <EvaluationLabel
+                <AnnotationTooltip
                   key={evaluation.name}
-                  evaluation={evaluation}
-                />
+                  annotation={annotation}
+                >
+                  <AnnotationLabel
+                    annotation={annotation}
+                    annotationDisplay="label"
+                  />
+                </AnnotationTooltip>
               );
             })}
             {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
+              const ndcgAnnotation = {
+                annotatorKind: "LLM",
+                score: retrievalMetric.ndcg,
+                name: "ndcg",
+                trace: null,
+              };
+              const precisionAnnotation = {
+                annotatorKind: "LLM",
+                score: retrievalMetric.precision,
+                name: "precision",
+                trace: null,
+              };
+              const hitAnnotation = {
+                annotatorKind: "LLM",
+                score: retrievalMetric.hit,
+                name: "hit",
+                trace: null,
+              };
               return (
                 <Fragment key="doc-evals">
-                  <RetrievalEvaluationLabel
-                    key="ndcg"
-                    name={retrievalMetric.evaluationName}
-                    metric="ndcg"
-                    score={retrievalMetric.ndcg}
-                  />
-                  <RetrievalEvaluationLabel
+                  <AnnotationLabel key="ndcg" annotation={ndcgAnnotation} />
+                  <AnnotationLabel
                     key="precision"
-                    name={retrievalMetric.evaluationName}
-                    metric="precision"
-                    score={retrievalMetric.precision}
+                    annotation={precisionAnnotation}
                   />
-                  <RetrievalEvaluationLabel
-                    key="hit"
-                    name={retrievalMetric.evaluationName}
-                    metric="hit"
-                    score={retrievalMetric.hit}
-                  />
+                  <AnnotationLabel key="hit" annotation={hitAnnotation} />
                 </Fragment>
               );
             })}
