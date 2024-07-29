@@ -20,6 +20,10 @@ import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, View } from "@arizeai/components";
 
+import {
+  AnnotationLabel,
+  AnnotationTooltip,
+} from "@phoenix/components/experiment";
 import { Link } from "@phoenix/components/Link";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -37,7 +41,6 @@ import {
   SpanStatusCode,
 } from "./__generated__/SpansTable_spans.graphql";
 import { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.graphql";
-import { EvaluationLabel } from "./EvaluationLabel";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
@@ -189,11 +192,21 @@ export function SpansTable(props: SpansTableProps) {
         return (
           <Flex direction="row" gap="size-50" wrap="wrap">
             {row.original.spanEvaluations.map((evaluation) => {
+              const annotation = {
+                ...evaluation,
+                trace: null,
+                annotatorKind: "LLM",
+              };
               return (
-                <EvaluationLabel
+                <AnnotationTooltip
                   key={evaluation.name}
-                  evaluation={evaluation}
-                />
+                  annotation={annotation}
+                >
+                  <AnnotationLabel
+                    annotation={annotation}
+                    annotationDisplay="label"
+                  />
+                </AnnotationTooltip>
               );
             })}
             {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
