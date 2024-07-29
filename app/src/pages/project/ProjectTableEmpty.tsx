@@ -8,8 +8,6 @@ import {
   Flex,
   Icon,
   Icons,
-  TabPane,
-  Tabs,
   View,
 } from "@arizeai/components";
 
