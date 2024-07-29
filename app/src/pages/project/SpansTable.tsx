@@ -38,6 +38,7 @@ import {
 } from "./__generated__/SpansTable_spans.graphql";
 import { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.graphql";
 import { EvaluationLabel } from "./EvaluationLabel";
+import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
@@ -462,7 +463,7 @@ export function SpansTable(props: SpansTableProps) {
             ))}
           </thead>
           {isEmpty ? (
-            <TableEmpty />
+            <ProjectTableEmpty />
           ) : (
             <tbody>
               {rows.map((row) => {
