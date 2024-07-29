@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, List
 
 import pandas as pd
 import pytest
@@ -347,6 +347,26 @@ async def test_filter_for_none(
         check_index_type=False,
     )
 
+    sq = (
+        SpanQuery()
+        .select("name")
+        .where(
+            "parent_id is not None",
+        )
+    )
+    expected = pd.DataFrame(
+        {
+            "context.span_id": ["234", "345", "456", "567"],
+            "name": ["root span", "embedding span", "retriever span", "llm span"],
+        }
+    ).set_index("context.span_id")
+    async with db() as session:
+        actual = await session.run_sync(sq, project_name="abc")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+
 
 async def test_filter_for_not_none(
     db: DbSessionFactory,
@@ -364,6 +384,26 @@ async def test_filter_for_not_none(
         {
             "context.span_id": ["234"],
             "name": ["root span"],
+        }
+    ).set_index("context.span_id")
+    async with db() as session:
+        actual = await session.run_sync(sq, project_name="abc")
+    assert_frame_equal(
+        actual.sort_index().sort_index(axis=1),
+        expected.sort_index().sort_index(axis=1),
+    )
+
+    sq = (
+        SpanQuery()
+        .select("name")
+        .where(
+            "output.value is None",
+        )
+    )
+    expected = pd.DataFrame(
+        {
+            "context.span_id": ["345", "456", "567"],
+            "name": ["embedding span", "retriever span", "llm span"],
         }
     ).set_index("context.span_id")
     async with db() as session:
@@ -889,6 +929,33 @@ async def test_filter_on_trace_id_multiple(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
     )
+
+
+@pytest.mark.parametrize(
+    "condition,expected",
+    [
+        ["evals['0'].score is not None", ["345", "456"]],
+        ["evals['0'].score is None", ["234", "567"]],
+        ["evals['0'].score == 0", ["345"]],
+        ["evals['0'].score != 0", ["456"]],
+        ["evals['0'].score != 0 or evals['0'].score is None", ["234", "456", "567"]],
+        ["evals['1'].label is not None", ["456", "567"]],
+        ["evals['1'].label is None", ["234", "345"]],
+        ["evals['1'].label == '1'", ["456"]],
+        ["evals['1'].label != '1'", ["567"]],
+        ["evals['1'].label != '1' or evals['1'].label is None", ["234", "345", "567"]],
+    ],
+)
+async def test_filter_on_span_annotation(
+    db: DbSessionFactory,
+    abc_project: Any,
+    condition: str,
+    expected: List[str],
+) -> None:
+    sq = SpanQuery().select("span_id").where(condition)
+    async with db() as session:
+        actual = await session.run_sync(sq, project_name="abc")
+    assert sorted(actual.index) == expected
 
 
 async def test_explode_embeddings_no_select(

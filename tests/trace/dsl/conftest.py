@@ -13,7 +13,7 @@ async def default_project(db: DbSessionFactory) -> None:
         project_row_id = await session.scalar(
             insert(models.Project).values(name=DEFAULT_PROJECT_NAME).returning(models.Project.id)
         )
-        trace_row_id = await session.scalar(
+        trace_rowid = await session.scalar(
             insert(models.Trace)
             .values(
                 trace_id="0123",
@@ -26,7 +26,7 @@ async def default_project(db: DbSessionFactory) -> None:
         await session.execute(
             insert(models.Span)
             .values(
-                trace_rowid=trace_row_id,
+                trace_rowid=trace_rowid,
                 span_id="2345",
                 parent_id=None,
                 name="root span",
@@ -49,7 +49,7 @@ async def default_project(db: DbSessionFactory) -> None:
         await session.execute(
             insert(models.Span)
             .values(
-                trace_rowid=trace_row_id,
+                trace_rowid=trace_rowid,
                 span_id="4567",
                 parent_id="2345",
                 name="retriever span",
@@ -85,7 +85,7 @@ async def abc_project(db: DbSessionFactory) -> None:
         project_row_id = await session.scalar(
             insert(models.Project).values(name="abc").returning(models.Project.id)
         )
-        trace_row_id = await session.scalar(
+        trace_rowid = await session.scalar(
             insert(models.Trace)
             .values(
                 trace_id="012",
@@ -98,7 +98,7 @@ async def abc_project(db: DbSessionFactory) -> None:
         await session.execute(
             insert(models.Span)
             .values(
-                trace_rowid=trace_row_id,
+                trace_rowid=trace_rowid,
                 span_id="234",
                 parent_id="123",
                 name="root span",
@@ -118,10 +118,10 @@ async def abc_project(db: DbSessionFactory) -> None:
             )
             .returning(models.Span.id)
         )
-        await session.execute(
+        span_rowid = await session.scalar(
             insert(models.Span)
             .values(
-                trace_rowid=trace_row_id,
+                trace_rowid=trace_rowid,
                 span_id="345",
                 parent_id="234",
                 name="embedding span",
@@ -155,9 +155,18 @@ async def abc_project(db: DbSessionFactory) -> None:
             .returning(models.Span.id)
         )
         await session.execute(
+            insert(models.SpanAnnotation).values(
+                span_rowid=span_rowid,
+                annotator_kind="LLM",
+                name="0",
+                score=0,
+                metadata_={},
+            )
+        )
+        span_rowid = await session.scalar(
             insert(models.Span)
             .values(
-                trace_rowid=trace_row_id,
+                trace_rowid=trace_rowid,
                 span_id="456",
                 parent_id="234",
                 name="retriever span",
@@ -187,9 +196,27 @@ async def abc_project(db: DbSessionFactory) -> None:
             .returning(models.Span.id)
         )
         await session.execute(
+            insert(models.SpanAnnotation).values(
+                span_rowid=span_rowid,
+                annotator_kind="LLM",
+                name="0",
+                score=1,
+                metadata_={},
+            )
+        )
+        await session.execute(
+            insert(models.SpanAnnotation).values(
+                span_rowid=span_rowid,
+                annotator_kind="LLM",
+                name="1",
+                label="1",
+                metadata_={},
+            )
+        )
+        span_rowid = await session.scalar(
             insert(models.Span)
             .values(
-                trace_rowid=trace_row_id,
+                trace_rowid=trace_rowid,
                 span_id="567",
                 parent_id="234",
                 name="llm span",
@@ -213,4 +240,13 @@ async def abc_project(db: DbSessionFactory) -> None:
                 cumulative_llm_token_count_completion=200,
             )
             .returning(models.Span.id)
+        )
+        await session.execute(
+            insert(models.SpanAnnotation).values(
+                span_rowid=span_rowid,
+                annotator_kind="LLM",
+                name="1",
+                label="0",
+                metadata_={},
+            )
         )
