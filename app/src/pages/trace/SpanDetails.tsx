@@ -213,7 +213,7 @@ export function SpanDetails({
   const hasExceptions = useMemo<boolean>(() => {
     return spanHasException(span);
   }, [span]);
-  const showAnnotations = true ?? useFeatureFlag("annotations");
+  const showAnnotations = useFeatureFlag("annotations");
   return (
     <Flex direction="column" flex="1 1 auto" height="100%">
       <View
