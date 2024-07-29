@@ -10,7 +10,6 @@ from typing import (
     AsyncContextManager,
     Callable,
     Generic,
-    Iterator,
     List,
     Optional,
     Protocol,
@@ -38,19 +37,12 @@ class Insertable(Protocol):
 _AnyT = TypeVar("_AnyT")
 _PrecursorT = TypeVar("_PrecursorT")
 _InsertableT = TypeVar("_InsertableT", bound=Insertable)
-_RowT = TypeVar("_RowT", bound=models.Base, covariant=True)
+_RowT = TypeVar("_RowT", bound=models.Base)
 
 
 @dataclass(frozen=True)
-class _Wrapper(Generic[_AnyT]):
+class Received(Generic[_AnyT]):
     item: _AnyT
-
-    def __iter__(self) -> Iterator[_AnyT]:
-        yield self.item
-
-
-@dataclass(frozen=True)
-class Received(_Wrapper[_AnyT]):
     received_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def postpone(self, retries_left: int = DEFAULT_RETRY_ALLOWANCE) -> Postponed[_AnyT]:
@@ -166,7 +158,7 @@ class Precursors(ABC):
     @dataclass(frozen=True)
     class SpanAnnotation:
         span_id: str
-        entity: models.SpanAnnotation
+        obj: models.SpanAnnotation
 
         def as_insertable(
             self,
@@ -175,7 +167,7 @@ class Precursors(ABC):
         ) -> Insertables.SpanAnnotation:
             return Insertables.SpanAnnotation(
                 span_id=self.span_id,
-                entity=self.entity,
+                obj=self.obj,
                 span_rowid=span_rowid,
                 id_=id_,
             )
@@ -183,7 +175,7 @@ class Precursors(ABC):
     @dataclass(frozen=True)
     class TraceAnnotation:
         trace_id: str
-        entity: models.TraceAnnotation
+        obj: models.TraceAnnotation
 
         def as_insertable(
             self,
@@ -192,7 +184,7 @@ class Precursors(ABC):
         ) -> Insertables.TraceAnnotation:
             return Insertables.TraceAnnotation(
                 trace_id=self.trace_id,
-                entity=self.entity,
+                obj=self.obj,
                 trace_rowid=trace_rowid,
                 id_=id_,
             )
@@ -201,7 +193,7 @@ class Precursors(ABC):
     class DocumentAnnotation:
         span_id: str
         document_position: int
-        entity: models.DocumentAnnotation
+        obj: models.DocumentAnnotation
 
         def as_insertable(
             self,
@@ -211,7 +203,7 @@ class Precursors(ABC):
             return Insertables.DocumentAnnotation(
                 span_id=self.span_id,
                 document_position=self.document_position,
-                entity=self.entity,
+                obj=self.obj,
                 span_rowid=span_rowid,
                 id_=id_,
             )
@@ -221,38 +213,38 @@ class Insertables(ABC):
     @dataclass(frozen=True)
     class SpanAnnotation(Precursors.SpanAnnotation):
         span_rowid: int
-        id_: Optional[int]
+        id_: Optional[int] = None
 
         @property
         def row(self) -> models.SpanAnnotation:
-            ans = copy(self.entity)
-            ans.span_rowid = self.span_rowid
+            obj = copy(self.obj)
+            obj.span_rowid = self.span_rowid
             if self.id_ is not None:
-                ans.id = self.id_
-            return ans
+                obj.id = self.id_
+            return obj
 
     @dataclass(frozen=True)
     class TraceAnnotation(Precursors.TraceAnnotation):
         trace_rowid: int
-        id_: Optional[int]
+        id_: Optional[int] = None
 
         @property
         def row(self) -> models.TraceAnnotation:
-            ans = copy(self.entity)
-            ans.trace_rowid = self.trace_rowid
+            obj = copy(self.obj)
+            obj.trace_rowid = self.trace_rowid
             if self.id_ is not None:
-                ans.id = self.id_
-            return ans
+                obj.id = self.id_
+            return obj
 
     @dataclass(frozen=True)
     class DocumentAnnotation(Precursors.DocumentAnnotation):
         span_rowid: int
-        id_: Optional[int]
+        id_: Optional[int] = None
 
         @property
         def row(self) -> models.DocumentAnnotation:
-            ans = copy(self.entity)
-            ans.span_rowid = self.span_rowid
+            obj = copy(self.obj)
+            obj.span_rowid = self.span_rowid
             if self.id_ is not None:
-                ans.id = self.id_
-            return ans
+                obj.id = self.id_
+            return obj

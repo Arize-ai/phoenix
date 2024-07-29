@@ -96,13 +96,13 @@ def _clean(
             yield k, v
 
 
-def as_kv(entity: models.Base) -> Iterator[Tuple[str, Any]]:
-    for column in entity.__table__.c:
-        if column.name in ["created_at", "updated_at"]:
+def as_kv(obj: models.Base) -> Iterator[Tuple[str, Any]]:
+    for k, c in obj.__table__.c.items():
+        if k in ["created_at", "updated_at"]:
             continue
-        k = "metadata_" if column.name == "metadata" else column.name
-        v = getattr(entity, k, None)
-        if column.primary_key and v is None:
-            # postgresql disallows None
+        k = "metadata_" if k == "metadata" else k
+        v = getattr(obj, k, None)
+        if c.primary_key and v is None:
+            # postgresql disallows None for primary key
             continue
         yield k, v

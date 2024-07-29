@@ -1,6 +1,6 @@
 import gzip
 from itertools import chain
-from typing import Callable, Iterator, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Callable, Iterator, Optional, Tuple, Union, cast
 
 import pandas as pd
 import pyarrow as pa
@@ -196,82 +196,92 @@ async def _process_pyarrow(request: Request) -> Response:
 async def _add_evaluations(state: State, evaluations: Evaluations) -> None:
     dataframe = evaluations.dataframe
     eval_name = evaluations.eval_name
-    index_names = dataframe.index.names
-    if (cls := _annotation_factory(index_names)) is None:
-        return
-    for index, row in dataframe.iterrows():
-        score = cast(Optional[float], row.get("score"))
-        label = cast(Optional[str], row.get("label"))
-        explanation = cast(Optional[str], row.get("explanation"))
-        annotation = cls(cast(Union[str, Sequence[Union[str, int]]], index))(
-            name=eval_name,
-            annotator_kind="LLM",
-            score=score,
-            label=label,
-            explanation=explanation,
-            metadata_={},
+    names = dataframe.index.names
+    if (
+        len(names) == 2
+        and "document_position" in names
+        and ("context.span_id" in names or "span_id" in names)
+    ):
+        cls = _document_annotation_factory(
+            names.index("span_id") if "span_id" in names else names.index("context.span_id"),
+            names.index("document_position"),
         )
-        await state.enqueue(annotation)
+        for index, row in dataframe.iterrows():
+            score, label, explanation = _get_annotation_result(row)
+            document_annotation = cls(cast(Union[Tuple[str, int], Tuple[int, str]], index))(
+                name=eval_name,
+                annotator_kind="LLM",
+                score=score,
+                label=label,
+                explanation=explanation,
+                metadata_={},
+            )
+            await state.enqueue(document_annotation)
+    elif len(names) == 1 and names[0] in ("context.span_id", "span_id"):
+        for index, row in dataframe.iterrows():
+            score, label, explanation = _get_annotation_result(row)
+            span_annotation = _span_annotation_factory(cast(str, index))(
+                name=eval_name,
+                annotator_kind="LLM",
+                score=score,
+                label=label,
+                explanation=explanation,
+                metadata_={},
+            )
+            await state.enqueue(span_annotation)
+    elif len(names) == 1 and names[0] in ("context.trace_id", "trace_id"):
+        for index, row in dataframe.iterrows():
+            score, label, explanation = _get_annotation_result(row)
+            trace_annotation = _trace_annotation_factory(cast(str, index))(
+                name=eval_name,
+                annotator_kind="LLM",
+                score=score,
+                label=label,
+                explanation=explanation,
+                metadata_={},
+            )
+            await state.enqueue(trace_annotation)
 
 
-def _annotation_factory(
-    names: Sequence[str],
-) -> Optional[
-    Callable[
-        [Union[str, Sequence[Union[str, int]]]],
-        Callable[
-            ...,
-            Union[
-                Precursors.SpanAnnotation,
-                Precursors.TraceAnnotation,
-                Precursors.DocumentAnnotation,
-            ],
-        ],
-    ]
+def _get_annotation_result(
+    row: "pd.Series[Any]",
+) -> Tuple[Optional[float], Optional[str], Optional[str]]:
+    return (
+        cast(Optional[float], row.get("score")),
+        cast(Optional[str], row.get("label")),
+        cast(Optional[str], row.get("explanation")),
+    )
+
+
+def _document_annotation_factory(
+    span_id_idx: int,
+    document_position_idx: int,
+) -> Callable[
+    [Union[Tuple[str, int], Tuple[int, str]]],
+    Callable[..., Precursors.DocumentAnnotation],
 ]:
-    """
-    Decode`index_names`. Allowed formats are:
-        - Document Retrieval ID
-            - index_names=["context.span_id", "document_position"]
-            - index_names=["span_id", "document_position"]
-            - index_names=["document_position", "context.span_id"]
-            - index_names=["document_position", "span_id"]
-        - Span ID
-            - index_names=["span_id"]
-            - index_names=["context.span_id"]
-        - Trace ID
-            - index_names=["context.span_id"]
-            - index_names=["trace_id"]
-    """
-    if len(names) == 2:
-        if "document_position" in names:
-            document_position_idx = names.index("document_position")
-            if "context.span_id" in names:
-                span_id_idx = names.index("context.span_id")
-            elif "span_id" in names:
-                span_id_idx = names.index("span_id")
-            else:
-                return None
-            return lambda index: lambda **kwargs: Precursors.DocumentAnnotation(
-                span_id=str(index[span_id_idx]),
-                document_position=int(index[document_position_idx]),
-                entity=models.DocumentAnnotation(
-                    document_position=int(index[document_position_idx]),
-                    **kwargs,
-                ),
-            )
-    elif len(names) == 1:
-        if names[0] in ("context.span_id", "span_id"):
-            return lambda span_id: lambda **kwargs: Precursors.SpanAnnotation(
-                span_id=str(span_id),
-                entity=models.SpanAnnotation(**kwargs),
-            )
-        if names[0] in ("context.trace_id", "trace_id"):
-            return lambda trace_id: lambda **kwargs: Precursors.TraceAnnotation(
-                trace_id=str(trace_id),
-                entity=models.TraceAnnotation(**kwargs),
-            )
-    return None
+    return lambda index: lambda **kwargs: Precursors.DocumentAnnotation(
+        span_id=str(index[span_id_idx]),
+        document_position=int(index[document_position_idx]),
+        obj=models.DocumentAnnotation(
+            document_position=int(index[document_position_idx]),
+            **kwargs,
+        ),
+    )
+
+
+def _span_annotation_factory(span_id: str) -> Callable[..., Precursors.SpanAnnotation]:
+    return lambda **kwargs: Precursors.SpanAnnotation(
+        span_id=str(span_id),
+        obj=models.SpanAnnotation(**kwargs),
+    )
+
+
+def _trace_annotation_factory(trace_id: str) -> Callable[..., Precursors.TraceAnnotation]:
+    return lambda **kwargs: Precursors.TraceAnnotation(
+        trace_id=str(trace_id),
+        obj=models.TraceAnnotation(**kwargs),
+    )
 
 
 def _read_sql_trace_evaluations_into_dataframe(

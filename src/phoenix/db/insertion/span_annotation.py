@@ -15,8 +15,12 @@ from phoenix.db.insertion.types import (
     Received,
 )
 
-_Key: TypeAlias = Tuple[str, str]
-_UniqueBy: TypeAlias = Tuple[str, int]
+_Name: TypeAlias = str
+_SpanId: TypeAlias = str
+_SpanRowId: TypeAlias = int
+
+_Key: TypeAlias = Tuple[_Name, _SpanId]
+_UniqueBy: TypeAlias = Tuple[_Name, _SpanRowId]
 
 
 class SpanAnnotationQueueInserter(
@@ -91,9 +95,12 @@ class SpanAnnotationQueueInserter(
         return to_insert, to_postpone, to_discard
 
 
+_AnnoRowId: TypeAlias = int
+
+
 def _select_existing(
-    *identifiers: Tuple[str, str],
-) -> Select[Tuple[int, str, int, str, datetime]]:
+    *identifiers: Tuple[_Name, _SpanId],
+) -> Select[Tuple[_SpanRowId, _SpanId, _AnnoRowId, _Name, datetime]]:
     existing_spans = (
         select(models.Span.id, models.Span.span_id)
         .where(models.Span.span_id.in_({span_id for _, span_id in identifiers}))
@@ -118,21 +125,21 @@ def _select_existing(
 
 
 class _SpanAttr(NamedTuple):
-    span_rowid: int
+    span_rowid: _SpanRowId
 
 
 class _AnnoAttr(NamedTuple):
-    span_rowid: int
-    id_: int
+    span_rowid: _SpanRowId
+    id_: _AnnoRowId
     updated_at: datetime
 
 
 def _key(p: Received[Precursors.SpanAnnotation]) -> _Key:
-    return p.item.entity.name, p.item.span_id
+    return p.item.obj.name, p.item.span_id
 
 
 def _unique_by(p: Received[Insertables.SpanAnnotation]) -> _UniqueBy:
-    return p.item.entity.name, p.item.span_rowid
+    return p.item.obj.name, p.item.span_rowid
 
 
 def _time(p: Received[Any]) -> datetime:

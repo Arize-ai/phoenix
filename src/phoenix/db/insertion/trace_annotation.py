@@ -15,8 +15,12 @@ from phoenix.db.insertion.types import (
     Received,
 )
 
-_Key: TypeAlias = Tuple[str, str]
-_UniqueBy: TypeAlias = Tuple[str, int]
+_Name: TypeAlias = str
+_TraceId: TypeAlias = str
+_TraceRowId: TypeAlias = int
+
+_Key: TypeAlias = Tuple[_Name, _TraceId]
+_UniqueBy: TypeAlias = Tuple[_Name, _TraceRowId]
 
 
 class TraceAnnotationQueueInserter(
@@ -91,9 +95,12 @@ class TraceAnnotationQueueInserter(
         return to_insert, to_postpone, to_discard
 
 
+_AnnoRowId: TypeAlias = int
+
+
 def _select_existing(
-    *identifiers: Tuple[str, str],
-) -> Select[Tuple[int, str, int, str, datetime]]:
+    *identifiers: Tuple[_Name, _TraceId],
+) -> Select[Tuple[_TraceRowId, _TraceId, _AnnoRowId, _Name, datetime]]:
     existing_traces = (
         select(models.Trace.id, models.Trace.trace_id)
         .where(models.Trace.trace_id.in_({trace_id for _, trace_id in identifiers}))
@@ -118,21 +125,21 @@ def _select_existing(
 
 
 class _TraceAttr(NamedTuple):
-    trace_rowid: int
+    trace_rowid: _TraceRowId
 
 
 class _AnnoAttr(NamedTuple):
-    trace_rowid: int
-    id_: int
+    trace_rowid: _TraceRowId
+    id_: _AnnoRowId
     updated_at: datetime
 
 
 def _key(p: Received[Precursors.TraceAnnotation]) -> _Key:
-    return p.item.entity.name, p.item.trace_id
+    return p.item.obj.name, p.item.trace_id
 
 
 def _unique_by(p: Received[Insertables.TraceAnnotation]) -> _UniqueBy:
-    return p.item.entity.name, p.item.trace_rowid
+    return p.item.obj.name, p.item.trace_rowid
 
 
 def _time(p: Received[Any]) -> datetime:

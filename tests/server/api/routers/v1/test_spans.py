@@ -64,7 +64,8 @@ async def test_rest_span_annotation(
 
     response = await httpx_client.post(f"v1/span_annotations?sync={sync}", json=request_body)
     assert response.status_code == 200
-    await sleep(0.1)
+    if not sync:
+        await sleep(0.1)
     async with db() as session:
         orm_annotation = await session.scalar(
             select(models.SpanAnnotation).where(models.SpanAnnotation.name == name)

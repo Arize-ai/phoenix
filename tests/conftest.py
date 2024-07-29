@@ -6,7 +6,6 @@ from functools import partial
 from importlib.metadata import version
 from typing import (
     Any,
-    AsyncContextManager,
     AsyncIterator,
     Awaitable,
     Callable,
@@ -128,11 +127,11 @@ def _db_with_lock(engine: AsyncEngine) -> DbSessionFactory:
     lock, db = asyncio.Lock(), _db(engine)
 
     @contextlib.asynccontextmanager
-    async def _() -> AsyncIterator[AsyncSession]:
+    async def factory() -> AsyncIterator[AsyncSession]:
         async with lock, db() as session:
             yield session
 
-    return _
+    return DbSessionFactory(db=factory, dialect=engine.dialect.name)
 
 
 @pytest.fixture
@@ -144,15 +143,13 @@ async def project(db: DbSessionFactory) -> None:
 
 @pytest.fixture
 async def app(
-    dialect: str,
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
 ) -> AsyncIterator[ASGIApp]:
-    factory = DbSessionFactory(db=db, dialect=dialect)
     async with contextlib.AsyncExitStack() as stack:
         await stack.enter_async_context(patch_bulk_inserter())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
-            db=factory,
+            db=db,
             model=create_model_from_inferences(EMPTY_INFERENCES, None),
             export_path=EXPORT_DIR,
             umap_params=get_umap_parameters(None),

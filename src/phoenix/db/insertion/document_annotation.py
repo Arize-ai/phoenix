@@ -15,8 +15,13 @@ from phoenix.db.insertion.types import (
     Received,
 )
 
-_Key: TypeAlias = Tuple[str, str, int]
-_UniqueBy: TypeAlias = Tuple[str, int, int]
+_Name: TypeAlias = str
+_SpanId: TypeAlias = str
+_SpanRowId: TypeAlias = int
+_DocumentPosition: TypeAlias = int
+
+_Key: TypeAlias = Tuple[_Name, _SpanId, _DocumentPosition]
+_UniqueBy: TypeAlias = Tuple[_Name, _SpanRowId, _DocumentPosition]
 
 
 class DocumentAnnotationQueueInserter(
@@ -96,10 +101,14 @@ class DocumentAnnotationQueueInserter(
         return to_insert, to_postpone, to_discard
 
 
+_AnnoRowId: TypeAlias = int
+_NumDocs: TypeAlias = int
+
+
 def _select_existing(
     dialect: SupportedSQLDialect,
-    *identifiers: Tuple[str, str, int],
-) -> Select[Tuple[int, str, int, str, int, datetime]]:
+    *identifiers: Tuple[_Name, _SpanId, _NumDocs],
+) -> Select[Tuple[_SpanRowId, _SpanId, _NumDocs, _AnnoRowId, _Name, _DocumentPosition, datetime]]:
     existing = (
         select(
             models.Span.id,
@@ -133,22 +142,22 @@ def _select_existing(
 
 
 class _SpanAttr(NamedTuple):
-    span_rowid: int
-    num_docs: int
+    span_rowid: _SpanRowId
+    num_docs: _NumDocs
 
 
 class _AnnoAttr(NamedTuple):
-    span_rowid: int
-    id_: int
+    span_rowid: _SpanRowId
+    id_: _AnnoRowId
     updated_at: datetime
 
 
 def _key(p: Received[Precursors.DocumentAnnotation]) -> _Key:
-    return p.item.entity.name, p.item.span_id, p.item.document_position
+    return p.item.obj.name, p.item.span_id, p.item.document_position
 
 
 def _unique_by(p: Received[Insertables.DocumentAnnotation]) -> _UniqueBy:
-    return p.item.entity.name, p.item.span_rowid, p.item.document_position
+    return p.item.obj.name, p.item.span_rowid, p.item.document_position
 
 
 def _time(p: Received[Any]) -> datetime:

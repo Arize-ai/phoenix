@@ -83,7 +83,8 @@ async def test_rest_trace_annotation(
 
     response = await httpx_client.post(f"v1/trace_annotations?sync={sync}", json=request_body)
     assert response.status_code == 200
-    await sleep(0.1)
+    if not sync:
+        await sleep(0.1)
     async with db() as session:
         orm_annotation = await session.scalar(
             select(models.TraceAnnotation).where(models.TraceAnnotation.name == name)
