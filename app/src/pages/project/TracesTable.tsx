@@ -48,6 +48,7 @@ import {
   TracesTable_spans$key,
 } from "./__generated__/TracesTable_spans.graphql";
 import { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
+import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
@@ -283,32 +284,23 @@ export function TracesTable(props: TracesTableProps) {
               );
             })}
             {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
-              const ndcgAnnotation = {
-                annotatorKind: "LLM",
-                score: retrievalMetric.ndcg,
-                name: "ndcg",
-                trace: null,
-              };
-              const precisionAnnotation = {
-                annotatorKind: "LLM",
-                score: retrievalMetric.precision,
-                name: "precision",
-                trace: null,
-              };
-              const hitAnnotation = {
-                annotatorKind: "LLM",
-                score: retrievalMetric.hit,
-                name: "hit",
-                trace: null,
-              };
               return (
                 <Fragment key="doc-evals">
-                  <AnnotationLabel key="ndcg" annotation={ndcgAnnotation} />
-                  <AnnotationLabel
-                    key="precision"
-                    annotation={precisionAnnotation}
+                  <RetrievalEvaluationLabel
+                    key="ndcg"
+                    metric="ndcg"
+                    score={retrievalMetric.ndcg}
                   />
-                  <AnnotationLabel key="hit" annotation={hitAnnotation} />
+                  <RetrievalEvaluationLabel
+                    key="precision"
+                    metric="precision"
+                    score={retrievalMetric.precision}
+                  />
+                  <RetrievalEvaluationLabel
+                    key="hit"
+                    metric={"hit"}
+                    score={retrievalMetric.hit}
+                  />
                 </Fragment>
               );
             })}

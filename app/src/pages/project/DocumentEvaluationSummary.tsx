@@ -12,12 +12,12 @@ import {
 } from "@arizeai/components";
 
 import { useLastNTimeRange } from "@phoenix/components/datetime";
-import { AnnotationLabel } from "@phoenix/components/experiment";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import { DocumentEvaluationSummaryQuery } from "./__generated__/DocumentEvaluationSummaryQuery.graphql";
 import { DocumentEvaluationSummaryValueFragment$key } from "./__generated__/DocumentEvaluationSummaryValueFragment.graphql";
+import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 
 type DocumentEvaluationSummaryProps = {
   evaluationName: string;
@@ -113,32 +113,20 @@ function EvaluationSummaryValue(props: {
       <TriggerWrap>
         <Flex direction="row" alignItems="center" gap="size-50" height="28px">
           <>
-            <AnnotationLabel
+            <RetrievalEvaluationLabel
               key="ndcg"
-              annotation={{
-                name: "ndcg",
-                score: averageNdcg,
-                annotatorKind: "LLM",
-                trace: null,
-              }}
+              metric="ndcg"
+              score={averageNdcg}
             />
-            <AnnotationLabel
+            <RetrievalEvaluationLabel
               key="precision"
-              annotation={{
-                name: "precision",
-                score: averagePrecision,
-                annotatorKind: "LLM",
-                trace: null,
-              }}
+              metric="precision"
+              score={averagePrecision}
             />
-            <AnnotationLabel
+            <RetrievalEvaluationLabel
               key="hit"
-              annotation={{
-                name: "hit rate",
-                score: hitRate,
-                annotatorKind: "LLM",
-                trace: null,
-              }}
+              metric="hit rate"
+              score={hitRate}
             />
           </>
         </Flex>
