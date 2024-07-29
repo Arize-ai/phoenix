@@ -6,11 +6,17 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
+import { Accordion, AccordionItem } from "@arizeai/components";
+
 import { PreformattedTextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import { Mutable } from "@phoenix/typeUtils";
 
-import { SpanEvaluationsTable_evals$key } from "./__generated__/SpanEvaluationsTable_evals.graphql";
+import {
+  SpanFeedback_annotations$data,
+  SpanFeedback_annotations$key,
+} from "./__generated__/SpanFeedback_annotations.graphql";
 
 const columns = [
   {
@@ -36,26 +42,11 @@ const columns = [
   },
 ];
 
-export function SpanEvaluationsTable(props: {
-  span: SpanEvaluationsTable_evals$key;
+function SpanAnnotationsTable({
+  evaluations,
+}: {
+  evaluations: Mutable<SpanFeedback_annotations$data["spanAnnotations"]>;
 }) {
-  const data = useFragment(
-    graphql`
-      fragment SpanEvaluationsTable_evals on Span {
-        spanEvaluations {
-          name
-          label
-          score
-          explanation
-        }
-      }
-    `,
-    props.span
-  );
-  const evaluations = useMemo(() => {
-    return [...data.spanEvaluations];
-  }, [data.spanEvaluations]);
-
   const table = useReactTable({
     columns,
     data: evaluations,
@@ -105,5 +96,43 @@ export function SpanEvaluationsTable(props: {
         </tbody>
       )}
     </table>
+  );
+}
+
+export function SpanFeedback({ span }: { span: SpanFeedback_annotations$key }) {
+  const data = useFragment(
+    graphql`
+      fragment SpanFeedback_annotations on Span {
+        spanAnnotations {
+          name
+          label
+          score
+          explanation
+          annotatorKind
+        }
+      }
+    `,
+    span
+  );
+
+  const humanAnnotations = useMemo(() => {
+    return data.spanAnnotations.filter(
+      (annotation) => annotation.annotatorKind === "HUMAN"
+    );
+  }, [data.spanAnnotations]);
+  const llmAnnotations = useMemo(() => {
+    return data.spanAnnotations.filter(
+      (annotation) => annotation.annotatorKind === "LLM"
+    );
+  }, [data.spanAnnotations]);
+  return (
+    <Accordion>
+      <AccordionItem id={"evaluations"} title={"Evaluations"}>
+        <SpanAnnotationsTable evaluations={llmAnnotations} />
+      </AccordionItem>
+      <AccordionItem id={"human"} title={"Human Annotations"}>
+        <SpanAnnotationsTable evaluations={humanAnnotations} />
+      </AccordionItem>
+    </Accordion>
   );
 }

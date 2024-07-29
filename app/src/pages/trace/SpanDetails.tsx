@@ -86,7 +86,7 @@ import {
 } from "./__generated__/SpanDetailsQuery.graphql";
 import { EditSpanAnnotationsButton } from "./EditSpanAnnotationsButton";
 import { SpanCodeDropdown } from "./SpanCodeDropdown";
-import { SpanEvaluationsTable } from "./SpanEvaluationsTable";
+import { SpanFeedback } from "./SpanFeedback";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
 
 /**
@@ -178,11 +178,6 @@ export function SpanDetails({
               message
               timestamp
             }
-            spanEvaluations {
-              name
-              label
-              score
-            }
             documentRetrievalMetrics {
               evaluationName
               ndcg
@@ -196,7 +191,10 @@ export function SpanDetails({
               score
               explanation
             }
-            ...SpanEvaluationsTable_evals
+            spanAnnotations {
+              name
+            }
+            ...SpanFeedback_annotations
           }
         }
       }
@@ -215,7 +213,7 @@ export function SpanDetails({
   const hasExceptions = useMemo<boolean>(() => {
     return spanHasException(span);
   }, [span]);
-  const showAnnotations = useFeatureFlag("annotations");
+  const showAnnotations = true ?? useFeatureFlag("annotations");
   return (
     <Flex direction="column" flex="1 1 auto" height="100%">
       <View
@@ -252,13 +250,13 @@ export function SpanDetails({
           <SpanInfo span={span} />
         </TabPane>
         <TabPane
-          name={"Evaluations"}
+          name={"Feedback"}
           extra={
-            <Counter variant={"light"}>{span.spanEvaluations.length}</Counter>
+            <Counter variant={"light"}>{span.spanAnnotations.length}</Counter>
           }
         >
           {(selected) => {
-            return selected ? <SpanEvaluations span={span} /> : null;
+            return selected ? <SpanFeedback span={span} /> : null;
           }}
         </TabPane>
         <TabPane name={"Attributes"} title="Attributes">
@@ -1635,10 +1633,6 @@ function SpanEventsList({ events }: { events: Span["events"] }) {
       })}
     </List>
   );
-}
-
-function SpanEvaluations(props: { span: Span }) {
-  return <SpanEvaluationsTable span={props.span} />;
 }
 
 const attributesContextualHelp = (
