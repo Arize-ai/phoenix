@@ -11,13 +11,14 @@ from typing_extensions import Literal
 
 
 class Message(BaseModel):
-    role: Literal['system', 'assistant', 'user'] = Field(..., title='Role')
-    content: str = Field(..., title='Content')
-    uuid: str = Field(..., title='UUID')
+    role: Literal["system", "assistant", "user"] = Field(..., title="Role")
+    content: str = Field(..., title="Content")
+    uuid: str = Field(..., title="UUID")
+    span_id: Optional[str] = None
 
 
 class MessagesPayload(BaseModel):
-    messages: List[Message] = Field(..., title='Messages')
+    messages: List[Message] = Field(..., title="Messages")
 
 
 class MessagesResponse(BaseModel):
@@ -25,10 +26,10 @@ class MessagesResponse(BaseModel):
 
 
 class ValidationError(BaseModel):
-    loc: List[Union[str, int]] = Field(..., title='Location')
-    msg: str = Field(..., title='Message')
-    type: str = Field(..., title='Error Type')
+    loc: List[Union[str, int]] = Field(..., title="Location")
+    msg: str = Field(..., title="Message")
+    type: str = Field(..., title="Error Type")
 
 
 class HTTPValidationError(BaseModel):
-    detail: Optional[List[ValidationError]] = Field(None, title='Detail')
+    detail: Optional[List[ValidationError]] = Field(None, title="Detail")

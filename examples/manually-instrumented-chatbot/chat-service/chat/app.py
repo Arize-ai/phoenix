@@ -1,7 +1,7 @@
 import json
 import os
-from uuid import uuid4
 from typing import Any, Dict, Iterator, List, Tuple
+from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException
 from httpx import AsyncClient
@@ -18,12 +18,14 @@ from opentelemetry.sdk.trace.export import (
     SimpleSpanProcessor,
 )
 
-from chat.types import Message, MessagesPayload, MessagesResponse
+from chat.types import Message, MessagesPayload, MessagesResponse, FeedbackRequest
 
 COLLECTOR_HOST = os.getenv("COLLECTOR_HOST", "localhost")
-endpoint = f"http://{COLLECTOR_HOST}:6006/v1/traces"
+endpoint = f"http://{COLLECTOR_HOST}:6006/v1"
 tracer_provider = trace_sdk.TracerProvider()
-tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
+tracer_provider.add_span_processor(
+    SimpleSpanProcessor(OTLPSpanExporter(f"{endpoint}/traces"))
+)
 trace_api.set_tracer_provider(tracer_provider)
 tracer = trace_api.get_tracer(__name__)
 
@@ -94,7 +96,38 @@ async def messages(messages_payload: MessagesPayload) -> MessagesResponse:
             *_llm_token_usage_attributes(response_data),
         ):
             span.set_attribute(attribute_key, attribute_value)
+        span_id = span.get_span_context().span_id.to_bytes(8, "big").hex()
+        assistant_message.span_id = span_id
+        # span_id = str(span.get_span_context().span_id)
+        # span_id = "wat"
+
     return MessagesResponse(message=assistant_message)
+
+
+@app.post("/feedback/")
+async def post_feedback(feedback_request: FeedbackRequest) -> None:
+    if feedback_request.feedback == 1:
+        label = "thumbs_up"
+    elif feedback_request.feedback == 0:
+        label = "thumbs_down"
+
+    request_body = {
+        "data": [
+            {
+                "span_id": feedback_request.span_id,
+                "name": "feedback",
+                "annotator_kind": "HUMAN",
+                "result": {"label": label},
+                "metadata": {},
+            }
+        ]
+    }
+
+    response = await http_client.post(
+        f"{endpoint}/span_annotations",
+        json=request_body,
+    )
+    response.raise_for_status()
 
 
 def _llm_span_kind_attributes() -> Iterator[Tuple[str, str]]:
