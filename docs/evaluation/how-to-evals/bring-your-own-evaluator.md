@@ -72,6 +72,10 @@ relevance_classifications = llm_classify(
 
 The classify uses a `snap_to_rails` function that searches the output string of the LLM for the classes in the classification list. It handles cases where no class is available, both classes are available or the string is a substring of the other class such as irrelevant and relevant.&#x20;
 
+{% hint style="warning" %}
+When selecting classification labels to use, avoid using any labels that contain the whole text of another label - for example "_relevant_" and "ir_relevant_". This will create some results to be incorrectly marked as "UNPARSEABLE". Instead, use entirely different values - for example "relevant" and "unrelated".
+{% endhint %}
+
 ```
 #Rails examples
 #Removes extra information and maps to class
