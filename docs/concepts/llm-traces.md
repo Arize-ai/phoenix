@@ -20,7 +20,7 @@ Tracing can help you track down issues like:
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/trace_details.png" alt=""><figcaption><p>View the inner workings for your LLM Application</p></figcaption></figure>
 
-To get started, check out the [Quickstart guide](../quickstart/llm-traces.md)
+To get started, check out the [Quickstart guide](../tracing/quckstart-tracing.md)
 
 After that, read through the [Concepts Section](../tracing/concepts-tracing.md) to get and understanding of the different components.
 

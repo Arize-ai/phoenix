@@ -30,7 +30,7 @@ Export a dataframe from your Phoenix session that contains traces from your LLM 
 If you are interested in a subset of your data, you can export with a custom query. Learn more [here](../tracing/how-to-tracing/extract-data-from-spans.md).
 {% endhint %}
 
-For the sake of this guide, we'll download some pre-existing trace data collected from a LlamaIndex application (in practice, this data would be collected by [instrumenting your LLM application](llm-traces.md) with an OpenInference-compatible tracer).
+For the sake of this guide, we'll download some pre-existing trace data collected from a LlamaIndex application (in practice, this data would be collected by [instrumenting your LLM application](../tracing/quckstart-tracing.md) with an OpenInference-compatible tracer).
 
 ```python
 from urllib.request import urlopen
@@ -59,7 +59,6 @@ You should now see a view like this.
 ## 3. Evaluate and Log Results
 
 Set up evaluators (in this case for hallucinations and Q\&A correctness), run the evaluations, and log the results to visualize them in Phoenix.
-
 
 ```python
 !pip install openai

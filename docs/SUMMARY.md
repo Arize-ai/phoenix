@@ -17,7 +17,7 @@
 ## 🔭 Tracing
 
 * [Overview: Tracing](concepts/llm-traces.md)
-* [Quickstart: Tracing](quickstart/llm-traces.md)
+* [Quickstart: Tracing](tracing/quckstart-tracing.md)
 * [Concepts: Tracing](tracing/concepts-tracing.md)
   * [What are Traces?](tracing/concepts-tracing/what-are-traces.md)
   * [How does Tracing Work?](tracing/concepts-tracing/how-does-tracing-work.md)
