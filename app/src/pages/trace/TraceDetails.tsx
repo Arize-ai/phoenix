@@ -227,7 +227,7 @@ function TraceHeader({ rootSpan }: { rootSpan: Span | null }) {
                   >
                     <AnnotationLabel
                       annotation={annotation}
-                      annotationDisplay="label"
+                      annotationDisplayPreference="label"
                     />
                   </AnnotationTooltip>
                 );

@@ -203,7 +203,7 @@ export function SpansTable(props: SpansTableProps) {
                 >
                   <AnnotationLabel
                     annotation={annotation}
-                    annotationDisplay="label"
+                    annotationDisplayPreference="label"
                   />
                 </AnnotationTooltip>
               );

@@ -9,7 +9,7 @@ import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 import { AnnotationColorSwatch } from "./AnnotationColorSwatch";
 import { Annotation } from "./types";
 
-type AnnotationDisplay = "label" | "score";
+type AnnotationDisplayPreference = "label" | "score";
 
 const baseAnnotationLabelCSS = css`
   border-radius: var(--ac-global-dimension-size-50);
@@ -39,7 +39,7 @@ const textCSS = css`
 
 const getAnnotationDisplayValue = (
   annotation: Annotation,
-  displayPreference: AnnotationDisplay
+  displayPreference: AnnotationDisplayPreference
 ) => {
   switch (displayPreference) {
     case "label":
@@ -73,7 +73,7 @@ export function AnnotationLabel({
    * If the provided value is not available, it will fallback to an available value.
    * @default "score"
    */
-  annotationDisplayPreference?: AnnotationDisplay;
+  annotationDisplayPreference?: AnnotationDisplayPreference;
 }) {
   const clickable = typeof onClick == "function";
   const labelValue = getAnnotationDisplayValue(

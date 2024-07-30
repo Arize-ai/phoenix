@@ -277,7 +277,7 @@ export function TracesTable(props: TracesTableProps) {
                 >
                   <AnnotationLabel
                     annotation={annotation}
-                    annotationDisplay="label"
+                    annotationDisplayPreference="label"
                   />
                 </AnnotationTooltip>
               );
