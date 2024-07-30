@@ -11,13 +11,15 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.api.types.Evaluation import TraceEvaluation
+from phoenix.server.api.input_types.TraceAnnotationSort import TraceAnnotationSort
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     CursorString,
     connection_from_list,
 )
+from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
+from phoenix.server.api.types.TraceAnnotation import TraceAnnotation, to_gql_trace_annotation
 
 
 @strawberry.type
@@ -62,6 +64,21 @@ class Trace(Node):
             data = [to_gql_span(span) async for span in spans]
         return connection_from_list(data=data, args=args)
 
-    @strawberry.field(description="Evaluations associated with the trace")  # type: ignore
-    async def trace_evaluations(self, info: Info[Context, None]) -> List[TraceEvaluation]:
-        return await info.context.data_loaders.trace_evaluations.load(self.id_attr)
+    @strawberry.field(description="Annotations associated with the trace.")  # type: ignore
+    async def span_annotations(
+        self,
+        info: Info[Context, None],
+        sort: Optional[TraceAnnotationSort] = None,
+    ) -> List[TraceAnnotation]:
+        async with info.context.db() as session:
+            stmt = select(models.TraceAnnotation).filter_by(span_rowid=self.id_attr)
+            if sort:
+                sort_col = getattr(models.TraceAnnotation, sort.col.value)
+                if sort.dir is SortDir.desc:
+                    stmt = stmt.order_by(sort_col.desc(), models.TraceAnnotation.id.desc())
+                else:
+                    stmt = stmt.order_by(sort_col.asc(), models.TraceAnnotation.id.asc())
+            else:
+                stmt = stmt.order_by(models.TraceAnnotation.created_at.desc())
+            annotations = await session.scalars(stmt)
+        return [to_gql_trace_annotation(annotation) for annotation in annotations]
