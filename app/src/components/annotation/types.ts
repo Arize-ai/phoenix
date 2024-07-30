@@ -4,4 +4,8 @@ export interface Annotation {
   score?: number | null;
   explanation?: string | null;
   annotatorKind: string;
+  trace?: {
+    traceId: string;
+    projectId: string;
+  } | null;
 }
