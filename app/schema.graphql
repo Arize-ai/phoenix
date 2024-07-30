@@ -1144,9 +1144,9 @@ type Span implements Node {
   spanEvaluations: [SpanEvaluation!]!
 
   """
-  Annotations of the span's parent span. This encompasses both LLM and human annotations.
+  Annotations associated with the span. This encompasses both LLM and human annotations.
   """
-  spanAnnotations: [SpanAnnotation!]!
+  spanAnnotations(sort: SpanAnnotationSort): [SpanAnnotation!]!
 
   """
   Evaluations of the documents associated with the span, e.g. if the span is a RETRIEVER with a list of documents in its RETRIEVAL_DOCUMENTS attribute, an evaluation for each document may assess its relevance respect to the input query of the span. Note that RETRIEVAL_DOCUMENTS is a list, and each evaluation is identified by its document's (zero-based) index in that list.
@@ -1195,9 +1195,20 @@ type SpanAnnotation implements Node & Annotation {
   spanId: GlobalID!
 }
 
+enum SpanAnnotationColumn {
+  createdAt
+  name
+}
+
 type SpanAnnotationMutationPayload {
   spanAnnotations: [SpanAnnotation!]!
   query: Query!
+}
+
+"""The sort key and direction for SpanAnnotation connections"""
+input SpanAnnotationSort {
+  col: SpanAnnotationColumn!
+  dir: SortDir!
 }
 
 type SpanAsExampleRevision implements ExampleRevision {
@@ -1325,8 +1336,8 @@ type Trace implements Node {
   projectId: GlobalID!
   spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
 
-  """Evaluations associated with the trace"""
-  traceEvaluations: [TraceEvaluation!]!
+  """Annotations associated with the trace."""
+  spanAnnotations(sort: TraceAnnotationSort = null): [TraceAnnotation!]!
 }
 
 type TraceAnnotation implements Node {
@@ -1341,27 +1352,20 @@ type TraceAnnotation implements Node {
   traceId: GlobalID!
 }
 
+enum TraceAnnotationColumn {
+  createdAt
+  name
+}
+
 type TraceAnnotationMutationPayload {
   traceAnnotations: [TraceAnnotation!]!
   query: Query!
 }
 
-type TraceEvaluation implements Annotation {
-  """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
-  name: String!
-
-  """Value of the annotation in the form of a numeric score."""
-  score: Float
-
-  """
-  Value of the annotation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
-  """
-  label: String
-
-  """
-  The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
-  """
-  explanation: String
+"""The sort key and direction for TraceAnnotation connections"""
+input TraceAnnotationSort {
+  col: TraceAnnotationColumn!
+  dir: SortDir!
 }
 
 type UMAPPoint {

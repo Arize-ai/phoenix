@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, List, Mapping, Optional, Sized, cast
 import numpy as np
 import strawberry
 from openinference.semconv.trace import EmbeddingAttributes, SpanAttributes
+from sqlalchemy import select
 from strawberry import ID, UNSET
 from strawberry.relay import Node, NodeID
 from strawberry.types import Info
@@ -19,6 +20,9 @@ from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
     get_dataset_example_output,
 )
+from phoenix.server.api.input_types.SpanAnnotationSort import SpanAnnotationSort
+from phoenix.server.api.types.SortDir import SortDir
+from phoenix.server.api.types.SpanAnnotation import to_gql_span_annotation
 from phoenix.trace.attributes import get_attribute_value
 
 from .DocumentRetrievalMetrics import DocumentRetrievalMetrics
@@ -177,12 +181,27 @@ class Span(Node):
 
     @strawberry.field(
         description=(
-            "Annotations of the span's parent span. This encompasses both "
+            "Annotations associated with the span. This encompasses both "
             "LLM and human annotations."
         )
     )  # type: ignore
-    async def span_annotations(self, info: Info[Context, None]) -> List[SpanAnnotation]:
-        return await info.context.data_loaders.span_annotations.load(self.id_attr)
+    async def span_annotations(
+        self,
+        info: Info[Context, None],
+        sort: Optional[SpanAnnotationSort] = UNSET,
+    ) -> List[SpanAnnotation]:
+        async with info.context.db() as session:
+            stmt = select(models.SpanAnnotation).filter_by(span_rowid=self.id_attr)
+            if sort:
+                sort_col = getattr(models.SpanAnnotation, sort.col.value)
+                if sort.dir is SortDir.desc:
+                    stmt = stmt.order_by(sort_col.desc(), models.SpanAnnotation.id.desc())
+                else:
+                    stmt = stmt.order_by(sort_col.asc(), models.SpanAnnotation.id.asc())
+            else:
+                stmt = stmt.order_by(models.SpanAnnotation.created_at.desc())
+            annotations = await session.scalars(stmt)
+        return [to_gql_span_annotation(annotation) for annotation in annotations]
 
     @strawberry.field(
         description="Evaluations of the documents associated with the span, e.g. "
