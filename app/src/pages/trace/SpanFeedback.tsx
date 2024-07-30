@@ -43,13 +43,13 @@ const columns = [
 ];
 
 function SpanAnnotationsTable({
-  evaluations,
+  annotations,
 }: {
-  evaluations: Mutable<SpanFeedback_annotations$data["spanAnnotations"]>;
+  annotations: Mutable<SpanFeedback_annotations$data["spanAnnotations"]>;
 }) {
   const table = useReactTable({
     columns,
-    data: evaluations,
+    data: annotations,
     getCoreRowModel: getCoreRowModel(),
   });
   const rows = table.getRowModel().rows;
@@ -128,10 +128,10 @@ export function SpanFeedback({ span }: { span: SpanFeedback_annotations$key }) {
   return (
     <Accordion>
       <AccordionItem id={"evaluations"} title={"Evaluations"}>
-        <SpanAnnotationsTable evaluations={llmAnnotations} />
+        <SpanAnnotationsTable annotations={llmAnnotations} />
       </AccordionItem>
       <AccordionItem id={"human"} title={"Human Annotations"}>
-        <SpanAnnotationsTable evaluations={humanAnnotations} />
+        <SpanAnnotationsTable annotations={humanAnnotations} />
       </AccordionItem>
     </Accordion>
   );
