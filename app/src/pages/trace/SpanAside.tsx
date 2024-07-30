@@ -24,7 +24,6 @@ const annotationListCSS = css`
 
 /**
  * A component that shows the details of a span that is supplementary to the main span details
- * @returns
  */
 export function SpanAside(props: { span: SpanAside_span$key }) {
   const [data] = useRefetchableFragment<SpanAsideSpanQuery, SpanAside_span$key>(
@@ -117,15 +116,13 @@ export function SpanAside(props: { span: SpanAside_span$key }) {
         ) : null}
         {hasAnnotations && (
           <LabeledValue label="Feedback">
-            <Flex direction="row" gap="size-50">
-              <ul css={annotationListCSS}>
-                {annotations.map((annotation) => (
-                  <li key={annotation.id}>
-                    <AnnotationLabel annotation={annotation} />
-                  </li>
-                ))}
-              </ul>
-            </Flex>
+            <ul css={annotationListCSS}>
+              {annotations.map((annotation) => (
+                <li key={annotation.id}>
+                  <AnnotationLabel annotation={annotation} />
+                </li>
+              ))}
+            </ul>
           </LabeledValue>
         )}
       </Flex>

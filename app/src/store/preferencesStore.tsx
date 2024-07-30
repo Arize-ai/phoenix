@@ -36,7 +36,6 @@ export interface PreferencesState extends PreferencesProps {
   /**
    * Setter for enabling/disabling the span aside
    * @param showSpanAside
-   * @returns
    */
   setShowSpanAside: (showSpanAside: boolean) => void;
 }
