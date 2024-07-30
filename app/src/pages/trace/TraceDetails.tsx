@@ -218,7 +218,6 @@ function TraceHeader({ rootSpan }: { rootSpan: Span | null }) {
               {spanEvaluations.map((evaluation) => {
                 const annotation = {
                   ...evaluation,
-                  trace: null,
                   annotatorKind: "LLM",
                 };
                 return (

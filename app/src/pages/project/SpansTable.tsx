@@ -194,7 +194,6 @@ export function SpansTable(props: SpansTableProps) {
             {row.original.spanEvaluations.map((evaluation) => {
               const annotation = {
                 ...evaluation,
-                trace: null,
                 annotatorKind: "LLM",
               };
               return (

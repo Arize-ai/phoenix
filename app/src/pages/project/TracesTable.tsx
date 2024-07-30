@@ -268,7 +268,6 @@ export function TracesTable(props: TracesTableProps) {
             {row.original.spanEvaluations.map((evaluation) => {
               const annotation = {
                 ...evaluation,
-                trace: null,
                 annotatorKind: "LLM",
               };
               return (
