@@ -154,10 +154,6 @@ class BulkInserter:
             or self._spans
             or self._evaluations
         ):
-            if not self._queue_inserters.empty:
-                if inserted_ids := await self._queue_inserters.insert():
-                    for project_rowid in await self._get_project_rowids(inserted_ids):
-                        self._last_updated_at_by_project[project_rowid] = datetime.now(timezone.utc)
             if self._operations.empty() and not (self._spans or self._evaluations):
                 await asyncio.sleep(self._sleep)
                 continue
@@ -200,6 +196,10 @@ class BulkInserter:
                 evaluations_buffer = None
             for project_rowid in transaction_result.updated_project_rowids:
                 self._last_updated_at_by_project[project_rowid] = datetime.now(timezone.utc)
+            if not self._queue_inserters.empty:
+                if inserted_ids := await self._queue_inserters.insert():
+                    for project_rowid in await self._get_project_rowids(inserted_ids):
+                        self._last_updated_at_by_project[project_rowid] = datetime.now(timezone.utc)
             await asyncio.sleep(self._sleep)
 
     async def _insert_spans(self, spans: List[Tuple[Span, str]]) -> TransactionResult:
