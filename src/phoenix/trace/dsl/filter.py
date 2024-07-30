@@ -56,11 +56,7 @@ class AliasedAnnotationRelation:
         table = aliased(models.SpanAnnotation, name=table_alias)
         object.__setattr__(self, "_label_attribute_alias", label_attribute_alias)
         object.__setattr__(self, "_score_attribute_alias", score_attribute_alias)
-        object.__setattr__(
-            self,
-            "table",
-            table,
-        )
+        object.__setattr__(self, "table", table)
 
     @property
     def attributes(self) -> typing.Iterator[typing.Tuple[str, Mapped[typing.Any]]]:
@@ -236,7 +232,7 @@ class SpanFilter:
         for eval_alias in self._aliased_annotation_relations:
             eval_name = eval_alias.name
             AliasedSpanAnnotation = eval_alias.table
-            stmt = stmt.join(
+            stmt = stmt.outerjoin(
                 AliasedSpanAnnotation,
                 onclause=(
                     sqlalchemy.and_(
