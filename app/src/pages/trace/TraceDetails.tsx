@@ -7,13 +7,15 @@ import { css } from "@emotion/react";
 import { Flex, Text, View } from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
+import {
+  AnnotationLabel,
+  AnnotationTooltip,
+} from "@phoenix/components/annotation";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
 import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
-
-import { EvaluationLabel } from "../project/EvaluationLabel";
 
 import {
   TraceDetailsQuery,
@@ -214,11 +216,20 @@ function TraceHeader({ rootSpan }: { rootSpan: Span | null }) {
             </Text>
             <Flex direction="row" gap="size-50">
               {spanEvaluations.map((evaluation) => {
+                const annotation = {
+                  ...evaluation,
+                  annotatorKind: "LLM",
+                };
                 return (
-                  <EvaluationLabel
+                  <AnnotationTooltip
                     key={evaluation.name}
-                    evaluation={evaluation}
-                  />
+                    annotation={annotation}
+                  >
+                    <AnnotationLabel
+                      annotation={annotation}
+                      annotationDisplayPreference="label"
+                    />
+                  </AnnotationTooltip>
                 );
               })}
             </Flex>

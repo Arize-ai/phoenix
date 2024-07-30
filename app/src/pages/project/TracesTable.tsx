@@ -24,6 +24,10 @@ import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, View } from "@arizeai/components";
 
+import {
+  AnnotationLabel,
+  AnnotationTooltip,
+} from "@phoenix/components/annotation";
 import { Link } from "@phoenix/components/Link";
 import { TextCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
@@ -43,7 +47,6 @@ import {
   TracesTable_spans$key,
 } from "./__generated__/TracesTable_spans.graphql";
 import { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
-import { EvaluationLabel } from "./EvaluationLabel";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
@@ -263,11 +266,20 @@ export function TracesTable(props: TracesTableProps) {
         return (
           <Flex direction="row" gap="size-50" wrap="wrap">
             {row.original.spanEvaluations.map((evaluation) => {
+              const annotation = {
+                ...evaluation,
+                annotatorKind: "LLM",
+              };
               return (
-                <EvaluationLabel
+                <AnnotationTooltip
                   key={evaluation.name}
-                  evaluation={evaluation}
-                />
+                  annotation={annotation}
+                >
+                  <AnnotationLabel
+                    annotation={annotation}
+                    annotationDisplayPreference="label"
+                  />
+                </AnnotationTooltip>
               );
             })}
             {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
