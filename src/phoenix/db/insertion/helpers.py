@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import KeyedColumnElement
 from typing_extensions import TypeAlias, assert_never
 
+from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.models import Base
 
@@ -93,3 +94,15 @@ def _clean(
             yield "metadata", v
         else:
             yield k, v
+
+
+def as_kv(obj: models.Base) -> Iterator[Tuple[str, Any]]:
+    for k, c in obj.__table__.c.items():
+        if k in ["created_at", "updated_at"]:
+            continue
+        k = "metadata_" if k == "metadata" else k
+        v = getattr(obj, k, None)
+        if c.primary_key and v is None:
+            # postgresql disallows None for primary key
+            continue
+        yield k, v

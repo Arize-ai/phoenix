@@ -2,7 +2,7 @@ import gzip
 import zlib
 from typing import Any, Dict, List, Literal, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Header, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Query
 from google.protobuf.message import DecodeError
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
@@ -22,8 +22,8 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import insert_on_conflict
-from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
+from phoenix.db.insertion.types import Precursors
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.utilities.project import get_project_name
 
@@ -100,7 +100,7 @@ class TraceAnnotationResult(V1RoutesBaseModel):
 
 
 class TraceAnnotation(V1RoutesBaseModel):
-    trace_id: str = Field(description="The ID of the trace being annotated")
+    trace_id: str = Field(description="OpenTelemetry Trace ID (hex format w/o 0x prefix)")
     name: str = Field(description="The name of the annotation")
     annotator_kind: Literal["LLM", "HUMAN"] = Field(
         description="The kind of annotator used for the annotation"
@@ -111,6 +111,19 @@ class TraceAnnotation(V1RoutesBaseModel):
     metadata: Optional[Dict[str, Any]] = Field(
         default=None, description="Metadata for the annotation"
     )
+
+    def as_precursor(self) -> Precursors.TraceAnnotation:
+        return Precursors.TraceAnnotation(
+            self.trace_id,
+            models.TraceAnnotation(
+                name=self.name,
+                annotator_kind=self.annotator_kind,
+                score=self.result.score if self.result else None,
+                label=self.result.label if self.result else None,
+                explanation=self.result.explanation if self.result else None,
+                metadata_=self.metadata or {},
+            ),
+        )
 
 
 class AnnotateTracesRequestBody(RequestBody[List[TraceAnnotation]]):
@@ -134,61 +147,36 @@ class AnnotateTracesResponseBody(ResponseBody[List[InsertedTraceAnnotation]]):
     ),
 )
 async def annotate_traces(
-    request: Request, request_body: AnnotateTracesRequestBody
+    request: Request,
+    request_body: AnnotateTracesRequestBody,
+    sync: bool = Query(default=True, description="If true, fulfill request synchronously."),
 ) -> AnnotateTracesResponseBody:
-    trace_annotations = request_body.data
-    trace_gids = [GlobalID.from_id(annotation.trace_id) for annotation in trace_annotations]
+    precursors = [d.as_precursor() for d in request_body.data]
+    if not sync:
+        await request.state.enqueue(*precursors)
+        return AnnotateTracesResponseBody(data=[])
 
-    resolved_trace_ids = []
-    for trace_gid in trace_gids:
-        try:
-            resolved_trace_ids.append(from_global_id_with_expected_type(trace_gid, "Trace"))
-        except ValueError:
-            raise HTTPException(
-                detail="Trace with ID {trace_gid} does not exist",
-                status_code=HTTP_404_NOT_FOUND,
-            )
-
+    trace_ids = {p.trace_id for p in precursors}
     async with request.app.state.db() as session:
-        traces = await session.execute(
-            select(models.Trace).filter(models.Trace.id.in_(resolved_trace_ids))
-        )
-        existing_trace_ids = {trace.id for trace in traces.scalars()}
+        existing_traces = {
+            trace.trace_id: trace.id
+            async for trace in await session.stream_scalars(
+                select(models.Trace).filter(models.Trace.trace_id.in_(trace_ids))
+            )
+        }
 
-        missing_trace_ids = set(resolved_trace_ids) - existing_trace_ids
+        missing_trace_ids = trace_ids - set(existing_traces.keys())
         if missing_trace_ids:
-            missing_trace_gids = [
-                str(GlobalID("Trace", str(trace_gid))) for trace_gid in missing_trace_ids
-            ]
             raise HTTPException(
-                detail=f"Traces with IDs {', '.join(missing_trace_gids)} do not exist.",
+                detail=f"Traces with IDs {', '.join(missing_trace_ids)} do not exist.",
                 status_code=HTTP_404_NOT_FOUND,
             )
 
         inserted_annotations = []
 
-        for annotation in trace_annotations:
-            trace_gid = GlobalID.from_id(annotation.trace_id)
-            trace_id = from_global_id_with_expected_type(trace_gid, "Trace")
-
-            name = annotation.name
-            annotator_kind = annotation.annotator_kind
-            result = annotation.result
-            label = result.label if result else None
-            score = result.score if result else None
-            explanation = result.explanation if result else None
-            metadata = annotation.metadata or {}
-
-            values = dict(
-                trace_rowid=trace_id,
-                name=name,
-                label=label,
-                score=score,
-                explanation=explanation,
-                annotator_kind=annotator_kind,
-                metadata_=metadata,
-            )
-            dialect = SupportedSQLDialect(session.bind.dialect.name)
+        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        for p in precursors:
+            values = dict(as_kv(p.as_insertable(existing_traces[p.trace_id]).row))
             trace_annotation_id = await session.scalar(
                 insert_on_conflict(
                     values,

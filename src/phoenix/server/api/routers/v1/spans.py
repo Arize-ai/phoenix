@@ -13,9 +13,9 @@ from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import insert_on_conflict
+from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
+from phoenix.db.insertion.types import Precursors
 from phoenix.server.api.routers.utils import df_to_bytes
-from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.trace.dsl import SpanQuery as SpanQuery_
 
 from .pydantic_compat import V1RoutesBaseModel
@@ -143,7 +143,7 @@ class SpanAnnotationResult(V1RoutesBaseModel):
 
 
 class SpanAnnotation(V1RoutesBaseModel):
-    span_id: str = Field(description="The ID of the span being annotated")
+    span_id: str = Field(description="OpenTelemetry Span ID (hex format w/o 0x prefix)")
     name: str = Field(description="The name of the annotation")
     annotator_kind: Literal["LLM", "HUMAN"] = Field(
         description="The kind of annotator used for the annotation"
@@ -154,6 +154,19 @@ class SpanAnnotation(V1RoutesBaseModel):
     metadata: Optional[Dict[str, Any]] = Field(
         default=None, description="Metadata for the annotation"
     )
+
+    def as_precursor(self) -> Precursors.SpanAnnotation:
+        return Precursors.SpanAnnotation(
+            self.span_id,
+            models.SpanAnnotation(
+                name=self.name,
+                annotator_kind=self.annotator_kind,
+                score=self.result.score if self.result else None,
+                label=self.result.label if self.result else None,
+                explanation=self.result.explanation if self.result else None,
+                metadata_=self.metadata or {},
+            ),
+        )
 
 
 class AnnotateSpansRequestBody(RequestBody[List[SpanAnnotation]]):
@@ -178,59 +191,36 @@ class AnnotateSpansResponseBody(ResponseBody[List[InsertedSpanAnnotation]]):
     response_description="Span annotations inserted successfully",
 )
 async def annotate_spans(
-    request: Request, request_body: AnnotateSpansRequestBody
+    request: Request,
+    request_body: AnnotateSpansRequestBody,
+    sync: bool = Query(default=True, description="If true, fulfill request synchronously."),
 ) -> AnnotateSpansResponseBody:
-    span_annotations = request_body.data
-    span_gids = [GlobalID.from_id(annotation.span_id) for annotation in span_annotations]
+    precursors = [d.as_precursor() for d in request_body.data]
+    if not sync:
+        await request.state.enqueue(*precursors)
+        return AnnotateSpansResponseBody(data=[])
 
-    resolved_span_ids = []
-    for span_gid in span_gids:
-        try:
-            resolved_span_ids.append(from_global_id_with_expected_type(span_gid, "Span"))
-        except ValueError:
-            raise HTTPException(
-                detail="Span with ID {span_gid} does not exist",
-                status_code=HTTP_404_NOT_FOUND,
-            )
-
+    span_ids = {p.span_id for p in precursors}
     async with request.app.state.db() as session:
-        spans = await session.execute(
-            select(models.Span).filter(models.Span.id.in_(resolved_span_ids))
-        )
-        existing_span_ids = {span.id for span in spans.scalars()}
+        existing_spans = {
+            span.span_id: span.id
+            async for span in await session.stream_scalars(
+                select(models.Span).filter(models.Span.span_id.in_(span_ids))
+            )
+        }
 
-        missing_span_ids = set(resolved_span_ids) - existing_span_ids
+        missing_span_ids = span_ids - set(existing_spans.keys())
         if missing_span_ids:
-            missing_span_gids = [
-                str(GlobalID("Span", str(span_gid))) for span_gid in missing_span_ids
-            ]
             raise HTTPException(
-                detail=f"Spans with IDs {', '.join(missing_span_gids)} do not exist.",
+                detail=f"Spans with IDs {', '.join(missing_span_ids)} do not exist.",
                 status_code=HTTP_404_NOT_FOUND,
             )
 
         inserted_annotations = []
-        for annotation in span_annotations:
-            span_gid = GlobalID.from_id(annotation.span_id)
-            span_id = from_global_id_with_expected_type(span_gid, "Span")
-            name = annotation.name
-            annotator_kind = annotation.annotator_kind
-            result = annotation.result
-            label = result.label if result else None
-            score = result.score if result else None
-            explanation = result.explanation if result else None
-            metadata = annotation.metadata or {}
 
-            values = dict(
-                span_rowid=span_id,
-                name=name,
-                label=label,
-                score=score,
-                explanation=explanation,
-                annotator_kind=annotator_kind,
-                metadata_=metadata,
-            )
-            dialect = SupportedSQLDialect(session.bind.dialect.name)
+        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        for p in precursors:
+            values = dict(as_kv(p.as_insertable(existing_spans[p.span_id]).row))
             span_annotation_id = await session.scalar(
                 insert_on_conflict(
                     values,

@@ -1,17 +1,19 @@
 import asyncio
 import contextlib
+import time
 from asyncio import AbstractEventLoop, get_running_loop
 from functools import partial
 from importlib.metadata import version
-from time import sleep
+from random import getrandbits
 from typing import (
     Any,
-    AsyncContextManager,
     AsyncIterator,
     Awaitable,
     Callable,
+    Iterator,
     List,
     Literal,
+    Set,
     Tuple,
 )
 
@@ -20,6 +22,7 @@ import pytest
 from _pytest.config import Config, Parser
 from _pytest.fixtures import SubRequest
 from asgi_lifespan import LifespanManager
+from faker import Faker
 from httpx import URL, Request, Response
 from phoenix.config import EXPORT_DIR
 from phoenix.core.model_schema_adapter import create_model_from_inferences
@@ -43,7 +46,6 @@ def pytest_addoption(parser: Parser) -> None:
     parser.addoption(
         "--run-postgres",
         action="store_true",
-        default=False,
         help="Run tests that require Postgres",
     )
 
@@ -128,11 +130,11 @@ def _db_with_lock(engine: AsyncEngine) -> DbSessionFactory:
     lock, db = asyncio.Lock(), _db(engine)
 
     @contextlib.asynccontextmanager
-    async def _() -> AsyncIterator[AsyncSession]:
+    async def factory() -> AsyncIterator[AsyncSession]:
         async with lock, db() as session:
             yield session
 
-    return _
+    return DbSessionFactory(db=factory, dialect=engine.dialect.name)
 
 
 @pytest.fixture
@@ -144,15 +146,13 @@ async def project(db: DbSessionFactory) -> None:
 
 @pytest.fixture
 async def app(
-    dialect: str,
-    db: Callable[[], AsyncContextManager[AsyncSession]],
+    db: DbSessionFactory,
 ) -> AsyncIterator[ASGIApp]:
-    factory = DbSessionFactory(db=db, dialect=dialect)
     async with contextlib.AsyncExitStack() as stack:
         await stack.enter_async_context(patch_bulk_inserter())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
-            db=factory,
+            db=db,
             model=create_model_from_inferences(EMPTY_INFERENCES, None),
             export_path=EXPORT_DIR,
             umap_params=get_umap_parameters(None),
@@ -178,9 +178,12 @@ def httpx_clients(
 
         def handle_request(self, request: Request) -> Response:
             fut = loop.create_task(self.handle_async_request(request))
-            while not fut.done():
-                sleep(0.01)
-            return fut.result()
+            time_cutoff = time.time() + 1
+            while not fut.done() and time.time() < time_cutoff:
+                time.sleep(0.01)
+            if fut.done():
+                return fut.result()
+            raise TimeoutError
 
         async def handle_async_request(self, request: Request) -> Response:
             response = await self.transport.handle_async_request(request)
@@ -211,7 +214,7 @@ def px_client(
     httpx_clients: Tuple[httpx.Client, httpx.AsyncClient],
 ) -> Client:
     sync_client, _ = httpx_clients
-    client = Client()
+    client = Client(warn_if_server_not_running=False)
     client._client = sync_client
     client._base_url = str(sync_client.base_url)
     sync_client._base_url = URL("")
@@ -239,7 +242,36 @@ async def patch_bulk_inserter() -> AsyncIterator[None]:
     cls = BulkInserter
     original = cls.__init__
     name = original.__name__
-    changes = {"sleep": 0.001}
+    changes = {"sleep": 0.001, "retry_delay_sec": 0.001, "retry_allowance": 1000}
     setattr(cls, name, lambda *_, **__: original(*_, **{**__, **changes}))
     yield
     setattr(cls, name, original)
+
+
+@pytest.fixture
+def fake() -> Faker:
+    return Faker()
+
+
+@pytest.fixture
+def rand_span_id() -> Iterator[str]:
+    def _(seen: Set[str]) -> Iterator[str]:
+        while True:
+            span_id = getrandbits(64).to_bytes(8, "big").hex()
+            if span_id not in seen:
+                seen.add(span_id)
+                yield span_id
+
+    return _(set())
+
+
+@pytest.fixture
+def rand_trace_id() -> Iterator[str]:
+    def _(seen: Set[str]) -> Iterator[str]:
+        while True:
+            span_id = getrandbits(128).to_bytes(16, "big").hex()
+            if span_id not in seen:
+                seen.add(span_id)
+                yield span_id
+
+    return _(set())

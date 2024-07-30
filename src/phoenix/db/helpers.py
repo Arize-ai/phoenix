@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Optional, Tuple
+from typing import Any, Callable, Hashable, Iterable, List, Optional, Set, Tuple, TypeVar
 
 from openinference.semconv.trace import (
     OpenInferenceSpanKindValues,
@@ -80,3 +80,25 @@ def get_project_names_for_experiments(*experiment_ids: int) -> Select[Tuple[Opti
         .where(models.Experiment.id.in_(set(experiment_ids)))
         .where(models.Experiment.project_name.isnot(None))
     )
+
+
+_AnyT = TypeVar("_AnyT")
+_KeyT = TypeVar("_KeyT", bound=Hashable)
+
+
+def dedup(
+    items: Iterable[_AnyT],
+    key: Callable[[_AnyT], _KeyT],
+) -> List[_AnyT]:
+    """
+    Discard subsequent duplicates after the first appearance in `items`.
+    """
+    ans = []
+    seen: Set[_KeyT] = set()
+    for item in items:
+        if (k := key(item)) in seen:
+            continue
+        else:
+            ans.append(item)
+            seen.add(k)
+    return ans

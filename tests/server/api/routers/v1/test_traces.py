@@ -1,13 +1,13 @@
+from asyncio import sleep
 from datetime import datetime
 from typing import Any
 
 import httpx
 import pytest
+from faker import Faker
 from phoenix.db import models
-from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.types import DbSessionFactory
 from sqlalchemy import insert, select
-from strawberry.relay import GlobalID
 
 
 @pytest.fixture
@@ -24,7 +24,7 @@ async def project_with_a_single_trace_and_span(
         trace_id = await session.scalar(
             insert(models.Trace)
             .values(
-                trace_id="1",
+                trace_id="82c6c9c33ccc586e0d3bdf46b20db309",
                 project_rowid=project_row_id,
                 start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
@@ -35,7 +35,7 @@ async def project_with_a_single_trace_and_span(
             insert(models.Span)
             .values(
                 trace_rowid=trace_id,
-                span_id="1",
+                span_id="f0d808aedd5591b6",
                 parent_id=None,
                 name="chain span",
                 span_kind="CHAIN",
@@ -56,17 +56,20 @@ async def project_with_a_single_trace_and_span(
         )
 
 
+@pytest.mark.parametrize("sync", [False, True])
 async def test_rest_trace_annotation(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
     project_with_a_single_trace_and_span: Any,
+    sync: bool,
+    fake: Faker,
 ) -> None:
-    trace_gid = GlobalID("Trace", "1")
+    name = fake.pystr()
     request_body = {
         "data": [
             {
-                "trace_id": str(trace_gid),
-                "name": "Test Annotation",
+                "trace_id": "82c6c9c33ccc586e0d3bdf46b20db309",
+                "name": name,
                 "annotator_kind": "HUMAN",
                 "result": {
                     "label": "True",
@@ -78,19 +81,17 @@ async def test_rest_trace_annotation(
         ]
     }
 
-    response = await httpx_client.post("/v1/trace_annotations", json=request_body)
+    response = await httpx_client.post(f"v1/trace_annotations?sync={sync}", json=request_body)
     assert response.status_code == 200
-
-    data = response.json()["data"]
-    annotation_gid = GlobalID.from_id(data[0]["id"])
-    annotation_id = from_global_id_with_expected_type(annotation_gid, "TraceAnnotation")
+    if not sync:
+        await sleep(0.1)
     async with db() as session:
         orm_annotation = await session.scalar(
-            select(models.TraceAnnotation).where(models.TraceAnnotation.id == annotation_id)
+            select(models.TraceAnnotation).where(models.TraceAnnotation.name == name)
         )
 
     assert orm_annotation is not None
-    assert orm_annotation.name == "Test Annotation"
+    assert orm_annotation.name == name
     assert orm_annotation.annotator_kind == "HUMAN"
     assert orm_annotation.label == "True"
     assert orm_annotation.score == 0.95

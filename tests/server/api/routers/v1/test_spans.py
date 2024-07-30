@@ -6,13 +6,12 @@ from typing import Any, Awaitable, Callable, cast
 import httpx
 import pandas as pd
 import pytest
+from faker import Faker
 from phoenix import Client, TraceDataset
 from phoenix.db import models
-from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanQuery
 from sqlalchemy import insert, select
-from strawberry.relay import GlobalID
 
 
 async def test_span_round_tripping_with_docs(
@@ -38,17 +37,20 @@ async def test_span_round_tripping_with_docs(
     assert new_count == orig_count * 2
 
 
+@pytest.mark.parametrize("sync", [False, True])
 async def test_rest_span_annotation(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
     project_with_a_single_trace_and_span: Any,
+    sync: bool,
+    fake: Faker,
 ) -> None:
-    span_gid = GlobalID("Span", "1")
+    name = fake.pystr()
     request_body = {
         "data": [
             {
-                "span_id": str(span_gid),
-                "name": "Test Annotation",
+                "span_id": "7e2f08cb43bbf521",
+                "name": name,
                 "annotator_kind": "HUMAN",
                 "result": {
                     "label": "True",
@@ -60,19 +62,17 @@ async def test_rest_span_annotation(
         ]
     }
 
-    response = await httpx_client.post("/v1/span_annotations", json=request_body)
+    response = await httpx_client.post(f"v1/span_annotations?sync={sync}", json=request_body)
     assert response.status_code == 200
-
-    data = response.json()["data"]
-    annotation_gid = GlobalID.from_id(data[0]["id"])
-    annotation_id = from_global_id_with_expected_type(annotation_gid, "SpanAnnotation")
+    if not sync:
+        await sleep(0.1)
     async with db() as session:
         orm_annotation = await session.scalar(
-            select(models.SpanAnnotation).where(models.SpanAnnotation.id == annotation_id)
+            select(models.SpanAnnotation).where(models.SpanAnnotation.name == name)
         )
 
     assert orm_annotation is not None
-    assert orm_annotation.name == "Test Annotation"
+    assert orm_annotation.name == name
     assert orm_annotation.annotator_kind == "HUMAN"
     assert orm_annotation.label == "True"
     assert orm_annotation.score == 0.95
@@ -94,7 +94,7 @@ async def project_with_a_single_trace_and_span(
         trace_id = await session.scalar(
             insert(models.Trace)
             .values(
-                trace_id="1",
+                trace_id="649993371fa95c788177f739b7423818",
                 project_rowid=project_row_id,
                 start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
@@ -105,7 +105,7 @@ async def project_with_a_single_trace_and_span(
             insert(models.Span)
             .values(
                 trace_rowid=trace_id,
-                span_id="1",
+                span_id="7e2f08cb43bbf521",
                 parent_id=None,
                 name="chain span",
                 span_kind="CHAIN",
