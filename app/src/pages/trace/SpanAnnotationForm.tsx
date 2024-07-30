@@ -11,6 +11,10 @@ export type CreateAnnotationInput = {
   explanation?: string | null;
 };
 
+const detailsCSS = css`
+  color: var(--ac-global-text-color-900);
+  font-size: 12px;
+`;
 export type SpanAnnotationFormProps = {
   /**
    * The initial data to populate the form with
@@ -69,6 +73,7 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
     [onSubmit, setError]
   );
 
+  const defaultDetailsCollapsed = isReadOnly;
   return (
     <form onSubmit={handleSubmit(_onSubmit)} ref={formRef}>
       <View padding="size-200">
@@ -130,26 +135,31 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
               )}
             />
           </div>
-          <Controller
-            name="explanation"
-            control={control}
-            render={({
-              field: { onChange, onBlur, value },
-              fieldState: { invalid, error },
-            }) => (
-              <TextArea
-                label="Explanation"
-                height={70}
-                isReadOnly={isReadOnly}
-                description="Why this score or label was given"
-                errorMessage={error?.message}
-                validationState={invalid ? "invalid" : "valid"}
-                onChange={onChange}
-                onBlur={onBlur}
-                value={value?.toString() || ""}
+          <details open={!defaultDetailsCollapsed} css={detailsCSS}>
+            <summary>Annotation Details</summary>
+            <View paddingTop="size-50">
+              <Controller
+                name="explanation"
+                control={control}
+                render={({
+                  field: { onChange, onBlur, value },
+                  fieldState: { invalid, error },
+                }) => (
+                  <TextArea
+                    label="Explanation"
+                    height={70}
+                    isReadOnly={isReadOnly}
+                    description="Why this score or label was given"
+                    errorMessage={error?.message}
+                    validationState={invalid ? "invalid" : "valid"}
+                    onChange={onChange}
+                    onBlur={onBlur}
+                    value={value?.toString() || ""}
+                  />
+                )}
               />
-            )}
-          />
+            </View>
+          </details>
         </Flex>
       </View>
       <>
