@@ -39,9 +39,9 @@ const textCSS = css`
 
 const getAnnotationDisplayValue = (
   annotation: Annotation,
-  display: AnnotationDisplay
+  displayPreference: AnnotationDisplay
 ) => {
-  switch (display) {
+  switch (displayPreference) {
     case "label":
       return (
         annotation.label ||
@@ -57,25 +57,29 @@ const getAnnotationDisplayValue = (
         "n/a"
       );
     default:
-      assertUnreachable(display);
+      assertUnreachable(displayPreference);
   }
 };
 
 export function AnnotationLabel({
   annotation,
   onClick,
-  annotationDisplay = "score",
+  annotationDisplayPreference = "score",
 }: {
   annotation: Annotation;
   onClick?: () => void;
   /**
-   * What to display in the annotation label (i.e, the score or the label)
+   * The preferred value to display in the annotation label.
+   * If the provided value is not available, it will fallback to an available value.
    * @default "score"
    */
-  annotationDisplay?: AnnotationDisplay;
+  annotationDisplayPreference?: AnnotationDisplay;
 }) {
   const clickable = typeof onClick == "function";
-  const labelValue = getAnnotationDisplayValue(annotation, annotationDisplay);
+  const labelValue = getAnnotationDisplayValue(
+    annotation,
+    annotationDisplayPreference
+  );
 
   return (
     <div
@@ -109,9 +113,7 @@ export function AnnotationLabel({
         >
           <Text textSize="small">{labelValue}</Text>
         </div>
-        {annotation.trace && clickable ? (
-          <Icon svg={<Icons.ArrowIosForwardOutline />} />
-        ) : null}
+        {clickable ? <Icon svg={<Icons.ArrowIosForwardOutline />} /> : null}
       </Flex>
     </div>
   );

@@ -43,6 +43,14 @@ export function ExampleExperimentsTableEmpty() {
   );
 }
 
+const annotationTooltipExtraCSS = css`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  color: var(--ac-global-color-primary);
+  gap: var(--ac-global-dimension-size-50);
+`;
+
 export function ExampleExperimentRunsTable({
   example,
 }: {
@@ -160,15 +168,7 @@ export function ExampleExperimentRunsTable({
                   extra={
                     annotation.trace && (
                       <View paddingTop="size-100">
-                        <div
-                          css={css`
-                            display: flex;
-                            flex-direction: row;
-                            align-items: center;
-                            color: var(--ac-global-color-primary);
-                            gap: var(--ac-global-dimension-size-50);
-                          `}
-                        >
+                        <div css={annotationTooltipExtraCSS}>
                           <Icon svg={<Icons.InfoOutline />} />
                           <span>Click to view evaluator trace</span>
                         </div>

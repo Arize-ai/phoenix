@@ -137,6 +137,14 @@ const cellControlsCSS = css`
   gap: var(--ac-global-dimension-static-size-100);
 `;
 
+const annotationTooltipExtraCSS = css`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  color: var(--ac-global-color-primary);
+  gap: var(--ac-global-dimension-size-50);
+`;
+
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const { datasetId, experimentIds, displayFullText } = props;
   const data = useLazyLoadQuery<ExperimentCompareTableQuery>(
@@ -621,15 +629,7 @@ function ExperimentRunOutput(
               extra={
                 annotation.trace && (
                   <View paddingTop="size-100">
-                    <div
-                      css={css`
-                        display: flex;
-                        flex-direction: row;
-                        align-items: center;
-                        color: var(--ac-global-color-primary);
-                        gap: var(--ac-global-dimension-size-50);
-                      `}
-                    >
+                    <div css={annotationTooltipExtraCSS}>
                       <Icon svg={<Icons.InfoOutline />} />
                       <span>Click to view evaluator trace</span>
                     </div>
