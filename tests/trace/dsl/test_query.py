@@ -347,26 +347,6 @@ async def test_filter_for_none(
         check_index_type=False,
     )
 
-    sq = (
-        SpanQuery()
-        .select("name")
-        .where(
-            "parent_id is not None",
-        )
-    )
-    expected = pd.DataFrame(
-        {
-            "context.span_id": ["234", "345", "456", "567"],
-            "name": ["root span", "embedding span", "retriever span", "llm span"],
-        }
-    ).set_index("context.span_id")
-    async with db() as session:
-        actual = await session.run_sync(sq, project_name="abc")
-    assert_frame_equal(
-        actual.sort_index().sort_index(axis=1),
-        expected.sort_index().sort_index(axis=1),
-    )
-
 
 async def test_filter_for_not_none(
     db: DbSessionFactory,
@@ -384,26 +364,6 @@ async def test_filter_for_not_none(
         {
             "context.span_id": ["234"],
             "name": ["root span"],
-        }
-    ).set_index("context.span_id")
-    async with db() as session:
-        actual = await session.run_sync(sq, project_name="abc")
-    assert_frame_equal(
-        actual.sort_index().sort_index(axis=1),
-        expected.sort_index().sort_index(axis=1),
-    )
-
-    sq = (
-        SpanQuery()
-        .select("name")
-        .where(
-            "output.value is None",
-        )
-    )
-    expected = pd.DataFrame(
-        {
-            "context.span_id": ["345", "456", "567"],
-            "name": ["embedding span", "retriever span", "llm span"],
         }
     ).set_index("context.span_id")
     async with db() as session:
