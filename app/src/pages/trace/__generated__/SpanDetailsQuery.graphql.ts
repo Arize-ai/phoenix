@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7eb51329b17691743da5b3613ed3c293>>
+ * @generated SignedSource<<15286f0446f997087c2392d071de7a69>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -484,7 +484,8 @@ return {
                     "kind": "ScalarField",
                     "name": "annotatorKind",
                     "storageKey": null
-                  }
+                  },
+                  (v3/*: any*/)
                 ],
                 "storageKey": null
               },
@@ -512,12 +513,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "fa2339b82801c134af4c9a75a9543866",
+    "cacheID": "b1a80a0108c40baebf6e64b811ca0202",
     "id": null,
     "metadata": {},
     "name": "SpanDetailsQuery",
     "operationKind": "query",
-    "text": "query SpanDetailsQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      id\n      context {\n        spanId\n        traceId\n      }\n      name\n      spanKind\n      statusCode: propagatedStatusCode\n      statusMessage\n      startTime\n      parentId\n      latencyMs\n      tokenCountTotal\n      tokenCountPrompt\n      tokenCountCompletion\n      input {\n        value\n        mimeType\n      }\n      output {\n        value\n        mimeType\n      }\n      attributes\n      events {\n        name\n        message\n        timestamp\n      }\n      documentRetrievalMetrics {\n        evaluationName\n        ndcg\n        precision\n        hit\n      }\n      documentEvaluations {\n        documentPosition\n        name\n        label\n        score\n        explanation\n      }\n      spanAnnotations {\n        name\n      }\n      ...SpanFeedback_annotations\n      ...SpanAside_span\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanAside_span on Span {\n  id\n  code: statusCode\n  startTime\n  endTime\n  tokenCountTotal\n  tokenCountPrompt\n  tokenCountCompletion\n}\n\nfragment SpanFeedback_annotations on Span {\n  spanAnnotations {\n    name\n    label\n    score\n    explanation\n    annotatorKind\n  }\n}\n"
+    "text": "query SpanDetailsQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      id\n      context {\n        spanId\n        traceId\n      }\n      name\n      spanKind\n      statusCode: propagatedStatusCode\n      statusMessage\n      startTime\n      parentId\n      latencyMs\n      tokenCountTotal\n      tokenCountPrompt\n      tokenCountCompletion\n      input {\n        value\n        mimeType\n      }\n      output {\n        value\n        mimeType\n      }\n      attributes\n      events {\n        name\n        message\n        timestamp\n      }\n      documentRetrievalMetrics {\n        evaluationName\n        ndcg\n        precision\n        hit\n      }\n      documentEvaluations {\n        documentPosition\n        name\n        label\n        score\n        explanation\n      }\n      spanAnnotations {\n        name\n      }\n      ...SpanFeedback_annotations\n      ...SpanAside_span\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanAside_span on Span {\n  id\n  code: statusCode\n  startTime\n  endTime\n  tokenCountTotal\n  tokenCountPrompt\n  tokenCountCompletion\n  spanAnnotations {\n    id\n    name\n    label\n    annotatorKind\n    score\n  }\n}\n\nfragment SpanFeedback_annotations on Span {\n  spanAnnotations {\n    name\n    label\n    score\n    explanation\n    annotatorKind\n  }\n}\n"
   }
 };
 })();

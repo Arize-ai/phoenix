@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<14c81412604c26fb24d0f446ee24402d>>
+ * @generated SignedSource<<ebb8ab32330c4b99061aafd8b83bbde0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,12 +9,20 @@
 // @ts-nocheck
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+export type AnnotatorKind = "HUMAN" | "LLM";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type SpanAside_span$data = {
   readonly code: SpanStatusCode;
   readonly endTime: string | null;
   readonly id: string;
+  readonly spanAnnotations: ReadonlyArray<{
+    readonly annotatorKind: AnnotatorKind;
+    readonly id: string;
+    readonly label: string | null;
+    readonly name: string;
+    readonly score: number | null;
+  }>;
   readonly startTime: string;
   readonly tokenCountCompletion: number | null;
   readonly tokenCountPrompt: number | null;
@@ -28,7 +36,15 @@ export type SpanAside_span$key = {
 
 import SpanAsideSpanQuery_graphql from './SpanAsideSpanQuery.graphql';
 
-const node: ReaderFragment = {
+const node: ReaderFragment = (function(){
+var v0 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+};
+return {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": {
@@ -46,13 +62,7 @@ const node: ReaderFragment = {
   },
   "name": "SpanAside_span",
   "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "id",
-      "storageKey": null
-    },
+    (v0/*: any*/),
     {
       "alias": "code",
       "args": null,
@@ -94,12 +104,53 @@ const node: ReaderFragment = {
       "kind": "ScalarField",
       "name": "tokenCountCompletion",
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "SpanAnnotation",
+      "kind": "LinkedField",
+      "name": "spanAnnotations",
+      "plural": true,
+      "selections": [
+        (v0/*: any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "name",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "label",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "annotatorKind",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "score",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
     }
   ],
   "type": "Span",
   "abstractKey": null
 };
+})();
 
-(node as any).hash = "37b6d5584933520677f8fcb68c0e5810";
+(node as any).hash = "cb5cab60889623d77ad0c96c98b3f8ac";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<941764d5b2b1ee45d859e0edc02b2d53>>
+ * @generated SignedSource<<6dabf94682f3c879102ec3789967d9d1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -37,7 +37,14 @@ v1 = [
     "name": "id",
     "variableName": "id"
   }
-];
+],
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -90,13 +97,7 @@ return {
             "kind": "TypeDiscriminator",
             "abstractKey": "__isNode"
           },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "id",
-            "storageKey": null
-          },
+          (v2/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -141,6 +142,46 @@ return {
                 "kind": "ScalarField",
                 "name": "tokenCountCompletion",
                 "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "SpanAnnotation",
+                "kind": "LinkedField",
+                "name": "spanAnnotations",
+                "plural": true,
+                "selections": [
+                  (v2/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "name",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "label",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "annotatorKind",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "score",
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": null
               }
             ],
             "type": "Span",
@@ -152,16 +193,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c66beac101f3f1ebbc4f905322dbfda0",
+    "cacheID": "878027b90513af8f947e6aa408450057",
     "id": null,
     "metadata": {},
     "name": "SpanAsideSpanQuery",
     "operationKind": "query",
-    "text": "query SpanAsideSpanQuery(\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...SpanAside_span\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanAside_span on Span {\n  id\n  code: statusCode\n  startTime\n  endTime\n  tokenCountTotal\n  tokenCountPrompt\n  tokenCountCompletion\n}\n"
+    "text": "query SpanAsideSpanQuery(\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...SpanAside_span\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanAside_span on Span {\n  id\n  code: statusCode\n  startTime\n  endTime\n  tokenCountTotal\n  tokenCountPrompt\n  tokenCountCompletion\n  spanAnnotations {\n    id\n    name\n    label\n    annotatorKind\n    score\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "37b6d5584933520677f8fcb68c0e5810";
+(node as any).hash = "cb5cab60889623d77ad0c96c98b3f8ac";
 
 export default node;

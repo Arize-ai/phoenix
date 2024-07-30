@@ -1,8 +1,10 @@
 import React, { PropsWithChildren, useMemo } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
+import { css } from "@emotion/react";
 
 import { Flex, Text, View } from "@arizeai/components";
 
+import { AnnotationLabel } from "@phoenix/components/annotation";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
@@ -12,8 +14,15 @@ import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 import { SpanAside_span$key } from "./__generated__/SpanAside_span.graphql";
 import { SpanAsideSpanQuery } from "./__generated__/SpanAsideSpanQuery.graphql";
 
+const annotationListCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--ac-global-dimension-size-100);
+  align-items: flex-start;
+`;
+
 /**
- *
+ * A component that shows the details of a span that is supplementary to the main span details
  * @returns
  */
 export function SpanAside(props: { span: SpanAside_span$key }) {
@@ -28,6 +37,13 @@ export function SpanAside(props: { span: SpanAside_span$key }) {
         tokenCountTotal
         tokenCountPrompt
         tokenCountCompletion
+        spanAnnotations {
+          id
+          name
+          label
+          annotatorKind
+          score
+        }
       }
     `,
     props.span
@@ -50,6 +66,8 @@ export function SpanAside(props: { span: SpanAside_span$key }) {
     return endDate.getTime() - startDate.getTime();
   }, [endDate, startDate]);
   const statusColor = useSpanStatusCodeColor(code);
+  const annotations = data.spanAnnotations;
+  const hasAnnotations = annotations.length > 0;
   return (
     <View
       padding="size-200"
@@ -96,6 +114,19 @@ export function SpanAside(props: { span: SpanAside_span$key }) {
             />
           </LabeledValue>
         ) : null}
+        {hasAnnotations && (
+          <LabeledValue label="Feedback">
+            <Flex direction="row" gap="size-50">
+              <ul css={annotationListCSS}>
+                {annotations.map((annotation) => (
+                  <li key={annotation.id}>
+                    <AnnotationLabel annotation={annotation} />
+                  </li>
+                ))}
+              </ul>
+            </Flex>
+          </LabeledValue>
+        )}
       </Flex>
     </View>
   );
