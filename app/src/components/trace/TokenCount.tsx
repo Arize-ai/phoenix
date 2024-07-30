@@ -6,6 +6,7 @@ import {
   Icon,
   Icons,
   Text,
+  TextProps,
   Tooltip,
   TooltipTrigger,
   TriggerWrap,
@@ -24,6 +25,10 @@ type TokenCountProps = {
    * The number of tokens in the completion
    */
   tokenCountCompletion: number;
+  /**
+   * The size of the icon and text
+   */
+  textSize?: TextProps["textSize"];
 };
 
 /**
@@ -33,7 +38,7 @@ export function TokenCount(props: TokenCountProps) {
   return (
     <TooltipTrigger>
       <TriggerWrap>
-        <TokenItem>{props.tokenCountTotal}</TokenItem>
+        <TokenItem textSize={props.textSize}>{props.tokenCountTotal}</TokenItem>
       </TriggerWrap>
       <Tooltip>
         <Flex direction="column" gap="size-50">
@@ -51,16 +56,22 @@ export function TokenCount(props: TokenCountProps) {
   );
 }
 
-function TokenItem({ children }: { children: number }) {
+function TokenItem({
+  children,
+  ...textProps
+}: {
+  children: number;
+  textSize?: TextProps["textSize"];
+}) {
   return (
-    <Flex direction="row" gap="size-25" alignItems="center">
+    <Flex direction="row" gap="size-50" alignItems="center">
       <Icon
         svg={<Icons.TokensOutline />}
         css={css`
           color: var(--ac-global-text-color-900);
         `}
       />
-      <Text>{children}</Text>
+      <Text {...textProps}>{children}</Text>
     </Flex>
   );
 }

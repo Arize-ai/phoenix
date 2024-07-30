@@ -32,6 +32,7 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
+import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
@@ -52,7 +53,6 @@ import {
   EVALS_KEY_SEPARATOR,
   getGqlSort,
 } from "./tableUtils";
-import { TokenCount } from "./TokenCount";
 type SpansTableProps = {
   project: SpansTable_spans$key;
 };

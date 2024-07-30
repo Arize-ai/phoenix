@@ -3,7 +3,7 @@ import { css } from "@emotion/react";
 
 import { Flex, Text, View } from "@arizeai/components";
 
-import { TokenCount } from "@phoenix/pages/project/TokenCount";
+import { TokenCount } from "@phoenix/components/trace/TokenCount";
 
 import { LatencyText } from "./LatencyText";
 import { SpanKindIcon } from "./SpanKindIcon";

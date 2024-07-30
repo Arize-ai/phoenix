@@ -28,6 +28,16 @@ export interface PreferencesState extends PreferencesProps {
    * @returns
    */
   setTraceStreamingEnabled: (traceStreamingEnabled: boolean) => void;
+  /**
+   * Whether or not to show the span aside that contains details about timing, status, etc.
+   * @default true
+   */
+  showSpanAside: boolean;
+  /**
+   * Setter for enabling/disabling the span aside
+   * @param showSpanAside
+   */
+  setShowSpanAside: (showSpanAside: boolean) => void;
 }
 
 export const createPreferencesStore = (
@@ -42,6 +52,10 @@ export const createPreferencesStore = (
     traceStreamingEnabled: true,
     setTraceStreamingEnabled: (traceStreamingEnabled) => {
       set({ traceStreamingEnabled });
+    },
+    showSpanAside: true,
+    setShowSpanAside: (showSpanAside) => {
+      set({ showSpanAside });
     },
   });
   return create<PreferencesState>()(
