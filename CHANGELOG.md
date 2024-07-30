@@ -1,5 +1,26 @@
 # Changelog
 
+## [4.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.15.0...arize-phoenix-v4.16.0) (2024-07-30)
+
+
+### Features
+
+* Add sort order argument to Span- and Trace- Annotation fields ([#4079](https://github.com/Arize-ai/phoenix/issues/4079)) ([cf3b37c](https://github.com/Arize-ai/phoenix/commit/cf3b37cf8063cad756d55b17dc2fb8c66f71cee4))
+* add trace stream toggle into preferences context ([#4035](https://github.com/Arize-ai/phoenix/issues/4035)) ([bc3be3e](https://github.com/Arize-ai/phoenix/commit/bc3be3e7dc7f4c7d1fb4962e6522eac14ac56c41))
+* allow retries for annotation insertions when the corresponding span/trace does not exist ([#4026](https://github.com/Arize-ai/phoenix/issues/4026)) ([13af3b5](https://github.com/Arize-ai/phoenix/commit/13af3b5d2e26a485fe123b2214e41b8fcfed0523))
+* **annotations:** add feedback tab to span details ([#4069](https://github.com/Arize-ai/phoenix/issues/4069)) ([8dc9672](https://github.com/Arize-ai/phoenix/commit/8dc9672de2694ae4b7faf2cf466f9cc2972b2636))
+* **annotations:** default collapse annotation explanations ([#4081](https://github.com/Arize-ai/phoenix/issues/4081)) ([dbf3ee4](https://github.com/Arize-ai/phoenix/commit/dbf3ee48993c949c7b6d4a0a872a4eec0c57711f))
+* **annotations:** make color for evaluation summaries consistent with table ([#4082](https://github.com/Arize-ai/phoenix/issues/4082)) ([70a8b5a](https://github.com/Arize-ai/phoenix/commit/70a8b5a7fbc5c81ff20d4ec8379d024e0d0756e2))
+* **annotations:** migrate span eval labels to us AnnotationLabel ([#4068](https://github.com/Arize-ai/phoenix/issues/4068)) ([6219e91](https://github.com/Arize-ai/phoenix/commit/6219e91c24daed559a2d1a650f3547de4b1fb3c3))
+* **trace:** add a span aside with timing info and feedback ([#4071](https://github.com/Arize-ai/phoenix/issues/4071)) ([275ad73](https://github.com/Arize-ai/phoenix/commit/275ad73bd35a6edadee9e733bd4ba8920bd79ecf))
+* **ui:** tracing getting started button ([#4067](https://github.com/Arize-ai/phoenix/issues/4067)) ([9eba5eb](https://github.com/Arize-ai/phoenix/commit/9eba5eb394deff221bd23a3b489249b56cff6a7e))
+
+
+### Bug Fixes
+
+* add `raise` to exceptions ([#4080](https://github.com/Arize-ai/phoenix/issues/4080)) ([4331fdd](https://github.com/Arize-ai/phoenix/commit/4331fdd8305fb90e8d32acfe7571f954314b199a))
+* use outerjoin for evals filter ([#4066](https://github.com/Arize-ai/phoenix/issues/4066)) ([334a9a9](https://github.com/Arize-ai/phoenix/commit/334a9a94bad2e1384c443f5996516a443edcd5b1))
+
 ## [4.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.14.1...arize-phoenix-v4.15.0) (2024-07-26)
 
 
