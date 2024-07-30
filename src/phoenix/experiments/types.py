@@ -226,7 +226,7 @@ class ExperimentRun:
 
     def __post_init__(self) -> None:
         if bool(self.output) == bool(self.error):
-            ValueError("Must specify exactly one of experiment_run_output or error")
+            raise ValueError("Must specify exactly one of experiment_run_output or error")
 
 
 @dataclass(frozen=True)
@@ -249,7 +249,7 @@ class EvaluationResult:
 
     def __post_init__(self) -> None:
         if self.score is None and not self.label:
-            ValueError("Must specify score or label, or both")
+            raise ValueError("Must specify score or label, or both")
         if self.score is None and not self.label:
             object.__setattr__(self, "score", 0)
         for k in ("label", "explanation"):
@@ -285,7 +285,7 @@ class ExperimentEvaluationRun:
 
     def __post_init__(self) -> None:
         if bool(self.result) == bool(self.error):
-            ValueError("Must specify either result or error")
+            raise ValueError("Must specify either result or error")
 
 
 ExperimentTask: TypeAlias = Union[
