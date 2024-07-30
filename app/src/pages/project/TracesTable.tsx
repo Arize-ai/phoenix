@@ -32,7 +32,6 @@ import { Link } from "@phoenix/components/Link";
 import { TextCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
-import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -48,6 +47,7 @@ import {
   TracesTable_spans$key,
 } from "./__generated__/TracesTable_spans.graphql";
 import { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
+import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
@@ -594,7 +594,7 @@ export function TracesTable(props: TracesTableProps) {
             ))}
           </thead>
           {isEmpty ? (
-            <TableEmpty />
+            <ProjectTableEmpty />
           ) : (
             <tbody>
               {rows.map((row) => {
