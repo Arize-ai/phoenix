@@ -23,7 +23,7 @@ import { Flex, Icon, Icons, View } from "@arizeai/components";
 import {
   AnnotationLabel,
   AnnotationTooltip,
-} from "@phoenix/components/experiment";
+} from "@phoenix/components/annotation";
 import { Link } from "@phoenix/components/Link";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";

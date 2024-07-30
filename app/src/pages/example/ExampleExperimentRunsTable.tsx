@@ -9,12 +9,12 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Button, Flex, Icon, Icons, Text } from "@arizeai/components";
+import { Button, Flex, Icon, Icons, Text, View } from "@arizeai/components";
 
 import {
   AnnotationLabel,
   AnnotationTooltip,
-} from "@phoenix/components/experiment";
+} from "@phoenix/components/annotation";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -154,7 +154,28 @@ export function ExampleExperimentRunsTable({
             {row.original.annotations.edges.map((annotationEdge, index) => {
               const annotation = annotationEdge.annotation;
               return (
-                <AnnotationTooltip key={index} annotation={annotation}>
+                <AnnotationTooltip
+                  key={index}
+                  annotation={annotation}
+                  extra={
+                    annotation.trace && (
+                      <View paddingTop="size-100">
+                        <div
+                          css={css`
+                            display: flex;
+                            flex-direction: row;
+                            align-items: center;
+                            color: var(--ac-global-color-primary);
+                            gap: var(--ac-global-dimension-size-50);
+                          `}
+                        >
+                          <Icon svg={<Icons.InfoOutline />} />
+                          <span>Click to view evaluator trace</span>
+                        </div>
+                      </View>
+                    )
+                  }
+                >
                   <AnnotationLabel
                     key={index}
                     annotation={annotation}

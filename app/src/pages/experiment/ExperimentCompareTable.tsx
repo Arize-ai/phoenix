@@ -38,12 +38,12 @@ import {
 } from "@arizeai/components";
 
 import { CopyToClipboardButton, ViewSummaryAside } from "@phoenix/components";
-import { JSONBlock } from "@phoenix/components/code";
-import { JSONText } from "@phoenix/components/code/JSONText";
 import {
   AnnotationLabel,
   AnnotationTooltip,
-} from "@phoenix/components/experiment";
+} from "@phoenix/components/annotation";
+import { JSONBlock } from "@phoenix/components/code";
+import { JSONText } from "@phoenix/components/code/JSONText";
 import { SequenceNumberLabel } from "@phoenix/components/experiment/SequenceNumberLabel";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { CompactJSONCell } from "@phoenix/components/table";
@@ -616,7 +616,27 @@ function ExperimentRunOutput(
         </li>
         {annotationsList.map((annotation) => (
           <li key={annotation.id}>
-            <AnnotationTooltip annotation={annotation}>
+            <AnnotationTooltip
+              annotation={annotation}
+              extra={
+                annotation.trace && (
+                  <View paddingTop="size-100">
+                    <div
+                      css={css`
+                        display: flex;
+                        flex-direction: row;
+                        align-items: center;
+                        color: var(--ac-global-color-primary);
+                        gap: var(--ac-global-dimension-size-50);
+                      `}
+                    >
+                      <Icon svg={<Icons.InfoOutline />} />
+                      <span>Click to view evaluator trace</span>
+                    </div>
+                  </View>
+                )
+              }
+            >
               <AnnotationLabel
                 annotation={annotation}
                 onClick={() => {

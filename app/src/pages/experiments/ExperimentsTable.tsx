@@ -32,9 +32,9 @@ import {
   View,
 } from "@arizeai/components";
 
+import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { JSONBlock } from "@phoenix/components/code";
-import { AnnotationColorSwatch } from "@phoenix/components/experiment";
-import { SequenceNumberLabel } from "@phoenix/components/experiment/SequenceNumberLabel";
+import { SequenceNumberLabel } from "@phoenix/components/experiment";
 import { Link } from "@phoenix/components/Link";
 import { CompactJSONCell, IntCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";

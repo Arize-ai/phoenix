@@ -27,7 +27,7 @@ import { Flex, Icon, Icons, View } from "@arizeai/components";
 import {
   AnnotationLabel,
   AnnotationTooltip,
-} from "@phoenix/components/experiment";
+} from "@phoenix/components/annotation";
 import { Link } from "@phoenix/components/Link";
 import { TextCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
@@ -288,17 +288,20 @@ export function TracesTable(props: TracesTableProps) {
                 <Fragment key="doc-evals">
                   <RetrievalEvaluationLabel
                     key="ndcg"
+                    name={retrievalMetric.evaluationName}
                     metric="ndcg"
                     score={retrievalMetric.ndcg}
                   />
                   <RetrievalEvaluationLabel
                     key="precision"
+                    name={retrievalMetric.evaluationName}
                     metric="precision"
                     score={retrievalMetric.precision}
                   />
                   <RetrievalEvaluationLabel
                     key="hit"
-                    metric={"hit"}
+                    name={retrievalMetric.evaluationName}
+                    metric="hit"
                     score={retrievalMetric.hit}
                   />
                 </Fragment>

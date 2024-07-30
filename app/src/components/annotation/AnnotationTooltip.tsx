@@ -1,11 +1,8 @@
 import React, { ReactNode } from "react";
-import { css } from "@emotion/react";
 
 import {
   Flex,
   HelpTooltip,
-  Icon,
-  Icons,
   Text,
   TooltipTrigger,
   TriggerWrap,
@@ -22,9 +19,11 @@ import { Annotation } from "./types";
 export function AnnotationTooltip({
   annotation,
   children,
+  extra,
 }: {
   annotation: Annotation;
   children: ReactNode;
+  extra?: ReactNode;
 }) {
   return (
     <TooltipTrigger delay={500} offset={3}>
@@ -65,22 +64,7 @@ export function AnnotationTooltip({
             </Flex>
           </View>
         ) : null}
-        {annotation.trace ? (
-          <View paddingTop="size-100">
-            <div
-              css={css`
-                display: flex;
-                flex-direction: row;
-                align-items: center;
-                color: var(--ac-global-color-primary);
-                gap: var(--ac-global-dimension-size-50);
-              `}
-            >
-              <Icon svg={<Icons.InfoOutline />} />
-              <span>Click to view evaluator trace</span>
-            </div>
-          </View>
-        ) : null}
+        {extra}
       </HelpTooltip>
     </TooltipTrigger>
   );

@@ -11,6 +11,20 @@ import { Annotation } from "./types";
 
 type AnnotationDisplay = "label" | "score";
 
+const baseAnnotationLabelCSS = css`
+  border-radius: var(--ac-global-dimension-size-50);
+  border: 1px solid var(--ac-global-color-grey-400);
+  padding: var(--ac-global-dimension-size-50)
+    var(--ac-global-dimension-size-100);
+  transition: background-color 0.2s;
+  &:hover {
+    background-color: var(--ac-global-color-grey-300);
+  }
+  .ac-icon-wrap {
+    font-size: 12px;
+  }
+`;
+
 const textCSS = css`
   display: flex;
   align-items: center;
@@ -54,6 +68,10 @@ export function AnnotationLabel({
 }: {
   annotation: Annotation;
   onClick?: () => void;
+  /**
+   * What to display in the annotation label (i.e, the score or the label)
+   * @default "score"
+   */
   annotationDisplay?: AnnotationDisplay;
 }) {
   const clickable = typeof onClick == "function";
@@ -62,20 +80,7 @@ export function AnnotationLabel({
   return (
     <div
       role={clickable ? "button" : undefined}
-      css={css`
-        cursor: ${clickable ? "pointer" : "default"};
-        border-radius: var(--ac-global-dimension-size-50);
-        border: 1px solid var(--ac-global-color-grey-400);
-        padding: var(--ac-global-dimension-size-50)
-          var(--ac-global-dimension-size-100);
-        transition: background-color 0.2s;
-        &:hover {
-          background-color: var(--ac-global-color-grey-300);
-        }
-        .ac-icon-wrap {
-          font-size: 12px;
-        }
-      `}
+      css={css(baseAnnotationLabelCSS, clickable && `cursor: pointer;`)}
       aria-label={
         clickable
           ? "Click to view the annotation trace"

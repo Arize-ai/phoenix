@@ -10,7 +10,7 @@ import { Loading } from "@phoenix/components";
 import {
   AnnotationLabel,
   AnnotationTooltip,
-} from "@phoenix/components/experiment";
+} from "@phoenix/components/annotation";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
