@@ -16,6 +16,7 @@ import { SpanAsideSpanQuery } from "./__generated__/SpanAsideSpanQuery.graphql";
 
 const annotationListCSS = css`
   display: flex;
+  padding-top: var(--ac-global-dimension-size-50);
   flex-direction: column;
   gap: var(--ac-global-dimension-size-100);
   align-items: flex-start;
