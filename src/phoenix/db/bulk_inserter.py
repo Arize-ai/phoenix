@@ -1,6 +1,7 @@
 import asyncio
 import logging
-from asyncio import Queue, gather
+from asyncio import Queue, as_completed
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from functools import singledispatchmethod
@@ -10,18 +11,24 @@ from typing import (
     Any,
     Awaitable,
     Callable,
+    DefaultDict,
+    Dict,
     Iterable,
     List,
+    Mapping,
     Optional,
     Set,
     Tuple,
+    Type,
     cast,
 )
 
 from cachetools import LRUCache
+from sqlalchemy import Select, select
 from typing_extensions import TypeAlias
 
 import phoenix.trace.v1 as pb
+from phoenix.db import models
 from phoenix.db.insertion.constants import DEFAULT_RETRY_ALLOWANCE, DEFAULT_RETRY_DELAY_SEC
 from phoenix.db.insertion.document_annotation import DocumentAnnotationQueueInserter
 from phoenix.db.insertion.evaluation import (
@@ -148,7 +155,9 @@ class BulkInserter:
             or self._evaluations
         ):
             if not self._queue_inserters.empty:
-                await self._queue_inserters.insert()
+                if inserted_ids := await self._queue_inserters.insert():
+                    for project_rowid in await self._get_project_rowids(inserted_ids):
+                        self._last_updated_at_by_project[project_rowid] = datetime.now(timezone.utc)
             if self._operations.empty() and not (self._spans or self._evaluations):
                 await asyncio.sleep(self._sleep)
                 continue
@@ -269,6 +278,47 @@ class BulkInserter:
                 logger.exception("Failed to insert evaluations")
         return transaction_result
 
+    async def _get_project_rowids(
+        self,
+        inserted_ids: Mapping[Type[models.Base], List[int]],
+    ) -> Set[int]:
+        ans: Set[int] = set()
+        if not inserted_ids:
+            return ans
+        stmt: Select[Tuple[int]]
+        for table, ids in inserted_ids.items():
+            if not ids:
+                continue
+            if issubclass(table, models.SpanAnnotation):
+                stmt = (
+                    select(models.Project.id)
+                    .join(models.Trace)
+                    .join_from(models.Trace, models.Span)
+                    .join_from(models.Span, models.SpanAnnotation)
+                    .where(models.SpanAnnotation.id.in_(ids))
+                )
+            elif issubclass(table, models.DocumentAnnotation):
+                stmt = (
+                    select(models.Project.id)
+                    .join(models.Trace)
+                    .join_from(models.Trace, models.Span)
+                    .join_from(models.Span, models.DocumentAnnotation)
+                    .where(models.DocumentAnnotation.id.in_(ids))
+                )
+            elif issubclass(table, models.TraceAnnotation):
+                stmt = (
+                    select(models.Project.id)
+                    .join(models.Trace)
+                    .join_from(models.Trace, models.TraceAnnotation)
+                    .where(models.TraceAnnotation.id.in_(ids))
+                )
+            else:
+                continue
+            async with self._db() as session:
+                project_rowids = [_ async for _ in await session.stream_scalars(stmt)]
+                ans.update(project_rowids)
+        return ans
+
 
 class _QueueInserters:
     def __init__(
@@ -288,8 +338,13 @@ class _QueueInserters:
             self._document_annotations,
         )
 
-    async def insert(self) -> None:
-        await gather(*(q.insert() for q in self._queues))
+    async def insert(self) -> Dict[Type[models.Base], List[int]]:
+        ans: DefaultDict[Type[models.Base], List[int]] = defaultdict(list)
+        for coro in as_completed([q.insert() for q in self._queues]):
+            table, inserted_ids = await coro
+            if inserted_ids:
+                ans[table].extend(inserted_ids)
+        return ans
 
     @property
     def empty(self) -> bool:

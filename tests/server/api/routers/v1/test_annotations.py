@@ -1,12 +1,14 @@
 from asyncio import gather, sleep
-from random import getrandbits
-from typing import Any, Awaitable, Callable, List, Union, cast
+from itertools import chain
+from typing import Any, Awaitable, Callable, Iterator, List, Union, cast, get_args
 
 import pandas as pd
 from faker import Faker
 from phoenix import Client, TraceDataset
 from phoenix.trace import DocumentEvaluations, SpanEvaluations, TraceEvaluations
-from typing_extensions import assert_never
+from typing_extensions import TypeAlias, assert_never
+
+_Evals: TypeAlias = Union[SpanEvaluations, TraceEvaluations, DocumentEvaluations]
 
 
 async def test_sending_evaluations_before_span(
@@ -14,19 +16,17 @@ async def test_sending_evaluations_before_span(
     span_data_with_documents: Any,
     acall: Callable[..., Awaitable[Any]],
     fake: Faker,
+    rand_span_id: Iterator[str],
+    rand_trace_id: Iterator[str],
 ) -> None:
     size = 3
-    eval_names = [fake.city() for _ in range(size)]
-    project_names = [fake.company() for _ in range(size)]
-    span_ids, trace_ids, traces = {}, {}, {}
+    eval_names = [fake.pystr() for _ in range(size)]
+    project_names = [fake.pystr() for _ in range(size)]
     span = cast(pd.DataFrame, await acall(px_client.get_spans_dataframe)).iloc[:1]
+    span_ids, trace_ids, traces = {}, {}, {}
     for project_name in project_names:
-        span_ids[project_name] = sorted(
-            getrandbits(64).to_bytes(8, "big").hex() for _ in range(size)
-        )
-        trace_ids[project_name] = sorted(
-            getrandbits(128).to_bytes(16, "big").hex() for _ in range(size)
-        )
+        span_ids[project_name] = sorted(next(rand_span_id) for _ in range(size))
+        trace_ids[project_name] = sorted(next(rand_trace_id) for _ in range(size))
         traces[project_name] = pd.concat(
             [
                 span.assign(**{"context.span_id": span_id, "context.trace_id": trace_id})
@@ -43,33 +43,40 @@ async def test_sending_evaluations_before_span(
                     SpanEvaluations(
                         eval_name,
                         pd.DataFrame(
-                            [
-                                dict(score=j + s, span_id=span_id)
+                            chain.from_iterable(
+                                [
+                                    dict(score=j + s, span_id=next(rand_span_id)),
+                                    dict(score=j + s, span_id=span_id),
+                                ]
                                 for j, span_id in enumerate(span_ids[project_name])
-                            ]
-                        ),
+                            )
+                        ).sample(frac=1),
                     ),
                     TraceEvaluations(
                         eval_name,
                         pd.DataFrame(
-                            [
-                                dict(score=j + s, trace_id=trace_id)
+                            chain.from_iterable(
+                                [
+                                    dict(score=j + s, trace_id=next(rand_trace_id)),
+                                    dict(score=j + s, trace_id=trace_id),
+                                ]
                                 for j, trace_id in enumerate(trace_ids[project_name])
-                            ]
-                        ),
+                            )
+                        ).sample(frac=1),
                     ),
                     DocumentEvaluations(
                         eval_name,
                         pd.DataFrame(
-                            [
-                                dict(score=j + s, span_id=span_id, position=0)
+                            chain.from_iterable(
+                                [
+                                    dict(score=j + s, span_id=next(rand_span_id), position=0),
+                                    dict(score=j + s, span_id=span_id, position=0),
+                                    dict(score=j + s, span_id=span_id, position=-1),
+                                    dict(score=j + s, span_id=span_id, position=999_999_999),
+                                ]
                                 for j, span_id in enumerate(span_ids[project_name])
-                            ]
-                            + [
-                                dict(score=j + s, span_id=span_id, position=999_999_999)
-                                for j, span_id in enumerate(span_ids[project_name])
-                            ]
-                        ),
+                            )
+                        ).sample(frac=1),
                     ),
                 )
                 for eval_name in eval_names
@@ -91,7 +98,7 @@ async def test_sending_evaluations_before_span(
         zip(
             project_names,
             cast(
-                List[List[Union[SpanEvaluations, TraceEvaluations, DocumentEvaluations]]],
+                List[List[_Evals]],
                 await gather(
                     *(
                         acall(px_client.get_evaluations, project_name=project_name)
@@ -102,7 +109,7 @@ async def test_sending_evaluations_before_span(
         )
     )
     for project_name in project_names:
-        assert len(evals[project_name]) == 3 * len(eval_names)
+        assert len(evals[project_name]) == len(eval_names) * len(get_args(_Evals))
         for e in evals[project_name]:
             df = e.dataframe.sort_index()
             assert len(df) == size

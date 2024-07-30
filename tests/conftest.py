@@ -4,13 +4,16 @@ import time
 from asyncio import AbstractEventLoop, get_running_loop
 from functools import partial
 from importlib.metadata import version
+from random import getrandbits
 from typing import (
     Any,
     AsyncIterator,
     Awaitable,
     Callable,
+    Iterator,
     List,
     Literal,
+    Set,
     Tuple,
 )
 
@@ -247,6 +250,28 @@ async def patch_bulk_inserter() -> AsyncIterator[None]:
 
 @pytest.fixture
 def fake() -> Faker:
-    fake = Faker()
-    Faker.seed(42)
-    return fake
+    return Faker()
+
+
+@pytest.fixture
+def rand_span_id() -> Iterator[str]:
+    def _(seen: Set[str]) -> Iterator[str]:
+        while True:
+            span_id = getrandbits(64).to_bytes(8, "big").hex()
+            if span_id not in seen:
+                seen.add(span_id)
+                yield span_id
+
+    return _(set())
+
+
+@pytest.fixture
+def rand_trace_id() -> Iterator[str]:
+    def _(seen: Set[str]) -> Iterator[str]:
+        while True:
+            span_id = getrandbits(128).to_bytes(16, "big").hex()
+            if span_id not in seen:
+                seen.add(span_id)
+                yield span_id
+
+    return _(set())
