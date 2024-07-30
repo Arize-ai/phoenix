@@ -36,6 +36,8 @@ import {
   TabPane,
   Tabs,
   Text,
+  Tooltip,
+  TooltipTrigger,
   View,
   ViewProps,
   ViewStyleProps,
@@ -59,9 +61,10 @@ import {
   MarkdownDisplayProvider,
 } from "@phoenix/components/markdown";
 import { SpanKindIcon } from "@phoenix/components/trace";
-import { SpanItem } from "@phoenix/components/trace/SpanItem";
+import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
 import { useNotifySuccess, useTheme } from "@phoenix/contexts";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
+import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import {
   AttributeDocument,
   AttributeEmbedding,
@@ -85,6 +88,7 @@ import {
   SpanDetailsQuery$data,
 } from "./__generated__/SpanDetailsQuery.graphql";
 import { EditSpanAnnotationsButton } from "./EditSpanAnnotationsButton";
+import { SpanAside } from "./SpanAside";
 import { SpanCodeDropdown } from "./SpanCodeDropdown";
 import { SpanFeedback } from "./SpanFeedback";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
@@ -195,6 +199,7 @@ export function SpanDetails({
               name
             }
             ...SpanFeedback_annotations
+            ...SpanAside_span
           }
         }
       }
@@ -214,6 +219,10 @@ export function SpanDetails({
     return spanHasException(span);
   }, [span]);
   const showAnnotations = useFeatureFlag("annotations");
+  const showSpanAside = usePreferencesContext((store) => store.showSpanAside);
+  const setShowSpanAside = usePreferencesContext(
+    (store) => store.setShowSpanAside
+  );
   return (
     <Flex direction="column" flex="1 1 auto" height="100%">
       <View
@@ -223,13 +232,17 @@ export function SpanDetails({
         paddingEnd="size-200"
         flex="none"
       >
-        <Flex
-          direction="row"
-          gap="size-200"
-          justifyContent="space-between"
-          alignItems="center"
-        >
-          <SpanItem {...span} />
+        <Flex direction="row" gap="size-200" alignItems="center">
+          <Flex
+            direction="row"
+            gap="size-100"
+            width="100%"
+            height="100%"
+            alignItems="center"
+          >
+            <SpanKindLabel spanKind={span.spanKind} />
+            <Text>{span.name}</Text>
+          </Flex>
           <Flex flex="none" direction="row" alignItems="center" gap="size-100">
             <SpanCodeDropdown
               traceId={span.context.traceId}
@@ -245,9 +258,35 @@ export function SpanDetails({
           </Flex>
         </Flex>
       </View>
-      <Tabs>
+      <Tabs
+        extra={
+          <TooltipTrigger placement="start" offset={5}>
+            <Button
+              variant="default"
+              size="compact"
+              aria-label="Toggle showing span details"
+              onClick={() => {
+                setShowSpanAside(!showSpanAside);
+              }}
+              icon={
+                <Icon
+                  svg={showSpanAside ? <Icons.SlideIn /> : <Icons.SlideOut />}
+                />
+              }
+            />
+            <Tooltip>
+              {showSpanAside ? "Hide Span Details" : "Show Span Details"}
+            </Tooltip>
+          </TooltipTrigger>
+        }
+      >
         <TabPane name={"Info"}>
-          <SpanInfo span={span} />
+          <Flex direction="row" height="100%">
+            <SpanInfoWrap>
+              <SpanInfo span={span} />
+            </SpanInfoWrap>
+            {showSpanAside ? <SpanAside span={span} /> : null}
+          </Flex>
         </TabPane>
         <TabPane
           name={"Feedback"}
@@ -284,6 +323,28 @@ export function SpanDetails({
         </TabPane>
       </Tabs>
     </Flex>
+  );
+}
+
+const spanInfoWrapCSS = css`
+  flex: 1 1 auto;
+  overflow-y: auto;
+  // Overflow fails to take into account padding
+  & > *:after {
+    content: "";
+    display: block;
+    height: var(--ac-global-dimension-static-size-400);
+  }
+`;
+
+/**
+ * A wrapper for the span info to style it with the appropriate overflow
+ */
+function SpanInfoWrap({ children }: PropsWithChildren) {
+  return (
+    <div css={spanInfoWrapCSS} data-testid="span-info-wrap">
+      {children}
+    </div>
   );
 }
 
