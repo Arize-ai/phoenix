@@ -19,6 +19,7 @@ import {
 } from "@phoenix/components/chart";
 import { useLastNTimeRange } from "@phoenix/components/datetime";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
+import { useWordColor } from "@phoenix/hooks/useWordColor";
 import { formatFloat, formatPercent } from "@phoenix/utils/numberFormatUtils";
 
 import { EvaluationSummaryQuery } from "./__generated__/EvaluationSummaryQuery.graphql";
@@ -71,7 +72,7 @@ function EvaluationSummaryValue(props: {
   evaluationName: string;
   project: EvaluationSummaryValueFragment$key;
 }) {
-  const { project } = props;
+  const { project, evaluationName } = props;
   const { fetchKey } = useStreamState();
   const [data, refetch] = useRefetchableFragment<
     EvaluationSummaryQuery,
@@ -107,7 +108,9 @@ function EvaluationSummaryValue(props: {
   }, [fetchKey, refetch]);
 
   const chartColors = useChartColors();
+  const primaryColor = useWordColor(evaluationName);
   const colors = [
+    primaryColor,
     chartColors.default,
     chartColors.gray600,
     chartColors.gray400,
