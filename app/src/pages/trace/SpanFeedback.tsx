@@ -11,7 +11,6 @@ import { Accordion, AccordionItem } from "@arizeai/components";
 import { PreformattedTextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
-import { Mutable } from "@phoenix/typeUtils";
 
 import {
   SpanFeedback_annotations$data,
@@ -45,11 +44,12 @@ const columns = [
 function SpanAnnotationsTable({
   annotations,
 }: {
-  annotations: Mutable<SpanFeedback_annotations$data["spanAnnotations"]>;
+  annotations: SpanFeedback_annotations$data["spanAnnotations"];
 }) {
+  const tableData = useMemo(() => [...annotations], [annotations]);
   const table = useReactTable({
     columns,
-    data: annotations,
+    data: tableData,
     getCoreRowModel: getCoreRowModel(),
   });
   const rows = table.getRowModel().rows;
