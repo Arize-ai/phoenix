@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.16.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.16.0...arize-phoenix-v4.16.1) (2024-07-31)
+
+
+### Bug Fixes
+
+* process annotation insertions after spans ([#4084](https://github.com/Arize-ai/phoenix/issues/4084)) ([5b1a709](https://github.com/Arize-ai/phoenix/commit/5b1a7092491bf96119677afe5b4a472515136138))
+
 ## [4.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.15.0...arize-phoenix-v4.16.0) (2024-07-30)
 
 
