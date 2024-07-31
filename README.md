@@ -27,7 +27,6 @@
     </a>
 </p>
 
-Phoenix is an open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. It provides:
 
 -   **_Tracing_** - Trace your LLM application's runtime using OpenTelemetry-based instrumentation.
 -   **_Evaluation_** - Leverage LLMs to benchmark your application's performance using response and retrieval evals.
