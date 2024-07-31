@@ -72,7 +72,7 @@ export function SpanAside(props: { span: SpanAside_span$key }) {
     <View
       padding="size-200"
       borderColor="dark"
-      backgroundColor="light"
+      backgroundColor="dark"
       borderLeftWidth="thin"
       width="210px"
       flex="none"
