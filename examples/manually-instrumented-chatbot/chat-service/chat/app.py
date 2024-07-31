@@ -98,8 +98,6 @@ async def messages(messages_payload: MessagesPayload) -> MessagesResponse:
             span.set_attribute(attribute_key, attribute_value)
         span_id = span.get_span_context().span_id.to_bytes(8, "big").hex()
         assistant_message.span_id = span_id
-        # span_id = str(span.get_span_context().span_id)
-        # span_id = "wat"
 
     return MessagesResponse(message=assistant_message)
 
