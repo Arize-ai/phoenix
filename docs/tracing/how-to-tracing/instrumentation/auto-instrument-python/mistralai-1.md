@@ -23,8 +23,6 @@ python -m phoenix.server.main serve
 In a python file, setup the `GuardrailsAIInstrumentor` and configure the tracer to send traces to Phoenix.
 
 ```python
-from mistralai.client import MistralClient
-from mistralai.models.chat_completion import ChatMessage
 from openinference.instrumentation.guardrails import GuardrailsInstrumentor
 from opentelemetry import trace as trace_api
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
