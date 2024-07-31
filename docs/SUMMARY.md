@@ -33,6 +33,7 @@
       * [OpenAI](tracing/how-to-tracing/instrumentation/auto-instrument-python/openai.md)
       * [VertexAI](tracing/how-to-tracing/instrumentation/auto-instrument-python/vertexai.md)
       * [MistralAI](tracing/how-to-tracing/instrumentation/auto-instrument-python/mistralai.md)
+      * [Guardrails AI](tracing/how-to-tracing/instrumentation/auto-instrument-python/mistralai-1.md)
       * [DSPy](tracing/how-to-tracing/instrumentation/auto-instrument-python/dspy.md)
       * [Bedrock](tracing/how-to-tracing/instrumentation/auto-instrument-python/bedrock.md)
       * [AutoGen](tracing/how-to-tracing/instrumentation/auto-instrument-python/autogen-support.md)
