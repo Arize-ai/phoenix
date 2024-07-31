@@ -27,12 +27,12 @@ for message in st.session_state.messages:
             col1.button(
                 "👍",
                 key=f"thumbs_up_{message.uuid}",
-                on_click=lambda uuid=message.uuid: send_feedback(1, span_id),
+                on_click=lambda uuid=message.uuid: send_feedback(1, message.span_id),
             )
             col2.button(
                 "👎",
                 key=f"thumbs_down_{message.uuid}",
-                on_click=lambda uuid=message.uuid: send_feedback(0, span_id),
+                on_click=lambda uuid=message.uuid: send_feedback(0, message.span_id),
             )
 
 if user_message_content := st.chat_input("Message"):
@@ -65,16 +65,12 @@ if user_message_content := st.chat_input("Message"):
             col1.button(
                 "👍",
                 key=f"thumbs_up_{assistant_message.uuid}",
-                on_click=lambda: send_feedback(
-                    1, assistant_message.span_id
-                ),
+                on_click=lambda: send_feedback(1, assistant_message.span_id),
             )
             col2.button(
                 "👎",
                 key=f"thumbs_down_{assistant_message.uuid}",
-                on_click=lambda: send_feedback(
-                    0, assistant_message.span_id
-                ),
+                on_click=lambda: send_feedback(0, assistant_message.span_id),
             )
         st.session_state.messages.append(assistant_message)
 

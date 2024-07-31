@@ -18,7 +18,7 @@ from opentelemetry.sdk.trace.export import (
     SimpleSpanProcessor,
 )
 
-from chat.types import Message, MessagesPayload, MessagesResponse, FeedbackRequest
+from chat.types import FeedbackRequest, Message, MessagesPayload, MessagesResponse
 
 COLLECTOR_HOST = os.getenv("COLLECTOR_HOST", "localhost")
 endpoint = f"http://{COLLECTOR_HOST}:6006/v1"
