@@ -154,7 +154,12 @@ class BulkInserter:
             or self._spans
             or self._evaluations
         ):
-            if self._operations.empty() and not (self._spans or self._evaluations):
+            if (
+                self._queue_inserters.empty
+                and self._operations.empty()
+                and not self._spans
+                and not self._evaluations
+            ):
                 await asyncio.sleep(self._sleep)
                 continue
             ops_remaining, events = self._max_ops_per_transaction, []
