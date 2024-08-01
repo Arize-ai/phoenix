@@ -48,8 +48,9 @@ class GeminiModel(BaseModel):
             defaults to us-central-1. Defaults to None.
         credentials (Optional[Credentials], optional): The credentials to use when making API
             calls. Defaults to None.
-        initial_rate_limit (int, optional): The initial internal rate limit for making LLM calls.
-            This limit adjusts dynamically based on rate limit errors. Defaults to 5.
+        initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
+            per second for making LLM calls. This limit adjusts dynamically based on rate
+            limit errors. Defaults to 5.
 
     Example:
         .. code-block:: python
@@ -113,7 +114,6 @@ class GeminiModel(BaseModel):
             rate_limit_error=self._gcp_exceptions.ResourceExhausted,
             max_rate_limit_retries=10,
             initial_per_second_request_rate=self.initial_rate_limit,
-            maximum_per_second_request_rate=self.initial_rate_limit * 4,
             enforcement_window_minutes=1,
         )
 

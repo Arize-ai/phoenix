@@ -45,8 +45,9 @@ class BedrockModel(BaseModel):
             maximum content size. Defaults to None.
         extra_parameters (Dict[str, Any], optional): Any extra parameters to add to the request
             body (e.g., countPenalty for a21 models). Defaults to an empty dictionary.
-        initial_rate_limit (int, optional): The initial internal rate limit for making LLM calls.
-            This limit adjusts dynamically based on rate limit errors. Defaults to 5.
+        initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
+            per second for making LLM calls. This limit adjusts dynamically based on rate
+            limit errors. Defaults to 5.
 
     Example:
         .. code-block:: python
@@ -98,7 +99,6 @@ class BedrockModel(BaseModel):
             rate_limit_error=self.client.exceptions.ThrottlingException,
             max_rate_limit_retries=10,
             initial_per_second_request_rate=self.initial_rate_limit,
-            maximum_per_second_request_rate=self.initial_rate_limit * 4,
             enforcement_window_minutes=1,
         )
 

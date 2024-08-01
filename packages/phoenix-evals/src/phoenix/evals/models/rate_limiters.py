@@ -37,22 +37,35 @@ class AdaptiveTokenBucket:
     def __init__(
         self,
         initial_per_second_request_rate: float,
-        maximum_per_second_request_rate: float = 1000,
+        maximum_per_second_request_rate: Optional[float] = None,
         minimum_per_second_request_rate: float = 0.1,
         enforcement_window_minutes: float = 1,
         rate_reduction_factor: float = 0.5,
         rate_increase_factor: float = 0.01,
         cooldown_seconds: float = 5,
     ):
-        now = time.time()
         self._initial_rate = initial_per_second_request_rate
-        self.rate = initial_per_second_request_rate
-        self.maximum_rate = maximum_per_second_request_rate
-        self.minimum_rate = minimum_per_second_request_rate
         self.rate_reduction_factor = rate_reduction_factor
         self.enforcement_window = enforcement_window_minutes * 60
         self.rate_increase_factor = rate_increase_factor
+        self.rate = initial_per_second_request_rate
+        self.minimum_rate = minimum_per_second_request_rate
+
+        if maximum_per_second_request_rate is None:
+            # if unset, do not allow the maximum rate to exceed 2 consecutive rate reductions
+            # assuming the initial rate is the advertised API rate limit
+
+            maximum_rate_multiple = (1 / rate_reduction_factor) ** 2
+            maximum_per_second_request_rate = (
+                initial_per_second_request_rate * maximum_rate_multiple
+            )
+
+        assert isinstance(maximum_per_second_request_rate, float)
+        self.maximum_rate = maximum_per_second_request_rate
+
         self.cooldown = cooldown_seconds
+
+        now = time.time()
         self.last_rate_update = now
         self.last_checked = now
         self.last_error = now - self.cooldown
@@ -142,7 +155,7 @@ class RateLimiter:
         rate_limit_error: Optional[Type[BaseException]] = None,
         max_rate_limit_retries: int = 3,
         initial_per_second_request_rate: float = 1,
-        maximum_per_second_request_rate: float = 50,
+        maximum_per_second_request_rate: Optional[float] = None,
         enforcement_window_minutes: float = 1,
         rate_reduction_factor: float = 0.5,
         rate_increase_factor: float = 0.01,

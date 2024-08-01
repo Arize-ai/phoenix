@@ -96,8 +96,9 @@ class OpenAIModel(BaseModel):
             token to use for azure openai. Defaults to None.
         default_headers (Mapping[str, str], optional): Default headers required by AzureOpenAI.
             Defaults to None.
-        initial_rate_limit (int, optional): The initial internal rate limit for making LLM calls.
-            This limit adjusts dynamically based on rate limit errors. Defaults to 10.
+        initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
+            per second for making LLM calls. This limit adjusts dynamically based on rate
+            limit errors. Defaults to 10.
 
     Examples:
         After setting the OPENAI_API_KEY environment variable:
@@ -279,7 +280,6 @@ class OpenAIModel(BaseModel):
             rate_limit_error=self._openai.RateLimitError,
             max_rate_limit_retries=10,
             initial_per_second_request_rate=self.initial_rate_limit,
-            maximum_per_second_request_rate=self.initial_rate_limit * 4,
             enforcement_window_minutes=1,
         )
 
