@@ -138,7 +138,7 @@ export function TraceDetails(props: TraceDetailsProps) {
           overflow: hidden;
         `}
       >
-        <Panel defaultSize={30} minSize={10} maxSize={40}>
+        <Panel defaultSize={30} minSize={10} maxSize={70}>
           <ScrollingPanelContent>
             <TraceTree
               spans={spansList}

@@ -255,31 +255,27 @@ export function SpanDetails({
                 projectId={projectId}
               />
             ) : null}
+            <TooltipTrigger placement="top" offset={5}>
+              <Button
+                variant="default"
+                aria-label="Toggle showing span details"
+                onClick={() => {
+                  setShowSpanAside(!showSpanAside);
+                }}
+                icon={
+                  <Icon
+                    svg={showSpanAside ? <Icons.SlideIn /> : <Icons.SlideOut />}
+                  />
+                }
+              />
+              <Tooltip>
+                {showSpanAside ? "Hide Span Details" : "Show Span Details"}
+              </Tooltip>
+            </TooltipTrigger>
           </Flex>
         </Flex>
       </View>
-      <Tabs
-        extra={
-          <TooltipTrigger placement="start" offset={5}>
-            <Button
-              variant="default"
-              size="compact"
-              aria-label="Toggle showing span details"
-              onClick={() => {
-                setShowSpanAside(!showSpanAside);
-              }}
-              icon={
-                <Icon
-                  svg={showSpanAside ? <Icons.SlideIn /> : <Icons.SlideOut />}
-                />
-              }
-            />
-            <Tooltip>
-              {showSpanAside ? "Hide Span Details" : "Show Span Details"}
-            </Tooltip>
-          </TooltipTrigger>
-        }
-      >
+      <Tabs>
         <TabPane name={"Info"}>
           <Flex direction="row" height="100%">
             <SpanInfoWrap>
