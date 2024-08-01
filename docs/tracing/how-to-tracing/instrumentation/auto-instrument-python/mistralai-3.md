@@ -9,7 +9,7 @@ description: Instrument LLM applications built with Haystack
 In this example we will instrument a small program that uses the MistralAI chat completions API and observe the traces via [`arize-phoenix`](https://github.com/Arize-ai/phoenix).
 
 ```
-pip install openinference-instrumentation-haystack haystack arize-phoenix opentelemetry-sdk opentelemetry-exporter-otlp
+pip install openinference-instrumentation-haystack haystack-ai arize-phoenix opentelemetry-sdk opentelemetry-exporter-otlp
 ```
 
 Start a Phoenix server to collect traces.
