@@ -20,13 +20,11 @@ Phoenix's tracing and span analysis capabilities are invaluable during the proto
 
 ### Prompt Tracking
 
-Phoenix provides a dedicated prompt engineering workspace that allows developers to create, manage, and experiment with prompt variations. It offers tools for analyzing prompt performance, comparing outputs, and identifying patterns that lead to better results. Phoenix also enables teams to maintain a central repository of optimized prompts, facilitating collaboration and knowledge sharing.
+Leverage experiments to track prompt performance, and evaluate the outputs, Phoenix also tracks prompt templates, variables, and versions during execution to help you identify improvements and degradations.
 
 ### Search & Retrieval Embeddings Visualizer
 
 Phoenix's search and retrieval optimization tools include an embeddings visualizer that helps teams understand how their data is being represented and clustered. This visual insight can guide decisions on indexing strategies, similarity measures, and data organization to improve the relevance and efficiency of search results.
-
-&#x20;
 
 ## Testing/Staging
 
@@ -44,11 +42,9 @@ Phoenix's flexible evaluation framework supports thorough testing of LLM outputs
 
 Phoenix assists in curating high-quality data for testing and fine-tuning. It provides tools for data exploration, cleaning, and labeling, enabling teams to curate representative data that covers a wide range of use cases and edge conditions.
 
-
-
 ## Production
 
-In production, Phoenix works hand-in-hand with Arize, which focuses on the production side of the LLM lifecycle. The integration ensures a smooth transition from development to production, with consistent tooling and metrics across both platforms.&#x20;
+In production, Phoenix works hand-in-hand with Arize, which focuses on the production side of the LLM lifecycle. The integration ensures a smooth transition from development to production, with consistent tooling and metrics across both platforms.
 
 ### Traces in Production
 
@@ -56,11 +52,10 @@ Phoenix and Arize use the same collector frameworks in development and productio
 
 ### Evals for Production
 
-Phoenix's evaluation framework can be used to generate ongoing assessments of LLM performance in production. Arize complements this with online evaluations, enabling teams to set up alerts if evaluation metrics, such as hallucination rates, go beyond acceptable thresholds.&#x20;
+Phoenix's evaluation framework can be used to generate ongoing assessments of LLM performance in production. Arize complements this with online evaluations, enabling teams to set up alerts if evaluation metrics, such as hallucination rates, go beyond acceptable thresholds.
 
 ### Fine-tuning
 
 Phoenix and Arize together help teams identify data points for fine-tuning based on production performance and user feedback. This targeted approach ensures that fine-tuning efforts are directed towards the most impactful areas, maximizing the return on investment.
 
 Phoenix, in collaboration with Arize, empowers teams to build, optimize, and maintain high-quality LLM applications throughout the entire lifecycle. By providing a comprehensive observability platform and seamless integration with production monitoring tools, Phoenix and Arize enable teams to deliver exceptional LLM-driven experiences with confidence and efficiency.
-
