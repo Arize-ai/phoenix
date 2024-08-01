@@ -27,12 +27,12 @@ for message in st.session_state.messages:
             col1.button(
                 "👍",
                 key=f"thumbs_up_{message.uuid}",
-                on_click=lambda uuid=message.uuid: send_feedback(1, message.span_id),
+                on_click=lambda: send_feedback(1, message.span_id),
             )
             col2.button(
                 "👎",
                 key=f"thumbs_down_{message.uuid}",
-                on_click=lambda uuid=message.uuid: send_feedback(0, message.span_id),
+                on_click=lambda: send_feedback(0, message.span_id),
             )
 
 if user_message_content := st.chat_input("Message"):
