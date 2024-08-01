@@ -60,6 +60,7 @@ class AdaptiveTokenBucket:
                 initial_per_second_request_rate * maximum_rate_multiple
             )
 
+        maximum_per_second_request_rate = float(maximum_per_second_request_rate)
         assert isinstance(maximum_per_second_request_rate, float)
         self.maximum_rate = maximum_per_second_request_rate
 
