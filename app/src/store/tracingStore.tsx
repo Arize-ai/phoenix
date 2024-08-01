@@ -8,9 +8,9 @@ export interface TracingProps {
    */
   columnVisibility: VisibilityState;
   /**
-   * Map of the evaluation names that are toggled on
+   * Map of the annotation column names that are toggled on
    */
-  evaluationVisibility: VisibilityState;
+  annotationColumnVisibility: VisibilityState;
 }
 
 export interface TracingState extends TracingProps {
@@ -21,9 +21,11 @@ export interface TracingState extends TracingProps {
    */
   setColumnVisibility: (columnVisibility: VisibilityState) => void;
   /**
-   * Sets the visibility of the evaluation columns
+   * Sets the visibility of the annotation columns
    */
-  setEvaluationVisibility: (evaluationVisibility: VisibilityState) => void;
+  setAnnotationColumnVisibility: (
+    annotationColumnVisibility: VisibilityState
+  ) => void;
 }
 
 export const createTracingStore = (initialProps?: Partial<TracingProps>) => {
@@ -32,12 +34,12 @@ export const createTracingStore = (initialProps?: Partial<TracingProps>) => {
     columnVisibility: {
       metadata: false,
     },
-    evaluationVisibility: {},
+    annotationColumnVisibility: {},
     setColumnVisibility: (columnVisibility) => {
       set({ columnVisibility });
     },
-    setEvaluationVisibility: (evaluationVisibility) => {
-      set({ evaluationVisibility });
+    setAnnotationColumnVisibility: (annotationColumnVisibility) => {
+      set({ annotationColumnVisibility });
     },
   });
   return create<TracingState>()(devtools(tracingStore));

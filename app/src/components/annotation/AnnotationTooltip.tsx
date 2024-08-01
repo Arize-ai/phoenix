@@ -45,12 +45,14 @@ export function AnnotationTooltip({
             </Text>
             <Text color="inherit">{annotation.label || "--"}</Text>
           </Flex>
-          <Flex direction="row" justifyContent="space-between">
-            <Text weight="heavy" color="inherit">
-              kind
-            </Text>
-            <Text color="inherit">{annotation.annotatorKind}</Text>
-          </Flex>
+          {annotation.annotatorKind ? (
+            <Flex direction="row" justifyContent="space-between">
+              <Text weight="heavy" color="inherit">
+                kind
+              </Text>
+              <Text color="inherit">{annotation.annotatorKind}</Text>
+            </Flex>
+          ) : null}
         </View>
         {annotation.explanation ? (
           <View paddingTop="size-50">
