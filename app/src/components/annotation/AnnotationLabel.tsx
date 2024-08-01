@@ -11,7 +11,7 @@ import { Annotation } from "./types";
 
 type AnnotationDisplayPreference = "label" | "score";
 
-const baseAnnotationLabelCSS = css`
+export const baseAnnotationLabelCSS = css`
   border-radius: var(--ac-global-dimension-size-50);
   border: 1px solid var(--ac-global-color-grey-400);
   padding: var(--ac-global-dimension-size-50)
