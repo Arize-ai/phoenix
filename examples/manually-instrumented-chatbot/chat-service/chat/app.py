@@ -1,10 +1,11 @@
 import json
 import os
+import warnings
 from typing import Any, Dict, Iterator, List, Tuple
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException
-from httpx import AsyncClient
+from httpx import AsyncClient, ConnectError
 from openinference.semconv.trace import (
     MessageAttributes,
     OpenInferenceMimeTypeValues,
@@ -121,11 +122,13 @@ async def post_feedback(feedback_request: FeedbackRequest) -> None:
         ]
     }
 
-    response = await http_client.post(
-        f"{endpoint}/span_annotations",
-        json=request_body,
-    )
-    response.raise_for_status()
+    try:
+        await http_client.post(
+            f"{endpoint}/span_annotations",
+            json=request_body,
+        )
+    except ConnectError:
+        warnings.warn("Could not connect to Phoenix server.")
 
 
 def _llm_span_kind_attributes() -> Iterator[Tuple[str, str]]:

@@ -77,6 +77,5 @@ if user_message_content := st.chat_input("Message"):
 
 def send_feedback(feedback: int, span_id: str) -> None:
     feedback_data = {"feedback": feedback, "span_id": span_id}
-    print(feedback_data)
     response = http_client.post(FEEDBACK_ENDPOINT, json=feedback_data)
     response.raise_for_status()
