@@ -1,13 +1,10 @@
 import React, { useMemo } from "react";
-import { Color } from "three";
 import { css } from "@emotion/react";
 
 import {
   Flex,
   HelpTooltip,
-  Label,
   Text,
-  Tooltip,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
