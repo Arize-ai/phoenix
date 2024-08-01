@@ -20,6 +20,7 @@ from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortConfig
 from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
 from phoenix.server.api.types.EvaluationSummary import EvaluationSummary
 from phoenix.server.api.types.pagination import (
@@ -353,6 +354,29 @@ class Project(Node):
         filter_condition: Optional[str] = UNSET,
     ) -> Optional[EvaluationSummary]:
         return await info.context.data_loaders.evaluation_summaries.load(
+            ("span", self.id_attr, time_range, filter_condition, evaluation_name),
+        )
+
+    @strawberry.field
+    async def trace_annotation_summary(
+        self,
+        info: Info[Context, None],
+        evaluation_name: str,
+        time_range: Optional[TimeRange] = UNSET,
+    ) -> Optional[AnnotationSummary]:
+        return await info.context.data_loaders.annotation_summaries.load(
+            ("trace", self.id_attr, time_range, None, evaluation_name),
+        )
+
+    @strawberry.field
+    async def span_annotation_summary(
+        self,
+        info: Info[Context, None],
+        evaluation_name: str,
+        time_range: Optional[TimeRange] = UNSET,
+        filter_condition: Optional[str] = UNSET,
+    ) -> Optional[AnnotationSummary]:
+        return await info.context.data_loaders.annotation_summaries.load(
             ("span", self.id_attr, time_range, filter_condition, evaluation_name),
         )
 
