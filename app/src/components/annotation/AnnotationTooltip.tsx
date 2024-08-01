@@ -48,7 +48,7 @@ export function AnnotationTooltip({
           {annotation.annotatorKind ? (
             <Flex direction="row" justifyContent="space-between">
               <Text weight="heavy" color="inherit">
-                kind
+                annotator kind
               </Text>
               <Text color="inherit">{annotation.annotatorKind}</Text>
             </Flex>
