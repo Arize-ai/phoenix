@@ -35,7 +35,7 @@
       * [MistralAI](tracing/how-to-tracing/instrumentation/auto-instrument-python/mistralai.md)
       * [Guardrails AI](tracing/how-to-tracing/instrumentation/auto-instrument-python/mistralai-1.md)
       * [CrewAI](tracing/how-to-tracing/instrumentation/auto-instrument-python/mistralai-2.md)
-      * [Haystack](tracing/how-to-tracing/instrumentation/auto-instrument-python/mistralai-3.md)
+      * [Haystack](tracing/how-to-tracing/instrumentation/auto-instrument-python/haystack.md)
       * [DSPy](tracing/how-to-tracing/instrumentation/auto-instrument-python/dspy.md)
       * [Bedrock](tracing/how-to-tracing/instrumentation/auto-instrument-python/bedrock.md)
       * [AutoGen](tracing/how-to-tracing/instrumentation/auto-instrument-python/autogen-support.md)
