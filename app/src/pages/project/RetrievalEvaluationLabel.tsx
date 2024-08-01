@@ -3,13 +3,14 @@ import { css } from "@emotion/react";
 
 import {
   Flex,
-  Label,
+  HelpTooltip,
   Text,
-  Tooltip,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
 
+import { baseAnnotationLabelCSS } from "@phoenix/components/annotation";
+import { ColorSwatch } from "@phoenix/components/ColorSwatch";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 interface RetrievalEvaluation {
@@ -45,8 +46,9 @@ export function RetrievalEvaluationLabel(props: RetrievalEvaluationLabelProps) {
   return (
     <TooltipTrigger delay={500} offset={3}>
       <TriggerWrap>
-        <Label color="seafoam-1000" shape="badge">
-          <Flex direction="row" gap="size-50">
+        <div css={baseAnnotationLabelCSS}>
+          <Flex direction="row" gap="size-100" alignItems={"center"}>
+            <ColorSwatch color={"var(--ac-global-color-seafoam-1000)"} />
             {name ? (
               <div css={textCSS}>
                 <Text weight="heavy" textSize="small" color="inherit">
@@ -63,18 +65,16 @@ export function RetrievalEvaluationLabel(props: RetrievalEvaluationLabelProps) {
               <Text textSize="small">{labelValue}</Text>
             </div>
           </Flex>
-        </Label>
+        </div>
       </TriggerWrap>
-      <Tooltip>
+      <HelpTooltip>
         <Flex direction="row" gap="size-100">
-          <Text weight="heavy" textSize="small" color="inherit">
+          <Text weight="heavy" color="inherit">
             {name} {label}
           </Text>
-          <Text textSize="small" color="inherit">
-            {labelValue}
-          </Text>
+          <Text color="inherit">{labelValue}</Text>
         </Flex>
-      </Tooltip>
+      </HelpTooltip>
     </TooltipTrigger>
   );
 }
