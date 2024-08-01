@@ -52,10 +52,10 @@ class AdaptiveTokenBucket:
         self.minimum_rate = minimum_per_second_request_rate
 
         if maximum_per_second_request_rate is None:
-            # if unset, do not allow the maximum rate to exceed 2 consecutive rate reductions
+            # if unset, do not allow the maximum rate to exceed 3 consecutive rate reductions
             # assuming the initial rate is the advertised API rate limit
 
-            maximum_rate_multiple = (1 / rate_reduction_factor) ** 2
+            maximum_rate_multiple = (1 / rate_reduction_factor) ** 3
             maximum_per_second_request_rate = (
                 initial_per_second_request_rate * maximum_rate_multiple
             )
