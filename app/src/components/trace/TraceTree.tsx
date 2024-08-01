@@ -23,10 +23,8 @@ export function TraceTree(props: TraceTreeProps) {
   return (
     <ul
       css={(theme) => css`
-        margin: ${theme.spacing.margin16}px;
         display: flex;
         flex-direction: column;
-        gap: ${theme.spacing.padding8}px;
       `}
     >
       {spanTree.map((spanNode) => (
@@ -71,17 +69,16 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
           >
             <SpanKindIcon spanKind={node.span.spanKind} />
             <SpanItem {...node.span} />
+            <button>collapse</button>
           </Flex>
         </SpanNodeWrap>
       </button>
       {childNodes.length ? (
         <ul
-          css={(theme) => css`
-            margin: var(--ac-global-dimension-static-size-100) 0 0
-              var(--ac-global-dimension-static-size-600);
+          css={css`
+            margin: 0 0 0 var(--ac-global-dimension-static-size-600);
             display: flex;
             flex-direction: column;
-            gap: ${theme.spacing.padding8}px;
           `}
         >
           {childNodes.map((leafNode, index) => {
@@ -89,7 +86,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
             // after to the parent node
             const nexSibling = childNodes[index + 1];
             return (
-              <div
+              <li
                 key={leafNode.span.context.spanId}
                 css={css`
                   position: relative;
@@ -103,8 +100,9 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
                   node={leafNode}
                   onSpanClick={onSpanClick}
                   selectedSpanNodeId={selectedSpanNodeId}
+                  f
                 />
-              </div>
+              </li>
             );
           })}
         </ul>
@@ -118,21 +116,14 @@ function SpanNodeWrap(props: PropsWithChildren<{ isSelected: boolean }>) {
     <div
       className={props.isSelected ? "is-selected" : ""}
       css={css`
-        border-radius: var(--ac-global-dimension-static-size-150);
-        background-color: var(--ac-global-color-grey-200);
-        padding: var(--ac-global-dimension-static-size-50)
-          var(--ac-global-dimension-static-size-200)
-          var(--ac-global-dimension-static-size-50)
-          var(--ac-global-dimension-static-size-200);
-        border-width: var(--ac-global-dimension-static-size-10);
-        border-style: solid;
+        background-color: green;
+
         border-color: var(--ac-global-color-grey-300);
         &:hover {
-          border-color: var(--ac-global-color-grey-400);
           background-color: var(--ac-global-color-grey-300);
         }
         &.is-selected {
-          border-color: var(--ac-global-color-primary);
+          background-color: var(--ac-global-color-primary-500);
         }
       `}
     >
@@ -160,7 +151,7 @@ function SpanTreeEdgeConnector({
             ? theme.colors.statusDanger
             : "rgb(204, 204, 204)"};
         top: 0;
-        left: -22px;
+        left: -39px;
         width: 42px;
         bottom: 0;
       `}
@@ -181,11 +172,11 @@ function SpanTreeEdge({ statusCode }: { statusCode: SpanStatusCodeType }) {
           position: absolute;
           border-left: 1px solid ${color};
           border-bottom: 1px solid ${color};
-          border-radius: 0 0 0 var(--ac-global-dimension-static-size-150);
+          border-radius: 0 0 0 20px;
           top: -24px;
-          left: -22px;
+          left: -39px;
           width: 38px;
-          height: 48px;
+          height: 45px;
         `;
       }}
     ></div>
