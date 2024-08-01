@@ -55,9 +55,9 @@ import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { spansTableCSS } from "./styles";
 import {
+  ANNOTATIONS_COLUMN_PREFIX,
+  ANNOTATIONS_KEY_SEPARATOR,
   DEFAULT_SORT,
-  EVALS_COLUMN_PREFIX,
-  EVALS_KEY_SEPARATOR,
   getGqlSort,
 } from "./tableUtils";
 type TracesTableProps = {
@@ -114,7 +114,7 @@ export function TracesTable(props: TracesTableProps) {
           }
           filterCondition: { type: "String", defaultValue: null }
         ) {
-          ...SpanColumnSelector_evaluations
+          ...SpanColumnSelector_annotations
           rootSpans: spans(
             first: $first
             after: $after
@@ -146,10 +146,11 @@ export function TracesTable(props: TracesTableProps) {
                   spanId
                   traceId
                 }
-                spanEvaluations {
+                spanAnnotations {
                   name
                   label
                   score
+                  annotatorKind
                 }
                 documentRetrievalMetrics {
                   evaluationName
@@ -178,10 +179,11 @@ export function TracesTable(props: TracesTableProps) {
                     spanId
                     traceId
                   }
-                  spanEvaluations {
+                  spanAnnotations {
                     name
                     label
                     score
+                    annotatorKind
                   }
                   documentRetrievalMetrics {
                     evaluationName
@@ -198,14 +200,14 @@ export function TracesTable(props: TracesTableProps) {
       props.project
     );
 
-  const evaluationVisibility = useTracingContext(
-    (state) => state.evaluationVisibility
+  const annotationColumnVisibility = useTracingContext(
+    (state) => state.annotationColumnVisibility
   );
-  const visibleEvaluationColumnNames = useMemo(() => {
-    return Object.keys(evaluationVisibility).filter(
-      (name) => evaluationVisibility[name]
+  const visibleAnnotationColumnNames = useMemo(() => {
+    return Object.keys(annotationColumnVisibility).filter(
+      (name) => annotationColumnVisibility[name]
     );
-  }, [evaluationVisibility]);
+  }, [annotationColumnVisibility]);
   const tableData = useMemo(() => {
     const tableData = data.rootSpans.edges.map(({ rootSpan }) => {
       // Construct the set of spans over which you want to construct the tree
@@ -219,60 +221,56 @@ export function TracesTable(props: TracesTableProps) {
   }, [data]);
   type TableRow = (typeof tableData)[number];
 
-  const dynamicEvaluationColumns: ColumnDef<TableRow>[] =
-    visibleEvaluationColumnNames.map((name) => {
+  const dynamicAnnotationColumns: ColumnDef<TableRow>[] =
+    visibleAnnotationColumnNames.map((name) => {
       return {
         header: name,
         columns: [
           {
             header: `label`,
-            accessorKey: `${EVALS_COLUMN_PREFIX}${EVALS_KEY_SEPARATOR}label${EVALS_KEY_SEPARATOR}${name}`,
+            accessorKey: `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}label${ANNOTATIONS_KEY_SEPARATOR}${name}`,
             cell: ({ row }) => {
-              const evaluation = row.original.spanEvaluations.find(
-                (evaluation) => evaluation.name === name
+              const annotation = row.original.spanAnnotations.find(
+                (annotation) => annotation.name === name
               );
-              if (!evaluation) {
+              if (!annotation) {
                 return null;
               }
-              return evaluation.label;
+              return annotation.label;
             },
           } as ColumnDef<TableRow>,
           {
             header: `score`,
-            accessorKey: `${EVALS_COLUMN_PREFIX}${EVALS_KEY_SEPARATOR}score${EVALS_KEY_SEPARATOR}${name}`,
+            accessorKey: `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}score${ANNOTATIONS_KEY_SEPARATOR}${name}`,
             cell: ({ row }) => {
-              const evaluation = row.original.spanEvaluations.find(
-                (evaluation) => evaluation.name === name
+              const annotation = row.original.spanAnnotations.find(
+                (annotation) => annotation.name === name
               );
-              if (!evaluation) {
+              if (!annotation) {
                 return null;
               }
-              return evaluation.score;
+              return annotation.score;
             },
           } as ColumnDef<TableRow>,
         ],
       };
     });
 
-  const evaluationColumns: ColumnDef<TableRow>[] = [
+  const annoationColumns: ColumnDef<TableRow>[] = [
     {
-      header: "evaluations",
-      accessorKey: "spanEvaluations",
+      header: "feedback",
+      accessorKey: "spanAnnotations",
       enableSorting: false,
       cell: ({ row }) => {
         const hasNoEvaluations =
-          row.original.spanEvaluations.length === 0 &&
+          row.original.spanAnnotations.length === 0 &&
           row.original.documentRetrievalMetrics.length === 0;
         return (
           <Flex direction="row" gap="size-50" wrap="wrap">
-            {row.original.spanEvaluations.map((evaluation) => {
-              const annotation = {
-                ...evaluation,
-                annotatorKind: "LLM",
-              };
+            {row.original.spanAnnotations.map((annotation) => {
               return (
                 <AnnotationTooltip
-                  key={evaluation.name}
+                  key={annotation.name}
                   annotation={annotation}
                 >
                   <AnnotationLabel
@@ -311,7 +309,7 @@ export function TracesTable(props: TracesTableProps) {
         );
       },
     },
-    ...dynamicEvaluationColumns,
+    ...dynamicAnnotationColumns,
   ];
 
   const columns: ColumnDef<TableRow>[] = [
@@ -410,7 +408,7 @@ export function TracesTable(props: TracesTableProps) {
       enableSorting: false,
       cell: TextCell,
     },
-    ...evaluationColumns, // TODO: consider hiding this column is there is no evals. For now show it
+    ...annoationColumns, // TODO: consider hiding this column is there is no evals. For now show it
     {
       header: "start time",
       accessorKey: "startTime",

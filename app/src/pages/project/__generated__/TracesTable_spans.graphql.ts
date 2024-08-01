@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<86aad576a5c4b57f8ef62320d15eed04>>
+ * @generated SignedSource<<4ff736e26375f2eac66ded47d857916e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,6 +9,7 @@
 // @ts-nocheck
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+export type AnnotatorKind = "HUMAN" | "LLM";
 export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "guardrail" | "llm" | "reranker" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
@@ -48,7 +49,8 @@ export type TracesTable_spans$data = {
             readonly value: string;
           } | null;
           readonly parentId: string | null;
-          readonly spanEvaluations: ReadonlyArray<{
+          readonly spanAnnotations: ReadonlyArray<{
+            readonly annotatorKind: AnnotatorKind;
             readonly label: string | null;
             readonly name: string;
             readonly score: number | null;
@@ -74,7 +76,8 @@ export type TracesTable_spans$data = {
           readonly value: string;
         } | null;
         readonly parentId: string | null;
-        readonly spanEvaluations: ReadonlyArray<{
+        readonly spanAnnotations: ReadonlyArray<{
+          readonly annotatorKind: AnnotatorKind;
           readonly label: string | null;
           readonly name: string;
           readonly score: number | null;
@@ -85,7 +88,7 @@ export type TracesTable_spans$data = {
       };
     }>;
   };
-  readonly " $fragmentSpreads": FragmentRefs<"SpanColumnSelector_evaluations">;
+  readonly " $fragmentSpreads": FragmentRefs<"SpanColumnSelector_annotations">;
   readonly " $fragmentType": "TracesTable_spans";
 };
 export type TracesTable_spans$key = {
@@ -185,9 +188,9 @@ v9 = {
 v10 = {
   "alias": null,
   "args": null,
-  "concreteType": "SpanEvaluation",
+  "concreteType": "SpanAnnotation",
   "kind": "LinkedField",
-  "name": "spanEvaluations",
+  "name": "spanAnnotations",
   "plural": true,
   "selections": [
     (v3/*: any*/),
@@ -203,6 +206,13 @@ v10 = {
       "args": null,
       "kind": "ScalarField",
       "name": "score",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "annotatorKind",
       "storageKey": null
     }
   ],
@@ -320,7 +330,7 @@ return {
     {
       "args": null,
       "kind": "FragmentSpread",
-      "name": "SpanColumnSelector_evaluations"
+      "name": "SpanColumnSelector_annotations"
     },
     {
       "alias": "rootSpans",
@@ -553,6 +563,6 @@ return {
 };
 })();
 
-(node as any).hash = "b8e7c42b9731568c7e348cf191017d06";
+(node as any).hash = "6dd76b0c3ddcb8491f14c35175f67dc8";
 
 export default node;

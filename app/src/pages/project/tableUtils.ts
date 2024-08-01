@@ -5,8 +5,8 @@ import {
   TracesTableQuery$variables,
 } from "./__generated__/TracesTableQuery.graphql";
 
-export const EVALS_COLUMN_PREFIX = "evals";
-export const EVALS_KEY_SEPARATOR = ":";
+export const ANNOTATIONS_COLUMN_PREFIX = "annotations";
+export const ANNOTATIONS_KEY_SEPARATOR = ":";
 export const DEFAULT_SORT: SpanSort = {
   col: "startTime",
   dir: "desc",
@@ -17,8 +17,8 @@ export function getGqlSort(
 ): TracesTableQuery$variables["sort"] {
   let col = null,
     evalResultKey = null;
-  if (sort.id && sort.id.startsWith(EVALS_COLUMN_PREFIX)) {
-    const [, attr, name] = sort.id.split(EVALS_KEY_SEPARATOR);
+  if (sort.id && sort.id.startsWith(ANNOTATIONS_COLUMN_PREFIX)) {
+    const [, attr, name] = sort.id.split(ANNOTATIONS_KEY_SEPARATOR);
     evalResultKey = {
       attr,
       name,

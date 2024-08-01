@@ -3,5 +3,5 @@ export interface Annotation {
   label?: string | null;
   score?: number | null;
   explanation?: string | null;
-  annotatorKind: string;
+  annotatorKind?: string;
 }
