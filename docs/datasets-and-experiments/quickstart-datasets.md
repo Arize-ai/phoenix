@@ -4,6 +4,10 @@
 
 Phoenix helps you run experiments over your AI and LLM applications to evaluate and iteratively improve their performance. This quickstart shows you how to get up and running quickly.
 
+{% embed url="https://www.youtube.com/watch?v=2oBHX4-9Sro" %}
+Background + demo on datasets
+{% endembed %}
+
 ## Setup
 
 Launch phoenix in a notebook. If you already have phoenix server running, skip this step.
