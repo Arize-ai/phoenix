@@ -58,6 +58,7 @@ from phoenix.exceptions import PhoenixMigrationError
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
+    AnnotationSummaryDataLoader,
     AverageExperimentRunLatencyDataLoader,
     CacheForDataLoaders,
     DatasetExampleRevisionsDataLoader,
@@ -286,6 +287,12 @@ def create_graphql_router(
                 ),
                 document_evaluations=DocumentEvaluationsDataLoader(db),
                 document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(db),
+                annotation_summaries=AnnotationSummaryDataLoader(
+                    db,
+                    cache_map=cache_for_dataloaders.annotation_summary
+                    if cache_for_dataloaders
+                    else None,
+                ),
                 evaluation_summaries=EvaluationSummaryDataLoader(
                     db,
                     cache_map=cache_for_dataloaders.evaluation_summary
