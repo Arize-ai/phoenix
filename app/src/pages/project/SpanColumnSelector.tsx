@@ -195,7 +195,7 @@ function EvaluationColumnSelector({
       </View>
       <ul>
         {data.spanAnnotationNames.map((name) => {
-          const isVisible = annotationColumnVisibility[name];
+          const isVisible = annotationColumnVisibility[name] ?? false;
           return (
             <li key={name} css={columCheckboxItemCSS}>
               <label>

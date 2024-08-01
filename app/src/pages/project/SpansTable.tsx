@@ -157,26 +157,26 @@ export function SpansTable(props: SpansTableProps) {
             header: `label`,
             accessorKey: `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}label${ANNOTATIONS_KEY_SEPARATOR}${name}`,
             cell: ({ row }) => {
-              const evaluation = row.original.spanEvaluations.find(
-                (evaluation) => evaluation.name === name
+              const annotation = row.original.spanAnnotations.find(
+                (annotation) => annotation.name === name
               );
-              if (!evaluation) {
+              if (!annotation) {
                 return null;
               }
-              return evaluation.label;
+              return annotation.label;
             },
           } as ColumnDef<TableRow>,
           {
             header: `score`,
             accessorKey: `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}score${ANNOTATIONS_KEY_SEPARATOR}${name}`,
             cell: ({ row }) => {
-              const evaluation = row.original.spanEvaluations.find(
-                (evaluation) => evaluation.name === name
+              const annotation = row.original.spanAnnotations.find(
+                (annotation) => annotation.name === name
               );
-              if (!evaluation) {
+              if (!annotation) {
                 return null;
               }
-              return evaluation.score;
+              return annotation.score;
             },
           } as ColumnDef<TableRow>,
         ],
