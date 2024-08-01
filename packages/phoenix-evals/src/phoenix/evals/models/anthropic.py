@@ -39,6 +39,9 @@ class AnthropicModel(BaseModel):
             body (e.g., countPenalty for a21 models). Defaults to an empty dictionary.
         max_content_size (Optional[int], optional): If using a fine-tuned model, set this to the
             maximum content size. Defaults to None.
+        initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
+            per second for making LLM calls. This limit adjusts dynamically based on rate
+            limit errors. Defaults to 5.
 
     Example:
         .. code-block:: python
@@ -57,6 +60,7 @@ class AnthropicModel(BaseModel):
     stop_sequences: List[str] = field(default_factory=list)
     extra_parameters: Dict[str, Any] = field(default_factory=dict)
     max_content_size: Optional[int] = None
+    initial_rate_limit: int = 5
 
     def __post_init__(self) -> None:
         self._init_client()
@@ -93,8 +97,7 @@ class AnthropicModel(BaseModel):
         self._rate_limiter = RateLimiter(
             rate_limit_error=self._anthropic.RateLimitError,
             max_rate_limit_retries=10,
-            initial_per_second_request_rate=1,
-            maximum_per_second_request_rate=20,
+            initial_per_second_request_rate=self.initial_rate_limit,
             enforcement_window_minutes=1,
         )
 

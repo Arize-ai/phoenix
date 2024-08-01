@@ -19,8 +19,7 @@ class VertexAIModel(BaseModel):
     An interface for using Google's VertexAI models.
 
     This class wraps the Google's VertexAI SDK library for using the VertexAI models for Phoenix
-    LLM evaluations. Calls to the the VertexAI models dynamically throttled when encountering rate
-    limit errors. Requires the `google-cloud-aiplatform` package to be installed.
+    LLM evaluations. Requires the `google-cloud-aiplatform` package to be installed.
 
     Supports Async: ❌
         This model wrapper does not support async LLM calls.

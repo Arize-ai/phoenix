@@ -48,6 +48,9 @@ class GeminiModel(BaseModel):
             defaults to us-central-1. Defaults to None.
         credentials (Optional[Credentials], optional): The credentials to use when making API
             calls. Defaults to None.
+        initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
+            per second for making LLM calls. This limit adjusts dynamically based on rate
+            limit errors. Defaults to 5.
 
     Example:
         .. code-block:: python
@@ -63,26 +66,18 @@ class GeminiModel(BaseModel):
 
     # The vertex SDK runs into connection pool limits at high concurrency
     project: Optional[str] = None
-    "project (str): The default project to use when making API calls."
     location: Optional[str] = None
-    "location (str): The default location to use when making API calls. If not "
-    "set defaults to us-central-1."
     credentials: Optional["Credentials"] = None
 
     default_concurrency: int = 5
 
     model: str = "gemini-pro"
-    """The model name to use."""
     temperature: float = 0.0
-    """What sampling temperature to use."""
     max_tokens: int = 256
-    """The maximum number of tokens to generate in the completion."""
     top_p: float = 1
-    """Total probability mass of tokens to consider at each step."""
     top_k: int = 32
-    """The cutoff where the model no longer selects the words"""
     stop_sequences: List[str] = field(default_factory=list)
-    """If the model encounters a stop sequence, it stops generating further tokens. """
+    initial_rate_limit: int = 5
 
     def __post_init__(self) -> None:
         self._init_client()
@@ -118,8 +113,7 @@ class GeminiModel(BaseModel):
         self._rate_limiter = RateLimiter(
             rate_limit_error=self._gcp_exceptions.ResourceExhausted,
             max_rate_limit_retries=10,
-            initial_per_second_request_rate=1,
-            maximum_per_second_request_rate=20,
+            initial_per_second_request_rate=self.initial_rate_limit,
             enforcement_window_minutes=1,
         )
 

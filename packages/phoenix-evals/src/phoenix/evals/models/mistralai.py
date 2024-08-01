@@ -39,6 +39,9 @@ class MistralAIModel(BaseModel):
             response. Defaults to None.
         safe_mode (bool, optional): Whether to use safe mode. Defaults to False.
         safe_prompt (bool, optional): Whether to use safe prompt. Defaults to False.
+        initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
+            per second for making LLM calls. This limit adjusts dynamically based on rate
+            limit errors. Defaults to 5.
 
     Example:
         .. code-block:: python
@@ -57,6 +60,7 @@ class MistralAIModel(BaseModel):
     response_format: Optional[Dict[str, str]] = None
     safe_mode: bool = False
     safe_prompt: bool = False
+    initial_rate_limit: int = 5
 
     def __post_init__(self) -> None:
         self._init_client()
@@ -86,8 +90,7 @@ class MistralAIModel(BaseModel):
         self._rate_limiter = RateLimiter(
             rate_limit_error=MistralRateLimitError,
             max_rate_limit_retries=10,
-            initial_per_second_request_rate=1,
-            maximum_per_second_request_rate=20,
+            initial_per_second_request_rate=self.initial_rate_limit,
             enforcement_window_minutes=1,
         )
 
