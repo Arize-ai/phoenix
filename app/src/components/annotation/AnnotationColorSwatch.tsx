@@ -1,8 +1,7 @@
 import React from "react";
 
+import { ColorSwatch } from "@phoenix/components/ColorSwatch";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
-
-import { ColorSwatch } from "../ColorSwatch";
 
 export function AnnotationColorSwatch({
   annotationName,
