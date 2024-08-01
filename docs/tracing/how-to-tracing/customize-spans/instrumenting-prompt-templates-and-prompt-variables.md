@@ -1,6 +1,6 @@
 # Instrumenting Prompt Templates and Prompt Variables
 
-By instrumenting the prompt template, users can take advantage of Arize prompt playground to it's fullest. You don't need to deploy in order to see if prompt text or prompt variables changes have the intended effect. Instead, you can experiment with these changes in playground, to make sure the right changes are acceptable before deployment.
+Instrumenting prompt templates and variables allows you to track and visualize prompt changes. These can also be combined with [Experiments](../../../datasets-and-experiments/how-to-experiments/run-experiments.md) to measure the performance changes driven by each of your prompts.
 
 {% tabs %}
 {% tab title="Python" %}
