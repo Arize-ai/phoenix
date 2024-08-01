@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8d4bbc077e978ba841e4de75aff8ad6c>>
+ * @generated SignedSource<<7bd3b66f032d694c40dd872253a11b40>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,6 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Query } from 'relay-runtime';
+export type AnnotatorKind = "HUMAN" | "LLM";
 export type EditSpanAnnotationsDialogNewAnnotationQuery$variables = {
   projectId: string;
   spanId: string;
@@ -21,6 +22,7 @@ export type EditSpanAnnotationsDialogNewAnnotationQuery$data = {
   readonly span: {
     readonly id: string;
     readonly spanAnnotations?: ReadonlyArray<{
+      readonly annotatorKind: AnnotatorKind;
       readonly id: string;
       readonly name: string;
     }>;
@@ -96,6 +98,13 @@ v5 = {
           "args": null,
           "kind": "ScalarField",
           "name": "name",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "annotatorKind",
           "storageKey": null
         }
       ],
@@ -186,16 +195,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c27b51c4efeddd745d11b03ac3704a87",
+    "cacheID": "4aa13fbe70360943615a8ff4d4b2a06f",
     "id": null,
     "metadata": {},
     "name": "EditSpanAnnotationsDialogNewAnnotationQuery",
     "operationKind": "query",
-    "text": "query EditSpanAnnotationsDialogNewAnnotationQuery(\n  $projectId: GlobalID!\n  $spanId: GlobalID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    id\n    ... on Project {\n      spanAnnotationNames\n    }\n  }\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      spanAnnotations {\n        id\n        name\n      }\n    }\n  }\n}\n"
+    "text": "query EditSpanAnnotationsDialogNewAnnotationQuery(\n  $projectId: GlobalID!\n  $spanId: GlobalID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    id\n    ... on Project {\n      spanAnnotationNames\n    }\n  }\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      spanAnnotations {\n        id\n        name\n        annotatorKind\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7498876efb347b23dc5d3a1fa0c3f2ef";
+(node as any).hash = "09b2ee5f96c0192a5618ae6c04c321ae";
 
 export default node;

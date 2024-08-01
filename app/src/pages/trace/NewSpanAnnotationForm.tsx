@@ -2,10 +2,7 @@ import React from "react";
 import { graphql, useMutation } from "react-relay";
 
 import { NewSpanAnnotationFormMutation } from "./__generated__/NewSpanAnnotationFormMutation.graphql";
-import {
-  CreateAnnotationInput,
-  SpanAnnotationForm,
-} from "./SpanAnnotationForm";
+import { AnnotationFormData, SpanAnnotationForm } from "./SpanAnnotationForm";
 
 export type NewSpanAnnotationFormProps = {
   annotationName: string;
@@ -33,7 +30,7 @@ export function NewSpanAnnotationForm(props: NewSpanAnnotationFormProps) {
       }
     `
   );
-  const onSubmit = (data: CreateAnnotationInput) => {
+  const onSubmit = (data: AnnotationFormData) => {
     commit({
       variables: {
         input: {

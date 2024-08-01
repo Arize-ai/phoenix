@@ -63,7 +63,6 @@ import {
 import { SpanKindIcon } from "@phoenix/components/trace";
 import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
 import { useNotifySuccess, useTheme } from "@phoenix/contexts";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import {
   AttributeDocument,
@@ -218,7 +217,6 @@ export function SpanDetails({
   const hasExceptions = useMemo<boolean>(() => {
     return spanHasException(span);
   }, [span]);
-  const showAnnotations = useFeatureFlag("annotations");
   const showSpanAside = usePreferencesContext((store) => store.showSpanAside);
   const setShowSpanAside = usePreferencesContext(
     (store) => store.setShowSpanAside
@@ -249,12 +247,10 @@ export function SpanDetails({
               spanId={span.context.spanId}
             />
             <AddSpanToDatasetButton span={span} />
-            {showAnnotations ? (
-              <EditSpanAnnotationsButton
-                spanNodeId={span.id}
-                projectId={projectId}
-              />
-            ) : null}
+            <EditSpanAnnotationsButton
+              spanNodeId={span.id}
+              projectId={projectId}
+            />
             <TooltipTrigger placement="top" offset={5}>
               <Button
                 variant="default"

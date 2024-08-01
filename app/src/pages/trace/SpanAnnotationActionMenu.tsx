@@ -14,6 +14,7 @@ import {
   Text,
   View,
 } from "@arizeai/components";
+import { NoticeConfig } from "@arizeai/components/dist/notification/types";
 
 import { SpanAnnotationActionMenuDeleteMutation } from "./__generated__/SpanAnnotationActionMenuDeleteMutation.graphql";
 import { AnnotationActionMenu } from "./AnnotationActionMenu";
@@ -22,8 +23,10 @@ type SpanAnnotationActionMenuProps = {
   annotationId: string;
   spanNodeId: string;
   annotationName: string;
-  onSpanAnnotationDelete: () => void;
-  onSpanAnnotationDeleteError: (error: Error) => void;
+  onSpanAnnotationActionSuccess: (
+    notifyProps: Omit<NoticeConfig, "variant">
+  ) => void;
+  onSpanAnnotationActionError: (error: Error) => void;
 };
 
 export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
@@ -31,8 +34,8 @@ export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
     annotationId,
     spanNodeId,
     annotationName,
-    onSpanAnnotationDelete,
-    onSpanAnnotationDeleteError,
+    onSpanAnnotationActionSuccess,
+    onSpanAnnotationActionError,
   } = props;
   const [confirmDialog, setConfirmDialog] = useState<ReactNode>(null);
   const [commitDelete, isCommittingDelete] =
@@ -61,10 +64,13 @@ export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
           spanId: spanNodeId,
         },
         onCompleted: () => {
-          onSpanAnnotationDelete();
+          onSpanAnnotationActionSuccess({
+            title: "Annotation Deleted",
+            message: `Annotation ${annotationName} has been deleted.`,
+          });
         },
         onError: (error) => {
-          onSpanAnnotationDeleteError(error);
+          onSpanAnnotationActionError(error);
         },
       });
     });
@@ -72,9 +78,11 @@ export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
     commitDelete,
     annotationId,
     spanNodeId,
-    onSpanAnnotationDelete,
-    onSpanAnnotationDeleteError,
+    onSpanAnnotationActionSuccess,
+    annotationName,
+    onSpanAnnotationActionError,
   ]);
+
   const onDelete = useCallback(() => {
     setConfirmDialog(
       <Dialog size="S" title="Delete Annotation">
