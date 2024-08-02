@@ -22,7 +22,16 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, View } from "@arizeai/components";
+import {
+  Content,
+  ContextualHelp,
+  Flex,
+  Heading,
+  HelpTooltip,
+  Icon,
+  Icons,
+  View,
+} from "@arizeai/components";
 
 import {
   AnnotationLabel,
@@ -258,7 +267,20 @@ export function TracesTable(props: TracesTableProps) {
 
   const annoationColumns: ColumnDef<TableRow>[] = [
     {
-      header: "feedback",
+      header: () => (
+        <Flex direction="row" gap="size-50">
+          <span>feedback</span>
+          <ContextualHelp>
+            <Heading level={3} weight="heavy">
+              Feedback
+            </Heading>
+            <Content>
+              Feedback includes evaluations and human annotations logged via the
+              API or set via the UI.
+            </Content>
+          </ContextualHelp>
+        </Flex>
+      ),
       accessorKey: "spanAnnotations",
       enableSorting: false,
       cell: ({ row }) => {
