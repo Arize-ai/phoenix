@@ -720,7 +720,7 @@ async def spans(db: DbSessionFactory) -> None:
 async def span_annotation(db):
     async with db() as session:
         span_annotation = models.SpanAnnotation(
-            span_rowid="1",
+            span_rowid=1,
             name="test annotation",
             annotator_kind="HUMAN",
             label="ambiguous",
