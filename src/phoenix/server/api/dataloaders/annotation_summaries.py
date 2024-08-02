@@ -139,7 +139,6 @@ def _get_stmt(
     stmt = stmt.group_by(name_column, label_column)
     stmt = stmt.order_by(name_column, label_column)
     stmt = stmt.where(models.Trace.project_rowid == project_rowid)
-    stmt = stmt.where(annotator_kind_column == "LLM")
     stmt = stmt.where(or_(score_column.is_not(None), label_column.is_not(None)))
     stmt = stmt.where(name_column.in_(eval_names))
     if start_time:
