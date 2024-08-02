@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.18.0...arize-phoenix-v4.19.0) (2024-08-02)
+
+
+### Features
+
+* **annotations:** show all annotations in annotation summary in project page header ([#4119](https://github.com/Arize-ai/phoenix/issues/4119)) ([5b7264e](https://github.com/Arize-ai/phoenix/commit/5b7264e57a8488457f7bfce5fbac87c6f290693f))
+
 ## [4.18.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.17.0...arize-phoenix-v4.18.0) (2024-08-02)
 
 
