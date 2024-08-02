@@ -1,5 +1,24 @@
 # Changelog
 
+## [4.18.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.17.0...arize-phoenix-v4.18.0) (2024-08-02)
+
+
+### Features
+
+* Add annotation summaries to projects ([#4108](https://github.com/Arize-ai/phoenix/issues/4108)) ([5aa79c4](https://github.com/Arize-ai/phoenix/commit/5aa79c4458289f5ce3090c26fd0fc48b67bb0745))
+* **annotations:** add ability to edit human span annotations ([#4111](https://github.com/Arize-ai/phoenix/issues/4111)) ([67cb9a2](https://github.com/Arize-ai/phoenix/commit/67cb9a238bd4bdaf5954462f1d4fbab7e97d9bfb))
+* **session:** support a slug to the seesion.view ([#4114](https://github.com/Arize-ai/phoenix/issues/4114)) ([9305f8a](https://github.com/Arize-ai/phoenix/commit/9305f8a85feb47e58aacbdee737b18211165a7de))
+
+
+### Bug Fixes
+
+* set higher lower-bound for OpenInference packages ([#4117](https://github.com/Arize-ai/phoenix/issues/4117)) ([cfcbf58](https://github.com/Arize-ai/phoenix/commit/cfcbf5837853da505653f2f1ea6e9bf95772554b))
+
+
+### Documentation
+
+* **annotations:** add a feedback tooltip ([#4116](https://github.com/Arize-ai/phoenix/issues/4116)) ([490ed44](https://github.com/Arize-ai/phoenix/commit/490ed44cc9d8c592a52a0afa834f4141587702d8))
+
 ## [4.17.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.16.1...arize-phoenix-v4.17.0) (2024-08-02)
 
 
