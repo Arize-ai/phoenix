@@ -1,6 +1,8 @@
 import React from "react";
 import { css } from "@emotion/react";
 
+import { useTheme } from "@phoenix/contexts";
+
 const ToolSVG = () => (
   <svg
     width="20"
@@ -547,44 +549,66 @@ export function SpanKindIcon({
   spanKind: string;
   variant?: "fill" | "outline";
 }) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const isFilled = variant === "fill";
   let icon = isFilled ? <UnknownFilledSVG /> : <UnknownSVG />;
-  let color = "--ac-global-color-grey-900";
+  let color = isDark
+    ? "--ac-global-color-grey-600"
+    : "--ac-global-color-grey-500";
   switch (spanKind) {
     case "llm":
-      color = "--ac-global-color-orange-1000";
+      color = isDark
+        ? "--ac-global-color-orange-1000"
+        : "--ac-global-color-orange-500";
       icon = isFilled ? <LLMFilledSVG /> : <LLMSVG />;
       break;
     case "chain":
-      color = "--ac-global-color-blue-1000";
+      color = isDark
+        ? "--ac-global-color-blue-1000"
+        : "--ac-global-color-blue-500";
       icon = isFilled ? <ChainFilledSVG /> : <ChainSVG />;
       break;
     case "retriever":
-      color = "--ac-global-color-seafoam-1000";
+      color = isDark
+        ? "--ac-global-color-seafoam-1000"
+        : "--ac-global-color-seafoam-500";
       icon = isFilled ? <RetrieverFilledSVG /> : <RetrieverSVG />;
       break;
     case "embedding":
-      color = "--ac-global-color-indigo-1000";
+      color = isDark
+        ? "--ac-global-color-indigo-1000"
+        : "--ac-global-color-indigo-500";
       icon = isFilled ? <EmbeddingFilledSVG /> : <EmbeddingSVG />;
       break;
     case "agent":
-      color = "--ac-global-text-color-900";
+      color = isDark
+        ? "--ac-global-text-color-900"
+        : "--ac-global-text-color-500";
       icon = isFilled ? <AgentFilledSVG /> : <AgentSVG />;
       break;
     case "tool":
-      color = "--ac-global-color-yellow-1200";
+      color = isDark
+        ? "--ac-global-color-yellow-1200"
+        : "--ac-global-color-yellow-500";
       icon = isFilled ? <ToolFilledSVG /> : <ToolSVG />;
       break;
     case "reranker":
-      color = "--ac-global-color-celery-1000";
+      color = isDark
+        ? "--ac-global-color-celery-1000"
+        : "--ac-global-color-celery-500";
       icon = isFilled ? <RerankerFilledSVG /> : <RerankerSVG />;
       break;
     case "evaluator":
-      color = "--ac-global-color-indigo-1000";
+      color = isDark
+        ? "--ac-global-color-indigo-1000"
+        : "--ac-global-color-indigo-500";
       icon = isFilled ? <EvaluatorFilledSVG /> : <EvaluatorSVG />;
       break;
     case "guardrail":
-      color = "--ac-global-color-fuchsia-1200";
+      color = isDark
+        ? "--ac-global-color-fuchsia-1200"
+        : "--ac-global-color-fuchsia-500";
       icon = isFilled ? <GuardrailFilledSVG /> : <GuardrailSVG />;
       break;
   }

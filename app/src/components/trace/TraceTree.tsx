@@ -1,7 +1,7 @@
-import React, { PropsWithChildren, startTransition } from "react";
+import React, { PropsWithChildren, startTransition, useState } from "react";
 import { css } from "@emotion/react";
 
-import { Flex, Text, View } from "@arizeai/components";
+import { classNames, Flex, Icon, Icons } from "@arizeai/components";
 
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 
@@ -17,16 +17,21 @@ type TraceTreeProps = {
   selectedSpanNodeId: string;
 };
 
+/**
+ * The amount of padding to add to the left of the span item for each level of nesting.
+ */
+const NESTING_INDENT = 30;
+
 export function TraceTree(props: TraceTreeProps) {
   const { spans, onSpanClick, selectedSpanNodeId } = props;
   const spanTree = createSpanTree(spans);
   return (
     <ul
-      css={(theme) => css`
-        margin: ${theme.spacing.margin16}px;
+      css={css`
         display: flex;
         flex-direction: column;
-        gap: ${theme.spacing.padding8}px;
+        width: 100%;
+        min-width: 300px;
       `}
     >
       {spanTree.map((spanNode) => (
@@ -41,19 +46,43 @@ export function TraceTree(props: TraceTreeProps) {
   );
 }
 
+const spanNameCSS = css`
+  font-weight: 500;
+  color: var(--ac-global-text-color-900);
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
 function SpanTreeItem<TSpan extends ISpanItem>(props: {
   node: SpanTreeNode<TSpan>;
   selectedSpanNodeId: string;
   onSpanClick?: (span: ISpanItem) => void;
+  /**
+   * How deep the item is nested in the tree. Starts at 0.
+   * @default 0
+   */
+  nestingLevel?: number;
 }) {
-  const { node, selectedSpanNodeId, onSpanClick } = props;
+  const { node, selectedSpanNodeId, onSpanClick, nestingLevel = 0 } = props;
   const childNodes = node.children;
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const hasChildren = childNodes.length > 0;
+  const {
+    name,
+    latencyMs,
+    statusCode,
+    tokenCountTotal,
+    tokenCountPrompt,
+    tokenCountCompletion,
+  } = node.span;
   return (
     <div>
       <button
         className="button--reset"
         css={css`
-          min-width: var(--ac-global-dimension-static-size-4600);
+          width: 100%;
           cursor: pointer;
         `}
         onClick={() => {
@@ -62,26 +91,53 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
           });
         }}
       >
-        <SpanNodeWrap isSelected={selectedSpanNodeId === node.span.id}>
+        <SpanNodeWrap
+          isSelected={selectedSpanNodeId === node.span.id}
+          nestingLevel={nestingLevel}
+        >
           <Flex
             direction="row"
             gap="size-100"
             justifyContent="start"
             alignItems="center"
+            flex="1 1 auto"
+            minWidth={0}
           >
             <SpanKindIcon spanKind={node.span.spanKind} />
-            <SpanItem {...node.span} />
+            <span css={spanNameCSS} title={name}>
+              {name}
+            </span>
+            {statusCode === "ERROR" ? (
+              <SpanStatusCodeIcon statusCode="ERROR" />
+            ) : null}
+            {typeof tokenCountTotal === "number" ? (
+              <TokenCount
+                tokenCountTotal={tokenCountTotal}
+                tokenCountPrompt={tokenCountPrompt ?? 0}
+                tokenCountCompletion={tokenCountCompletion ?? 0}
+              />
+            ) : null}
+            {latencyMs === null ? null : (
+              <LatencyText latencyMs={latencyMs} showIcon={false} />
+            )}
           </Flex>
+          <div css={spanControlsCSS} data-testid="span-controls">
+            {hasChildren ? (
+              <CollapseToggleButton
+                isCollapsed={isCollapsed}
+                onClick={() => {
+                  setIsCollapsed(!isCollapsed);
+                }}
+              />
+            ) : null}
+          </div>
         </SpanNodeWrap>
       </button>
       {childNodes.length ? (
         <ul
-          css={(theme) => css`
-            margin: var(--ac-global-dimension-static-size-100) 0 0
-              var(--ac-global-dimension-static-size-600);
-            display: flex;
+          css={css`
+            display: ${isCollapsed ? "none" : "flex"};
             flex-direction: column;
-            gap: ${theme.spacing.padding8}px;
           `}
         >
           {childNodes.map((leafNode, index) => {
@@ -89,22 +145,26 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
             // after to the parent node
             const nexSibling = childNodes[index + 1];
             return (
-              <div
+              <li
                 key={leafNode.span.context.spanId}
                 css={css`
                   position: relative;
                 `}
               >
                 {nexSibling ? (
-                  <SpanTreeEdgeConnector {...nexSibling.span} />
+                  <SpanTreeEdgeConnector
+                    {...nexSibling.span}
+                    nestingLevel={nestingLevel}
+                  />
                 ) : null}
-                <SpanTreeEdge {...leafNode.span} />
+                <SpanTreeEdge {...leafNode.span} nestingLevel={nestingLevel} />
                 <SpanTreeItem
                   node={leafNode}
                   onSpanClick={onSpanClick}
                   selectedSpanNodeId={selectedSpanNodeId}
+                  nestingLevel={nestingLevel + 1}
                 />
-              </div>
+              </li>
             );
           })}
         </ul>
@@ -113,26 +173,32 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
   );
 }
 
-function SpanNodeWrap(props: PropsWithChildren<{ isSelected: boolean }>) {
+function SpanNodeWrap(
+  props: PropsWithChildren<{ isSelected: boolean; nestingLevel: number }>
+) {
   return (
     <div
       className={props.isSelected ? "is-selected" : ""}
       css={css`
-        border-radius: var(--ac-global-dimension-static-size-150);
-        background-color: var(--ac-global-color-grey-200);
-        padding: var(--ac-global-dimension-static-size-50)
-          var(--ac-global-dimension-static-size-200)
-          var(--ac-global-dimension-static-size-50)
-          var(--ac-global-dimension-static-size-200);
-        border-width: var(--ac-global-dimension-static-size-10);
-        border-style: solid;
-        border-color: var(--ac-global-color-grey-300);
+        width: 100%;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        gap: var(--ac-global-dimension-static-size-100);
+        padding-right: var(--ac-global-dimension-static-size-100);
+        padding-top: var(--ac-global-dimension-static-size-100);
+        padding-bottom: var(--ac-global-dimension-static-size-100);
+        border-left: 4px solid transparent;
+        box-sizing: border-box;
         &:hover {
-          border-color: var(--ac-global-color-grey-400);
-          background-color: var(--ac-global-color-grey-300);
+          background-color: var(--ac-global-color-grey-200);
         }
         &.is-selected {
+          background-color: var(--ac-global-color-primary-300);
           border-color: var(--ac-global-color-primary);
+        }
+        & > *:first-child {
+          margin-left: ${props.nestingLevel * NESTING_INDENT + 16}px;
         }
       `}
     >
@@ -146,8 +212,10 @@ function SpanNodeWrap(props: PropsWithChildren<{ isSelected: boolean }>) {
  */
 function SpanTreeEdgeConnector({
   statusCode,
+  nestingLevel,
 }: {
   statusCode: SpanStatusCodeType;
+  nestingLevel: number;
 }) {
   return (
     <div
@@ -158,17 +226,24 @@ function SpanTreeEdgeConnector({
         border-left: 1px solid
           ${statusCode === "ERROR"
             ? theme.colors.statusDanger
-            : "rgb(204, 204, 204)"};
+            : "var(--ac-global-color-grey-700)"};
         top: 0;
-        left: -22px;
+        left: ${nestingLevel * NESTING_INDENT + 29}px;
         width: 42px;
         bottom: 0;
+        z-index: 1;
       `}
     ></div>
   );
 }
 
-function SpanTreeEdge({ statusCode }: { statusCode: SpanStatusCodeType }) {
+function SpanTreeEdge({
+  nestingLevel,
+  statusCode,
+}: {
+  statusCode: SpanStatusCodeType;
+  nestingLevel: number;
+}) {
   return (
     <div
       aria-hidden="true"
@@ -176,71 +251,70 @@ function SpanTreeEdge({ statusCode }: { statusCode: SpanStatusCodeType }) {
         const color =
           statusCode === "ERROR"
             ? theme.colors.statusDanger
-            : "rgb(204, 204, 204)";
+            : "var(--ac-global-color-grey-700)";
         return css`
           position: absolute;
           border-left: 1px solid ${color};
           border-bottom: 1px solid ${color};
-          border-radius: 0 0 0 var(--ac-global-dimension-static-size-150);
-          top: -24px;
-          left: -22px;
-          width: 38px;
-          height: 48px;
+          border-radius: 0 0 0 11px;
+          top: -5px;
+          left: ${nestingLevel * NESTING_INDENT + 29}px;
+          width: 15px;
+          height: 24px;
         `;
       }}
     ></div>
   );
 }
 
-interface SpanItemProps {
-  name: string;
-  spanKind: string;
-  latencyMs: number | null;
-  statusCode: SpanStatusCodeType;
-  tokenCountTotal?: number | null;
-  tokenCountPrompt?: number | null;
-  tokenCountCompletion?: number | null;
-}
+const spanControlsCSS = css`
+  width: 20px;
+  flex: none;
+`;
 
-export function SpanItem(props: SpanItemProps) {
-  const {
-    name,
-    latencyMs,
-    statusCode,
-    tokenCountTotal,
-    tokenCountPrompt,
-    tokenCountCompletion,
-  } = props;
+const collapseButtonCSS = css`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--ac-global-text-color-900);
+  border-radius: 4px;
+  transition: transform 0.2s;
+  transition: background-color 0.5s;
+  flex: none;
+  background-color: rgba(0, 0, 0, 0.1);
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.3);
+  }
+  &.is-collapsed {
+    transform: rotate(-90deg);
+  }
+`;
+
+function CollapseToggleButton({
+  isCollapsed,
+  onClick,
+}: {
+  isCollapsed: boolean;
+  onClick: () => void;
+}) {
   return (
-    <View height="size-500" width="100%">
-      <Flex
-        direction="row"
-        gap="size-150"
-        width="100%"
-        height="100%"
-        alignItems="center"
-      >
-        <View flex="1 1 auto">
-          <div
-            css={css`
-              float: left;
-            `}
-          >
-            <Text>{name}</Text>
-          </div>
-        </View>
-        {typeof tokenCountTotal === "number" ? (
-          <TokenCount
-            tokenCountTotal={tokenCountTotal}
-            tokenCountPrompt={tokenCountPrompt ?? 0}
-            tokenCountCompletion={tokenCountCompletion ?? 0}
-          />
-        ) : null}
-        {latencyMs === null ? null : <LatencyText latencyMs={latencyMs} />}
-        {statusCode === "ERROR" ? (
-          <SpanStatusCodeIcon statusCode="ERROR" />
-        ) : null}
-      </Flex>
-    </View>
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onClick();
+      }}
+      className={classNames("button--reset", {
+        "is-collapsed": isCollapsed,
+      })}
+      css={collapseButtonCSS}
+    >
+      <Icon svg={<Icons.ArrowIosDownwardOutline />} />
+    </button>
   );
 }
