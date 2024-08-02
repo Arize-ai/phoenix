@@ -6,7 +6,7 @@ description: Inspect the inner-workings of your LLM Application using OpenInfere
 
 ## Overview
 
-Tracing is a powerful tool for understanding the behavior of your LLM application. Phoenix has best-in-class tracing, irregardless of what framework you use and has first-class instrumentation for a variety of frameworks ( [LlamaIndex](how-to-tracing/instrumentation/auto-instrument-python/llamaindex.md), [LangChain](how-to-tracing/instrumentation/auto-instrument-python/langchain.md),[ DSPy](how-to-tracing/instrumentation/auto-instrument-python/dspy.md)),  SDKs ([OpenAI](how-to-tracing/instrumentation/auto-instrument-python/openai.md), [Bedrock](how-to-tracing/instrumentation/auto-instrument-python/bedrock.md), [Mistral](how-to-tracing/instrumentation/auto-instrument-python/mistralai.md), [Vertex](how-to-tracing/instrumentation/auto-instrument-python/vertexai.md)), and Languages (Python, Javascript). You can also [manually instrument](how-to-tracing/manual-instrumentation/) your application using the OpenTelemetry SDK.
+Tracing is a powerful tool for understanding the behavior of your LLM application. Phoenix has best-in-class tracing, irregardless of what framework you use and has first-class instrumentation for a variety of frameworks ( [LlamaIndex](integrations-tracing/llamaindex.md), [LangChain](integrations-tracing/langchain.md),[ DSPy](integrations-tracing/dspy.md)),  SDKs ([OpenAI](integrations-tracing/openai.md), [Bedrock](integrations-tracing/bedrock.md), [Mistral](integrations-tracing/mistralai.md), [Vertex](integrations-tracing/vertexai.md)), and Languages (Python, Javascript). You can also [manually instrument](how-to-tracing/manual-instrumentation/) your application using the OpenTelemetry SDK.
 
 To get started with traces, you will first want to start a local Phoenix app. Below we will explore how to use Phoenix in a notebook but you can [deploy phoenix ](../deployment/) once you are ready for a persistent observability platform.
 
@@ -103,7 +103,7 @@ query_engine.query("How can I deploy Arize?")
 px.active_session().url
 ```
 
-See the [LlamaIndex](how-to-tracing/instrumentation/auto-instrument-python/llamaindex.md) for the full details as well as support for older versions of LlamaIndex
+See the [LlamaIndex](integrations-tracing/llamaindex.md) for the full details as well as support for older versions of LlamaIndex
 {% endtab %}
 
 {% tab title="LangChain" %}
@@ -169,7 +169,7 @@ rag_chain = (
 response = rag_chain.invoke("What is Task Decomposition?")
 ```
 
-See the [integration guide](how-to-tracing/instrumentation/auto-instrument-python/langchain.md#traces) for details
+See the [integration guide](integrations-tracing/langchain.md#traces) for details
 {% endtab %}
 
 {% tab title="OpenAI" %}

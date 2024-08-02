@@ -33,17 +33,17 @@ Use auto-instrumentation to export traces for common frameworks and libraries
 
 ### Auto Instrument: Python
 
-* [Instrument LlamaIndex](instrumentation/auto-instrument-python/llamaindex.md)
-* [Instrument LangChain](instrumentation/auto-instrument-python/langchain.md)
-* [Instrument OpenAI](instrumentation/auto-instrument-python/dspy.md)
-* [Instrument DSPy](instrumentation/auto-instrument-python/dspy.md)
-* [Instrument AWS Bedrock](instrumentation/auto-instrument-python/bedrock.md)
-* [Instrument AutoGen](instrumentation/auto-instrument-python/autogen-support.md)
+* [Instrument LlamaIndex](../integrations-tracing/llamaindex.md)
+* [Instrument LangChain](../integrations-tracing/langchain.md)
+* [Instrument OpenAI](../integrations-tracing/dspy.md)
+* [Instrument DSPy](../integrations-tracing/dspy.md)
+* [Instrument AWS Bedrock](../integrations-tracing/bedrock.md)
+* [Instrument AutoGen](../integrations-tracing/autogen-support.md)
 
 ### Auto Instrument: TypeScript
 
-* [Instrument OpenAI Node SDK](instrumentation/auto-instrument-ts/openai-node-sdk.md)
-* [Instrument LangChain.js](instrumentation/auto-instrument-ts/langchain.js.md)
+* [Instrument OpenAI Node SDK](../integrations-tracing/openai-node-sdk.md)
+* [Instrument LangChain.js](../integrations-tracing/langchain.js.md)
 
 ## [Manual Instrumentation](./#manual-instrumentation)
 
