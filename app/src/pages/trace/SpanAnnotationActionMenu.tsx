@@ -5,6 +5,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, useMutation } from "react-relay";
+import { useParams } from "react-router";
 
 import {
   Button,
@@ -15,6 +16,8 @@ import {
   View,
 } from "@arizeai/components";
 import { NoticeConfig } from "@arizeai/components/dist/notification/types";
+
+import { useLastNTimeRange } from "@phoenix/components/datetime";
 
 import { SpanAnnotationActionMenuDeleteMutation } from "./__generated__/SpanAnnotationActionMenuDeleteMutation.graphql";
 import { AnnotationActionMenu } from "./AnnotationActionMenu";
@@ -38,15 +41,28 @@ export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
     onSpanAnnotationActionError,
   } = props;
   const [confirmDialog, setConfirmDialog] = useState<ReactNode>(null);
+  const { projectId } = useParams();
+  const { timeRange } = useLastNTimeRange();
   const [commitDelete, isCommittingDelete] =
     useMutation<SpanAnnotationActionMenuDeleteMutation>(graphql`
       mutation SpanAnnotationActionMenuDeleteMutation(
         $annotationId: GlobalID!
         $spanId: GlobalID!
+        $annotationName: String!
+        $projectId: GlobalID!
+        $timeRange: TimeRange!
       ) {
         deleteSpanAnnotations(input: { annotationIds: [$annotationId] }) {
           query {
-            node(id: $spanId) {
+            project: node(id: $projectId) {
+              ...ProjectPageHeader_stats
+              ...AnnotationSummaryValueFragment
+                @arguments(
+                  annotationName: $annotationName
+                  timeRange: $timeRange
+                )
+            }
+            span: node(id: $spanId) {
               ... on Span {
                 ...EditSpanAnnotationsDialog_spanAnnotations
               }
@@ -62,6 +78,12 @@ export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
         variables: {
           annotationId,
           spanId: spanNodeId,
+          projectId: projectId as string,
+          annotationName,
+          timeRange: {
+            start: timeRange.start.toISOString(),
+            end: timeRange.end.toISOString(),
+          },
         },
         onCompleted: () => {
           onSpanAnnotationActionSuccess({
@@ -78,6 +100,9 @@ export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
     commitDelete,
     annotationId,
     spanNodeId,
+    projectId,
+    timeRange.start,
+    timeRange.end,
     onSpanAnnotationActionSuccess,
     annotationName,
     onSpanAnnotationActionError,

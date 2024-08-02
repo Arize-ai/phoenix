@@ -11,6 +11,7 @@ import {
   useMutation,
   useRefetchableFragment,
 } from "react-relay";
+import { useParams } from "react-router";
 import { css } from "@emotion/react";
 
 import {
@@ -29,6 +30,7 @@ import {
   View,
 } from "@arizeai/components";
 
+import { useLastNTimeRange } from "@phoenix/components/datetime";
 import { Empty } from "@phoenix/components/Empty";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
@@ -299,6 +301,9 @@ function SpanAnnotationCard(props: {
   spanNodeId: string;
 }) {
   const { annotation, spanNodeId } = props;
+  const { projectId } = useParams();
+
+  const { timeRange } = useLastNTimeRange();
   const [error, setError] = useState<Error | null>(null);
   const notifySuccess = useNotifySuccess();
 
@@ -306,8 +311,10 @@ function SpanAnnotationCard(props: {
     useMutation<EditSpanAnnotationsDialogEditAnnotationMutation>(graphql`
       mutation EditSpanAnnotationsDialogEditAnnotationMutation(
         $spanId: GlobalID!
+        $projectId: GlobalID!
+        $timeRange: TimeRange!
         $annotationId: GlobalID!
-        $name: String
+        $name: String!
         $label: String
         $score: Float
         $explanation: String
@@ -325,7 +332,11 @@ function SpanAnnotationCard(props: {
           ]
         ) {
           query {
-            node(id: $spanId) {
+            project: node(id: $projectId) {
+              ...AnnotationSummaryValueFragment
+                @arguments(annotationName: $name, timeRange: $timeRange)
+            }
+            span: node(id: $spanId) {
               ... on Span {
                 ...EditSpanAnnotationsDialog_spanAnnotations
               }
@@ -342,6 +353,11 @@ function SpanAnnotationCard(props: {
           variables: {
             annotationId: annotation.id,
             spanId: spanNodeId,
+            projectId: projectId as string,
+            timeRange: {
+              start: timeRange.start.toISOString(),
+              end: timeRange.end.toISOString(),
+            },
             ...data,
           },
           onCompleted: () => {
@@ -356,7 +372,16 @@ function SpanAnnotationCard(props: {
         });
       });
     },
-    [annotation.id, annotation.name, commitEdit, notifySuccess, spanNodeId]
+    [
+      annotation.id,
+      annotation.name,
+      commitEdit,
+      notifySuccess,
+      projectId,
+      spanNodeId,
+      timeRange.end,
+      timeRange.start,
+    ]
   );
   return (
     <Card
