@@ -74,7 +74,7 @@ export function SpanAside(props: { span: SpanAside_span$key }) {
       borderColor="dark"
       backgroundColor="dark"
       borderLeftWidth="thin"
-      width="210px"
+      width="230px"
       flex="none"
       minHeight="100%"
     >
