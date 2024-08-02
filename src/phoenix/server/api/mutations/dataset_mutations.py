@@ -181,7 +181,7 @@ class DatasetMutationMixin:
                     "score": annotation.score,
                     "explanation": annotation.explanation,
                     "metadata": annotation.metadata_,
-                    "kind": annotation.annotator_kind,
+                    "annotator_kind": annotation.annotator_kind,
                 }
 
             DatasetExample = models.DatasetExample
