@@ -1,5 +1,19 @@
 # Changelog
 
+## [4.17.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.16.1...arize-phoenix-v4.17.0) (2024-08-02)
+
+
+### Features
+
+* **annotations:** add feedback column to spans / traces tables with all annotations ([#4100](https://github.com/Arize-ai/phoenix/issues/4100)) ([193b309](https://github.com/Arize-ai/phoenix/commit/193b30913db6b9a331623c24c6788a725422762c))
+* **annotations:** update RetrievalEvaluationLabel styles to match AnnotationLabel ([#4101](https://github.com/Arize-ai/phoenix/issues/4101)) ([eef32df](https://github.com/Arize-ai/phoenix/commit/eef32dfe119adcf3218ad72c31d1463d562a7efe))
+* **ui:** condensed trace tree ([#4099](https://github.com/Arize-ai/phoenix/issues/4099)) ([548f685](https://github.com/Arize-ai/phoenix/commit/548f685c50f36b8caef7df8b17fefb61f6bbce48))
+
+
+### Bug Fixes
+
+* color for span aside ([#4093](https://github.com/Arize-ai/phoenix/issues/4093)) ([83c9840](https://github.com/Arize-ai/phoenix/commit/83c984099f81dccb1ab82afc98c2211ca6d8931f))
+
 ## [4.16.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v4.16.0...arize-phoenix-v4.16.1) (2024-07-31)
 
 
