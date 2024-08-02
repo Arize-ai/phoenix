@@ -246,7 +246,7 @@ class Session(TraceDataExtractor, ABC):
         self.exported_data.add(files)
         return self.exported_data
 
-    def view(self, *, height: int = 1000, slug: Optional[str] = "") -> "IFrame":
+    def view(self, *, height: int = 1000, slug: str = "") -> "IFrame":
         """View the session in a notebook embedded iFrame.
 
         Args:
