@@ -1,6 +1,7 @@
 # Table of contents
 
 * [Arize Phoenix](README.md)
+* [Quickstart](quickstart.md)
 * [Hosted Phoenix](hosted-phoenix.md)
 * [User Guide](user-guide.md)
 * [Examples](notebooks.md)
