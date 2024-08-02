@@ -308,7 +308,7 @@ async def test_add_span_to_dataset(
                                                 "score": 0.5,
                                                 "explanation": "meaningful words",
                                                 "metadata": {},
-                                                "kind": "HUMAN",
+                                                "annotator_kind": "HUMAN",
                                             }
                                         },
                                     },

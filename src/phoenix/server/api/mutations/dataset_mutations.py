@@ -171,7 +171,7 @@ class DatasetMutationMixin:
                 )
             ).all()
 
-            span_annotations_by_span = {span.id: {} for span in spans}
+            span_annotations_by_span: Dict[int, Dict[Any, Any]] = {span.id: {} for span in spans}
             for annotation in span_annotations:
                 span_id = annotation.span_rowid
                 if span_id not in span_annotations_by_span:
