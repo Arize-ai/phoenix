@@ -22,6 +22,7 @@ from typing import (
     Set,
     Union,
 )
+from urllib.parse import urljoin
 
 import pandas as pd
 
@@ -245,17 +246,19 @@ class Session(TraceDataExtractor, ABC):
         self.exported_data.add(files)
         return self.exported_data
 
-    def view(self, height: int = 1000) -> "IFrame":
-        """
-        Returns an IFrame that can be displayed in a notebook to view the app.
+    def view(self, *, height: int = 1000, slug: str = "") -> "IFrame":
+        """View the session in a notebook embedded iFrame.
 
-        Parameters
-        ----------
-        height : int, optional
-            The height of the IFrame in pixels. Defaults to 1000.
+        Args:
+            slug (str, optional): the path of the app to view
+            height (int, optional): the height of the iFrame in px. Defaults to 1000.
+
+        Returns:
+            IFrame: the iFrame will be rendered in the notebook
         """
+        url_to_view = urljoin(self.url, slug)
         print(f"📺 Opening a view to the Phoenix app. The app is running at {self.url}")
-        return IFrame(src=self.url, width="100%", height=height)
+        return IFrame(src=url_to_view, width="100%", height=height)
 
     @property
     def url(self) -> str:
