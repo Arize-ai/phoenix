@@ -246,17 +246,17 @@ class Session(TraceDataExtractor, ABC):
         self.exported_data.add(files)
         return self.exported_data
 
-    def view(self, *, height: int = 1000, slug: Optional[str]) -> "IFrame":
+    def view(self, *, height: int = 1000, slug: Optional[str] = "") -> "IFrame":
         """View the session in a notebook embedded iFrame.
 
         Args:
-            slug (Optional[str]): the path of the app to view
+            slug (str, optional): the path of the app to view
             height (int, optional): the height of the iFrame in px. Defaults to 1000.
 
         Returns:
             IFrame: the iFrame will be rendered in the notebook
         """
-        url_to_view = urljoin(self.url, f"{slug}")
+        url_to_view = urljoin(self.url, slug)
         print(f"📺 Opening a view to the Phoenix app. The app is running at {self.url}")
         return IFrame(src=url_to_view, width="100%", height=height)
 
