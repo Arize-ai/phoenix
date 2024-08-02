@@ -27,7 +27,6 @@ import {
   ContextualHelp,
   Flex,
   Heading,
-  HelpTooltip,
   Icon,
   Icons,
   View,
