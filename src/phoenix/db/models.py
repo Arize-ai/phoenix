@@ -621,7 +621,7 @@ class ExperimentRunAnnotation(Base):
 class UserRoles(Base):
     __tablename__ = "user_roles"
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(unique=True)
+    role: Mapped[str] = mapped_column(unique=True)
 
 
 class Users(Base):
