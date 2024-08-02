@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ad54b001e451b69fc84ac260b72ba78e>>
+ * @generated SignedSource<<35d6602bb5de9673d6051e8435624b27>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,30 +10,30 @@
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type EvaluationSummaryValueFragment$data = {
+export type AnnotationSummaryValueFragment$data = {
   readonly id: string;
-  readonly spanEvaluationSummary: {
+  readonly spanAnnotationSummary: {
     readonly labelFractions: ReadonlyArray<{
       readonly fraction: number;
       readonly label: string;
     }>;
     readonly meanScore: number | null;
   } | null;
-  readonly " $fragmentType": "EvaluationSummaryValueFragment";
+  readonly " $fragmentType": "AnnotationSummaryValueFragment";
 };
-export type EvaluationSummaryValueFragment$key = {
-  readonly " $data"?: EvaluationSummaryValueFragment$data;
-  readonly " $fragmentSpreads": FragmentRefs<"EvaluationSummaryValueFragment">;
+export type AnnotationSummaryValueFragment$key = {
+  readonly " $data"?: AnnotationSummaryValueFragment$data;
+  readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryValueFragment">;
 };
 
-import EvaluationSummaryValueQuery_graphql from './EvaluationSummaryValueQuery.graphql';
+import AnnotationSummaryValueQuery_graphql from './AnnotationSummaryValueQuery.graphql';
 
 const node: ReaderFragment = {
   "argumentDefinitions": [
     {
       "defaultValue": null,
       "kind": "LocalArgument",
-      "name": "evaluationName"
+      "name": "annotationName"
     },
     {
       "defaultValue": null,
@@ -48,22 +48,22 @@ const node: ReaderFragment = {
       "fragmentPathInResult": [
         "node"
       ],
-      "operation": EvaluationSummaryValueQuery_graphql,
+      "operation": AnnotationSummaryValueQuery_graphql,
       "identifierInfo": {
         "identifierField": "id",
         "identifierQueryVariableName": "id"
       }
     }
   },
-  "name": "EvaluationSummaryValueFragment",
+  "name": "AnnotationSummaryValueFragment",
   "selections": [
     {
       "alias": null,
       "args": [
         {
           "kind": "Variable",
-          "name": "evaluationName",
-          "variableName": "evaluationName"
+          "name": "annotationName",
+          "variableName": "annotationName"
         },
         {
           "kind": "Variable",
@@ -71,9 +71,9 @@ const node: ReaderFragment = {
           "variableName": "timeRange"
         }
       ],
-      "concreteType": "EvaluationSummary",
+      "concreteType": "AnnotationSummary",
       "kind": "LinkedField",
-      "name": "spanEvaluationSummary",
+      "name": "spanAnnotationSummary",
       "plural": false,
       "selections": [
         {
@@ -123,6 +123,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "ba0ee13567d5484ec0697c50e1a77bfa";
+(node as any).hash = "0a8e190e4d87acc87c161366f330e3af";
 
 export default node;

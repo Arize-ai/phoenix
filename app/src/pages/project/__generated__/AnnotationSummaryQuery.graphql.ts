@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a7518772004a5a0845c2119739ee0630>>
+ * @generated SignedSource<<35ab69200dbdc374e3698d70d0ef556f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,26 +14,26 @@ export type TimeRange = {
   end: string;
   start: string;
 };
-export type EvaluationSummaryQuery$variables = {
-  evaluationName: string;
+export type AnnotationSummaryQuery$variables = {
+  annotationName: string;
   id: string;
   timeRange: TimeRange;
 };
-export type EvaluationSummaryQuery$data = {
+export type AnnotationSummaryQuery$data = {
   readonly project: {
-    readonly " $fragmentSpreads": FragmentRefs<"EvaluationSummaryValueFragment">;
+    readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryValueFragment">;
   };
 };
-export type EvaluationSummaryQuery = {
-  response: EvaluationSummaryQuery$data;
-  variables: EvaluationSummaryQuery$variables;
+export type AnnotationSummaryQuery = {
+  response: AnnotationSummaryQuery$data;
+  variables: AnnotationSummaryQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
 var v0 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "evaluationName"
+  "name": "annotationName"
 },
 v1 = {
   "defaultValue": null,
@@ -55,8 +55,8 @@ v3 = [
 v4 = [
   {
     "kind": "Variable",
-    "name": "evaluationName",
-    "variableName": "evaluationName"
+    "name": "annotationName",
+    "variableName": "annotationName"
   },
   {
     "kind": "Variable",
@@ -73,7 +73,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "EvaluationSummaryQuery",
+    "name": "AnnotationSummaryQuery",
     "selections": [
       {
         "alias": "project",
@@ -86,7 +86,7 @@ return {
           {
             "args": (v4/*: any*/),
             "kind": "FragmentSpread",
-            "name": "EvaluationSummaryValueFragment"
+            "name": "AnnotationSummaryValueFragment"
           }
         ],
         "storageKey": null
@@ -103,7 +103,7 @@ return {
       (v2/*: any*/)
     ],
     "kind": "Operation",
-    "name": "EvaluationSummaryQuery",
+    "name": "AnnotationSummaryQuery",
     "selections": [
       {
         "alias": "project",
@@ -137,9 +137,9 @@ return {
               {
                 "alias": null,
                 "args": (v4/*: any*/),
-                "concreteType": "EvaluationSummary",
+                "concreteType": "AnnotationSummary",
                 "kind": "LinkedField",
-                "name": "spanEvaluationSummary",
+                "name": "spanAnnotationSummary",
                 "plural": false,
                 "selections": [
                   {
@@ -187,16 +187,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "df512af7fecec8c6f2731f53f703b0f4",
+    "cacheID": "88dfad5d25db7e03286a789f3ba37c75",
     "id": null,
     "metadata": {},
-    "name": "EvaluationSummaryQuery",
+    "name": "AnnotationSummaryQuery",
     "operationKind": "query",
-    "text": "query EvaluationSummaryQuery(\n  $id: GlobalID!\n  $evaluationName: String!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...EvaluationSummaryValueFragment_1dJL9N\n    __isNode: __typename\n    id\n  }\n}\n\nfragment EvaluationSummaryValueFragment_1dJL9N on Project {\n  spanEvaluationSummary(evaluationName: $evaluationName, timeRange: $timeRange) {\n    labelFractions {\n      label\n      fraction\n    }\n    meanScore\n  }\n  id\n}\n"
+    "text": "query AnnotationSummaryQuery(\n  $id: GlobalID!\n  $annotationName: String!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...AnnotationSummaryValueFragment_4BTVrq\n    __isNode: __typename\n    id\n  }\n}\n\nfragment AnnotationSummaryValueFragment_4BTVrq on Project {\n  spanAnnotationSummary(annotationName: $annotationName, timeRange: $timeRange) {\n    labelFractions {\n      label\n      fraction\n    }\n    meanScore\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6947c95234456d6fef0b4f148b6ae42c";
+(node as any).hash = "6a15ba35fe9e1e35aa4c517ab6309a2b";
 
 export default node;

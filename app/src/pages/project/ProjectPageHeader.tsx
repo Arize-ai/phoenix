@@ -10,8 +10,8 @@ import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { ProjectPageHeader_stats$key } from "./__generated__/ProjectPageHeader_stats.graphql";
 import { ProjectPageHeaderQuery } from "./__generated__/ProjectPageHeaderQuery.graphql";
+import { AnnotationSummary } from "./AnnotationSummary";
 import { DocumentEvaluationSummary } from "./DocumentEvaluationSummary";
-import { EvaluationSummary } from "./EvaluationSummary";
 
 export function ProjectPageHeader(props: {
   project: ProjectPageHeader_stats$key;
@@ -39,7 +39,7 @@ export function ProjectPageHeader(props: {
           probability: 0.99
           timeRange: $timeRange
         )
-        spanEvaluationNames
+        spanAnnotationNames
         documentEvaluationNames
       }
     `,
@@ -56,7 +56,7 @@ export function ProjectPageHeader(props: {
   const latencyMsP50 = data?.latencyMsP50;
   const latencyMsP99 = data?.latencyMsP99;
   const tokenCountTotal = data?.tokenCountTotal;
-  const spanEvaluationNames = data?.spanEvaluationNames;
+  const spanAnnotationNames = data?.spanAnnotationNames;
   const documentEvaluationNames = data?.documentEvaluationNames;
 
   return (
@@ -141,8 +141,8 @@ export function ProjectPageHeader(props: {
                 <Text textSize="xlarge">--</Text>
               )}
             </Flex>
-            {spanEvaluationNames.map((name) => (
-              <EvaluationSummary key={name} evaluationName={name} />
+            {spanAnnotationNames.map((name) => (
+              <AnnotationSummary key={name} annotationName={name} />
             ))}
             {documentEvaluationNames.map((name) => (
               <DocumentEvaluationSummary

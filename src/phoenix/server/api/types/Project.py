@@ -361,23 +361,23 @@ class Project(Node):
     async def trace_annotation_summary(
         self,
         info: Info[Context, None],
-        evaluation_name: str,
+        annotation_name: str,
         time_range: Optional[TimeRange] = UNSET,
     ) -> Optional[AnnotationSummary]:
         return await info.context.data_loaders.annotation_summaries.load(
-            ("trace", self.id_attr, time_range, None, evaluation_name),
+            ("trace", self.id_attr, time_range, None, annotation_name),
         )
 
     @strawberry.field
     async def span_annotation_summary(
         self,
         info: Info[Context, None],
-        evaluation_name: str,
+        annotation_name: str,
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
     ) -> Optional[AnnotationSummary]:
         return await info.context.data_loaders.annotation_summaries.load(
-            ("span", self.id_attr, time_range, filter_condition, evaluation_name),
+            ("span", self.id_attr, time_range, filter_condition, annotation_name),
         )
 
     @strawberry.field

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<00fcb6827d05a601812486d86793bcf4>>
+ * @generated SignedSource<<a28f307bbb6ee378e96db883fa35ffee>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,26 +14,26 @@ export type TimeRange = {
   end: string;
   start: string;
 };
-export type EvaluationSummaryValueQuery$variables = {
-  evaluationName: string;
+export type AnnotationSummaryValueQuery$variables = {
+  annotationName: string;
   id: string;
   timeRange: TimeRange;
 };
-export type EvaluationSummaryValueQuery$data = {
+export type AnnotationSummaryValueQuery$data = {
   readonly node: {
-    readonly " $fragmentSpreads": FragmentRefs<"EvaluationSummaryValueFragment">;
+    readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryValueFragment">;
   };
 };
-export type EvaluationSummaryValueQuery = {
-  response: EvaluationSummaryValueQuery$data;
-  variables: EvaluationSummaryValueQuery$variables;
+export type AnnotationSummaryValueQuery = {
+  response: AnnotationSummaryValueQuery$data;
+  variables: AnnotationSummaryValueQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
 var v0 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "evaluationName"
+  "name": "annotationName"
 },
 v1 = {
   "defaultValue": null,
@@ -55,8 +55,8 @@ v3 = [
 v4 = [
   {
     "kind": "Variable",
-    "name": "evaluationName",
-    "variableName": "evaluationName"
+    "name": "annotationName",
+    "variableName": "annotationName"
   },
   {
     "kind": "Variable",
@@ -73,7 +73,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "EvaluationSummaryValueQuery",
+    "name": "AnnotationSummaryValueQuery",
     "selections": [
       {
         "alias": null,
@@ -86,7 +86,7 @@ return {
           {
             "args": (v4/*: any*/),
             "kind": "FragmentSpread",
-            "name": "EvaluationSummaryValueFragment"
+            "name": "AnnotationSummaryValueFragment"
           }
         ],
         "storageKey": null
@@ -103,7 +103,7 @@ return {
       (v1/*: any*/)
     ],
     "kind": "Operation",
-    "name": "EvaluationSummaryValueQuery",
+    "name": "AnnotationSummaryValueQuery",
     "selections": [
       {
         "alias": null,
@@ -137,9 +137,9 @@ return {
               {
                 "alias": null,
                 "args": (v4/*: any*/),
-                "concreteType": "EvaluationSummary",
+                "concreteType": "AnnotationSummary",
                 "kind": "LinkedField",
-                "name": "spanEvaluationSummary",
+                "name": "spanAnnotationSummary",
                 "plural": false,
                 "selections": [
                   {
@@ -187,16 +187,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "99465624550be40aec8146116c3a223b",
+    "cacheID": "bae90b7000aa37d37050070d8504b41c",
     "id": null,
     "metadata": {},
-    "name": "EvaluationSummaryValueQuery",
+    "name": "AnnotationSummaryValueQuery",
     "operationKind": "query",
-    "text": "query EvaluationSummaryValueQuery(\n  $evaluationName: String!\n  $timeRange: TimeRange!\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...EvaluationSummaryValueFragment_1dJL9N\n    __isNode: __typename\n    id\n  }\n}\n\nfragment EvaluationSummaryValueFragment_1dJL9N on Project {\n  spanEvaluationSummary(evaluationName: $evaluationName, timeRange: $timeRange) {\n    labelFractions {\n      label\n      fraction\n    }\n    meanScore\n  }\n  id\n}\n"
+    "text": "query AnnotationSummaryValueQuery(\n  $annotationName: String!\n  $timeRange: TimeRange!\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...AnnotationSummaryValueFragment_4BTVrq\n    __isNode: __typename\n    id\n  }\n}\n\nfragment AnnotationSummaryValueFragment_4BTVrq on Project {\n  spanAnnotationSummary(annotationName: $annotationName, timeRange: $timeRange) {\n    labelFractions {\n      label\n      fraction\n    }\n    meanScore\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ba0ee13567d5484ec0697c50e1a77bfa";
+(node as any).hash = "0a8e190e4d87acc87c161366f330e3af";
 
 export default node;

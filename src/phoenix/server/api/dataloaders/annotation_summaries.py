@@ -27,12 +27,12 @@ Kind: TypeAlias = Literal["span", "trace"]
 ProjectRowId: TypeAlias = int
 TimeInterval: TypeAlias = Tuple[Optional[datetime], Optional[datetime]]
 FilterCondition: TypeAlias = Optional[str]
-EvalName: TypeAlias = str
+AnnotationName: TypeAlias = str
 
 Segment: TypeAlias = Tuple[Kind, ProjectRowId, TimeInterval, FilterCondition]
-Param: TypeAlias = EvalName
+Param: TypeAlias = AnnotationName
 
-Key: TypeAlias = Tuple[Kind, ProjectRowId, Optional[TimeRange], FilterCondition, EvalName]
+Key: TypeAlias = Tuple[Kind, ProjectRowId, Optional[TimeRange], FilterCondition, AnnotationName]
 Result: TypeAlias = Optional[AnnotationSummary]
 ResultPosition: TypeAlias = int
 DEFAULT_VALUE: Result = None
@@ -46,7 +46,7 @@ def _cache_key_fn(key: Key) -> Tuple[Segment, Param]:
     return (kind, project_rowid, interval, filter_condition), eval_name
 
 
-_Section: TypeAlias = Tuple[ProjectRowId, EvalName, Kind]
+_Section: TypeAlias = Tuple[ProjectRowId, AnnotationName, Kind]
 _SubKey: TypeAlias = Tuple[TimeInterval, FilterCondition]
 
 
@@ -68,8 +68,8 @@ class AnnotationSummaryCache(
                 del self._cache[section]
 
     def _cache_key(self, key: Key) -> Tuple[_Section, _SubKey]:
-        (kind, project_rowid, interval, filter_condition), eval_name = _cache_key_fn(key)
-        return (project_rowid, eval_name, kind), (interval, filter_condition)
+        (kind, project_rowid, interval, filter_condition), annotation_name = _cache_key_fn(key)
+        return (project_rowid, annotation_name, kind), (interval, filter_condition)
 
 
 class AnnotationSummaryDataLoader(DataLoader[Key, Result]):
@@ -98,16 +98,16 @@ class AnnotationSummaryDataLoader(DataLoader[Key, Result]):
             stmt = _get_stmt(segment, *params.keys())
             async with self._db() as session:
                 data = await session.stream(stmt)
-                async for eval_name, group in groupby(data, lambda row: row.name):
+                async for annotation_name, group in groupby(data, lambda row: row.name):
                     summary = AnnotationSummary(pd.DataFrame(group))
-                    for position in params[eval_name]:
+                    for position in params[annotation_name]:
                         results[position] = summary
         return results
 
 
 def _get_stmt(
     segment: Segment,
-    *eval_names: Param,
+    *annotation_names: Param,
 ) -> Select[Any]:
     kind, project_rowid, (start_time, end_time), filter_condition = segment
     stmt = select()
@@ -138,7 +138,7 @@ def _get_stmt(
     stmt = stmt.order_by(name_column, label_column)
     stmt = stmt.where(models.Trace.project_rowid == project_rowid)
     stmt = stmt.where(or_(score_column.is_not(None), label_column.is_not(None)))
-    stmt = stmt.where(name_column.in_(eval_names))
+    stmt = stmt.where(name_column.in_(annotation_names))
     if start_time:
         stmt = stmt.where(start_time <= time_column)
     if end_time:

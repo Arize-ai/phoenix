@@ -307,7 +307,7 @@ function SpanAnnotationCard(props: {
       mutation EditSpanAnnotationsDialogEditAnnotationMutation(
         $spanId: GlobalID!
         $annotationId: GlobalID!
-        $name: String
+        $name: String!
         $label: String
         $score: Float
         $explanation: String
