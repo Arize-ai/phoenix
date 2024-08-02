@@ -16,6 +16,7 @@ enum AnnotationAction {
  */
 export function AnnotationActionMenu(props: AnnotationActionMenuProps) {
   const { onDelete, isDisabled = false } = props;
+
   return (
     <div
       // TODO: add this logic to the ActionMenu component

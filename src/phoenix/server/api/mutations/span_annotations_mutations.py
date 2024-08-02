@@ -73,6 +73,7 @@ class SpanAnnotationMutationMixin:
                             models.SpanAnnotation.annotator_kind,
                             annotation.annotator_kind.value
                             if annotation.annotator_kind is not None
+                            and annotation.annotator_kind is not UNSET
                             else None,
                             False,
                         ),

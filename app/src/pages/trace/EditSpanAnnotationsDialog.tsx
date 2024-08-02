@@ -1,5 +1,16 @@
-import React, { Suspense, useMemo, useState } from "react";
-import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
+import React, {
+  startTransition,
+  Suspense,
+  useCallback,
+  useMemo,
+  useState,
+} from "react";
+import {
+  graphql,
+  useLazyLoadQuery,
+  useMutation,
+  useRefetchableFragment,
+} from "react-relay";
 import { css } from "@emotion/react";
 
 import {
@@ -27,12 +38,13 @@ import {
   EditSpanAnnotationsDialog_spanAnnotations$data,
   EditSpanAnnotationsDialog_spanAnnotations$key,
 } from "./__generated__/EditSpanAnnotationsDialog_spanAnnotations.graphql";
+import { EditSpanAnnotationsDialogEditAnnotationMutation } from "./__generated__/EditSpanAnnotationsDialogEditAnnotationMutation.graphql";
 import { EditSpanAnnotationsDialogNewAnnotationQuery } from "./__generated__/EditSpanAnnotationsDialogNewAnnotationQuery.graphql";
 import { EditSpanAnnotationsDialogQuery } from "./__generated__/EditSpanAnnotationsDialogQuery.graphql";
 import { EditSpanAnnotationsDialogSpanAnnotationsQuery } from "./__generated__/EditSpanAnnotationsDialogSpanAnnotationsQuery.graphql";
 import { NewSpanAnnotationForm } from "./NewSpanAnnotationForm";
 import { SpanAnnotationActionMenu } from "./SpanAnnotationActionMenu";
-import { SpanAnnotationForm } from "./SpanAnnotationForm";
+import { AnnotationFormData, SpanAnnotationForm } from "./SpanAnnotationForm";
 
 type EditSpanAnnotationsDialogProps = {
   spanNodeId: string;
@@ -226,7 +238,7 @@ function SpanAnnotationsList(props: {
         `}
       >
         {annotations.map((annotation, idx) => (
-          <li key={idx}>
+          <li key={`${idx}_${annotation.name}`}>
             <SpanAnnotationCard annotation={annotation} spanNodeId={data.id} />
           </li>
         ))}
@@ -289,6 +301,63 @@ function SpanAnnotationCard(props: {
   const { annotation, spanNodeId } = props;
   const [error, setError] = useState<Error | null>(null);
   const notifySuccess = useNotifySuccess();
+
+  const [commitEdit, isCommittingEdit] =
+    useMutation<EditSpanAnnotationsDialogEditAnnotationMutation>(graphql`
+      mutation EditSpanAnnotationsDialogEditAnnotationMutation(
+        $spanId: GlobalID!
+        $annotationId: GlobalID!
+        $name: String
+        $label: String
+        $score: Float
+        $explanation: String
+      ) {
+        patchSpanAnnotations(
+          input: [
+            {
+              annotationId: $annotationId
+              name: $name
+              label: $label
+              score: $score
+              explanation: $explanation
+              annotatorKind: HUMAN
+            }
+          ]
+        ) {
+          query {
+            node(id: $spanId) {
+              ... on Span {
+                ...EditSpanAnnotationsDialog_spanAnnotations
+              }
+            }
+          }
+        }
+      }
+    `);
+
+  const handleEdit = useCallback(
+    (data: AnnotationFormData) => {
+      startTransition(() => {
+        commitEdit({
+          variables: {
+            annotationId: annotation.id,
+            spanId: spanNodeId,
+            ...data,
+          },
+          onCompleted: () => {
+            notifySuccess({
+              title: "Annotation Updated",
+              message: `Annotation ${annotation.name} has been updated.`,
+            });
+          },
+          onError: (error) => {
+            setError(error);
+          },
+        });
+      });
+    },
+    [annotation.id, annotation.name, commitEdit, notifySuccess, spanNodeId]
+  );
   return (
     <Card
       variant="compact"
@@ -308,13 +377,10 @@ function SpanAnnotationCard(props: {
             annotationId={annotation.id}
             spanNodeId={spanNodeId}
             annotationName={annotation.name}
-            onSpanAnnotationDelete={() => {
-              notifySuccess({
-                title: `Annotation Deleted`,
-                message: `Annotation ${annotation.name} has been deleted.`,
-              });
+            onSpanAnnotationActionSuccess={(notifyProps) => {
+              notifySuccess(notifyProps);
             }}
-            onSpanAnnotationDeleteError={(error: Error) => {
+            onSpanAnnotationActionError={(error: Error) => {
               setError(error);
             }}
           />
@@ -326,8 +392,14 @@ function SpanAnnotationCard(props: {
           {error.message}
         </Alert>
       )}
-      {/* TODO make it editable */}
-      <SpanAnnotationForm initialData={annotation} isReadOnly={true} />
+      <SpanAnnotationForm
+        initialData={annotation}
+        isReadOnly={annotation.annotatorKind === "LLM"}
+        isSubmitting={isCommittingEdit}
+        onSubmit={(data) => {
+          handleEdit(data);
+        }}
+      />
     </Card>
   );
 }
@@ -367,6 +439,7 @@ function NewAnnotationPopoverContent(props: {
             spanAnnotations {
               id
               name
+              annotatorKind
             }
           }
         }

@@ -1,10 +1,17 @@
-import React, { useCallback, useRef } from "react";
+import React, { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
-import { Button, Flex, TextArea, TextField, View } from "@arizeai/components";
+import {
+  Button,
+  Flex,
+  Form,
+  TextArea,
+  TextField,
+  View,
+} from "@arizeai/components";
 
-export type CreateAnnotationInput = {
+export type AnnotationFormData = {
   name: string;
   score?: number | null;
   label?: string | null;
@@ -19,7 +26,7 @@ export type SpanAnnotationFormProps = {
   /**
    * The initial data to populate the form with
    */
-  initialData: CreateAnnotationInput;
+  initialData: AnnotationFormData;
   /**
    * Whether the form is read only
    */
@@ -27,7 +34,7 @@ export type SpanAnnotationFormProps = {
   /**
    * Callback to call when the form is submitted
    */
-  onSubmit?: (data: CreateAnnotationInput) => void;
+  onSubmit?: (data: AnnotationFormData) => void;
   /**
    * Whether or not the form is being submitted
    * @default false
@@ -39,12 +46,13 @@ export type SpanAnnotationFormProps = {
  */
 export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
   const { initialData, isReadOnly, onSubmit, isSubmitting = false } = props;
-  const formRef = useRef<HTMLFormElement>(null);
+
   const {
     control,
     handleSubmit,
     formState: { isDirty, isValid },
     setError,
+    reset,
   } = useForm({
     defaultValues: initialData,
     disabled: isReadOnly,
@@ -52,8 +60,11 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
 
   // Internal onSubmit that performs validation
   const _onSubmit = useCallback(
-    (data: CreateAnnotationInput) => {
-      if (!data.label && (data.score as unknown as string) === "") {
+    (data: AnnotationFormData) => {
+      const hasNoLabel = !data.label;
+      const hasNoScore =
+        (data.score as unknown as string) === "" || data.score == null;
+      if (hasNoLabel && hasNoScore) {
         setError("label", {
           type: "manual",
           message: "Label or score is required",
@@ -64,18 +75,20 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
         });
         return;
       }
-      onSubmit &&
-        onSubmit({
-          ...data,
-          score: data.score != null ? parseFloat(data.score.toString()) : null,
-        });
+      const newData = {
+        ...data,
+        score: data.score != null ? parseFloat(data.score.toString()) : null,
+      };
+      onSubmit && onSubmit(newData);
+      // Optimistically reset the form
+      reset(newData);
     },
-    [onSubmit, setError]
+    [onSubmit, setError, reset]
   );
 
   const defaultDetailsCollapsed = isReadOnly;
   return (
-    <form onSubmit={handleSubmit(_onSubmit)} ref={formRef}>
+    <Form onSubmit={handleSubmit(_onSubmit)}>
       <View padding="size-200">
         <Flex direction="column" gap="size-100">
           <div
@@ -177,12 +190,7 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
                 variant={isDirty ? "primary" : "default"}
                 type="submit"
                 size="compact"
-                isDisabled={!isValid || !isDirty || isSubmitting}
-                onClick={() => {
-                  // TODO: This is a bit of a hack as the form is not working in a dialog for some reason
-                  // It probably has to do with the nested DOM structure under which it is being mounted
-                  formRef.current?.requestSubmit();
-                }}
+                disabled={!isValid || !isDirty || isSubmitting}
               >
                 {isSubmitting ? "Saving..." : "Save"}
               </Button>
@@ -190,6 +198,6 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
           </View>
         ) : null}
       </>
-    </form>
+    </Form>
   );
 }
