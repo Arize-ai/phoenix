@@ -12,25 +12,42 @@ Note: This instrumentation also works with Azure OpenAI
 
 Phoenix provides auto-instrumentation for the [OpenAI Python Library](https://github.com/openai/openai-python).
 
-To view OpenAI spans in Phoenix, you will first have to start a Phoenix server. You can do this by running the following:
+## Install
 
-```python
-import phoenix as px
-session = px.launch_app()
+```bash
+pip install openinference-instrumentation-openai openai
 ```
 
-Once you have started a Phoenix server, you can instrument the OpenAI Python library using the `OpenAIInstrumentor.`
+## Setup
+
+Setup OpenTelemetry to point to a running Phoenix and then initialize the OpenAIInstrumentor before your application code.
 
 ```python
-from phoenix.trace.openai import OpenAIInstrumentor
+from openinference.instrumentation.openai import OpenAIInstrumentor
 
 OpenAIInstrumentor().instrument()
 ```
 
-All subsequent calls to `ChatCompletion` and  will now export spans to the Phoenix server. These spans will show up in the UI as they are collected.
+## Run OpenAI
 
 ```python
-# View in the browser
-px.active_session().url
+import openai
+
+client = openai.OpenAI()
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Write a haiku."}],
+)
+print(response.choices[0].message.content)
 ```
+
+## Observe
+
+Now that you have tracing setup, all invocations of OpenAI (completions, chat completions, embeddings) will be streamed to your running Phoenix for observability and evaluation.
+
+## Resources
+
+* [Example notebook](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/openai\_tracing\_tutorial.ipynb)
+* [OpenInference package](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai)
+* [Working examples](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai/examples)
 
