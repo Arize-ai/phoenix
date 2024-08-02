@@ -114,7 +114,6 @@ def _get_stmt(
     if kind == "span":
         msa = models.SpanAnnotation
         name_column, label_column, score_column = msa.name, msa.label, msa.score
-        annotator_kind_column = msa.annotator_kind
         time_column = models.Span.start_time
         stmt = stmt.join(models.Span).join_from(models.Span, models.Trace)
         if filter_condition:
@@ -123,7 +122,6 @@ def _get_stmt(
     elif kind == "trace":
         mta = models.TraceAnnotation
         name_column, label_column, score_column = mta.name, mta.label, mta.score
-        annotator_kind_column = mta.annotator_kind
         time_column = models.Trace.start_time
         stmt = stmt.join(models.Trace)
     else:
