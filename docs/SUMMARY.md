@@ -148,3 +148,5 @@
 
 * [GitHub](https://github.com/Arize-ai/phoenix)
 * [Releases](https://github.com/Arize-ai/phoenix/releases)
+* [Python API](https://arize-phoenix.readthedocs.io/)
+* [OpenInference](https://github.com/Arize-ai/openinference)
