@@ -154,6 +154,37 @@ class DatasetMutationMixin:
                 raise ValueError(
                     f"Could not find spans with rowids: {', '.join(map(str, missing_span_rowids))}"
                 )  # todo: implement error handling types https://github.com/Arize-ai/phoenix/issues/3221
+
+            span_annotations = (
+                await session.execute(
+                    select(
+                        models.SpanAnnotation.span_rowid,
+                        models.SpanAnnotation.name,
+                        models.SpanAnnotation.label,
+                        models.SpanAnnotation.score,
+                        models.SpanAnnotation.explanation,
+                        models.SpanAnnotation.metadata_,
+                        models.SpanAnnotation.annotator_kind,
+                    )
+                    .select_from(models.SpanAnnotation)
+                    .where(models.SpanAnnotation.span_rowid.in_(span_rowids))
+                )
+            ).all()
+
+            span_annotations_by_span = {span.id: {} for span in spans}
+            for annotation in span_annotations:
+                span_id = annotation.span_rowid
+                if span_id not in span_annotations_by_span:
+                    span_annotations_by_span[span_id] = dict()
+                span_annotations_by_span[span_id][annotation.name] = {
+                    "name": annotation.name,
+                    "label": annotation.label,
+                    "score": annotation.score,
+                    "explanation": annotation.explanation,
+                    "metadata": annotation.metadata_,
+                    "kind": annotation.annotator_kind,
+                }
+
             DatasetExample = models.DatasetExample
             dataset_example_rowids = (
                 await session.scalars(
@@ -170,6 +201,7 @@ class DatasetMutationMixin:
             assert len(dataset_example_rowids) == len(spans)
             assert all(map(lambda id: isinstance(id, int), dataset_example_rowids))
             DatasetExampleRevision = models.DatasetExampleRevision
+
             await session.execute(
                 insert(DatasetExampleRevision),
                 [
@@ -178,7 +210,10 @@ class DatasetMutationMixin:
                         DatasetExampleRevision.dataset_version_id.key: dataset_version_rowid,
                         DatasetExampleRevision.input.key: get_dataset_example_input(span),
                         DatasetExampleRevision.output.key: get_dataset_example_output(span),
-                        DatasetExampleRevision.metadata_.key: span.attributes,
+                        DatasetExampleRevision.metadata_.key: {
+                            **span.attributes,
+                            "annotations": span_annotations_by_span[span.id],
+                        },
                         DatasetExampleRevision.revision_kind.key: "CREATE",
                     }
                     for dataset_example_rowid, span in zip(dataset_example_rowids, spans)
