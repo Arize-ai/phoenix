@@ -22,30 +22,30 @@ import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 import { formatFloat, formatPercent } from "@phoenix/utils/numberFormatUtils";
 
-import { EvaluationSummaryQuery } from "./__generated__/EvaluationSummaryQuery.graphql";
-import { EvaluationSummaryValueFragment$key } from "./__generated__/EvaluationSummaryValueFragment.graphql";
+import { AnnotationSummaryQuery } from "./__generated__/AnnotationSummaryQuery.graphql";
+import { AnnotationSummaryValueFragment$key } from "./__generated__/AnnotationSummaryValueFragment.graphql";
 
-type EvaluationSummaryProps = {
-  evaluationName: string;
+type AnnotationSummaryProps = {
+  annotationName: string;
 };
-export function EvaluationSummary({ evaluationName }: EvaluationSummaryProps) {
+export function AnnotationSummary({ annotationName }: AnnotationSummaryProps) {
   const { projectId } = useParams();
   const { timeRange } = useLastNTimeRange();
-  const data = useLazyLoadQuery<EvaluationSummaryQuery>(
+  const data = useLazyLoadQuery<AnnotationSummaryQuery>(
     graphql`
-      query EvaluationSummaryQuery(
+      query AnnotationSummaryQuery(
         $id: GlobalID!
-        $evaluationName: String!
+        $annotationName: String!
         $timeRange: TimeRange!
       ) {
         project: node(id: $id) {
-          ...EvaluationSummaryValueFragment
-            @arguments(evaluationName: $evaluationName, timeRange: $timeRange)
+          ...AnnotationSummaryValueFragment
+            @arguments(annotationName: $annotationName, timeRange: $timeRange)
         }
       }
     `,
     {
-      evaluationName,
+      annotationName,
       id: projectId as string,
       timeRange: {
         start: timeRange.start.toISOString(),
@@ -56,11 +56,11 @@ export function EvaluationSummary({ evaluationName }: EvaluationSummaryProps) {
   return (
     <Flex direction="column" flex="none">
       <Text elementType="h3" textSize="medium" color="text-700">
-        {evaluationName}
+        {annotationName}
       </Text>
       <Suspense fallback={<Text textSize="xlarge">--</Text>}>
-        <EvaluationSummaryValue
-          evaluationName={evaluationName}
+        <AnnotationSummaryValue
+          annotationName={annotationName}
           project={data.project}
         />
       </Suspense>
@@ -68,25 +68,25 @@ export function EvaluationSummary({ evaluationName }: EvaluationSummaryProps) {
   );
 }
 
-function EvaluationSummaryValue(props: {
-  evaluationName: string;
-  project: EvaluationSummaryValueFragment$key;
+function AnnotationSummaryValue(props: {
+  annotationName: string;
+  project: AnnotationSummaryValueFragment$key;
 }) {
-  const { project, evaluationName } = props;
+  const { project, annotationName } = props;
   const { fetchKey } = useStreamState();
   const [data, refetch] = useRefetchableFragment<
-    EvaluationSummaryQuery,
-    EvaluationSummaryValueFragment$key
+    AnnotationSummaryQuery,
+    AnnotationSummaryValueFragment$key
   >(
     graphql`
-      fragment EvaluationSummaryValueFragment on Project
-      @refetchable(queryName: "EvaluationSummaryValueQuery")
+      fragment AnnotationSummaryValueFragment on Project
+      @refetchable(queryName: "AnnotationSummaryValueQuery")
       @argumentDefinitions(
-        evaluationName: { type: "String!" }
+        annotationName: { type: "String!" }
         timeRange: { type: "TimeRange!" }
       ) {
-        spanEvaluationSummary(
-          evaluationName: $evaluationName
+        spanAnnotationSummary(
+          annotationName: $annotationName
           timeRange: $timeRange
         ) {
           labelFractions {
@@ -100,7 +100,7 @@ function EvaluationSummaryValue(props: {
     project
   );
 
-  // Refetch the evaluation summary if the fetchKey changes
+  // Refetch the annotation summary if the fetchKey changes
   useEffect(() => {
     startTransition(() => {
       refetch({}, { fetchPolicy: "store-and-network" });
@@ -108,7 +108,7 @@ function EvaluationSummaryValue(props: {
   }, [fetchKey, refetch]);
 
   const chartColors = useChartColors();
-  const primaryColor = useWordColor(evaluationName);
+  const primaryColor = useWordColor(annotationName);
   const colors = [
     primaryColor,
     chartColors.default,
@@ -116,11 +116,14 @@ function EvaluationSummaryValue(props: {
     chartColors.gray400,
     chartColors.gray200,
   ];
-  const meanScore = data?.spanEvaluationSummary?.meanScore;
-  const labelFractions = data?.spanEvaluationSummary?.labelFractions;
+  const meanScore = data?.spanAnnotationSummary?.meanScore;
+  const labelFractions = data?.spanAnnotationSummary?.labelFractions;
   const hasMeanScore = typeof meanScore === "number";
   const hasLabelFractions =
     Array.isArray(labelFractions) && labelFractions.length > 0;
+  if (!hasMeanScore && !hasLabelFractions) {
+    return <Text textSize="xlarge">--</Text>;
+  }
 
   return (
     <TooltipTrigger delay={0} placement="bottom">
