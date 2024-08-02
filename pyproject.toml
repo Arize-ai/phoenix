@@ -300,6 +300,7 @@ testpypi = [
   "twine upload  --verbose --repository testpypi dist/*",
 ]
 pypi = [
+  "[ -f 'src/phoenix/db/migrations/versions/cd164e83824f_users_and_tokens.py' ] || { echo 'Remove symlink for auth migration before publishing.'; exit 1; }",
   "check-wheel-contents dist/",
   "twine upload --verbose dist/*",
 ]
