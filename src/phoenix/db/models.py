@@ -616,3 +616,62 @@ class ExperimentRunAnnotation(Base):
             "name",
         ),
     )
+
+
+class UserRoles(Base):
+    __tablename__ = "user_roles"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(unique=True)
+
+
+class Users(Base):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_role_id: Mapped[int] = mapped_column(
+        ForeignKey("user_roles.id"),
+        index=True,
+    )
+    email_address: Mapped[str] = mapped_column(unique=True, index=True)
+    auth_method: Mapped[str]
+    password_hash: Mapped[Optional[str]]
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+
+
+class APIKeys(Base):
+    __tablename__ = "api_keys"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"),
+        index=True,
+    )
+    created_by: Mapped[int] = mapped_column(
+        ForeignKey("users.id"),
+        index=True,
+    )
+    name: Mapped[str]
+    description: Mapped[Optional[str]]
+    trailing_characters: Mapped[str]
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+
+
+class AccessTokens(Base):
+    __tablename__ = "access_tokens"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+
+class RefreshTokens(Base):
+    __tablename__ = "refresh_tokens"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+
+class PasswordResetTokens(Base):
+    __tablename__ = "password_reset_tokens"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
