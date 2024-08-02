@@ -177,7 +177,6 @@ class DatasetMutationMixin:
                 if span_id not in span_annotations_by_span:
                     span_annotations_by_span[span_id] = dict()
                 span_annotations_by_span[span_id][annotation.name] = {
-                    "name": annotation.name,
                     "label": annotation.label,
                     "score": annotation.score,
                     "explanation": annotation.explanation,

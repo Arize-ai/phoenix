@@ -207,7 +207,6 @@ async def test_add_span_to_dataset(
     assert response.status_code == 200
     response_json = response.json()
     assert response_json.get("errors") is None
-    breakpoint()
     assert response_json["data"] == {
         "addSpansToDataset": {
             "dataset": {
@@ -305,7 +304,6 @@ async def test_add_span_to_dataset(
                                         },
                                         "annotations": {
                                             "test annotation": {
-                                                "name": "test annotation",
                                                 "label": "ambiguous",
                                                 "score": 0.5,
                                                 "explanation": "meaningful words",
