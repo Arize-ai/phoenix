@@ -8,6 +8,7 @@ from typing_extensions import TypeAlias
 
 from phoenix.core.model_schema import Model
 from phoenix.server.api.dataloaders import (
+    AnnotationSummaryDataLoader,
     AverageExperimentRunLatencyDataLoader,
     CacheForDataLoaders,
     DatasetExampleRevisionsDataLoader,
@@ -44,6 +45,7 @@ class DataLoaders:
     document_evaluation_summaries: DocumentEvaluationSummaryDataLoader
     document_evaluations: DocumentEvaluationsDataLoader
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
+    annotation_summaries: AnnotationSummaryDataLoader
     evaluation_summaries: EvaluationSummaryDataLoader
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
     experiment_error_rates: ExperimentErrorRatesDataLoader

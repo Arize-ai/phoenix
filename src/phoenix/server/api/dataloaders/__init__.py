@@ -8,6 +8,7 @@ from phoenix.db.insertion.evaluation import (
 )
 from phoenix.db.insertion.span import ClearProjectSpansEvent, SpanInsertionEvent
 
+from .annotation_summaries import AnnotationSummaryCache, AnnotationSummaryDataLoader
 from .average_experiment_run_latency import AverageExperimentRunLatencyDataLoader
 from .dataset_example_revisions import DatasetExampleRevisionsDataLoader
 from .dataset_example_spans import DatasetExampleSpansDataLoader
@@ -43,6 +44,7 @@ __all__ = [
     "DocumentEvaluationSummaryDataLoader",
     "DocumentEvaluationsDataLoader",
     "DocumentRetrievalMetricsDataLoader",
+    "AnnotationSummaryDataLoader",
     "EvaluationSummaryDataLoader",
     "ExperimentAnnotationSummaryDataLoader",
     "ExperimentErrorRatesDataLoader",
@@ -68,6 +70,9 @@ class CacheForDataLoaders:
     document_evaluation_summary: DocumentEvaluationSummaryCache = field(
         default_factory=DocumentEvaluationSummaryCache,
     )
+    annotation_summary: AnnotationSummaryCache = field(
+        default_factory=AnnotationSummaryCache,
+    )
     evaluation_summary: EvaluationSummaryCache = field(
         default_factory=EvaluationSummaryCache,
     )
@@ -92,6 +97,7 @@ class CacheForDataLoaders:
 
     def _clear_spans(self, project_rowid: int) -> None:
         self._update_spans(project_rowid)
+        self.annotation_summary.invalidate_project(project_rowid)
         self.evaluation_summary.invalidate_project(project_rowid)
         self.document_evaluation_summary.invalidate_project(project_rowid)
 
@@ -113,9 +119,11 @@ class CacheForDataLoaders:
     @invalidate.register
     def _(self, event: SpanEvaluationInsertionEvent) -> None:
         project_rowid, evaluation_name = event
+        self.annotation_summary.invalidate((project_rowid, evaluation_name, "span"))
         self.evaluation_summary.invalidate((project_rowid, evaluation_name, "span"))
 
     @invalidate.register
     def _(self, event: TraceEvaluationInsertionEvent) -> None:
         project_rowid, evaluation_name = event
+        self.annotation_summary.invalidate((project_rowid, evaluation_name, "trace"))
         self.evaluation_summary.invalidate((project_rowid, evaluation_name, "trace"))

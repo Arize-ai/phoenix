@@ -11,7 +11,7 @@ AnnotationType = Union[models.SpanAnnotation, models.TraceAnnotation]
 
 
 @strawberry.type
-class EvaluationSummary:
+class AnnotationSummary:
     df: Private[pd.DataFrame]
 
     def __init__(self, dataframe: pd.DataFrame) -> None:

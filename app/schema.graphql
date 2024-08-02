@@ -30,6 +30,15 @@ interface Annotation {
   explanation: String
 }
 
+type AnnotationSummary {
+  count: Int!
+  labels: [String!]!
+  labelFractions: [LabelFraction!]!
+  meanScore: Float
+  scoreCount: Int!
+  labelCount: Int!
+}
+
 enum AnnotatorKind {
   LLM
   HUMAN
@@ -992,6 +1001,8 @@ type Project implements Node {
   documentEvaluationNames(spanId: ID): [String!]!
   traceEvaluationSummary(evaluationName: String!, timeRange: TimeRange): EvaluationSummary
   spanEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): EvaluationSummary
+  traceAnnotationSummary(evaluationName: String!, timeRange: TimeRange): AnnotationSummary
+  spanAnnotationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): AnnotationSummary
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
