@@ -265,7 +265,7 @@ export function TracesTable(props: TracesTableProps) {
       };
     });
 
-  const annoationColumns: ColumnDef<TableRow>[] = [
+  const annotationColumns: ColumnDef<TableRow>[] = [
     {
       header: () => (
         <Flex direction="row" gap="size-50">
@@ -430,7 +430,7 @@ export function TracesTable(props: TracesTableProps) {
       enableSorting: false,
       cell: TextCell,
     },
-    ...annoationColumns, // TODO: consider hiding this column is there is no evals. For now show it
+    ...annotationColumns, // TODO: consider hiding this column is there is no evals. For now show it
     {
       header: "start time",
       accessorKey: "startTime",
