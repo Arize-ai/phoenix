@@ -288,6 +288,10 @@ clean = [
   "jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace **/*.ipynb **/internal/*.ipynb **/tracing/*.ipynb **/dolly-pythia-fine-tuned/*.ipynb",
 ]
 
+[tool.hatch.envs.symlink.scripts]
+create = "ln -s src/phoenix/db/migrations/future_versions/cd164e83824f_users_and_tokens.py src/phoenix/db/migrations/versions/cd164e83824f_users_and_tokens.py && echo 'auth migration symlink created'"
+remove = "rm src/phoenix/db/migrations/versions/cd164e83824f_users_and_tokens.py && echo 'auth migration symlink removed'"
+
 [tool.hatch.envs.publish]
 dependencies = [
   "check-wheel-contents",
@@ -300,7 +304,7 @@ testpypi = [
   "twine upload  --verbose --repository testpypi dist/*",
 ]
 pypi = [
-  "[ -f 'src/phoenix/db/migrations/versions/cd164e83824f_users_and_tokens.py' ] || { echo 'Remove symlink for auth migration before publishing.'; exit 1; }",
+  "if [ -L src/phoenix/db/migrations/versions/cd164e83824f_users_and_tokens.py ]; then echo 'remove auth migration symlink before publishing with `hatch run symlink:remove`'; exit 1; fi",
   "check-wheel-contents dist/",
   "twine upload --verbose dist/*",
 ]
