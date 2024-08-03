@@ -31,6 +31,7 @@
   * [CrewAI](tracing/integrations-tracing/mistralai-2.md)
   * [Bedrock](tracing/integrations-tracing/bedrock.md)
   * [AutoGen](tracing/integrations-tracing/autogen-support.md)
+  * [Prompt flow](tracing/integrations-tracing/haystack-1.md)
   * [OpenAI Node SDK](tracing/integrations-tracing/openai-node-sdk.md)
   * [LangChain.js](tracing/integrations-tracing/langchain.js.md)
 * [Concepts: Tracing](tracing/concepts-tracing.md)
