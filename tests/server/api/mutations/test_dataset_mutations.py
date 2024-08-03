@@ -168,6 +168,7 @@ async def test_add_span_to_dataset(
     httpx_client: httpx.AsyncClient,
     empty_dataset,
     spans,
+    span_annotation,
 ) -> None:
     dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
     mutation = """
@@ -239,7 +240,8 @@ async def test_add_span_to_dataset(
                                                     }
                                                 }
                                             ],
-                                        }
+                                        },
+                                        "annotations": {},
                                     },
                                     "output": {
                                         "messages": [
@@ -281,6 +283,7 @@ async def test_add_span_to_dataset(
                                                 }
                                             ]
                                         },
+                                        "annotations": {},
                                     },
                                 }
                             }
@@ -298,6 +301,15 @@ async def test_add_span_to_dataset(
                                         "output": {
                                             "value": "chain-span-output-value",
                                             "mime_type": "text/plain",
+                                        },
+                                        "annotations": {
+                                            "test annotation": {
+                                                "label": "ambiguous",
+                                                "score": 0.5,
+                                                "explanation": "meaningful words",
+                                                "metadata": {},
+                                                "annotator_kind": "HUMAN",
+                                            }
                                         },
                                     },
                                 }
@@ -702,6 +714,21 @@ async def spans(db: DbSessionFactory) -> None:
                 cumulative_llm_token_count_completion=0,
             )
         )
+
+
+@pytest.fixture
+async def span_annotation(db):
+    async with db() as session:
+        span_annotation = models.SpanAnnotation(
+            span_rowid=1,
+            name="test annotation",
+            annotator_kind="HUMAN",
+            label="ambiguous",
+            score=0.5,
+            explanation="meaningful words",
+        )
+        session.add(span_annotation)
+        await session.flush()
 
 
 @pytest.fixture
