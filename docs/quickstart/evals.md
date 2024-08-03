@@ -30,7 +30,7 @@ Export a dataframe from your Phoenix session that contains traces from your LLM 
 If you are interested in a subset of your data, you can export with a custom query. Learn more [here](../tracing/how-to-tracing/extract-data-from-spans.md).
 {% endhint %}
 
-For the sake of this guide, we'll download some pre-existing trace data collected from a LlamaIndex application (in practice, this data would be collected by [instrumenting your LLM application](llm-traces.md) with an OpenInference-compatible tracer).
+For the sake of this guide, we'll download some pre-existing trace data collected from a LlamaIndex application (in practice, this data would be collected by [instrumenting your LLM application](../tracing/quckstart-tracing.md) with an OpenInference-compatible tracer).
 
 ```python
 from urllib.request import urlopen
@@ -58,10 +58,8 @@ You should now see a view like this.
 
 ## 3. Evaluate and Log Results
 
-Set up evaluators (in this casefor hallucinations and Q\&A correctness), run the evaluations, and log the results to visualize them in Phoenix.
+Set up evaluators (in this case for hallucinations and Q\&A correctness), run the evaluations, and log the results to visualize them in Phoenix.
 
-{% tabs %}
-{% tab title="Hallucinations and Q&A Evaluations" %}
 ```python
 !pip install openai
 
@@ -78,9 +76,13 @@ eval_model = OpenAIModel(model="gpt-4-turbo-preview", api_key=api_key)
 hallucination_evaluator = HallucinationEvaluator(eval_model)
 qa_evaluator = QAEvaluator(eval_model)
 
-# Run the evaluations
-# Assume 'queries_df' is your input dataframe for Q&A correctness
-# and 'spans_df' is your input dataframe for hallucinations
+# Assume 'queries_df' is your input dataframe 
+# for `hallucination_evaluator` your input df needs to have columns 'output', 'input', 'context'
+# for `qa_evaluator` your input df needs to have columns 'output', 'input', 'reference'
+assert all(column in queries_df.columns for column in ['output', 'input', 'context', 'reference'])
+
+# Run the evaluators, each evaluator will return a dataframe with evaluation results
+# We upload the evaluation results to Phoenix in the next step
 hallucination_eval_df, qa_eval_df = run_evals(
     dataframe=queries_df,
     evaluators=[hallucination_evaluator, qa_evaluator],
@@ -95,12 +97,14 @@ px.Client().log_evaluations(
     SpanEvaluations(eval_name="QA Correctness", dataframe=qa_eval_df)
 )
 ```
-{% endtab %}
-{% endtabs %}
 
 {% hint style="info" %}
 This quickstart uses OpenAI and requires an OpenAI API key, but we support a wide variety of APIs and [models](../api/evaluation-models.md).
 {% endhint %}
+
+Explanation of the parameters used in run\_evals above:
+
+* `dataframe` - a pandas dataframe that includes the data you want to evaluate. This could be spans exported from Phoenix, or data you've brought in from elsewhere. This dataframe must include the columns expected by the `evaluators` you are using. To see the columns expected by each built-in evaluator, check the corresponding page in the [Using Phoenix Evaluators](../evaluation/how-to-evals/running-pre-tested-evals/) section.
 
 ## 4. Analyze Your Evaluations
 

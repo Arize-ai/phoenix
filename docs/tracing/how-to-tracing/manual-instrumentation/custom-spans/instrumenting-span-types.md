@@ -2,7 +2,7 @@
 
 This is a link to the semantic conventions for open inference:
 
-{% @github-files/github-code-block %}
+[https://github.com/Arize-ai/openinference/blob/main/spec/semantic\_conventions.md](https://github.com/Arize-ai/openinference/blob/main/spec/semantic\_conventions.md)
 
 ## General Attributes <a href="#general-attributes" id="general-attributes"></a>
 

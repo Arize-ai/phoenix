@@ -4,6 +4,10 @@
 
 Phoenix helps you run experiments over your AI and LLM applications to evaluate and iteratively improve their performance. This quickstart shows you how to get up and running quickly.
 
+{% embed url="https://www.youtube.com/watch?v=2oBHX4-9Sro" %}
+Background + demo on datasets
+{% endembed %}
+
 ## Setup
 
 Launch phoenix in a notebook. If you already have phoenix server running, skip this step.
@@ -154,3 +158,7 @@ experiment = evaluate_experiment(experiment, evaluators=[contains_keyword, conci
 ```
 
 And iterate 🚀
+
+### Dry Run
+
+Sometimes we may want to do a quick sanity check on the task function or the evaluators before unleashing them on the full dataset. `run_experiment()` and `evaluate_experiment()` both are equipped with a `dry_run=` parameter for this purpose: it executes the task and evaluators on a small subset without sending data to the Phoenix server. Setting `dry_run=True` selects one sample from the dataset, and setting it to a number, e.g. `dry_run=3`, selects multiple. The sampling is also deterministic, so you can keep re-running it for debugging purposes.

@@ -17,3 +17,5 @@ By default Phoenix uses SQLite so that it runs with no external dependancies. Th
 ## PostgreSQL
 
 Phoenix also can natively be backed by PostgreSQL. To make Phoenix talk to PostgreSQL instead of SQLite, you will have to set the **PHOENIX\_SQL\_DATABASE\_URL** to your PostgreSQL instance.
+
+{% embed url="https://www.youtube.com/watch?v=9hNrosMqirQ" %}

@@ -6,22 +6,22 @@ description: Inspect the inner-workings of your LLM Application using OpenInfere
 
 ## Overview
 
-Tracing is a powerful tool for understanding the behavior of your LLM application. Phoenix has best-in-class tracing, irregardless of what framework you use.
+Tracing is a powerful tool for understanding the behavior of your LLM application. Phoenix has best-in-class tracing, irregardless of what framework you use and has first-class instrumentation for a variety of frameworks ( [LlamaIndex](integrations-tracing/llamaindex.md), [LangChain](integrations-tracing/langchain.md),[ DSPy](integrations-tracing/dspy.md)),  SDKs ([OpenAI](integrations-tracing/openai.md), [Bedrock](integrations-tracing/bedrock.md), [Mistral](integrations-tracing/mistralai.md), [Vertex](integrations-tracing/vertexai.md)), and Languages (Python, Javascript). You can also [manually instrument](how-to-tracing/manual-instrumentation/) your application using the OpenTelemetry SDK.
 
-To get started with traces, you will first want to start a local Phoenix app.
+To get started with traces, you will first want to start a local Phoenix app. Below we will explore how to use Phoenix in a notebook but you can [deploy phoenix ](../deployment/) once you are ready for a persistent observability platform.
 
 In your Jupyter or Colab environment, run the following command to install.
 
 {% tabs %}
 {% tab title="Using pip" %}
 ```sh
-pip install 'arize-phoenix[evals]'
+pip install arize-phoenix
 ```
 {% endtab %}
 
 {% tab title="Using conda" %}
 ```sh
-conda install -c conda-forge arize-phoenix[evals]
+conda install -c conda-forge arize-phoenix
 ```
 {% endtab %}
 {% endtabs %}
@@ -43,7 +43,7 @@ The above launches a Phoenix server that acts as a trace collector for any LLM a
 
 The `launch_app` command will spit out a URL for you to view the Phoenix UI. You can access this url again at any time via the [session](../api/session.md).\
 \
-Now that phoenix is up and running, you can now run a [LlamaIndex](../tracing/how-to-tracing/instrumentation/auto-instrument-python/llamaindex.md) or [LangChain](../tracing/how-to-tracing/instrumentation/auto-instrument-python/langchain.md) application OR just run the OpenAI API and debug your application as the traces stream in.
+Now that phoenix is up and running, you can setup tracing for your AI application so that you can debug your application as the traces stream in.
 
 {% tabs %}
 {% tab title="LlamaIndex" %}
@@ -103,7 +103,7 @@ query_engine.query("How can I deploy Arize?")
 px.active_session().url
 ```
 
-See the [LlamaIndex](../tracing/how-to-tracing/instrumentation/auto-instrument-python/llamaindex.md) for the full details as well as support for older versions of LlamaIndex
+See the [LlamaIndex](integrations-tracing/llamaindex.md) for the full details as well as support for older versions of LlamaIndex
 {% endtab %}
 
 {% tab title="LangChain" %}
@@ -169,7 +169,7 @@ rag_chain = (
 response = rag_chain.invoke("What is Task Decomposition?")
 ```
 
-See the [integration guide](../tracing/how-to-tracing/instrumentation/auto-instrument-python/langchain.md#traces) for details
+See the [integration guide](integrations-tracing/langchain.md#traces) for details
 {% endtab %}
 
 {% tab title="OpenAI" %}
@@ -210,17 +210,6 @@ response = client.chat.completions.create(
 assistant_reply = response.choices[0].message.content
 ```
 {% endtab %}
-
-{% tab title="AutoGen" %}
-```python
-from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
-from phoenix.trace.openai import OpenAIInstrumentor
-
-import phoenix as px
-px.launch_app()
-OpenAIInstrumentor().instrument()
-```
-{% endtab %}
 {% endtabs %}
 
 Once you've executed a sufficient number of queries (or chats) to your application, you can view the details of the UI by refreshing the browser url
@@ -249,7 +238,7 @@ For full details on how to export trace data, see [the detailed guide](../how-to
 In addition to launching phoenix on LlamaIndex and LangChain, teams can export trace data to a dataframe in order to run LLM Evals on the data.
 
 {% hint style="info" %}
-Learn more in the [evals quickstart](evals.md).
+Learn more in the [evals quickstart](../quickstart/evals.md).
 {% endhint %}
 
 ## Conclusion

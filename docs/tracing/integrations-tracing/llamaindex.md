@@ -1,8 +1,12 @@
+---
+description: How to use the python LlamaIndexInstrumentor to trace LlamaIndex
+---
+
 # LlamaIndex
 
 [LlamaIndex](https://github.com/run-llama/llama\_index) is a data framework for your LLM application. It's a powerful framework by which you can build an application that leverages RAG (retrieval-augmented generation) to super-charge an LLM with your own data. RAG is an extremely powerful LLM application model because it lets you harness the power of LLMs such as OpenAI's GPT but tuned to your data and use-case.
 
-For LlamaIndex, tracing instrumentation is added via a callback. This callback is what is used to create spans and send them to the Phoenix collector.
+For LlamaIndex, tracing instrumentation is added via an OpenTelemetry instrumentor aptly named the `LlamaIndexInstrumentor` . This callback is what is used to create spans and send them to the Phoenix collector.
 
 {% tabs %}
 {% tab title="Instrumentation (>=0.10.43)" %}

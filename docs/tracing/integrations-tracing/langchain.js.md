@@ -4,13 +4,13 @@
 
 This module provides automatic instrumentation for LangChain.js, more specifically, the @langchain/core module. which may be used in conjunction with @opentelemetry/sdk-trace-node.
 
-## Installation
+## Install
 
 ```bash
 npm install --save @arizeai/openinference-instrumentation-langchain
 ```
 
-## Usage
+## Setup
 
 To load the LangChain instrumentation, manually instrument the `@langchain/core/callbacks/manager` module. The callbacks manager must be manually instrumented due to the non-traditional module structure in `@langchain/core`. Additional instrumentations can be registered as usual in the registerInstrumentations function.
 
@@ -30,3 +30,8 @@ const lcInstrumentation = new LangChainInstrumentation();
 lcInstrumentation.manuallyInstrument(CallbackManagerModule);
 
 ```
+
+## Resources
+
+* [Example project](https://github.com/Arize-ai/openinference/blob/main/js/packages/openinference-instrumentation-langchain/examples)
+* [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/js/packages/openinference-instrumentation-langchain)
