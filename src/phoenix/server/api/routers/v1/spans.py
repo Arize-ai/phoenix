@@ -23,7 +23,7 @@ from .utils import RequestBody, ResponseBody, add_errors_to_responses
 
 DEFAULT_SPAN_LIMIT = 1000
 
-router = APIRouter(tags=["traces"])
+router = APIRouter(tags=["spans"])
 
 
 class SpanQuery(V1RoutesBaseModel):
